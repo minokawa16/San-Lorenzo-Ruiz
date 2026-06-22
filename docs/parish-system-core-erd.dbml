@@ -1,0 +1,105 @@
+// Parish Management System ERD - core printable version
+// This is for ERD presentation only. It does not remove tables from the project/database.
+// Paste this into https://dbdiagram.io
+
+Table users {
+  id int [pk, increment]
+  fullname varchar
+  email varchar [unique]
+  phone_number varchar
+  role varchar
+  status varchar
+}
+
+Table requests {
+  request_id int [pk, increment]
+  user_id int [not null]
+  request_type varchar
+  description text
+  status varchar
+  reference_number varchar [unique]
+  date_requested timestamp
+}
+
+Table reservations {
+  reservation_id int [pk, increment]
+  user_id int [not null]
+  reservation_type varchar
+  event_date date
+  event_time time
+  status varchar
+}
+
+Table schedule_events {
+  schedule_id int [pk, increment]
+  title varchar
+  event_date date
+  start_time time
+  location varchar
+  status varchar
+  created_by int [not null]
+}
+
+Table announcements {
+  announcement_id int [pk, increment]
+  title varchar
+  content text
+  published_by int [not null]
+  published_date timestamp
+  status varchar
+}
+
+Table sacramental_records {
+  record_id int [pk, increment]
+  request_id int [not null]
+  record_type varchar [note: 'baptism, confirmation, first communion, marriage, or funeral']
+  person_name varchar
+  sacrament_date date
+  minister_or_priest varchar
+  status varchar
+}
+
+Table certificate_issuances {
+  certificate_id int [pk, increment]
+  certificate_type varchar
+  record_id int [not null]
+  certificate_number varchar [unique]
+  verification_code varchar [unique]
+  issued_by int
+  issued_at timestamp
+}
+
+Table notifications {
+  notification_id int [pk, increment]
+  user_id int [not null]
+  title varchar
+  message text
+  is_read boolean
+}
+
+Table request_documents {
+  document_id int [pk, increment]
+  request_id int [not null]
+  uploaded_by int [not null]
+  document_type varchar
+  file_path varchar
+}
+
+// Core relationships
+Ref: requests.user_id > users.id
+Ref: reservations.user_id > users.id
+Ref: schedule_events.created_by > users.id
+Ref: announcements.published_by > users.id
+Ref: notifications.user_id > users.id
+
+Ref: request_documents.request_id > requests.request_id
+Ref: request_documents.uploaded_by > users.id
+
+Ref: sacramental_records.request_id > requests.request_id
+Ref: certificate_issuances.record_id > sacramental_records.record_id
+Ref: certificate_issuances.issued_by > users.id
+
+// Presentation note:
+// In the real database, sacramental_records is split into:
+// baptism_records, confirmation_records, first_communion_records,
+// marriage_records, and funeral_records.

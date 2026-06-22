@@ -1,0 +1,2 @@
+[2026-05-19 12:16:33] [ERROR] [User: 4] [IP: ::1] SELECT query failed: Prepare failed: Table 'parish_management_system.audit_logs' doesn't exist 
+[2026-05-19 12:16:33] [ERROR] [User: 4] [IP: ::1] SELECT query failed: Prepare failed: Table 'parish_management_system.request_documents' doesn't exist 

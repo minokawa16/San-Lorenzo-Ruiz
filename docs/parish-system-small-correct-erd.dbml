@@ -1,0 +1,95 @@
+// Parish Management System ERD - small but correct version
+// Uses real database tables only.
+// Paste this into https://dbdiagram.io
+
+Table users {
+  id int [pk, increment]
+  fullname varchar
+  email varchar [unique]
+  phone_number varchar
+  role varchar
+  status varchar
+}
+
+Table requests {
+  request_id int [pk, increment]
+  user_id int [not null]
+  request_type varchar
+  description text
+  status varchar
+  reference_number varchar [unique]
+  date_requested timestamp
+}
+
+Table request_documents {
+  document_id int [pk, increment]
+  request_id int [not null]
+  uploaded_by int [not null]
+  document_type varchar
+  file_path varchar
+  uploaded_at timestamp
+}
+
+Table reservations {
+  reservation_id int [pk, increment]
+  user_id int [not null]
+  reservation_type varchar
+  event_date date
+  event_time time
+  status varchar
+}
+
+Table announcements {
+  announcement_id int [pk, increment]
+  title varchar
+  content text
+  published_by int [not null]
+  published_date timestamp
+  status varchar
+}
+
+Table schedule_events {
+  schedule_id int [pk, increment]
+  title varchar
+  event_date date
+  start_time time
+  location varchar
+  status varchar
+  created_by int [not null]
+}
+
+Table notifications {
+  notification_id int [pk, increment]
+  user_id int [not null]
+  title varchar
+  message text
+  is_read boolean
+}
+
+Table certificate_issuances {
+  certificate_id int [pk, increment]
+  certificate_type varchar
+  record_table varchar [note: 'Name of record table, such as baptism_records or marriage_records']
+  record_id int [note: 'ID from the selected record table']
+  certificate_number varchar [unique]
+  verification_code varchar [unique]
+  issued_by int
+  issued_at timestamp
+}
+
+// Correct main relationships
+Ref: requests.user_id > users.id
+Ref: request_documents.request_id > requests.request_id
+Ref: request_documents.uploaded_by > users.id
+
+Ref: reservations.user_id > users.id
+Ref: announcements.published_by > users.id
+Ref: schedule_events.created_by > users.id
+Ref: notifications.user_id > users.id
+Ref: certificate_issuances.issued_by > users.id
+
+// Note:
+// certificate_issuances.record_table + record_id is a polymorphic reference.
+// It points to one of the real sacramental record tables:
+// baptism_records, confirmation_records, first_communion_records,
+// marriage_records, or funeral_records.

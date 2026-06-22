@@ -1,0 +1,8 @@
+[2026-05-17 20:36:58] [ERROR] [User: 4] [IP: ::1] SELECT query failed: Prepare failed: Table 'parish_management_system.audit_logs' doesn't exist 
+[2026-05-17 20:36:58] [ERROR] [User: 4] [IP: ::1] SELECT query failed: Prepare failed: Table 'parish_management_system.request_documents' doesn't exist 
+[2026-05-17 20:37:07] [ERROR] [User: 4] [IP: ::1] Error processing request: CSRF token validation failed 
+[2026-05-17 20:37:07] [ERROR] [User: 4] [IP: ::1] SELECT query failed: Prepare failed: Table 'parish_management_system.audit_logs' doesn't exist 
+[2026-05-17 20:37:07] [ERROR] [User: 4] [IP: ::1] SELECT query failed: Prepare failed: Table 'parish_management_system.request_documents' doesn't exist 
+[2026-05-17 20:37:19] [ERROR] [User: 4] [IP: ::1] Error processing request: CSRF token validation failed 
+[2026-05-17 20:37:19] [ERROR] [User: 4] [IP: ::1] SELECT query failed: Prepare failed: Table 'parish_management_system.audit_logs' doesn't exist 
+[2026-05-17 20:37:19] [ERROR] [User: 4] [IP: ::1] SELECT query failed: Prepare failed: Table 'parish_management_system.request_documents' doesn't exist 

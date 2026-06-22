@@ -1,0 +1,263 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1120" viewBox="0 0 1600 1120">
+  <defs>
+    <style>
+      .bg { fill: #f7f7f4; }
+      .title { font: 700 34px Arial, sans-serif; fill: #24312f; }
+      .subtitle { font: 16px Arial, sans-serif; fill: #55605d; }
+      .box { fill: #ffffff; stroke: #2f4f4a; stroke-width: 2; rx: 8; }
+      .box.core { fill: #edf7f2; stroke: #1f6b4b; }
+      .box.record { fill: #fff7e8; stroke: #9c6718; }
+      .box.system { fill: #eef2fb; stroke: #4d679c; }
+      .head { font: 700 17px Arial, sans-serif; fill: #182522; }
+      .field { font: 13px Arial, sans-serif; fill: #33403d; }
+      .note { font: 12px Arial, sans-serif; fill: #66706d; }
+      .line { fill: none; stroke: #1f6b4b; stroke-width: 2.2; marker-end: url(#arrow); }
+      .inferred { fill: none; stroke: #9c6718; stroke-width: 2; stroke-dasharray: 7 6; marker-end: url(#arrow2); }
+      .poly { fill: none; stroke: #7a5b9a; stroke-width: 2; stroke-dasharray: 3 5; marker-end: url(#arrow3); }
+      .legend-box { fill: #ffffff; stroke: #d2d8d5; stroke-width: 1.5; rx: 8; }
+    </style>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#1f6b4b" />
+    </marker>
+    <marker id="arrow2" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#9c6718" />
+    </marker>
+    <marker id="arrow3" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#7a5b9a" />
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1600" height="1120" />
+  <text class="title" x="48" y="58">Parish Management System ERD</text>
+  <text class="subtitle" x="48" y="86">Database: parish_management_system | 24 tables | solid lines = enforced foreign keys, dashed lines = inferred relationships</text>
+
+  <g transform="translate(1215,35)">
+    <rect class="legend-box" x="0" y="0" width="330" height="96" />
+    <line class="line" x1="18" y1="28" x2="92" y2="28" />
+    <text class="note" x="110" y="32">Actual MySQL foreign key</text>
+    <line class="inferred" x1="18" y1="56" x2="92" y2="56" />
+    <text class="note" x="110" y="60">Inferred by matching id columns</text>
+    <line class="poly" x1="18" y1="80" x2="92" y2="80" />
+    <text class="note" x="110" y="84">Polymorphic reference</text>
+  </g>
+
+  <!-- Actual foreign key relationships from users -->
+  <path class="line" d="M780 198 C690 230, 570 255, 390 280" />
+  <path class="line" d="M780 198 C905 240, 1025 260, 1210 280" />
+  <path class="line" d="M880 165 C1015 170, 1145 180, 1210 185" />
+  <path class="line" d="M880 180 C1015 195, 1135 220, 1210 240" />
+  <path class="line" d="M700 165 C585 160, 455 170, 390 190" />
+  <path class="line" d="M780 198 C750 245, 715 290, 690 340" />
+  <path class="line" d="M700 180 C565 210, 445 235, 390 235" />
+
+  <!-- Inferred request relationships -->
+  <path class="inferred" d="M310 360 C280 445, 265 520, 265 610" />
+  <path class="inferred" d="M330 360 C420 445, 485 525, 500 610" />
+  <path class="inferred" d="M350 360 C575 445, 665 525, 735 610" />
+  <path class="inferred" d="M370 360 C735 445, 880 525, 970 610" />
+  <path class="inferred" d="M390 345 C900 410, 1115 500, 1205 610" />
+  <path class="inferred" d="M390 315 C500 330, 560 335, 650 355" />
+
+  <!-- Inferred user relationships -->
+  <path class="inferred" d="M880 198 C1010 305, 1135 375, 1210 455" />
+  <path class="inferred" d="M880 198 C1040 355, 1165 475, 1210 545" />
+  <path class="inferred" d="M700 198 C505 365, 405 470, 390 535" />
+  <path class="inferred" d="M700 198 C465 320, 305 400, 155 455" />
+  <path class="inferred" d="M700 198 C520 285, 300 325, 155 365" />
+  <path class="inferred" d="M880 198 C1040 285, 1305 325, 1445 365" />
+  <path class="inferred" d="M880 198 C1080 335, 1320 410, 1445 455" />
+  <path class="inferred" d="M700 198 C500 255, 290 275, 155 280" />
+
+  <!-- Certificate polymorphic relationships -->
+  <path class="poly" d="M785 860 C675 825, 540 785, 345 725" />
+  <path class="poly" d="M845 860 C770 820, 700 785, 580 725" />
+  <path class="poly" d="M905 860 C865 820, 820 780, 815 725" />
+  <path class="poly" d="M965 860 C985 820, 1005 780, 1050 725" />
+  <path class="poly" d="M1025 860 C1115 820, 1190 780, 1285 725" />
+
+  <!-- Core tables -->
+  <g transform="translate(700,120)">
+    <rect class="box core" width="180" height="78" />
+    <text class="head" x="14" y="26">users</text>
+    <text class="field" x="14" y="48">PK id</text>
+    <text class="field" x="14" y="66">email, role, status</text>
+  </g>
+
+  <g transform="translate(210,280)">
+    <rect class="box core" width="180" height="82" />
+    <text class="head" x="14" y="26">requests</text>
+    <text class="field" x="14" y="48">PK request_id</text>
+    <text class="field" x="14" y="66">FK user_id</text>
+  </g>
+
+  <g transform="translate(1210,270)">
+    <rect class="box core" width="180" height="86" />
+    <text class="head" x="14" y="26">reservations</text>
+    <text class="field" x="14" y="48">PK reservation_id</text>
+    <text class="field" x="14" y="66">FK user_id</text>
+  </g>
+
+  <g transform="translate(1210,165)">
+    <rect class="box core" width="180" height="82" />
+    <text class="head" x="14" y="26">announcements</text>
+    <text class="field" x="14" y="48">PK announcement_id</text>
+    <text class="field" x="14" y="66">FK published_by</text>
+  </g>
+
+  <g transform="translate(650,340)">
+    <rect class="box core" width="190" height="88" />
+    <text class="head" x="14" y="26">request_documents</text>
+    <text class="field" x="14" y="48">PK document_id</text>
+    <text class="field" x="14" y="66">FK request_id</text>
+    <text class="field" x="14" y="82">FK uploaded_by</text>
+  </g>
+
+  <g transform="translate(1210,455)">
+    <rect class="box core" width="190" height="82" />
+    <text class="head" x="14" y="26">notifications</text>
+    <text class="field" x="14" y="48">PK notification_id</text>
+    <text class="field" x="14" y="66">FK user_id</text>
+  </g>
+
+  <g transform="translate(1210,545)">
+    <rect class="box core" width="205" height="82" />
+    <text class="head" x="14" y="26">notification_preferences</text>
+    <text class="field" x="14" y="48">PK preference_id</text>
+    <text class="field" x="14" y="66">FK user_id</text>
+  </g>
+
+  <g transform="translate(1445,365)">
+    <rect class="box system" width="130" height="78" />
+    <text class="head" x="14" y="26">otp_codes</text>
+    <text class="field" x="14" y="48">PK otp_id</text>
+    <text class="field" x="14" y="66">FK user_id</text>
+  </g>
+
+  <g transform="translate(1445,455)">
+    <rect class="box system" width="145" height="82" />
+    <text class="head" x="14" y="26">email_verifications</text>
+    <text class="field" x="14" y="48">PK verification_id</text>
+    <text class="field" x="14" y="66">FK user_id</text>
+  </g>
+
+  <g transform="translate(1210,635)">
+    <rect class="box system" width="165" height="82" />
+    <text class="head" x="14" y="26">notification_logs</text>
+    <text class="field" x="14" y="48">PK log_id</text>
+    <text class="field" x="14" y="66">user_id, email</text>
+  </g>
+
+  <g transform="translate(155,455)">
+    <rect class="box system" width="165" height="82" />
+    <text class="head" x="14" y="26">chatbot_inquiries</text>
+    <text class="field" x="14" y="48">PK inquiry_id</text>
+    <text class="field" x="14" y="66">FK user_id</text>
+  </g>
+
+  <g transform="translate(155,365)">
+    <rect class="box system" width="145" height="78" />
+    <text class="head" x="14" y="26">audit_log</text>
+    <text class="field" x="14" y="48">PK log_id</text>
+    <text class="field" x="14" y="66">FK user_id</text>
+  </g>
+
+  <g transform="translate(155,260)">
+    <rect class="box system" width="185" height="82" />
+    <text class="head" x="14" y="26">certificate_templates</text>
+    <text class="field" x="14" y="48">PK template_id</text>
+    <text class="field" x="14" y="66">FK created_by</text>
+  </g>
+
+  <g transform="translate(1210,750)">
+    <rect class="box system" width="165" height="78" />
+    <text class="head" x="14" y="26">maintenance_logs</text>
+    <text class="field" x="14" y="48">PK maintenance_id</text>
+    <text class="field" x="14" y="66">admin_id</text>
+  </g>
+
+  <g transform="translate(1400,750)">
+    <rect class="box system" width="150" height="78" />
+    <text class="head" x="14" y="26">recovery_logs</text>
+    <text class="field" x="14" y="48">PK recovery_id</text>
+    <text class="field" x="14" y="66">admin_id</text>
+  </g>
+
+  <g transform="translate(1210,880)">
+    <rect class="box system" width="165" height="76" />
+    <text class="head" x="14" y="26">system_settings</text>
+    <text class="field" x="14" y="48">PK setting_key</text>
+    <text class="field" x="14" y="66">setting_value</text>
+  </g>
+
+  <g transform="translate(390,525)">
+    <rect class="box system" width="180" height="82" />
+    <text class="head" x="14" y="26">schedule_events</text>
+    <text class="field" x="14" y="48">PK schedule_id</text>
+    <text class="field" x="14" y="66">FK created_by</text>
+  </g>
+
+  <g transform="translate(1385,165)">
+    <rect class="box core" width="195" height="82" />
+    <text class="head" x="14" y="26">announcement_recipients</text>
+    <text class="field" x="14" y="48">PK recipient_id</text>
+    <text class="field" x="14" y="66">announcement_id, user_id</text>
+  </g>
+  <path class="inferred" d="M1390 205 C1400 205, 1405 205, 1385 205" />
+
+  <!-- Sacramental and parish records -->
+  <g transform="translate(185,610)">
+    <rect class="box record" width="160" height="116" />
+    <text class="head" x="14" y="26">baptism_records</text>
+    <text class="field" x="14" y="48">PK baptism_id</text>
+    <text class="field" x="14" y="66">request_id</text>
+    <text class="field" x="14" y="84">fullname</text>
+    <text class="field" x="14" y="102">baptism_date</text>
+  </g>
+
+  <g transform="translate(420,610)">
+    <rect class="box record" width="160" height="116" />
+    <text class="head" x="14" y="26">confirmation_records</text>
+    <text class="field" x="14" y="48">PK confirmation_id</text>
+    <text class="field" x="14" y="66">request_id</text>
+    <text class="field" x="14" y="84">fullname</text>
+    <text class="field" x="14" y="102">confirmation_date</text>
+  </g>
+
+  <g transform="translate(655,610)">
+    <rect class="box record" width="190" height="116" />
+    <text class="head" x="14" y="26">first_communion_records</text>
+    <text class="field" x="14" y="48">PK communion_id</text>
+    <text class="field" x="14" y="66">request_id</text>
+    <text class="field" x="14" y="84">fullname</text>
+    <text class="field" x="14" y="102">communion_date</text>
+  </g>
+
+  <g transform="translate(890,610)">
+    <rect class="box record" width="160" height="116" />
+    <text class="head" x="14" y="26">marriage_records</text>
+    <text class="field" x="14" y="48">PK marriage_id</text>
+    <text class="field" x="14" y="66">request_id</text>
+    <text class="field" x="14" y="84">husband_name</text>
+    <text class="field" x="14" y="102">wife_name</text>
+  </g>
+
+  <g transform="translate(1205,610)">
+    <rect class="box record" width="160" height="116" />
+    <text class="head" x="14" y="26">funeral_records</text>
+    <text class="field" x="14" y="48">PK funeral_id</text>
+    <text class="field" x="14" y="66">request_id</text>
+    <text class="field" x="14" y="84">deceased_name</text>
+    <text class="field" x="14" y="102">date_of_burial</text>
+  </g>
+
+  <g transform="translate(785,860)">
+    <rect class="box record" width="205" height="92" />
+    <text class="head" x="14" y="26">certificate_issuances</text>
+    <text class="field" x="14" y="48">PK certificate_id</text>
+    <text class="field" x="14" y="66">record_table + record_id</text>
+    <text class="field" x="14" y="84">certificate_number</text>
+  </g>
+
+  <text class="subtitle" x="48" y="1045">Note: MySQL currently enforces only 7 foreign keys. Dashed links are likely ERD relationships based on columns such as user_id, request_id, admin_id, announcement_id, and uploaded_by.</text>
+  <text class="subtitle" x="48" y="1073">For a normalized ERD, consider adding actual foreign key constraints for the dashed relationships after checking existing data consistency.</text>
+</svg>

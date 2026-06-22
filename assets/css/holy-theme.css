@@ -1,0 +1,845 @@
+/**
+ * HOLY THEME CSS
+ * Elegant, Sacred, Heavenly-Inspired Design System
+ * Color Palette: Heavenly Blue, Gold, Emerald, Cloud Gray
+ * 
+ * Created: May 8, 2026
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Nunito:wght@400;600;700&display=swap');
+
+:root {
+    /* Primary Colors */
+    --color-heaven-blue: #1E3A5F;
+    --color-gold: #D4AF37;
+    --color-pure-white: #FFFFFF;
+    --color-cloud-gray: #F5F7FA;
+    --color-emerald: #10B981;
+    
+    /* Secondary Colors */
+    --color-sky-light: #E0F2FE;
+    --color-cream: #FFFBF0;
+    --color-dark-blue: #0D2338;
+    
+    /* Status Colors */
+    --color-success: #10B981;
+    --color-warning: #F59E0B;
+    --color-danger: #EF4444;
+    --color-info: #3B82F6;
+    
+    /* Text Colors */
+    --color-text-primary: #1E3A5F;
+    --color-text-secondary: #6B7280;
+    --color-text-light: #9CA3AF;
+    
+    /* Shadows */
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+    --shadow-md: 0 5px 15px rgba(0, 0, 0, 0.12);
+    --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.15);
+    --shadow-xl: 0 20px 50px rgba(0, 0, 0, 0.2);
+    
+    /* Spacing */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    --spacing-2xl: 48px;
+}
+
+/* ============================================================================
+   GLOBAL STYLES
+   ============================================================================ */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    font-family: 'Poppins', 'Inter', sans-serif;
+    background: var(--color-cloud-gray);
+    color: var(--color-text-primary);
+    line-height: 1.6;
+}
+
+body {
+    background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%);
+    min-height: 100vh;
+}
+
+/* ============================================================================
+   TYPOGRAPHY
+   ============================================================================ */
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 700;
+    color: var(--color-heaven-blue);
+    margin-bottom: var(--spacing-md);
+    line-height: 1.3;
+}
+
+h1 { font-size: 32px; }
+h2 { font-size: 28px; }
+h3 { font-size: 24px; }
+h4 { font-size: 20px; }
+h5 { font-size: 16px; }
+h6 { font-size: 14px; }
+
+p {
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-md);
+}
+
+a {
+    color: var(--color-heaven-blue);
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+a:hover {
+    color: var(--color-emerald);
+    text-decoration: none;
+}
+
+/* ============================================================================
+   CARDS & CONTAINERS
+   ============================================================================ */
+
+.card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: var(--shadow-md);
+    transition: all 0.3s ease;
+    background: var(--color-pure-white);
+    border-top: 4px solid var(--color-emerald);
+}
+
+.card:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-4px);
+}
+
+.card-header {
+    background: linear-gradient(135deg, var(--color-heaven-blue) 0%, var(--color-emerald) 100%);
+    color: var(--color-pure-white);
+    border: none;
+    border-radius: 12px 12px 0 0;
+    padding: var(--spacing-lg);
+    border-left: 5px solid var(--color-gold);
+    font-weight: 600;
+}
+
+.card-body {
+    padding: var(--spacing-xl);
+}
+
+/* ============================================================================
+   BUTTONS
+   ============================================================================ */
+
+.btn {
+    border-radius: 8px;
+    font-weight: 600;
+    padding: 10px 20px;
+    transition: all 0.3s ease;
+    border: none;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--color-heaven-blue) 0%, var(--color-dark-blue) 100%);
+    color: white;
+}
+
+.btn-primary:hover, .btn-primary:focus {
+    background: linear-gradient(135deg, var(--color-dark-blue) 0%, var(--color-heaven-blue) 100%);
+    color: white;
+    box-shadow: 0 5px 20px rgba(30, 58, 95, 0.3);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, var(--color-emerald) 0%, #059669 100%);
+    color: white;
+}
+
+.btn-success:hover, .btn-success:focus {
+    background: linear-gradient(135deg, #059669 0%, var(--color-emerald) 100%);
+    color: white;
+    box-shadow: 0 5px 20px rgba(16, 185, 129, 0.3);
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, var(--color-danger) 0%, #DC2626 100%);
+    color: white;
+}
+
+.btn-danger:hover, .btn-danger:focus {
+    background: linear-gradient(135deg, #DC2626 0%, var(--color-danger) 100%);
+    color: white;
+    box-shadow: 0 5px 20px rgba(239, 68, 68, 0.3);
+}
+
+.btn-warning {
+    background: linear-gradient(135deg, var(--color-warning) 0%, #D97706 100%);
+    color: white;
+}
+
+.btn-warning:hover, .btn-warning:focus {
+    background: linear-gradient(135deg, #D97706 0%, var(--color-warning) 100%);
+    color: white;
+    box-shadow: 0 5px 20px rgba(245, 158, 11, 0.3);
+}
+
+.btn-info {
+    background: linear-gradient(135deg, var(--color-info) 0%, #1D4ED8 100%);
+    color: white;
+}
+
+.btn-info:hover, .btn-info:focus {
+    background: linear-gradient(135deg, #1D4ED8 0%, var(--color-info) 100%);
+    color: white;
+    box-shadow: 0 5px 20px rgba(59, 130, 246, 0.3);
+}
+
+.btn-outline-primary {
+    border: 2px solid var(--color-heaven-blue);
+    color: var(--color-heaven-blue);
+}
+
+.btn-outline-primary:hover {
+    background: var(--color-heaven-blue);
+    color: white;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ============================================================================
+   FORMS
+   ============================================================================ */
+
+.form-label {
+    font-weight: 600;
+    color: var(--color-heaven-blue);
+    margin-bottom: var(--spacing-sm);
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.form-control, .form-select {
+    border-radius: 8px;
+    border: 2px solid #E5E7EB;
+    padding: 10px 15px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    font-family: 'Inter', sans-serif;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--color-gold);
+    box-shadow: 0 0 0 0.2rem rgba(212, 175, 55, 0.1);
+    outline: none;
+}
+
+.form-control::placeholder {
+    color: var(--color-text-light);
+}
+
+textarea.form-control {
+    resize: vertical;
+    min-height: 120px;
+}
+
+.input-group-text {
+    background: var(--color-cloud-gray);
+    border: 2px solid #E5E7EB;
+    color: var(--color-heaven-blue);
+    font-weight: 600;
+}
+
+/* ============================================================================
+   ALERTS & STATUS
+   ============================================================================ */
+
+.alert {
+    border-radius: 8px;
+    border: none;
+    padding: 15px 20px;
+    margin-bottom: var(--spacing-lg);
+    font-weight: 500;
+}
+
+.alert-success {
+    background: linear-gradient(135deg, #D4EDDA 0%, #C3E6CB 100%);
+    color: #155724;
+    border-left: 5px solid var(--color-success);
+}
+
+.alert-danger {
+    background: linear-gradient(135deg, #F8D7DA 0%, #F5C6CB 100%);
+    color: #721C24;
+    border-left: 5px solid var(--color-danger);
+}
+
+.alert-warning {
+    background: linear-gradient(135deg, #FFF3CD 0%, #FFE69C 100%);
+    color: #856404;
+    border-left: 5px solid var(--color-warning);
+}
+
+.alert-info {
+    background: linear-gradient(135deg, #D1ECF1 0%, #BEE5EB 100%);
+    color: #0C5460;
+    border-left: 5px solid var(--color-info);
+}
+
+.badge {
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.badge-success {
+    background: linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%);
+    color: #065F46;
+}
+
+.badge-danger {
+    background: linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%);
+    color: #7F1D1D;
+}
+
+.badge-warning {
+    background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
+    color: #78350F;
+}
+
+.badge-info {
+    background: linear-gradient(135deg, #DBEAFE 0%, #BFDBFE 100%);
+    color: #0C2D6B;
+}
+
+/* ============================================================================
+   TABLES
+   ============================================================================ */
+
+.table {
+    font-size: 14px;
+}
+
+.table thead th {
+    background: linear-gradient(135deg, var(--color-heaven-blue) 0%, #0D2338 100%);
+    color: white;
+    font-weight: 600;
+    border: none;
+    padding: var(--spacing-md) var(--spacing-lg);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.table tbody td {
+    padding: var(--spacing-md) var(--spacing-lg);
+    vertical-align: middle;
+    border-bottom: 1px solid #E5E7EB;
+}
+
+.table tbody tr {
+    transition: all 0.3s ease;
+}
+
+.table tbody tr:hover {
+    background: var(--color-cloud-gray);
+}
+
+.table-hover tbody tr:hover {
+    background-color: #F0F5FF;
+}
+
+/* ============================================================================
+   MODALS
+   ============================================================================ */
+
+.modal-content {
+    border: none;
+    border-radius: 12px;
+    box-shadow: var(--shadow-xl);
+}
+
+.modal-header {
+    background: linear-gradient(135deg, var(--color-heaven-blue) 0%, var(--color-emerald) 100%);
+    color: white;
+    border: none;
+    border-radius: 12px 12px 0 0;
+    border-left: 5px solid var(--color-gold);
+    padding: var(--spacing-lg);
+}
+
+.modal-header .btn-close {
+    filter: brightness(0) invert(1);
+}
+
+.modal-body {
+    padding: var(--spacing-xl);
+}
+
+.modal-footer {
+    background: var(--color-cloud-gray);
+    border: none;
+    border-radius: 0 0 12px 12px;
+    padding: var(--spacing-lg);
+}
+
+/* ============================================================================
+   PAGINATION
+   ============================================================================ */
+
+.pagination {
+    gap: var(--spacing-sm);
+}
+
+.page-link {
+    border-radius: 6px;
+    border: 2px solid #E5E7EB;
+    color: var(--color-heaven-blue);
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.page-link:hover {
+    border-color: var(--color-heaven-blue);
+    background: var(--color-heaven-blue);
+    color: white;
+}
+
+.page-item.active .page-link {
+    background: linear-gradient(135deg, var(--color-heaven-blue) 0%, var(--color-emerald) 100%);
+    border-color: var(--color-heaven-blue);
+}
+
+/* ============================================================================
+   NAVIGATION & SIDEBAR
+   ============================================================================ */
+
+.navbar {
+    background: linear-gradient(135deg, var(--color-heaven-blue) 0%, var(--color-dark-blue) 100%);
+    box-shadow: var(--shadow-md);
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-bottom: 3px solid var(--color-gold);
+}
+
+.navbar-brand {
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--color-gold) !important;
+}
+
+.nav-link {
+    color: rgba(255, 255, 255, 0.8) !important;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    margin: 0 var(--spacing-sm);
+}
+
+.nav-link:hover {
+    color: var(--color-gold) !important;
+}
+
+.nav-link.active {
+    color: var(--color-gold) !important;
+    border-bottom: 2px solid var(--color-gold);
+}
+
+/* ============================================================================
+   CARDS - DASHBOARD
+   ============================================================================ */
+
+.dashboard-card {
+    position: relative;
+    overflow: hidden;
+    background: white;
+    border-radius: 12px;
+    border: none;
+    box-shadow: var(--shadow-md);
+    transition: all 0.3s ease;
+}
+
+.dashboard-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--color-gold) 0%, var(--color-emerald) 100%);
+}
+
+.dashboard-card:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-lg);
+}
+
+.dashboard-card .card-body {
+    padding: var(--spacing-xl);
+}
+
+.card-icon {
+    font-size: 32px !important;
+}
+
+/* ============================================================================
+   BADGES & STATUS
+   ============================================================================ */
+
+.status-pending {
+    background: linear-gradient(135deg, #FEF08A 0%, #FCD34D 100%);
+    color: #78350F;
+}
+
+.status-approved {
+    background: linear-gradient(135deg, #DCFCE7 0%, #BBF7D0 100%);
+    color: #15803D;
+}
+
+.status-rejected {
+    background: linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%);
+    color: #7F1D1D;
+}
+
+.status-completed {
+    background: linear-gradient(135deg, #DBEAFE 0%, #BFDBFE 100%);
+    color: #0C2D6B;
+}
+
+.status-processing {
+    background: linear-gradient(135deg, #E5E7EB 0%, #D1D5DB 100%);
+    color: #374151;
+}
+
+/* ============================================================================
+   ICONS
+   ============================================================================ */
+
+.icon-wrapper {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    margin-right: var(--spacing-md);
+}
+
+.icon-heaven-blue {
+    background: linear-gradient(135deg, #E0F2FE 0%, #BAE6FD 100%);
+    color: var(--color-heaven-blue);
+}
+
+.icon-emerald {
+    background: linear-gradient(135deg, #DCFCE7 0%, #BBF7D0 100%);
+    color: var(--color-emerald);
+}
+
+.icon-gold {
+    background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
+    color: #B45309;
+}
+
+/* ============================================================================
+   BREADCRUMB
+   ============================================================================ */
+
+.breadcrumb {
+    background: transparent;
+    padding: var(--spacing-md) 0;
+    margin-bottom: var(--spacing-lg);
+}
+
+.breadcrumb-item {
+    color: var(--color-text-secondary);
+}
+
+.breadcrumb-item.active {
+    color: var(--color-heaven-blue);
+    font-weight: 600;
+}
+
+.breadcrumb-item a {
+    color: var(--color-heaven-blue);
+}
+
+.breadcrumb-item a:hover {
+    color: var(--color-emerald);
+}
+
+/* ============================================================================
+   LOADING & ANIMATIONS
+   ============================================================================ */
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+.slide-in-left {
+    animation: slideInLeft 0.5s ease-in-out;
+}
+
+.spinner {
+    animation: pulse 2s infinite;
+}
+
+/* ============================================================================
+   RESPONSIVE
+   ============================================================================ */
+
+@media (max-width: 768px) {
+    h1 { font-size: 24px; }
+    h2 { font-size: 20px; }
+    h3 { font-size: 18px; }
+
+    .card-body {
+        padding: var(--spacing-lg);
+    }
+
+    .modal-body {
+        padding: var(--spacing-lg);
+    }
+
+    .btn {
+        padding: 8px 16px;
+    }
+
+    .table {
+        font-size: 12px;
+    }
+
+    .table thead th,
+    .table tbody td {
+        padding: var(--spacing-sm) var(--spacing-md);
+    }
+}
+
+@media (max-width: 576px) {
+    .container-fluid {
+        padding: var(--spacing-md);
+    }
+
+    .card {
+        margin-bottom: var(--spacing-lg);
+    }
+
+    .dashboard-card .card-body {
+        padding: var(--spacing-md);
+    }
+
+    .btn-group {
+        flex-wrap: wrap;
+    }
+
+    .btn-group .btn {
+        margin: var(--spacing-xs);
+    }
+}
+
+/* ============================================================================
+   UTILITY CLASSES
+   ============================================================================ */
+
+.text-heaven-blue { color: var(--color-heaven-blue); }
+.text-gold { color: var(--color-gold); }
+.text-emerald { color: var(--color-emerald); }
+.text-success { color: var(--color-success); }
+.text-warning { color: var(--color-warning); }
+.text-danger { color: var(--color-danger); }
+
+.bg-heaven-blue { background-color: var(--color-heaven-blue); }
+.bg-gold { background-color: var(--color-gold); }
+.bg-emerald { background-color: var(--color-emerald); }
+.bg-cloud-gray { background-color: var(--color-cloud-gray); }
+
+.rounded-holy { border-radius: 12px; }
+.shadow-holy { box-shadow: var(--shadow-lg); }
+
+.border-top-gold { border-top: 4px solid var(--color-gold); }
+.border-left-gold { border-left: 5px solid var(--color-gold); }
+
+.transition-smooth { transition: all 0.3s ease; }
+
+/* ============================================================================
+   SEARCH AUTOCOMPLETE
+   ============================================================================ */
+
+.parish-autocomplete-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+}
+
+.search-bar .parish-autocomplete-wrap {
+    display: block;
+}
+
+.search-bar .parish-autocomplete-wrap input,
+.parish-autocomplete-wrap input {
+    width: 100%;
+}
+
+.parish-autocomplete-panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    z-index: 3000;
+    overflow: hidden;
+    border: 1px solid rgba(30, 58, 95, 0.12);
+    border-radius: 8px;
+    background: var(--color-pure-white);
+    box-shadow: 0 18px 42px rgba(13, 35, 56, 0.18);
+}
+
+.parish-autocomplete-list {
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+.parish-autocomplete-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 0;
+    border-bottom: 1px solid rgba(30, 58, 95, 0.08);
+    background: transparent;
+    color: var(--color-text-primary);
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.parish-autocomplete-item:last-child {
+    border-bottom: 0;
+}
+
+.parish-autocomplete-item:hover,
+.parish-autocomplete-item.is-active {
+    background: var(--color-cream);
+}
+
+.parish-autocomplete-icon {
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
+    color: #8A5A05;
+}
+
+.parish-autocomplete-text {
+    min-width: 0;
+}
+
+.parish-autocomplete-label {
+    display: block;
+    overflow: hidden;
+    color: var(--color-heaven-blue);
+    font-weight: 700;
+    font-size: 13px;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.parish-autocomplete-text strong {
+    display: block;
+    overflow: hidden;
+    color: var(--color-heaven-blue);
+    font-weight: 700;
+    font-size: 13px;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.parish-autocomplete-meta {
+    display: block;
+    overflow: hidden;
+    margin-top: 2px;
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.parish-autocomplete-text small {
+    display: block;
+    overflow: hidden;
+    margin-top: 2px;
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.parish-autocomplete-empty {
+    padding: 13px 14px;
+    color: var(--color-text-secondary);
+    font-size: 13px;
+}

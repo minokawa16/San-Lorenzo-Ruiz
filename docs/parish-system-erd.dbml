@@ -1,0 +1,218 @@
+// Parish Management System ERD - simplified version
+// Database: parish_management_system
+// Paste this into https://dbdiagram.io
+
+Table users {
+  id int [pk, increment]
+  fullname varchar
+  email varchar [unique]
+  phone_number varchar
+  role enum('user','admin')
+  status varchar
+  created_at timestamp
+}
+
+Table requests {
+  request_id int [pk, increment]
+  user_id int [not null]
+  request_type varchar
+  description text
+  status varchar
+  reference_number varchar [unique]
+  date_requested timestamp
+}
+
+Table request_documents {
+  document_id int [pk, increment]
+  request_id int [not null]
+  uploaded_by int [not null]
+  document_type varchar
+  file_path varchar
+  uploaded_at timestamp
+}
+
+Table reservations {
+  reservation_id int [pk, increment]
+  user_id int [not null]
+  reservation_type varchar
+  event_date date
+  event_time time
+  status varchar
+}
+
+Table schedule_events {
+  schedule_id int [pk, increment]
+  title varchar
+  event_date date
+  start_time time
+  location varchar
+  status varchar
+  source_type varchar
+  source_id int
+  created_by int [not null]
+}
+
+Table announcements {
+  announcement_id int [pk, increment]
+  title varchar
+  content text
+  type varchar
+  published_by int [not null]
+  published_date timestamp
+  status varchar
+}
+
+Table announcement_recipients {
+  recipient_id int [pk, increment]
+  announcement_id int [not null]
+  user_id int [not null]
+  email varchar
+  delivery_status varchar
+}
+
+Table notifications {
+  notification_id int [pk, increment]
+  user_id int [not null]
+  title varchar
+  message text
+  is_read boolean
+  created_at timestamp
+}
+
+Table baptism_records {
+  baptism_id int [pk, increment]
+  request_id int
+  fullname varchar
+  birth_date date
+  baptism_date date
+  parents varchar
+  godparents varchar
+  priest varchar
+  status varchar
+}
+
+Table confirmation_records {
+  confirmation_id int [pk, increment]
+  request_id int
+  fullname varchar
+  birth_date date
+  confirmation_date date
+  sponsor varchar
+  bishop_priest varchar
+  status varchar
+}
+
+Table first_communion_records {
+  communion_id int [pk, increment]
+  request_id int
+  fullname varchar
+  birth_date date
+  communion_date date
+  parents varchar
+  sponsor varchar
+  priest varchar
+  status varchar
+}
+
+Table marriage_records {
+  marriage_id int [pk, increment]
+  request_id int
+  husband_name varchar
+  wife_name varchar
+  wedding_date date
+  sponsors varchar
+  officiating_priest varchar
+  status varchar
+}
+
+Table funeral_records {
+  funeral_id int [pk, increment]
+  request_id int
+  deceased_name varchar
+  family_name varchar
+  date_of_death date
+  date_of_burial date
+  minister varchar
+  status varchar
+}
+
+Table certificate_issuances {
+  certificate_id int [pk, increment]
+  certificate_type varchar
+  record_table varchar [note: 'Points to sacramental record table']
+  record_id int [note: 'Points to sacramental record ID']
+  certificate_number varchar [unique]
+  verification_code varchar [unique]
+  issued_by int
+  issued_at timestamp
+}
+
+Table certificate_templates {
+  template_id int [pk, increment]
+  certificate_type varchar
+  template_content text
+  created_by int [not null]
+}
+
+Table audit_log {
+  log_id int [pk, increment]
+  user_id int
+  action varchar
+  table_name varchar
+  record_id int
+  created_at timestamp
+}
+
+Table chatbot_inquiries {
+  inquiry_id int [pk, increment]
+  user_id int
+  question text
+  answer_preview text
+  created_at timestamp
+}
+
+Table otp_codes {
+  otp_id int [pk, increment]
+  user_id int [not null]
+  email varchar
+  purpose varchar
+  expires_at datetime
+}
+
+Table email_verifications {
+  verification_id int [pk, increment]
+  user_id int [not null]
+  email varchar
+  token_hash varchar
+  expires_at datetime
+  verified_at datetime
+}
+
+// Main relationships
+Ref: requests.user_id > users.id
+Ref: reservations.user_id > users.id
+Ref: announcements.published_by > users.id
+Ref: notifications.user_id > users.id
+Ref: schedule_events.created_by > users.id
+Ref: audit_log.user_id > users.id
+Ref: certificate_templates.created_by > users.id
+
+Ref: request_documents.request_id > requests.request_id
+Ref: request_documents.uploaded_by > users.id
+
+Ref: announcement_recipients.announcement_id > announcements.announcement_id
+Ref: announcement_recipients.user_id > users.id
+
+Ref: baptism_records.request_id > requests.request_id
+Ref: confirmation_records.request_id > requests.request_id
+Ref: first_communion_records.request_id > requests.request_id
+Ref: marriage_records.request_id > requests.request_id
+Ref: funeral_records.request_id > requests.request_id
+
+Ref: certificate_issuances.issued_by > users.id
+Ref: chatbot_inquiries.user_id > users.id
+Ref: otp_codes.user_id > users.id
+Ref: email_verifications.user_id > users.id
+
+// certificate_issuances.record_table + record_id is polymorphic.
+// It can refer to baptism, confirmation, first communion, marriage, or funeral records.
