@@ -37,6 +37,12 @@ for directory in uploads storage backups cache logs; do
 done
 
 chown -R www-data:www-data "${data_root}"
-printf 'session.save_path="%s"\n' "${data_root}/sessions" > /usr/local/etc/php/conf.d/tugon-session.ini
+printf '%s\n' \
+    "session.save_path=\"${data_root}/sessions\"" \
+    'session.cookie_secure=1' \
+    'session.cookie_httponly=1' \
+    'session.cookie_samesite="Lax"' \
+    'session.use_strict_mode=1' \
+    > /usr/local/etc/php/conf.d/tugon-session.ini
 
 exec "$@"
