@@ -14,6 +14,9 @@ RUN apt-get update \
         tesseract-ocr \
     && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
     && docker-php-ext-install -j"$(nproc)" curl gd mbstring mysqli pdo_mysql zip \
+    && (a2dismod mpm_event mpm_worker || true)
+
+RUN a2enmod mpm_prefork \
     && a2enmod headers rewrite \
     && rm -rf /var/lib/apt/lists/*
 
