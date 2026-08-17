@@ -11,9 +11,13 @@ sed -ri "s/<VirtualHost \*:[0-9]+>/<VirtualHost *:${port}>/" /etc/apache2/sites-
 # leaving an MPM load file enabled. Apache refuses to start when both exist.
 compiled_mpm="$(apache2 -l 2>/dev/null | grep -E '(prefork|worker|event)\.c' || true)"
 if [ -n "${compiled_mpm}" ]; then
-    rm -f /etc/apache2/mods-enabled/mpm_*.load
+    rm -f /etc/apache2/mods-enabled/mpm_*.load /etc/apache2/mods-enabled/mpm_*.conf
 else
-    rm -f /etc/apache2/mods-enabled/mpm_event.load /etc/apache2/mods-enabled/mpm_worker.load
+    rm -f \
+        /etc/apache2/mods-enabled/mpm_event.load \
+        /etc/apache2/mods-enabled/mpm_event.conf \
+        /etc/apache2/mods-enabled/mpm_worker.load \
+        /etc/apache2/mods-enabled/mpm_worker.conf
     ln -sf /etc/apache2/mods-available/mpm_prefork.load /etc/apache2/mods-enabled/mpm_prefork.load
 fi
 
