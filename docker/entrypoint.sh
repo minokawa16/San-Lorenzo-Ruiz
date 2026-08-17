@@ -7,6 +7,16 @@ data_root="${TUGON_DATA_DIR:-${RAILWAY_VOLUME_MOUNT_PATH:-/var/www/tugon-data}}"
 sed -ri "s/^Listen [0-9]+$/Listen ${port}/" /etc/apache2/ports.conf
 sed -ri "s/<VirtualHost \*:[0-9]+>/<VirtualHost *:${port}>/" /etc/apache2/sites-available/000-default.conf
 
+# Some Debian package combinations compile an MPM into Apache while also
+# leaving an MPM load file enabled. Apache refuses to start when both exist.
+compiled_mpm="$(apache2 -l 2>/dev/null | grep -E '(prefork|worker|event)\.c' || true)"
+if [ -n "${compiled_mpm}" ]; then
+    rm -f /etc/apache2/mods-enabled/mpm_*.load
+else
+    rm -f /etc/apache2/mods-enabled/mpm_event.load /etc/apache2/mods-enabled/mpm_worker.load
+    ln -sf /etc/apache2/mods-available/mpm_prefork.load /etc/apache2/mods-enabled/mpm_prefork.load
+fi
+
 mkdir -p "${data_root}" "${data_root}/sessions"
 
 for directory in uploads storage backups cache logs; do
