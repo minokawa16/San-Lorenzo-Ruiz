@@ -6,6 +6,7 @@ config/db.local.php
 
 # Node dependencies and generated output
 node_modules/
+.vercel/
 dist/
 coverage/
 npm-debug.log*
