@@ -24,6 +24,12 @@ try {
         case 'confirmation':
             $sql = "SELECT confirmation_id as id, fullname as name, confirmation_date FROM confirmation_records WHERE status='active' ORDER BY confirmation_date DESC LIMIT 100";
             break;
+        case 'marriage':
+            $sql = "SELECT marriage_id as id, CONCAT(husband_name, ' and ', wife_name) as name, wedding_date FROM marriage_records WHERE status='active' ORDER BY wedding_date DESC LIMIT 100";
+            break;
+        case 'funeral':
+            $sql = "SELECT funeral_id as id, deceased_name as name, date_of_burial FROM funeral_records WHERE status='active' ORDER BY date_of_burial DESC LIMIT 100";
+            break;
         default:
             throw new Exception('Invalid record type');
     }

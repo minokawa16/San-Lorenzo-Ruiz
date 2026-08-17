@@ -761,14 +761,6 @@ function maintenanceAdminName($conn, $admin_id) {
     return $row ? $row['fullname'] : 'System';
 }
 
-function costValue($conn, $key, $default = '') {
-    return readSetting($conn, 'ops_' . $key, $default);
-}
-
-function costFloat($conn, $key, $default = 0) {
-    return max(0, floatval(costValue($conn, $key, $default)));
-}
-
 // Upload Handling - Saves manually uploaded recovery packages for validation and restore.
 function saveUploadedRecoveryPackage($backup_dir) {
     if (empty($_FILES['recovery_package']['tmp_name'])) {
@@ -927,36 +919,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             writeSetting($conn, 'weekly_backup_day', $_POST['weekly_backup_day'] ?? 'Sunday');
             writeSetting($conn, 'monthly_backup_day', $_POST['monthly_backup_day'] ?? '1');
             $success = 'Automated backup schedule settings saved.';
-        } elseif ($action === 'save_operational_costs') {
-            $text_fields = [
-                'hosting_provider',
-                'hosting_plan',
-                'server_specs',
-                'domain_name',
-                'ssl_status',
-                'backup_location',
-                'subscription_notes'
-            ];
-            foreach ($text_fields as $field) {
-                writeSetting($conn, 'ops_' . $field, trim($_POST[$field] ?? ''));
-            }
-
-            $cost_fields = [
-                'hosting_monthly',
-                'domain_monthly',
-                'ssl_monthly',
-                'sms_monthly',
-                'email_monthly',
-                'backup_monthly',
-                'maintenance_monthly'
-            ];
-            foreach ($cost_fields as $field) {
-                writeSetting($conn, 'ops_' . $field, number_format(max(0, floatval($_POST[$field] ?? 0)), 2, '.', ''));
-            }
-
-            insertMaintenanceLog($conn, $_SESSION['user_id'], 'operational_cost_update', 'completed', 'Hosting requirements and operational cost documentation updated.');
-            createAuditLog($conn, $_SESSION['user_id'], 'UPDATE_OPERATIONAL_COSTS', 'system', 0);
-            $success = 'Hosting and operational cost monitoring details saved.';
         } elseif ($action === 'run_maintenance') {
             $details = runMonthlyMaintenance($conn, $backup_dir, $project_root);
             $removed = enforceRetentionPolicy($backup_dir);
@@ -1037,26 +999,6 @@ if ($zip_status === 'critical') {
 if ($storage_status !== 'healthy') {
     $critical_alerts[] = 'Backup storage is approaching the configured local limit.';
 }
-$hosting_provider = costValue($conn, 'hosting_provider', 'Localhost / XAMPP');
-$hosting_plan = costValue($conn, 'hosting_plan', 'Development machine');
-$server_specs = costValue($conn, 'server_specs', 'Apache, PHP, MySQL on local workstation');
-$domain_name = costValue($conn, 'domain_name', 'Not yet deployed');
-$ssl_status = costValue($conn, 'ssl_status', 'Pending deployment');
-$backup_location = costValue($conn, 'backup_location', 'Local backups folder');
-$subscription_notes = costValue($conn, 'subscription_notes', 'SMTP, SMS gateway, and hosting subscriptions will be finalized before online deployment.');
-$costs = [
-    'Hosting' => costFloat($conn, 'hosting_monthly', 0),
-    'Domain' => costFloat($conn, 'domain_monthly', 0),
-    'SSL' => costFloat($conn, 'ssl_monthly', 0),
-    'SMS Gateway' => costFloat($conn, 'sms_monthly', 0),
-    'Email Service' => costFloat($conn, 'email_monthly', 0),
-    'Backup Storage' => costFloat($conn, 'backup_monthly', 0),
-    'Maintenance' => costFloat($conn, 'maintenance_monthly', 0)
-];
-$monthly_total = array_sum($costs);
-$annual_total = $monthly_total * 12;
-$max_cost = max(1, max($costs));
-
 $breadcrumbs = [
     'Dashboard' => 'dashboard.php',
     'Backup, Recovery & Maintenance Center' => null
@@ -1105,14 +1047,6 @@ $breadcrumbs = [
     .analytics-tile { border: 1px solid #edf0f3; border-radius: 8px; padding: 14px; background: #f9fafb; min-height: 118px; }
     .analytics-tile span { display: block; color: #667085; font-size: .78rem; font-weight: 800; text-transform: uppercase; }
     .analytics-tile strong { display: block; color: #101828; font-size: 1.35rem; margin: 8px 0 6px; }
-    .cost-layout { display: grid; grid-template-columns: .9fr 1.1fr; gap: 16px; }
-    .cost-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
-    .cost-card { border: 1px solid #e4e7ec; border-radius: 8px; padding: 15px; background: #f9fafb; }
-    .cost-card span { display: block; color: #667085; font-size: .78rem; font-weight: 800; text-transform: uppercase; }
-    .cost-card strong { color: #101828; font-size: 1.55rem; }
-    .cost-bar { display: grid; grid-template-columns: 120px 1fr 86px; gap: 10px; align-items: center; margin-bottom: 10px; color: #475467; font-size: .9rem; }
-    .bar-track { height: 10px; border-radius: 999px; background: #eef2f6; overflow: hidden; }
-    .bar-fill { height: 100%; border-radius: inherit; background: #175cd3; }
     .alert-list { display: grid; gap: 10px; }
     .alert-item { display: flex; gap: 10px; align-items: flex-start; border: 1px solid #fedf89; border-radius: 8px; padding: 11px; background: #fffbeb; color: #7a4b00; }
     .alert-item.ok { border-color: #abefc6; background: #ecfdf3; color: #027a48; }
@@ -1121,16 +1055,15 @@ $breadcrumbs = [
     .coverage-list { columns: 2; }
     @media (max-width: 1100px) {
         .metric-grid, .enterprise-grid, .health-grid, .analytics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        .maintenance-dashboard, .cost-layout { grid-template-columns: 1fr; }
+        .maintenance-dashboard { grid-template-columns: 1fr; }
         .recovery-hero { grid-template-columns: 1fr; }
         .hero-actions { justify-content: flex-start; }
         .wizard-steps { grid-template-columns: repeat(2, 1fr); }
     }
     @media (max-width: 640px) {
-        .metric-grid, .enterprise-grid, .health-grid, .wizard-steps, .analytics-grid, .cost-summary { grid-template-columns: 1fr; }
+        .metric-grid, .enterprise-grid, .health-grid, .wizard-steps, .analytics-grid { grid-template-columns: 1fr; }
         .recovery-hero { padding: 20px; }
         .coverage-list { columns: 1; }
-        .cost-bar { grid-template-columns: 1fr; }
     }
 </style>
 
@@ -1338,107 +1271,6 @@ $breadcrumbs = [
             <a href="#logs" class="btn btn-outline-secondary w-100"><i class="fas fa-list"></i> View Logs</a>
         </div>
     </div>
-
-    <section class="dashboard-panel mb-4" id="operationalCosts">
-        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
-            <div>
-                <h2><i class="fas fa-server"></i> Hosting and Operational Cost Monitoring</h2>
-                <p class="text-muted mb-0">Document deployment requirements, server specifications, domain and SSL status, subscriptions, and projected operating costs.</p>
-            </div>
-            <div class="status-pill status-<?php echo $monthly_total > 0 ? 'healthy' : 'warning'; ?>">
-                <span class="status-dot"></span><?php echo $monthly_total > 0 ? 'Cost Plan Documented' : 'Localhost / Pending Cost Plan'; ?>
-            </div>
-        </div>
-
-        <div class="cost-layout">
-            <div>
-                <div class="cost-summary">
-                    <div class="cost-card">
-                        <span>Estimated Monthly</span>
-                        <strong>PHP <?php echo number_format($monthly_total, 2); ?></strong>
-                    </div>
-                    <div class="cost-card">
-                        <span>Estimated Annual</span>
-                        <strong>PHP <?php echo number_format($annual_total, 2); ?></strong>
-                    </div>
-                </div>
-
-                <?php foreach ($costs as $label => $amount): ?>
-                    <div class="cost-bar">
-                        <strong><?php echo e($label); ?></strong>
-                        <div class="bar-track"><div class="bar-fill" style="width: <?php echo intval(round(($amount / $max_cost) * 100)); ?>%"></div></div>
-                        <span>PHP <?php echo number_format($amount, 2); ?></span>
-                    </div>
-                <?php endforeach; ?>
-
-                <div class="row g-2 mt-3">
-                    <div class="col-md-6"><strong>Provider:</strong> <?php echo e($hosting_provider); ?></div>
-                    <div class="col-md-6"><strong>Plan:</strong> <?php echo e($hosting_plan); ?></div>
-                    <div class="col-md-6"><strong>Domain:</strong> <?php echo e($domain_name); ?></div>
-                    <div class="col-md-6"><strong>SSL:</strong> <?php echo e($ssl_status); ?></div>
-                    <div class="col-12"><strong>Server Specs:</strong> <?php echo e($server_specs); ?></div>
-                    <div class="col-12"><strong>Backup Location:</strong> <?php echo e($backup_location); ?></div>
-                </div>
-            </div>
-
-            <form method="POST">
-                <input type="hidden" name="action" value="save_operational_costs">
-                <h3 class="form-section-title">Operational Documentation</h3>
-                <div class="row g-2">
-                    <div class="col-md-6">
-                        <label class="form-label">Hosting Provider</label>
-                        <input class="form-control" name="hosting_provider" value="<?php echo e($hosting_provider); ?>" placeholder="Example: Hostinger, AWS, local server">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">Hosting Plan</label>
-                        <input class="form-control" name="hosting_plan" value="<?php echo e($hosting_plan); ?>" placeholder="Example: VPS 2GB RAM">
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label">Server Specifications</label>
-                        <input class="form-control" name="server_specs" value="<?php echo e($server_specs); ?>" placeholder="CPU, RAM, storage, PHP/MySQL versions">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">Domain Name</label>
-                        <input class="form-control" name="domain_name" value="<?php echo e($domain_name); ?>" placeholder="example.org">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">SSL Certificate Status</label>
-                        <input class="form-control" name="ssl_status" value="<?php echo e($ssl_status); ?>" placeholder="Active, pending, included with hosting">
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label">Backup Location</label>
-                        <input class="form-control" name="backup_location" value="<?php echo e($backup_location); ?>" placeholder="Local, external drive, cloud storage">
-                    </div>
-                </div>
-
-                <h3 class="form-section-title mt-3">Monthly Cost Estimates</h3>
-                <div class="row g-2">
-                    <?php
-                    $cost_inputs = [
-                        'hosting_monthly' => 'Hosting',
-                        'domain_monthly' => 'Domain',
-                        'ssl_monthly' => 'SSL',
-                        'sms_monthly' => 'SMS Gateway',
-                        'email_monthly' => 'Email Service',
-                        'backup_monthly' => 'Backup Storage',
-                        'maintenance_monthly' => 'Maintenance'
-                    ];
-                    ?>
-                    <?php foreach ($cost_inputs as $field => $label): ?>
-                        <div class="col-md-6">
-                            <label class="form-label"><?php echo e($label); ?> Cost</label>
-                            <input class="form-control" type="number" min="0" step="0.01" name="<?php echo e($field); ?>" value="<?php echo e(costValue($conn, $field, '0.00')); ?>">
-                        </div>
-                    <?php endforeach; ?>
-                    <div class="col-12">
-                        <label class="form-label">Subscription and Hosting Notes</label>
-                        <textarea class="form-control" name="subscription_notes" rows="3"><?php echo e($subscription_notes); ?></textarea>
-                    </div>
-                </div>
-                <button class="btn btn-primary mt-3 w-100" type="submit"><i class="fas fa-save"></i> Save Hosting and Cost Plan</button>
-            </form>
-        </div>
-    </section>
 
     <section class="wizard-panel mb-4" id="recoveryWizard">
         <h2 class="h4 mb-3"><i class="fas fa-life-ring"></i> Emergency Recovery Mode</h2>

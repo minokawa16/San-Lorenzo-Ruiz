@@ -12,7 +12,7 @@ include '../database/config.php';
 
 // Define BASE_URL if not already defined
 if (!defined('BASE_URL')) {
-    define('BASE_URL', 'http://localhost/ParishSystem/');
+    define('BASE_URL', '/ParishSystem/');
 }
 
 // Check admin access
@@ -21,7 +21,6 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     exit();
 }
 
-// Fetch All Assoc Function - Documents this helper's role in the parish management workflow.
 function fetch_all_assoc($stmt) {
     $rows = array();
     $meta = $stmt->result_metadata();
@@ -49,24 +48,24 @@ function fetch_all_assoc($stmt) {
     return $rows;
 }
 
-// Communion Column Exists Function - Documents this helper's role in the parish management workflow.
 function communion_column_exists($conn, $column_name) {
     $safe_column = $conn->real_escape_string($column_name);
     $result = $conn->query("SHOW COLUMNS FROM first_communion_records LIKE '$safe_column'");
     return $result && $result->num_rows > 0;
 }
 
-// Ensure First Communion Record Book Schema Function - Documents this helper's role in the parish management workflow.
 function ensure_first_communion_record_book_schema($conn) {
     $columns = array(
         'request_id' => "ALTER TABLE first_communion_records ADD COLUMN request_id INT NULL AFTER communion_id",
         'registry_no' => "ALTER TABLE first_communion_records ADD COLUMN registry_no VARCHAR(50) NULL AFTER request_id",
         'domicile' => "ALTER TABLE first_communion_records ADD COLUMN domicile VARCHAR(150) NULL AFTER communion_date",
         'parents' => "ALTER TABLE first_communion_records ADD COLUMN parents VARCHAR(200) NULL AFTER domicile",
-        'folio' => "ALTER TABLE first_communion_records ADD COLUMN folio VARCHAR(50) NULL AFTER priest",
+        'folio' => "ALTER TABLE first_communion_rercords ADD COLUMN folio VARCHAR(50) NULL AFTER priest",
         'baptismal_date' => "ALTER TABLE first_communion_records ADD COLUMN baptismal_date DATE NULL AFTER folio",
         'baptismal_place' => "ALTER TABLE first_communion_records ADD COLUMN baptismal_place VARCHAR(150) NULL AFTER baptismal_date",
-        'remarks' => "ALTER TABLE first_communion_records ADD COLUMN remarks TEXT NULL AFTER baptismal_place"
+        'remarks' => "ALTER TABLE first_communion_records ADD COLUMN remarks TEXT NULL AFTER baptismal_place",
+        'parish_priest' => "ALTER TABLE first_communion_records ADD COLUMN parish_priest VARCHAR(120) NULL AFTER remarks",
+        'parish_secretary' => "ALTER TABLE first_communion_records ADD COLUMN parish_secretary VARCHAR(120) NULL AFTER parish_priest"
     );
 
     foreach ($columns as $column => $sql) {
@@ -76,7 +75,6 @@ function ensure_first_communion_record_book_schema($conn) {
     }
 }
 
-// Format Record Date Function - Documents this helper's role in the parish management workflow.
 function format_record_date($date_value, $format = 'M d, Y') {
     if (empty($date_value) || $date_value === '0000-00-00') {
         return 'N/A';
@@ -85,7 +83,6 @@ function format_record_date($date_value, $format = 'M d, Y') {
     return date($format, strtotime($date_value));
 }
 
-// Js Value Function - Documents this helper's role in the parish management workflow.
 function js_value($value) {
     return htmlspecialchars(json_encode($value, JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES), ENT_QUOTES, 'UTF-8');
 }
@@ -111,13 +108,15 @@ if ($action === 'add' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $baptismal_date = !empty($_POST['baptismal_date']) ? $_POST['baptismal_date'] : null;
     $baptismal_place = trim($_POST['baptismal_place'] ?? '');
     $remarks = trim($_POST['remarks'] ?? '');
+    $parish_priest = trim($_POST['parish_priest'] ?? '');
+    $parish_secretary = trim($_POST['parish_secretary'] ?? '');
     $status = $_POST['status'] ?? 'active';
     $request_id = !empty($_POST['request_id']) ? (int)$_POST['request_id'] : null;
 
     if ($fullname && $communion_date) {
-        $stmt = $conn->prepare("INSERT INTO first_communion_records (registry_no, fullname, birth_date, communion_date, domicile, parents, priest, folio, baptismal_date, baptismal_place, remarks, sponsor, status, request_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt = $conn->prepare("INSERT INTO first_communion_records (registry_no, fullname, birth_date, communion_date, domicile, parents, priest, folio, baptismal_date, baptismal_place, remarks, sponsor, parish_priest, parish_secretary, status, request_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         if ($stmt) {
-            $stmt->bind_param("sssssssssssssi", $registry_no, $fullname, $birth_date, $communion_date, $domicile, $parents, $priest, $folio, $baptismal_date, $baptismal_place, $remarks, $sponsor, $status, $request_id);
+            $stmt->bind_param("sssssssssssssssi", $registry_no, $fullname, $birth_date, $communion_date, $domicile, $parents, $priest, $folio, $baptismal_date, $baptismal_place, $remarks, $sponsor, $parish_priest, $parish_secretary, $status, $request_id);
             if ($stmt->execute()) {
                 $message = "First Communion record added successfully!";
                 $alert_type = "success";
@@ -148,13 +147,15 @@ if ($action === 'edit' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $baptismal_date = !empty($_POST['baptismal_date']) ? $_POST['baptismal_date'] : null;
     $baptismal_place = trim($_POST['baptismal_place'] ?? '');
     $remarks = trim($_POST['remarks'] ?? '');
+    $parish_priest = trim($_POST['parish_priest'] ?? '');
+    $parish_secretary = trim($_POST['parish_secretary'] ?? '');
     $status = $_POST['status'] ?? 'active';
     $request_id = !empty($_POST['request_id']) ? (int)$_POST['request_id'] : null;
 
     if ($record_id && $fullname && $communion_date) {
-        $stmt = $conn->prepare("UPDATE first_communion_records SET registry_no=?, fullname=?, birth_date=?, communion_date=?, domicile=?, parents=?, priest=?, folio=?, baptismal_date=?, baptismal_place=?, remarks=?, sponsor=?, status=?, request_id=? WHERE communion_id=?");
+        $stmt = $conn->prepare("UPDATE first_communion_records SET registry_no=?, fullname=?, birth_date=?, communion_date=?, domicile=?, parents=?, priest=?, folio=?, baptismal_date=?, baptismal_place=?, remarks=?, sponsor=?, parish_priest=?, parish_secretary=?, status=?, request_id=? WHERE communion_id=?");
         if ($stmt) {
-            $stmt->bind_param("sssssssssssssii", $registry_no, $fullname, $birth_date, $communion_date, $domicile, $parents, $priest, $folio, $baptismal_date, $baptismal_place, $remarks, $sponsor, $status, $request_id, $record_id);
+            $stmt->bind_param("sssssssssssssssii", $registry_no, $fullname, $birth_date, $communion_date, $domicile, $parents, $priest, $folio, $baptismal_date, $baptismal_place, $remarks, $sponsor, $parish_priest, $parish_secretary, $status, $request_id, $record_id);
             if ($stmt->execute()) {
                 $message = "First Communion record updated successfully!";
                 $alert_type = "success";
@@ -614,6 +615,7 @@ $page_title = 'First Communion Records - Parish Management';
             animation: fadeInUp 0.6s ease-out;
         }
     </style>
+    <link rel="stylesheet" href="../assets/css/theme.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/theme.css') ? filemtime(__DIR__ . '/../assets/css/theme.css') : time(); ?>">
 </head>
 <body>
     <div style="display: flex;">
@@ -624,6 +626,9 @@ $page_title = 'First Communion Records - Parish Management';
         <div class="admin-content">
             <!-- Page Header -->
             <div style="margin-bottom: 30px;">
+                <a href="manage-records.php" class="btn btn-primary-gold" style="margin-bottom: 14px;">
+                    <i class="fas fa-arrow-left"></i> Back to Sacramental Records
+                </a>
                 <h1 class="page-title">
                     <i class="fas fa-bread-slice"></i> First Communion Records
                 </h1>
@@ -697,6 +702,8 @@ $page_title = 'First Communion Records - Parish Management';
                                             'baptismal_date' => $record['baptismal_date'] ?? '',
                                             'baptismal_place' => $record['baptismal_place'] ?? '',
                                             'remarks' => $record['remarks'] ?? '',
+                                            'parish_priest' => $record['parish_priest'] ?? '',
+                                            'parish_secretary' => $record['parish_secretary'] ?? '',
                                             'status' => $record['status'] ?? 'active',
                                             'request_id' => $record['request_id'] ?? ''
                                         );
@@ -848,6 +855,16 @@ $page_title = 'First Communion Records - Parish Management';
                         <label>Remarks</label>
                         <textarea id="remarks" name="remarks" placeholder="Notes or remarks"></textarea>
                     </div>
+
+                    <div class="form-group">
+                        <label>Parish Priest</label>
+                        <input type="text" id="parishPriest" name="parish_priest" placeholder="Name printed above Parish Priest">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Parish Secretary</label>
+                        <input type="text" id="parishSecretary" name="parish_secretary" placeholder="Name printed above Parish Secretary">
+                    </div>
                 </div>
 
                 <div class="modal-footer">
@@ -880,7 +897,6 @@ $page_title = 'First Communion Records - Parish Management';
     <script src="../assets/js/components.js"></script>
     <script src="../assets/js/main.js"></script>
     <script>
-        // Open Add Modal Function - Documents this helper's role in the parish management workflow.
         function openAddModal() {
             document.getElementById('recordForm').reset();
             document.getElementById('actionInput').value = 'add';
@@ -889,7 +905,6 @@ $page_title = 'First Communion Records - Parish Management';
             document.getElementById('recordModal').classList.add('show');
         }
 
-        // Open Edit Modal Function - Documents this helper's role in the parish management workflow.
         function openEditModal(record) {
             document.getElementById('recordIdInput').value = record.id || '';
             document.getElementById('registryNo').value = record.registry_no || '';
@@ -904,6 +919,8 @@ $page_title = 'First Communion Records - Parish Management';
             document.getElementById('baptismalDate').value = record.baptismal_date || '';
             document.getElementById('baptismalPlace').value = record.baptismal_place || '';
             document.getElementById('remarks').value = record.remarks || '';
+            document.getElementById('parishPriest').value = record.parish_priest || '';
+            document.getElementById('parishSecretary').value = record.parish_secretary || '';
             document.getElementById('recordStatus').value = record.status || 'active';
             document.getElementById('requestId').value = record.request_id || '';
             document.getElementById('actionInput').value = 'edit';
@@ -911,30 +928,25 @@ $page_title = 'First Communion Records - Parish Management';
             document.getElementById('recordModal').classList.add('show');
         }
 
-        // Close Modal Function - Documents this helper's role in the parish management workflow.
         function closeModal() {
             document.getElementById('recordModal').classList.remove('show');
         }
 
-        // Confirm Archive Function - Documents this helper's role in the parish management workflow.
         function confirmArchive(id) {
             document.getElementById('deleteRecordId').value = id;
             document.getElementById('deleteModal').classList.add('show');
         }
 
-        // Close Delete Modal Function - Documents this helper's role in the parish management workflow.
         function closeDeleteModal() {
             document.getElementById('deleteModal').classList.remove('show');
         }
 
-        // Perform Search Function - Documents this helper's role in the parish management workflow.
         function performSearch() {
             const search = document.getElementById('searchInput').value;
             const status = document.getElementById('statusFilter').value;
             window.location.href = `?search=${encodeURIComponent(search)}&status=${encodeURIComponent(status)}&page=1`;
         }
 
-        // Apply Filter Function - Documents this helper's role in the parish management workflow.
         function applyFilter() {
             performSearch();
         }

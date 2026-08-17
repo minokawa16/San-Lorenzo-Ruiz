@@ -242,7 +242,7 @@ $breadcrumbs = [
     </div>
 
     <div class="offline-note">
-        <strong>Localhost mode:</strong> The system is allowed to run with offline fallbacks for AI assistance, SMS logging, PHP mail, browser print/PDF, and manual OCR review. Before public deployment, configure real SMTP/SMS credentials, install OCR/PDF tools on the server, and test backup recovery.
+        <strong>Localhost mode:</strong> The system is allowed to run with offline fallbacks for AI assistance, SMS logging, PHP mail, browser print/PDF, and manual ID review. Before public deployment, configure real SMTP/SMS credentials, install PDF tools on the server, and test backup recovery.
     </div>
 </div>
 

@@ -12,7 +12,7 @@ include '../database/config.php';
 
 // Define BASE_URL if not already defined
 if (!defined('BASE_URL')) {
-    define('BASE_URL', 'http://localhost/ParishSystem/');
+    define('BASE_URL', '/ParishSystem/');
 }
 
 // Check admin access
@@ -72,7 +72,9 @@ function ensure_marriage_record_book_schema($conn) {
         'wife_residence' => "ALTER TABLE marriage_records ADD COLUMN wife_residence VARCHAR(200) NULL AFTER wife_birth_origin",
         'wife_parents' => "ALTER TABLE marriage_records ADD COLUMN wife_parents VARCHAR(200) NULL AFTER wife_residence",
         'witnesses_residence' => "ALTER TABLE marriage_records ADD COLUMN witnesses_residence VARCHAR(200) NULL AFTER sponsors",
-        'remarks' => "ALTER TABLE marriage_records ADD COLUMN remarks TEXT NULL AFTER officiating_priest"
+        'remarks' => "ALTER TABLE marriage_records ADD COLUMN remarks TEXT NULL AFTER officiating_priest",
+        'parish_priest' => "ALTER TABLE marriage_records ADD COLUMN parish_priest VARCHAR(120) NULL AFTER remarks",
+        'parish_secretary' => "ALTER TABLE marriage_records ADD COLUMN parish_secretary VARCHAR(120) NULL AFTER parish_priest"
     ];
 
     foreach ($columns as $column => $sql) {
@@ -124,13 +126,15 @@ if ($action === 'add' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $witnesses_residence = trim($_POST['witnesses_residence'] ?? '');
     $officiating_priest = trim($_POST['officiating_priest'] ?? '');
     $remarks = trim($_POST['remarks'] ?? '');
+    $parish_priest = trim($_POST['parish_priest'] ?? '');
+    $parish_secretary = trim($_POST['parish_secretary'] ?? '');
     $status = $_POST['status'] ?? 'active';
     $request_id = !empty($_POST['request_id']) ? (int)$_POST['request_id'] : null;
 
     if ($husband_name && $wife_name && $wedding_date) {
-        $stmt = $conn->prepare("INSERT INTO marriage_records (registry_no, husband_name, husband_status, husband_age, husband_birth_origin, husband_residence, husband_parents, wife_name, wife_status, wife_age, wife_birth_origin, wife_residence, wife_parents, wedding_date, sponsors, witnesses_residence, officiating_priest, remarks, status, request_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt = $conn->prepare("INSERT INTO marriage_records (registry_no, husband_name, husband_status, husband_age, husband_birth_origin, husband_residence, husband_parents, wife_name, wife_status, wife_age, wife_birth_origin, wife_residence, wife_parents, wedding_date, sponsors, witnesses_residence, officiating_priest, remarks, parish_priest, parish_secretary, status, request_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         if ($stmt) {
-            $stmt->bind_param("sssssssssssssssssssi", $registry_no, $husband_name, $husband_status, $husband_age, $husband_birth_origin, $husband_residence, $husband_parents, $wife_name, $wife_status, $wife_age, $wife_birth_origin, $wife_residence, $wife_parents, $wedding_date, $sponsors, $witnesses_residence, $officiating_priest, $remarks, $status, $request_id);
+            $stmt->bind_param("sssssssssssssssssssssi", $registry_no, $husband_name, $husband_status, $husband_age, $husband_birth_origin, $husband_residence, $husband_parents, $wife_name, $wife_status, $wife_age, $wife_birth_origin, $wife_residence, $wife_parents, $wedding_date, $sponsors, $witnesses_residence, $officiating_priest, $remarks, $parish_priest, $parish_secretary, $status, $request_id);
             if ($stmt->execute()) {
                 $message = "Marriage record added successfully!";
                 $alert_type = "success";
@@ -167,13 +171,15 @@ if ($action === 'edit' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $witnesses_residence = trim($_POST['witnesses_residence'] ?? '');
     $officiating_priest = trim($_POST['officiating_priest'] ?? '');
     $remarks = trim($_POST['remarks'] ?? '');
+    $parish_priest = trim($_POST['parish_priest'] ?? '');
+    $parish_secretary = trim($_POST['parish_secretary'] ?? '');
     $status = $_POST['status'] ?? 'active';
     $request_id = !empty($_POST['request_id']) ? (int)$_POST['request_id'] : null;
 
     if ($record_id && $husband_name && $wife_name && $wedding_date) {
-        $stmt = $conn->prepare("UPDATE marriage_records SET registry_no=?, husband_name=?, husband_status=?, husband_age=?, husband_birth_origin=?, husband_residence=?, husband_parents=?, wife_name=?, wife_status=?, wife_age=?, wife_birth_origin=?, wife_residence=?, wife_parents=?, wedding_date=?, sponsors=?, witnesses_residence=?, officiating_priest=?, remarks=?, status=?, request_id=? WHERE marriage_id=?");
+        $stmt = $conn->prepare("UPDATE marriage_records SET registry_no=?, husband_name=?, husband_status=?, husband_age=?, husband_birth_origin=?, husband_residence=?, husband_parents=?, wife_name=?, wife_status=?, wife_age=?, wife_birth_origin=?, wife_residence=?, wife_parents=?, wedding_date=?, sponsors=?, witnesses_residence=?, officiating_priest=?, remarks=?, parish_priest=?, parish_secretary=?, status=?, request_id=? WHERE marriage_id=?");
         if ($stmt) {
-            $stmt->bind_param("sssssssssssssssssssii", $registry_no, $husband_name, $husband_status, $husband_age, $husband_birth_origin, $husband_residence, $husband_parents, $wife_name, $wife_status, $wife_age, $wife_birth_origin, $wife_residence, $wife_parents, $wedding_date, $sponsors, $witnesses_residence, $officiating_priest, $remarks, $status, $request_id, $record_id);
+            $stmt->bind_param("sssssssssssssssssssssii", $registry_no, $husband_name, $husband_status, $husband_age, $husband_birth_origin, $husband_residence, $husband_parents, $wife_name, $wife_status, $wife_age, $wife_birth_origin, $wife_residence, $wife_parents, $wedding_date, $sponsors, $witnesses_residence, $officiating_priest, $remarks, $parish_priest, $parish_secretary, $status, $request_id, $record_id);
             if ($stmt->execute()) {
                 $message = "Marriage record updated successfully!";
                 $alert_type = "success";
@@ -646,6 +652,7 @@ $page_title = 'Marriage Records - Parish Management';
             animation: fadeInUp 0.6s ease-out;
         }
     </style>
+    <link rel="stylesheet" href="../assets/css/theme.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/theme.css') ? filemtime(__DIR__ . '/../assets/css/theme.css') : time(); ?>">
 </head>
 <body>
     <div style="display: flex;">
@@ -656,6 +663,9 @@ $page_title = 'Marriage Records - Parish Management';
         <div class="admin-content">
             <!-- Page Header -->
             <div style="margin-bottom: 30px;">
+                <a href="manage-records.php" class="btn btn-primary-gold" style="margin-bottom: 14px;">
+                    <i class="fas fa-arrow-left"></i> Back to Sacramental Records
+                </a>
                 <h1 class="page-title">
                     <i class="fas fa-ring"></i> Marriage Records
                 </h1>
@@ -735,6 +745,8 @@ $page_title = 'Marriage Records - Parish Management';
                                             'witnesses_residence' => $record['witnesses_residence'] ?? '',
                                             'officiating_priest' => $record['officiating_priest'] ?? '',
                                             'remarks' => $record['remarks'] ?? '',
+                                            'parish_priest' => $record['parish_priest'] ?? '',
+                                            'parish_secretary' => $record['parish_secretary'] ?? '',
                                             'status' => $record['status'] ?? 'active',
                                             'request_id' => $record['request_id'] ?? ''
                                         ];
@@ -919,6 +931,16 @@ $page_title = 'Marriage Records - Parish Management';
                     </div>
 
                     <div class="form-group">
+                        <label>Parish Priest</label>
+                        <input type="text" id="parishPriest" name="parish_priest" placeholder="Name printed above Parish Priest">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Parish Secretary</label>
+                        <input type="text" id="parishSecretary" name="parish_secretary" placeholder="Name printed above Parish Secretary">
+                    </div>
+
+                    <div class="form-group">
                         <label>Status</label>
                         <select id="recordStatus" name="status">
                             <option value="active">Active</option>
@@ -999,6 +1021,8 @@ $page_title = 'Marriage Records - Parish Management';
             document.getElementById('witnessesResidence').value = record.witnesses_residence || '';
             document.getElementById('officiatingPriest').value = record.officiating_priest || '';
             document.getElementById('remarks').value = record.remarks || '';
+            document.getElementById('parishPriest').value = record.parish_priest || '';
+            document.getElementById('parishSecretary').value = record.parish_secretary || '';
             document.getElementById('recordStatus').value = record.status || 'active';
             document.getElementById('requestId').value = record.request_id || '';
             document.getElementById('actionInput').value = 'edit';

@@ -85,7 +85,7 @@ if ($search !== '') {
     $types .= 'ssss';
 }
 
-$sql = "SELECT id, fullname, phone_number, email, chapel_district, address, birthdate, id_number_encrypted, status, valid_id_path, valid_id_original_name, face_image_path, face_verification_status, ocr_extracted_data_encrypted, ocr_match_score, ocr_status, rejection_reason, created_at
+$sql = "SELECT id, fullname, phone_number, email, chapel_district, address, birthdate, id_number_encrypted, status, valid_id_path, valid_id_back_path, valid_id_original_name, face_image_path, face_verification_status, rejection_reason, created_at
         FROM users
         $where
         ORDER BY created_at DESC";
@@ -163,15 +163,10 @@ $page_title = 'Registration Verification';
             <?php foreach ($registrations as $user): ?>
                 <?php
                     $id_src = !empty($user['valid_id_path']) ? 'view-valid-id.php?id=' . intval($user['id']) : '';
+                    $id_back_src = !empty($user['valid_id_back_path']) ? 'view-valid-id.php?type=back&id=' . intval($user['id']) : '';
                     $face_src = !empty($user['face_image_path']) ? 'view-valid-id.php?type=face&id=' . intval($user['id']) : '';
                     $status_class = getUserStatusBadgeClass($user['status']);
                     $id_number_display = decryptSensitiveValue($user['id_number_encrypted'] ?? '');
-                    $ocr_payload = json_decode(decryptSensitiveValue($user['ocr_extracted_data_encrypted'] ?? ''), true);
-                    $ocr_payload = is_array($ocr_payload) ? $ocr_payload : [];
-                    $ocr_extracted = is_array($ocr_payload['extracted'] ?? null) ? $ocr_payload['extracted'] : [];
-                    $ocr_checks = is_array($ocr_payload['checks'] ?? null) ? $ocr_payload['checks'] : [];
-                    $ocr_status = $user['ocr_status'] ?: 'manual_review';
-                    $ocr_score = intval($user['ocr_match_score'] ?? 0);
                 ?>
                 <article class="verification-card">
                     <div class="verification-record">
@@ -216,7 +211,7 @@ $page_title = 'Registration Verification';
                                 </div>
                                 <div class="detail-item">
                                     <span>Verification Criteria</span>
-                                    <strong><i class="fas fa-shield-halved"></i> OCR score: <?php echo $ocr_score; ?>% (<?php echo e(getOcrStatusLabel($ocr_status)); ?>)</strong>
+                                    <strong><i class="fas fa-shield-halved"></i> Manual admin review</strong>
                                 </div>
                                 <div class="detail-item">
                                     <span>Face Verification</span>
@@ -234,40 +229,34 @@ $page_title = 'Registration Verification';
                                 <i class="fas fa-id-card"></i>
                             </div>
 
-                            <?php if ($id_src): ?>
-                                <button class="verification-id-preview" type="button" data-bs-toggle="modal" data-bs-target="#idPreviewModal" data-id-src="<?php echo e($id_src); ?>" data-id-name="<?php echo e($user['fullname']); ?>">
-                                    <img src="<?php echo e($id_src); ?>" alt="Valid ID uploaded by <?php echo e($user['fullname']); ?>">
-                                    <span><i class="fas fa-magnifying-glass-plus"></i> Open larger ID view</span>
-                                </button>
-                            <?php else: ?>
-                                <div class="alert alert-warning mb-0">No uploaded ID found.</div>
-                            <?php endif; ?>
+                            <div class="id-preview-pair">
+                                <?php if ($id_src): ?>
+                                    <button class="verification-id-preview" type="button" data-bs-toggle="modal" data-bs-target="#idPreviewModal" data-id-src="<?php echo e($id_src); ?>" data-id-name="<?php echo e($user['fullname']); ?>" data-preview-title="Front Valid ID">
+                                        <img src="<?php echo e($id_src); ?>" alt="Front valid ID uploaded by <?php echo e($user['fullname']); ?>">
+                                        <span><i class="fas fa-id-card"></i> Front ID</span>
+                                    </button>
+                                <?php else: ?>
+                                    <div class="id-preview-missing">No front ID found.</div>
+                                <?php endif; ?>
+
+                                <?php if ($id_back_src): ?>
+                                    <button class="verification-id-preview" type="button" data-bs-toggle="modal" data-bs-target="#idPreviewModal" data-id-src="<?php echo e($id_back_src); ?>" data-id-name="<?php echo e($user['fullname']); ?>" data-preview-title="Back Valid ID">
+                                        <img src="<?php echo e($id_back_src); ?>" alt="Back valid ID uploaded by <?php echo e($user['fullname']); ?>">
+                                        <span><i class="fas fa-address-card"></i> Back ID</span>
+                                    </button>
+                                <?php else: ?>
+                                    <div class="id-preview-missing">No back ID found.</div>
+                                <?php endif; ?>
+                            </div>
 
                             <?php if ($face_src): ?>
-                                <button class="verification-id-preview face-preview mt-3" type="button" data-bs-toggle="modal" data-bs-target="#idPreviewModal" data-id-src="<?php echo e($face_src); ?>" data-id-name="<?php echo e($user['fullname']); ?>">
+                                <button class="verification-id-preview face-preview mt-3" type="button" data-bs-toggle="modal" data-bs-target="#idPreviewModal" data-id-src="<?php echo e($face_src); ?>" data-id-name="<?php echo e($user['fullname']); ?>" data-preview-title="Live Face Capture">
                                     <img src="<?php echo e($face_src); ?>" alt="Live face captured for <?php echo e($user['fullname']); ?>">
                                     <span><i class="fas fa-user-check"></i> Live face capture</span>
                                 </button>
                             <?php endif; ?>
 
-                            <div class="ocr-panel mt-3">
-                                <div class="ocr-panel-header">
-                                    <span class="record-label">OCR Identity Match</span>
-                                    <span class="ocr-score <?php echo $ocr_score >= 70 ? 'is-good' : 'is-review'; ?>"><?php echo $ocr_score; ?>%</span>
-                                </div>
-                                <div class="ocr-checks">
-                                    <span class="<?php echo !empty($ocr_checks['name']) ? 'is-pass' : 'is-fail'; ?>"><i class="fas fa-<?php echo !empty($ocr_checks['name']) ? 'check' : 'xmark'; ?>"></i> Name</span>
-                                    <span class="<?php echo !empty($ocr_checks['birthdate']) ? 'is-pass' : 'is-fail'; ?>"><i class="fas fa-<?php echo !empty($ocr_checks['birthdate']) ? 'check' : 'xmark'; ?>"></i> Birthdate</span>
-                                    <span class="<?php echo !empty($ocr_checks['address']) ? 'is-pass' : 'is-fail'; ?>"><i class="fas fa-<?php echo !empty($ocr_checks['address']) ? 'check' : 'xmark'; ?>"></i> Address</span>
-                                    <span class="<?php echo !empty($ocr_checks['id_number']) ? 'is-pass' : 'is-fail'; ?>"><i class="fas fa-<?php echo !empty($ocr_checks['id_number']) ? 'check' : 'xmark'; ?>"></i> ID No.</span>
-                                </div>
-                                <div class="ocr-extracted">
-                                    <strong>Extracted:</strong>
-                                    <span>Name: <?php echo e($ocr_extracted['full_name'] ?? 'Not detected'); ?></span>
-                                    <span>Birthdate: <?php echo e($ocr_extracted['birthdate'] ?? 'Not detected'); ?></span>
-                                    <span>ID No.: <?php echo e($ocr_extracted['id_number'] ?? 'Not detected'); ?></span>
-                                    <span>Address: <?php echo e($ocr_extracted['address'] ?? 'Not detected'); ?></span>
-                                </div>
+
                             </div>
                         </div>
                     </div>
@@ -307,7 +296,7 @@ $page_title = 'Registration Verification';
     <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Uploaded Valid ID</h5>
+                <h5 class="modal-title" id="idPreviewModalTitle">Uploaded Valid ID</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body text-center">
@@ -445,6 +434,25 @@ $page_title = 'Registration Verification';
     font-size: 1.4rem;
 }
 
+.id-preview-pair {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.id-preview-missing {
+    min-height: 250px;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+    border-radius: 16px;
+    color: #92400e;
+    background: #fffbeb;
+    border: 1px dashed #f59e0b;
+    font-weight: 800;
+    text-align: center;
+}
+
 .verification-id-preview {
     width: 100%;
     border: 0;
@@ -465,15 +473,16 @@ $page_title = 'Registration Verification';
 
 .verification-id-preview img {
     width: 100%;
-    height: 320px;
+    height: 250px;
     object-fit: contain;
     background: linear-gradient(135deg, #f8fafc, #eef2ff);
     display: block;
 }
 
 .verification-id-preview.face-preview img {
-    height: 180px;
-    object-fit: cover;
+    height: 240px;
+    object-fit: contain;
+    object-position: center;
 }
 
 .verification-id-preview span {
@@ -482,74 +491,6 @@ $page_title = 'Registration Verification';
     gap: 8px;
     padding: 10px 12px;
     font-weight: 800;
-}
-
-.ocr-panel {
-    padding: 12px;
-    border-radius: 14px;
-    background: #f8fafc;
-    border: 1px solid rgba(15, 23, 42, 0.08);
-}
-
-.ocr-panel-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 10px;
-}
-
-.ocr-score {
-    padding: 4px 9px;
-    border-radius: 999px;
-    font-weight: 900;
-    font-size: 0.82rem;
-}
-
-.ocr-score.is-good {
-    color: #0f5132;
-    background: #d1e7dd;
-}
-
-.ocr-score.is-review {
-    color: #664d03;
-    background: #fff3cd;
-}
-
-.ocr-checks {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 7px;
-    margin-bottom: 10px;
-}
-
-.ocr-checks span {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 7px;
-    border-radius: 10px;
-    font-weight: 800;
-    font-size: 0.78rem;
-}
-
-.ocr-checks .is-pass {
-    color: #0f5132;
-    background: #d1e7dd;
-}
-
-.ocr-checks .is-fail {
-    color: #842029;
-    background: #f8d7da;
-}
-
-.ocr-extracted {
-    display: grid;
-    gap: 5px;
-    color: #475569;
-    font-size: 0.84rem;
-    line-height: 1.35;
 }
 
 .verification-actions {
@@ -590,12 +531,12 @@ $page_title = 'Registration Verification';
         height: 240px;
     }
 
-    .verification-actions {
+    .id-preview-pair {
         grid-template-columns: 1fr;
     }
 
-    .ocr-checks {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+    .verification-actions {
+        grid-template-columns: 1fr;
     }
 }
 </style>
@@ -604,8 +545,10 @@ $page_title = 'Registration Verification';
 document.getElementById('idPreviewModal').addEventListener('show.bs.modal', function(event) {
     const button = event.relatedTarget;
     const image = document.getElementById('modalIdImage');
+    const title = document.getElementById('idPreviewModalTitle');
     image.src = button.getAttribute('data-id-src');
     image.alt = 'Uploaded valid ID for ' + button.getAttribute('data-id-name');
+    title.textContent = button.getAttribute('data-preview-title') || 'Uploaded Valid ID';
 });
 </script>
 

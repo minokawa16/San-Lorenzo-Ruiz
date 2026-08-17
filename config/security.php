@@ -28,7 +28,8 @@ defineSecurityConstant('PASSWORD_HASH_COST', 12); // Higher = more secure but sl
 defineSecurityConstant('SESSION_TIMEOUT', 30 * 60); // 30 minutes in seconds
 defineSecurityConstant('SESSION_REGENERATE_INTERVAL', 5 * 60); // Regenerate every 5 minutes
 defineSecurityConstant('SESSION_COOKIE_HTTPONLY', true);
-defineSecurityConstant('SESSION_COOKIE_SECURE', false); // Set to true in production with HTTPS
+$isProduction = strtolower((string) (getenv('APP_ENV') ?: 'local')) === 'production';
+defineSecurityConstant('SESSION_COOKIE_SECURE', $isProduction);
 defineSecurityConstant('SESSION_COOKIE_SAMESITE', 'Lax');
 
 // Login Security
@@ -75,7 +76,11 @@ $ALLOWED_MIME_TYPES = [
 // ===================================================================
 
 defineSecurityConstant('ENCRYPTION_CIPHER', 'AES-256-CBC');
-defineSecurityConstant('ENCRYPTION_KEY', getenv('ENCRYPTION_KEY') ?: bin2hex(random_bytes(16)));
+$encryptionKey = getenv('ENCRYPTION_KEY') ?: '';
+if ($isProduction && $encryptionKey === '') {
+    throw new RuntimeException('ENCRYPTION_KEY must be configured in production.');
+}
+defineSecurityConstant('ENCRYPTION_KEY', $encryptionKey !== '' ? $encryptionKey : bin2hex(random_bytes(16)));
 
 // ===================================================================
 // CACHE SETTINGS
@@ -114,7 +119,13 @@ defineSecurityConstant('ERROR_REPORT_EMAIL', 'admin@parish.local');
 defineSecurityConstant('API_VERSION', 'v1');
 defineSecurityConstant('API_RATE_LIMIT', 1000); // Requests per hour
 defineSecurityConstant('JWT_EXPIRY', 24 * 3600); // 24 hours
-defineSecurityConstant('JWT_SECRET_KEY', getenv('JWT_SECRET_KEY') ?: 'your-secret-key-change-in-production');
+$jwtSecret = getenv('JWT_SECRET_KEY') ?: '';
+if ($isProduction && $jwtSecret === '') {
+    throw new RuntimeException('JWT_SECRET_KEY must be configured in production.');
+}
+defineSecurityConstant('JWT_SECRET_KEY', $jwtSecret !== '' ? $jwtSecret : 'local-development-only');
+defineSecurityConstant('AI_IDENTITY_API_URL', getenv('AI_IDENTITY_API_URL') ?: '');
+defineSecurityConstant('AI_IDENTITY_API_TIMEOUT', 45);
 
 // ===================================================================
 // SECURITY HEADERS

@@ -16,7 +16,9 @@ if (!defined('SESSION_TIMEOUT')) {
 
 // Only start session if one hasn't been started
 if (session_status() === PHP_SESSION_NONE) {
-    $secure = defined('SESSION_COOKIE_SECURE') ? SESSION_COOKIE_SECURE : (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
+    $forwardedProto = strtolower(trim(explode(',', (string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''))[0]));
+    $requestIsHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || $forwardedProto === 'https';
+    $secure = defined('SESSION_COOKIE_SECURE') ? SESSION_COOKIE_SECURE : $requestIsHttps;
     $httponly = defined('SESSION_COOKIE_HTTPONLY') ? SESSION_COOKIE_HTTPONLY : true;
     $samesite = defined('SESSION_COOKIE_SAMESITE') ? SESSION_COOKIE_SAMESITE : 'Lax';
 
@@ -27,7 +29,7 @@ if (session_status() === PHP_SESSION_NONE) {
         'httponly' => $httponly,
         'samesite' => $samesite,
     ]);
-    session_start();
+    @session_start();
 }
 
 // Session timeout check

@@ -29,6 +29,12 @@ function notificationTypeCatalog() {
             'tone' => 'info',
             'keywords' => ['file available', 'parish office file', 'released certificate', 'download']
         ],
+        'certificate' => [
+            'label' => 'Certificate Update',
+            'icon' => 'fa-file-lines',
+            'tone' => 'info',
+            'keywords' => ['certificate', 'certification']
+        ],
         'approved' => [
             'label' => 'Approved Request',
             'icon' => 'fa-circle-check',
@@ -38,8 +44,8 @@ function notificationTypeCatalog() {
         'processing' => [
             'label' => 'In Progress',
             'icon' => 'fa-spinner',
-            'tone' => 'primary',
-            'keywords' => ['processing', 'in progress']
+            'tone' => 'warning',
+            'keywords' => ['processing', 'in progress', 'pending']
         ],
         'rejected' => [
             'label' => 'Needs Attention',
@@ -62,7 +68,7 @@ function notificationTypeCatalog() {
         'announcement' => [
             'label' => 'Parish Announcement',
             'icon' => 'fa-bullhorn',
-            'tone' => 'info',
+            'tone' => 'announcement',
             'keywords' => ['announcement']
         ],
         'schedule' => [
@@ -77,16 +83,21 @@ function notificationTypeCatalog() {
             'tone' => 'secondary',
             'keywords' => ['account', 'verification', 'otp', 'login', 'profile']
         ],
+        'ai' => [
+            'label' => 'AI Assistant',
+            'icon' => 'fa-robot',
+            'tone' => 'ai',
+            'keywords' => ['ai assistant', 'tugon ai', 'chatbot']
+        ],
         'notice' => [
             'label' => 'General Notice',
             'icon' => 'fa-bell',
-            'tone' => 'secondary',
+            'tone' => 'info',
             'keywords' => []
         ]
     ];
 }
 
-// Notification Type Meta Function - Centralizes labels, icons, colors, and filters.
 function notificationTypeMeta($notification) {
     $text = strtolower(($notification['title'] ?? '') . ' ' . ($notification['message'] ?? ''));
 
@@ -112,7 +123,6 @@ function notificationTypeMeta($notification) {
     ];
 }
 
-// Notification Group Label Function - Documents this helper's role in the parish management workflow.
 function notificationGroupLabel($date) {
     $created = new DateTime(date('Y-m-d', strtotime($date)));
     $today = new DateTime(date('Y-m-d'));
@@ -130,7 +140,6 @@ function notificationGroupLabel($date) {
     return 'Earlier';
 }
 
-// Notification Action URL Function - Documents this helper's role in the parish management workflow.
 function notificationActionUrl($notification) {
     $text = strtolower(($notification['title'] ?? '') . ' ' . ($notification['message'] ?? ''));
     if (strpos($text, 'payment') !== false || strpos($text, 'file') !== false || strpos($text, 'certificate') !== false || strpos($text, 'request') !== false || strpos($text, 'reference') !== false) {
@@ -145,7 +154,49 @@ function notificationActionUrl($notification) {
     return 'index.php';
 }
 
-// Notification Count Function - Documents this helper's role in the parish management workflow.
+function notificationShortMessage($message, $limit = 150) {
+    $plain = trim(preg_replace('/\s+/', ' ', strip_tags((string) $message)));
+    if (function_exists('mb_strlen') && mb_strlen($plain) > $limit) {
+        return mb_substr($plain, 0, $limit - 1) . '...';
+    }
+    if (!function_exists('mb_strlen') && strlen($plain) > $limit) {
+        return substr($plain, 0, $limit - 1) . '...';
+    }
+    return $plain;
+}
+
+function notificationReferenceNumber($notification) {
+    $text = ($notification['title'] ?? '') . ' ' . ($notification['message'] ?? '');
+    if (preg_match('/\b[A-Z]{1,5}-\d{4,}(?:-\d+)*\b/i', $text, $matches)) {
+        return strtoupper($matches[0]);
+    }
+    if (preg_match('/reference(?:\s+number)?[:\s#-]+([A-Z0-9-]+)/i', $text, $matches)) {
+        return strtoupper($matches[1]);
+    }
+    return 'Not linked';
+}
+
+function notificationMatchesType($notification, $type_filter) {
+    if ($type_filter === 'all') {
+        return true;
+    }
+    if ($type_filter === 'archived') {
+        return false;
+    }
+
+    $meta_key = notificationTypeMeta($notification)['key'];
+    $type_groups = [
+        'request' => ['request', 'submitted', 'approved', 'processing', 'rejected', 'payment'],
+        'certificate' => ['certificate', 'file'],
+    ];
+
+    if (isset($type_groups[$type_filter])) {
+        return in_array($meta_key, $type_groups[$type_filter], true);
+    }
+
+    return $meta_key === $type_filter;
+}
+
 function notificationCount($conn, $sql) {
     $result = $conn->query($sql);
     if (!$result) {
@@ -200,7 +251,7 @@ $type_filter = $_GET['type'] ?? 'all';
 $sort = $_GET['sort'] ?? 'latest';
 $allowed_read_filters = ['all', 'unread', 'read'];
 $notification_type_catalog = notificationTypeCatalog();
-$allowed_type_filters = array_merge(['all'], array_keys($notification_type_catalog));
+$allowed_type_filters = array_merge(['all', 'archived'], array_keys($notification_type_catalog));
 $allowed_sorts = ['latest', 'oldest'];
 if (!in_array($read_filter, $allowed_read_filters, true)) {
     $read_filter = 'all';
@@ -243,9 +294,11 @@ if ($stmt) {
     $stmt->close();
 }
 
-if ($type_filter !== 'all') {
+if ($type_filter === 'archived') {
+    $notifications = [];
+} elseif ($type_filter !== 'all') {
     $notifications = array_values(array_filter($notifications, function($notification) use ($type_filter) {
-        return notificationTypeMeta($notification)['key'] === $type_filter;
+        return notificationMatchesType($notification, $type_filter);
     }));
 }
 
@@ -253,6 +306,43 @@ $total_count = notificationCount($conn, "SELECT COUNT(*) AS count FROM notificat
 $unread_count = notificationCount($conn, "SELECT COUNT(*) AS count FROM notifications WHERE user_id = $user_id AND is_read = 0");
 $read_count = max(0, $total_count - $unread_count);
 $today_count = notificationCount($conn, "SELECT COUNT(*) AS count FROM notifications WHERE user_id = $user_id AND DATE(created_at) = CURDATE()");
+$archived_count = 0;
+
+$category_filters = [
+    'all' => ['label' => 'All Notifications', 'icon' => 'fa-inbox', 'type' => 'all'],
+    'unread' => ['label' => 'Unread', 'icon' => 'fa-envelope', 'read' => 'unread', 'type' => 'all'],
+    'request' => ['label' => 'Requests', 'icon' => 'fa-list-check', 'type' => 'request'],
+    'certificate' => ['label' => 'Certificates', 'icon' => 'fa-file-lines', 'type' => 'certificate'],
+    'announcement' => ['label' => 'Announcements', 'icon' => 'fa-bullhorn', 'type' => 'announcement'],
+    'schedule' => ['label' => 'Schedule Updates', 'icon' => 'fa-calendar-check', 'type' => 'schedule'],
+    'account' => ['label' => 'Account', 'icon' => 'fa-user-shield', 'type' => 'account'],
+    'ai' => ['label' => 'AI Assistant', 'icon' => 'fa-robot', 'type' => 'ai'],
+    'archived' => ['label' => 'Archived', 'icon' => 'fa-box-archive', 'type' => 'archived'],
+];
+
+$category_counts = array_fill_keys(array_keys($category_filters), 0);
+$category_counts['all'] = $total_count;
+$category_counts['unread'] = $unread_count;
+$category_counts['archived'] = $archived_count;
+$stmt = $conn->prepare("SELECT notification_id, title, message, is_read, created_at FROM notifications WHERE user_id = ?");
+if ($stmt) {
+    $stmt->bind_param('i', $user_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        if (intval($row['is_read']) === 0) {
+            foreach ($category_filters as $category_key => $category) {
+                if (in_array($category_key, ['all', 'unread', 'archived'], true)) {
+                    continue;
+                }
+                if (notificationMatchesType($row, $category['type'])) {
+                    $category_counts[$category_key]++;
+                }
+            }
+        }
+    }
+    $stmt->close();
+}
 
 $grouped_notifications = [];
 foreach ($notifications as $notification) {
@@ -260,122 +350,288 @@ foreach ($notifications as $notification) {
 }
 
 $page_title = 'Notifications';
-$breadcrumbs = [
-    'Dashboard' => 'index.php',
-    'Notifications' => null
-];
+$body_extra_class = 'user-notifications-page';
 ?>
 <?php include '../templates/header.php'; ?>
 
-<?php include '../includes/breadcrumb.php'; ?>
+<form method="GET" class="notification-mobile-search" role="search">
+    <i class="fas fa-search" aria-hidden="true"></i>
+    <input type="search" name="q" value="<?php echo e($search); ?>" placeholder="Search notifications..." aria-label="Search notifications">
+    <input type="hidden" name="read" value="<?php echo e($read_filter); ?>">
+    <input type="hidden" name="type" value="<?php echo e($type_filter); ?>">
+    <input type="hidden" name="sort" value="<?php echo e($sort); ?>">
+</form>
+
 <?php include '../includes/back_button.php'; ?>
 
 <style>
-    .notification-center {
-        width: min(100%, 1300px);
-        max-width: 1300px;
+    .notification-mobile-search,
+    .notification-mobile-mark-all,
+    .notification-mobile-spinner {
+        display: none;
+    }
+
+    .notification-workspace {
+        width: min(100%, 1420px);
         margin: 0 auto;
         padding: 0 clamp(12px, 2vw, 24px);
     }
 
-    .notifications-page-shell {
-        width: 100%;
-        margin: 0;
-        padding: 0;
+    .notification-summary {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 16px 0 12px;
     }
 
-    .notification-hero,
+    .notification-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 34px;
+        padding: 7px 12px;
+        border: 1px solid #e6e0d4;
+        border-radius: 999px;
+        color: #2c2c2c;
+        background: #fff;
+        font-size: 0.82rem;
+        font-weight: 800;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.04);
+        text-decoration: none;
+    }
+
+    .notification-chip strong {
+        color: #9a6f18;
+    }
+
+    .notification-layout {
+        display: grid;
+        grid-template-columns: minmax(240px, 28%) minmax(0, 1fr);
+        gap: 18px;
+        align-items: start;
+    }
+
+    .notification-categories,
     .notification-toolbar,
     .notification-card,
     .notification-empty {
-        border: 1px solid rgba(23, 32, 51, 0.1);
-        border-radius: 8px;
-        background: #ffffff;
-        box-shadow: 0 14px 34px rgba(30, 41, 59, 0.08);
+        border: 1px solid #e6e0d4;
+        border-radius: 14px;
+        background: #fff;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
     }
 
-    .notification-hero {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-        padding: 30px clamp(18px, 3vw, 34px);
-        margin: 0 auto 18px;
-        border-top: 4px solid #d7ad43;
-        background: linear-gradient(135deg, #ffffff, #fff8df 52%, #eef5fb);
+    .notification-categories {
+        position: sticky;
+        top: 92px;
+        padding: 10px;
     }
 
-    .notification-hero-inner {
-        width: 100%;
-        max-width: 820px;
+    .notification-category-header {
         display: flex;
-        flex-direction: column;
         align-items: center;
+        justify-content: space-between;
         gap: 12px;
+        padding: 6px 6px 12px;
     }
 
-    .notification-hero h1 {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 12px;
-        color: #172033;
-        font-size: 1.85rem;
-        font-weight: 900;
+    .notification-category-header h2 {
         margin: 0;
+        color: #2c2c2c;
+        font-family: "Playfair Display", Georgia, serif;
+        font-size: 1.18rem;
+        font-weight: 700;
     }
 
-    .notification-hero p {
-        max-width: 760px;
-        color: #667085;
-        margin: 0 auto;
-        line-height: 1.6;
-    }
-
-    .notification-stats {
+    .notification-category-list {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 12px;
+        max-height: 0;
+        padding: 0;
+        overflow: hidden;
+        visibility: hidden;
+        opacity: 0;
+        transition: max-height 0.3s ease, opacity 0.2s ease, visibility 0.3s;
+    }
+
+    .notification-category-card {
+        overflow: hidden;
+        border: 1px solid #e6e0d4;
+        border-radius: 14px;
+        background: #fff;
+    }
+
+    .notification-category-card.open .notification-category-list {
+        max-height: 520px;
+        visibility: visible;
+        opacity: 1;
+    }
+
+    .notification-category-toggle {
         width: 100%;
-        max-width: 980px;
-        margin: 22px auto 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 54px;
+        padding: 11px 12px;
+        border: 0;
+        color: #8a6116;
+        background: #fbf2df;
+        text-align: left;
+        cursor: pointer;
     }
 
-    .notification-stat {
-        padding: 13px;
-        border: 1px solid rgba(23, 32, 51, 0.08);
-        border-radius: 8px;
-        background: rgba(255, 255, 255, 0.72);
-        text-align: center;
+    .notification-category-toggle .notification-category-icon {
+        background: #fff;
     }
 
-    .notification-stat span {
-        display: block;
-        color: #667085;
+    .notification-category-toggle-label {
+        flex: 1;
+        min-width: 0;
+        font-size: 0.9rem;
+        font-weight: 900;
+    }
+
+    .notification-category-chevron {
+        color: #8a6116;
+        font-size: 0.75rem;
+        transition: transform 0.25s ease;
+    }
+
+    .notification-category-card.open .notification-category-chevron {
+        transform: rotate(90deg);
+    }
+
+    .notification-active-filter {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        width: fit-content;
+        margin: 0 0 8px;
+        padding: 6px 8px 6px 11px;
+        border: 1px solid #c89b3c;
+        border-radius: 999px;
+        color: #8a6116;
+        background: #fff;
         font-size: 0.76rem;
         font-weight: 850;
-        text-transform: uppercase;
+        text-decoration: none;
     }
 
-    .notification-stat strong {
-        color: #172033;
-        font-size: 1.6rem;
+    .notification-active-filter:hover {
+        color: #6f4d10;
+        background: #fffaf0;
+    }
+
+    .notification-active-filter i {
+        width: 18px;
+        height: 18px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: #fbf2df;
+        font-size: 0.65rem;
+    }
+
+    .notification-category-link {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 42px;
+        padding: 9px 10px;
+        border-top: 1px solid #eee8dc;
+        border-radius: 0;
+        color: #4f4f4f;
+        text-decoration: none;
+        transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+    }
+
+    .notification-category-link:hover,
+    .notification-category-link.active {
+        color: #2c2c2c;
+        background: #fbf2df;
+    }
+
+    .notification-category-link.active {
+        color: #8a6116;
+        box-shadow: inset 3px 0 0 #c89b3c;
+    }
+
+    .notification-category-icon {
+        width: 28px;
+        height: 28px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 9px;
+        color: #9a6f18;
+        background: #fbf2df;
+    }
+
+    .notification-category-action {
+        width: 18px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #8a8274;
+        font-size: 0.78rem;
+    }
+
+    .notification-category-link span {
+        flex: 1;
+        min-width: 0;
+        font-size: 0.9rem;
+        font-weight: 800;
+    }
+
+    .notification-category-count {
+        min-width: 28px;
+        padding: 3px 8px;
+        border-radius: 999px;
+        color: #8a6116;
+        background: #f8edcf;
+        text-align: center;
+        font-size: 0.75rem;
+        font-weight: 900;
+    }
+
+    .notification-feed-panel {
+        min-width: 0;
     }
 
     .notification-toolbar {
-        width: 100%;
-        padding: 18px;
-        margin: 0 auto 18px;
+        position: sticky;
+        top: 92px;
+        z-index: 12;
+        padding: 12px;
+        margin-bottom: 16px;
+        backdrop-filter: blur(14px);
+        background: rgba(255, 255, 255, 0.94);
     }
 
-    .notification-toolbar .row {
-        justify-content: center;
+    .notification-toolbar-grid {
+        display: grid;
+        grid-template-columns: minmax(220px, 1fr) 150px 170px 145px auto;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .notification-mark-all-form {
+        margin-top: 8px;
     }
 
     .toolbar-control {
-        min-height: 44px;
-        border-radius: 8px;
-        border-color: #dfe4ea;
+        min-height: 42px;
+        border-radius: 12px;
+        border-color: #e6e0d4;
+        color: #2c2c2c;
+        background-color: #fff;
+        font-size: 0.86rem;
+    }
+
+    .toolbar-control:focus {
+        border-color: #c89b3c;
+        box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.16);
     }
 
     .input-with-icon {
@@ -386,67 +642,85 @@ $breadcrumbs = [
         position: absolute;
         left: 14px;
         top: 50%;
-        transform: translateY(-50%);
-        color: #94a3b8;
         z-index: 1;
+        color: #9a6f18;
+        transform: translateY(-50%);
     }
 
     .input-with-icon .form-control {
-        padding-left: 42px;
+        padding-left: 40px;
     }
 
     .notification-group-title {
-        margin: 22px 0 10px;
-        color: #172033;
-        font-size: 0.9rem;
+        margin: 18px 0 10px;
+        color: #6f6f6f;
+        font-size: 0.82rem;
         font-weight: 900;
-        text-transform: uppercase;
         letter-spacing: 0.04em;
+        text-transform: uppercase;
     }
 
     .notification-list {
         display: grid;
-        gap: 12px;
-        width: 100%;
+        gap: 10px;
     }
 
     .notification-card {
         position: relative;
         display: grid;
         grid-template-columns: auto minmax(0, 1fr) auto;
-        gap: 16px;
-        padding: 18px;
-        border-left: 5px solid #cbd5e1;
-        transition: transform 0.18s ease, box-shadow 0.18s ease;
+        gap: 14px;
+        padding: 14px;
+        border-left: 4px solid transparent;
+        transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease, background 0.22s ease;
     }
 
     .notification-card:hover {
+        border-color: #c89b3c;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
         transform: translateY(-2px);
-        box-shadow: 0 18px 42px rgba(30, 41, 59, 0.12);
     }
 
     .notification-card.unread {
-        border-left-color: #3b82f6;
-        background: linear-gradient(90deg, #f8fbff, #ffffff);
+        border-left-color: #c89b3c;
+        background: #fcf8ef;
     }
 
     .notification-card.read {
-        opacity: 0.82;
+        background: #fff;
+    }
+
+    .notification-card-link {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        border-radius: 14px;
     }
 
     .notification-icon {
-        width: 44px;
-        height: 44px;
+        width: 40px;
+        height: 40px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        border-radius: 8px;
-        background: #eef5fb;
-        color: #17446a;
+        border-radius: 12px;
+        color: #5e81ac;
+        background: #eaf1f8;
     }
 
-    .notification-main {
-        min-width: 0;
+    .notification-icon.success { color: #4f8a5b; background: #e9f4eb; }
+    .notification-icon.danger { color: #c85a54; background: #fbe9e7; }
+    .notification-icon.warning { color: #a7791d; background: #fbf2df; }
+    .notification-icon.primary,
+    .notification-icon.info { color: #5e81ac; background: #eaf1f8; }
+    .notification-icon.announcement { color: #9a6f18; background: #fbf2df; }
+    .notification-icon.secondary { color: #6f6f6f; background: #f3f1ec; }
+    .notification-icon.ai { color: #7952b3; background: #f0eafa; }
+
+    .notification-main,
+    .notification-actions {
+        position: relative;
+        z-index: 2;
     }
 
     .notification-title-row {
@@ -454,109 +728,274 @@ $breadcrumbs = [
         align-items: center;
         flex-wrap: wrap;
         gap: 8px;
-        margin-bottom: 4px;
+        margin-bottom: 5px;
     }
 
     .notification-card h3 {
         margin: 0;
-        color: #172033;
-        font-size: 1rem;
+        color: #2c2c2c;
+        font-size: 0.98rem;
         font-weight: 900;
+        line-height: 1.35;
     }
 
     .notification-card.read h3 {
-        font-weight: 750;
+        font-weight: 700;
     }
 
     .notification-card p {
-        margin: 5px 0 8px;
-        color: #475569;
-        line-height: 1.55;
+        margin: 0 0 8px;
+        color: #6f6f6f;
+        font-size: 0.9rem;
+        line-height: 1.5;
     }
 
     .notification-meta {
         display: flex;
         flex-wrap: wrap;
         gap: 8px 12px;
-        color: #667085;
-        font-size: 0.82rem;
+        color: #777;
+        font-size: 0.78rem;
+        font-weight: 700;
     }
 
-    .notification-type {
-        display: inline-flex;
-        align-items: center;
-        gap: 7px;
-        min-height: 28px;
-        padding: 4px 9px;
-        border-radius: 999px;
-        font-size: 0.75rem;
-        font-weight: 850;
-    }
-
-    .notification-type.success { color: #166534; background: #dcfce7; }
-    .notification-type.danger { color: #9f1239; background: #ffe4e6; }
-    .notification-type.primary { color: #17446a; background: #eef5fb; }
-    .notification-type.info { color: #075985; background: #e0f2fe; }
-    .notification-type.warning { color: #80611b; background: #fff8df; }
-    .notification-type.secondary { color: #475569; background: #f1f5f9; }
-
+    .notification-type,
     .read-label {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        min-height: 26px;
+        min-height: 24px;
         padding: 3px 8px;
         border-radius: 999px;
-        font-size: 0.75rem;
-        font-weight: 800;
-        color: #475569;
-        background: #f8fafc;
+        font-size: 0.72rem;
+        font-weight: 900;
+    }
+
+    .notification-type.success { color: #3f7448; background: #e8f3e9; }
+    .notification-type.danger { color: #a9423d; background: #fae8e6; }
+    .notification-type.primary,
+    .notification-type.info { color: #3f668b; background: #e8f0f7; }
+    .notification-type.warning { color: #8a6116; background: #f8edcf; }
+    .notification-type.announcement { color: #8a6116; background: #f8edcf; }
+    .notification-type.secondary { color: #626262; background: #f2f0ec; }
+    .notification-type.ai { color: #6842a0; background: #efe8f8; }
+
+    .read-label {
+        color: #6f6f6f;
+        background: #f3f1ec;
     }
 
     .read-label.unread {
-        color: #17446a;
-        background: #dbeafe;
+        color: #8a6116;
+        background: #f8edcf;
     }
 
     .unread-dot {
-        width: 10px;
-        height: 10px;
-        display: inline-block;
-        border-radius: 50%;
-        background: #3b82f6;
-        box-shadow: 0 0 0 5px rgba(59, 130, 246, 0.16);
+        width: 9px;
+        height: 9px;
+        border-radius: 999px;
+        background: #c89b3c;
+        box-shadow: 0 0 0 5px rgba(200, 155, 60, 0.15);
     }
 
     .notification-actions {
         display: flex;
         align-items: flex-start;
-        gap: 8px;
-        flex-wrap: wrap;
         justify-content: flex-end;
+        gap: 6px;
+        flex-wrap: wrap;
+        min-width: 214px;
+    }
+
+    .notification-actions .btn {
+        min-height: 34px;
+        border-radius: 10px;
+        font-size: 0.78rem;
+        font-weight: 850;
     }
 
     .notification-empty {
-        padding: 46px 18px;
+        padding: 42px 18px;
+        color: #6f6f6f;
         text-align: center;
-        color: #667085;
     }
 
     .notification-empty i {
-        width: 64px;
-        height: 64px;
+        width: 56px;
+        height: 56px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         margin-bottom: 14px;
-        border-radius: 8px;
-        color: #17446a;
-        background: #eef5fb;
-        font-size: 1.7rem;
+        border-radius: 16px;
+        color: #9a6f18;
+        background: #fbf2df;
+        font-size: 1.4rem;
     }
 
-    @media (max-width: 768px) {
-        .notification-stats {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+    .notification-detail-panel {
+        position: fixed;
+        top: 0;
+        right: 0;
+        z-index: 1080;
+        width: min(480px, 92vw);
+        height: 100vh;
+        padding: 22px;
+        overflow-y: auto;
+        background: #fcfbf8;
+        border-left: 1px solid #e6e0d4;
+        visibility: hidden;
+        box-shadow: none;
+        transform: translateX(105%);
+        transition: transform 0.24s ease;
+        pointer-events: none;
+    }
+
+    .notification-detail-panel:target {
+        visibility: visible;
+        box-shadow: -24px 0 60px rgba(0, 0, 0, 0.12);
+        transform: translateX(0);
+        pointer-events: auto;
+    }
+
+    .detail-panel-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 18px;
+    }
+
+    .detail-panel-header h2 {
+        margin: 0;
+        color: #2c2c2c;
+        font-family: "Playfair Display", Georgia, serif;
+        font-size: 1.45rem;
+        line-height: 1.25;
+    }
+
+    .detail-panel-close {
+        width: 38px;
+        height: 38px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid #e6e0d4;
+        border-radius: 12px;
+        color: #2c2c2c;
+        background: #fff;
+        text-decoration: none;
+    }
+
+    .detail-panel-card {
+        padding: 16px;
+        margin-bottom: 12px;
+        border: 1px solid #e6e0d4;
+        border-radius: 14px;
+        background: #fff;
+    }
+
+    .detail-panel-card h3 {
+        margin: 0 0 10px;
+        color: #2c2c2c;
+        font-size: 0.9rem;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+
+    .detail-panel-card p,
+    .detail-panel-card li {
+        color: #5f5f5f;
+        font-size: 0.92rem;
+        line-height: 1.55;
+    }
+
+    .detail-list {
+        display: grid;
+        gap: 8px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .detail-list li {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #f0ebe2;
+    }
+
+    .detail-list li:last-child {
+        padding-bottom: 0;
+        border-bottom: 0;
+    }
+
+    .detail-list span {
+        color: #8a8274;
+        font-weight: 800;
+    }
+
+    .detail-list strong {
+        color: #2c2c2c;
+        text-align: right;
+    }
+
+    .timeline-list {
+        margin: 0;
+        padding-left: 18px;
+    }
+
+    .timeline-list li + li {
+        margin-top: 8px;
+    }
+
+    @media (max-width: 1100px) {
+        .notification-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .notification-categories {
+            position: static;
+        }
+
+        .notification-toolbar {
+            top: 78px;
+        }
+    }
+
+    @media (max-width: 900px) {
+        .notification-toolbar-grid {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .notification-toolbar-grid .toolbar-search {
+            grid-column: 1 / -1;
+        }
+
+        .notification-card {
+            grid-template-columns: auto minmax(0, 1fr);
+        }
+
+        .notification-actions {
+            grid-column: 2;
+            justify-content: flex-start;
+            min-width: 0;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .notification-workspace {
+            padding: 0 8px;
+        }
+
+        .notification-toolbar-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .notification-toolbar {
+            position: static;
         }
 
         .notification-card {
@@ -564,54 +1003,12 @@ $breadcrumbs = [
         }
 
         .notification-actions {
-            justify-content: flex-start;
-        }
-    }
-
-    @media (max-width: 576px) {
-        .notification-center {
-            padding: 0 10px;
-        }
-
-        .notification-stats {
-            grid-template-columns: 1fr;
-        }
-
-        .notification-hero {
-            padding: 24px 14px;
-        }
-
-        .notification-hero h1 {
-            font-size: 1.45rem;
+            grid-column: 1;
         }
     }
 </style>
 
-<div class="notifications-page-shell mt-4">
-    <div class="notification-center">
-        <section class="notification-hero">
-            <div class="notification-hero-inner">
-                <div>
-                    <h1><i class="fas fa-bell"></i> Notifications Center</h1>
-                    <p>Stay updated with request progress, parish announcements, sacramental updates, verification reminders, and important notices.</p>
-                </div>
-                <?php if ($unread_count > 0): ?>
-                    <form method="POST">
-                        <input type="hidden" name="action" value="mark_all_read">
-                        <button type="submit" class="btn btn-outline-primary">
-                            <i class="fas fa-check-double"></i> Mark all as read
-                        </button>
-                    </form>
-                <?php endif; ?>
-            </div>
-            <div class="notification-stats">
-                <div class="notification-stat"><span>Total</span><strong><?php echo number_format($total_count); ?></strong></div>
-                <div class="notification-stat"><span>Unread</span><strong><?php echo number_format($unread_count); ?></strong></div>
-                <div class="notification-stat"><span>Read</span><strong><?php echo number_format($read_count); ?></strong></div>
-                <div class="notification-stat"><span>Today</span><strong><?php echo number_format($today_count); ?></strong></div>
-            </div>
-        </section>
-
+<div class="notification-workspace mt-3" id="notification-feed">
     <?php if ($error): ?>
         <div class="alert alert-danger alert-dismissible fade show">
             <?php echo e($error); ?>
@@ -626,95 +1023,243 @@ $breadcrumbs = [
         </div>
     <?php endif; ?>
 
-        <form method="GET" class="notification-toolbar">
-            <div class="row g-2 align-items-end">
-                <div class="col-lg-5">
-                    <label class="form-label">Search notifications</label>
-                    <div class="input-with-icon">
+    <nav class="notification-summary" aria-label="Notification filters">
+        <a class="notification-chip <?php echo $read_filter === 'all' && $type_filter === 'all' ? 'active' : ''; ?>" href="notifications.php">All <strong><?php echo number_format($total_count); ?></strong></a>
+        <a class="notification-chip <?php echo $read_filter === 'unread' && $type_filter === 'all' ? 'active' : ''; ?>" href="notifications.php?read=unread&amp;type=all">Unread <strong><?php echo number_format($unread_count); ?></strong></a>
+        <a class="notification-chip <?php echo $read_filter === 'read' && $type_filter === 'all' ? 'active' : ''; ?>" href="notifications.php?read=read&amp;type=all">Read <strong><?php echo number_format($read_count); ?></strong></a>
+        <a class="notification-chip <?php echo $type_filter === 'archived' ? 'active' : ''; ?>" href="notifications.php?read=all&amp;type=archived">Archived <strong><?php echo number_format($archived_count); ?></strong></a>
+    </nav>
+
+    <div class="notification-layout">
+        <aside class="notification-categories" aria-label="Notification categories">
+            <div class="notification-category-header">
+                <h2>Categories</h2>
+                <?php if ($unread_count > 0): ?>
+                    <form method="POST" class="notification-mobile-mark-all">
+                        <input type="hidden" name="action" value="mark_all_read">
+                        <button type="submit" aria-label="Mark all notifications as read" title="Mark all as read"><i class="fas fa-check-double" aria-hidden="true"></i></button>
+                    </form>
+                <?php endif; ?>
+            </div>
+            <?php
+                $active_category_key = 'all';
+                foreach ($category_filters as $category_key => $category) {
+                    $category_read = $category['read'] ?? 'all';
+                    if ($read_filter === $category_read && $type_filter === $category['type']) {
+                        $active_category_key = $category_key;
+                        break;
+                    }
+                }
+                $active_category = $category_filters[$active_category_key];
+                $clear_category_url = 'notifications.php?read=all&type=all&sort=' . urlencode($sort);
+                if ($search !== '') {
+                    $clear_category_url .= '&q=' . urlencode($search);
+                }
+            ?>
+            <?php if ($active_category_key !== 'all'): ?>
+                <a class="notification-active-filter" href="<?php echo e($clear_category_url); ?>" aria-label="Clear <?php echo e($active_category['label']); ?> filter">
+                    <span>Filtered by: <?php echo e($active_category['label']); ?></span>
+                    <i class="fas fa-xmark" aria-hidden="true"></i>
+                </a>
+            <?php endif; ?>
+            <div class="notification-category-card" id="notificationCategoryCard">
+                <button class="notification-category-toggle" id="notificationCategoryToggle" type="button" aria-expanded="false" aria-controls="notificationCategoryList">
+                    <i class="notification-category-icon fas <?php echo e($active_category['icon']); ?>" aria-hidden="true"></i>
+                    <span class="notification-category-toggle-label"><?php echo e($active_category['label']); ?></span>
+                    <b class="notification-category-count"><?php echo number_format($category_counts[$active_category_key] ?? 0); ?></b>
+                    <i class="notification-category-chevron fas fa-chevron-right" aria-hidden="true"></i>
+                </button>
+                <nav class="notification-category-list" id="notificationCategoryList" aria-label="Choose a notification category">
+                <?php foreach ($category_filters as $category_key => $category): ?>
+                    <?php if ($category_key === 'all') { continue; } ?>
+                    <?php
+                        $category_read = $category['read'] ?? 'all';
+                        $category_type = $category['type'];
+                        $category_url = 'notifications.php?read=' . urlencode($category_read) . '&type=' . urlencode($category_type) . '&sort=' . urlencode($sort);
+                        if ($search !== '') {
+                            $category_url .= '&q=' . urlencode($search);
+                        }
+                        $is_category_active = $read_filter === $category_read && $type_filter === $category_type;
+                    ?>
+                    <a class="notification-category-link <?php echo $is_category_active ? 'active' : ''; ?>" href="<?php echo e($category_url); ?>" <?php echo $is_category_active ? 'aria-current="page"' : ''; ?> data-category-option>
+                        <i class="notification-category-icon fas <?php echo e($category['icon']); ?>"></i>
+                        <span><?php echo e($category['label']); ?></span>
+                        <b class="notification-category-count"><?php echo number_format($category_counts[$category_key] ?? 0); ?></b>
+                        <?php
+                            $category_action_icons = [
+                                'all' => 'fa-chevron-right',
+                                'unread' => 'fa-star',
+                                'request' => 'fa-clock',
+                                'certificate' => 'fa-file-arrow-down',
+                                'announcement' => 'fa-bell',
+                                'schedule' => 'fa-clock',
+                                'account' => 'fa-shield-halved',
+                                'ai' => 'fa-wand-magic-sparkles',
+                                'archived' => 'fa-trash-can',
+                            ];
+                        ?>
+                        <i class="notification-category-action fas <?php echo e($category_action_icons[$category_key] ?? 'fa-chevron-right'); ?>" aria-hidden="true"></i>
+                    </a>
+                <?php endforeach; ?>
+                </nav>
+            </div>
+        </aside>
+
+        <main class="notification-feed-panel">
+            <section class="notification-toolbar" aria-label="Notification filters">
+                <form method="GET" class="notification-toolbar-grid">
+                    <div class="input-with-icon toolbar-search">
                         <i class="fas fa-search"></i>
                         <input type="search" class="form-control toolbar-control" name="q" value="<?php echo e($search); ?>" placeholder="Search notifications, requests, or updates...">
                     </div>
-                </div>
-                <div class="col-lg-2 col-md-4">
-                    <label class="form-label">Read status</label>
                     <select name="read" class="form-select toolbar-control">
                         <option value="all" <?php echo $read_filter === 'all' ? 'selected' : ''; ?>>All</option>
                         <option value="unread" <?php echo $read_filter === 'unread' ? 'selected' : ''; ?>>Unread only</option>
                         <option value="read" <?php echo $read_filter === 'read' ? 'selected' : ''; ?>>Read only</option>
                     </select>
-                </div>
-                <div class="col-lg-2 col-md-4">
-                    <label class="form-label">Category</label>
                     <select name="type" class="form-select toolbar-control">
                         <option value="all" <?php echo $type_filter === 'all' ? 'selected' : ''; ?>>All types</option>
                         <?php foreach ($notification_type_catalog as $key => $type_meta): ?>
                             <option value="<?php echo e($key); ?>" <?php echo $type_filter === $key ? 'selected' : ''; ?>><?php echo e($type_meta['label']); ?></option>
                         <?php endforeach; ?>
+                        <option value="archived" <?php echo $type_filter === 'archived' ? 'selected' : ''; ?>>Archived</option>
                     </select>
-                </div>
-                <div class="col-lg-2 col-md-4">
-                    <label class="form-label">Sort</label>
                     <select name="sort" class="form-select toolbar-control">
                         <option value="latest" <?php echo $sort === 'latest' ? 'selected' : ''; ?>>Latest first</option>
                         <option value="oldest" <?php echo $sort === 'oldest' ? 'selected' : ''; ?>>Oldest first</option>
                     </select>
-                </div>
-                <div class="col-lg-1 d-grid">
-                    <button type="submit" class="btn btn-primary toolbar-control"><i class="fas fa-filter"></i></button>
-                </div>
-            </div>
-        </form>
+                    <button type="submit" class="btn btn-primary toolbar-control"><i class="fas fa-filter"></i> Filter</button>
+                </form>
+                <?php if ($unread_count > 0): ?>
+                    <form method="POST" class="notification-mark-all-form">
+                        <input type="hidden" name="action" value="mark_all_read">
+                        <button type="submit" class="btn btn-outline-primary toolbar-control">
+                            <i class="fas fa-check-double"></i> Mark All as Read
+                        </button>
+                    </form>
+                <?php endif; ?>
+            </section>
 
-        <?php if (!empty($grouped_notifications)): ?>
-            <?php foreach ($grouped_notifications as $group => $items): ?>
-                <h2 class="notification-group-title"><?php echo e($group); ?></h2>
-                <div class="notification-list">
-                    <?php foreach ($items as $notification): ?>
-                        <?php $meta = notificationTypeMeta($notification); ?>
-                        <article class="notification-card <?php echo !$notification['is_read'] ? 'unread' : 'read'; ?>">
-                            <div class="notification-icon"><i class="fas <?php echo e($meta['icon']); ?>"></i></div>
-                            <div class="notification-main">
-                                <div class="notification-title-row">
-                                    <?php if (!$notification['is_read']): ?><span class="unread-dot"></span><?php endif; ?>
-                                    <h3><?php echo e($notification['title']); ?></h3>
-                                    <span class="notification-type <?php echo e($meta['tone']); ?>"><i class="fas <?php echo e($meta['icon']); ?>"></i> <?php echo e($meta['label']); ?></span>
-                                    <span class="read-label <?php echo !$notification['is_read'] ? 'unread' : ''; ?>">
-                                        <i class="fas <?php echo $notification['is_read'] ? 'fa-envelope-open' : 'fa-envelope'; ?>"></i>
-                                        <?php echo $notification['is_read'] ? 'Read' : 'Unread'; ?>
-                                    </span>
+            <?php if (!empty($grouped_notifications)): ?>
+                <?php foreach ($grouped_notifications as $group => $items): ?>
+                    <h2 class="notification-group-title"><?php echo e($group); ?></h2>
+                    <div class="notification-list">
+                        <?php foreach ($items as $notification): ?>
+                            <?php
+                                $meta = notificationTypeMeta($notification);
+                                $detail_id = 'notification-detail-' . intval($notification['notification_id']);
+                                $reference_number = notificationReferenceNumber($notification);
+                            ?>
+                            <article class="notification-card <?php echo !$notification['is_read'] ? 'unread' : 'read'; ?>">
+                                <a class="notification-card-link" href="#<?php echo e($detail_id); ?>" aria-label="Open notification details"></a>
+                                <div class="notification-icon <?php echo e($meta['tone']); ?>"><i class="fas <?php echo e($meta['icon']); ?>"></i></div>
+                                <div class="notification-main">
+                                    <div class="notification-title-row">
+                                        <?php if (!$notification['is_read']): ?><span class="unread-dot"></span><?php endif; ?>
+                                        <h3><?php echo e($notification['title']); ?></h3>
+                                        <span class="notification-type <?php echo e($meta['tone']); ?>"><i class="fas <?php echo e($meta['icon']); ?>"></i> <?php echo e($meta['label']); ?></span>
+                                        <span class="read-label <?php echo !$notification['is_read'] ? 'unread' : ''; ?>">
+                                            <i class="fas <?php echo $notification['is_read'] ? 'fa-envelope-open' : 'fa-envelope'; ?>"></i>
+                                            <?php echo $notification['is_read'] ? 'Read' : 'Unread'; ?>
+                                        </span>
+                                    </div>
+                                    <p><?php echo e(notificationShortMessage($notification['message'])); ?></p>
+                                    <div class="notification-meta">
+                                        <span><i class="fas fa-clock"></i> <?php echo e(formatDateTime($notification['created_at'])); ?></span>
+                                        <span><i class="fas fa-hashtag"></i> <?php echo e($reference_number); ?></span>
+                                    </div>
                                 </div>
-                                <p><?php echo e($notification['message']); ?></p>
-                                <div class="notification-meta">
-                                    <span><i class="fas fa-clock"></i> <?php echo e(formatDateTime($notification['created_at'])); ?></span>
-                                </div>
-                            </div>
-                            <div class="notification-actions">
-                                <a class="btn btn-sm btn-outline-primary" href="<?php echo e(notificationActionUrl($notification)); ?>"><i class="fas fa-arrow-up-right-from-square"></i> View</a>
-                                <?php if (!$notification['is_read']): ?>
-                                    <form method="POST">
-                                        <input type="hidden" name="action" value="mark_read">
+                                <div class="notification-actions">
+                                    <a class="btn btn-sm btn-outline-primary" href="<?php echo e(notificationActionUrl($notification)); ?>"><i class="fas fa-arrow-up-right-from-square"></i> View</a>
+                                    <?php if (!$notification['is_read']): ?>
+                                        <form method="POST">
+                                            <input type="hidden" name="action" value="mark_read">
+                                            <input type="hidden" name="notification_id" value="<?php echo intval($notification['notification_id']); ?>">
+                                            <button type="submit" class="btn btn-sm btn-outline-success"><i class="fas fa-check"></i> Mark as Read</button>
+                                        </form>
+                                    <?php else: ?>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" disabled><i class="fas fa-envelope-open"></i> Read</button>
+                                    <?php endif; ?>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled title="Archiving is not enabled for this notification record yet."><i class="fas fa-box-archive"></i> Archive</button>
+                                    <form method="POST" onsubmit="return confirm('Delete this notification?');">
+                                        <input type="hidden" name="action" value="delete_notification">
                                         <input type="hidden" name="notification_id" value="<?php echo intval($notification['notification_id']); ?>">
-                                        <button type="submit" class="btn btn-sm btn-outline-success"><i class="fas fa-check"></i> Mark Read</button>
+                                        <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i> Delete</button>
                                     </form>
-                                <?php endif; ?>
-                                <form method="POST" onsubmit="return confirm('Delete this notification?');">
-                                    <input type="hidden" name="action" value="delete_notification">
-                                    <input type="hidden" name="notification_id" value="<?php echo intval($notification['notification_id']); ?>">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
-                                </form>
-                            </div>
-                        </article>
-                    <?php endforeach; ?>
+                                </div>
+                            </article>
+
+                            <aside class="notification-detail-panel" id="<?php echo e($detail_id); ?>" aria-label="Notification detail panel">
+                                <div class="detail-panel-header">
+                                    <div>
+                                        <span class="notification-type <?php echo e($meta['tone']); ?>"><i class="fas <?php echo e($meta['icon']); ?>"></i> <?php echo e($meta['label']); ?></span>
+                                        <h2 class="mt-2"><?php echo e($notification['title']); ?></h2>
+                                    </div>
+                                    <a class="detail-panel-close" href="#notification-feed" aria-label="Close notification details"><i class="fas fa-xmark"></i></a>
+                                </div>
+                                <div class="detail-panel-card">
+                                    <h3>Full Message</h3>
+                                    <p class="mb-0"><?php echo nl2br(e($notification['message'])); ?></p>
+                                </div>
+                                <div class="detail-panel-card">
+                                    <h3>Related Record</h3>
+                                    <ul class="detail-list">
+                                        <li><span>Reference</span><strong><?php echo e($reference_number); ?></strong></li>
+                                        <li><span>Category</span><strong><?php echo e($meta['label']); ?></strong></li>
+                                        <li><span>Status</span><strong><?php echo $notification['is_read'] ? 'Read' : 'Unread'; ?></strong></li>
+                                        <li><span>Received</span><strong><?php echo e(formatDateTime($notification['created_at'])); ?></strong></li>
+                                    </ul>
+                                </div>
+                                <div class="detail-panel-card">
+                                    <h3>Timeline</h3>
+                                    <ol class="timeline-list">
+                                        <li>Notification created on <?php echo e(formatDateTime($notification['created_at'])); ?>.</li>
+                                        <li><?php echo $notification['is_read'] ? 'Marked as read by the parishioner.' : 'Awaiting parishioner review.'; ?></li>
+                                    </ol>
+                                </div>
+                                <div class="detail-panel-card">
+                                    <h3>Attached Documents</h3>
+                                    <p class="mb-0">No attached documents are linked to this notification.</p>
+                                </div>
+                                <div class="detail-panel-card">
+                                    <h3>Action History</h3>
+                                    <p class="mb-0">Available actions are shown on the notification card: view, mark as read, archive, and delete.</p>
+                                </div>
+                            </aside>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endforeach; ?>
+            <?php else: ?>
+                <div class="notification-empty">
+                    <i class="fas fa-bell-slash"></i>
+                    <h5>You're all caught up!</h5>
+                    <p class="mb-0">No notifications match your current filters. New request and parish updates will appear here.</p>
                 </div>
-            <?php endforeach; ?>
-        <?php else: ?>
-            <div class="notification-empty">
-                <i class="fas fa-bell-slash"></i>
-                <h5>You’re all caught up!</h5>
-                <p class="mb-0">No notifications match your current filters. New request and parish updates will appear here.</p>
-            </div>
-        <?php endif; ?>
+            <?php endif; ?>
+        </main>
     </div>
 </div>
+
+<div class="notification-mobile-spinner" aria-hidden="true"><span></span></div>
+
+<script>
+    (function () {
+        var card = document.getElementById('notificationCategoryCard');
+        var toggle = document.getElementById('notificationCategoryToggle');
+        if (!card || !toggle) return;
+
+        toggle.addEventListener('click', function () {
+            var isOpen = card.classList.toggle('open');
+            toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        });
+
+        card.querySelectorAll('[data-category-option]').forEach(function (option) {
+            option.addEventListener('click', function () {
+                card.classList.remove('open');
+                toggle.setAttribute('aria-expanded', 'false');
+            });
+        });
+    }());
+</script>
 
 <?php include '../templates/footer.php'; ?>

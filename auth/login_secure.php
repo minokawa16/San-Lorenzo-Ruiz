@@ -314,6 +314,8 @@ $csrf_token = $security->generateCSRFToken();
             text-decoration: underline;
         }
     </style>
+    <link rel="stylesheet" href="../assets/css/theme.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/theme.css') ? filemtime(__DIR__ . '/../assets/css/theme.css') : time(); ?>">
+    <link rel="stylesheet" href="../assets/css/responsive-unified.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/responsive-unified.css'); ?>">
 </head>
 <body>
     <div class="container">

@@ -10,6 +10,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // Include auth functions
+include '../includes/helpers.php';
 include '../includes/auth.php';
 
 // Use auth function to logout

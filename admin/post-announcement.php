@@ -60,6 +60,8 @@ if ($_POST) {
         .type-option input { display: none; }
         .type-option input:checked + label { color: #1E3A5F; font-weight: bold; }
     </style>
+    <link rel="stylesheet" href="../assets/css/theme.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/theme.css') ? filemtime(__DIR__ . '/../assets/css/theme.css') : time(); ?>">
+    <link rel="stylesheet" href="../assets/css/responsive-unified.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/responsive-unified.css'); ?>">
 </head>
 <body>
 <div class="container">

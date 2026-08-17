@@ -13,10 +13,14 @@ requirePermission('reports.view');
 ensureScheduleEventsTable($conn);
 
 $page_title = 'Analytics Report Dashboard';
+$hide_global_header = true;
 $from = $_GET['from'] ?? date('Y-m-01');
 $to = $_GET['to'] ?? date('Y-m-d');
 $selected_report = $_GET['report'] ?? '';
 $search = trim($_GET['q'] ?? '');
+$is_generated_report = isset($_GET['generate_report']);
+$report_row_limit = 25;
+$trend_row_limit = 12;
 
 $report_categories = [
     'activity' => [
@@ -51,8 +55,45 @@ $report_categories = [
     ]
 ];
 
-if (!array_key_exists($selected_report, $report_categories)) {
+if ($is_generated_report && $selected_report === '') {
+    $selected_report = 'all';
+}
+if ($selected_report !== 'all' && !array_key_exists($selected_report, $report_categories)) {
     $selected_report = '';
+}
+
+$current_report_title = 'Analytics Report Dashboard';
+$current_report_description = 'Organized parish transaction, sacramental record, registration, announcement, activity log, and TUGON AI inquiry analytics.';
+$current_report_icon = 'fa-chart-simple';
+if ($selected_report === 'all') {
+    $current_report_title = 'Complete Analytics Report';
+    $current_report_description = 'Complete formal parish analytics report covering activity logs, certificate requests, sacramental records, registrations, chatbot inquiries, announcements, and key metrics.';
+} elseif ($selected_report) {
+    $current_report_title = $report_categories[$selected_report]['title'];
+    $current_report_description = $report_categories[$selected_report]['description'];
+    $current_report_icon = $report_categories[$selected_report]['icon'];
+}
+
+function reportIncludes($selected_report, $section) {
+    return $selected_report === 'all' || $selected_report === $section;
+}
+
+function reportSectionNumber($selected_report, $section, $fallback = 'I.') {
+    if ($selected_report !== 'all') {
+        return $fallback;
+    }
+
+    $sections = [
+        'activity' => 'I.',
+        'requests' => 'II.',
+        'records' => 'III.',
+        'registrations' => 'IV.',
+        'chatbot' => 'V.',
+        'announcements' => 'VI.',
+        'overview' => 'VII.'
+    ];
+
+    return $sections[$section] ?? $fallback;
 }
 
 if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $from)) {
@@ -60,6 +101,9 @@ if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $from)) {
 }
 if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $to)) {
     $to = date('Y-m-d');
+}
+if (strtotime($from) > strtotime($to)) {
+    [$from, $to] = [$to, $from];
 }
 
 $from_sql = $conn->real_escape_string($from . ' 00:00:00');
@@ -225,7 +269,7 @@ $certificate_requests = fetchRows($conn, "SELECT r.request_id, r.reference_numbe
       AND r.date_requested BETWEEN '$from_sql' AND '$to_sql'
       AND r.request_type IN ('baptismal', 'confirmation', 'first_communion', 'baptismal_certificate', 'confirmation_certificate', 'first_communion_certificate')
     ORDER BY FIELD(r.status, 'pending', 'approved', 'completed', 'rejected', 'processing'), r.date_requested DESC
-    LIMIT 80");
+    LIMIT $report_row_limit");
 $reservation_status = fetchRows($conn, "SELECT status AS label, COUNT(*) AS count FROM reservations WHERE created_at BETWEEN '$from_sql' AND '$to_sql' GROUP BY status ORDER BY count DESC");
 $reservation_types = fetchRows($conn, "SELECT reservation_type AS label, COUNT(*) AS count FROM reservations WHERE created_at BETWEEN '$from_sql' AND '$to_sql' GROUP BY reservation_type ORDER BY count DESC");
 $announcement_types = fetchRows($conn, "SELECT type AS label, COUNT(*) AS count FROM announcements WHERE deleted_at IS NULL AND published_date BETWEEN '$from_sql' AND '$to_sql' GROUP BY type ORDER BY count DESC");
@@ -234,7 +278,7 @@ $announcement_rows = fetchRows($conn, "SELECT a.announcement_id, a.title, a.type
     LEFT JOIN users u ON a.published_by = u.id
     WHERE a.deleted_at IS NULL AND a.published_date BETWEEN '$from_sql' AND '$to_sql'
     ORDER BY a.published_date DESC
-    LIMIT 80");
+    LIMIT $report_row_limit");
 
 $from_date_sql = $conn->real_escape_string($from);
 $to_date_sql = $conn->real_escape_string($to);
@@ -305,7 +349,7 @@ $sacramental_record_rows = fetchRows($conn, "
     LEFT JOIN users u ON r.user_id = u.id
     WHERE m.status = 'active' AND m.wedding_date BETWEEN '$from_date_sql' AND '$to_date_sql'
     ORDER BY record_date DESC, record_type ASC, person_name ASC
-    LIMIT 200
+    LIMIT $report_row_limit
 ");
 
 if ($search !== '') {
@@ -335,7 +379,7 @@ $recent_registrations = fetchRows($conn, "SELECT id, fullname, email, status, ve
     FROM users
     WHERE role = 'user' AND created_at BETWEEN '$from_sql' AND '$to_sql'
     ORDER BY created_at DESC
-    LIMIT 20");
+    LIMIT $report_row_limit");
 
 $chatbot_top_questions = fetchRows($conn, "SELECT question AS label, COUNT(*) AS count
     FROM chatbot_inquiries
@@ -349,14 +393,14 @@ $chatbot_trends = fetchRows($conn, "SELECT DATE(created_at) AS label, COUNT(*) A
     WHERE created_at BETWEEN '$from_sql' AND '$to_sql'
     GROUP BY DATE(created_at)
     ORDER BY label ASC
-    LIMIT 31");
+    LIMIT $trend_row_limit");
 
 $daily_request_trends = fetchRows($conn, "SELECT DATE(date_requested) AS label, COUNT(*) AS count
     FROM requests
     WHERE deleted_at IS NULL AND date_requested BETWEEN '$from_sql' AND '$to_sql'
     GROUP BY DATE(date_requested)
     ORDER BY label ASC
-    LIMIT 31");
+    LIMIT $trend_row_limit");
 
 $monthly_trends = fetchRows($conn, "SELECT DATE_FORMAT(date_requested, '%Y-%m') AS label, COUNT(*) AS count
     FROM requests
@@ -394,30 +438,34 @@ if (!empty($audit_source_queries)) {
         LEFT JOIN users u ON l.user_id = u.id
         WHERE l.activity_date BETWEEN '$from_sql' AND '$to_sql'
         ORDER BY l.activity_date DESC
-        LIMIT 60");
+        LIMIT $report_row_limit");
 }
 
 if ($search !== '') {
-    if ($selected_report === 'requests') {
+    if (reportIncludes($selected_report, 'requests')) {
         $certificate_requests = array_values(array_filter($certificate_requests, function($row) use ($search) {
             return rowMatchesSearch($row, $search);
         }));
-    } elseif ($selected_report === 'registrations') {
+    }
+    if (reportIncludes($selected_report, 'registrations')) {
         $recent_registrations = array_values(array_filter($recent_registrations, function($row) use ($search) {
             return rowMatchesSearch($row, $search);
         }));
-    } elseif ($selected_report === 'chatbot') {
+    }
+    if (reportIncludes($selected_report, 'chatbot')) {
         $chatbot_top_questions = array_values(array_filter($chatbot_top_questions, function($row) use ($search) {
             return rowMatchesSearch($row, $search);
         }));
-    } elseif ($selected_report === 'announcements') {
+    }
+    if (reportIncludes($selected_report, 'announcements')) {
         $announcement_rows = array_values(array_filter($announcement_rows, function($row) use ($search) {
             return rowMatchesSearch($row, $search);
         }));
         $announcement_types = array_values(array_filter($announcement_types, function($row) use ($search) {
             return rowMatchesSearch($row, $search);
         }));
-    } elseif ($selected_report === 'activity') {
+    }
+    if (reportIncludes($selected_report, 'activity')) {
         $recent_activity = array_values(array_filter($recent_activity, function($row) use ($search) {
             return rowMatchesSearch($row, $search);
         }));
@@ -513,7 +561,7 @@ $breadcrumbs = [
         background: #ffffff;
         border: 1px solid #dfe4ea;
         border-top: 4px solid #b68b2c;
-        border-radius: 8px;
+        border-radius: 4px;
         box-shadow: 0 10px 28px rgba(15, 23, 42, 0.07);
         padding: 20px;
         margin-bottom: 16px;
@@ -540,6 +588,10 @@ $breadcrumbs = [
         border: 1px solid #dfe4ea;
         border-radius: 8px;
         padding: 14px;
+    }
+
+    .formal-report-title {
+        display: none;
     }
 
     .filter-panel label {
@@ -582,6 +634,15 @@ $breadcrumbs = [
         margin: 0;
     }
 
+    .section-heading h2::before {
+        content: attr(data-section);
+        display: inline-block;
+        min-width: 1.8rem;
+        color: #111827;
+        font-family: Georgia, "Times New Roman", serif;
+        font-weight: 900;
+    }
+
     .section-heading span {
         color: #64748b;
         font-size: 0.88rem;
@@ -591,7 +652,7 @@ $breadcrumbs = [
     .analytics-card {
         display: block;
         border: 1px solid #dfe4ea;
-        border-radius: 8px;
+        border-radius: 4px;
         box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
         min-height: 138px;
         color: inherit;
@@ -632,7 +693,7 @@ $breadcrumbs = [
         min-height: 126px;
         padding: 18px;
         border: 1px solid #dfe4ea;
-        border-radius: 8px;
+        border-radius: 4px;
         color: inherit;
         background: #ffffff;
         box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
@@ -694,10 +755,14 @@ $breadcrumbs = [
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    .analytics-layout.single {
+        grid-template-columns: 1fr;
+    }
+
     .metric-icon {
         width: 42px;
         height: 42px;
-        border-radius: 8px;
+        border-radius: 4px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -724,7 +789,7 @@ $breadcrumbs = [
 
     .report-card {
         border: 1px solid #dfe4ea;
-        border-radius: 8px;
+        border-radius: 4px;
         box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
     }
 
@@ -740,6 +805,20 @@ $breadcrumbs = [
         font-size: 0.98rem;
         font-weight: 800;
         margin-bottom: 14px;
+    }
+
+    .formal-metrics-table {
+        margin-top: 18px;
+    }
+
+    .section-note {
+        color: #64748b;
+        font-size: 0.88rem;
+        margin: 0;
+    }
+
+    .overview-table {
+        width: 100%;
     }
 
     .progress-row {
@@ -783,6 +862,28 @@ $breadcrumbs = [
 
     .clean-table {
         margin-bottom: 0;
+        display: table;
+        width: 100%;
+        table-layout: auto;
+        border-collapse: collapse;
+    }
+
+    .report-section .clean-table thead {
+        display: table-header-group;
+    }
+
+    .report-section .clean-table tbody {
+        display: table-row-group;
+    }
+
+    .report-section .clean-table tr {
+        display: table-row;
+    }
+
+    .report-section .clean-table th,
+    .report-section .clean-table td {
+        display: table-cell;
+        width: auto;
     }
 
     .clean-table thead th {
@@ -898,11 +999,57 @@ $breadcrumbs = [
         background: linear-gradient(90deg, #17446a, #b68b2c);
     }
 
+    .report-header,
     .print-header {
         display: none;
-        margin-bottom: 18px;
+        margin-bottom: 10px;
+        padding-bottom: 8px;
+        text-align: center;
+        font-family: Georgia, "Times New Roman", serif;
+        color: #111827;
         border-bottom: 2px solid #111827;
-        padding-bottom: 12px;
+        position: relative;
+    }
+
+    .report-header::after,
+    .print-header::after {
+        content: "";
+        display: block;
+        border-bottom: 1px solid #b68b2c;
+        margin-top: 2px;
+    }
+
+    .print-header .document-kicker {
+        font-size: 9pt;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+
+    .report-header .org-name,
+    .print-header h1 {
+        margin: 1mm 0;
+        font-size: 15pt;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+    }
+
+    .report-header .date-range,
+    .print-header .document-place,
+    .print-header .document-range {
+        margin: 0;
+        font-size: 9pt;
+        font-weight: 700;
+    }
+
+    .report-header .report-title,
+    .print-header .document-title {
+        margin-top: 3mm;
+        font-size: 12pt;
+        font-weight: 900;
+        text-decoration: underline;
+        text-transform: uppercase;
     }
 
     .ai-report-panel {
@@ -1055,8 +1202,18 @@ $breadcrumbs = [
     }
 
     @media print {
+        @page {
+            size: A4;
+            margin: 10mm 9mm;
+        }
+
+        html,
         body {
             background: #fff !important;
+            color: #111827 !important;
+            font-family: Georgia, "Times New Roman", serif !important;
+            font-size: 8.5pt !important;
+            line-height: 1.2 !important;
         }
 
         .user-sidebar,
@@ -1069,7 +1226,11 @@ $breadcrumbs = [
         .ai-assistant-widget,
         .floating-language,
         .no-print,
-        .btn {
+        .btn,
+        .reports-hero,
+        .alert,
+        .breadcrumb,
+        .back-button {
             display: none !important;
         }
 
@@ -1081,8 +1242,152 @@ $breadcrumbs = [
             padding: 0 !important;
         }
 
+        .report-header,
         .print-header {
             display: block;
+        }
+
+        .formal-report-title {
+            display: block;
+            margin: 0 0 6mm;
+            text-align: center;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 9pt;
+            font-weight: 700;
+        }
+
+        .reports-page {
+            max-width: none !important;
+        }
+
+        .report-section {
+            margin-top: 3mm !important;
+            padding-top: 0 !important;
+            break-inside: auto;
+        }
+
+        .section-heading {
+            display: block;
+            margin: 0 0 3mm !important;
+            padding: 0 0 1.5mm !important;
+            border-bottom: 1.5px solid #111827 !important;
+        }
+
+        .section-heading h2 {
+            display: block !important;
+            font-family: Georgia, "Times New Roman", serif !important;
+            font-size: 10pt !important;
+            font-weight: 900 !important;
+            text-transform: uppercase;
+            letter-spacing: 0 !important;
+        }
+
+        .section-heading h2::before {
+            min-width: 0;
+            margin-right: 4px;
+        }
+
+        .section-heading h2 i,
+        .reports-title i,
+        .card-title i,
+        .metric-icon,
+        .open-icon,
+        .ai-report-header i,
+        .ai-insight-tile i {
+            display: none !important;
+        }
+
+        .section-heading span {
+            display: block;
+            margin-top: 1mm;
+            color: #333 !important;
+            font-size: 7.8pt !important;
+            text-align: left !important;
+        }
+
+        .section-note {
+            color: #555 !important;
+            font-size: 7.2pt !important;
+            margin: 0 0 2mm !important;
+        }
+
+        .summary-card-grid,
+        .report-category-grid,
+        .analytics-layout,
+        .analytics-layout.equal,
+        .analytics-layout.single,
+        .ai-insight-grid,
+        .ai-action-list,
+        .status-bucket {
+            display: block !important;
+            height: auto !important;
+            min-height: 0 !important;
+            gap: 0 !important;
+            margin-bottom: 4mm !important;
+        }
+
+        .summary-card-grid {
+            display: none !important;
+        }
+
+        .report-category-grid {
+            display: block !important;
+            counter-reset: report-category;
+        }
+
+        .report-category-card {
+            counter-increment: report-category;
+            display: grid !important;
+            grid-template-columns: 8mm 1fr !important;
+            min-height: 0 !important;
+            margin: 0 0 2mm !important;
+            padding: 0 0 1.8mm !important;
+            border: 0 !important;
+            border-bottom: 1px solid #d7d7d7 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            color: #111827 !important;
+            text-decoration: none !important;
+            break-inside: avoid;
+        }
+
+        .report-category-card::before {
+            content: counter(report-category, upper-alpha) ".";
+            font-weight: 900;
+        }
+
+        .report-category-card h3 {
+            font-family: Georgia, "Times New Roman", serif !important;
+            font-size: 8.8pt !important;
+            font-weight: 900 !important;
+            margin: 0 0 .5mm !important;
+        }
+
+        .report-category-card p {
+            color: #333 !important;
+            font-size: 7.5pt !important;
+            line-height: 1.15 !important;
+        }
+
+        .card,
+        .reports-hero,
+        .report-card,
+        .analytics-card,
+        .ai-report-panel,
+        .ai-insight-tile,
+        .ai-action-card,
+        .h-100,
+        .status-bucket div {
+            height: auto !important;
+            min-height: 0 !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            background: #fff !important;
+            color: #111827 !important;
+            break-inside: avoid;
+            margin-bottom: 3mm !important;
+            padding: 0 !important;
         }
 
         .card,
@@ -1092,6 +1397,196 @@ $breadcrumbs = [
             break-inside: avoid;
             box-shadow: none !important;
         }
+
+        .card-body,
+        .report-card .card-body,
+        .ai-report-panel .card-body,
+        .summary-card-grid .card-body {
+            padding: 1mm 0 !important;
+            min-height: 0 !important;
+        }
+
+        /* Long report tables must flow into the available page space instead
+           of moving the entire card to the following sheet. */
+        .report-section .report-card,
+        .report-section .report-card .card-body,
+        .report-section .table-responsive {
+            break-inside: auto !important;
+            page-break-inside: auto !important;
+        }
+
+        .section-heading {
+            break-after: avoid-page;
+            page-break-after: avoid;
+        }
+
+        .table-responsive {
+            display: block !important;
+            overflow: visible !important;
+            height: auto !important;
+            min-height: 0 !important;
+        }
+
+        .report-section table.clean-table,
+        .report-section .clean-table {
+            display: table !important;
+            table-layout: auto !important;
+        }
+
+        .report-section .clean-table thead {
+            display: table-header-group !important;
+        }
+
+        .report-section .clean-table tbody {
+            display: table-row-group !important;
+        }
+
+        .report-section .clean-table tr {
+            display: table-row !important;
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+        }
+
+        .report-section .clean-table th,
+        .report-section .clean-table td {
+            display: table-cell !important;
+            width: auto !important;
+            white-space: normal !important;
+        }
+
+        .trend-chart,
+        .progress,
+        canvas,
+        .chart-placeholder {
+            display: none !important;
+            height: 0 !important;
+            min-height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        .analytics-card {
+            min-height: 0 !important;
+        }
+
+        .metric-label,
+        .status-bucket span,
+        .ai-insight-tile span,
+        .ai-action-list span {
+            color: #333 !important;
+            font-size: 7.2pt !important;
+            font-weight: 900 !important;
+            letter-spacing: 0 !important;
+        }
+
+        .metric-value,
+        .status-bucket strong {
+            margin-top: 1mm !important;
+            color: #111827 !important;
+            font-family: Georgia, "Times New Roman", serif !important;
+            font-size: 13pt !important;
+            font-weight: 900 !important;
+        }
+
+        .report-card .card-title,
+        .ai-report-header h2 {
+            display: block !important;
+            margin: 0 0 2mm !important;
+            padding-bottom: 1mm;
+            border-bottom: 1px solid #d7d7d7;
+            font-family: Georgia, "Times New Roman", serif !important;
+            font-size: 8.8pt !important;
+            font-weight: 900 !important;
+            text-transform: uppercase;
+        }
+
+        .clean-table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            font-size: 7.5pt !important;
+        }
+
+        .overview-table {
+            width: 60% !important;
+            border-collapse: collapse !important;
+            font-size: 8.2pt !important;
+            margin: 2mm 0 !important;
+        }
+
+        .overview-table td {
+            border: 1px solid #999 !important;
+            padding: 1.2mm 2mm !important;
+        }
+
+        .overview-table td:first-child {
+            font-weight: 900 !important;
+            width: 60%;
+        }
+
+        .clean-table thead th {
+            background: #fff !important;
+            color: #111827 !important;
+            border-top: 1px solid #111827 !important;
+            border-bottom: 1px solid #111827 !important;
+            font-size: 7pt !important;
+            letter-spacing: 0 !important;
+            padding: 1mm 1.5mm !important;
+        }
+
+        .clean-table td {
+            color: #111827 !important;
+            border-bottom: 1px solid #d7d7d7 !important;
+            padding: 1mm 1.5mm !important;
+        }
+
+        .badge {
+            border: 0 !important;
+            background: transparent !important;
+            color: #111827 !important;
+            padding: 0 !important;
+            font-weight: 700 !important;
+        }
+
+        .trend-chart {
+            gap: 1.8mm !important;
+        }
+
+        .trend-row {
+            grid-template-columns: 32mm 1fr 12mm !important;
+            gap: 2mm !important;
+            font-size: 7.5pt !important;
+        }
+
+        .trend-bar {
+            height: 2.5mm !important;
+            border-radius: 0 !important;
+            background: #eee !important;
+            border: 1px solid #d7d7d7;
+        }
+
+        .trend-bar span {
+            border-radius: 0 !important;
+            background: #444 !important;
+        }
+
+        .progress-row {
+            padding: 1.5mm 0 !important;
+            break-inside: avoid;
+        }
+
+        .progress {
+            height: 2.2mm !important;
+            border-radius: 0 !important;
+            background: #eee !important;
+        }
+
+        .progress-bar {
+            background: #444 !important;
+        }
+
+        a[href]::after {
+            content: "" !important;
+        }
     }
 </style>
 
@@ -1100,20 +1595,31 @@ $breadcrumbs = [
         <?php include '../includes/breadcrumb.php'; ?>
         <?php include '../includes/back_button.php'; ?>
 
-        <div class="print-header">
-            <h1>San Lorenzo Ruiz Mission Station</h1>
-            <p><?php echo e($selected_report ? $report_categories[$selected_report]['title'] : 'Analytics Report Dashboard'); ?> | <?php echo e(formatDate($from)); ?> to <?php echo e(formatDate($to)); ?></p>
+        <div class="row mb-4 no-print">
+            <div class="col-md-12">
+                <h1 class="mb-2"><i class="fas fa-chart-simple"></i> Analytics Reports</h1>
+                <p class="text-muted mb-0">Generate concise professional reports for requests, sacramental records, registrations, announcements, chatbot inquiries, and activity logs.</p>
+            </div>
         </div>
+
+        <div class="report-header print-header">
+            <div class="document-kicker">Archdiocese of Cotabato</div>
+            <h1 class="org-name">San Lorenzo Ruiz Mission Station</h1>
+            <p class="document-place">Aleosan, Cotabato</p>
+            <div class="report-title document-title"><?php echo e($current_report_title); ?></div>
+            <p class="date-range document-range">Reporting Period: <?php echo e(formatDate($from)); ?> to <?php echo e(formatDate($to)); ?></p>
+        </div>
+        <div class="formal-report-title">Official Parish Analytics Report</div>
 
         <div class="reports-hero">
             <div class="row align-items-center g-3">
                 <div class="col-lg-5">
-                    <h1 class="reports-title">
-                        <i class="fas <?php echo e($selected_report ? $report_categories[$selected_report]['icon'] : 'fa-chart-simple'); ?>"></i>
-                        <?php echo e($selected_report ? $report_categories[$selected_report]['title'] : 'Analytics Report Dashboard'); ?>
-                    </h1>
+                    <h2 class="reports-title">
+                        <i class="fas <?php echo e($current_report_icon); ?>"></i>
+                        <?php echo e($current_report_title); ?>
+                    </h2>
                     <p class="reports-subtitle">
-                        <?php echo e($selected_report ? $report_categories[$selected_report]['description'] : 'Organized parish transaction, sacramental record, registration, announcement, activity log, and TUGON AI inquiry analytics.'); ?>
+                        <?php echo e($current_report_description); ?>
                         Showing <?php echo e($from); ?> to <?php echo e($to); ?>.
                     </p>
                     <?php if ($selected_report): ?>
@@ -1123,28 +1629,37 @@ $breadcrumbs = [
                     <?php endif; ?>
                 </div>
                 <div class="col-lg-7">
-                    <form method="GET" class="filter-panel">
-                        <?php if ($selected_report): ?>
-                            <input type="hidden" name="report" value="<?php echo e($selected_report); ?>">
-                        <?php endif; ?>
+                    <form method="GET" class="filter-panel" id="reportGeneratorForm">
+                        <input type="hidden" name="generate_report" value="1">
                         <div class="row g-2 align-items-end">
+                            <div class="col-md-4 col-sm-6">
+                                <label for="reportType">Report Type</label>
+                                <select id="reportType" name="report" class="form-select">
+                                    <option value="all" <?php echo ($selected_report === 'all' || $selected_report === '') ? 'selected' : ''; ?>>Complete Analytics Report</option>
+                                    <?php foreach ($report_categories as $report_key => $category): ?>
+                                        <option value="<?php echo e($report_key); ?>" <?php echo $selected_report === $report_key ? 'selected' : ''; ?>>
+                                            <?php echo e($category['title']); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
                             <?php if ($selected_report): ?>
-                                <div class="col-md-3 col-sm-6">
+                                <div class="col-md-4 col-sm-6">
                                     <label for="reportSearch">Search</label>
                                     <input type="search" id="reportSearch" name="q" class="form-control" value="<?php echo e($search); ?>" placeholder="Search report">
                                 </div>
                             <?php endif; ?>
-                            <div class="<?php echo $selected_report ? 'col-md-3 col-sm-6' : 'col-md-3 col-sm-6'; ?>">
+                            <div class="<?php echo $selected_report ? 'col-md-2 col-sm-6' : 'col-md-4 col-sm-6'; ?>">
                                 <label for="fromDate">From</label>
                                 <input type="date" id="fromDate" name="from" class="form-control" value="<?php echo e($from); ?>">
                             </div>
-                            <div class="<?php echo $selected_report ? 'col-md-3 col-sm-6' : 'col-md-3 col-sm-6'; ?>">
+                            <div class="<?php echo $selected_report ? 'col-md-2 col-sm-6' : 'col-md-4 col-sm-6'; ?>">
                                 <label for="toDate">To</label>
                                 <input type="date" id="toDate" name="to" class="form-control" value="<?php echo e($to); ?>">
                             </div>
-                            <div class="<?php echo $selected_report ? 'col-md-3' : 'col-md-6'; ?>">
+                            <div class="col-12">
                                 <div class="report-actions">
-                                    <button class="btn btn-primary" type="submit"><i class="fas fa-file-lines"></i> Generate Report</button>
+                                    <button class="btn btn-primary" type="submit" id="generateReportButton"><i class="fas fa-file-lines"></i> Generate Report</button>
                                     <button class="btn btn-outline-secondary" type="button" onclick="window.print()"><i class="fas fa-print"></i> Print</button>
                                     <button class="btn btn-outline-danger" type="button" onclick="window.print()"><i class="fas fa-file-pdf"></i> Export PDF</button>
                                     <a class="btn btn-outline-success" href="?<?php echo $selected_report ? 'report=' . urlencode($selected_report) . '&' : ''; ?>from=<?php echo urlencode($from); ?>&to=<?php echo urlencode($to); ?>&q=<?php echo urlencode($search); ?>&export=csv">
@@ -1160,7 +1675,7 @@ $breadcrumbs = [
 
         <?php if (!$selected_report): ?>
         <div class="section-heading">
-            <h2><i class="fas fa-folder-open"></i> Report Categories</h2>
+            <h2 data-section="I."><i class="fas fa-folder-open"></i> Report Categories</h2>
             <span>Select one report to view its complete details</span>
         </div>
 
@@ -1178,7 +1693,7 @@ $breadcrumbs = [
         </div>
 
         <div class="section-heading">
-            <h2><i class="fas fa-gauge-high"></i> Overview</h2>
+            <h2 data-section="II."><i class="fas fa-gauge-high"></i> Overview</h2>
             <span>Key totals for the selected date range</span>
         </div>
 
@@ -1213,7 +1728,6 @@ $breadcrumbs = [
                         <h2><i class="fas fa-robot"></i> TUGON AI Report Insights</h2>
                         <p>Automatically summarizes trends, workload risk, and recommended admin actions from this report.</p>
                     </div>
-                    <a class="btn btn-light" href="ai-assistant.php"><i class="fas fa-comments"></i> Ask AI</a>
                 </div>
 
                 <div class="ai-insight-grid">
@@ -1252,10 +1766,47 @@ $breadcrumbs = [
         </section>
         <?php endif; ?>
 
-        <?php if ($selected_report === 'requests'): ?>
+        <?php if ($selected_report === 'all'): ?>
+        <div class="report-section" id="activity-log-report">
+            <div class="section-heading">
+                <h2 data-section="<?php echo e(reportSectionNumber($selected_report, 'activity', 'I.')); ?>"><i class="fas fa-shield-halved"></i> Activity Logs Section</h2>
+                <span class="section-note">Important account, request, record, and announcement actions with date and time</span>
+            </div>
+            <div class="analytics-layout single">
+                <div class="card report-card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="fas fa-shield-halved"></i> Audit Logs <span class="text-muted small">(top <?php echo intval($report_row_limit); ?>)</span></h5>
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle clean-table keep-table">
+                                <thead><tr><th>User Name</th><th>Role</th><th>Action Performed</th><th>Date</th><th>Time</th><th>Table</th><th>Record ID</th></tr></thead>
+                                <tbody>
+                                    <?php foreach ($activity_logs as $row): ?>
+                                        <tr class="clickable-row" onclick="window.location.href='audit-logs.php?from=<?php echo urlencode($from); ?>&to=<?php echo urlencode($to); ?>'">
+                                            <td><?php echo e($row['admin_name']); ?></td>
+                                            <td><?php echo e(ucfirst($row['admin_role'])); ?></td>
+                                            <td><span class="badge bg-secondary"><?php echo e(ucwords(strtolower(str_replace('_', ' ', $row['action_name'])))); ?></span></td>
+                                            <td><?php echo e(formatDate($row['activity_date'])); ?></td>
+                                            <td><?php echo e(formatTime($row['activity_date'])); ?></td>
+                                            <td><?php echo e($row['table_name']); ?></td>
+                                            <td><?php echo e($row['record_id']); ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                    <?php if (empty($activity_logs)): ?>
+                                        <tr><td colspan="7" class="text-muted">No audit logs found for this date range.</td></tr>
+                                    <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
+
+        <?php if (reportIncludes($selected_report, 'requests')): ?>
         <div class="report-section" id="certificate-request-report">
             <div class="section-heading">
-                <h2><i class="fas fa-chart-simple"></i> Request Analytics Section</h2>
+                <h2 data-section="<?php echo e(reportSectionNumber($selected_report, 'requests', 'I.')); ?>"><i class="fas fa-chart-simple"></i> Request Analytics Section</h2>
                 <span>Certificate request trends, status counts, and request details</span>
             </div>
             <div class="status-bucket">
@@ -1311,9 +1862,9 @@ $breadcrumbs = [
 
             <div class="card report-card mt-3">
                 <div class="card-body">
-                    <h5 class="card-title"><i class="fas fa-table-list"></i> Certificate Request Details</h5>
+                    <h5 class="card-title"><i class="fas fa-table-list"></i> Certificate Request Details <span class="text-muted small">(top <?php echo intval($report_row_limit); ?>)</span></h5>
                     <div class="table-responsive">
-                        <table class="table table-sm align-middle clean-table">
+                        <table class="table table-sm align-middle clean-table keep-table">
                             <thead><tr><th>ID</th><th>Parishioner</th><th>Certificate Type</th><th>Date</th><th>Status</th></tr></thead>
                             <tbody>
                                 <?php foreach ($certificate_requests as $row): ?>
@@ -1337,10 +1888,10 @@ $breadcrumbs = [
         </div>
         <?php endif; ?>
 
-        <?php if ($selected_report === 'records'): ?>
+        <?php if (reportIncludes($selected_report, 'records')): ?>
         <div class="report-section" id="sacramental-records-report">
             <div class="section-heading">
-                <h2><i class="fas fa-book-bible"></i> Sacramental Records Analytics Section</h2>
+                <h2 data-section="<?php echo e(reportSectionNumber($selected_report, 'records', 'I.')); ?>"><i class="fas fa-book-bible"></i> Sacramental Records Analytics Section</h2>
                 <span>Total stored Baptism, First Communion, Confirmation, and Marriage records</span>
             </div>
             <div class="analytics-layout equal">
@@ -1394,7 +1945,7 @@ $breadcrumbs = [
                         <span class="badge bg-primary-subtle text-primary"><?php echo count($sacramental_record_rows); ?> records shown</span>
                     </div>
                     <div class="table-responsive">
-                        <table class="table table-sm align-middle clean-table">
+                        <table class="table table-sm align-middle clean-table keep-table">
                             <thead>
                                 <tr>
                                     <th>Record Type</th>
@@ -1430,10 +1981,10 @@ $breadcrumbs = [
         </div>
         <?php endif; ?>
 
-        <?php if ($selected_report === 'registrations'): ?>
+        <?php if (reportIncludes($selected_report, 'registrations')): ?>
         <div class="report-section" id="registration-report">
             <div class="section-heading">
-                <h2><i class="fas fa-user-check"></i> Parishioner Registration Analytics Section</h2>
+                <h2 data-section="<?php echo e(reportSectionNumber($selected_report, 'registrations', 'I.')); ?>"><i class="fas fa-user-check"></i> Parishioner Registration Analytics Section</h2>
                 <span>Total registered users, verified accounts, and recent registrations</span>
             </div>
             <div class="analytics-layout">
@@ -1453,9 +2004,9 @@ $breadcrumbs = [
                 <div>
                     <div class="card report-card h-100">
                         <div class="card-body">
-                            <h5 class="card-title"><i class="fas fa-clock"></i> Recent Registrations</h5>
+                            <h5 class="card-title"><i class="fas fa-clock"></i> Recent Registrations <span class="text-muted small">(top <?php echo intval($report_row_limit); ?>)</span></h5>
                             <div class="table-responsive">
-                                <table class="table table-sm align-middle clean-table">
+                                <table class="table table-sm align-middle clean-table keep-table">
                                     <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Verified</th><th>Registered</th></tr></thead>
                                     <tbody>
                                         <?php foreach ($recent_registrations as $row): ?>
@@ -1480,10 +2031,10 @@ $breadcrumbs = [
         </div>
         <?php endif; ?>
 
-        <?php if ($selected_report === 'chatbot'): ?>
+        <?php if (reportIncludes($selected_report, 'chatbot')): ?>
         <div class="report-section" id="chatbot-report">
             <div class="section-heading">
-                <h2><i class="fas fa-robot"></i> AI Chatbot Inquiry Analytics Section</h2>
+                <h2 data-section="<?php echo e(reportSectionNumber($selected_report, 'chatbot', 'I.')); ?>"><i class="fas fa-robot"></i> AI Chatbot Inquiry Analytics Section</h2>
                 <span>Total interactions, frequently asked questions, and inquiry trends</span>
             </div>
             <div class="analytics-layout">
@@ -1495,7 +2046,7 @@ $breadcrumbs = [
                                 <div><span>Total Chatbot Interactions</span><strong><?php echo number_format($summary['chatbot_interactions']); ?></strong></div>
                             </div>
                             <div class="table-responsive">
-                                <table class="table table-sm clean-table">
+                                <table class="table table-sm clean-table keep-table">
                                     <thead><tr><th>Question</th><th class="text-end">Asked</th></tr></thead>
                                     <tbody>
                                         <?php foreach ($chatbot_top_questions as $row): ?>
@@ -1541,7 +2092,7 @@ $breadcrumbs = [
         <?php if ($selected_report === 'requests'): ?>
         <div class="report-section" id="transaction-trends-report">
             <div class="section-heading">
-                <h2><i class="fas fa-chart-line"></i> Monthly and Yearly Transaction Reports</h2>
+                <h2 data-section="<?php echo e(reportSectionNumber($selected_report, 'transaction_trends', 'II.')); ?>"><i class="fas fa-chart-line"></i> Monthly and Yearly Transaction Reports</h2>
                 <span>Charts, summaries, and request transaction trends by selected date range</span>
             </div>
             <div class="analytics-layout equal">
@@ -1589,10 +2140,10 @@ $breadcrumbs = [
         </div>
         <?php endif; ?>
 
-        <?php if ($selected_report === 'announcements'): ?>
+        <?php if (reportIncludes($selected_report, 'announcements')): ?>
         <div class="report-section" id="announcements-report">
             <div class="section-heading">
-                <h2><i class="fas fa-bullhorn"></i> Announcements Section</h2>
+                <h2 data-section="<?php echo e(reportSectionNumber($selected_report, 'announcements', 'I.')); ?>"><i class="fas fa-bullhorn"></i> Announcements Section</h2>
                 <span>Posted parish announcements with dates and target audience</span>
             </div>
             <div class="analytics-layout equal">
@@ -1600,7 +2151,7 @@ $breadcrumbs = [
             <div class="card report-card h-100">
                 <div class="card-body">
                     <h5 class="card-title"><i class="fas fa-bullhorn"></i> Announcement Types</h5>
-                    <table class="table table-sm clean-table">
+                    <table class="table table-sm clean-table keep-table">
                         <thead><tr><th>Type</th><th class="text-end">Count</th></tr></thead>
                         <tbody>
                             <?php foreach ($announcement_types as $row): ?>
@@ -1618,9 +2169,9 @@ $breadcrumbs = [
         <div>
             <div class="card report-card h-100">
                 <div class="card-body">
-                    <h5 class="card-title"><i class="fas fa-list"></i> Posted Announcements</h5>
+                    <h5 class="card-title"><i class="fas fa-list"></i> Posted Announcements <span class="text-muted small">(top <?php echo intval($report_row_limit); ?>)</span></h5>
                     <div class="table-responsive">
-                        <table class="table table-sm align-middle clean-table">
+                        <table class="table table-sm align-middle clean-table keep-table">
                             <thead><tr><th>Title</th><th>Date</th><th>Target Audience</th><th>Status</th></tr></thead>
                             <tbody>
                                 <?php foreach ($announcement_rows as $row): ?>
@@ -1647,39 +2198,15 @@ $breadcrumbs = [
         <?php if ($selected_report === 'activity'): ?>
         <div class="report-section" id="activity-log-report">
             <div class="section-heading">
-                <h2><i class="fas fa-shield-halved"></i> Activity Logs Section</h2>
+                <h2 data-section="<?php echo e(reportSectionNumber($selected_report, 'activity', 'I.')); ?>"><i class="fas fa-shield-halved"></i> Activity Logs Section</h2>
                 <span>Important account, request, record, and announcement actions with date and time</span>
             </div>
-            <div class="analytics-layout equal">
+            <div class="analytics-layout single">
                 <div class="card report-card h-100">
                     <div class="card-body">
-                        <h5 class="card-title"><i class="fas fa-clock-rotate-left"></i> Recent System Activity</h5>
+                        <h5 class="card-title"><i class="fas fa-shield-halved"></i> Audit Logs <span class="text-muted small">(top <?php echo intval($report_row_limit); ?>)</span></h5>
                         <div class="table-responsive">
-                            <table class="table table-sm align-middle clean-table">
-                                <thead><tr><th>Date and Time</th><th>Module</th><th>Details</th><th>Status</th></tr></thead>
-                                <tbody>
-                                    <?php foreach ($recent_activity as $row): ?>
-                                        <tr>
-                                            <td><?php echo e(formatDateTime($row['activity_date'])); ?></td>
-                                            <td><?php echo e($row['module']); ?></td>
-                                            <td><?php echo e($row['title'] ?: ('#' . $row['item_id'])); ?></td>
-                                            <td><span class="badge bg-<?php echo getStatusBadgeClass($row['status']); ?>"><?php echo e(ucfirst(str_replace('_', ' ', $row['status']))); ?></span></td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                    <?php if (empty($recent_activity)): ?>
-                                        <tr><td colspan="4" class="text-muted">No recent system activity found for this date range.</td></tr>
-                                    <?php endif; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card report-card h-100">
-                    <div class="card-body">
-                        <h5 class="card-title"><i class="fas fa-shield-halved"></i> Audit Logs</h5>
-                        <div class="table-responsive">
-                            <table class="table table-sm align-middle clean-table">
+                            <table class="table table-sm align-middle clean-table keep-table">
                                 <thead><tr><th>User Name</th><th>Role</th><th>Action Performed</th><th>Date</th><th>Time</th><th>Table</th><th>Record ID</th></tr></thead>
                                 <tbody>
                                     <?php foreach ($activity_logs as $row): ?>
@@ -1704,7 +2231,46 @@ $breadcrumbs = [
             </div>
         </div>
         <?php endif; ?>
+
+        <?php if ($selected_report): ?>
+        <div class="report-section formal-metrics-table" id="overview-key-metrics">
+            <div class="section-heading">
+                <h2 data-section="<?php echo e(reportSectionNumber($selected_report, 'overview', ($selected_report === 'requests' ? 'III.' : 'II.'))); ?>"><i class="fas fa-list-check"></i> Overview / Key Metrics</h2>
+                <span>Summary totals for the selected report period</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm clean-table keep-table overview-table">
+                    <thead>
+                        <tr><th>Metric</th><th class="text-end">Total</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Total Registered Parishioners</td><td class="text-end"><?php echo number_format($summary['total_users']); ?></td></tr>
+                        <tr><td>Total Certificate Requests</td><td class="text-end"><?php echo number_format($summary['requests']); ?></td></tr>
+                        <tr><td>Pending Requests</td><td class="text-end"><?php echo number_format($summary['pending_requests']); ?></td></tr>
+                        <tr><td>Completed Requests</td><td class="text-end"><?php echo number_format($summary['completed_requests']); ?></td></tr>
+                        <tr><td>Total Sacramental Records</td><td class="text-end"><?php echo number_format($summary['records']); ?></td></tr>
+                        <tr><td>AI Chatbot Inquiries</td><td class="text-end"><?php echo number_format($summary['chatbot_interactions']); ?></td></tr>
+                        <tr><td>Announcements Posted</td><td class="text-end"><?php echo number_format($summary['announcements']); ?></td></tr>
+                        <tr><td>Audit Log Entries</td><td class="text-end"><?php echo number_format($summary['audit_logs']); ?></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <?php endif; ?>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('reportGeneratorForm');
+    const button = document.getElementById('generateReportButton');
+    if (form && button) {
+        form.addEventListener('submit', function() {
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+        });
+    }
+});
+</script>
 
 <?php include '../templates/footer.php'; ?>

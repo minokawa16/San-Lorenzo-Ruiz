@@ -14,6 +14,7 @@ if (!isUser()) {
 ensureScheduleEventsTable($conn);
 
 $page_title = 'Parish Calendar';
+$body_extra_class = 'schedule-mobile-page';
 $breadcrumbs = [
     'Dashboard' => 'index.php',
     'Schedule' => null
@@ -389,7 +390,6 @@ if ($stmt) {
             </div>
         </div>
         <div class="calendar-user-actions">
-            <button class="btn btn-outline-primary" type="button" id="todayBtn"><i class="fas fa-location-crosshairs"></i> Today</button>
             <a href="request-service.php" class="btn btn-primary"><i class="fas fa-church"></i> Request Sacramental Service</a>
         </div>
     </div>
@@ -403,13 +403,14 @@ if ($stmt) {
                 <select class="form-select" id="categoryFilter">
                     <option value="all">All categories</option>
                     <option value="event">Events</option>
-                    <option value="mass">Schedule calendar</option>
-                    <option value="sacramental">Sacramental schedules</option>
+                    <option value="mass">Mass / Public Schedule</option>
+                    <option value="monthly_mass">Monthly Mass</option>
+                    <option value="sacramental">Sacramental Services</option>
+                    <option value="patronal_fiesta">Patronal Fiesta</option>
                     <option value="blessing">Blessings</option>
                     <option value="reservation">Approved bookings</option>
                     <option value="announcement">Announcements</option>
                     <option value="meeting">Meetings</option>
-                    <option value="deadline">Deadlines</option>
                 </select>
                 <select class="form-select" id="statusFilter">
                     <option value="all">All statuses</option>
@@ -424,10 +425,11 @@ if ($stmt) {
                 <div class="calendar-legend">
                     <div class="legend-item"><span class="legend-dot" style="background:#1a73e8"></span> Parish Event</div>
                     <div class="legend-item"><span class="legend-dot" style="background:#34a853"></span> Mass / Public Schedule</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#a142f4"></span> Sacramental</div>
+                    <div class="legend-item"><span class="legend-dot" style="background:#0f9d58"></span> Monthly Mass</div>
+                    <div class="legend-item"><span class="legend-dot" style="background:#a142f4"></span> Sacramental Services</div>
+                    <div class="legend-item"><span class="legend-dot" style="background:#c026d3"></span> Patronal Fiesta</div>
                     <div class="legend-item"><span class="legend-dot" style="background:#d7ad43"></span> Blessing</div>
                     <div class="legend-item"><span class="legend-dot" style="background:#fbbc04"></span> Announcement</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#ea4335"></span> Deadline</div>
                 </div>
             </section>
 
@@ -531,22 +533,32 @@ function showDetails(data) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    const isMobileCalendar = window.matchMedia('(max-width: 767px)').matches;
     detailsModal = new bootstrap.Modal(document.getElementById('eventDetailsModal'));
     calendar = new FullCalendar.Calendar(document.getElementById('userCalendar'), {
-        initialView: window.innerWidth < 700 ? 'listWeek' : 'dayGridMonth',
+        initialView: 'dayGridMonth',
         height: 'auto',
         nowIndicator: true,
-        dayMaxEvents: 5,
+        dayMaxEvents: isMobileCalendar ? 2 : 5,
         eventTimeFormat: {
             hour: 'numeric',
             minute: '2-digit',
             meridiem: 'short'
         },
-        headerToolbar: {
+        headerToolbar: isMobileCalendar ? {
+            left: 'prev',
+            center: 'title',
+            right: 'next'
+        } : {
             left: 'prev,next',
             center: 'title',
             right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
         },
+        footerToolbar: isMobileCalendar ? {
+            left: 'today',
+            center: '',
+            right: 'dayGridMonth,listWeek'
+        } : false,
         buttonText: {
             month: 'Month',
             week: 'Week',
@@ -602,7 +614,6 @@ document.addEventListener('DOMContentLoaded', function() {
     window.addEventListener('focus', () => calendar.refetchEvents());
 });
 
-document.getElementById('todayBtn').addEventListener('click', () => calendar.today());
 document.getElementById('miniMonth').addEventListener('change', function() {
     calendar.gotoDate(this.value + '-01');
 });

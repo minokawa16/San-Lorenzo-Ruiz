@@ -15,9 +15,9 @@ if (!isset($back_button_label)) {
 }
 ?>
 
-<div class="mb-4">
+<div class="mb-4 no-print">
     <div class="d-flex gap-2 flex-wrap">
-        <button type="button" onclick="history.back()" class="btn btn-dashboard" title="Go back to previous page">
+        <button type="button" onclick="history.back()" class="pds-btn pds-btn-ghost-outline btn btn-outline-secondary" title="Go back to previous page">
             <i class="fas fa-arrow-left"></i> <?php echo htmlspecialchars($back_button_label); ?>
         </button>
     </div>

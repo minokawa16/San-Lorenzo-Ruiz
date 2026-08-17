@@ -8,6 +8,7 @@ include '../includes/helpers.php';
 
 requireAdmin();
 requirePermission('reservations.manage');
+redirect('manage-requests.php?type=sacramental');
 
 $error = '';
 $success = '';
@@ -30,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
         } else {
             $stmt->bind_param('ssi', $status, $admin_notes, $reservation_id);
             if ($stmt->execute()) {
-                $lookup = $conn->prepare("SELECT user_id, reservation_type FROM reservations WHERE reservation_id = ?");
+                $lookup = $conn->prepare("SELECT r.user_id, r.reservation_type, u.phone_number FROM reservations r JOIN users u ON u.id = r.user_id WHERE r.reservation_id = ?");
                 if ($lookup) {
                     $lookup->bind_param('i', $reservation_id);
                     $lookup->execute();
@@ -120,7 +121,7 @@ $reservations = [];
 $list_types = $types . 'ii';
 $list_params = array_merge($params, [$pagination['offset'], $pagination['limit']]);
 $stmt = $conn->prepare("
-    SELECT r.*, u.fullname, u.email
+    SELECT r.*, u.fullname, u.email, u.phone_number
     FROM reservations r
     JOIN users u ON r.user_id = u.id
     WHERE $where_sql

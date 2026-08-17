@@ -21,7 +21,7 @@ $error = '';
 $success = '';
 
 $stmt = $conn->prepare("
-    SELECT r.*, u.fullname, u.email
+    SELECT r.*, u.fullname, u.email, u.phone_number
     FROM requests r
     JOIN users u ON u.id = r.user_id
     WHERE r.request_id = ?
@@ -67,12 +67,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 $stmt->bind_param('ssi', $status, $admin_response, $request_id);
                 if ($stmt->execute()) {
                     createAuditLog($conn, $_SESSION['user_id'], 'UPDATE_REQUEST_STATUS', 'requests', $request_id);
-                    createNotification($conn, $request['user_id'], 'Request Status Updated', 'Your request ' . $request['reference_number'] . ' is now ' . ucfirst($status) . '.');
-                    $status_body = '<p>Hello ' . e($request['fullname']) . ',</p><p>Your request <strong>' . e($request['reference_number']) . '</strong> is now <strong>' . e(ucfirst($status)) . '</strong>.</p>';
-                    if ($admin_response !== '') {
-                        $status_body .= '<p>Parish office remarks: ' . nl2br(e($admin_response)) . '</p>';
-                    }
-                    sendTugonEmail($conn, $request['email'], 'TUGON Request Update - ' . $request['reference_number'], tugonEmailTemplate('Request Status Updated', $status_body), '', $request['user_id'], 'request_status');
+                    createRequestStatusNotification($conn, $request, $status, $admin_response);
                     if ($status === 'approved') {
                         syncApprovedRequestToCalendar($conn, $request_id, $_SESSION['user_id']);
                     }
@@ -102,11 +97,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 if ($stmt->execute() && $stmt->affected_rows >= 0) {
                     createAuditLog($conn, $_SESSION['user_id'], 'VERIFY_PAYMENT', 'request_payments', $payment_id);
                     createNotification($conn, $request['user_id'], 'Payment Receipt Reviewed', 'Your payment receipt for request ' . $request['reference_number'] . ' is now ' . ucfirst($status) . '.');
-                    $payment_body = '<p>Hello ' . e($request['fullname']) . ',</p><p>Your payment receipt for request <strong>' . e($request['reference_number']) . '</strong> is now <strong>' . e(ucfirst($status)) . '</strong>.</p>';
-                    if ($admin_remarks !== '') {
-                        $payment_body .= '<p>Parish office remarks: ' . nl2br(e($admin_remarks)) . '</p>';
-                    }
-                    sendTugonEmail($conn, $request['email'], 'TUGON Payment Receipt Reviewed - ' . $request['reference_number'], tugonEmailTemplate('Payment Receipt Reviewed', $payment_body), '', $request['user_id'], 'payment_review');
                     $success = 'Payment status updated.';
                 } else {
                     $error = 'Unable to update payment status.';
@@ -117,16 +107,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             }
         }
     } elseif ($action === 'upload_release') {
-        $document_type = ($_POST['document_type'] ?? '') === 'released_certificate' ? 'released_certificate' : 'admin_file';
-        $document = saveRequestDocument($conn, $request_id, $_SESSION['user_id'], $_FILES['release_file'] ?? null, $document_type);
+        $document = saveRequestDocument($conn, $request_id, $_SESSION['user_id'], $_FILES['release_file'] ?? null, 'released_certificate');
 
         if (!$document['ok'] || empty($document['saved'])) {
             $error = $document['error'] ?? 'Please choose a file to release.';
         } else {
             createAuditLog($conn, $_SESSION['user_id'], 'UPLOAD_REQUEST_FILE', 'request_documents', $document['document_id']);
             createNotification($conn, $request['user_id'], 'Parish File Available', 'A parish office file was added to request ' . $request['reference_number'] . '.');
-            $release_body = '<p>Hello ' . e($request['fullname']) . ',</p><p>A parish office file is now available for request <strong>' . e($request['reference_number']) . '</strong>. Please open your request details to view or download it.</p>';
-            sendTugonEmail($conn, $request['email'], 'TUGON Parish File Available - ' . $request['reference_number'], tugonEmailTemplate('Parish File Available', $release_body), '', $request['user_id'], 'request_file_release');
 
             if (!empty($_POST['mark_completed'])) {
                 $stmt = $conn->prepare("UPDATE requests SET status = 'completed' WHERE request_id = ?");
@@ -163,6 +150,28 @@ foreach ($documents as $document) {
     $documents_by_type[$type][] = $document;
 }
 
+if (!empty($documents_by_type['requirement'])) {
+    $requirement_order = [
+        'Chapel Recommendation' => 1,
+        'Latest Marriage Contract (if parents are married)' => 2,
+        'Latest Marriage Certificate / Marriage Contract Receipt' => 3,
+        'Photocopy of Marriage Certificate (if married)' => 4,
+        'Photocopy of Live Birth Certificate with Official Registry Number' => 5,
+        'Two (2) White Cards of Sponsors (Ninong and Ninang)' => 6,
+        'White Cards of Parents' => 7,
+    ];
+    usort($documents_by_type['requirement'], function ($left, $right) use ($requirement_order) {
+        $left_name = trim((string) ($left['requirement_name'] ?? ''));
+        $right_name = trim((string) ($right['requirement_name'] ?? ''));
+        $left_order = $requirement_order[$left_name] ?? 999;
+        $right_order = $requirement_order[$right_name] ?? 999;
+        if ($left_order !== $right_order) {
+            return $left_order <=> $right_order;
+        }
+        return strcmp($left_name ?: (string) $left['original_name'], $right_name ?: (string) $right['original_name']);
+    });
+}
+
 $payments = getRequestPayments($conn, $request_id);
 $payment_summary = getRequestPaymentSummary($conn, $request_id);
 $page_title = 'Request Workflow';
@@ -173,6 +182,21 @@ $breadcrumbs = [
 ];
 ?>
 <?php include '../templates/header.php'; ?>
+
+<style>
+.requirement-review-list .min-w-0 {
+    min-width: 0;
+}
+
+.requirement-review-list strong {
+    color: #172033;
+    overflow-wrap: anywhere;
+}
+
+.requirement-review-list .btn {
+    min-width: 82px;
+}
+</style>
 
 <div class="container-fluid mt-4">
     <?php include '../includes/breadcrumb.php'; ?>
@@ -222,12 +246,23 @@ $breadcrumbs = [
                     <?php if (empty($documents_by_type['requirement'])): ?>
                         <div class="text-muted">No requirement files submitted.</div>
                     <?php else: ?>
-                        <div class="list-group">
+                        <div class="list-group requirement-review-list">
                             <?php foreach ($documents_by_type['requirement'] as $document): ?>
-                                <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" href="../request-document.php?id=<?php echo intval($document['document_id']); ?>" target="_blank">
-                                    <span><i class="fas fa-file"></i> <?php echo e($document['original_name']); ?></span>
-                                    <small><?php echo e(formatFileSize($document['file_size'])); ?></small>
-                                </a>
+                                <?php $requirement_label = trim((string) ($document['requirement_name'] ?? '')); ?>
+                                <div class="list-group-item d-flex flex-wrap justify-content-between align-items-center gap-3">
+                                    <div class="min-w-0">
+                                        <strong><?php echo e($requirement_label !== '' ? $requirement_label : $document['original_name']); ?></strong>
+                                        <div class="text-muted small">
+                                            <i class="fas fa-file"></i>
+                                            <?php echo e($document['original_name']); ?>
+                                            <span class="mx-1">&bull;</span>
+                                            <?php echo e(formatFileSize($document['file_size'])); ?>
+                                        </div>
+                                    </div>
+                                    <a class="btn btn-sm btn-outline-primary" href="../request-document.php?id=<?php echo intval($document['document_id']); ?>" target="_blank" rel="noopener">
+                                        <i class="fas fa-eye"></i> View
+                                    </a>
+                                </div>
                             <?php endforeach; ?>
                         </div>
                     <?php endif; ?>
@@ -289,12 +324,12 @@ $breadcrumbs = [
 
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-file-circle-check"></i> Files Released to Parishioner</h5>
+                    <h5 class="mb-0"><i class="fas fa-file-circle-check"></i> Certificates Released to Parishioner</h5>
                 </div>
                 <div class="card-body">
                     <?php $released_files = array_merge($documents_by_type['released_certificate'], $documents_by_type['admin_file']); ?>
                     <?php if (empty($released_files)): ?>
-                        <div class="text-muted">No files released yet.</div>
+                        <div class="text-muted">No certificates released yet.</div>
                     <?php else: ?>
                         <div class="list-group">
                             <?php foreach ($released_files as $document): ?>
@@ -337,19 +372,12 @@ $breadcrumbs = [
 
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-upload"></i> Release File</h5>
+                    <h5 class="mb-0"><i class="fas fa-upload"></i> Release Certificate</h5>
                 </div>
                 <div class="card-body">
                     <form method="POST" enctype="multipart/form-data">
                         <input type="hidden" name="action" value="upload_release">
                         <input type="hidden" name="request_id" value="<?php echo intval($request_id); ?>">
-                        <div class="mb-3">
-                            <label class="form-label" for="document_type">File Type</label>
-                            <select class="form-select" id="document_type" name="document_type">
-                                <option value="released_certificate">Released Certificate</option>
-                                <option value="admin_file">Admin File / Instruction</option>
-                            </select>
-                        </div>
                         <div class="mb-3">
                             <label class="form-label" for="release_file">File</label>
                             <input type="file" class="form-control" id="release_file" name="release_file" accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,image/jpeg,image/png,image/gif,application/pdf,text/plain" required>

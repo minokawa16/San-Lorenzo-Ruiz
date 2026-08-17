@@ -409,6 +409,14 @@
     transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 
+.requirement-upload-item {
+    align-items: center;
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) minmax(136px, auto);
+    column-gap: 10px;
+    cursor: default;
+}
+
 .baptism-requirement-item:hover,
 .baptism-acknowledgement:hover {
     transform: translateY(-1px);
@@ -422,7 +430,26 @@
     accent-color: #d7ad43;
 }
 
-.baptism-requirement-item span {
+.requirement-file-input,
+.requirement-upload-btn input.requirement-file-input,
+.baptism-requirement-item input.requirement-file-input,
+.marriage-check input.requirement-file-input {
+    position: absolute;
+    inset: 0;
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    opacity: 0 !important;
+    appearance: none;
+    clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
+    cursor: pointer;
+    font-size: 0;
+}
+
+.baptism-requirement-item > span {
     width: 28px;
     height: 28px;
     flex: 0 0 auto;
@@ -438,6 +465,96 @@
 .baptism-acknowledgement span {
     line-height: 1.45;
     font-size: 0.9rem;
+}
+
+.requirement-upload-main {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+}
+
+.requirement-upload-main small,
+.requirement-upload-btn small {
+    color: #667085;
+    font-size: 0.76rem;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.requirement-upload-btn {
+    position: relative;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 38px;
+    padding: 9px 13px;
+    border: 1px solid rgba(36, 95, 125, 0.2);
+    border-radius: 999px;
+    color: #ffffff;
+    background: linear-gradient(135deg, #2a6f97, #1f5f7e);
+    box-shadow: 0 8px 18px rgba(42, 111, 151, 0.18);
+    font-size: 0.82rem;
+    font-weight: 850;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+}
+
+.requirement-upload-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    min-width: 0;
+    justify-self: end;
+}
+
+.requirement-upload-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 22px rgba(42, 111, 151, 0.24);
+    filter: brightness(1.03);
+}
+
+.requirement-upload-btn.has-file {
+    border-color: rgba(22, 101, 52, 0.18);
+    color: #ffffff;
+    background: linear-gradient(135deg, #188038, #166534);
+    box-shadow: 0 8px 18px rgba(24, 128, 56, 0.18);
+}
+
+.requirement-view-btn {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 38px;
+    padding: 9px 13px;
+    border: 1px solid rgba(215, 173, 67, 0.42);
+    border-radius: 999px;
+    color: #654b10;
+    background: linear-gradient(135deg, #fff8df, #ffffff);
+    box-shadow: 0 8px 18px rgba(215, 173, 67, 0.14);
+    font-size: 0.82rem;
+    font-weight: 850;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.requirement-view-btn:hover {
+    transform: translateY(-1px);
+    color: #171205;
+    border-color: rgba(215, 173, 67, 0.72);
+    box-shadow: 0 12px 22px rgba(215, 173, 67, 0.2);
+}
+
+.requirement-view-btn[hidden] {
+    display: none;
 }
 
 .baptism-requirement-item:has(input:checked),
@@ -522,6 +639,176 @@
     background: #fff7f6;
 }
 
+/* Shared validation and final-review pattern for multi-step request forms. */
+.request-validation-banner[hidden],
+.request-review-panel[hidden],
+.request-review-section[hidden],
+#serviceEntryPanel[hidden] {
+    display: none !important;
+}
+
+.request-validation-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 18px 22px 0;
+    padding: 12px 14px;
+    border: 1px solid #fda29b;
+    border-radius: 10px;
+    color: #9f1f17;
+    background: #fff1f0;
+    font-size: 0.88rem;
+    font-weight: 750;
+}
+
+.request-field-error .request-form-control,
+.request-field-error .request-type-option > span,
+.request-field-error .requirement-upload-btn {
+    border-color: #e5484d !important;
+    background: #fff7f6 !important;
+    box-shadow: 0 0 0 3px rgba(229, 72, 77, 0.1);
+}
+
+.request-field-error label,
+.request-field-error .form-label {
+    color: #b42318;
+}
+
+.request-inline-error {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1 0 100%;
+    grid-column: 1 / -1;
+    margin-top: 6px;
+    color: #b42318;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.request-field-error.requirement-upload-item,
+.request-field-error.marriage-upload-cell {
+    flex-wrap: wrap;
+}
+
+.request-review-panel {
+    display: grid;
+    gap: 16px;
+    padding: 22px;
+}
+
+.request-review-heading {
+    padding-bottom: 16px;
+    border-bottom: 1px solid #eadfca;
+}
+
+.request-review-heading h2 {
+    margin: 9px 0 6px;
+    color: #272016;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: clamp(1.35rem, 4vw, 1.8rem);
+    font-weight: 900;
+}
+
+.request-review-heading p {
+    margin: 0;
+    color: #746b5d;
+}
+
+.request-review-section {
+    padding: 16px;
+    border: 1px solid #eadfca;
+    border-radius: 12px;
+    background: #fffdf9;
+}
+
+.request-review-section h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 13px;
+    color: #8c6427;
+    font-size: 0.98rem;
+    font-weight: 850;
+}
+
+.request-review-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 18px;
+    margin: 0;
+}
+
+.request-review-item {
+    min-width: 0;
+}
+
+.request-review-item dt {
+    margin: 0 0 3px;
+    color: #817768;
+    font-size: 0.72rem;
+    font-weight: 750;
+    text-transform: uppercase;
+    letter-spacing: 0.035em;
+}
+
+.request-review-item dd {
+    margin: 0;
+    color: #2a241c;
+    font-size: 0.9rem;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+.request-review-confirm-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    color: #72511e;
+    background: #f7ecd6;
+    font-size: 0.82rem;
+    line-height: 1.5;
+}
+
+.request-review-actions {
+    display: grid;
+    grid-template-columns: minmax(150px, 0.45fr) minmax(220px, 1fr);
+    gap: 12px;
+}
+
+.request-review-back {
+    border: 1px solid #d9cdb8;
+    border-radius: 10px;
+    color: #8c6427;
+    background: #ffffff;
+    font: inherit;
+    font-weight: 800;
+}
+
+@media (max-width: 640px) {
+    .request-validation-banner {
+        margin: 14px 14px 0;
+    }
+
+    .request-review-panel {
+        padding: 16px 14px;
+    }
+
+    .request-review-grid,
+    .request-review-actions {
+        grid-template-columns: 1fr;
+    }
+
+    .request-review-back,
+    .request-review-actions .submit-request-btn {
+        min-height: 48px;
+        width: 100%;
+    }
+}
+
 .marriage-requirements-table {
     display: grid;
     border: 1px solid #dfe4ea;
@@ -532,7 +819,7 @@
 
 .marriage-requirements-row {
     display: grid;
-    grid-template-columns: minmax(180px, 1fr) 120px 120px;
+    grid-template-columns: minmax(220px, 1fr) minmax(150px, 170px) minmax(150px, 170px);
     align-items: center;
     gap: 1px;
     border-bottom: 1px solid #edf1f5;
@@ -544,7 +831,8 @@
 
 .marriage-requirements-row > span,
 .marriage-requirements-row > strong,
-.marriage-requirements-row > label {
+.marriage-requirements-row > label,
+.marriage-requirements-row > .marriage-upload-cell {
     min-height: 46px;
     display: flex;
     align-items: center;
@@ -566,9 +854,21 @@
 
 .marriage-check {
     justify-content: center;
+    flex-direction: column;
     margin: 0;
     border-left: 1px solid #edf1f5;
     cursor: pointer;
+}
+
+.marriage-upload-cell {
+    gap: 8px;
+    justify-content: flex-end;
+    border-left: 1px solid #edf1f5;
+}
+
+.marriage-upload-cell .requirement-upload-btn {
+    flex: 0 0 auto;
+    min-width: 0;
 }
 
 .marriage-check input {
@@ -576,7 +876,7 @@
     opacity: 0;
 }
 
-.marriage-check i {
+.marriage-check:not(.requirement-upload-btn) i {
     width: 28px;
     height: 28px;
     display: inline-flex;
@@ -589,7 +889,7 @@
     transition: color 0.18s ease, background 0.18s ease, border-color 0.18s ease;
 }
 
-.marriage-check input:checked + i {
+.marriage-check:not(.requirement-upload-btn) input:checked + i {
     color: #166534;
     background: #dcfce7;
     border-color: rgba(34, 197, 94, 0.42);
@@ -840,17 +1140,33 @@
         grid-template-columns: 1fr;
     }
 
+    .requirement-upload-item {
+        grid-template-columns: 28px minmax(0, 1fr);
+    }
+
+    .requirement-upload-actions {
+        grid-column: 2;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+        width: 100%;
+    }
+
     .baptism-requirements-header {
         flex-direction: column;
     }
 
     .marriage-requirements-row {
-        grid-template-columns: minmax(120px, 1fr) 76px 76px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .marriage-requirements-row > span {
+        grid-column: 1 / -1;
     }
 
     .marriage-requirements-row > span,
     .marriage-requirements-row > strong,
-    .marriage-requirements-row > label {
+    .marriage-requirements-row > label,
+    .marriage-requirements-row > .marriage-upload-cell {
         padding: 9px 8px;
         font-size: 0.78rem;
     }

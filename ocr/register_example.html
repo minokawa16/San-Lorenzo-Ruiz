@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Registration with ID Verification</title>
+<style>
+  body { font-family: Arial, sans-serif; max-width: 480px; margin: 40px auto; }
+  label { display:block; margin-top: 12px; font-weight: bold; }
+  input[type=text] { width: 100%; padding: 8px; box-sizing: border-box; }
+  .field-note { font-size: 13px; margin-top: 4px; }
+  .status-corrected { color: #b8860b; }
+  .status-match { color: #2e7d32; }
+  .status-mismatch { color: #c62828; font-weight: bold; }
+  button { margin-top: 20px; padding: 10px 18px; cursor: pointer; }
+  #scanBtn { background:#2563eb; color:#fff; border:none; border-radius:4px; }
+  #idPreview { max-width: 100%; margin-top: 10px; display:none; }
+</style>
+</head>
+<body>
+
+<h2>Register</h2>
+
+<form id="regForm">
+  <label>Last Name</label>
+  <input type="text" name="last_name" id="last_name" required>
+  <div class="field-note" id="note_last_name"></div>
+
+  <label>First Name</label>
+  <input type="text" name="first_name" id="first_name" required>
+  <div class="field-note" id="note_first_name"></div>
+
+  <label>Middle Name</label>
+  <input type="text" name="middle_name" id="middle_name" placeholder="e.g. Reyes (full middle name)">
+  <div class="field-note" id="note_middle_name"></div>
+
+  <label>Address</label>
+  <input type="text" name="address" id="address" placeholder="House/Unit No., Street, Barangay, City, Province">
+  <div class="field-note" id="note_address"></div>
+
+  <label>Upload a photo of your ID</label>
+  <input type="file" name="id_photo" id="id_photo" accept="image/*" required>
+  <img id="idPreview" alt="ID preview">
+
+  <button type="button" id="scanBtn">Scan ID &amp; Verify Info</button>
+  <button type="submit" id="submitBtn" disabled>Complete Registration</button>
+</form>
+
+<script>
+const idPhotoInput = document.getElementById('id_photo');
+const idPreview     = document.getElementById('idPreview');
+const scanBtn       = document.getElementById('scanBtn');
+const submitBtn     = document.getElementById('submitBtn');
+
+idPhotoInput.addEventListener('change', () => {
+  const file = idPhotoInput.files[0];
+  if (file) {
+    idPreview.src = URL.createObjectURL(file);
+    idPreview.style.display = 'block';
+  }
+});
+
+scanBtn.addEventListener('click', async () => {
+  const file = idPhotoInput.files[0];
+  if (!file) {
+    alert('Please choose an ID photo first.');
+    return;
+  }
+
+  scanBtn.disabled = true;
+  scanBtn.textContent = 'Scanning...';
+
+  const fd = new FormData();
+  fd.append('id_photo', file);
+  fd.append('last_name', document.getElementById('last_name').value);
+  fd.append('first_name', document.getElementById('first_name').value);
+  fd.append('middle_name', document.getElementById('middle_name').value);
+  fd.append('address', document.getElementById('address').value);
+
+  try {
+    const res = await fetch('api_process_id.php', { method: 'POST', body: fd });
+    const data = await res.json();
+
+    if (!data.success) {
+      alert(data.error || 'Something went wrong scanning the ID.');
+      scanBtn.disabled = false;
+      scanBtn.textContent = 'Scan ID & Verify Info';
+      return;
+    }
+
+    let hasMismatch = false;
+
+    for (const field of ['last_name', 'first_name', 'middle_name', 'address']) {
+      const result = data.comparison[field];
+      const input  = document.getElementById(field);
+      const note   = document.getElementById('note_' + field);
+      const idMiddleIsInitial = field === 'middle_name'
+        && data.id_data.middle_name
+        && data.id_data.middle_name.replace('.', '').length === 1;
+
+      if (result.status === 'corrected') {
+        input.value = result.final_value;
+        note.className = 'field-note status-corrected';
+        note.textContent = 'Auto-corrected from your ID.';
+      } else if (result.status === 'match') {
+        note.className = 'field-note status-match';
+        note.textContent = idMiddleIsInitial
+          ? `Matches the initial on your ID (${data.id_data.middle_name}) ✓`
+          : 'Matches your ID ✓';
+      } else if (result.status === 'mismatch') {
+        hasMismatch = true;
+        note.className = 'field-note status-mismatch';
+        note.textContent = idMiddleIsInitial
+          ? `Your ID shows middle initial "${data.id_data.middle_name}", which doesn't match what you typed. Please double-check.`
+          : `This doesn't match your ID (similarity: ${result.similarity}%). Please double-check.`;
+      } else {
+        note.textContent = 'Could not read this field from the ID — please verify manually.';
+      }
+    }
+
+    submitBtn.disabled = hasMismatch; // block submission until user resolves a real mismatch
+  } catch (err) {
+    alert('Network or server error while scanning ID.');
+  } finally {
+    scanBtn.disabled = false;
+    scanBtn.textContent = 'Re-scan ID';
+  }
+});
+
+document.getElementById('regForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  // At this point last_name / first_name / middle_name fields already hold
+  // the corrected values — submit the form normally to your registration
+  // handler (e.g. save_registration.php) here.
+  alert('Proceeding with corrected values — wire this up to your actual save endpoint.');
+});
+</script>
+
+</body>
+</html>

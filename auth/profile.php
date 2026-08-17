@@ -26,11 +26,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') == 'POST') {
         $categories = ['announcements', 'requests', 'schedules', 'system'];
         $conn->query("UPDATE users SET login_otp_enabled = $login_otp_enabled WHERE id = " . intval($user_id));
         foreach ($categories as $category) {
-            $enabled = isset($_POST['email_' . $category]) ? 1 : 0;
-            $stmt = $conn->prepare("INSERT INTO notification_preferences (user_id, category, email_enabled, in_app_enabled) VALUES (?, ?, ?, 1)
-                ON DUPLICATE KEY UPDATE email_enabled = VALUES(email_enabled), in_app_enabled = 1");
+            $email_enabled = isset($_POST['email_' . $category]) ? 1 : 0;
+            $sms_enabled = isset($_POST['sms_' . $category]) ? 1 : 0;
+            $stmt = $conn->prepare("INSERT INTO notification_preferences (user_id, category, email_enabled, sms_enabled, in_app_enabled) VALUES (?, ?, ?, ?, 1)
+                ON DUPLICATE KEY UPDATE email_enabled = VALUES(email_enabled), sms_enabled = VALUES(sms_enabled), in_app_enabled = 1");
             if ($stmt) {
-                $stmt->bind_param('isi', $user_id, $category, $enabled);
+                $stmt->bind_param('isii', $user_id, $category, $email_enabled, $sms_enabled);
                 $stmt->execute();
                 $stmt->close();
             }
@@ -68,24 +69,71 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') == 'POST') {
 }
 
 $preferences = [];
-$pref_result = $conn->query("SELECT category, email_enabled FROM notification_preferences WHERE user_id = " . intval($user_id));
+$pref_result = $conn->query("SELECT category, email_enabled, sms_enabled FROM notification_preferences WHERE user_id = " . intval($user_id));
 while ($pref_result && $row = $pref_result->fetch_assoc()) {
-    $preferences[$row['category']] = intval($row['email_enabled']);
+    $preferences[$row['category']] = [
+        'email' => intval($row['email_enabled']),
+        'sms' => intval($row['sms_enabled'])
+    ];
 }
 foreach (['announcements', 'requests', 'schedules', 'system'] as $category) {
     if (!isset($preferences[$category])) {
-        $preferences[$category] = 1;
+        $preferences[$category] = ['email' => 1, 'sms' => 1];
     }
 }
+
+$completed_request_count = 0;
+$completed_stmt = $conn->prepare("SELECT COUNT(*) AS total FROM requests WHERE user_id = ? AND status = 'completed'");
+if ($completed_stmt) {
+    $completed_stmt->bind_param('i', $user_id);
+    $completed_stmt->execute();
+    $completed_result = $completed_stmt->get_result();
+    $completed_request_count = intval($completed_result->fetch_assoc()['total'] ?? 0);
+    $completed_stmt->close();
+}
+
+$profile_display_name = trim((string) ($user['fullname'] ?? 'Parishioner'));
+$profile_first_name_parts = preg_split('/\s+/', $profile_display_name);
+$profile_first_name = $profile_first_name_parts[0] ?? 'Parishioner';
+$profile_initial = strtoupper(substr($profile_first_name, 0, 1));
+$profile_district = trim((string) ($user['chapel_district'] ?? ''));
+$profile_member_since = !empty($user['created_at']) ? date('M Y', strtotime($user['created_at'])) : 'N/A';
 
 $page_title = 'My Profile';
 ?>
 <?php include '../templates/header.php'; ?>
 
+<section class="profile-mobile-hero" aria-label="Profile summary">
+    <div class="profile-mobile-hero-top">
+        <a href="../users/index.php" class="profile-mobile-back" aria-label="Back to dashboard">
+            <i class="fas fa-chevron-left" aria-hidden="true"></i>
+        </a>
+        <strong>Profile</strong>
+    </div>
+    <div class="profile-mobile-identity">
+        <span class="profile-mobile-avatar"><?php echo e($profile_initial); ?></span>
+        <h1><?php echo e($profile_first_name); ?></h1>
+        <p><?php echo e($profile_district !== '' ? $profile_district . ' Member' : 'Parishioner'); ?></p>
+    </div>
+</section>
+
+<div class="profile-mobile-stack">
+    <section class="profile-mobile-stats" aria-label="Profile statistics">
+        <div>
+            <strong><?php echo intval($completed_request_count); ?></strong>
+            <span>Completed</span>
+        </div>
+        <div>
+            <strong><?php echo e($profile_member_since); ?></strong>
+            <span>Member Since</span>
+        </div>
+    </section>
+</div>
+
 <div class="container mt-4">
     <div class="row justify-content-center">
         <div class="col-md-8">
-            <div class="card">
+            <div class="card profile-details-card" id="profileDetails">
                 <div class="card-header">
                     <h5 class="mb-0"><i class="fas fa-user"></i> My Profile</h5>
                 </div>
@@ -115,14 +163,14 @@ $page_title = 'My Profile';
                         </div>
 
                         <div class="mb-3">
-                            <label for="email" class="form-label">Email Address (Cannot be changed)</label>
+                            <label for="email" class="form-label"><i class="fas fa-lock profile-email-lock" aria-hidden="true"></i> Email Address (Cannot be changed)</label>
                             <input type="email" class="form-control" id="email" value="<?php echo e($user['email']); ?>" disabled>
-                            <div class="form-text">
-                                Gmail verification:
+                            <div class="form-text profile-verification-status">
+                                <span class="profile-verification-prefix">Gmail verification:</span>
                                 <?php if (!empty($user['email_verified_at'])): ?>
-                                    <span class="badge bg-success">Verified <?php echo e(formatDateTime($user['email_verified_at'])); ?></span>
+                                    <span class="badge bg-success profile-verification-pill"><i class="fas fa-check" aria-hidden="true"></i> Verified <?php echo e(formatDateTime($user['email_verified_at'])); ?></span>
                                 <?php else: ?>
-                                    <span class="badge bg-warning text-dark">Not verified</span>
+                                    <span class="badge bg-warning text-dark profile-verification-pill">Not verified</span>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -139,7 +187,7 @@ $page_title = 'My Profile';
                                    value="<?php echo e($user['chapel_district'] ?? ''); ?>">
                         </div>
 
-                        <div class="mb-3">
+                        <div class="mb-3 profile-member-since-field">
                             <label class="form-label">Member Since</label>
                             <input type="text" class="form-control" value="<?php echo formatDate($user['created_at']); ?>" disabled>
                         </div>
@@ -152,7 +200,7 @@ $page_title = 'My Profile';
 
                     <hr class="my-4">
 
-                    <div>
+                    <div class="profile-settings-section">
                         <h6><i class="fas fa-bell"></i> Notification and Security Preferences</h6>
                         <form method="POST" class="row g-3">
                             <?php echo csrfInput(); ?>
@@ -174,8 +222,14 @@ $page_title = 'My Profile';
                             <?php foreach ($labels as $key => $label): ?>
                                 <div class="col-md-6">
                                     <label class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="email_<?php echo e($key); ?>" <?php echo !empty($preferences[$key]) ? 'checked' : ''; ?>>
+                                        <input class="form-check-input" type="checkbox" name="email_<?php echo e($key); ?>" <?php echo !empty($preferences[$key]['email']) ? 'checked' : ''; ?>>
                                         <span class="form-check-label"><?php echo e($label); ?> emails</span>
+                                    </label>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="sms_<?php echo e($key); ?>" <?php echo !empty($preferences[$key]['sms']) ? 'checked' : ''; ?>>
+                                        <span class="form-check-label"><?php echo e($label); ?> SMS</span>
                                     </label>
                                 </div>
                             <?php endforeach; ?>
@@ -188,7 +242,7 @@ $page_title = 'My Profile';
                     <hr class="my-4">
 
                     <!-- Change Password Section -->
-                    <div>
+                    <div class="profile-change-password-section">
                         <h6><i class="fas fa-key"></i> Change Password</h6>
                         <form action="change-password.php" method="POST">
                             <?php echo csrfInput(); ?>
@@ -212,5 +266,10 @@ $page_title = 'My Profile';
         </div>
     </div>
 </div>
+
+<a href="logout.php" class="profile-mobile-inline-logout">
+    <i class="fas fa-power-off" aria-hidden="true"></i>
+    <span>Log Out</span>
+</a>
 
 <?php include '../templates/footer.php'; ?>

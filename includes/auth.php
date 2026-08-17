@@ -279,7 +279,15 @@ if (!function_exists('logoutUser')) {
      * Clear user session and logout
      */
     function logoutUser() {
+        $message = 'Logout successful.';
+        $_SESSION = [];
         session_destroy();
+        if (function_exists('queueActionNotification')) {
+            session_write_close();
+            session_start();
+            session_regenerate_id(true);
+            queueActionNotification($message, 'success');
+        }
         // Redirect to login
         header('Location: ' . BASE_URL . 'auth/login.php');
         exit;
@@ -291,6 +299,9 @@ if (!function_exists('redirectAfterLogin')) {
      * Redirect user to appropriate dashboard based on role
      */
     function redirectAfterLogin() {
+        if (function_exists('queueActionNotification')) {
+            queueActionNotification('Login successful. Welcome back!', 'success');
+        }
         header('Location: ' . BASE_URL . ltrim(getUserDashboardURL(), '/'));
         exit;
     }

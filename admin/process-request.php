@@ -8,13 +8,13 @@
  */
 
 // Include security and dependencies
-include '../config/security.php';
-include '../includes/Security.php';
-include '../includes/Logger.php';
-include '../database/BaseDB.php';
-include '../database/config.php';
-include '../includes/session.php';
-include '../includes/helpers.php';
+include __DIR__ . '/../config/security.php';
+include __DIR__ . '/../includes/Security.php';
+include __DIR__ . '/../includes/Logger.php';
+include __DIR__ . '/../database/BaseDB.php';
+include __DIR__ . '/../database/config.php';
+include __DIR__ . '/../includes/session.php';
+include __DIR__ . '/../includes/helpers.php';
 
 // Check admin access
 requireAdmin();
@@ -24,6 +24,7 @@ requirePermission('requests.manage');
 $logger = new Logger();
 $db = new BaseDB($conn);
 ensureRequestDocumentsSchema($conn);
+ensureEmailNotificationSchema($conn);
 
 // Get request ID from URL
 $request_id = (int)($_GET['id'] ?? 0);
@@ -107,29 +108,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $new_value = json_encode(['status' => $new_status, 'admin_response' => $admin_response]);
             $db->insert($audit_sql, 'issss', [$_SESSION['user_id'], $action_type, 'requests', $request_id, $new_value]);
 
-            // Create notification for user
-            $notification_sql = "INSERT INTO notifications_log (user_id, notification_type, subject, message, status, recipient) 
-                                VALUES (?, ?, ?, ?, ?, ?)";
-            
-            $notification_messages = [
-                'approve' => 'Your request has been approved!',
-                'reject' => 'Your request has been rejected. ' . $admin_response,
-                'request_more' => 'Your request requires additional information. ' . $admin_response,
-                'complete' => 'Your request has been completed!',
-                'remark' => 'Your request has been updated with remarks.'
-            ];
-
-            $notification_subject = ucfirst(str_replace('_', ' ', $action)) . ' - Request #' . $request['reference_number'];
-            $notification_message = $notification_messages[$action];
-
-            $db->insert($notification_sql, 'isssss', [
-                $request['user_id'],
-                'email',
-                $notification_subject,
-                $notification_message,
-                'pending',
-                $request['email']
-            ]);
+            createRequestStatusNotification($conn, $request, $new_status, $admin_response);
 
             // Commit transaction
             $db->commit();
@@ -436,6 +415,7 @@ $page_title = 'Review Request - #' . $request['reference_number'];
             font-size: 24px;
         }
     </style>
+    <link rel="stylesheet" href="../assets/css/theme.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/theme.css') ? filemtime(__DIR__ . '/../assets/css/theme.css') : time(); ?>">
 </head>
 <body class="premium-admin church-theme">
     <?php include '../includes/admin-sidebar.php'; ?>
@@ -539,6 +519,9 @@ $page_title = 'Review Request - #' . $request['reference_number'];
                                         <?php foreach ($documents as $document): ?>
                                             <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" href="../request-document.php?id=<?php echo intval($document['document_id']); ?>" target="_blank">
                                                 <span>
+                                                    <?php if (!empty($document['requirement_name'])): ?>
+                                                        <strong><?php echo htmlspecialchars($document['requirement_name']); ?></strong><br>
+                                                    <?php endif; ?>
                                                     <i class="fas fa-paperclip"></i>
                                                     <?php echo htmlspecialchars($document['original_name']); ?>
                                                 </span>

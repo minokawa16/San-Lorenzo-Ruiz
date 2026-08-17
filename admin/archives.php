@@ -19,6 +19,10 @@ $allowed_tabs = ['requests', 'announcements', 'records'];
 if (!in_array($active_tab, $allowed_tabs, true)) {
     $active_tab = 'requests';
 }
+$archive_search = trim((string) ($_GET['q'] ?? ''));
+$archive_filter = trim((string) ($_GET['filter'] ?? ''));
+$date_from = trim((string) ($_GET['date_from'] ?? ''));
+$date_to = trim((string) ($_GET['date_to'] ?? ''));
 
 // Ensure Archive Column Function - Documents this helper's role in the parish management workflow.
 function ensureArchiveColumn($conn, $table) {
@@ -171,6 +175,95 @@ usort($records, function ($a, $b) {
     return strtotime($b['archived_at'] ?? '1970-01-01') <=> strtotime($a['archived_at'] ?? '1970-01-01');
 });
 
+$archive_filter_options = [
+    'requests' => array_values(array_unique(array_map(function ($request) {
+        return (string) ($request['status'] ?? '');
+    }, $requests))),
+    'announcements' => array_values(array_unique(array_map(function ($announcement) {
+        return (string) ($announcement['type'] ?? '');
+    }, $announcements))),
+    'records' => array_values(array_unique(array_map(function ($record) {
+        return (string) ($record['record_type'] ?? '');
+    }, $records))),
+];
+foreach ($archive_filter_options as $key => $values) {
+    $archive_filter_options[$key] = array_values(array_filter($values, function ($value) {
+        return trim((string) $value) !== '';
+    }));
+    sort($archive_filter_options[$key]);
+}
+
+function archiveDateMatches($value, $date_from, $date_to) {
+    $timestamp = strtotime((string) $value);
+    if (!$timestamp) {
+        return false;
+    }
+    if ($date_from !== '' && $timestamp < strtotime($date_from . ' 00:00:00')) {
+        return false;
+    }
+    if ($date_to !== '' && $timestamp > strtotime($date_to . ' 23:59:59')) {
+        return false;
+    }
+    return true;
+}
+
+function archiveTextMatches($haystack, $needle) {
+    if ($needle === '') {
+        return true;
+    }
+    return stripos(implode(' ', array_map('strval', $haystack)), $needle) !== false;
+}
+
+if ($active_tab === 'requests') {
+    $requests = array_values(array_filter($requests, function ($request) use ($archive_search, $archive_filter, $date_from, $date_to) {
+        if ($archive_filter !== '' && (string) ($request['status'] ?? '') !== $archive_filter) {
+            return false;
+        }
+        if (($date_from !== '' || $date_to !== '') && !archiveDateMatches($request['deleted_at'] ?? '', $date_from, $date_to)) {
+            return false;
+        }
+        return archiveTextMatches([
+            $request['reference_number'] ?? '',
+            $request['request_type'] ?? '',
+            $request['status'] ?? '',
+            $request['fullname'] ?? '',
+            $request['email'] ?? '',
+        ], $archive_search);
+    }));
+} elseif ($active_tab === 'announcements') {
+    $announcements = array_values(array_filter($announcements, function ($announcement) use ($archive_search, $archive_filter, $date_from, $date_to) {
+        if ($archive_filter !== '' && (string) ($announcement['type'] ?? '') !== $archive_filter) {
+            return false;
+        }
+        if (($date_from !== '' || $date_to !== '') && !archiveDateMatches($announcement['deleted_at'] ?? '', $date_from, $date_to)) {
+            return false;
+        }
+        return archiveTextMatches([
+            $announcement['title'] ?? '',
+            $announcement['content'] ?? '',
+            $announcement['type'] ?? '',
+            $announcement['fullname'] ?? '',
+        ], $archive_search);
+    }));
+} else {
+    $records = array_values(array_filter($records, function ($record) use ($archive_search, $archive_filter, $date_from, $date_to) {
+        if ($archive_filter !== '' && (string) ($record['record_type'] ?? '') !== $archive_filter) {
+            return false;
+        }
+        if (($date_from !== '' || $date_to !== '') && !archiveDateMatches($record['archived_at'] ?? '', $date_from, $date_to)) {
+            return false;
+        }
+        return archiveTextMatches([
+            $record['record_label'] ?? '',
+            $record['record_name'] ?? '',
+            $record['record_date'] ?? '',
+            $record['record_detail'] ?? '',
+        ], $archive_search);
+    }));
+}
+
+$active_archive_count = $active_tab === 'requests' ? count($requests) : ($active_tab === 'announcements' ? count($announcements) : count($records));
+
 $breadcrumbs = [
     'Dashboard' => 'dashboard.php',
     'Archives' => null
@@ -225,6 +318,46 @@ $breadcrumbs = [
                     </a>
                 </li>
             </ul>
+
+            <form class="border rounded bg-light p-3 mb-3" method="GET" action="">
+                <input type="hidden" name="tab" value="<?php echo e($active_tab); ?>">
+                <div class="row g-2 align-items-end">
+                    <div class="col-lg-4">
+                        <label class="form-label" for="archiveSearch">Search</label>
+                        <input class="form-control" id="archiveSearch" type="text" name="q" value="<?php echo e($archive_search); ?>" placeholder="Search archived items">
+                    </div>
+                    <div class="col-lg-3">
+                        <label class="form-label" for="archiveFilter">
+                            <?php echo $active_tab === 'requests' ? 'Status' : ($active_tab === 'announcements' ? 'Type' : 'Record Type'); ?>
+                        </label>
+                        <select class="form-select" id="archiveFilter" name="filter">
+                            <option value="">All</option>
+                            <?php foreach ($archive_filter_options[$active_tab] ?? [] as $option): ?>
+                                <option value="<?php echo e($option); ?>" <?php echo $archive_filter === $option ? 'selected' : ''; ?>>
+                                    <?php echo e(ucfirst(str_replace('_', ' ', $option))); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-lg-2">
+                        <label class="form-label" for="archiveDateFrom">From</label>
+                        <input class="form-control" id="archiveDateFrom" type="date" name="date_from" value="<?php echo e($date_from); ?>">
+                    </div>
+                    <div class="col-lg-2">
+                        <label class="form-label" for="archiveDateTo">To</label>
+                        <input class="form-control" id="archiveDateTo" type="date" name="date_to" value="<?php echo e($date_to); ?>">
+                    </div>
+                    <div class="col-lg-1 d-grid">
+                        <button class="btn btn-primary" type="submit"><i class="fas fa-filter"></i></button>
+                    </div>
+                </div>
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-2">
+                    <small class="text-muted"><?php echo intval($active_archive_count); ?> result<?php echo $active_archive_count === 1 ? '' : 's'; ?> shown</small>
+                    <?php if ($archive_search !== '' || $archive_filter !== '' || $date_from !== '' || $date_to !== ''): ?>
+                        <a class="btn btn-sm btn-outline-secondary" href="?tab=<?php echo urlencode($active_tab); ?>">Clear filters</a>
+                    <?php endif; ?>
+                </div>
+            </form>
 
             <?php if ($active_tab === 'requests'): ?>
                 <?php if (count($requests) > 0): ?>

@@ -10,7 +10,7 @@ include '../includes/helpers.php';
 include '../database/config.php';
 
 if (!defined('BASE_URL')) {
-    define('BASE_URL', 'http://localhost/ParishSystem/');
+    define('BASE_URL', '/ParishSystem/');
 }
 
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
@@ -535,6 +535,7 @@ $page_title = 'Funeral Records - Parish Management';
             }
         }
     </style>
+    <link rel="stylesheet" href="../assets/css/theme.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/theme.css') ? filemtime(__DIR__ . '/../assets/css/theme.css') : time(); ?>">
 </head>
 <body>
     <div style="display: flex;">
@@ -542,6 +543,9 @@ $page_title = 'Funeral Records - Parish Management';
 
         <div class="admin-content">
             <div style="margin-bottom: 30px;">
+                <a href="manage-records.php" class="btn btn-primary-gold" style="margin-bottom: 14px;">
+                    <i class="fas fa-arrow-left"></i> Back to Sacramental Records
+                </a>
                 <h1 class="page-title">
                     <i class="fas fa-book-open"></i> Funeral Records
                 </h1>

@@ -95,9 +95,15 @@
     }
 
     if (form && submitBtn) {
-        form.addEventListener('submit', function() {
-            submitBtn.classList.add('is-loading');
-            submitBtn.disabled = true;
+        form.addEventListener('submit', function(event) {
+            window.setTimeout(function() {
+                if (event.defaultPrevented) {
+                    return;
+                }
+                const activeSubmit = event.submitter || submitBtn;
+                activeSubmit.classList.add('is-loading');
+                activeSubmit.disabled = true;
+            }, 0);
         });
     }
 })();

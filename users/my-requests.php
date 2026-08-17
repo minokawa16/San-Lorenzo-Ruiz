@@ -133,16 +133,16 @@ $page_title = 'My Requests';
                         <tbody>
                             <?php foreach ($requests as $request): ?>
                                 <tr>
-                                    <td><strong><?php echo e($request['reference_number']); ?></strong></td>
-                                    <td><?php echo e(ucfirst(str_replace('_', ' ', $request['request_type']))); ?></td>
-                                    <td>
+                                    <td data-label="Reference"><strong><?php echo e($request['reference_number']); ?></strong></td>
+                                    <td data-label="Request Type"><?php echo e(ucfirst(str_replace('_', ' ', $request['request_type']))); ?></td>
+                                    <td data-label="Status">
                                         <span class="badge bg-<?php echo getStatusBadgeClass($request['status']); ?>">
                                             <?php echo e(ucfirst($request['status'])); ?>
                                         </span>
                                     </td>
-                                    <td><?php echo formatDate($request['date_requested']); ?></td>
-                                    <td><?php echo formatDate($request['updated_at']); ?></td>
-                                    <td>
+                                    <td data-label="Date Requested"><?php echo formatDate($request['date_requested']); ?></td>
+                                    <td data-label="Last Updated"><?php echo formatDate($request['updated_at']); ?></td>
+                                    <td data-label="Action">
                                         <a href="view-request.php?id=<?php echo $request['request_id']; ?>" class="btn btn-sm btn-outline-primary">
                                             <i class="fas fa-eye"></i> View
                                         </a>

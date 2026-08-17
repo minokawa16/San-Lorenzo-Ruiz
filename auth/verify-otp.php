@@ -18,7 +18,7 @@ if (!in_array($purpose, $allowed_purposes, true)) {
 }
 
 $user_id = intval($_GET['user_id'] ?? ($_POST['user_id'] ?? ($_SESSION['pending_otp_user_id'] ?? 0)));
-$method = $_GET['method'] ?? ($_POST['method'] ?? 'email');
+$method = $_GET['method'] ?? ($_POST['method'] ?? ($_SESSION['pending_otp_method'] ?? 'email'));
 if (!in_array($method, ['email', 'mobile'], true)) {
     $method = 'email';
 }
@@ -26,6 +26,9 @@ $contact = trim($_GET['contact'] ?? ($_POST['contact'] ?? ''));
 $email = trim($_GET['email'] ?? ($_POST['email'] ?? ($_SESSION['pending_otp_email'] ?? '')));
 if ($contact === '') {
     $contact = $email;
+}
+if ($method === 'email' && $email === '' && $contact !== '') {
+    $email = $contact;
 }
 $otp_recipient = $method === 'mobile' ? $contact : $email;
 $error = '';
@@ -58,18 +61,20 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     }
                     $success = 'OTP verified. Your registration is now ready for parish administrator review.';
                 } else {
-                    $stmt = $conn->prepare("SELECT id, fullname, email, role FROM users WHERE id = ? AND email = ? LIMIT 1");
+                    $stmt = $conn->prepare($method === 'mobile'
+                        ? "SELECT id, fullname, email, role FROM users WHERE id = ? AND phone_number = ? LIMIT 1"
+                        : "SELECT id, fullname, email, role FROM users WHERE id = ? AND email = ? LIMIT 1");
                     if ($stmt) {
-                        $stmt->bind_param('is', $user_id, $email);
+                        $stmt->bind_param('is', $user_id, $otp_recipient);
                         $stmt->execute();
                         $user = $stmt->get_result()->fetch_assoc();
                         $stmt->close();
                         if ($user) {
                             $_SESSION['user_id'] = $user['id'];
                             $_SESSION['fullname'] = $user['fullname'];
-                            $_SESSION['email'] = $user['email'];
+                            $_SESSION['email'] = $user['email'] ?? '';
                             $_SESSION['role'] = $user['role'];
-                            unset($_SESSION['pending_otp_user_id'], $_SESSION['pending_otp_email']);
+                            unset($_SESSION['pending_otp_user_id'], $_SESSION['pending_otp_email'], $_SESSION['pending_otp_method']);
                             createAuditLog($conn, $user_id, 'VERIFY_LOGIN_OTP', 'users', $user_id);
                             header("Location: " . ($user['role'] === 'admin' ? '../admin/dashboard.php' : '../users/dashboard.php'));
                             exit;
@@ -120,6 +125,13 @@ if ($method === 'mobile') {
 
         * {
             box-sizing: border-box;
+        }
+
+        ::view-transition-group(*),
+        ::view-transition-old(*),
+        ::view-transition-new(*) {
+            animation-duration: 0.25s;
+            animation-timing-function: cubic-bezier(0.19, 1, 0.22, 1);
         }
 
         body {
@@ -384,6 +396,118 @@ if ($method === 'mobile') {
             margin-top: 2px;
         }
 
+        .admin-wait-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 1050;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(15, 23, 42, 0.48);
+            backdrop-filter: blur(8px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.24s cubic-bezier(0.19, 1, 0.22, 1);
+        }
+
+        .admin-wait-modal.is-visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .admin-wait-dialog {
+            width: min(100%, 460px);
+            border-radius: 24px;
+            background: #ffffff;
+            border: 1px solid rgba(37, 99, 235, 0.14);
+            box-shadow: 0 28px 70px rgba(15, 23, 42, 0.22);
+            overflow: hidden;
+            transform: translateY(12px) scale(0.98);
+            transition: transform 0.24s cubic-bezier(0.19, 1, 0.22, 1);
+        }
+
+        .admin-wait-modal.is-visible .admin-wait-dialog {
+            transform: translateY(0) scale(1);
+        }
+
+        .admin-wait-header {
+            padding: 24px 24px 18px;
+            color: #ffffff;
+            background: linear-gradient(135deg, #2563eb, #0f766e);
+        }
+
+        .admin-wait-icon {
+            width: 54px;
+            height: 54px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.18);
+            border: 1px solid rgba(255, 255, 255, 0.24);
+            margin-bottom: 14px;
+            font-size: 1.35rem;
+        }
+
+        .admin-wait-header h2 {
+            margin: 0;
+            font-size: 1.35rem;
+            font-weight: 850;
+        }
+
+        .admin-wait-body {
+            padding: 22px 24px 24px;
+            display: grid;
+            gap: 16px;
+        }
+
+        .admin-wait-body p {
+            margin: 0;
+            color: #334155;
+            line-height: 1.58;
+        }
+
+        .admin-wait-status {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px;
+            border-radius: 16px;
+            color: #065f46;
+            background: #ecfdf5;
+            border: 1px solid #bbf7d0;
+            font-weight: 750;
+        }
+
+        .admin-wait-status i {
+            margin-top: 2px;
+        }
+
+        .admin-wait-actions {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            margin-top: 2px;
+        }
+
+        .admin-wait-actions a {
+            min-height: 48px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            border-radius: 14px;
+            color: #ffffff;
+            background: #2563eb;
+            text-decoration: none;
+            font-weight: 850;
+        }
+
+        .admin-wait-actions a:hover {
+            background: #1d4ed8;
+        }
+
         @media (max-width: 576px) {
             .otp-page {
                 padding: 20px 12px;
@@ -411,6 +535,9 @@ if ($method === 'mobile') {
             }
         }
     </style>
+    <link rel="stylesheet" href="../assets/css/theme.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/theme.css') ? filemtime(__DIR__ . '/../assets/css/theme.css') : time(); ?>">
+    <link rel="stylesheet" href="../assets/css/responsive-unified.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/responsive-unified.css'); ?>">
+    <link rel="stylesheet" href="../assets/css/auth-mobile.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/auth-mobile.css'); ?>">
 </head>
 <body>
     <main class="otp-page">
@@ -442,7 +569,7 @@ if ($method === 'mobile') {
                 </div>
             <?php endif; ?>
 
-            <form method="POST" class="otp-form" id="verifyForm" novalidate>
+            <form method="POST" class="otp-form" id="verifyForm" <?php echo ($success && $purpose === 'registration') ? 'hidden' : ''; ?> novalidate>
                 <input type="hidden" name="user_id" value="<?php echo intval($user_id); ?>">
                 <input type="hidden" name="email" value="<?php echo e($email); ?>">
                 <input type="hidden" name="contact" value="<?php echo e($otp_recipient); ?>">
@@ -472,7 +599,7 @@ if ($method === 'mobile') {
                 </div>
             </form>
 
-            <form method="POST" class="otp-actions" id="resendForm">
+            <form method="POST" class="otp-actions" id="resendForm" <?php echo ($success && $purpose === 'registration') ? 'hidden' : ''; ?>>
                 <input type="hidden" name="user_id" value="<?php echo intval($user_id); ?>">
                 <input type="hidden" name="email" value="<?php echo e($email); ?>">
                 <input type="hidden" name="contact" value="<?php echo e($otp_recipient); ?>">
@@ -492,6 +619,29 @@ if ($method === 'mobile') {
         </section>
     </main>
 
+    <?php if ($success && $purpose === 'registration'): ?>
+        <div class="admin-wait-modal" id="adminWaitModal" role="dialog" aria-modal="true" aria-labelledby="adminWaitTitle">
+            <div class="admin-wait-dialog">
+                <div class="admin-wait-header">
+                    <div class="admin-wait-icon" aria-hidden="true">
+                        <i class="fas fa-user-shield"></i>
+                    </div>
+                    <h2 id="adminWaitTitle">Registration Sent for Review</h2>
+                </div>
+                <div class="admin-wait-body">
+                    <p>Your <?php echo $method === 'mobile' ? 'mobile number' : 'email address'; ?> has been verified. Your account is now waiting for parish administrator approval.</p>
+                    <div class="admin-wait-status">
+                        <i class="fas fa-circle-check"></i>
+                        <span>Please wait for the parish office to review your registration details and valid ID.</span>
+                    </div>
+                    <div class="admin-wait-actions">
+                        <a href="login.php"><i class="fas fa-arrow-right-to-bracket"></i> Back to Login</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <script>
         const digitInputs = Array.from(document.querySelectorAll('.otp-digit'));
         const otpHidden = document.getElementById('otp');
@@ -501,6 +651,13 @@ if ($method === 'mobile') {
         const resendForm = document.getElementById('resendForm');
         const resendBtn = document.getElementById('resendBtn');
         const countdown = document.getElementById('countdown');
+        const adminWaitModal = document.getElementById('adminWaitModal');
+
+        if (adminWaitModal) {
+            window.setTimeout(() => {
+                adminWaitModal.classList.add('is-visible');
+            }, 180);
+        }
 
         function syncOtp() {
             const value = digitInputs.map(input => input.value.replace(/\D/g, '')).join('');
@@ -541,29 +698,37 @@ if ($method === 'mobile') {
             });
         });
 
-        verifyForm.addEventListener('submit', event => {
-            const otp = syncOtp();
-            if (otp.length !== 6) {
-                event.preventDefault();
-                otpBoxes.classList.add('is-error');
-                digitInputs[Math.max(0, otp.length)].focus();
-                return;
-            }
-            verifyBtn.classList.add('loading');
-            verifyBtn.disabled = true;
-        });
+        if (verifyForm) {
+            verifyForm.addEventListener('submit', event => {
+                const otp = syncOtp();
+                if (otp.length !== 6) {
+                    event.preventDefault();
+                    otpBoxes.classList.add('is-error');
+                    digitInputs[Math.max(0, otp.length)].focus();
+                    return;
+                }
+                verifyBtn.classList.add('loading');
+                verifyBtn.disabled = true;
+            });
+        }
 
-        resendForm.addEventListener('submit', () => {
-            resendBtn.disabled = true;
-            resendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Sending Code</span>';
-        });
+        if (resendForm) {
+            resendForm.addEventListener('submit', () => {
+                resendBtn.disabled = true;
+                resendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Sending Code</span>';
+            });
+        }
 
         let remaining = 60;
         const timer = setInterval(() => {
             const minutes = String(Math.floor(remaining / 60)).padStart(2, '0');
             const seconds = String(remaining % 60).padStart(2, '0');
-            countdown.textContent = remaining > 0 ? `Resend available in ${minutes}:${seconds}` : 'You can request a new code now';
-            resendBtn.disabled = remaining > 0;
+            if (countdown) {
+                countdown.textContent = remaining > 0 ? `Resend available in ${minutes}:${seconds}` : 'You can request a new code now';
+            }
+            if (resendBtn) {
+                resendBtn.disabled = remaining > 0;
+            }
             if (remaining <= 0) {
                 clearInterval(timer);
             }

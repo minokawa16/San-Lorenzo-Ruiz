@@ -7,13 +7,13 @@
  */
 
 // Include security and dependencies
-include '../config/security.php';
-include '../includes/Security.php';
-include '../includes/Logger.php';
-include '../database/BaseDB.php';
-include '../database/config.php';
-include '../includes/session.php';
-include '../includes/helpers.php';
+include __DIR__ . '/../config/security.php';
+include __DIR__ . '/../includes/Security.php';
+include __DIR__ . '/../includes/Logger.php';
+include __DIR__ . '/../database/BaseDB.php';
+include __DIR__ . '/../database/config.php';
+include __DIR__ . '/../includes/session.php';
+include __DIR__ . '/../includes/helpers.php';
 
 // Check admin access
 requireAdmin();
@@ -339,6 +339,8 @@ $page_title = 'Admin Dashboard';
             }
         }
     </style>
+    <link rel="stylesheet" href="../assets/css/theme.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/theme.css') ? filemtime(__DIR__ . '/../assets/css/theme.css') : time(); ?>">
+    <link rel="stylesheet" href="../assets/css/responsive-unified.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/responsive-unified.css'); ?>">
 </head>
 <body>
     <!-- Navigation Bar -->

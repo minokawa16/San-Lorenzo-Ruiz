@@ -13,7 +13,7 @@ include '../database/config.php';
 
 // Define BASE_URL if not already defined
 if (!defined('BASE_URL')) {
-    define('BASE_URL', 'http://localhost/ParishSystem/');
+    define('BASE_URL', '/ParishSystem/');
 }
 
 // Check session expiration
@@ -148,6 +148,8 @@ if ($stmt) {
 }
 
 $page_title = 'Admin Dashboard - Parish Management';
+$dashboard_unread_count = function_exists('getUnreadNotificationCount') ? getUnreadNotificationCount($conn, $_SESSION['user_id'] ?? 0) : 0;
+$dashboard_profile_name = sanitize($_SESSION['fullname'] ?? 'Administrator');
 ?>
 
 <!DOCTYPE html>
@@ -159,334 +161,17 @@ $page_title = 'Admin Dashboard - Parish Management';
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../assets/css/holy-theme.css">
-    <style>
-        :root {
-            --primary-navy: #1a1f3a;
-            --primary-royal-blue: #004085;
-            --primary-gold: #d4af37;
-            --status-success: #28a745;
-            --status-warning: #ffc107;
-            --status-danger: #dc3545;
-            --status-info: #17a2b8;
-            --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.15);
-            --space-sm: 8px;
-            --space-md: 12px;
-            --space-lg: 16px;
-            --space-xl: 24px;
-        }
-
-        body {
-            background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%);
-            margin: 0;
-            padding: 0;
-            font-family: 'Inter', sans-serif;
-        }
-
-        .admin-layout {
-            display: flex;
-            min-height: 100vh;
-        }
-
-        .admin-content {
-            flex: 1;
-            margin-left: 280px;
-            padding: 30px 20px;
-            transition: margin-left 0.3s;
-        }
-
-        .admin-content.collapsed {
-            margin-left: 70px;
-        }
-
-        .page-header {
-            margin-bottom: 30px;
-        }
-
-        .page-title {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--primary-navy);
-            margin-bottom: 10px;
-        }
-
-        .page-subtitle {
-            color: #6c757d;
-            font-size: 0.95rem;
-        }
-
-        /* KPI Cards */
-        .kpi-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 25px;
-            margin-bottom: 40px;
-        }
-
-        .kpi-card {
-            display: block;
-            background: white;
-            border-radius: 12px;
-            padding: 25px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-            transition: all 0.3s ease;
-            border: 1px solid #e0e7ff;
-            border-left: 4px solid var(--primary-gold);
-            color: inherit;
-            text-decoration: none;
-        }
-
-        .kpi-card:hover,
-        .kpi-card:focus {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-            color: inherit;
-            text-decoration: none;
-            outline: 2px solid rgba(212, 175, 55, 0.35);
-            outline-offset: 2px;
-        }
-
-        .kpi-icon {
-            font-size: 2.5rem;
-            margin-bottom: 15px;
-            width: 60px;
-            height: 60px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 12px;
-        }
-
-        .kpi-icon.users {
-            background: #e3f2fd;
-            color: #1976d2;
-        }
-
-        .kpi-icon.requests {
-            background: #f3e5f5;
-            color: #7b1fa2;
-        }
-
-        .kpi-icon.pending {
-            background: #fff3e0;
-            color: #f57c00;
-        }
-
-        .kpi-icon.records {
-            background: #e8f5e9;
-            color: #388e3c;
-        }
-
-        .kpi-icon.reservations {
-            background: #fce4ec;
-            color: #c2185b;
-        }
-
-        .kpi-icon.announcements {
-            background: #ede7f6;
-            color: #512da8;
-        }
-
-        .kpi-icon.schedules {
-            background: #e0f2fe;
-            color: #0369a1;
-        }
-
-        .kpi-label {
-            color: #6c757d;
-            font-size: 0.9rem;
-            margin-bottom: 8px;
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .kpi-value {
-            font-size: 2.5rem;
-            font-weight: 700;
-            color: var(--primary-navy);
-            margin-bottom: 10px;
-        }
-
-        .kpi-change {
-            font-size: 0.85rem;
-            color: var(--status-success);
-        }
-
-        .kpi-change.negative {
-            color: var(--status-danger);
-        }
-
-        /* Dashboard Sections */
-        .dashboard-section {
-            background: white;
-            border-radius: 12px;
-            padding: 25px;
-            margin-bottom: 25px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-            border-top: 4px solid var(--primary-gold);
-        }
-
-        .section-title {
-            font-size: 1.35rem;
-            font-weight: 600;
-            color: var(--primary-navy);
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .section-title i {
-            color: var(--primary-gold);
-        }
-
-        /* Tables */
-        .admin-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .admin-table thead {
-            background: #f8f9fa;
-            border-bottom: 2px solid #dee2e6;
-        }
-
-        .admin-table th {
-            padding: 15px;
-            font-weight: 600;
-            color: var(--primary-navy);
-            text-align: left;
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .admin-table td {
-            padding: 15px;
-            border-bottom: 1px solid #dee2e6;
-            color: #6c757d;
-        }
-
-        .admin-table tbody tr:hover {
-            background: #f8f9fa;
-        }
-
-        /* Status Badges */
-        .status-badge {
-            display: inline-block;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-
-        .badge-pending {
-            background: #e3f2fd;
-            color: #1976d2;
-        }
-
-        .badge-processing {
-            background: #fff3e0;
-            color: #f57c00;
-        }
-
-        .badge-approved {
-            background: #e8f5e9;
-            color: #388e3c;
-        }
-
-        .badge-completed {
-            background: #e0f2f1;
-            color: #00796b;
-        }
-
-        .badge-rejected {
-            background: #ffebee;
-            color: #d32f2f;
-        }
-
-        /* Quick Actions */
-        .quick-actions {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 15px;
-        }
-
-        .action-btn {
-            background: var(--primary-royal-blue);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 12px 20px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            text-decoration: none;
-        }
-
-        .action-btn:hover {
-            background: var(--primary-navy);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            color: white;
-        }
-
-        .action-btn.gold {
-            background: var(--primary-gold);
-            color: var(--primary-navy);
-        }
-
-        .action-btn.gold:hover {
-            background: #e8c547;
-        }
-
-        /* Mobile Responsive */
-        @media (max-width: 768px) {
-            .admin-content {
-                margin-left: 70px;
-                padding: 20px 15px;
-            }
-
-            .kpi-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .page-title {
-                font-size: 1.5rem;
-            }
-
-            .admin-table {
-                font-size: 0.85rem;
-            }
-
-            .admin-table th,
-            .admin-table td {
-                padding: 10px;
-            }
-        }
-
-        /* Animation */
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .kpi-card, .dashboard-section {
-            animation: fadeInUp 0.6s ease-out;
-        }
-    </style>
-    <link rel="stylesheet" href="../assets/css/premium-parish.css">
+    <?php
+    $premium_style_version = file_exists(__DIR__ . '/../assets/css/premium-parish.css')
+        ? filemtime(__DIR__ . '/../assets/css/premium-parish.css')
+        : time();
+    $design_system_version = file_exists(__DIR__ . '/../assets/css/parish-design-system.css')
+        ? filemtime(__DIR__ . '/../assets/css/parish-design-system.css')
+        : time();
+    ?>
+    <link rel="stylesheet" href="../assets/css/premium-parish.css?v=<?php echo $premium_style_version; ?>">
+    <link rel="stylesheet" href="../assets/css/parish-design-system.css?v=<?php echo $design_system_version; ?>">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/theme.css') ? filemtime(__DIR__ . '/../assets/css/theme.css') : time(); ?>">
 </head>
 <body class="premium-admin">
     <div class="premium-admin-shell">
@@ -495,32 +180,54 @@ $page_title = 'Admin Dashboard - Parish Management';
 
         <!-- Main Content -->
         <div class="premium-admin-content">
-            <header class="premium-admin-topbar premium-glass">
-                <label class="premium-search" for="adminSmartSearch">
-                    <i class="fas fa-magnifying-glass"></i>
-                    <input id="adminSmartSearch" type="search" placeholder="Smart search parishioners, records, certificates, reservations...">
-                </label>
-                <div class="premium-admin-actions">
-                    <button class="premium-icon-btn" type="button" id="adminThemeToggle" aria-label="Toggle dark mode">
-                        <i class="fas fa-moon"></i>
-                    </button>
-                    <button class="premium-icon-btn" type="button" aria-label="Notifications">
-                        <i class="fas fa-bell"></i>
-                    </button>
+            <header class="app-global-header premium-admin-topbar dashboard-topbar">
+                <div class="app-header-left dashboard-title-block">
+                    <div>
+                        <h1>Dashboard</h1>
+                        <p>Monitor parish activities, requests, records, and operations.</p>
+                    </div>
+                </div>
+                <div class="app-header-center">
+                    <form class="premium-search app-header-search" action="<?php echo BASE_URL; ?>admin/manage-users.php" method="GET">
+                        <i class="fas fa-magnifying-glass"></i>
+                        <input id="adminSmartSearch" name="search" type="search" placeholder="Search parishioners, requests, records...">
+                        <kbd>Ctrl K</kbd>
+                    </form>
+                </div>
+                <div class="app-header-right dashboard-header-tools">
+                    <div class="dropdown">
+                        <button class="profile-btn admin-profile-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <span class="profile-avatar"><?php echo strtoupper(substr($_SESSION['fullname'] ?? 'A', 0, 1)); ?></span>
+                            <span class="profile-meta">
+                                <span class="profile-name"><?php echo $dashboard_profile_name; ?></span>
+                                <span class="profile-role">Administrator</span>
+                            </span>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="../auth/profile.php"><i class="fas fa-user"></i> My Profile</a></li>
+                            <li><a class="dropdown-item" href="../auth/profile.php"><i class="fas fa-gear"></i> Settings</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="../auth/logout.php"><i class="fas fa-arrow-right-from-bracket"></i> Logout</a></li>
+                        </ul>
+                    </div>
                 </div>
             </header>
 
-            <!-- Page Header -->
-            <section class="premium-admin-hero">
-                <div>
-                    <span class="premium-pill landing-eyebrow"><i class="fas fa-cross"></i> Parish command center</span>
-                    <h1>Welcome back, <?php echo htmlspecialchars($_SESSION['fullname']); ?>.</h1>
-                    <p>Monitor parishioners, sacramental records, certificate requests, reservations, announcements, audits, and AI-assisted workflows from one calm administrative workspace.</p>
-                </div>
-                <div class="hero-orb" aria-hidden="true">
-                    <i class="fas fa-church"></i>
-                </div>
-            </section>
+            <nav class="dashboard-quick-actions" aria-label="Quick dashboard actions">
+                <a class="dashboard-action-btn primary" href="manage-requests.php">
+                    <i class="fas fa-circle-plus"></i> New Request
+                </a>
+                <a class="dashboard-action-btn gold" href="certificate-generator.php">
+                    <i class="fas fa-award"></i> Generate Certificate
+                </a>
+                <a class="dashboard-action-btn secondary" href="manage-calendar.php">
+                    <i class="fas fa-calendar-plus"></i> Add Event
+                </a>
+                <a class="dashboard-action-btn secondary" href="manage-announcements.php">
+                    <i class="fas fa-bullhorn"></i> Post Announcement
+                </a>
+            </nav>
 
             <!-- KPI Cards -->
             <div class="premium-kpi-grid">
@@ -549,7 +256,7 @@ $page_title = 'Admin Dashboard - Parish Management';
                 </a>
 
                 <!-- Pending Requests -->
-                <a href="manage-requests.php?status=pending" class="premium-kpi-card premium-glass" aria-label="View pending requests">
+                <a href="manage-requests.php?status=pending" class="premium-kpi-card premium-glass urgent" aria-label="View pending requests">
                     <div class="premium-kpi-icon">
                         <i class="fas fa-hourglass-end"></i>
                     </div>
@@ -621,89 +328,74 @@ $page_title = 'Admin Dashboard - Parish Management';
                 </a>
             </div>
 
-            <!-- Recent Requests -->
-            <div class="premium-dashboard-grid">
-            <section class="premium-panel premium-glass">
-                <div class="premium-panel-header">
-                    <h2 class="premium-panel-title"><i class="fas fa-history"></i> Recent Certificate Requests</h2>
-                    <a href="manage-requests.php" class="premium-btn secondary">View All</a>
-                </div>
-                <div class="premium-table-wrap">
-                    <table class="premium-admin-table">
-                        <thead>
-                            <tr>
-                                <th>Reference #</th>
-                                <th>Parishioner</th>
-                                <th>Request Type</th>
-                                <th>Status</th>
-                                <th>Date Submitted</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php if (count($recent_requests) > 0): ?>
-                                <?php foreach ($recent_requests as $req): ?>
-                                    <tr>
-                                        <td><strong><?php echo htmlspecialchars($req['reference_number'] ?? 'N/A'); ?></strong></td>
-                                        <td><?php echo htmlspecialchars($req['fullname']); ?></td>
-                                        <td><?php echo str_replace('_', ' ', ucfirst($req['request_type'])); ?></td>
-                                        <td>
-                                            <span class="premium-status <?php echo strtolower($req['status']); ?>">
-                                                <?php echo ucfirst($req['status']); ?>
-                                            </span>
-                                        </td>
-                                        <td><?php echo date('M d, Y', strtotime($req['date_requested'])); ?></td>
-                                        <td>
-                                            <a href="request-workflow.php?id=<?php echo $req['request_id']; ?>" class="premium-btn primary" style="min-height: 34px; padding: 6px 12px; font-size: 0.82rem;">
-                                                <i class="fas fa-eye"></i> View
-                                            </a>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            <?php else: ?>
+            <section class="dashboard-content-grid">
+                <div class="premium-panel dashboard-table-panel">
+                    <div class="premium-panel-header">
+                        <h2 class="premium-panel-title">Recent Certificate Requests</h2>
+                        <a class="dashboard-view-link" href="manage-requests.php">View All</a>
+                    </div>
+                    <div class="premium-table-wrap">
+                        <table class="premium-admin-table dashboard-recent-table">
+                            <thead>
                                 <tr>
-                                    <td colspan="6" style="text-align: center; padding: 30px; color: #6c757d;">
-                                        <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 10px;"></i><br>
-                                        No recent requests found.
-                                    </td>
+                                    <th>Reference</th>
+                                    <th>Parishioner</th>
+                                    <th>Request Type</th>
+                                    <th>Status</th>
+                                    <th>Date</th>
+                                    <th></th>
                                 </tr>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                <?php if (!empty($recent_requests)): ?>
+                                    <?php foreach ($recent_requests as $req): ?>
+                                        <?php $request_status = strtolower($req['status'] ?? 'pending'); ?>
+                                        <tr>
+                                            <td data-label="Reference"><strong><?php echo htmlspecialchars($req['reference_number'] ?? 'N/A'); ?></strong></td>
+                                            <td data-label="Parishioner"><?php echo htmlspecialchars($req['fullname'] ?? 'Unknown'); ?></td>
+                                            <td data-label="Request Type"><?php echo htmlspecialchars(ucwords(str_replace('_', ' ', $req['request_type'] ?? 'Request'))); ?></td>
+                                            <td data-label="Status"><span class="premium-status <?php echo htmlspecialchars($request_status); ?>"><?php echo htmlspecialchars(ucfirst($request_status)); ?></span></td>
+                                            <td data-label="Date"><?php echo !empty($req['date_requested']) ? date('M d, Y', strtotime($req['date_requested'])) : 'N/A'; ?></td>
+                                            <td data-label="Action"><a class="dashboard-view-link" href="request-workflow.php?id=<?php echo intval($req['request_id']); ?>">View</a></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <tr>
+                                        <td colspan="6" class="dashboard-empty-row">No recent requests found.</td>
+                                    </tr>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
+
+                <aside class="premium-panel dashboard-activity-panel">
+                    <div class="premium-panel-header">
+                        <h2 class="premium-panel-title">Recent Activity</h2>
+                        <a class="dashboard-view-link" href="audit-logs.php">View All</a>
+                    </div>
+                    <div class="dashboard-activity-list">
+                        <?php if (!empty($recent_requests)): ?>
+                            <?php foreach (array_slice($recent_requests, 0, 6) as $activity): ?>
+                                <?php $activity_status = strtolower($activity['status'] ?? 'pending'); ?>
+                                <a class="dashboard-activity-item" href="request-workflow.php?id=<?php echo intval($activity['request_id']); ?>">
+                                    <span class="dashboard-activity-icon <?php echo htmlspecialchars($activity_status); ?>">
+                                        <i class="fas fa-file-lines"></i>
+                                    </span>
+                                    <span>
+                                        <strong><?php echo htmlspecialchars($activity['fullname'] ?? 'Parishioner'); ?></strong>
+                                        submitted <?php echo htmlspecialchars(strtolower(str_replace('_', ' ', $activity['request_type'] ?? 'a request'))); ?>.
+                                        <small><?php echo !empty($activity['date_requested']) ? date('M d, Y h:i A', strtotime($activity['date_requested'])) : 'Recently'; ?></small>
+                                    </span>
+                                </a>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <div class="dashboard-empty-row">No recent activity yet.</div>
+                        <?php endif; ?>
+                    </div>
+                </aside>
             </section>
 
-            <aside class="premium-panel premium-glass" id="ai-assistant">
-                <div class="premium-panel-header">
-                    <h2 class="premium-panel-title"><i class="fas fa-robot"></i> AI Assistant</h2>
-                </div>
-                <div class="ai-command-card">
-                    <strong>Ask TUGON AI</strong>
-                    <span>Search records, automate parish inquiry responses, summarize pending requests, and recommend next administrative actions.</span>
-                    <textarea placeholder="Example: Summarize pending certificate requests this week."></textarea>
-                    <a class="premium-btn primary" href="ai-assistant.php"><i class="fas fa-wand-magic-sparkles"></i> Open Assistant</a>
-                </div>
-
-                <hr>
-
-                <div class="premium-panel-header">
-                    <h2 class="premium-panel-title"><i class="fas fa-calendar"></i> Reservation Calendar</h2>
-                </div>
-                <div class="mini-calendar" aria-label="Reservation availability calendar">
-                    <?php for ($day = 1; $day <= 28; $day++): ?>
-                        <span class="<?php echo in_array($day, [4, 12, 19, 26], true) ? 'active' : ''; ?>"><?php echo $day; ?></span>
-                    <?php endfor; ?>
-                </div>
-
-                <hr>
-
-                <div class="schedule-list">
-                    <div class="schedule-row"><span class="date-tile"><i class="fas fa-circle-dot"></i></span><div><strong>Pending</strong><br><span>Awaiting parish review</span></div></div>
-                    <div class="schedule-row"><span class="date-tile"><i class="fas fa-check"></i></span><div><strong>Approved</strong><br><span>Ready for confirmation</span></div></div>
-                    <div class="schedule-row"><span class="date-tile"><i class="fas fa-certificate"></i></span><div><strong>Certificate Preview</strong><br><span>QR, watermark, and digital signature ready</span></div></div>
-                </div>
-            </aside>
-            </div>
         </div>
     </div>
 
@@ -713,17 +405,7 @@ $page_title = 'Admin Dashboard - Parish Management';
     <script>
         // Admin sidebar toggle for mobile
         document.addEventListener('DOMContentLoaded', function() {
-            const adminSidebarToggle = document.getElementById('adminSidebarToggle');
-            const adminSidebar = document.querySelector('.admin-sidebar');
-            const adminContent = document.querySelector('.premium-admin-content');
             const themeToggle = document.getElementById('adminThemeToggle');
-            
-            if (adminSidebarToggle) {
-                adminSidebarToggle.addEventListener('click', function() {
-                    adminSidebar.classList.toggle('expanded');
-                    adminContent.classList.toggle('collapsed');
-                });
-            }
 
             if (localStorage.getItem('parishTheme') === 'dark') {
                 document.body.dataset.theme = 'dark';

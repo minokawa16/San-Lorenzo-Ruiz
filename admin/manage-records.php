@@ -12,7 +12,7 @@ requireAdmin();
 requirePermission('records.manage');
 
 if (!defined('BASE_URL')) {
-    define('BASE_URL', 'http://localhost/ParishSystem/');
+    define('BASE_URL', '/ParishSystem/');
 }
 
 // Record Count Function - Documents this helper's role in the parish management workflow.
@@ -287,6 +287,7 @@ $page_title = 'Sacramental Records - Parish Management';
             }
         }
     </style>
+    <link rel="stylesheet" href="../assets/css/theme.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/theme.css') ? filemtime(__DIR__ . '/../assets/css/theme.css') : time(); ?>">
 </head>
 <body>
     <?php include '../includes/admin-sidebar.php'; ?>
@@ -327,7 +328,7 @@ $page_title = 'Sacramental Records - Parish Management';
                         <p><?php echo htmlspecialchars($registry['description']); ?></p>
                     </div>
                     <span class="registry-action">
-                        Open Manual Registry <i class="fas fa-arrow-right"></i>
+                        Open <i class="fas fa-arrow-right"></i>
                     </span>
                 </a>
             <?php endforeach; ?>

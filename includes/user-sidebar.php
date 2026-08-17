@@ -5,6 +5,25 @@
  */
 ?>
 
+<?php
+$user_navigation_page = basename($_SERVER['PHP_SELF']);
+$is_user_dashboard_page = in_array($user_navigation_page, ['index.php', 'dashboard.php'], true)
+  && strpos($_SERVER['PHP_SELF'], '/users/') !== false;
+$is_primary_user_dashboard = $is_user_dashboard_page && (($_GET['view'] ?? '') !== 'dashboard');
+?>
+<?php if ($is_primary_user_dashboard): ?>
+  <button class="responsive-nav-toggle responsive-nav-toggle-floating tablet-nav-trigger" type="button" data-user-sidebar-toggle aria-controls="userSidebar" aria-expanded="false" aria-label="Open navigation">
+    <i class="fas fa-bars" aria-hidden="true"></i>
+  </button>
+<?php else: ?>
+  <button class="responsive-nav-toggle responsive-nav-toggle-floating mobile-context-back" type="button" data-user-context-back data-dashboard-url="<?php echo e(BASE_URL . 'users/index.php'); ?>" aria-label="Back to dashboard menu">
+    <i class="fas fa-chevron-left" aria-hidden="true"></i>
+  </button>
+  <button class="responsive-nav-toggle responsive-nav-toggle-floating tablet-nav-trigger" type="button" data-user-sidebar-toggle aria-controls="userSidebar" aria-expanded="false" aria-label="Open navigation">
+    <i class="fas fa-bars" aria-hidden="true"></i>
+  </button>
+<?php endif; ?>
+
 <aside class="user-sidebar" id="userSidebar">
   <div class="sidebar-brand">
     <div class="brand-logo">
@@ -14,7 +33,7 @@
       <div class="brand-title">San Lorenzo Ruiz</div>
       <div class="brand-subtitle">Mission Station</div>
     </div>
-    <button class="sidebar-toggle" id="sidebarToggle">
+    <button class="sidebar-toggle" id="sidebarToggle" type="button" data-user-sidebar-toggle aria-controls="userSidebar" aria-expanded="false" aria-label="Toggle navigation">
       <i class="fas fa-bars"></i>
     </button>
   </div>
@@ -32,10 +51,6 @@
         <i class="fas fa-chevron-down ms-auto toggle-icon"></i>
       </button>
       <div class="nav-submenu" id="requestsSubmenu">
-        <a href="<?php echo BASE_URL; ?>users/my-requests.php" class="nav-link sublink <?php echo in_array(basename($_SERVER['PHP_SELF']), ['my-requests.php', 'view-request.php'], true) ? 'active' : ''; ?>">
-          <i class="fas fa-list-check"></i>
-          <span><?php echo e(t('nav.track_requests', 'Track Requests')); ?></span>
-        </a>
         <a href="<?php echo BASE_URL; ?>users/request-certificate.php" class="nav-link sublink <?php echo (basename($_SERVER['PHP_SELF']) == 'request-certificate.php') ? 'active' : ''; ?>">
           <i class="fas fa-certificate"></i>
           <span><?php echo e(t('nav.certificates', 'Certificates')); ?></span>
@@ -47,6 +62,10 @@
         <a href="<?php echo BASE_URL; ?>users/request-service.php" class="nav-link sublink <?php echo (basename($_SERVER['PHP_SELF']) == 'request-service.php') ? 'active' : ''; ?>">
           <i class="fas fa-church"></i>
           <span><?php echo e(t('nav.sacramental_services', 'Sacramental Services')); ?></span>
+        </a>
+        <a href="<?php echo BASE_URL; ?>users/my-requests.php" class="nav-link sublink <?php echo in_array(basename($_SERVER['PHP_SELF']), ['my-requests.php', 'view-request.php'], true) ? 'active' : ''; ?>">
+          <i class="fas fa-list-check"></i>
+          <span><?php echo e(t('nav.track_requests', 'Track Requests')); ?></span>
         </a>
       </div>
     </div>
@@ -328,16 +347,88 @@ body.user-sidebar-collapsed .user-sidebar .nav-link:hover::after {
     transform: translateX(0);
   }
 }
+
+/* Final cream/gold parishioner sidebar styling. */
+.user-sidebar {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(212, 169, 78, 0.16), transparent 30%),
+    linear-gradient(180deg, #1C1C1C, #27231D) !important;
+  color: #FFF8EB !important;
+  border-right: 1px solid rgba(212, 169, 78, 0.22) !important;
+  box-shadow: 16px 0 38px rgba(28, 27, 24, 0.18) !important;
+}
+
+.user-sidebar .sidebar-brand {
+  background: linear-gradient(135deg, #F6DF9F, #E2BD5F) !important;
+  border-bottom: 1px solid rgba(212, 169, 78, 0.34) !important;
+  color: #1C1B18 !important;
+}
+
+.user-sidebar .brand-logo,
+.user-sidebar .pill-badge,
+.user-sidebar .profile-dot {
+  background: #FFF8EB !important;
+  color: #1C1B18 !important;
+  border: 1px solid rgba(184, 138, 34, 0.28) !important;
+}
+
+.user-sidebar .brand-title,
+.user-sidebar .brand-subtitle,
+.user-sidebar .sidebar-toggle {
+  color: #1C1B18 !important;
+}
+
+.user-sidebar .nav-link,
+.user-sidebar .nav-toggle,
+.user-sidebar .nav-submenu .sublink {
+  color: rgba(255, 248, 235, 0.9) !important;
+  font-size: 15px !important;
+  min-height: 44px !important;
+  font-weight: 500 !important;
+}
+
+.user-sidebar .nav-section-label {
+  color: rgba(255, 248, 235, 0.68) !important;
+  font-size: 13px !important;
+  letter-spacing: 0.04em !important;
+}
+
+.user-sidebar .nav-link:hover,
+.user-sidebar .nav-link.active,
+.user-sidebar .nav-toggle:hover,
+.user-sidebar .nav-collapsible.open .nav-toggle,
+.user-sidebar .nav-submenu .sublink:hover,
+.user-sidebar .nav-submenu .sublink.active {
+  background: rgba(212, 169, 78, 0.18) !important;
+  border-color: rgba(212, 169, 78, 0.36) !important;
+  color: #FFF8EB !important;
+  box-shadow: inset 4px 0 0 #D4A94E, 0 10px 24px rgba(0, 0, 0, 0.12) !important;
+}
+
+.user-sidebar .sidebar-footer {
+  background: rgba(28, 27, 24, 0.9) !important;
+  border-top: 1px solid rgba(212, 169, 78, 0.2) !important;
+}
+
+body.user-sidebar-collapsed .user-sidebar .nav-link::after {
+  background: #1C1C1C !important;
+  color: #FFF8EB !important;
+}
 </style>
 
 <script>
 // Sidebar Toggle for Mobile
 document.addEventListener('DOMContentLoaded', function() {
-  const sidebarToggles = [
-    document.getElementById('sidebarToggle'),
-    document.getElementById('userSidebarToggle')
-  ].filter(Boolean);
+  const sidebarToggles = Array.from(document.querySelectorAll('[data-user-sidebar-toggle]'));
+  const contextualBack = document.querySelector('[data-user-context-back]');
   const sidebar = document.querySelector('.user-sidebar');
+
+  if (contextualBack) {
+    contextualBack.addEventListener('click', function() {
+      const dashboardUrl = contextualBack.getAttribute('data-dashboard-url') || '<?php echo e(BASE_URL . 'users/index.php'); ?>';
+      window.location.assign(dashboardUrl);
+    });
+  }
 
   if (localStorage.getItem('userSidebarCollapsed') === 'true') {
     document.body.classList.add('user-sidebar-collapsed');
@@ -345,9 +436,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
   sidebarToggles.forEach(function(toggle) {
     toggle.addEventListener('click', function() {
-      if (window.innerWidth <= 768) {
+      if (window.innerWidth <= 1023) {
         sidebar.classList.toggle('open');
         document.body.classList.toggle('sidebar-open', sidebar.classList.contains('open'));
+        sidebarToggles.forEach(function(button) {
+          button.setAttribute('aria-expanded', sidebar.classList.contains('open') ? 'true' : 'false');
+        });
       } else {
         document.body.classList.toggle('user-sidebar-collapsed');
         localStorage.setItem(
@@ -359,7 +453,7 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   document.addEventListener('click', function(event) {
-    if (!sidebar || window.innerWidth > 768 || !sidebar.classList.contains('open')) {
+    if (!sidebar || window.innerWidth > 1023 || !sidebar.classList.contains('open')) {
       return;
     }
     const clickedToggle = sidebarToggles.some(function(toggle) {
@@ -368,14 +462,16 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!sidebar.contains(event.target) && !clickedToggle) {
       sidebar.classList.remove('open');
       document.body.classList.remove('sidebar-open');
+      sidebarToggles.forEach(function(button) { button.setAttribute('aria-expanded', 'false'); });
     }
   });
 
   sidebar.querySelectorAll('a.nav-link').forEach(function(link) {
     link.addEventListener('click', function() {
-      if (window.innerWidth <= 768) {
+      if (window.innerWidth <= 1023) {
         sidebar.classList.remove('open');
         document.body.classList.remove('sidebar-open');
+        sidebarToggles.forEach(function(button) { button.setAttribute('aria-expanded', 'false'); });
       }
     });
   });
@@ -384,6 +480,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (event.key === 'Escape' && sidebar) {
       sidebar.classList.remove('open');
       document.body.classList.remove('sidebar-open');
+      sidebarToggles.forEach(function(button) { button.setAttribute('aria-expanded', 'false'); });
     }
   });
 

@@ -12,7 +12,7 @@ include '../database/config.php';
 
 // Define BASE_URL if not already defined
 if (!defined('BASE_URL')) {
-    define('BASE_URL', 'http://localhost/ParishSystem/');
+    define('BASE_URL', '/ParishSystem/');
 }
 
 // Check admin access
@@ -68,7 +68,9 @@ function ensure_baptism_record_book_schema($conn) {
         'birth_status' => "ALTER TABLE baptism_records ADD COLUMN birth_status VARCHAR(80) NULL AFTER birth_place",
         'parent_address' => "ALTER TABLE baptism_records ADD COLUMN parent_address VARCHAR(200) NULL AFTER parents",
         'parish_address' => "ALTER TABLE baptism_records ADD COLUMN parish_address VARCHAR(200) NULL AFTER godparents",
-        'remarks' => "ALTER TABLE baptism_records ADD COLUMN remarks TEXT NULL AFTER priest"
+        'remarks' => "ALTER TABLE baptism_records ADD COLUMN remarks TEXT NULL AFTER priest",
+        'parish_priest' => "ALTER TABLE baptism_records ADD COLUMN parish_priest VARCHAR(120) NULL AFTER remarks",
+        'parish_secretary' => "ALTER TABLE baptism_records ADD COLUMN parish_secretary VARCHAR(120) NULL AFTER parish_priest"
     ];
 
     foreach ($columns as $column => $sql) {
@@ -103,6 +105,8 @@ $alert_type = '';
 // Add new baptism record
 if ($action === 'add' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $registry_no = trim($_POST['registry_no'] ?? '');
+    $book_no = trim($_POST['book_no'] ?? '');
+    $page_no = trim($_POST['page_no'] ?? '');
     $fullname = trim($_POST['fullname'] ?? '');
     $birth_date = !empty($_POST['birth_date']) ? $_POST['birth_date'] : null;
     $birth_place = trim($_POST['birth_place'] ?? '');
@@ -114,13 +118,15 @@ if ($action === 'add' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $parish_address = trim($_POST['parish_address'] ?? '');
     $priest = trim($_POST['priest'] ?? '');
     $remarks = trim($_POST['remarks'] ?? '');
+    $parish_priest = trim($_POST['parish_priest'] ?? '');
+    $parish_secretary = trim($_POST['parish_secretary'] ?? '');
     $status = $_POST['status'] ?? 'active';
     $request_id = !empty($_POST['request_id']) ? (int)$_POST['request_id'] : null;
 
     if ($fullname && $baptism_date && $parents) {
-        $stmt = $conn->prepare("INSERT INTO baptism_records (registry_no, fullname, birth_date, birth_place, birth_status, parents, parent_address, baptism_date, godparents, parish_address, priest, remarks, status, request_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt = $conn->prepare("INSERT INTO baptism_records (registry_no, book_no, page_no, fullname, birth_date, birth_place, birth_status, parents, parent_address, baptism_date, godparents, parish_address, priest, remarks, parish_priest, parish_secretary, status, request_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         if ($stmt) {
-            $stmt->bind_param("sssssssssssssi", $registry_no, $fullname, $birth_date, $birth_place, $birth_status, $parents, $parent_address, $baptism_date, $godparents, $parish_address, $priest, $remarks, $status, $request_id);
+            $stmt->bind_param("sssssssssssssssssi", $registry_no, $book_no, $page_no, $fullname, $birth_date, $birth_place, $birth_status, $parents, $parent_address, $baptism_date, $godparents, $parish_address, $priest, $remarks, $parish_priest, $parish_secretary, $status, $request_id);
             if ($stmt->execute()) {
                 $message = "Baptism record added successfully!";
                 $alert_type = "success";
@@ -140,6 +146,8 @@ if ($action === 'add' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 if ($action === 'edit' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $record_id = (int)($_POST['record_id'] ?? 0);
     $registry_no = trim($_POST['registry_no'] ?? '');
+    $book_no = trim($_POST['book_no'] ?? '');
+    $page_no = trim($_POST['page_no'] ?? '');
     $fullname = trim($_POST['fullname'] ?? '');
     $birth_date = !empty($_POST['birth_date']) ? $_POST['birth_date'] : null;
     $birth_place = trim($_POST['birth_place'] ?? '');
@@ -151,13 +159,15 @@ if ($action === 'edit' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $parish_address = trim($_POST['parish_address'] ?? '');
     $priest = trim($_POST['priest'] ?? '');
     $remarks = trim($_POST['remarks'] ?? '');
+    $parish_priest = trim($_POST['parish_priest'] ?? '');
+    $parish_secretary = trim($_POST['parish_secretary'] ?? '');
     $status = $_POST['status'] ?? 'active';
     $request_id = !empty($_POST['request_id']) ? (int)$_POST['request_id'] : null;
 
     if ($record_id && $fullname && $baptism_date && $parents) {
-        $stmt = $conn->prepare("UPDATE baptism_records SET registry_no=?, fullname=?, birth_date=?, birth_place=?, birth_status=?, parents=?, parent_address=?, baptism_date=?, godparents=?, parish_address=?, priest=?, remarks=?, status=?, request_id=? WHERE baptism_id=?");
+        $stmt = $conn->prepare("UPDATE baptism_records SET registry_no=?, book_no=?, page_no=?, fullname=?, birth_date=?, birth_place=?, birth_status=?, parents=?, parent_address=?, baptism_date=?, godparents=?, parish_address=?, priest=?, remarks=?, parish_priest=?, parish_secretary=?, status=?, request_id=? WHERE baptism_id=?");
         if ($stmt) {
-            $stmt->bind_param("sssssssssssssii", $registry_no, $fullname, $birth_date, $birth_place, $birth_status, $parents, $parent_address, $baptism_date, $godparents, $parish_address, $priest, $remarks, $status, $request_id, $record_id);
+            $stmt->bind_param("sssssssssssssssssii", $registry_no, $book_no, $page_no, $fullname, $birth_date, $birth_place, $birth_status, $parents, $parent_address, $baptism_date, $godparents, $parish_address, $priest, $remarks, $parish_priest, $parish_secretary, $status, $request_id, $record_id);
             if ($stmt->execute()) {
                 $message = "Baptism record updated successfully!";
                 $alert_type = "success";
@@ -201,12 +211,12 @@ $params = array();
 $param_types = "";
 
 if (!empty($search)) {
-    $where_clauses[] = "(fullname LIKE ? OR registry_no LIKE ? OR parents LIKE ? OR parent_address LIKE ? OR godparents LIKE ? OR parish_address LIKE ? OR priest LIKE ? OR birth_place LIKE ?)";
+    $where_clauses[] = "(fullname LIKE ? OR book_no LIKE ? OR page_no LIKE ? OR parents LIKE ? OR parent_address LIKE ? OR godparents LIKE ? OR parish_address LIKE ? OR priest LIKE ? OR birth_place LIKE ? OR parish_priest LIKE ? OR parish_secretary LIKE ?)";
     $search_param = "%$search%";
-    for ($i = 0; $i < 8; $i++) {
+    for ($i = 0; $i < 11; $i++) {
         $params[] = $search_param;
     }
-    $param_types .= "ssssssss";
+    $param_types .= "sssssssssss";
 }
 
 if (!empty($status_filter)) {
@@ -640,6 +650,7 @@ $page_title = 'Baptism Records - Parish Management';
             animation: fadeInUp 0.6s ease-out;
         }
     </style>
+    <link rel="stylesheet" href="../assets/css/theme.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/theme.css') ? filemtime(__DIR__ . '/../assets/css/theme.css') : time(); ?>">
 </head>
 <body>
     <div style="display: flex;">
@@ -650,6 +661,9 @@ $page_title = 'Baptism Records - Parish Management';
         <div class="admin-content">
             <!-- Page Header -->
             <div style="margin-bottom: 30px;">
+                <a href="manage-records.php" class="btn btn-primary-gold" style="margin-bottom: 14px;">
+                    <i class="fas fa-arrow-left"></i> Back to Sacramental Records
+                </a>
                 <h1 class="page-title">
                     <i class="fas fa-water"></i> Baptism Records
                 </h1>
@@ -666,7 +680,7 @@ $page_title = 'Baptism Records - Parish Management';
             <!-- Search & Filter -->
             <div class="card-section">
                 <div class="search-bar">
-                    <input type="text" id="searchInput" placeholder="Search by record no., name, parents, sponsors, place, or minister..." value="<?php echo htmlspecialchars($search); ?>">
+                    <input type="text" id="searchInput" placeholder="Search by book no., page no., name, parents, sponsors, place, minister, priest, or secretary..." value="<?php echo htmlspecialchars($search); ?>">
                     <select id="statusFilter" onchange="applyFilter()">
                         <option value="">All Status</option>
                         <option value="active" <?php echo $status_filter === 'active' ? 'selected' : ''; ?>>Active</option>
@@ -690,7 +704,8 @@ $page_title = 'Baptism Records - Parish Management';
                     <table class="records-table">
                         <thead>
                             <tr>
-                                <th>No.</th>
+                                <th>Book No.</th>
+                                <th>Page No.</th>
                                 <th>Year</th>
                                 <th>Date Baptized</th>
                                 <th>Personal Baptized</th>
@@ -698,6 +713,7 @@ $page_title = 'Baptism Records - Parish Management';
                                 <th>Parents</th>
                                 <th>Sponsors</th>
                                 <th>Minister</th>
+                                <th>Officials</th>
                                 <th>Remarks</th>
                                 <th>Status</th>
                                 <th>Actions</th>
@@ -724,12 +740,15 @@ $page_title = 'Baptism Records - Parish Management';
                                             'parish_address' => $record['parish_address'] ?? '',
                                             'priest' => $record['priest'] ?? '',
                                             'remarks' => $record['remarks'] ?? '',
+                                            'parish_priest' => $record['parish_priest'] ?? '',
+                                            'parish_secretary' => $record['parish_secretary'] ?? '',
                                             'status' => $record['status'] ?? 'active',
                                             'request_id' => $record['request_id'] ?? ''
                                         ];
                                     ?>
                                     <tr>
-                                        <td><?php echo htmlspecialchars($record['registry_no'] ?: $record['baptism_id']); ?></td>
+                                        <td><?php echo htmlspecialchars($record['book_no'] ?: 'N/A'); ?></td>
+                                        <td><?php echo htmlspecialchars($record['page_no'] ?: 'N/A'); ?></td>
                                         <td><?php echo !empty($record['baptism_date']) ? date('Y', strtotime($record['baptism_date'])) : 'N/A'; ?></td>
                                         <td><?php echo format_baptism_record_date($record['baptism_date'], 'F d'); ?></td>
                                         <td><span class="text-strong"><?php echo htmlspecialchars($record['fullname']); ?></span></td>
@@ -755,6 +774,10 @@ $page_title = 'Baptism Records - Parish Management';
                                             <?php endif; ?>
                                         </td>
                                         <td><?php echo htmlspecialchars($record['priest'] ?? 'N/A'); ?></td>
+                                        <td>
+                                            <strong>Parish Priest:</strong> <?php echo htmlspecialchars($record['parish_priest'] ?: 'N/A'); ?><br>
+                                            <span class="record-muted"><strong>Secretary:</strong> <?php echo htmlspecialchars($record['parish_secretary'] ?: 'N/A'); ?></span>
+                                        </td>
                                         <td><?php echo htmlspecialchars($record['remarks'] ?? ''); ?></td>
                                         <td>
                                             <span class="status-badge badge-<?php echo strtolower($record['status']); ?>">
@@ -766,9 +789,6 @@ $page_title = 'Baptism Records - Parish Management';
                                                 <button class="action-btn btn-edit" onclick="openEditModal(<?php echo js_value($record_payload); ?>)">
                                                     <i class="fas fa-edit"></i> Edit
                                                 </button>
-                                                <a class="action-btn btn-view" href="generate-cert.php?type=baptism&id=<?php echo intval($record['baptism_id']); ?>">
-                                                    <i class="fas fa-certificate"></i> Certificate
-                                                </a>
                                                 <button class="action-btn btn-delete" onclick="confirmArchive(<?php echo $record['baptism_id']; ?>)">
                                                     <i class="fas fa-archive"></i> Archive
                                                 </button>
@@ -778,7 +798,7 @@ $page_title = 'Baptism Records - Parish Management';
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <tr>
-                                    <td colspan="11" style="text-align: center; padding: 30px; color: #6c757d;">
+                                    <td colspan="13" style="text-align: center; padding: 30px; color: #6c757d;">
                                         <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 10px;"></i><br>
                                         No baptism records found.
                                     </td>
@@ -815,9 +835,16 @@ $page_title = 'Baptism Records - Parish Management';
                 <input type="hidden" id="recordIdInput" name="record_id" value="">
 
                 <div class="form-grid">
+                    <input type="hidden" id="registryNo" name="registry_no">
+
                     <div class="form-group">
-                        <label>Record No.</label>
-                        <input type="text" id="registryNo" name="registry_no">
+                        <label>Book Number</label>
+                        <input type="text" id="bookNo" name="book_no" placeholder="Book No.">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Page Number</label>
+                        <input type="text" id="pageNo" name="page_no" placeholder="Page No.">
                     </div>
 
                     <div class="form-group">
@@ -876,6 +903,16 @@ $page_title = 'Baptism Records - Parish Management';
                     </div>
 
                     <div class="form-group">
+                        <label>Parish Priest</label>
+                        <input type="text" id="parishPriest" name="parish_priest" placeholder="Name printed above Parish Priest">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Parish Secretary</label>
+                        <input type="text" id="parishSecretary" name="parish_secretary" placeholder="Name printed above Parish Secretary">
+                    </div>
+
+                    <div class="form-group">
                         <label>Status</label>
                         <select id="recordStatus" name="status">
                             <option value="active">Active</option>
@@ -931,6 +968,9 @@ $page_title = 'Baptism Records - Parish Management';
             document.getElementById('recordForm').reset();
             document.getElementById('actionInput').value = 'add';
             document.getElementById('recordIdInput').value = '';
+            document.getElementById('registryNo').value = '';
+            document.getElementById('bookNo').value = '';
+            document.getElementById('pageNo').value = '';
             document.getElementById('modalTitle').textContent = 'Add Baptism Record';
             document.getElementById('recordModal').classList.add('show');
         }
@@ -939,6 +979,8 @@ $page_title = 'Baptism Records - Parish Management';
         function openEditModal(record) {
             document.getElementById('recordIdInput').value = record.id || '';
             document.getElementById('registryNo').value = record.registry_no || '';
+            document.getElementById('bookNo').value = record.book_no || '';
+            document.getElementById('pageNo').value = record.page_no || '';
             document.getElementById('fullName').value = record.fullname || '';
             document.getElementById('birthDate').value = record.birth_date || '';
             document.getElementById('birthPlace').value = record.birth_place || '';
@@ -950,6 +992,8 @@ $page_title = 'Baptism Records - Parish Management';
             document.getElementById('parishAddress').value = record.parish_address || '';
             document.getElementById('priestName').value = record.priest || '';
             document.getElementById('remarks').value = record.remarks || '';
+            document.getElementById('parishPriest').value = record.parish_priest || '';
+            document.getElementById('parishSecretary').value = record.parish_secretary || '';
             document.getElementById('recordStatus').value = record.status || 'active';
             document.getElementById('requestId').value = record.request_id || '';
             document.getElementById('actionInput').value = 'edit';

@@ -13,10 +13,12 @@ requirePermission('announcements.manage');
 
 $error = '';
 $success = '';
+$queued_announcement_id = 0;
 
 ensureExpandedAnnouncementTypeSchema($conn);
 ensureAnnouncementAttachmentSchema($conn);
 ensureEmailNotificationSchema($conn);
+ensureAnnouncementDeliveryQueueSchema($conn);
 
 $announcement_types = [
     'announcement' => 'General Announcement',
@@ -139,45 +141,146 @@ function saveAnnouncementAttachment($file) {
     ];
 }
 
-// Dispatch Announcement Notifications Function - Documents this helper's role in the parish management workflow.
-function dispatchAnnouncementNotifications($conn, $announcement_id, $title, $content, $send_email = true, $send_system = true) {
+function announcementRelativeTime($value) {
+    $timestamp = strtotime((string) $value);
+    if (!$timestamp) {
+        return 'Date unavailable';
+    }
+    $difference = time() - $timestamp;
+    if ($difference < 0 || $difference >= 604800) {
+        return date('M j, Y', $timestamp);
+    }
+    if ($difference < 60) {
+        return 'Just now';
+    }
+    if ($difference < 3600) {
+        $minutes = max(1, (int) floor($difference / 60));
+        return $minutes . ' minute' . ($minutes === 1 ? '' : 's') . ' ago';
+    }
+    if ($difference < 86400) {
+        $hours = max(1, (int) floor($difference / 3600));
+        return $hours . ' hour' . ($hours === 1 ? '' : 's') . ' ago';
+    }
+    $days = max(1, (int) floor($difference / 86400));
+    return $days . ' day' . ($days === 1 ? '' : 's') . ' ago';
+}
+
+function ensureAnnouncementDeliveryQueueSchema($conn) {
+    if (!columnExists($conn, 'announcement_recipients', 'sms_delivery_status')) {
+        $conn->query("ALTER TABLE announcement_recipients ADD COLUMN sms_delivery_status VARCHAR(30) DEFAULT 'skipped' AFTER delivery_status");
+    }
+    if (!columnExists($conn, 'announcement_recipients', 'sms_sent_at')) {
+        $conn->query("ALTER TABLE announcement_recipients ADD COLUMN sms_sent_at DATETIME NULL AFTER sent_at");
+    }
+    if (!columnExists($conn, 'announcement_recipients', 'last_error')) {
+        $conn->query("ALTER TABLE announcement_recipients ADD COLUMN last_error TEXT NULL AFTER sms_sent_at");
+    }
+}
+
+// Announcement Notification Queue - Creates in-app alerts now and queues email/SMS delivery for fast posting.
+function queueAnnouncementNotifications($conn, $announcement_id, $title, $send_email = true, $send_system = true, $send_sms = true) {
     $announcement_id = intval($announcement_id);
-    $recipients = $conn->query("SELECT u.id, u.email, u.fullname, COALESCE(np.email_enabled, 1) AS email_enabled, COALESCE(np.in_app_enabled, 1) AS in_app_enabled
+    $recipients = $conn->query("SELECT u.id, u.email, u.phone_number, u.fullname, COALESCE(np.email_enabled, 1) AS email_enabled, COALESCE(np.sms_enabled, 1) AS sms_enabled, COALESCE(np.in_app_enabled, 1) AS in_app_enabled
         FROM users u
         LEFT JOIN notification_preferences np ON np.user_id = u.id AND np.category = 'announcements'
         WHERE u.role = 'user' AND u.status = 'active'");
-    $sent_count = 0;
+    $email_count = 0;
+    $sms_count = 0;
     $system_count = 0;
-    $failed_count = 0;
-    $view_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https://' : 'http://') . ($_SERVER['HTTP_HOST'] ?? 'localhost') . BASE_URL . 'users/announcements.php';
 
     while ($recipients && $recipient = $recipients->fetch_assoc()) {
-        $delivery_status = 'skipped';
+        $email_status = 'skipped';
+        $sms_status = 'skipped';
         if ($send_system && intval($recipient['in_app_enabled']) === 1) {
-            if (createNotification($conn, intval($recipient['id']), 'New Parish Announcement', $title)) {
+            if (createNotification($conn, intval($recipient['id']), 'New Parish Announcement', $title, false, 'announcements')) {
                 $system_count++;
             }
         }
-        if ($send_email && intval($recipient['email_enabled']) === 1) {
-            $email_body = '<p><strong>' . e($title) . '</strong></p><p>' . nl2br(e(strip_tags($content))) . '</p><p>Published: ' . e(formatDateTime(date('Y-m-d H:i:s'))) . '</p>';
-            $sent = sendTugonEmail($conn, $recipient['email'], 'New Parish Announcement: ' . $title, tugonEmailTemplate('Parish Announcement', $email_body, 'View Announcement', $view_url), '', $recipient['id'], 'announcement');
-            $delivery_status = $sent['ok'] ? 'sent' : 'failed';
-            $sent['ok'] ? $sent_count++ : $failed_count++;
+        if ($send_email && intval($recipient['email_enabled']) === 1 && isValidEmail($recipient['email'] ?? '')) {
+            $email_status = 'pending';
+            $email_count++;
+        }
+        if ($send_sms && intval($recipient['sms_enabled']) === 1 && isValidPhilippineMobile($recipient['phone_number'] ?? '')) {
+            $sms_status = 'pending';
+            $sms_count++;
         }
 
-        $log_stmt = $conn->prepare("INSERT INTO announcement_recipients (announcement_id, user_id, email, delivery_status, sent_at)
-            VALUES (?, ?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE delivery_status = VALUES(delivery_status), sent_at = VALUES(sent_at)");
+        $log_stmt = $conn->prepare("INSERT INTO announcement_recipients (announcement_id, user_id, email, delivery_status, sms_delivery_status, sent_at, sms_sent_at, last_error)
+            VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL)
+            ON DUPLICATE KEY UPDATE delivery_status = VALUES(delivery_status), sms_delivery_status = VALUES(sms_delivery_status), sent_at = NULL, sms_sent_at = NULL, last_error = NULL");
         if ($log_stmt) {
-            $sent_at = $delivery_status === 'sent' ? date('Y-m-d H:i:s') : null;
             $uid = intval($recipient['id']);
-            $log_stmt->bind_param('iisss', $announcement_id, $uid, $recipient['email'], $delivery_status, $sent_at);
+            $log_stmt->bind_param('iisss', $announcement_id, $uid, $recipient['email'], $email_status, $sms_status);
             $log_stmt->execute();
             $log_stmt->close();
         }
     }
 
-    return ['sent' => $sent_count, 'system' => $system_count, 'failed' => $failed_count];
+    return ['queued_email' => $email_count, 'queued_sms' => $sms_count, 'system' => $system_count];
+}
+
+function processAnnouncementDeliveryQueue($conn, $announcement_id = 0, $limit = 5) {
+    $announcement_id = intval($announcement_id);
+    $limit = max(1, min(20, intval($limit)));
+    $where = $announcement_id > 0 ? "AND ar.announcement_id = $announcement_id" : '';
+    $rows = $conn->query("SELECT ar.recipient_id, ar.announcement_id, ar.delivery_status, ar.sms_delivery_status, u.id AS user_id, u.email, u.phone_number, a.title, a.content
+        FROM announcement_recipients ar
+        JOIN users u ON u.id = ar.user_id
+        JOIN announcements a ON a.announcement_id = ar.announcement_id
+        WHERE (ar.delivery_status = 'pending' OR ar.sms_delivery_status = 'pending') $where
+        ORDER BY ar.created_at ASC
+        LIMIT $limit");
+
+    $processed = 0;
+    $sent_email = 0;
+    $sent_sms = 0;
+    $failed = 0;
+    $view_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https://' : 'http://') . ($_SERVER['HTTP_HOST'] ?? 'localhost') . BASE_URL . 'users/announcements.php';
+
+    while ($rows && $row = $rows->fetch_assoc()) {
+        $processed++;
+        $errors = [];
+        if ($row['delivery_status'] === 'pending') {
+            $email_body = '<p><strong>' . e($row['title']) . '</strong></p><p>' . nl2br(e(strip_tags($row['content']))) . '</p><p>Published: ' . e(formatDateTime(date('Y-m-d H:i:s'))) . '</p>';
+            $sent = sendTugonEmail($conn, $row['email'], 'New Parish Announcement: ' . $row['title'], tugonEmailTemplate('Parish Announcement', $email_body, 'View Announcement', $view_url), '', $row['user_id'], 'announcement');
+            $email_status = $sent['ok'] ? 'sent' : 'failed';
+            $sent['ok'] ? $sent_email++ : $failed++;
+            if (!$sent['ok']) {
+                $errors[] = $sent['error'] ?? 'Email failed.';
+            }
+            $stmt = $conn->prepare("UPDATE announcement_recipients SET delivery_status = ?, sent_at = ?, last_error = ? WHERE recipient_id = ?");
+            if ($stmt) {
+                $sent_at = $sent['ok'] ? date('Y-m-d H:i:s') : null;
+                $error_text = implode(' ', $errors);
+                $rid = intval($row['recipient_id']);
+                $stmt->bind_param('sssi', $email_status, $sent_at, $error_text, $rid);
+                $stmt->execute();
+                $stmt->close();
+            }
+        }
+
+        if ($row['sms_delivery_status'] === 'pending') {
+            $sms = sendTugonSms($conn, $row['phone_number'], notificationSmsMessage('New Parish Announcement', $row['title']), $row['user_id'], 'announcement');
+            $sms_status = $sms['ok'] ? 'sent' : 'failed';
+            $sms['ok'] ? $sent_sms++ : $failed++;
+            if (!$sms['ok']) {
+                $errors[] = $sms['error'] ?? 'SMS failed.';
+            }
+            $stmt = $conn->prepare("UPDATE announcement_recipients SET sms_delivery_status = ?, sms_sent_at = ?, last_error = ? WHERE recipient_id = ?");
+            if ($stmt) {
+                $sent_at = $sms['ok'] ? date('Y-m-d H:i:s') : null;
+                $error_text = implode(' ', $errors);
+                $rid = intval($row['recipient_id']);
+                $stmt->bind_param('sssi', $sms_status, $sent_at, $error_text, $rid);
+                $stmt->execute();
+                $stmt->close();
+            }
+        }
+    }
+
+    $remaining_result = $conn->query("SELECT COUNT(*) AS count FROM announcement_recipients WHERE (delivery_status = 'pending' OR sms_delivery_status = 'pending')" . ($announcement_id > 0 ? " AND announcement_id = $announcement_id" : ''));
+    $remaining = $remaining_result ? intval($remaining_result->fetch_assoc()['count'] ?? 0) : 0;
+    return ['processed' => $processed, 'sent_email' => $sent_email, 'sent_sms' => $sent_sms, 'failed' => $failed, 'remaining' => $remaining];
 }
 
 // Publish Due Scheduled Announcements Function - Documents this helper's role in the parish management workflow.
@@ -186,7 +289,7 @@ function publishDueScheduledAnnouncements($conn) {
     while ($due && $announcement = $due->fetch_assoc()) {
         $id = intval($announcement['announcement_id']);
         if ($conn->query("UPDATE announcements SET status = 'active', published_date = NOW() WHERE announcement_id = $id")) {
-            dispatchAnnouncementNotifications($conn, $id, $announcement['title'], $announcement['content'], true, true);
+            queueAnnouncementNotifications($conn, $id, $announcement['title'], true, true, true);
         }
     }
 }
@@ -198,7 +301,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $action = $_POST['action'] ?? '';
     $announcement_id = intval($_POST['announcement_id'] ?? 0);
 
-    if ($action === 'archive_announcement' && $announcement_id > 0) {
+    if ($action === 'process_announcement_queue') {
+        header('Content-Type: application/json');
+        echo json_encode(processAnnouncementDeliveryQueue($conn, $announcement_id, 5));
+        exit;
+    } elseif ($action === 'archive_announcement' && $announcement_id > 0) {
         if ($conn->query("UPDATE announcements SET deleted_at = NOW(), status = 'inactive', is_pinned = 0 WHERE announcement_id = $announcement_id")) {
             createAuditLog($conn, $_SESSION['user_id'], 'ARCHIVE_ANNOUNCEMENT', 'announcements', $announcement_id);
             $success = 'Announcement archived successfully.';
@@ -243,9 +350,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     } elseif ($action === 'send_notification' && $announcement_id > 0) {
         $announcement = $conn->query("SELECT title, content FROM announcements WHERE announcement_id = $announcement_id")->fetch_assoc();
         if ($announcement) {
-            $result = dispatchAnnouncementNotifications($conn, $announcement_id, $announcement['title'], $announcement['content'], true, true);
+            $result = queueAnnouncementNotifications($conn, $announcement_id, $announcement['title'], true, true, true);
             createAuditLog($conn, $_SESSION['user_id'], 'SEND_ANNOUNCEMENT_NOTIFICATION', 'announcements', $announcement_id);
-            $success = 'Notifications processed: ' . $result['system'] . ' dashboard, ' . $result['sent'] . ' email sent, ' . $result['failed'] . ' email failed.';
+            $queued_announcement_id = $announcement_id;
+            $success = 'Notifications queued: ' . $result['system'] . ' dashboard, ' . $result['queued_email'] . ' email, ' . $result['queued_sms'] . ' SMS.';
         }
     } elseif (in_array($action, ['add_announcement', 'edit_announcement'], true)) {
         $title = trim(sanitize($_POST['title'] ?? ''));
@@ -261,6 +369,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $is_pinned = isset($_POST['is_pinned']) ? 1 : 0;
         $notify_all = isset($_POST['notify_all']);
         $notify_email = isset($_POST['notify_email']);
+        $notify_sms = isset($_POST['notify_sms']);
         $notify_system = isset($_POST['notify_system']);
 
         if ($title === '' || trim(strip_tags($content)) === '') {
@@ -282,8 +391,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     if ($stmt->execute()) {
                         $new_id = $stmt->insert_id;
                         createAuditLog($conn, $_SESSION['user_id'], 'ADD_ANNOUNCEMENT', 'announcements', $new_id);
-                        if ($status === 'active' && ($notify_all || $notify_email || $notify_system)) {
-                            dispatchAnnouncementNotifications($conn, $new_id, $title, $content, $notify_all || $notify_email, $notify_all || $notify_system);
+                        if ($status === 'active' && ($notify_all || $notify_email || $notify_sms || $notify_system)) {
+                            $result = queueAnnouncementNotifications($conn, $new_id, $title, $notify_all || $notify_email, $notify_all || $notify_system, $notify_all || $notify_sms);
+                            $queued_announcement_id = ($result['queued_email'] + $result['queued_sms']) > 0 ? $new_id : 0;
                         }
                         $success = $status === 'active' ? 'Announcement published successfully.' : 'Announcement scheduled successfully.';
                     } else {
@@ -308,8 +418,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     $stmt->bind_param($types, ...$params);
                     if ($stmt->execute()) {
                         createAuditLog($conn, $_SESSION['user_id'], 'EDIT_ANNOUNCEMENT', 'announcements', $announcement_id);
-                        if ($status === 'active' && ($notify_all || $notify_email || $notify_system)) {
-                            dispatchAnnouncementNotifications($conn, $announcement_id, $title, $content, $notify_all || $notify_email, $notify_all || $notify_system);
+                        if ($status === 'active' && ($notify_all || $notify_email || $notify_sms || $notify_system)) {
+                            $result = queueAnnouncementNotifications($conn, $announcement_id, $title, $notify_all || $notify_email, $notify_all || $notify_system, $notify_all || $notify_sms);
+                            $queued_announcement_id = ($result['queued_email'] + $result['queued_sms']) > 0 ? $announcement_id : 0;
                         }
                         $success = 'Announcement updated successfully.';
                     } else {
@@ -357,27 +468,20 @@ $pagination = getPaginationData($page, $limit, $total);
 
 $announcements = [];
 $sql = "SELECT a.*, COALESCE(u.fullname, 'Parish Office') AS fullname,
-        (SELECT COUNT(*) FROM announcement_recipients ar WHERE ar.announcement_id = a.announcement_id AND ar.delivery_status = 'sent') AS sent_emails
+        (SELECT COUNT(*) FROM announcement_recipients ar WHERE ar.announcement_id = a.announcement_id AND ar.delivery_status = 'sent') AS sent_emails,
+        (SELECT COUNT(*) FROM announcement_recipients ar WHERE ar.announcement_id = a.announcement_id AND ar.sms_delivery_status = 'sent') AS sent_sms,
+        (SELECT COUNT(*) FROM announcement_recipients ar WHERE ar.announcement_id = a.announcement_id AND (ar.delivery_status = 'pending' OR ar.sms_delivery_status = 'pending')) AS pending_deliveries
         FROM announcements a
         LEFT JOIN users u ON a.published_by = u.id
         $where
-        ORDER BY a.is_pinned DESC, a.published_date DESC
+        ORDER BY COALESCE(a.published_date, a.created_at) DESC, a.announcement_id DESC
         LIMIT {$pagination['offset']}, {$pagination['limit']}";
 $result = $conn->query($sql);
 while ($result && $row = $result->fetch_assoc()) {
     $announcements[] = $row;
 }
-
-$featured = null;
-$featured_result = $conn->query("SELECT a.*, COALESCE(u.fullname, 'Parish Office') AS fullname
-    FROM announcements a
-    LEFT JOIN users u ON a.published_by = u.id
-    WHERE " . activeAnnouncementWhere() . "
-    ORDER BY a.is_pinned DESC, FIELD(a.type, 'important_notice') DESC, a.published_date DESC
-    LIMIT 1");
-if ($featured_result) {
-    $featured = $featured_result->fetch_assoc();
-}
+$pending_delivery_result = $conn->query("SELECT COUNT(*) AS count FROM announcement_recipients WHERE delivery_status = 'pending' OR sms_delivery_status = 'pending'");
+$pending_announcement_delivery_count = $pending_delivery_result ? intval($pending_delivery_result->fetch_assoc()['count'] ?? 0) : 0;
 
 $stats = [
     'total' => 0,
@@ -399,61 +503,90 @@ $breadcrumbs = [
 <?php include '../templates/header.php'; ?>
 
 <style>
-    .announcement-admin-page { max-width: 1480px; margin: 0 auto; color: #172033; }
-    .announcement-shell { background: #f7f9fc; border: 1px solid #e7ecf2; border-radius: 8px; padding: 18px; }
-    .announcement-hero { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; margin-bottom: 16px; }
-    .announcement-hero h1 { margin: 0 0 6px; font-size: 1.75rem; font-weight: 900; letter-spacing: 0; }
-    .announcement-hero p { margin: 0; color: #667085; line-height: 1.55; }
-    .gold-kicker, .category-badge, .status-pill { display: inline-flex; align-items: center; gap: 7px; min-height: 30px; padding: 6px 10px; border-radius: 999px; font-size: .78rem; font-weight: 850; }
-    .gold-kicker { margin-bottom: 10px; color: #80611b; background: #fff8df; border: 1px solid rgba(212, 175, 55, .34); }
-    .stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
-    .stat-card, .featured-panel, .filter-panel, .announcement-card, .empty-panel { background: #fff; border: 1px solid #e3e9f0; border-radius: 8px; box-shadow: 0 12px 28px rgba(30, 41, 59, .07); }
-    .stat-card { padding: 16px; display: flex; gap: 12px; align-items: center; }
-    .stat-icon { width: 46px; height: 46px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; color: #17446a; background: #eef5fb; font-size: 1.15rem; }
-    .stat-card strong { display: block; font-size: 1.55rem; line-height: 1; }
-    .stat-card span { color: #667085; font-size: .86rem; font-weight: 700; }
-    .featured-panel { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 0; margin-bottom: 16px; overflow: hidden; border-left: 4px solid #d4af37; }
-    .featured-body { padding: 20px; }
-    .featured-body h2 { font-size: 1.35rem; font-weight: 900; margin: 6px 0 8px; }
-    .featured-body p, .announcement-card p { color: #667085; line-height: 1.6; margin: 0; }
-    .featured-art { background: linear-gradient(135deg, #eef5fb, #fff8df); display: grid; place-items: center; color: #17446a; min-height: 190px; }
-    .featured-art img { width: 100%; height: 100%; object-fit: cover; }
-    .featured-art i { font-size: 3.2rem; opacity: .82; }
-    .filter-panel { padding: 14px; margin-bottom: 16px; }
+    .announcement-admin-page { max-width: 1480px; margin: 0 auto; color: #2c2c2c; font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    .announcement-shell { background: #f8f6f1; border: 1px solid #e6e0d4; border-radius: 12px; padding: 20px; }
+    .announcement-hero { margin-bottom: 16px; }
+    .announcement-hero h1 { margin: 0 0 4px; font-size: 28px; font-weight: 700; letter-spacing: -.02em; }
+    .announcement-hero p { margin: 0; color: #6f6f6f; font-size: 13px; }
+    .gold-kicker { display: inline-flex; align-items: center; gap: 6px; color: #80611b; font-size: 12px; font-weight: 600; }
+    .category-badge, .status-pill { display: inline-flex; align-items: center; gap: 6px; min-height: 27px; padding: 5px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+    .filter-panel, .stat-card, .announcement-card, .empty-panel { background: #fff; border: 1px solid #e6e0d4; border-radius: 10px; box-shadow: 0 5px 18px rgba(46, 58, 45, .055); }
+    .filter-panel { padding: 12px; margin-bottom: 14px; }
     .input-with-icon { position: relative; }
     .input-with-icon i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; }
     .input-with-icon .form-control { padding-left: 42px; }
-    .control-lg { min-height: 46px; border-radius: 8px; border-color: #dfe4ea; }
+    .control-lg { min-height: 44px; border-radius: 8px; border-color: #e6e0d4; }
     .filter-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-    .filter-tabs a { min-height: 36px; display: inline-flex; align-items: center; gap: 7px; padding: 7px 11px; border-radius: 999px; border: 1px solid #dfe4ea; color: #334155; background: #fff; text-decoration: none; font-size: .82rem; font-weight: 850; }
-    .filter-tabs a.active, .filter-tabs a:hover { background: #fff8df; border-color: rgba(212, 175, 55, .48); color: #171205; }
-    .announcement-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-    .announcement-card { display: flex; flex-direction: column; min-height: 100%; overflow: hidden; }
-    .card-media { height: 148px; display: grid; place-items: center; color: #17446a; background: linear-gradient(135deg, #f8fafc, #eef5fb); }
-    .card-media img { width: 100%; height: 100%; object-fit: cover; }
-    .card-media i { font-size: 2.25rem; opacity: .82; }
-    .card-main { padding: 16px; display: grid; gap: 10px; flex: 1; }
-    .card-main h3 { margin: 0; font-size: 1.06rem; font-weight: 900; line-height: 1.3; }
-    .announcement-meta { display: flex; flex-wrap: wrap; gap: 8px 12px; color: #667085; font-size: .83rem; }
+    .filter-tabs a { min-height: 33px; display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; border: 1px solid #e6e0d4; color: #2e3a2d; background: #fff; text-decoration: none; font-size: 12px; font-weight: 600; }
+    .filter-tabs a.active, .filter-tabs a:hover { background: #f7f0df; border-color: #c89b3c; color: #2e3a2d; }
+    .stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
+    .stat-card { min-height: 82px; padding: 13px 14px; display: flex; gap: 11px; align-items: center; border-top: 3px solid #c89b3c; }
+    .stat-icon { width: 38px; height: 38px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; color: #2e3a2d; background: #f5efe1; font-size: 14px; }
+    .stat-card strong { display: block; font-size: 24px; line-height: 1; }
+    .stat-card span { color: #6f6f6f; font-size: 12px; font-weight: 500; }
+    .announcement-section-heading { display: flex; justify-content: space-between; align-items: end; gap: 12px; margin: 4px 2px 12px; color: #6f6f6f; font-size: 12px; }
+    .announcement-section-heading div { display: grid; gap: 2px; }
+    .announcement-section-heading div > span { color: #2c2c2c; font-size: 17px; font-weight: 700; }
+    .announcement-section-heading small { color: #6f6f6f; }
+    .announcement-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; max-width: 1200px; }
+    .announcement-card { --card-accent: #2e3a2d; display: grid; grid-template-columns: 132px minmax(0, 1fr); width: 100%; min-height: 220px; overflow: visible; border-radius: 18px; transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
+    .announcement-card:hover { transform: translateY(-2px); border-color: #d7c9ad; box-shadow: 0 10px 26px rgba(46, 58, 45, .09); }
+    .announcement-card:focus-within { outline: 3px solid rgba(200, 155, 60, .22); outline-offset: 2px; }
+    .announcement-card.tone-event { --card-accent: #2e8b57; }
+    .announcement-card.tone-general { --card-accent: #356b91; }
+    .announcement-card.tone-schedule { --card-accent: #7654b8; }
+    .announcement-card.tone-sacrament { --card-accent: #c89b3c; }
+    .announcement-card.tone-important { --card-accent: #c62828; }
+    .announcement-card.is-archived { --card-accent: #777; }
+    .announcement-card.is-pinned { background: #fffdf7; }
+    .announcement-icon-panel { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px 16px; color: var(--card-accent); background: #f5f3ee; border-radius: 17px 0 0 17px; }
+    .tone-event .announcement-icon-panel { background: #edf7f1; }
+    .tone-general .announcement-icon-panel { background: #edf4f8; }
+    .tone-schedule .announcement-icon-panel { background: #f3effa; }
+    .tone-sacrament .announcement-icon-panel { background: #faf4e5; }
+    .tone-important .announcement-icon-panel { background: #fbeeee; }
+    .is-archived .announcement-icon-panel { background: #f1f1f1; }
+    .announcement-icon-panel i { font-size: 32px; }
+    .announcement-icon-panel .status-pill { background: rgba(255,255,255,.82); color: var(--card-accent); }
+    .card-main { min-width: 0; padding: 28px 30px; display: grid; align-content: start; gap: 13px; }
+    .announcement-card-top { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+    .announcement-card-top > div:first-child { display: flex; flex-wrap: wrap; gap: 8px; }
+    .announcement-card-tools { display: flex; align-items: center; gap: 10px; color: #6f6f6f; font-size: 12px; white-space: nowrap; }
+    .announcement-menu-btn { width: 44px; height: 44px; border: 1px solid #e6e0d4; border-radius: 10px; color: #2e3a2d; background: #fff; }
+    .announcement-menu-btn:hover, .announcement-menu-btn:focus { color: #2e3a2d; border-color: #c89b3c; background: #f9f4e8; }
+    .announcement-card .dropdown-menu { min-width: 190px; padding: 7px; border-color: #e6e0d4; border-radius: 10px; box-shadow: 0 12px 30px rgba(44,44,44,.12); }
+    .announcement-card .dropdown-item { min-height: 40px; display: flex; align-items: center; gap: 10px; border-radius: 7px; font-size: 13px; }
+    .announcement-card .dropdown-item.text-danger { color: #a93232 !important; }
+    .card-main h3 { margin: 0; color: #2c2c2c; font-size: clamp(21px, 2vw, 25px); font-weight: 700; line-height: 1.25; }
+    .card-main p { color: #6f6f6f; font-size: 15px; line-height: 1.65; margin: 0; }
+    .announcement-preview { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+    .announcement-meta { display: flex; flex-wrap: wrap; gap: 10px 18px; padding-top: 2px; color: #6f6f6f; font-size: 12px; font-weight: 500; }
     .announcement-meta span { display: inline-flex; gap: 6px; align-items: center; }
     .category-badge { border: 1px solid transparent; }
-    .category-badge.general { background: #eef5fb; color: #17446a; }
-    .category-badge.event { background: #f0fdf4; color: #166534; }
-    .category-badge.schedule { background: #fff8df; color: #80611b; }
-    .category-badge.sacrament { background: #f5f3ff; color: #5b21b6; }
+    .category-badge.general { background: #edf4f8; color: #356b91; }
+    .category-badge.event { background: #edf7f1; color: #267749; }
+    .category-badge.schedule { background: #f3effa; color: #65469f; }
+    .category-badge.sacrament { background: #faf4e5; color: #866317; }
     .category-badge.important { background: #fff1f2; color: #9f1239; }
     .status-pill.active { color: #166534; background: #dcfce7; }
-    .status-pill.scheduled { color: #80611b; background: #fff8df; }
+    .status-pill.scheduled { color: #80611b; background: #f7f0df; }
     .status-pill.archived { color: #475569; background: #f1f5f9; }
-    .action-row { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 16px 16px; }
-    .icon-btn { width: 38px; height: 38px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; }
+    .announcement-card-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-top: 4px; }
+    .view-details-btn { min-height: 44px; padding: 8px 15px; border: 1px solid #c89b3c; border-radius: 9px; color: #78591b; background: #fff; font-weight: 600; }
+    .view-details-btn:hover, .view-details-btn:focus { color: #2c2c2c; background: #f5e8c5; border-color: #b88b30; }
+    .announcement-full-content { padding: 14px 0 2px; border-top: 1px solid #eee9df; color: #4f4f4f; font-size: 14px; line-height: 1.65; }
+    .announcement-full-content img { display: block; max-width: 360px; max-height: 220px; margin: 0 0 14px; border-radius: 10px; object-fit: cover; }
+    .feed-pagination { max-width: 1200px; margin-top: 20px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; gap: 14px; color: #6f6f6f; font-size: 13px; }
+    .feed-pagination .pagination { margin: 0; }
+    .feed-pagination .page-link { min-width: 40px; min-height: 40px; display: grid; place-items: center; color: #2e3a2d; border-color: #e6e0d4; }
+    .feed-pagination .active .page-link { color: #fff; background: #c89b3c; border-color: #c89b3c; }
     .empty-panel { padding: 44px 18px; text-align: center; color: #667085; }
     .editor-toolbar { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; background: #f8fafc; border: 1px solid #dfe4ea; border-bottom: 0; border-radius: 8px 8px 0 0; }
     .editor-toolbar button { width: 34px; height: 34px; border: 1px solid #dfe4ea; background: #fff; border-radius: 7px; }
     .rich-editor { min-height: 190px; padding: 12px; border: 1px solid #dfe4ea; border-radius: 0 0 8px 8px; background: #fff; line-height: 1.6; outline: none; }
     .modal .form-label { font-weight: 800; color: #334155; }
-    @media (max-width: 1180px) { .announcement-grid, .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-    @media (max-width: 768px) { .announcement-shell { padding: 12px; } .announcement-hero, .featured-panel, .announcement-grid, .stat-grid { grid-template-columns: 1fr; } .announcement-hero .text-end { text-align: left !important; } }
+    @media (max-width: 1180px) { .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .announcement-card { min-height: 200px; } }
+    @media (max-width: 768px) { .announcement-shell { padding: 12px; } .stat-grid { grid-template-columns: 1fr; } .announcement-card { grid-template-columns: 1fr; min-height: 0; border-radius: 16px; } .announcement-icon-panel { min-height: 82px; flex-direction: row; justify-content: flex-start; padding: 16px 18px; border-radius: 15px 15px 0 0; } .announcement-icon-panel i { font-size: 24px; } .card-main { padding: 20px 18px; } .announcement-card-top { align-items: flex-start; } .announcement-card-tools > span { display: none; } .card-main h3 { font-size: 20px; } .card-main p { font-size: 14px; } .announcement-meta { display: grid; gap: 8px; } .announcement-card-footer { align-items: stretch; flex-direction: column; } .view-details-btn { width: 100%; } .announcement-full-content img { width: 100%; max-width: none; } .announcement-section-heading { align-items: start; } .feed-pagination { align-items: flex-start; flex-direction: column; } }
 </style>
 
 <div class="container-fluid mt-4">
@@ -464,14 +597,8 @@ $breadcrumbs = [
         <div class="announcement-shell">
             <section class="announcement-hero">
                 <div>
-                    <span class="gold-kicker"><i class="fas fa-bullhorn"></i> Parish Communication Center</span>
-                    <h1>Manage Announcements</h1>
-                    <p>Create, schedule, pin, archive, and distribute official parish announcements for parishioners.</p>
-                </div>
-                <div class="text-end">
-                    <button class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#announcementModal">
-                        <i class="fas fa-plus"></i> New Announcement
-                    </button>
+                    <h1>Announcements</h1>
+                    <p>Publish parish notices and updates.</p>
                 </div>
             </section>
 
@@ -482,50 +609,15 @@ $breadcrumbs = [
                 <div class="alert alert-success alert-dismissible fade show"><?php echo e($success); ?><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
             <?php endif; ?>
 
-            <section class="stat-grid" aria-label="Announcement statistics">
-                <div class="stat-card"><span class="stat-icon"><i class="fas fa-layer-group"></i></span><div><strong><?php echo $stats['total']; ?></strong><span>Total Announcements</span></div></div>
-                <div class="stat-card"><span class="stat-icon"><i class="fas fa-check"></i></span><div><strong><?php echo $stats['active']; ?></strong><span>Active Announcements</span></div></div>
-                <div class="stat-card"><span class="stat-icon"><i class="fas fa-clock"></i></span><div><strong><?php echo $stats['scheduled']; ?></strong><span>Scheduled Announcements</span></div></div>
-                <div class="stat-card"><span class="stat-icon"><i class="fas fa-archive"></i></span><div><strong><?php echo $stats['archived']; ?></strong><span>Archived Announcements</span></div></div>
-            </section>
-
-            <?php if ($featured): ?>
-                <?php $featured_meta = announcementTypeMeta($featured['type'], $announcement_meta); ?>
-                <section class="featured-panel">
-                    <div class="featured-body">
-                        <span class="gold-kicker"><i class="fas fa-star"></i> Featured Announcement</span>
-                        <div class="d-flex flex-wrap gap-2 mb-2">
-                            <span class="category-badge <?php echo e($featured_meta['tone']); ?>"><i class="fas <?php echo e($featured_meta['icon']); ?>"></i> <?php echo e($featured_meta['label']); ?></span>
-                            <?php if (intval($featured['is_pinned'] ?? 0) === 1): ?><span class="status-pill scheduled"><i class="fas fa-thumbtack"></i> Pinned</span><?php endif; ?>
-                        </div>
-                        <h2><?php echo e($featured['title']); ?></h2>
-                        <p><?php echo e(announcementPreviewText($featured['content'], 260)); ?></p>
-                        <div class="announcement-meta mt-3">
-                            <span><i class="fas fa-user"></i> Posted by <?php echo e($featured['fullname']); ?></span>
-                            <span><i class="fas fa-calendar"></i> <?php echo e(formatDateTime($featured['published_date'])); ?></span>
-                        </div>
-                    </div>
-                    <div class="featured-art">
-                        <?php if (!empty($featured['attachment_path']) && isAnnouncementImageAttachment($featured['attachment_mime_type'] ?? '')): ?>
-                            <img src="../announcement-attachment.php?id=<?php echo intval($featured['announcement_id']); ?>" alt="<?php echo e($featured['attachment_original_name'] ?: 'Featured announcement image'); ?>">
-                        <?php else: ?>
-                            <i class="fas <?php echo e($featured_meta['icon']); ?>"></i>
-                        <?php endif; ?>
-                    </div>
-                </section>
-            <?php endif; ?>
-
             <form method="GET" class="filter-panel">
                 <div class="row g-2 align-items-end">
-                    <div class="col-lg-7">
-                        <label class="form-label">Search Announcements</label>
+                    <div class="col-lg-6">
                         <div class="input-with-icon">
                             <i class="fas fa-search"></i>
-                            <input class="form-control control-lg" type="search" name="q" value="<?php echo e($search); ?>" placeholder="Search title, keywords, or content...">
+                            <input class="form-control control-lg" type="search" name="q" value="<?php echo e($search); ?>" placeholder="Search announcements..." aria-label="Search announcements">
                         </div>
                     </div>
                     <div class="col-lg-3">
-                        <label class="form-label">Filter</label>
                         <select class="form-select control-lg" name="filter">
                             <option value="all" <?php echo $filter === 'all' ? 'selected' : ''; ?>>All Announcements</option>
                             <?php foreach ($announcement_types as $value => $label): ?>
@@ -535,8 +627,11 @@ $breadcrumbs = [
                             <option value="archived" <?php echo $filter === 'archived' ? 'selected' : ''; ?>>Archived</option>
                         </select>
                     </div>
+                    <div class="col-lg-1 d-grid">
+                        <button class="btn btn-primary control-lg" type="submit" title="Apply filter"><i class="fas fa-filter"></i><span class="visually-hidden">Apply filter</span></button>
+                    </div>
                     <div class="col-lg-2 d-grid">
-                        <button class="btn btn-primary control-lg" type="submit"><i class="fas fa-filter"></i> Apply</button>
+                        <button class="btn btn-primary control-lg" type="button" data-bs-toggle="modal" data-bs-target="#announcementModal"><i class="fas fa-plus"></i> New Announcement</button>
                     </div>
                 </div>
                 <div class="filter-tabs">
@@ -550,6 +645,18 @@ $breadcrumbs = [
                 </div>
             </form>
 
+            <section class="stat-grid" aria-label="Announcement statistics">
+                <div class="stat-card"><span class="stat-icon"><i class="fas fa-layer-group"></i></span><div><strong><?php echo $stats['total']; ?></strong><span>Total Announcements</span></div></div>
+                <div class="stat-card"><span class="stat-icon"><i class="fas fa-check"></i></span><div><strong><?php echo $stats['active']; ?></strong><span>Active Announcements</span></div></div>
+                <div class="stat-card"><span class="stat-icon"><i class="fas fa-clock"></i></span><div><strong><?php echo $stats['scheduled']; ?></strong><span>Scheduled Announcements</span></div></div>
+                <div class="stat-card"><span class="stat-icon"><i class="fas fa-archive"></i></span><div><strong><?php echo $stats['archived']; ?></strong><span>Archived Announcements</span></div></div>
+            </section>
+
+            <div class="announcement-section-heading">
+                <div><span>Recent Announcements</span><small>Newest announcements appear first</small></div>
+                <span><?php echo count($announcements); ?> shown</span>
+            </div>
+
             <?php if (!empty($announcements)): ?>
                 <section class="announcement-grid">
                     <?php foreach ($announcements as $announcement): ?>
@@ -560,45 +667,54 @@ $breadcrumbs = [
                             $status_label = $is_archived ? 'Archived' : ($is_scheduled ? 'Scheduled' : 'Active');
                             $status_class = $is_archived ? 'archived' : ($is_scheduled ? 'scheduled' : 'active');
                         ?>
-                        <article class="announcement-card">
-                            <div class="card-media">
-                                <?php if (!empty($announcement['attachment_path']) && isAnnouncementImageAttachment($announcement['attachment_mime_type'] ?? '')): ?>
-                                    <img src="../announcement-attachment.php?id=<?php echo intval($announcement['announcement_id']); ?>" alt="<?php echo e($announcement['attachment_original_name'] ?: 'Announcement image'); ?>">
-                                <?php else: ?>
-                                    <i class="fas <?php echo e($meta['icon']); ?>"></i>
-                                <?php endif; ?>
+                        <article class="announcement-card tone-<?php echo e($meta['tone']); ?> <?php echo intval($announcement['is_pinned'] ?? 0) === 1 ? 'is-pinned' : ''; ?> <?php echo $is_archived ? 'is-archived' : ''; ?>">
+                            <div class="announcement-icon-panel">
+                                <i class="fas <?php echo e($meta['icon']); ?>" aria-hidden="true"></i>
+                                <span class="status-pill <?php echo e($status_class); ?>"><?php echo e($status_label); ?></span>
                             </div>
                             <div class="card-main">
-                                <div class="d-flex flex-wrap gap-2">
-                                    <span class="category-badge <?php echo e($meta['tone']); ?>"><i class="fas <?php echo e($meta['icon']); ?>"></i> <?php echo e($meta['label']); ?></span>
-                                    <span class="status-pill <?php echo e($status_class); ?>"><?php echo e($status_label); ?></span>
-                                    <?php if (intval($announcement['is_pinned'] ?? 0) === 1): ?><span class="status-pill scheduled"><i class="fas fa-thumbtack"></i> Pinned</span><?php endif; ?>
+                                <div class="announcement-card-top">
+                                    <div>
+                                        <span class="category-badge <?php echo e($meta['tone']); ?>"><?php echo e($meta['label']); ?></span>
+                                        <?php if (intval($announcement['is_pinned'] ?? 0) === 1): ?><span class="status-pill scheduled"><i class="fas fa-thumbtack"></i> Pinned</span><?php endif; ?>
+                                    </div>
+                                    <div class="announcement-card-tools">
+                                        <span><?php echo e(announcementRelativeTime($announcement['published_date'] ?? $announcement['created_at'])); ?></span>
+                                        <div class="dropdown">
+                                            <button class="announcement-menu-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Actions for <?php echo e($announcement['title']); ?>"><i class="fas fa-ellipsis-vertical"></i></button>
+                                            <div class="dropdown-menu dropdown-menu-end">
+                                                <button class="dropdown-item announcement-details-toggle" type="button" data-target="announcement-details-<?php echo intval($announcement['announcement_id']); ?>"><i class="fas fa-eye"></i> View details</button>
+                                                <?php if (!$is_archived): ?>
+                                                    <button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#editAnnouncement-<?php echo intval($announcement['announcement_id']); ?>"><i class="fas fa-pen"></i> Edit</button>
+                                                    <form method="POST"><input type="hidden" name="action" value="toggle_pin"><input type="hidden" name="announcement_id" value="<?php echo intval($announcement['announcement_id']); ?>"><button class="dropdown-item" type="submit"><i class="fas fa-thumbtack"></i> <?php echo intval($announcement['is_pinned'] ?? 0) === 1 ? 'Unpin' : 'Pin'; ?></button></form>
+                                                    <form method="POST"><input type="hidden" name="action" value="duplicate_announcement"><input type="hidden" name="announcement_id" value="<?php echo intval($announcement['announcement_id']); ?>"><button class="dropdown-item" type="submit"><i class="fas fa-copy"></i> Duplicate</button></form>
+                                                    <form method="POST"><input type="hidden" name="action" value="send_notification"><input type="hidden" name="announcement_id" value="<?php echo intval($announcement['announcement_id']); ?>"><button class="dropdown-item" type="submit"><i class="fas fa-paper-plane"></i> Send notification</button></form>
+                                                    <form method="POST" onsubmit="return confirm('Archive this announcement?');"><input type="hidden" name="action" value="archive_announcement"><input type="hidden" name="announcement_id" value="<?php echo intval($announcement['announcement_id']); ?>"><button class="dropdown-item" type="submit"><i class="fas fa-archive"></i> Archive</button></form>
+                                                <?php endif; ?>
+                                                <button class="dropdown-item text-danger" type="button" data-bs-toggle="modal" data-bs-target="#deleteAnnouncement-<?php echo intval($announcement['announcement_id']); ?>"><i class="fas fa-trash"></i> Delete</button>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                                 <h3><?php echo e($announcement['title']); ?></h3>
-                                <p><?php echo e(announcementPreviewText($announcement['content'])); ?></p>
+                                <p class="announcement-preview"><?php echo e(announcementPreviewText($announcement['content'], 320)); ?></p>
                                 <div class="announcement-meta">
-                                    <span><i class="fas fa-user"></i> <?php echo e($announcement['fullname']); ?></span>
                                     <span><i class="fas fa-calendar"></i> <?php echo e(formatDate($announcement['published_date'])); ?></span>
-                                    <?php if ($announcement['updated_at'] && $announcement['updated_at'] !== $announcement['created_at']): ?>
-                                        <span><i class="fas fa-pen"></i> Updated <?php echo e(formatDate($announcement['updated_at'])); ?></span>
-                                    <?php endif; ?>
-                                    <?php if (!empty($announcement['scheduled_at'])): ?>
-                                        <span><i class="fas fa-clock"></i> <?php echo e(formatDateTime($announcement['scheduled_at'])); ?></span>
-                                    <?php endif; ?>
-                                    <?php if (intval($announcement['sent_emails'] ?? 0) > 0): ?>
-                                        <span><i class="fas fa-envelope"></i> <?php echo intval($announcement['sent_emails']); ?> emails</span>
-                                    <?php endif; ?>
+                                    <span><i class="fas fa-user"></i> <?php echo e($announcement['fullname']); ?></span>
+                                    <span><i class="fas fa-clock"></i> <?php echo e(date('g:i A', strtotime($announcement['published_date']))); ?></span>
+                                    <?php if (!empty($announcement['event_date'])): ?><span><i class="fas fa-calendar-day"></i> Event: <?php echo e(formatDate($announcement['event_date'])); ?></span><?php endif; ?>
                                 </div>
-                            </div>
-                            <div class="action-row">
-                                <?php if (!$is_archived): ?>
-                                    <button class="btn btn-outline-primary icon-btn" data-bs-toggle="modal" data-bs-target="#editAnnouncement-<?php echo intval($announcement['announcement_id']); ?>" title="Edit"><i class="fas fa-pen"></i></button>
-                                    <form method="POST" class="d-inline"><input type="hidden" name="action" value="toggle_pin"><input type="hidden" name="announcement_id" value="<?php echo intval($announcement['announcement_id']); ?>"><button class="btn btn-outline-warning icon-btn" title="Pin announcement"><i class="fas fa-thumbtack"></i></button></form>
-                                    <form method="POST" class="d-inline"><input type="hidden" name="action" value="duplicate_announcement"><input type="hidden" name="announcement_id" value="<?php echo intval($announcement['announcement_id']); ?>"><button class="btn btn-outline-secondary icon-btn" title="Duplicate"><i class="fas fa-copy"></i></button></form>
-                                    <form method="POST" class="d-inline"><input type="hidden" name="action" value="send_notification"><input type="hidden" name="announcement_id" value="<?php echo intval($announcement['announcement_id']); ?>"><button class="btn btn-outline-success icon-btn" title="Send notification"><i class="fas fa-paper-plane"></i></button></form>
-                                    <form method="POST" class="d-inline" onsubmit="return confirm('Archive this announcement?');"><input type="hidden" name="action" value="archive_announcement"><input type="hidden" name="announcement_id" value="<?php echo intval($announcement['announcement_id']); ?>"><button class="btn btn-outline-dark icon-btn" title="Archive"><i class="fas fa-archive"></i></button></form>
-                                <?php endif; ?>
-                                <button class="btn btn-outline-danger icon-btn" data-bs-toggle="modal" data-bs-target="#deleteAnnouncement-<?php echo intval($announcement['announcement_id']); ?>" title="Delete"><i class="fas fa-trash"></i></button>
+                                <div class="announcement-full-content" id="announcement-details-<?php echo intval($announcement['announcement_id']); ?>" hidden>
+                                    <?php if (!empty($announcement['attachment_path']) && isAnnouncementImageAttachment($announcement['attachment_mime_type'] ?? '')): ?><img src="../announcement-attachment.php?id=<?php echo intval($announcement['announcement_id']); ?>" alt="<?php echo e($announcement['attachment_original_name'] ?: 'Announcement image'); ?>"><?php endif; ?>
+                                    <?php echo nl2br(e(strip_tags((string) $announcement['content']))); ?>
+                                </div>
+                                <div class="announcement-card-footer">
+                                    <span class="announcement-meta">
+                                        <?php if (intval($announcement['sent_emails'] ?? 0) > 0): ?><span><i class="fas fa-envelope"></i> <?php echo intval($announcement['sent_emails']); ?> emails</span><?php endif; ?>
+                                        <?php if (intval($announcement['sent_sms'] ?? 0) > 0): ?><span><i class="fas fa-mobile-screen-button"></i> <?php echo intval($announcement['sent_sms']); ?> SMS</span><?php endif; ?>
+                                    </span>
+                                    <button class="view-details-btn announcement-details-toggle" type="button" data-target="announcement-details-<?php echo intval($announcement['announcement_id']); ?>" aria-expanded="false">View Details <i class="fas fa-arrow-right"></i></button>
+                                </div>
                             </div>
                         </article>
                     <?php endforeach; ?>
@@ -606,9 +722,31 @@ $breadcrumbs = [
             <?php else: ?>
                 <div class="empty-panel">
                     <i class="fas fa-bullhorn fa-2x mb-3"></i>
-                    <h5>No announcements found.</h5>
-                    <p class="mb-0">Try a different search or create a new announcement for parishioners.</p>
+                    <h5>No announcements yet</h5>
+                    <p class="mb-3">Create your first parish announcement to keep parishioners informed.</p>
+                    <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#announcementModal"><i class="fas fa-plus"></i> Create Announcement</button>
                 </div>
+            <?php endif; ?>
+
+            <?php if ($total > 0): ?>
+                <?php
+                    $showing_from = $pagination['offset'] + 1;
+                    $showing_to = min($total, $pagination['offset'] + count($announcements));
+                    $page_params = ['q' => $search, 'filter' => $filter];
+                ?>
+                <nav class="feed-pagination" aria-label="Announcement pagination">
+                    <span>Showing <?php echo $showing_from; ?>–<?php echo $showing_to; ?> of <?php echo $total; ?> announcements</span>
+                    <?php if ($pagination['total_pages'] > 1): ?>
+                        <ul class="pagination pagination-sm">
+                            <?php for ($page_number = 1; $page_number <= $pagination['total_pages']; $page_number++): ?>
+                                <?php $page_url = '?' . http_build_query(array_merge($page_params, ['page' => $page_number])); ?>
+                                <li class="page-item <?php echo $page_number === $page ? 'active' : ''; ?>">
+                                    <a class="page-link" href="<?php echo e($page_url); ?>" <?php echo $page_number === $page ? 'aria-current="page"' : ''; ?>><?php echo $page_number; ?></a>
+                                </li>
+                            <?php endfor; ?>
+                        </ul>
+                    <?php endif; ?>
+                </nav>
             <?php endif; ?>
         </div>
     </div>
@@ -704,6 +842,7 @@ $modal_announcements = array_merge([$blank_announcement], $announcements);
                                 <div class="d-flex flex-wrap gap-3 pt-2">
                                     <label><input type="checkbox" name="notify_all" checked> Notify All Parishioners</label>
                                     <label><input type="checkbox" name="notify_email" checked> Send Email Notification</label>
+                                    <label><input type="checkbox" name="notify_sms" checked> Send SMS Notification</label>
                                     <label><input type="checkbox" name="notify_system" checked> Send In-System Notification</label>
                                     <label><input type="checkbox" name="is_pinned" <?php echo intval($modal_item['is_pinned']) === 1 ? 'checked' : ''; ?>> Pin Announcement</label>
                                 </div>
@@ -747,6 +886,60 @@ $modal_announcements = array_merge([$blank_announcement], $announcements);
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const queuedAnnouncementId = <?php echo intval($queued_announcement_id); ?>;
+    const pendingDeliveries = <?php echo intval($pending_announcement_delivery_count); ?>;
+
+    function processAnnouncementQueue(announcementId) {
+        const body = new URLSearchParams();
+        body.set('action', 'process_announcement_queue');
+        if (announcementId > 0) {
+            body.set('announcement_id', String(announcementId));
+        }
+
+        fetch('manage-announcements.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: body.toString()
+        })
+            .then(function(response) { return response.ok ? response.json() : null; })
+            .then(function(result) {
+                if (result && Number(result.remaining) > 0) {
+                    window.setTimeout(function() {
+                        processAnnouncementQueue(announcementId);
+                    }, 1200);
+                }
+            })
+            .catch(function() {});
+    }
+
+    if (queuedAnnouncementId > 0 || pendingDeliveries > 0) {
+        window.setTimeout(function() {
+            processAnnouncementQueue(queuedAnnouncementId);
+        }, 300);
+    }
+
+    document.querySelectorAll('.announcement-details-toggle').forEach(function(button) {
+        button.addEventListener('click', function() {
+            const details = document.getElementById(button.dataset.target || '');
+            if (!details) {
+                return;
+            }
+            const willOpen = details.hidden;
+            details.hidden = !willOpen;
+            document.querySelectorAll('[data-target="' + details.id + '"]').forEach(function(linkedButton) {
+                linkedButton.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+                if (linkedButton.classList.contains('view-details-btn')) {
+                    linkedButton.innerHTML = willOpen
+                        ? 'Hide Details <i class="fas fa-arrow-up"></i>'
+                        : 'View Details <i class="fas fa-arrow-right"></i>';
+                }
+            });
+        });
+    });
+
     document.querySelectorAll('.rich-editor').forEach(function(editor) {
         const target = document.getElementById(editor.dataset.target);
         const form = editor.closest('form');

@@ -1,1 +1,0 @@
-[2026-05-09 14:46:14] [ERROR] [User: 4] [IP: ::1] SELECT query failed: Prepare failed: Unknown column 'r.deleted_at' in 'where clause' 

@@ -11,7 +11,9 @@ include '../includes/helpers.php';
 
 // Require admin access
 requireAdmin();
-requirePermission('requests.manage');
+if (!hasAnyPermission(['requests.manage', 'reservations.manage'])) {
+    redirect('dashboard.php');
+}
 ensureEmailNotificationSchema($conn);
 ensureRequestDocumentsSchema($conn);
 ensureRequestPaymentsSchema($conn);
@@ -29,12 +31,125 @@ function ensureRequestArchiveColumn($conn) {
     return $conn->query("ALTER TABLE requests ADD COLUMN deleted_at TIMESTAMP NULL DEFAULT NULL AFTER updated_at");
 }
 
+// Request Category Helpers - Keep admin filtering readable while preserving existing request values.
+function adminRequestTypeGroups() {
+    return [
+        'certificate' => [
+            'label' => 'Certificate',
+            'types' => ['baptismal_certificate', 'confirmation_certificate', 'first_communion_certificate']
+        ],
+        'blessing' => [
+            'label' => 'Blessing',
+            'types' => ['house_blessing', 'car_blessing', 'vehicle_blessing', 'business_blessing', 'office_blessing', 'event_blessing']
+        ],
+        'sacramental' => [
+            'label' => 'Sacramental Services',
+            'types' => [
+                'baptism_service',
+                'marriage_wedding_service',
+                'funeral_mass',
+                'anointing_of_the_sick',
+                'patronal_fiesta',
+                'church_reservation',
+                'wedding_reservation',
+                'burial_reservation',
+                'wedding',
+                'baptism',
+                'confirmation',
+                'burial',
+                'church_venue'
+            ]
+        ],
+    ];
+}
+
+function adminRequestCategorySql($column) {
+    $cases = [];
+    foreach (adminRequestTypeGroups() as $category => $group) {
+        $quoted = array_map(function ($type) {
+            return "'" . addslashes($type) . "'";
+        }, $group['types']);
+        $cases[] = "WHEN $column IN (" . implode(',', $quoted) . ") THEN '$category'";
+    }
+    return 'CASE ' . implode(' ', $cases) . " ELSE 'other' END";
+}
+
+function adminRequestCategoryLabel($category) {
+    $groups = adminRequestTypeGroups();
+    return $groups[$category]['label'] ?? 'Other';
+}
+
 if (!ensureRequestArchiveColumn($conn)) {
     $error = 'Error preparing request archive: ' . $conn->error;
 }
 
 // Handle status update
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && ($_POST['action'] ?? '') == 'archive_request') {
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '') === 'update_reservation') {
+    $reservation_id = intval($_POST['reservation_id'] ?? 0);
+    $status = trim($_POST['status'] ?? '');
+    $admin_notes = trim($_POST['admin_response'] ?? '');
+    $allowed_reservation_statuses = ['pending', 'approved', 'rejected', 'cancelled'];
+
+    if ($reservation_id <= 0 || !in_array($status, $allowed_reservation_statuses, true)) {
+        $error = 'Please choose a valid reservation status.';
+    } else {
+        $conflict = ['conflict' => false, 'message' => ''];
+        if ($status === 'approved') {
+            $conflict = reservationApprovalConflict($conn, $reservation_id);
+        }
+
+        if ($conflict['conflict']) {
+            $error = $conflict['message'] . ' Please choose another schedule before approving.';
+        } else {
+            $stmt = $conn->prepare("UPDATE reservations SET status = ?, admin_notes = ? WHERE reservation_id = ?");
+            if (!$stmt) {
+                $error = 'Unable to prepare reservation update.';
+            } else {
+                $stmt->bind_param('ssi', $status, $admin_notes, $reservation_id);
+                if ($stmt->execute()) {
+                    $lookup = $conn->prepare("SELECT r.user_id, r.reservation_type, u.phone_number FROM reservations r JOIN users u ON u.id = r.user_id WHERE r.reservation_id = ?");
+                    if ($lookup) {
+                        $lookup->bind_param('i', $reservation_id);
+                        $lookup->execute();
+                        $reservation = $lookup->get_result()->fetch_assoc();
+                        $lookup->close();
+
+                        if ($reservation) {
+                            createNotification(
+                                $conn,
+                                intval($reservation['user_id']),
+                                'Reservation Update',
+                                'Your ' . ucfirst(str_replace('_', ' ', $reservation['reservation_type'])) . ' reservation is now ' . ucfirst($status) . '.'
+                            );
+                        }
+                    }
+
+                    createAuditLog($conn, $_SESSION['user_id'], 'UPDATE_RESERVATION', 'reservations', $reservation_id);
+
+                    if ($status === 'approved') {
+                        $sync_result = syncApprovedReservationToCalendar($conn, $reservation_id, $_SESSION['user_id']);
+                        $success = 'Reservation updated successfully.';
+                        $success .= $sync_result['success']
+                            ? ' It is now synced to the calendar.'
+                            : ' Calendar sync failed: ' . $sync_result['message'];
+                    } else {
+                        ensureScheduleEventsTable($conn);
+                        $cancel_stmt = $conn->prepare("UPDATE schedule_events SET status = 'cancelled' WHERE source_type = 'reservation' AND source_id = ?");
+                        if ($cancel_stmt) {
+                            $cancel_stmt->bind_param('i', $reservation_id);
+                            $cancel_stmt->execute();
+                            $cancel_stmt->close();
+                        }
+                        $success = 'Reservation updated successfully.';
+                    }
+                } else {
+                    $error = 'Error updating reservation: ' . $conn->error;
+                }
+                $stmt->close();
+            }
+        }
+    }
+} elseif (($_SERVER['REQUEST_METHOD'] ?? 'GET') == 'POST' && ($_POST['action'] ?? '') == 'archive_request') {
     $request_id = intval($_POST['request_id']);
 
     if ($conn->query("UPDATE requests SET deleted_at = NOW() WHERE request_id = $request_id")) {
@@ -43,7 +158,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && ($_POST['action'] ?? '') == 'archive
     } else {
         $error = 'Error archiving request: ' . $conn->error;
     }
-} elseif ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['request_id'])) {
+} elseif (($_SERVER['REQUEST_METHOD'] ?? 'GET') == 'POST' && isset($_POST['request_id'])) {
     $request_id = intval($_POST['request_id']);
     $status = $conn->real_escape_string($_POST['status']);
     $admin_response = $conn->real_escape_string($_POST['admin_response']);
@@ -68,22 +183,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && ($_POST['action'] ?? '') == 'archive
             WHERE r.request_id = $request_id");
         $req_data = $req_result->fetch_assoc();
         
-        // Create notification
-        $status_message = "Your request status has been updated to: " . ucfirst($status);
-        if ($status === 'rejected' && trim($admin_response) !== '') {
-            $status_message .= ". Reason: " . $admin_response;
+        if ($req_data) {
+            createRequestStatusNotification($conn, $req_data, $status, $admin_response);
         }
-        createNotification($conn, $req_data['user_id'], 'Request Update', $status_message);
-        if ($req_data && intval($req_data['email_enabled']) === 1) {
-            $subject = 'TUGON Request ' . ucfirst($status) . ' - ' . $req_data['reference_number'];
-            $body = '<p>Hello ' . e($req_data['fullname']) . ',</p>'
-                . '<p>Your request <strong>' . e($req_data['reference_number']) . '</strong> is now <strong>' . e(ucfirst($status)) . '</strong>.</p>'
-                . ($admin_response !== '' ? '<p>Parish office note: ' . nl2br(e($admin_response)) . '</p>' : '')
-                . '<p>Please open TUGON for full details and next steps.</p>';
-            $url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https://' : 'http://') . ($_SERVER['HTTP_HOST'] ?? 'localhost') . BASE_URL . 'users/my-requests.php?q=' . urlencode($req_data['reference_number']);
-            sendTugonEmail($conn, $req_data['email'], $subject, tugonEmailTemplate('Request Status Update', $body, 'Track Request', $url), '', $req_data['user_id'], 'request_' . $status);
-        }
-        
         createAuditLog($conn, $_SESSION['user_id'], 'UPDATE_REQUEST', 'requests', $request_id);
         if ($status === 'approved') {
             $sync_result = syncApprovedRequestToCalendar($conn, $request_id, $_SESSION['user_id']);
@@ -108,40 +210,95 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && ($_POST['action'] ?? '') == 'archive
 // Get filter parameters
 $status_filter = $_GET['status'] ?? '';
 $type_filter = $_GET['type'] ?? '';
-$count_where = "WHERE deleted_at IS NULL";
-$list_where = "WHERE r.deleted_at IS NULL";
+$search = trim($_GET['q'] ?? '');
+$type_groups = adminRequestTypeGroups();
+$type_filter = isset($type_groups[$type_filter]) ? $type_filter : '';
+$request_category_sql = adminRequestCategorySql('r.request_type');
+$reservation_category_sql = adminRequestCategorySql('r.reservation_type');
+$request_where = ["r.deleted_at IS NULL"];
+$reservation_where = ["1=1"];
 if (!empty($status_filter)) {
     $status_filter = $conn->real_escape_string($status_filter);
-    $count_where .= " AND status = '$status_filter'";
-    $list_where .= " AND r.status = '$status_filter'";
+    $request_where[] = "r.status = '$status_filter'";
+    $reservation_where[] = "r.status = '$status_filter'";
 }
 if (!empty($type_filter)) {
-    $type_filter = $conn->real_escape_string($type_filter);
-    $count_where .= " AND request_type = '$type_filter'";
-    $list_where .= " AND r.request_type = '$type_filter'";
+    $type_filter_safe = $conn->real_escape_string($type_filter);
+    $request_where[] = "($request_category_sql) = '$type_filter_safe'";
+    $reservation_where[] = "($reservation_category_sql) = '$type_filter_safe'";
 }
+if ($search !== '') {
+    $search_safe = $conn->real_escape_string('%' . $search . '%');
+    $request_where[] = "(r.reference_number LIKE '$search_safe' OR r.request_type LIKE '$search_safe' OR r.description LIKE '$search_safe' OR r.admin_response LIKE '$search_safe' OR u.fullname LIKE '$search_safe' OR u.email LIKE '$search_safe')";
+    $reservation_where[] = "(CONCAT('RES-', LPAD(r.reservation_id, 6, '0')) LIKE '$search_safe' OR r.reservation_type LIKE '$search_safe' OR r.event_details LIKE '$search_safe' OR r.admin_notes LIKE '$search_safe' OR u.fullname LIKE '$search_safe' OR u.email LIKE '$search_safe')";
+}
+$request_where_sql = implode(' AND ', $request_where);
+$reservation_where_sql = implode(' AND ', $reservation_where);
 
 $page = intval($_GET['page'] ?? 1);
 $limit = 10;
 
-$total_result = $conn->query("SELECT COUNT(*) as count FROM requests $count_where");
+$request_select = "
+    SELECT
+        'request' AS item_source,
+        r.request_id AS item_id,
+        r.reference_number AS reference_number,
+        r.request_type AS item_type,
+        ($request_category_sql) AS item_category,
+        r.description AS details,
+        r.status AS status,
+        r.date_requested AS submitted_at,
+        r.admin_response AS admin_note,
+        u.fullname,
+        u.email,
+        NULL AS phone_number,
+        NULL AS event_date,
+        NULL AS event_time,
+        COUNT(DISTINCT d.document_id) AS document_count,
+        COUNT(DISTINCT p.payment_id) AS payment_count,
+        COUNT(DISTINCT CASE WHEN p.status = 'verified' THEN p.payment_id END) AS verified_payment_count
+    FROM requests r
+    JOIN users u ON r.user_id = u.id
+    LEFT JOIN request_documents d ON d.request_id = r.request_id AND d.document_type = 'requirement' AND d.deleted_at IS NULL
+    LEFT JOIN request_payments p ON p.request_id = r.request_id
+    WHERE $request_where_sql
+    GROUP BY r.request_id
+";
+
+$reservation_select = "
+    SELECT
+        'reservation' AS item_source,
+        r.reservation_id AS item_id,
+        CONCAT('RES-', LPAD(r.reservation_id, 6, '0')) AS reference_number,
+        r.reservation_type AS item_type,
+        ($reservation_category_sql) AS item_category,
+        r.event_details AS details,
+        r.status AS status,
+        r.created_at AS submitted_at,
+        r.admin_notes AS admin_note,
+        u.fullname,
+        u.email,
+        u.phone_number,
+        r.event_date,
+        r.event_time,
+        0 AS document_count,
+        0 AS payment_count,
+        0 AS verified_payment_count
+    FROM reservations r
+    JOIN users u ON r.user_id = u.id
+    WHERE $reservation_where_sql
+";
+
+$unified_sql = "$request_select UNION ALL $reservation_select";
+$total_result = $conn->query("SELECT COUNT(*) as count FROM ($unified_sql) unified_items");
 $total = $total_result ? (int) $total_result->fetch_assoc()['count'] : 0;
 if (!$total_result) {
     $error = 'Error loading request count: ' . $conn->error;
 }
 $pagination = getPaginationData($page, $limit, $total);
 
-$sql = "SELECT r.*, u.fullname, u.email,
-        COUNT(DISTINCT d.document_id) AS document_count,
-        COUNT(DISTINCT p.payment_id) AS payment_count,
-        COUNT(DISTINCT CASE WHEN p.status = 'verified' THEN p.payment_id END) AS verified_payment_count
-        FROM requests r 
-        JOIN users u ON r.user_id = u.id 
-        LEFT JOIN request_documents d ON d.request_id = r.request_id AND d.document_type = 'requirement' AND d.deleted_at IS NULL
-        LEFT JOIN request_payments p ON p.request_id = r.request_id
-        $list_where 
-        GROUP BY r.request_id
-        ORDER BY r.date_requested DESC 
+$sql = "SELECT * FROM ($unified_sql) unified_items
+        ORDER BY submitted_at DESC
         LIMIT {$pagination['offset']}, {$pagination['limit']}";
 $result = $conn->query($sql);
 if (!$result) {
@@ -185,42 +342,70 @@ $breadcrumbs = [
         </div>
     <?php endif; ?>
 
-    <div class="card">
+    <div class="card pds-card pds-request-management">
         <div class="card-body">
             <!-- Filter Buttons -->
-            <div class="btn-group mb-3" role="group">
-                <a href="?status=&type=<?php echo urlencode($type_filter); ?>" class="btn btn-outline-primary <?php echo empty($status_filter) ? 'active' : ''; ?>">
+            <div class="pds-filter-tabs mb-3" role="group" aria-label="Filter by request status">
+                <a href="?status=&type=<?php echo urlencode($type_filter); ?>&q=<?php echo urlencode($search); ?>" data-status="all" class="pds-filter-tab <?php echo empty($status_filter) ? 'active' : ''; ?>">
                     All
                 </a>
-                <a href="?status=pending&type=<?php echo urlencode($type_filter); ?>" class="btn btn-outline-warning <?php echo $status_filter == 'pending' ? 'active' : ''; ?>">
+                <a href="?status=pending&type=<?php echo urlencode($type_filter); ?>&q=<?php echo urlencode($search); ?>" data-status="pending" class="pds-filter-tab <?php echo $status_filter == 'pending' ? 'active' : ''; ?>">
                     Pending
                 </a>
-                <a href="?status=approved&type=<?php echo urlencode($type_filter); ?>" class="btn btn-outline-success <?php echo $status_filter == 'approved' ? 'active' : ''; ?>">
+                <a href="?status=approved&type=<?php echo urlencode($type_filter); ?>&q=<?php echo urlencode($search); ?>" data-status="approved" class="pds-filter-tab <?php echo $status_filter == 'approved' ? 'active' : ''; ?>">
                     Approved
                 </a>
-                <a href="?status=rejected&type=<?php echo urlencode($type_filter); ?>" class="btn btn-outline-danger <?php echo $status_filter == 'rejected' ? 'active' : ''; ?>">
+                <a href="?status=rejected&type=<?php echo urlencode($type_filter); ?>&q=<?php echo urlencode($search); ?>" data-status="rejected" class="pds-filter-tab <?php echo $status_filter == 'rejected' ? 'active' : ''; ?>">
                     Rejected
                 </a>
-                <a href="?status=completed&type=<?php echo urlencode($type_filter); ?>" class="btn btn-outline-info <?php echo $status_filter == 'completed' ? 'active' : ''; ?>">
+                <a href="?status=completed&type=<?php echo urlencode($type_filter); ?>&q=<?php echo urlencode($search); ?>" data-status="completed" class="pds-filter-tab <?php echo $status_filter == 'completed' ? 'active' : ''; ?>">
                     Completed
+                </a>
+                <a href="?status=cancelled&type=<?php echo urlencode($type_filter); ?>&q=<?php echo urlencode($search); ?>" data-status="cancelled" class="pds-filter-tab <?php echo $status_filter == 'cancelled' ? 'active' : ''; ?>">
+                    Cancelled
                 </a>
             </div>
 
-            <?php if (!empty($type_filter)): ?>
-                <div class="alert alert-light border d-flex justify-content-between align-items-center">
-                    <span>
-                        <i class="fas fa-filter"></i>
-                        Showing request type: <strong><?php echo e(ucfirst(str_replace('_', ' ', $type_filter))); ?></strong>
-                    </span>
-                    <a href="?status=<?php echo urlencode($status_filter); ?>" class="btn btn-sm btn-outline-secondary">Clear Type Filter</a>
+            <form class="row g-2 align-items-end mb-3" method="GET" action="">
+                <div class="col-md-5">
+                    <label for="requestSearch" class="form-label">Search</label>
+                    <input id="requestSearch" class="form-control" type="text" name="q" value="<?php echo e($search); ?>" placeholder="Search reference, parishioner, type, or details">
                 </div>
-            <?php endif; ?>
+                <div class="col-md-3">
+                    <label for="requestTypeFilter" class="form-label">Request Category</label>
+                    <select id="requestTypeFilter" class="form-select" name="type">
+                        <option value="">All Categories</option>
+                        <?php foreach ($type_groups as $category => $group): ?>
+                            <option value="<?php echo e($category); ?>" <?php echo $type_filter === $category ? 'selected' : ''; ?>>
+                                <?php echo e($group['label']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="requestStatusFilter" class="form-label">Status</label>
+                    <select id="requestStatusFilter" class="form-select" name="status">
+                        <option value="">All Statuses</option>
+                        <?php foreach (['pending', 'approved', 'rejected', 'processing', 'completed', 'cancelled'] as $status_option): ?>
+                            <option value="<?php echo e($status_option); ?>" <?php echo $status_filter === $status_option ? 'selected' : ''; ?>>
+                                <?php echo e(ucfirst($status_option)); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-md-2 d-grid d-md-flex gap-2">
+                    <button class="btn btn-primary pds-btn pds-btn-primary-gold" type="submit"><i class="fas fa-filter"></i> Apply</button>
+                    <?php if ($search !== '' || $status_filter !== '' || $type_filter !== ''): ?>
+                        <a class="btn btn-outline-secondary pds-btn pds-btn-ghost-outline" href="manage-requests.php">Clear</a>
+                    <?php endif; ?>
+                </div>
+            </form>
 
             <!-- Requests Table -->
             <?php if ($result && $result->num_rows > 0): ?>
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead class="table-light">
+                <div class="table-responsive pds-table-wrap">
+                    <table class="table table-hover pds-phase-table">
+                        <thead>
                             <tr>
                                 <th>Ref #</th>
                                 <th>User</th>
@@ -234,48 +419,58 @@ $breadcrumbs = [
                         </thead>
                         <tbody>
                             <?php while ($request = $result->fetch_assoc()): ?>
+                                <?php
+                                    $is_reservation = $request['item_source'] === 'reservation';
+                                    $type_label = ucfirst(str_replace('_', ' ', $request['item_type']));
+                                    $category_label = adminRequestCategoryLabel($request['item_category']);
+                                    $details = (string) ($request['details'] ?? '');
+                                    if ($is_reservation && !empty($request['event_date'])) {
+                                        $details = trim(
+                                            'Schedule: ' . formatDate($request['event_date']) . ' ' . ($request['event_time'] ? formatTime($request['event_time']) : '') .
+                                            "\n" . $details
+                                        );
+                                    }
+                                ?>
                                 <tr>
                                     <td><strong><?php echo $request['reference_number']; ?></strong></td>
                                     <td><?php echo sanitize($request['fullname']); ?><br><small><?php echo $request['email']; ?></small></td>
-                                    <td><?php echo ucfirst(str_replace('_', ' ', $request['request_type'])); ?></td>
+                                    <td>
+                                        <?php echo e($type_label); ?><br>
+                                        <span class="pds-inline-tag"><?php echo e($category_label); ?></span>
+                                    </td>
                                     <td>
                                         <?php if (intval($request['document_count'] ?? 0) > 0): ?>
-                                            <span class="badge bg-primary"><i class="fas fa-paperclip"></i> <?php echo intval($request['document_count']); ?> file</span>
+                                            <span class="pds-badge pds-badge-neutral"><i class="fas fa-paperclip"></i> <?php echo intval($request['document_count']); ?> file</span>
                                         <?php else: ?>
                                             <span class="text-muted">None</span>
                                         <?php endif; ?>
                                     </td>
                                     <td>
                                         <?php if (intval($request['payment_count'] ?? 0) > 0): ?>
-                                            <span class="badge bg-success"><i class="fas fa-receipt"></i> <?php echo intval($request['verified_payment_count'] ?? 0); ?>/<?php echo intval($request['payment_count']); ?> verified</span>
+                                            <span class="pds-badge pds-badge-approved"><i class="fas fa-receipt"></i> <?php echo intval($request['verified_payment_count'] ?? 0); ?>/<?php echo intval($request['payment_count']); ?> verified</span>
                                         <?php else: ?>
                                             <span class="text-muted">None</span>
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <span class="badge bg-<?php echo getStatusBadgeClass($request['status']); ?>">
+                                        <span class="<?php echo e(pdsStatusClass($request['status'])); ?>">
                                             <?php echo ucfirst($request['status']); ?>
                                         </span>
                                     </td>
-                                    <td><?php echo formatDate($request['date_requested']); ?></td>
+                                    <td><?php echo formatDate($request['submitted_at']); ?></td>
                                     <td>
-                                        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" 
-                                                data-bs-target="#processModal" 
-                                                data-request-id="<?php echo $request['request_id']; ?>"
-                                                data-request-type="<?php echo $request['request_type']; ?>"
-                                                data-current-status="<?php echo $request['status']; ?>">
-                                            <i class="fas fa-edit"></i> Process
-                                        </button>
-                                        <a href="request-workflow.php?id=<?php echo intval($request['request_id']); ?>" class="btn btn-sm btn-primary">
-                                            <i class="fas fa-route"></i> Workflow
-                                        </a>
-                                        <form method="POST" action="" class="d-inline" onsubmit="return confirm('Archive this request? It will be hidden from this list but kept in the database.');">
-                                            <input type="hidden" name="action" value="archive_request">
-                                            <input type="hidden" name="request_id" value="<?php echo $request['request_id']; ?>">
-                                            <button type="submit" class="btn btn-sm btn-outline-secondary">
-                                                <i class="fas fa-archive"></i> Archive
-                                            </button>
-                                        </form>
+                                        <?php if (!$is_reservation): ?>
+                                            <a href="request-workflow.php?id=<?php echo intval($request['item_id']); ?>" class="btn btn-sm pds-row-action">
+                                                <i class="fas fa-eye"></i> View
+                                            </a>
+                                            <form method="POST" action="" class="d-inline" onsubmit="return confirm('Archive this request? It will be hidden from this list but kept in the database.');">
+                                                <input type="hidden" name="action" value="archive_request">
+                                                <input type="hidden" name="request_id" value="<?php echo intval($request['item_id']); ?>">
+                                                <button type="submit" class="btn btn-sm pds-row-action">
+                                                    <i class="fas fa-archive"></i> Archive
+                                                </button>
+                                            </form>
+                                        <?php endif; ?>
                                     </td>
                                 </tr>
                             <?php endwhile; ?>
@@ -289,7 +484,7 @@ $breadcrumbs = [
                         <ul class="pagination justify-content-center">
                             <?php for ($i = 1; $i <= $pagination['total_pages']; $i++): ?>
                                 <li class="page-item <?php echo $i == $page ? 'active' : ''; ?>">
-                                    <a class="page-link" href="?page=<?php echo $i; ?>&status=<?php echo urlencode($status_filter); ?>&type=<?php echo urlencode($type_filter); ?>"><?php echo $i; ?></a>
+                                    <a class="page-link" href="?page=<?php echo $i; ?>&status=<?php echo urlencode($status_filter); ?>&type=<?php echo urlencode($type_filter); ?>&q=<?php echo urlencode($search); ?>"><?php echo $i; ?></a>
                                 </li>
                             <?php endfor; ?>
                         </ul>
@@ -301,50 +496,5 @@ $breadcrumbs = [
         </div>
     </div>
 </div>
-
-<!-- Process Request Modal -->
-<div class="modal fade" id="processModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Process Request</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="POST" action="">
-                <div class="modal-body">
-                    <input type="hidden" name="request_id" id="request_id">
-                    
-                    <div class="mb-3">
-                        <label for="status" class="form-label">Status</label>
-                        <select class="form-select" id="status" name="status" required>
-                            <option value="pending">Pending</option>
-                            <option value="approved">Approved</option>
-                            <option value="rejected">Rejected</option>
-                            <option value="processing">Processing</option>
-                            <option value="completed">Completed</option>
-                        </select>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="admin_response" class="form-label">Admin Response/Notes</label>
-                        <textarea class="form-control" id="admin_response" name="admin_response" rows="4"></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Update Request</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<script>
-document.getElementById('processModal').addEventListener('show.bs.modal', function(e) {
-    const button = e.relatedTarget;
-    document.getElementById('request_id').value = button.getAttribute('data-request-id');
-    document.getElementById('status').value = button.getAttribute('data-current-status');
-});
-</script>
 
 <?php include '../templates/footer.php'; ?>

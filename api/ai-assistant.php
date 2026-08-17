@@ -1,21 +1,49 @@
 <?php
 /**
- * Local AI-Assisted Parish Assistant API
+ * AI-Assisted Parish Assistant API
  *
- * This endpoint provides deterministic AI-style assistance without external API
- * keys. It provides controlled Tugon chat answers from the local parish
- * database and refuses unrelated questions.
+ * The parish knowledge base supplies verified context. Gemini is the primary
+ * language model through the local Node gateway, with Ollama as local fallback.
  */
 
 header('Content-Type: application/json');
+header('Cache-Control: no-store');
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
 
 include __DIR__ . '/../includes/session.php';
 include __DIR__ . '/../database/config.php';
 include __DIR__ . '/../includes/helpers.php';
+include __DIR__ . '/../includes/GeminiGatewayClient.php';
+include __DIR__ . '/../includes/OllamaClient.php';
+include __DIR__ . '/../includes/Logger.php';
+include __DIR__ . '/../includes/chatbot/ConversationalIntent.php';
 
-if (!isLoggedIn()) {
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+    http_response_code(405);
+    header('Allow: POST');
+    echo json_encode(['success' => false, 'error' => 'Method not allowed.', 'message' => 'Method not allowed.']);
+    exit;
+}
+
+$contentType = strtolower(trim(explode(';', (string) ($_SERVER['CONTENT_TYPE'] ?? ''))[0]));
+if ($contentType !== 'application/json') {
+    http_response_code(415);
+    echo json_encode(['success' => false, 'error' => 'Content-Type must be application/json.', 'message' => 'Unable to process your request.']);
+    exit;
+}
+
+if (!isLoggedIn() && !defined('TUGON_AI_ALLOW_GUEST')) {
     http_response_code(401);
-    echo json_encode(['success' => false, 'message' => t('chatbot.login_required', 'Please log in to use the AI Parish Assistant.')]);
+    $loginRequired = t('chatbot.login_required', 'Please log in to use the AI Parish Assistant.');
+    echo json_encode(['success' => false, 'error' => $loginRequired, 'message' => $loginRequired]);
+    exit;
+}
+
+if (isLoggedIn() && normalizeUserRole($_SESSION['role'] ?? '') !== 'user') {
+    http_response_code(403);
+    $parishionerOnly = 'The TUGON AI chatbot is available to parishioner accounts only.';
+    echo json_encode(['success' => false, 'error' => $parishionerOnly, 'message' => $parishionerOnly]);
     exit;
 }
 
@@ -77,6 +105,82 @@ function aiOutOfContextMessage() {
     return t('chatbot.out_of_context', 'I specialize in parish services and church-related concerns. I may not have information about that topic, but I would be happy to help you with certificates, sacraments, schedules, announcements, and other parish services.');
 }
 
+function aiOfflineNoContextMessage() {
+    return "I'm sorry, but I don't have enough verified information in the parish knowledge base to answer that accurately. Please contact the parish office for confirmation.";
+}
+
+function aiDetectUserLanguage($text) {
+    $q = strtolower(' ' . trim((string) $text) . ' ');
+    if (trim($q) === '') {
+        return 'en';
+    }
+
+    $filipinoTerms = [
+        ' ano ', ' paano ', ' bakit ', ' saan ', ' kailan ', ' sino ', ' magkano ',
+        ' para ', ' sa ', ' ng ', ' ang ', ' mga ', ' po ', ' opo ', ' ba ',
+        ' pwede ', ' puwede ', ' maaari ', ' ako ', ' ko ', ' namin ', ' kailangan ',
+        ' kelangan ', ' gusto ', ' magpa', ' mag-request', ' humingi ', ' kumuha ',
+        ' binyag', ' pabinyag', ' kasal', ' pakasal', ' kumpil', ' komunyon',
+        ' misa', ' opisina', ' bahay', ' sasakyan', ' libing', ' lamay',
+        ' anunsyo', ' abiso', ' bayad', ' sertipiko', ' iskedyul', ' parokya'
+    ];
+    $englishTerms = [
+        ' what ', ' how ', ' where ', ' when ', ' who ', ' why ', ' can ', ' do ',
+        ' does ', ' need ', ' requirements ', ' request ', ' certificate ', ' office ',
+        ' hours ', ' schedule ', ' blessing ', ' baptism ', ' marriage ', ' funeral ',
+        ' announcement ', ' reservation ', ' payment ', ' login ', ' password '
+    ];
+
+    $filipinoScore = 0;
+    foreach ($filipinoTerms as $term) {
+        if (strpos($q, $term) !== false) {
+            $filipinoScore++;
+        }
+    }
+
+    $englishScore = 0;
+    foreach ($englishTerms as $term) {
+        if (strpos($q, $term) !== false) {
+            $englishScore++;
+        }
+    }
+
+    if ($filipinoScore > 0 && $englishScore > 0) {
+        return 'taglish';
+    }
+    if ($filipinoScore > 0) {
+        return 'fil';
+    }
+    return 'en';
+}
+
+function aiLanguageLabel($language) {
+    if ($language === 'fil') {
+        return 'Filipino (Tagalog)';
+    }
+    if ($language === 'taglish') {
+        return 'natural Taglish, mostly Filipino with common English parish terms';
+    }
+    return 'English';
+}
+
+function aiLanguageInstruction($language) {
+    if ($language === 'fil') {
+        return "Answer in natural Filipino (Tagalog). Use respectful parish-office tone with po/opo when natural. Keep fixed church/service names and official document names unchanged when needed.";
+    }
+    if ($language === 'taglish') {
+        return "Answer in natural Taglish. Use mostly Filipino sentence structure, but keep common terms like request, certificate, requirements, schedule, and parish office when they sound natural.";
+    }
+    return "Answer in clear, natural English.";
+}
+
+function aiNoContextMessageForLanguage($language) {
+    if ($language === 'fil' || $language === 'taglish') {
+        return 'Wala po akong naka-file na impormasyon tungkol diyan. Maaari po kayong makipag-ugnayan sa parish office para makumpirma.';
+    }
+    return aiOfflineNoContextMessage();
+}
+
 // AI Guidance Response Function - Documents this helper's role in the parish management workflow.
 function aiGuidanceResponse($title, $answer, $link = null, $steps = []) {
     return [
@@ -87,9 +191,669 @@ function aiGuidanceResponse($title, $answer, $link = null, $steps = []) {
     ];
 }
 
+function aiBuildOfflineRagPrompt($guidance, $query, array $conversation = [], $language = 'en') {
+    $steps = $guidance['steps'] ?? [];
+    $stepText = '';
+    if (!empty($steps)) {
+        foreach ($steps as $index => $step) {
+            $stepText .= ($index + 1) . '. ' . $step . "\n";
+        }
+    }
+
+    $history = '';
+    foreach (array_slice($conversation, -6) as $turn) {
+        if (!is_array($turn)) {
+            continue;
+        }
+        $role = ($turn['role'] ?? '') === 'assistant' ? 'Assistant' : 'User';
+        $content = trim(strip_tags((string) ($turn['content'] ?? '')));
+        if ($content !== '') {
+            $history .= $role . ': ' . mb_strimwidth($content, 0, 500, '...') . "\n";
+        }
+    }
+
+    $knowledgeText = '';
+    if (!empty($guidance['knowledge_sources']) && is_array($guidance['knowledge_sources'])) {
+        foreach ($guidance['knowledge_sources'] as $index => $source) {
+            $knowledgeText .= "[Source " . ($index + 1) . "]\n";
+            $knowledgeText .= "Title: " . ($source['title'] ?? 'Parish information') . "\n";
+            $knowledgeText .= "Category: " . ($source['category'] ?? 'general') . "\n";
+            $knowledgeText .= "Verified source: " . ($source['source'] ?? 'TUGON administrator-managed knowledge base') . "\n";
+            $knowledgeText .= "Content: " . ($source['content'] ?? '') . "\n\n";
+        }
+    } else {
+        $knowledgeText = "Title: " . ($guidance['title'] ?? 'Parish information') . "\n" .
+            "Answer: " . ($guidance['answer'] ?? '') . "\n" .
+            ($stepText !== '' ? "Requirements or steps:\n{$stepText}" : '');
+    }
+
+    return trim(
+        "You are TUGON AI, the official AI-assisted parish information assistant of San Lorenzo Ruiz Mission Station in Aleosan, North Cotabato, Archdiocese of Cotabato.\n" .
+        "You run locally through Ollama.\n" .
+        "Detected user language: " . aiLanguageLabel($language) . ".\n" .
+        aiLanguageInstruction($language) . "\n" .
+        "Answer ONLY using the OFFICIAL PARISH CONTEXT below.\n" .
+        "Match the user's question to the specific context entry that answers it; do not include unrelated entries.\n" .
+        "Do not add requirements, fees, schedules, policies, names, or dates that are not in the context.\n" .
+        "Never reveal private sacramental records, personal data, passwords, internal logs, database details, or information belonging to another user.\n" .
+        "If the answer is not in the context, reply exactly: " . aiOfflineNoContextMessage() . "\n" .
+        "Keep answers short, direct, respectful, and natural. If there are requirements or steps, format only those official steps as a numbered list.\n" .
+        "Do not literally translate official document titles if doing so would make them unclear.\n\n" .
+        ($history !== '' ? "RECENT CONVERSATION:\n{$history}\n" : '') .
+        "USER QUESTION:\n{$query}\n\n" .
+        "OFFICIAL PARISH CONTEXT:\n" . $knowledgeText .
+        "\nFINAL ANSWER:"
+    );
+}
+
+function aiTryOllamaResponse($guidance, $query, array $conversation = [], $language = 'en') {
+    $client = null;
+    try {
+        $client = new OllamaClient();
+        if (!$client->isAvailable()) {
+            return ['success' => false, 'error_code' => 'curl_unavailable'];
+        }
+
+        $systemPrompt = aiBuildOfflineRagPrompt($guidance, $query, [], $language);
+        $messages = [['role' => 'system', 'content' => $systemPrompt]];
+        foreach (array_slice($conversation, -6) as $turn) {
+            if (!is_array($turn)) {
+                continue;
+            }
+            $turnRole = ($turn['role'] ?? '') === 'assistant' ? 'assistant' : 'user';
+            $turnContent = trim(strip_tags((string) ($turn['content'] ?? '')));
+            if ($turnContent !== '' && !($turnRole === 'user' && strcasecmp($turnContent, $query) === 0)) {
+                $messages[] = ['role' => $turnRole, 'content' => mb_strimwidth($turnContent, 0, 500, '...')];
+            }
+        }
+        $messages[] = ['role' => 'user', 'content' => $query];
+        $answer = $client->chat($messages);
+        if ($answer !== null) {
+            return ['success' => true, 'answer' => $answer];
+        }
+
+        $logger = new Logger();
+        $logger->warning('Ollama response unavailable', [
+            'reason' => $client->getLastError(),
+        ]);
+    } catch (Throwable $e) {
+        try {
+            $logger = new Logger();
+            $logger->error('Ollama integration exception', ['message' => $e->getMessage()]);
+        } catch (Throwable $ignored) {
+            error_log('Ollama integration exception: ' . $e->getMessage());
+        }
+        return ['success' => false, 'error_code' => 'unavailable'];
+    }
+
+    return ['success' => false, 'error_code' => $client ? ($client->getLastErrorCode() ?: 'unavailable') : 'unavailable'];
+}
+
+function aiTryGeminiResponse($guidance, $query, array $conversation = [], $language = 'en') {
+    $client = null;
+    try {
+        $client = new GeminiGatewayClient();
+        if (!$client->isAvailable()) {
+            return ['success' => false, 'error_code' => 'curl_unavailable'];
+        }
+
+        // The verified RAG context and recent conversation are composed by PHP.
+        // The local Node gateway adds the server-only API key and calls Gemini.
+        $prompt = aiBuildOfflineRagPrompt($guidance, $query, $conversation, $language);
+        $answer = $client->chat($prompt);
+        if ($answer !== null) {
+            return ['success' => true, 'answer' => $answer];
+        }
+
+        $logger = new Logger();
+        $logger->warning('Gemini response unavailable', [
+            'reason' => $client->getLastError(),
+            'error_code' => $client->getLastErrorCode(),
+        ]);
+    } catch (Throwable $e) {
+        try {
+            $logger = new Logger();
+            $logger->error('Gemini integration exception', ['message' => $e->getMessage()]);
+        } catch (Throwable $ignored) {
+            error_log('Gemini integration exception: ' . $e->getMessage());
+        }
+        return ['success' => false, 'error_code' => 'unavailable'];
+    }
+
+    return ['success' => false, 'error_code' => $client ? ($client->getLastErrorCode() ?: 'unavailable') : 'unavailable'];
+}
+
+function aiIsGreeting($query) {
+    $normalized = aiNormalizeText($query);
+    return (bool) preg_match('/^(hello|hi|hey|good morning|good afternoon|good evening|kumusta|kamusta|magandang umaga|magandang hapon|magandang gabi|hello po|hi po)$/i', $normalized);
+}
+
+function aiOllamaUnavailableMessage($errorCode) {
+    if ($errorCode === 'model_unavailable') {
+        return 'The configured TUGON AI model is currently unavailable. Please contact the system administrator or parish office for assistance.';
+    }
+    return 'TUGON AI is currently unavailable. Please make sure the local AI service is running or contact the parish office for assistance.';
+}
+
+function aiAllProvidersUnavailableMessage($geminiErrorCode, $ollamaErrorCode) {
+    if ($geminiErrorCode === 'rate_limited') {
+        return 'TUGON AI has reached its online request limit, and the local fallback is unavailable. Please wait a few minutes and try again.';
+    }
+    if ($geminiErrorCode === 'not_configured' || $geminiErrorCode === 'invalid_key') {
+        return 'TUGON AI online access is not configured correctly, and the local fallback is unavailable. Please contact the system administrator.';
+    }
+    if ($ollamaErrorCode === 'model_unavailable') {
+        return 'The online AI service and configured local model are currently unavailable. Please contact the system administrator or parish office.';
+    }
+    return 'TUGON AI is currently unavailable. Please try again shortly or contact the parish office for assistance.';
+}
+
+function aiNaturalizeAnswer($query, $answer, $role, $mode, $language = 'en') {
+    if ($role === 'admin' || $mode === 'analytics') {
+        return $answer;
+    }
+    $trimmed = trim((string) $answer);
+    if ($trimmed === '' || preg_match('/^(Sure|Yes|Okay|I can help|Thanks|Let me|Sige po|Opo|Pwede po|Puwede po|Tutulungan|Wala po)/i', $trimmed)) {
+        return $trimmed;
+    }
+    $openers = ($language === 'fil' || $language === 'taglish') ? [
+        'Sige po, tutulungan ko kayo. ',
+        'Opo, ito po ang kailangan ninyong malaman. ',
+        'Pwede po, ito po ang gabay. ',
+        'Tutulungan ko po kayo dito. '
+    ] : [
+        'Sure, I can help with that. ',
+        'Yes, here is what you need to know. ',
+        'Okay, let me guide you. ',
+        'I can help with that. '
+    ];
+    $index = abs(crc32(strtolower((string) $query))) % count($openers);
+    return $openers[$index] . $trimmed;
+}
+
+function aiNormalizeText($value) {
+    $q = strtolower(trim((string) $value));
+    $q = preg_replace('/[^a-z0-9\s\-]/', ' ', $q);
+    $q = preg_replace('/\s+/', ' ', $q);
+    $replacements = [
+        'merriage' => 'marriage',
+        'mariage' => 'marriage',
+        'marraige' => 'marriage',
+        'baptise' => 'baptize',
+        'baptising' => 'baptizing',
+        'binyagan' => 'binyag',
+        'binayag' => 'binyag',
+        'kelangan' => 'kailangan',
+        'kylangan' => 'kailangan',
+        'reqs' => 'requirements',
+        'req' => 'requirements',
+        'docs' => 'documents',
+        'docu' => 'documents',
+        'papel' => 'papers',
+        'papeles' => 'papers'
+    ];
+    foreach ($replacements as $from => $to) {
+        $q = preg_replace('/\b' . preg_quote($from, '/') . '\b/u', $to, $q);
+    }
+    return $q;
+}
+
+function aiExpandBilingualQuery($query) {
+    $expanded = ' ' . (string) $query . ' ';
+    $q = aiNormalizeText($query);
+    $map = [
+        'binyag' => 'baptism baptismal christening pabinyag',
+        'pabinyag' => 'baptism baptismal christening binyag',
+        'kumpil' => 'confirmation confirmand pakumpil',
+        'pakumpil' => 'confirmation confirmand kumpil',
+        'komunyon' => 'communion first holy communion',
+        'kasal' => 'marriage wedding pakasal',
+        'pakasal' => 'marriage wedding kasal',
+        'misa' => 'mass schedule mass schedule oras',
+        'pamisa' => 'mass intention memorial prayer intention',
+        'libing' => 'funeral burial funeral mass',
+        'lamay' => 'funeral burial memorial',
+        'bahay' => 'house home house blessing',
+        'sasakyan' => 'vehicle car vehicle blessing',
+        'opisina' => 'office hours parish office contact',
+        'anunsyo' => 'announcement announcements news',
+        'abiso' => 'announcement announcements notice',
+        'sertipiko' => 'certificate certification record copy',
+        'cert' => 'certificate certification record copy',
+        'iskedyul' => 'schedule calendar event',
+        'kailangan' => 'requirements documents papers need prepare',
+        'papeles' => 'requirements documents papers',
+        'dokumento' => 'requirements documents papers',
+        'paano' => 'how process steps request procedure',
+        'magkano' => 'fee payment cost amount'
+    ];
+
+    foreach ($map as $term => $addition) {
+        if (strpos($q, $term) !== false) {
+            $expanded .= ' ' . $addition;
+        }
+    }
+
+    return trim($expanded);
+}
+
+function aiLocalizedGuidance($guidance, $language) {
+    if ($language === 'en') {
+        return $guidance;
+    }
+    if (preg_match('/\b(po|opo|wala po|makipag-ugnayan)\b/i', (string) ($guidance['answer'] ?? ''))) {
+        return $guidance;
+    }
+
+    $title = aiNormalizeText($guidance['title'] ?? '');
+    $localized = $guidance;
+    $maps = [
+        'baptism' => [
+            'title' => 'Mga requirement sa Binyag',
+            'answer' => 'Bago po mag-submit ng Baptism request, ihanda ang mga opisyal na requirement na ito.'
+        ],
+        'confirmation' => [
+            'title' => 'Mga requirement sa Kumpil',
+            'answer' => 'Para po sa Confirmation o Kumpil, ihanda ang impormasyong kailangan at mga supporting parish documents.'
+        ],
+        'marriage' => [
+            'title' => 'Mga requirement sa Kasal',
+            'answer' => 'Para po sa Marriage o Kasal, kasama sa mga requirement ang mga opisyal na dokumento at preparation steps na ito.'
+        ],
+        'communion' => [
+            'title' => 'Mga requirement sa First Holy Communion',
+            'answer' => 'Para po sa First Holy Communion, ihanda ang communicant information at supporting parish records na hinihingi ng parish office.'
+        ],
+        'anointing' => [
+            'title' => 'Request para sa Anointing of the Sick',
+            'answer' => 'Para po sa Anointing of the Sick, ibigay ang pangalan ng may sakit, lokasyon, contact person, preferred date at time, at urgent details kung mayroon.'
+        ],
+        'funeral' => [
+            'title' => 'Request para sa Funeral Mass',
+            'answer' => 'Para po sa Funeral Mass request, ibigay ang pangalan ng yumao, preferred date at time, contact person, Death Certificate, at mga instruction ng parish office.'
+        ],
+        'house blessing' => [
+            'title' => 'House Blessing request',
+            'answer' => 'Para po sa house blessing, ibigay ang requester name, kumpletong address, preferred schedule, at contact details.'
+        ],
+        'vehicle blessing' => [
+            'title' => 'Vehicle Blessing request',
+            'answer' => 'Para po sa vehicle blessing, ibigay ang owner name, vehicle details, preferred schedule, at contact details.'
+        ],
+        'certificate' => [
+            'title' => 'Certificate request',
+            'answer' => 'Para po mag-request ng parish certificate, piliin ang certificate type, kumpletuhin ang details, mag-upload ng supporting documents, at hintayin ang parish review.'
+        ],
+        'mass schedule' => [
+            'title' => 'Iskedyul ng Misa',
+            'answer' => 'Narito po ang Mass schedule na naka-file sa system. Para sa pinakabagong approved schedule, tingnan po ang Schedule page o makipag-ugnayan sa parish office.'
+        ],
+        'office hours' => [
+            'title' => 'Oras ng parish office',
+            'answer' => 'Ito po ang parish office hours na naka-file sa system.'
+        ],
+        'reservation' => [
+            'title' => 'Reservation request',
+            'answer' => 'Ang reservation requests po ay nirereview batay sa event type, date, time, location, at availability ng parish schedule.'
+        ],
+        'status' => [
+            'title' => 'Status ng request',
+            'answer' => 'Buksan po ang My Requests para makita ang request status. Ang Pending ay naghihintay ng review, Processing ay sinusuri ng staff, Approved ay tinanggap, Completed ay tapos na, at Rejected ay hindi naaprubahan o kailangan ng correction.'
+        ],
+        'announcement' => [
+            'title' => 'Mga anunsyo',
+            'answer' => 'Buksan po ang Announcements para makita ang mga active parish announcements, schedules, events, at attached files mula sa parish office.'
+        ],
+        'payment' => [
+            'title' => 'Status ng bayad',
+            'answer' => 'Wala pong naka-store na payment status record para sa account ninyo sa TUGON. Makipag-ugnayan po sa parish office para sa payment confirmation.'
+        ],
+        'registration' => [
+            'title' => 'Account registration',
+            'answer' => 'Para po mag-register, kumpletuhin ang parishioner details, tapusin ang live identity verification, i-scan ang valid ID, at hintayin ang approval ng parish administrator bago mag-login.'
+        ],
+        'login' => [
+            'title' => 'Tulong sa login',
+            'answer' => 'Gamitin po ang registered email address o mobile number at password para mag-login. Para sa password recovery, buksan ang Forgot Password o makipag-ugnayan sa parish office.'
+        ],
+        'request requirements' => [
+            'title' => 'Mga requirement ng request',
+            'answer' => 'Para po sa certificate at sacramental requests, maglagay ng tamang detalye at mag-upload ng malinaw na requirements file bago magsumite.'
+        ],
+        'emergency' => [
+            'title' => 'Urgent parish concern',
+            'answer' => 'Para po sa urgent sacramental o parish concerns, makipag-ugnayan agad sa parish office para matulungan kayo.'
+        ],
+        'fee' => [
+            'title' => 'Impormasyon sa bayad',
+            'answer' => 'Wala po akong official fee o amount na naka-file sa system. Makipag-ugnayan po sa parish office para makumpirma ang tamang halaga.'
+        ],
+        'parish priest' => [
+            'title' => 'Parish Priest',
+            'answer' => $guidance['answer'] ?? ''
+        ],
+        'parish vicar' => [
+            'title' => 'Parish Vicar',
+            'answer' => $guidance['answer'] ?? ''
+        ],
+    ];
+
+    foreach ($maps as $needle => $text) {
+        if (strpos($title, $needle) !== false) {
+            $localized['title'] = $text['title'];
+            $localized['answer'] = $text['answer'];
+            return $localized;
+        }
+    }
+
+    $localized['answer'] = 'Sige po. Ito po ang opisyal na impormasyong naka-file sa TUGON: ' . ($guidance['answer'] ?? '');
+    return $localized;
+}
+
+function aiTypoGuardCorrection($query) {
+    $text = trim((string) $query);
+    if ($text === '') {
+        return null;
+    }
+
+    $phraseCorrections = [
+        'parist priest' => 'parish priest',
+        'parich priest' => 'parish priest',
+        'parrish priest' => 'parish priest'
+    ];
+
+    $lowerText = strtolower($text);
+    foreach ($phraseCorrections as $typo => $correction) {
+        if (preg_match('/\b' . preg_quote($typo, '/') . '\b/i', $lowerText)) {
+            return [
+                'typo' => $typo,
+                'correction' => $correction,
+                'message' => 'Did you mean "' . $correction . '"? Just checking before I answer.'
+            ];
+        }
+    }
+
+    $centralCorrections = [
+        'pierst' => 'priest',
+        'preist' => 'priest',
+        'priestt' => 'priest',
+        'vicer' => 'vicar',
+        'parrish' => 'parish',
+        'parich' => 'parish',
+        'parist' => 'parish',
+        'churhc' => 'church',
+        'chruch' => 'church',
+        'baptsim' => 'baptism',
+        'baptizm' => 'baptism',
+        'merriage' => 'marriage',
+        'marraige' => 'marriage',
+        'mariage' => 'marriage',
+        'confrimation' => 'confirmation',
+        'confirmaton' => 'confirmation'
+    ];
+
+    if (!preg_match_all('/\b[a-zA-Z]{4,}\b/', strtolower($text), $matches)) {
+        return null;
+    }
+
+    foreach ($matches[0] as $word) {
+        if (isset($centralCorrections[$word])) {
+            return [
+                'typo' => $word,
+                'correction' => $centralCorrections[$word],
+                'message' => 'Did you mean "' . $centralCorrections[$word] . '"? Just checking before I answer.'
+            ];
+        }
+    }
+
+    return null;
+}
+
+function aiUserConfirmedTypo($query) {
+    return preg_match('/^\s*(yes|yeah|yep|correct|right|true|oo|opo|sige)\s*[.!?]*\s*$/i', (string) $query) === 1;
+}
+
+function aiApplyTypoCorrection($query, $typo, $correction) {
+    return preg_replace('/\b' . preg_quote($typo, '/') . '\b/i', $correction, (string) $query, 1);
+}
+
+function aiResolveTypoConfirmation($query, array $conversation) {
+    if (!aiUserConfirmedTypo($query) || empty($conversation)) {
+        return null;
+    }
+
+    $lastAssistant = null;
+    for ($i = count($conversation) - 1; $i >= 0; $i--) {
+        $turn = $conversation[$i];
+        if (!is_array($turn)) {
+            continue;
+        }
+        if (($turn['role'] ?? '') === 'assistant') {
+            $lastAssistant = trim((string) ($turn['content'] ?? ''));
+            break;
+        }
+    }
+
+    if (!$lastAssistant || !preg_match('/^Did you mean "([^"]+)"\? Just checking before I answer\.$/i', $lastAssistant, $m)) {
+        return null;
+    }
+
+    $correction = $m[1];
+    for ($i = count($conversation) - 1; $i >= 0; $i--) {
+        $turn = $conversation[$i];
+        if (!is_array($turn) || ($turn['role'] ?? '') !== 'user') {
+            continue;
+        }
+        $previousQuestion = trim((string) ($turn['content'] ?? ''));
+        $detected = aiTypoGuardCorrection($previousQuestion);
+        if ($detected && strcasecmp($detected['correction'], $correction) === 0) {
+            return aiApplyTypoCorrection($previousQuestion, $detected['typo'], $correction);
+        }
+    }
+
+    return null;
+}
+
+function aiContainsAny($query, array $terms) {
+    foreach ($terms as $term) {
+        if (strpos($query, $term) !== false) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function aiDetectTopic($query) {
+    $q = aiNormalizeText($query);
+    $topics = [
+        'baptism' => ['baptism', 'baptismal', 'baptize', 'baptizing', 'christening', 'binyag', 'baby baptism', 'pabinyag', 'magpabinyag'],
+        'confirmation' => ['confirmation', 'confirmand', 'kumpil', 'pakumpil', 'magpakumpil'],
+        'communion' => ['communion', 'first communion', 'holy communion', 'komunyon', 'first holy communion'],
+        'marriage' => ['marriage', 'wedding', 'marry', 'kasal', 'pakasal', 'magpakasal'],
+        'anointing' => ['anointing', 'sick', 'anointing of the sick', 'pagpapahid', 'may sakit', 'ospital'],
+        'funeral' => ['funeral', 'burial', 'libing', 'lamay', 'funeral mass', 'burol'],
+        'memorial' => ['memorial', 'death anniversary', 'pa misa', 'pamisa', 'mass intention', 'prayer intention', 'intentions'],
+        'house_blessing' => ['house blessing', 'bless my house', 'blessing house', 'pa bless bahay', 'pabless bahay', 'bahay blessing', 'magpa bless ng bahay', 'pabasbas ng bahay'],
+        'vehicle_blessing' => ['vehicle blessing', 'car blessing', 'motor blessing', 'bless my car', 'pa bless sasakyan', 'sasakyan blessing', 'pabasbas ng sasakyan'],
+        'hall_reservation' => ['hall reservation', 'reserve hall', 'venue', 'function hall', 'reservation', 'booking', 'mag reserve'],
+        'certificate' => ['certificate', 'cert', 'certification', 'baptismal certificate', 'confirmation certificate', 'record copy', 'sertipiko', 'kopya ng record'],
+        'mass_schedule' => ['mass schedule', 'misa', 'oras ng misa', 'schedule ng misa', 'mass time', 'anong oras ang misa'],
+        'office_hours' => ['office hours', 'office schedule', 'parish office', 'oras ng office', 'opisina', 'open ba', 'bukas ba'],
+        'announcements' => ['announcement', 'announcements', 'abiso', 'balita', 'news', 'anunsyo'],
+        'request_status' => ['status', 'track', 'reference', 'pending', 'approved', 'processing', 'nasaan na', 'kumusta ang request']
+    ];
+    foreach ($topics as $topic => $terms) {
+        if (aiContainsAny($q, $terms)) {
+            return $topic;
+        }
+    }
+    return null;
+}
+
+function aiHasRequirementIntent($query) {
+    $q = aiNormalizeText($query);
+    return aiContainsAny($q, [
+        'requirement', 'requirements', 'document', 'documents', 'papers', 'needed',
+        'need', 'prepare', 'bring', 'submit', 'upload', 'kailangan', 'ano kailangan',
+        'requirements para', 'requirements for', 'ano ang kailangan', 'anong kailangan',
+        'papeles', 'dokumento', 'ihanda'
+    ]);
+}
+
+function aiHasProcedureIntent($query) {
+    $q = aiNormalizeText($query);
+    return aiContainsAny($q, [
+        'how', 'how to', 'procedure', 'process', 'steps', 'apply', 'request',
+        'i want', 'gusto ko', 'paano', 'magpa', 'pa ', 'schedule', 'saan pupunta',
+        'pwede ba', 'puwede ba', 'mag request', 'mag-request', 'humingi', 'kumuha'
+    ]);
+}
+
+function aiHasFeeIntent($query) {
+    $q = aiNormalizeText($query);
+    return aiContainsAny($q, ['fee', 'fees', 'cost', 'price', 'amount', 'payment', 'pay', 'magkano', 'bayad', 'halaga']);
+}
+
+function aiKnowledgeScore($query, $row) {
+    $q = aiNormalizeText(aiExpandBilingualQuery($query));
+    $score = 0;
+    $topic = aiNormalizeText($row['topic'] ?? '');
+    if ($topic !== '' && strpos($q, $topic) !== false) {
+        $score += 25;
+    }
+
+    $keywords = preg_split('/[,;\r\n]+/', (string) ($row['keywords'] ?? ''));
+    foreach ($keywords as $keyword) {
+        $keyword = aiNormalizeText($keyword);
+        if ($keyword === '') {
+            continue;
+        }
+        if (strpos($q, $keyword) !== false || strpos($keyword, $q) !== false) {
+            $score += strlen($keyword) > 8 ? 12 : 7;
+        }
+    }
+
+    $category = aiNormalizeText($row['category'] ?? '');
+    if ($category !== '' && strpos($q, $category) !== false) {
+        $score += 5;
+    }
+
+    return $score;
+}
+
+function aiEnsureBilingualKnowledgeHints($conn) {
+    if (!aiTableExists($conn, 'chatbot_knowledge')) {
+        return;
+    }
+
+    $hints = [
+        'Baptism' => 'ano ang requirements sa binyag,paano magpabinyag,pabinyag po,binyag requirements,kailangan sa binyag,magkano ang baptism',
+        'Confirmation' => 'ano ang requirements sa kumpil,paano magpakumpil,kumpil requirements,kailangan sa confirmation',
+        'Communion' => 'ano ang requirements sa komunyon,first communion requirements,kailangan sa first holy communion',
+        'Marriage' => 'ano ang requirements sa kasal,paano magpakasal,kasal requirements,kailangan sa kasal,wedding requirements',
+        'Anointing' => 'pahid ng langis,may sakit,ospital,urgent priest visit,anointing request',
+        'Funeral' => 'libing,lamay,burol,funeral mass request,pamisa para sa yumao',
+        'House Blessing' => 'pabasbas ng bahay,magpa bless ng bahay,house blessing po,pwede ba magpa bless ng bahay',
+        'Vehicle Blessing' => 'pabasbas ng sasakyan,pa bless ng sasakyan,car blessing,vehicle blessing po',
+        'Certificate' => 'paano kumuha ng certificate,paano mag request ng baptismal certificate,sertipiko,kopya ng record',
+        'Mass Schedule' => 'anong oras ang misa,oras ng misa,iskedyul ng misa,may misa ba ngayon',
+        'Office Hours' => 'bukas ba ang opisina,oras ng office,office hours po,kailan bukas ang parish office',
+        'Reservations' => 'paano mag reserve,reservation po,mag book ng schedule,venue reservation',
+        'Emergency' => 'urgent concern,kailangan ng pari,emergency parish contact,sino tatawagan',
+        'Parish Priest' => 'sino ang parish priest,pari ng parokya,who is the priest',
+        'Parish Vicar' => 'sino ang parish vicar,assistant priest,parochial vicar'
+    ];
+
+    foreach ($hints as $topicNeedle => $keywords) {
+        $like = '%' . $topicNeedle . '%';
+        $stmt = $conn->prepare("UPDATE chatbot_knowledge SET keywords = CONCAT(COALESCE(keywords, ''), ',', ?) WHERE topic LIKE ? AND keywords NOT LIKE ?");
+        if (!$stmt) {
+            continue;
+        }
+        $firstKeyword = '%' . strtok($keywords, ',') . '%';
+        $stmt->bind_param('sss', $keywords, $like, $firstKeyword);
+        $stmt->execute();
+        $stmt->close();
+    }
+}
+
+function aiFindKnowledgeGuidance($conn, $query) {
+    if (!ensureChatbotKnowledgeSchema($conn)) {
+        return null;
+    }
+    chatbotKnowledgeSeedDefaults($conn);
+    aiEnsureBilingualKnowledgeHints($conn);
+
+    $rows = [];
+    $q = trim(aiExpandBilingualQuery($query));
+    if ($q !== '') {
+        $like = '%' . $q . '%';
+        $stmt = $conn->prepare("SELECT * FROM chatbot_knowledge WHERE status = 'active' AND (topic LIKE ? OR keywords LIKE ? OR answer LIKE ?) ORDER BY updated_at DESC LIMIT 12");
+        if ($stmt) {
+            $stmt->bind_param('sss', $like, $like, $like);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            while ($row = $result->fetch_assoc()) {
+                $rows[] = $row;
+            }
+            $stmt->close();
+        }
+    }
+
+    if (!$rows) {
+        $result = $conn->query("SELECT * FROM chatbot_knowledge WHERE status = 'active' ORDER BY updated_at DESC LIMIT 100");
+        while ($result && $row = $result->fetch_assoc()) {
+            $rows[] = $row;
+        }
+    }
+
+    $ranked = [];
+    foreach ($rows as $row) {
+        $score = aiKnowledgeScore($query, $row);
+        if ($score >= 7) {
+            $ranked[] = ['score' => $score, 'row' => $row];
+        }
+    }
+    usort($ranked, static function ($left, $right) {
+        if ($left['score'] === $right['score']) {
+            return strcmp((string) ($right['row']['updated_at'] ?? ''), (string) ($left['row']['updated_at'] ?? ''));
+        }
+        return $right['score'] <=> $left['score'];
+    });
+    $ranked = array_slice($ranked, 0, 3);
+    if (!$ranked) {
+        return null;
+    }
+
+    $best = $ranked[0]['row'];
+    $guidance = aiGuidanceResponse(
+        $best['topic'],
+        $best['answer'],
+        null,
+        chatbotKnowledgeStepsArray($best['steps'] ?? '')
+    );
+    $guidance['knowledge_sources'] = array_map(static function ($item) {
+        $row = $item['row'];
+        $content = trim((string) ($row['answer'] ?? ''));
+        $steps = trim((string) ($row['steps'] ?? ''));
+        if ($steps !== '') {
+            $content .= "\nRequirements or steps:\n" . $steps;
+        }
+        return [
+            'title' => (string) ($row['topic'] ?? ''),
+            'category' => (string) ($row['category'] ?? 'general'),
+            'source' => trim((string) ($row['source'] ?? '')) ?: 'TUGON administrator-managed knowledge base',
+            'content' => $content,
+            'updated_at' => (string) ($row['updated_at'] ?? ''),
+        ];
+    }, $ranked);
+
+    return $guidance;
+}
+
 // Context Guardrails - Limits assistant answers to Tugon, parish services, and role-appropriate topics.
 function aiQuestionAllowed($query, $role) {
-    $q = strtolower(trim($query));
+    $q = aiNormalizeText($query);
     if ($q === '') {
         return true;
     }
@@ -132,12 +896,14 @@ function aiQuestionAllowed($query, $role) {
 
     $allowedKeywords = [
         'tugon', 'parish', 'church', 'office', 'hours', 'schedule', 'mass', 'calendar',
-        'certificate', 'baptismal', 'baptism', 'confirmation', 'communion', 'sacramental',
-        'service', 'blessing', 'request', 'status', 'reference', 'requirement', 'requirements',
-        'document', 'upload', 'announcement', 'notification', 'registration', 'register',
-        'account', 'login', 'password', 'payment', 'pay', 'paid', 'unpaid', 'reservation',
+        'certificate', 'cert', 'baptismal', 'baptism', 'confirmation', 'communion', 'sacramental',
+        'blessing', 'announcement', 'notification', 'reservation',
         'funeral', 'marriage', 'wedding', 'anointing', 'patronal', 'fiesta', 'navigate',
-        'where', 'how', 'when', 'what time', 'open'
+        'what time', 'binyag', 'pabinyag', 'kumpil',
+        'komunyon', 'kasal', 'pakasal', 'misa', 'pamisa', 'libing', 'lamay',
+        'opisina', 'abiso', 'sasakyan', 'bahay', 'magkano', 'bayad', 'halaga',
+        'sertipiko', 'iskedyul', 'anunsyo', 'parokya', 'chapel', 'priest', 'pari',
+        'vicar', 'celebrant', 'confession', 'godparent', 'sponsor', 'bec'
     ];
 
     foreach ($allowedKeywords as $keyword) {
@@ -150,6 +916,39 @@ function aiQuestionAllowed($query, $role) {
         return true;
     }
 
+    $systemWorkflowPatterns = [
+        '/\b(?:my|track|check|view)\s+requests?\b/',
+        '/\brequest\s+(?:status|reference|tracking)\b/',
+        '/\b(?:login|log in|password|register|registration|account)\b/',
+        '/\b(?:upload|submit)\b.*\b(?:requirement|document)\b/',
+    ];
+    foreach ($systemWorkflowPatterns as $pattern) {
+        if (preg_match($pattern, $q)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function aiIsParishContextFollowUp($query) {
+    $q = aiNormalizeText($query);
+    if ($q === '') {
+        return false;
+    }
+
+    $followUpPatterns = [
+        '/^(?:and\s+)?(?:what|how)\s+about\s+(?:it|that|this|those|these|them)\b/',
+        '/^(?:what|which)\s+(?:requirements?|documents?|papers?|steps?)\b/',
+        '/^(?:what|which)\s+(?:do|should)\s+i\s+(?:bring|prepare|submit|upload|need)\b/',
+        '/^(?:how|where|when)\b.*\b(?:it|that|this|those|these|them)\b/',
+        '/^(?:the\s+)?(?:requirements?|documents?|papers?|steps?|process|procedure|fees?|schedule|status)\??$/',
+    ];
+    foreach ($followUpPatterns as $pattern) {
+        if (preg_match($pattern, $q)) {
+            return true;
+        }
+    }
     return false;
 }
 
@@ -178,50 +977,131 @@ function aiFetchLatestPublicMassSchedules($conn) {
 
 // Direct Guidance - Answers common workflow questions before falling back to database search.
 function aiDirectGuidance($conn, $query, $role, $userId) {
-    $q = strtolower(trim($query));
+    $q = aiNormalizeText($query);
+    $topic = aiDetectTopic($query);
+    $wantsRequirements = aiHasRequirementIntent($query);
+    $wantsProcedure = aiHasProcedureIntent($query);
+    $wantsFees = aiHasFeeIntent($query);
 
-    if (strpos($q, 'baptism') !== false && (strpos($q, 'requirement') !== false || strpos($q, 'requirements') !== false)) {
+    if ($wantsFees) {
+        return aiGuidanceResponse(
+            'Parish fee information',
+            aiDetectUserLanguage($query) === 'en'
+                ? 'I do not have official fee or payment amount information on file. Please contact the parish office directly for the confirmed amount.'
+                : 'Wala po akong official fee o amount na naka-file sa system. Makipag-ugnayan po sa parish office para makumpirma ang tamang halaga.',
+            null
+        );
+    }
+
+    if ($topic === 'baptism' && ($wantsRequirements || $wantsProcedure)) {
         return aiGuidanceResponse(
             'Baptism requirements',
-            "I'd be glad to assist you. Before submitting a Baptism request, prepare the chapel recommendation, parents' latest marriage contract or receipt if applicable, photocopy of marriage certificate if married, photocopy of the child's live birth certificate with registry number, two white cards of sponsors, and white cards of parents.",
+            "I'd be glad to assist you. Before submitting a Baptism request, prepare these requirements:",
             $role === 'admin' ? '../admin/manage-requests.php' : '../users/request-service.php',
             [
-                'Review the Baptism requirements card in the request page.',
-                'Prepare clear copies of all documents required by the parish office.',
-                'Fill out the pre-baptismal investigation sheet before proceeding.',
-                'Submit the request and wait for parish office review.'
+                'Chapel recommendation.',
+                "Parents' latest marriage contract or receipt, if applicable.",
+                'Photocopy of marriage certificate, if married.',
+                "Photocopy of the child's live birth certificate with registry number.",
+                'Two white cards of sponsors.',
+                'White cards of parents.',
+                'Pre-baptismal investigation sheet, if requested by the parish office.'
             ]
         );
     }
 
-    if ((strpos($q, 'marriage') !== false || strpos($q, 'wedding') !== false) && (strpos($q, 'requirement') !== false || strpos($q, 'requirements') !== false)) {
+    if ($topic === 'marriage' && ($wantsRequirements || $wantsProcedure)) {
         return aiGuidanceResponse(
             'Marriage requirements',
-            'Here is the information you need. Marriage requirements include Pre-Cana, municipal license, BEC recommendation, baptismal certificate for marriage purpose, confirmation certificate, permit to marry, interview, confession, and CO permit if applicable for police or army personnel.',
+            'Here is the information you need. Marriage requirements include:',
             $role === 'admin' ? '../admin/manage-requests.php' : '../users/request-service.php',
             [
-                'Prepare separate requirement documents for the male and female applicants.',
-                'Review the Marriage requirements section before filling out the request form.',
-                'Upload clear supporting documents when requested by the parish.',
-                'Wait for parish office validation and schedule confirmation.'
+                'Pre-Cana seminar.',
+                'Municipal marriage license.',
+                'BEC recommendation.',
+                'Baptismal certificate for marriage purpose.',
+                'Confirmation certificate.',
+                'Permit to marry, if applicable.',
+                'Marriage interview.',
+                'Confession.',
+                'CO permit, if applicable for police or army personnel.'
             ]
         );
     }
 
-    if (strpos($q, 'confirmation') !== false && (strpos($q, 'requirement') !== false || strpos($q, 'requirements') !== false)) {
+    if ($topic === 'confirmation' && ($wantsRequirements || $wantsProcedure)) {
         return aiGuidanceResponse(
             'Confirmation requirements',
-            'Thank you for your question. For Confirmation, prepare accurate personal details and supporting parish records requested by the parish office. If a certificate copy is needed, a PSA or birth certificate copy may be required for verification.',
+            'Thank you for your question. For Confirmation, prepare these requirements:',
             $role === 'admin' ? '../admin/manage-requests.php' : '../users/request-service.php',
             [
-                'Open Sacramental Services or Certificate Requests depending on what you need.',
-                'Check the displayed requirements before proceeding.',
-                'Upload clear documents and submit the request for review.'
+                'Accurate personal details of the confirmand.',
+                'Supporting parish record requested by the parish office.',
+                'PSA or birth certificate copy, if needed for verification.',
+                'Clear uploaded documents before submitting the request.'
             ]
         );
     }
 
-    if (strpos($q, 'office') !== false && (strpos($q, 'schedule') !== false || strpos($q, 'hour') !== false || strpos($q, 'open') !== false)) {
+    if ($topic === 'communion' && ($wantsRequirements || $wantsProcedure)) {
+        return aiGuidanceResponse(
+            'First Holy Communion requirements',
+            'I can help with First Holy Communion. Please prepare these basic requirements:',
+            $role === 'admin' ? '../admin/manage-requests.php' : '../users/request-service.php',
+            [
+                'Accurate personal details of the communicant.',
+                'Baptismal record or parish record if requested for verification.',
+                'Parent or guardian information.',
+                'Clear supporting document upload before submission.',
+                'Parish office confirmation of the schedule or preparation requirements.'
+            ]
+        );
+    }
+
+    if ($topic === 'anointing') {
+        return aiGuidanceResponse(
+            'Anointing of the Sick request',
+            'For Anointing of the Sick, provide the sick person\'s name, location, contact person, preferred date and time, and any urgent details so the parish office can assist properly.',
+            $role === 'admin' ? '../admin/manage-requests.php' : '../users/request-service.php',
+            [
+                'Prepare the name and condition or situation of the sick person.',
+                'Provide the exact address or hospital location.',
+                'Add a contact number for coordination.',
+                'Submit the request or contact the parish office directly if urgent.'
+            ]
+        );
+    }
+
+    if ($topic === 'funeral' || $topic === 'memorial') {
+        return aiGuidanceResponse(
+            $topic === 'funeral' ? 'Funeral Mass request' : 'Memorial Mass or prayer intention',
+            'I can guide you with this. Please provide the name of the deceased, a Death Certificate, preferred Mass date and time, contact person, and any parish office instructions.',
+            $role === 'admin' ? '../admin/manage-requests.php' : '../users/request-service.php',
+            [
+                'Prepare the complete name of the deceased or intention.',
+                'Upload a clear copy of the Death Certificate.',
+                'Choose the preferred date and time.',
+                'Provide the contact person and phone number.',
+                'Wait for parish office confirmation of availability.'
+            ]
+        );
+    }
+
+    if ($topic === 'house_blessing' || $topic === 'vehicle_blessing') {
+        return aiGuidanceResponse(
+            $topic === 'house_blessing' ? 'House blessing request' : 'Vehicle blessing request',
+            'For blessing requests, provide the owner or requester name, blessing type, location, preferred schedule, and contact details for parish confirmation.',
+            $role === 'admin' ? '../admin/manage-requests.php' : '../users/request-blessing.php',
+            [
+                'Select the blessing type.',
+                'Enter the address or vehicle details.',
+                'Choose a preferred date and time.',
+                'Submit the request and wait for parish office confirmation.'
+            ]
+        );
+    }
+
+    if ($topic === 'office_hours') {
         return aiGuidanceResponse(
             t('chatbot.office_title', 'Parish office schedule'),
             t('chatbot.office_answer', 'The parish office is open Monday to Saturday, 8:00 AM to 5:00 PM, with lunch break from 12:00 PM to 1:00 PM. The office is closed on Sunday.'),
@@ -229,7 +1109,7 @@ function aiDirectGuidance($conn, $query, $role, $userId) {
         );
     }
 
-    if (strpos($q, 'mass') !== false && strpos($q, 'schedule') !== false) {
+    if ($topic === 'mass_schedule' || (strpos($q, 'mass') !== false && strpos($q, 'schedule') !== false)) {
         $massRows = aiFetchLatestPublicMassSchedules($conn);
         if (!empty($massRows)) {
             $parts = [];
@@ -276,7 +1156,7 @@ function aiDirectGuidance($conn, $query, $role, $userId) {
         );
     }
 
-    if (strpos($q, 'status') !== false && strpos($q, 'request') !== false) {
+    if ($topic === 'request_status' || (strpos($q, 'status') !== false && strpos($q, 'request') !== false)) {
         return aiGuidanceResponse(
             t('chatbot.status_title', 'Request status'),
             t('chatbot.status_help', 'Open My Requests to view your request status. Pending means waiting for review, processing means staff are checking it, approved means accepted, completed means finished, and rejected means it was not approved or needs correction.'),
@@ -284,15 +1164,22 @@ function aiDirectGuidance($conn, $query, $role, $userId) {
         );
     }
 
-    if (strpos($q, 'requirement') !== false || strpos($q, 'requirements') !== false) {
+    if ($wantsRequirements) {
         return aiGuidanceResponse(
             t('chatbot.requirements_title', 'Request requirements'),
-            t('chatbot.requirements_answer', 'For certificate and sacramental requests, submit accurate details and upload a clear requirements file such as a valid ID, supporting parish document, or required record scan before submitting.'),
-            $role === 'admin' ? '../admin/manage-requests.php' : '../users/request-certificate.php'
+            t('chatbot.requirements_answer', 'For certificate and sacramental requests, prepare these basic requirements:'),
+            $role === 'admin' ? '../admin/manage-requests.php' : '../users/request-certificate.php',
+            [
+                'Accurate applicant or parishioner details.',
+                'Clear valid ID, if required.',
+                'Supporting parish document or record scan.',
+                'Other sacrament-specific documents shown on the request form.',
+                'Clear uploaded files before submitting.'
+            ]
         );
     }
 
-    if (strpos($q, 'certificate') !== false || strpos($q, 'baptismal') !== false || strpos($q, 'confirmation') !== false || strpos($q, 'communion') !== false) {
+    if ($topic === 'certificate' || strpos($q, 'certificate') !== false || strpos($q, 'baptismal') !== false || strpos($q, 'confirmation') !== false || strpos($q, 'communion') !== false) {
         return aiGuidanceResponse(
             t('chatbot.certificates_title', 'Certificate requests'),
             t('chatbot.certificates_answer', 'To request a certificate, go to Certificates, select the certificate type, enter the needed details, attach your requirements file, and submit the request for parish review.'),
@@ -302,9 +1189,16 @@ function aiDirectGuidance($conn, $query, $role, $userId) {
 
     if (strpos($q, 'blessing') !== false) {
         return aiGuidanceResponse(
-            t('chatbot.blessing_title', 'Blessing requests'),
-            t('chatbot.blessing_answer', 'To request a blessing, go to Blessings, choose the blessing type, enter the preferred date, time, location, add any details, attach requirements if available, and submit.'),
-            $role === 'admin' ? '../admin/manage-requests.php' : '../users/request-blessing.php'
+            'Blessing Request',
+            'Follow these steps:',
+            $role === 'admin' ? '../admin/manage-requests.php' : '../users/request-blessing.php',
+            [
+                'Open My Requests, then select Blessings.',
+                'Choose House Blessing or Vehicle Blessing.',
+                'Enter the requested blessing details, location, and contact information.',
+                'Select your preferred date and time.',
+                'Submit the request and track its status from My Requests.'
+            ]
         );
     }
 
@@ -316,7 +1210,7 @@ function aiDirectGuidance($conn, $query, $role, $userId) {
         );
     }
 
-    if (strpos($q, 'announcement') !== false) {
+    if ($topic === 'announcements' || strpos($q, 'announcement') !== false) {
         if ($role !== 'admin' && (strpos($q, 'create') !== false || strpos($q, 'post') !== false || strpos($q, 'add') !== false)) {
             return aiGuidanceResponse(t('chatbot.outside_title', 'Parish services focus'), aiOutOfContextMessage());
         }
@@ -365,7 +1259,7 @@ function aiDirectGuidance($conn, $query, $role, $userId) {
 
 // Static Guidance Library - Maps known parish workflow topics to concise help instructions.
 function aiGuidanceForQuery($query, $role) {
-    $q = strtolower($query);
+    $q = aiNormalizeText($query);
 
     $guides = [
         'certificate' => [
@@ -441,11 +1335,11 @@ function aiGuidanceForQuery($query, $role) {
     ];
 
     $map = [
-        'certificate' => ['certificate', 'baptismal', 'confirmation', 'communion'],
-        'blessing' => ['blessing', 'bless', 'house', 'vehicle', 'business', 'office'],
-        'reservation' => ['reservation', 'reserve', 'booking', 'sacramental service', 'service request', 'schedule a'],
-        'status' => ['status', 'pending', 'approved', 'completed', 'rejected', 'reference'],
-        'schedule' => ['mass', 'service', 'schedule', 'calendar', 'event'],
+        'certificate' => ['certificate', 'certification', 'baptismal', 'confirmation', 'communion', 'record copy'],
+        'blessing' => ['blessing', 'bless', 'house', 'vehicle', 'business', 'bahay', 'sasakyan', 'pabless'],
+        'reservation' => ['reservation', 'reserve', 'booking', 'sacramental service', 'service request', 'schedule a', 'hall', 'venue'],
+        'status' => ['status', 'pending', 'approved', 'completed', 'rejected', 'reference', 'track'],
+        'schedule' => ['mass', 'misa', 'service', 'schedule', 'calendar', 'event', 'oras'],
         'analytics' => ['analytics', 'report', 'summary', 'trend', 'insight', 'search']
     ];
 
@@ -629,24 +1523,167 @@ function aiBuildAnalytics($conn, $role, $userId) {
 
 $raw = file_get_contents('php://input');
 $payload = json_decode($raw, true);
-if (!is_array($payload)) {
-    $payload = $_POST;
+if (!is_array($payload) || json_last_error() !== JSON_ERROR_NONE) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Invalid JSON request.', 'message' => 'Unable to process your request.']);
+    exit;
 }
 
 $query = trim($payload['message'] ?? $payload['q'] ?? '');
-$mode = trim($payload['mode'] ?? 'chat');
+$csrfToken = (string) ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? ($payload[csrfTokenName()] ?? ''));
+if (!verifyCsrfToken($csrfToken)) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'error' => 'Your secure session token expired. Please refresh the page and try again.', 'message' => 'Your secure session token expired. Please refresh the page and try again.']);
+    exit;
+}
+if ($query === '') {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Please enter a message.', 'message' => 'Please enter a message.']);
+    exit;
+}
+if (mb_strlen($query) > 2000) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Your message is too long. Please keep it under 2,000 characters.', 'message' => 'Your message is too long. Please keep it under 2,000 characters.']);
+    exit;
+}
+
+$rateKey = 'tugon_ai_request_times';
+$now = time();
+$recentRequests = array_values(array_filter((array) ($_SESSION[$rateKey] ?? []), static function ($timestamp) use ($now) {
+    return is_numeric($timestamp) && ($now - intval($timestamp)) < 60;
+}));
+if (count($recentRequests) >= 10) {
+    http_response_code(429);
+    header('Retry-After: 60');
+    echo json_encode(['success' => false, 'error' => 'Too many requests. Please wait a moment and try again.', 'message' => 'Too many requests. Please wait a moment and try again.']);
+    exit;
+}
+$recentRequests[] = $now;
+$_SESSION[$rateKey] = $recentRequests;
+
+$originalQuery = $query;
+$detectedLanguage = aiDetectUserLanguage($query);
+$mode = trim((string) ($payload['mode'] ?? 'chat'));
+$mode = in_array($mode, ['chat', 'search', 'analytics'], true) ? $mode : 'chat';
 $role = $_SESSION['role'] ?? 'user';
-$userId = intval($_SESSION['user_id']);
+$userId = intval($_SESSION['user_id'] ?? 0);
+$conversation = [];
+foreach (array_slice((array) ($payload['conversation'] ?? []), -8) as $turn) {
+    if (!is_array($turn)) {
+        continue;
+    }
+    $turnRole = ($turn['role'] ?? '') === 'assistant' ? 'assistant' : (($turn['role'] ?? '') === 'user' ? 'user' : '');
+    $turnContent = trim(strip_tags((string) ($turn['content'] ?? '')));
+    if ($turnRole !== '' && $turnContent !== '') {
+        $conversation[] = ['role' => $turnRole, 'content' => mb_strimwidth($turnContent, 0, 500, '...')];
+    }
+}
+
+$conversationalIntent = TugonConversationalIntent::analyze($originalQuery);
+if ($conversationalIntent['intent'] !== null) {
+    $answer = $conversationalIntent['response'];
+    $guidance = aiGuidanceResponse('TUGON AI Parish Assistant', $answer);
+    logChatbotInquiry($conn, $userId, $role, $originalQuery, $answer, $mode, false);
+    echo json_encode([
+        'success' => true,
+        'reply' => $answer,
+        'answer' => $answer,
+        'guidance' => $guidance,
+        'search_results' => [],
+        'analytics' => null,
+        'mode' => $mode,
+        'detected_language' => $conversationalIntent['language'],
+        'intent' => $conversationalIntent['intent'],
+        'ai_engine' => 'conversational-intent',
+        'context_limited' => false,
+    ]);
+    exit;
+}
+
+$confirmedTypoQuery = aiResolveTypoConfirmation($query, $conversation);
+if ($confirmedTypoQuery !== null) {
+    $query = $confirmedTypoQuery;
+    $originalQuery = $query;
+} else {
+    $typoGuard = aiTypoGuardCorrection($query);
+    if ($typoGuard !== null) {
+        $answer = $typoGuard['message'];
+        $guidance = aiGuidanceResponse('Quick clarification', $answer);
+        logChatbotInquiry($conn, $userId, $role, $query, $answer, $mode, true);
+        echo json_encode([
+            'success' => true,
+            'reply' => $answer,
+            'answer' => $answer,
+            'guidance' => $guidance,
+            'search_results' => [],
+            'analytics' => null,
+            'mode' => $mode,
+            'context_limited' => true,
+            'typo_guard' => [
+                'needs_confirmation' => true,
+                'correction' => $typoGuard['correction']
+            ]
+        ]);
+        exit;
+    }
+}
+
+// Reject unrelated input before previous conversation text can add a parish
+// keyword and accidentally turn it into an in-scope question.
+if ($query !== ''
+    && !aiIsGreeting($query)
+    && !aiQuestionAllowed($query, $role)
+    && !aiIsParishContextFollowUp($query)) {
+    $answer = aiOfflineNoContextMessage();
+    $guidance = aiGuidanceResponse('Parish services focus', $answer);
+    logChatbotInquiry($conn, $userId, $role, $query, $answer, $mode, true);
+    echo json_encode([
+        'success' => true,
+        'reply' => $answer,
+        'answer' => $answer,
+        'guidance' => $guidance,
+        'search_results' => [],
+        'analytics' => null,
+        'mode' => $mode,
+        'context_limited' => true,
+        'ai_engine' => 'scope-guard'
+    ]);
+    exit;
+}
+
+if ($query !== '' && !empty($conversation)) {
+    $recentContext = [];
+    foreach (array_slice($conversation, -6) as $turn) {
+        if (!is_array($turn)) {
+            continue;
+        }
+        $content = trim((string) ($turn['content'] ?? ''));
+        if ($content !== '' && strcasecmp($content, $query) !== 0) {
+            $recentContext[] = $content;
+        }
+    }
+    $contextText = implode(' ', $recentContext);
+    $hasExplicitTopic = preg_match('/\b(baptism|baptismal|baptize|binyag|pabinyag|confirmation|kumpil|communion|komunyon|marriage|wedding|kasal|pakasal|mass|misa|certificate|blessing|bahay|sasakyan|announcement|abiso|office|opisina|registration|login|payment|funeral|libing|anointing)\b/i', $query);
+    $looksLikeFollowUp = aiIsParishContextFollowUp($query);
+    if (!$hasExplicitTopic && $looksLikeFollowUp && $contextText !== '') {
+        $query = trim($contextText . ' ' . $query);
+    }
+}
 
 if ($query === '') {
     $query = $role === 'admin' ? 'analytics summary and pending requests' : 'help me with parish services';
+    $detectedLanguage = 'en';
 }
 
-if (!aiQuestionAllowed($query, $role)) {
-    $guidance = aiGuidanceResponse(t('chatbot.outside_title', 'Parish services focus'), aiOutOfContextMessage());
+if (!aiIsGreeting($originalQuery) && !aiQuestionAllowed($query, $role)) {
+    $guidance = aiGuidanceResponse(
+        'Parish services focus',
+        aiOfflineNoContextMessage()
+    );
     logChatbotInquiry($conn, $userId, $role, $query, $guidance['answer'], $mode, true);
     echo json_encode([
         'success' => true,
+        'reply' => $guidance['answer'],
         'answer' => $guidance['answer'],
         'guidance' => $guidance,
         'search_results' => [],
@@ -657,10 +1694,41 @@ if (!aiQuestionAllowed($query, $role)) {
     exit;
 }
 
-$directGuidance = aiDirectGuidance($conn, $query, $role, $userId);
+$greetingGuidance = aiIsGreeting($originalQuery) ? aiGuidanceResponse(
+    'TUGON AI Parish Assistant',
+    "Welcome the user briefly and explain that you can help with verified parish requirements, certificate requests, blessings, Mass or parish information, and contacting the parish office. Do not state any schedules, fees, or policies in this greeting."
+) : null;
+$feeGuidance = (!$greetingGuidance && aiHasFeeIntent($originalQuery ?: $query)) ? aiDirectGuidance($conn, $originalQuery ?: $query, $role, $userId) : null;
+$knowledgeGuidance = ($greetingGuidance || $feeGuidance) ? null : ($originalQuery !== '' ? aiFindKnowledgeGuidance($conn, $originalQuery) : null);
+if (!$feeGuidance && !$knowledgeGuidance && $query !== $originalQuery) {
+    $knowledgeGuidance = aiFindKnowledgeGuidance($conn, $query);
+}
+$workflowGuidance = (!$greetingGuidance && !$feeGuidance && !$knowledgeGuidance)
+    ? aiDirectGuidance($conn, $originalQuery ?: $query, $role, $userId)
+    : null;
+
+$directGuidance = $greetingGuidance ?: ($feeGuidance ?: ($knowledgeGuidance ?: $workflowGuidance));
+if (!$directGuidance) {
+    $answer = aiNoContextMessageForLanguage($detectedLanguage);
+    logChatbotInquiry($conn, $userId, $role, $query, $answer, $mode, true);
+    echo json_encode([
+        'success' => true,
+        'reply' => $answer,
+        'answer' => $answer,
+        'guidance' => aiGuidanceResponse($detectedLanguage === 'en' ? 'Parish information unavailable' : 'Walang naka-file na impormasyon', $answer),
+        'search_results' => [],
+        'analytics' => null,
+        'mode' => $mode,
+        'detected_language' => $detectedLanguage,
+        'ai_engine' => 'rag-no-match'
+    ]);
+    exit;
+}
 $guidance = $directGuidance ?: aiGuidanceForQuery($query, $role);
+$guidance = aiLocalizedGuidance($guidance, $detectedLanguage);
 $searchResults = $role === 'admin' ? aiBuildSearchResults($conn, $query, $role, $userId) : [];
 $analytics = null;
+$aiEngine = 'offline-rag';
 
 $answer = $guidance['answer'];
 if ($mode === 'search' && !empty($searchResults) && !$directGuidance) {
@@ -676,13 +1744,63 @@ if ($analyticsAllowed) {
     $guidance = aiGuidanceResponse(t('chatbot.activity_title', 'Request activity'), $answer, '../users/my-requests.php');
 }
 
+$processQuery = $originalQuery ?: $query;
+$useVerifiedSteps = !empty($guidance['steps'])
+    && (aiHasProcedureIntent($processQuery) || aiHasRequirementIntent($processQuery));
+
+if ($useVerifiedSteps) {
+    // Process and requirement answers must remain deterministic. Returning the
+    // stored answer plus its steps prevents a model from hiding verified data.
+    $geminiResult = ['success' => false, 'error_code' => 'not_required'];
+    $modelResult = ['success' => true, 'answer' => $guidance['answer']];
+    $selectedEngine = 'verified-knowledge-steps';
+} else {
+    $geminiResult = aiTryGeminiResponse($guidance, $processQuery, $conversation, $detectedLanguage);
+    $modelResult = $geminiResult;
+    $selectedEngine = 'gemini';
+
+    if (empty($geminiResult['success'])) {
+        $modelResult = aiTryOllamaResponse($guidance, $processQuery, $conversation, $detectedLanguage);
+        $selectedEngine = 'ollama';
+    }
+}
+
+if (!empty($modelResult['success'])) {
+    $answer = $modelResult['answer'];
+    if (!empty($conversationalIntent['greeting_detected']) && !preg_match('/^(?:hello|hi|hey|good (?:morning|afternoon|evening)|magandang (?:umaga|hapon|gabi)|kumusta|kamusta)/i', ltrim($answer))) {
+        $answer = $conversationalIntent['greeting_acknowledgement'] . "\n\n" . $answer;
+    }
+    if ($selectedEngine !== 'verified-knowledge-steps') {
+        $guidance['steps'] = [];
+    }
+    $aiEngine = $selectedEngine;
+} else {
+    $geminiErrorCode = $geminiResult['error_code'] ?? 'unavailable';
+    $ollamaErrorCode = $modelResult['error_code'] ?? 'unavailable';
+    $answer = aiAllProvidersUnavailableMessage($geminiErrorCode, $ollamaErrorCode);
+    logChatbotInquiry($conn, $userId, $role, $query, $answer, $mode, true);
+    http_response_code($geminiErrorCode === 'rate_limited' ? 429 : 503);
+    echo json_encode([
+        'success' => false,
+        'error' => $answer,
+        'message' => $answer,
+        'reply' => $answer,
+        'status' => $geminiErrorCode === 'rate_limited' ? 'rate_limited' : ($ollamaErrorCode === 'model_unavailable' ? 'model_unavailable' : 'offline')
+    ]);
+    exit;
+}
+
 logChatbotInquiry($conn, $userId, $role, $query, $answer, $mode, true);
 
 echo json_encode([
     'success' => true,
+    'reply' => $answer,
     'answer' => $answer,
     'guidance' => $guidance,
     'search_results' => $searchResults,
     'analytics' => $analytics,
-    'mode' => $mode
+    'mode' => $mode,
+    'detected_language' => $detectedLanguage,
+    'intent' => $conversationalIntent['intent'],
+    'ai_engine' => $aiEngine
 ]);

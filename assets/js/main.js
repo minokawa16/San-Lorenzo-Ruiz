@@ -47,8 +47,71 @@ document.addEventListener('DOMContentLoaded', function() {
 
     initGlobalSearchAutocomplete();
     suppressSavedInfoOnRequestInputs();
+    initParishNotifications();
+    initStableDetailModals();
 
 });
+
+// Stable parishioner detail dialogs avoid competing Bootstrap modal handlers.
+function initStableDetailModals() {
+    const triggers = document.querySelectorAll('[data-stable-modal-open]');
+    if (!triggers.length) return;
+
+    // Keep fixed dialogs outside transformed/offset admin layout containers so
+    // they are centered against the full viewport rather than the content pane.
+    document.querySelectorAll('.stable-detail-modal').forEach(function(modal) {
+        if (modal.parentElement !== document.body) document.body.appendChild(modal);
+    });
+
+    let activeModal = null;
+    let returnFocus = null;
+
+    function closeModal(modal) {
+        if (!modal || !modal.classList.contains('is-open')) return;
+        modal.classList.remove('is-open');
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('stable-modal-open');
+        activeModal = null;
+        if (returnFocus && document.contains(returnFocus)) returnFocus.focus();
+        returnFocus = null;
+    }
+
+    function openModal(modal, trigger) {
+        if (!modal) return;
+        if (activeModal && activeModal !== modal) closeModal(activeModal);
+        returnFocus = trigger || document.activeElement;
+        activeModal = modal;
+        modal.classList.add('is-open');
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('stable-modal-open');
+        const closeButton = modal.querySelector('[data-stable-modal-close]');
+        if (closeButton) closeButton.focus({preventScroll: true});
+    }
+
+    triggers.forEach(function(trigger) {
+        trigger.addEventListener('click', function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            const selector = trigger.getAttribute('data-stable-modal-open');
+            if (!selector || selector.charAt(0) !== '#') return;
+            openModal(document.querySelector(selector), trigger);
+        });
+    });
+
+    document.addEventListener('click', function(event) {
+        const closeButton = event.target.closest('[data-stable-modal-close]');
+        if (closeButton) {
+            event.preventDefault();
+            closeModal(closeButton.closest('.stable-detail-modal'));
+            return;
+        }
+        if (activeModal && event.target === activeModal) closeModal(activeModal);
+    });
+
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' && activeModal) closeModal(activeModal);
+    });
+}
 
 // AJAX function to load content
 function loadContent(url, containerId) {
@@ -75,22 +138,204 @@ function formatDate(dateString) {
 }
 
 // Show notification
-function showNotification(message, type = 'info') {
-    const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-    alertDiv.role = 'alert';
-    alertDiv.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-    
-    const container = document.querySelector('.page-content') || document.body;
-    container.insertBefore(alertDiv, container.firstChild);
+function showNotification(message, type = 'info', title = '') {
+    const manager = window.ParishNotify;
+    if (manager && typeof manager.show === 'function') {
+        manager.show({ message: message, type: type, title: title });
+    }
 }
 
 // Confirm delete
 function confirmDelete(message = 'Are you sure you want to delete this item?') {
     return confirm(message);
+}
+
+// Init Parish Notifications Function - Creates a reusable global toast/snackbar service.
+function initParishNotifications() {
+    if (window.ParishNotify && window.ParishNotify.ready) {
+        return;
+    }
+
+    const typeMap = {
+        success: { icon: 'fa-circle-check', title: 'Success' },
+        error: { icon: 'fa-circle-xmark', title: 'Error' },
+        warning: { icon: 'fa-triangle-exclamation', title: 'Warning' },
+        info: { icon: 'fa-circle-info', title: 'Information' }
+    };
+    const aliases = {
+        danger: 'error',
+        failed: 'error',
+        failure: 'error',
+        ok: 'success',
+        notice: 'info',
+        primary: 'info',
+        secondary: 'info'
+    };
+
+    function normalizeType(type) {
+        type = String(type || 'info').toLowerCase();
+        type = aliases[type] || type;
+        return typeMap[type] ? type : 'info';
+    }
+
+    function ensureContainer() {
+        let container = document.getElementById('parishToastContainer');
+        if (!container) {
+            container = document.createElement('div');
+            container.className = 'parish-toast-container';
+            container.id = 'parishToastContainer';
+            container.setAttribute('aria-live', 'polite');
+            container.setAttribute('aria-atomic', 'true');
+            document.body.appendChild(container);
+        }
+        return container;
+    }
+
+    function escapeHtml(value) {
+        return String(value).replace(/[&<>"']/g, function(char) {
+            return {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            }[char];
+        });
+    }
+
+    function show(options, legacyType, legacyTitle) {
+        if (typeof options === 'string') {
+            options = { message: options, type: legacyType, title: legacyTitle };
+        }
+
+        const message = String((options && options.message) || '').trim();
+        if (!message) {
+            return null;
+        }
+
+        const type = normalizeType(options.type);
+        const meta = typeMap[type];
+        const title = String(options.title || meta.title);
+        const duration = Math.max(3000, Math.min(parseInt(options.duration, 10) || 4200, 7000));
+        const container = ensureContainer();
+        const toast = document.createElement('div');
+        toast.className = 'parish-toast parish-toast-' + type;
+        toast.setAttribute('role', type === 'success' || type === 'info' ? 'status' : 'alert');
+        toast.innerHTML = [
+            '<div class="parish-toast-icon"><i class="fas ' + meta.icon + '"></i></div>',
+            '<div class="parish-toast-body">',
+            '<strong>' + escapeHtml(title) + '</strong>',
+            '<span>' + escapeHtml(message) + '</span>',
+            '</div>',
+            '<button type="button" class="parish-toast-close" aria-label="Close notification"><i class="fas fa-xmark"></i></button>',
+            '<div class="parish-toast-bar" style="animation-duration: ' + duration + 'ms"></div>'
+        ].join('');
+
+        function close() {
+            if (toast.classList.contains('is-leaving')) {
+                return;
+            }
+            toast.classList.add('is-leaving');
+            window.setTimeout(function() {
+                toast.remove();
+            }, 260);
+        }
+
+        toast.querySelector('.parish-toast-close').addEventListener('click', close);
+        container.appendChild(toast);
+        window.requestAnimationFrame(function() {
+            toast.classList.add('is-visible');
+        });
+        window.setTimeout(close, duration);
+        return toast;
+    }
+
+    function typeFromAlert(alert) {
+        if (alert.classList.contains('alert-success')) return 'success';
+        if (alert.classList.contains('alert-danger')) return 'error';
+        if (alert.classList.contains('alert-warning')) return 'warning';
+        if (alert.classList.contains('alert-info') || alert.classList.contains('alert-primary')) return 'info';
+        return '';
+    }
+
+    function promoteLegacyAlerts() {
+        document.querySelectorAll('.alert:not([data-no-toast])').forEach(function(alert) {
+            const type = typeFromAlert(alert);
+            const text = alert.textContent.replace(/\s+/g, ' ').trim();
+            if (type && text) {
+                show({ type: type, message: text });
+                alert.dataset.noToast = 'true';
+            }
+        });
+    }
+
+    function notifyFromJson(data, method) {
+        if (!data || typeof data !== 'object') {
+            return;
+        }
+
+        const message = data.message || data.error || data.notice;
+        const hasActionShape = Object.prototype.hasOwnProperty.call(data, 'status')
+            || Object.prototype.hasOwnProperty.call(data, 'type')
+            || Object.prototype.hasOwnProperty.call(data, 'success')
+            || Object.prototype.hasOwnProperty.call(data, 'ok');
+
+        if (!message || !hasActionShape) {
+            return;
+        }
+
+        const shouldNotify = data.notify !== false && (method !== 'GET' || data.notify === true);
+        if (!shouldNotify) {
+            return;
+        }
+
+        let type = data.type || data.status;
+        if (!type) {
+            type = (data.success === true || data.ok === true) ? 'success' : 'error';
+        }
+        show({ type: type, message: message, title: data.title || '' });
+    }
+
+    const nativeConfirm = window.confirm.bind(window);
+    window.confirm = function(message) {
+        show({ type: 'warning', message: message || 'This action needs your confirmation.', title: 'Please Confirm', duration: 3500 });
+        return nativeConfirm(message);
+    };
+
+    if (window.fetch && !window.fetch.__parishNotificationsWrapped) {
+        const nativeFetch = window.fetch.bind(window);
+        const wrappedFetch = function(input, init) {
+            const method = String((init && init.method) || (input && input.method) || 'GET').toUpperCase();
+            return nativeFetch(input, init).then(function(response) {
+                const contentType = response.headers ? (response.headers.get('content-type') || '') : '';
+                if (contentType.indexOf('application/json') !== -1) {
+                    response.clone().json().then(function(data) {
+                        notifyFromJson(data, method);
+                    }).catch(function() {});
+                }
+                return response;
+            }).catch(function(error) {
+                show({ type: 'error', message: 'Network connection lost. Please try again.' });
+                throw error;
+            });
+        };
+        wrappedFetch.__parishNotificationsWrapped = true;
+        window.fetch = wrappedFetch;
+    }
+
+    window.ParishNotify = {
+        ready: true,
+        show: show,
+        success: function(message, title) { return show({ type: 'success', message: message, title: title }); },
+        error: function(message, title) { return show({ type: 'error', message: message, title: title }); },
+        warning: function(message, title) { return show({ type: 'warning', message: message, title: title }); },
+        info: function(message, title) { return show({ type: 'info', message: message, title: title }); }
+    };
+
+    (window.parishInitialNotifications || []).forEach(function(item) {
+        show(item);
+    });
+    promoteLegacyAlerts();
 }
 
 // Export to CSV

@@ -27,13 +27,23 @@ $record = null;
 
 switch($cert_type) {
     case 'baptism':
+    case 'baptism_certification':
         $sql = "SELECT * FROM baptism_records WHERE baptism_id = $record_id AND status = 'active'";
         break;
     case 'communion':
+    case 'first_communion_certification':
         $sql = "SELECT * FROM first_communion_records WHERE communion_id = $record_id AND status = 'active'";
         break;
     case 'confirmation':
+    case 'confirmation_certification':
         $sql = "SELECT * FROM confirmation_records WHERE confirmation_id = $record_id AND status = 'active'";
+        break;
+    case 'marriage':
+    case 'marriage_certification':
+        $sql = "SELECT * FROM marriage_records WHERE marriage_id = $record_id AND status = 'active'";
+        break;
+    case 'funeral_certification':
+        $sql = "SELECT * FROM funeral_records WHERE funeral_id = $record_id AND status = 'active'";
         break;
     default:
         $_SESSION['error'] = 'Invalid record type';
@@ -45,6 +55,7 @@ $result = $conn->query($sql);
 
 if ($result->num_rows > 0) {
     $record = $result->fetch_assoc();
+    unset($_SESSION['manual_certificate']);
     $_SESSION['certificate_data'] = $record;
     $_SESSION['cert_type'] = $cert_type;
     

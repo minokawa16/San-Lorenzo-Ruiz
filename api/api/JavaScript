@@ -1,0 +1,38 @@
+async function sendMessage() {
+    const input = document.getElementById("message");
+    const chat = document.getElementById("chat");
+    const message = input.value.trim();
+
+    if (!message) {
+        return;
+    }
+
+    input.value = "";
+    appendChatLine(chat, "You", message);
+
+    try {
+        const response = await fetch("chat.php", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                message: message
+            })
+        });
+
+        const data = await response.json();
+        appendChatLine(chat, "TUGON", data.answer || data.reply || data.message || "I am unable to answer right now.");
+    } catch (error) {
+        appendChatLine(chat, "TUGON", "I am having trouble connecting right now. Please try again later.");
+    }
+}
+
+function appendChatLine(container, sender, message) {
+    const line = document.createElement("p");
+    const label = document.createElement("strong");
+    label.textContent = sender + ": ";
+    line.appendChild(label);
+    line.appendChild(document.createTextNode(message));
+    container.appendChild(line);
+}

@@ -13,6 +13,7 @@ if (!hasPermission('requests.create')) {
 }
 
 $page_title = 'Request Certificate';
+$body_extra_class = 'certificate-mobile-page';
 $user_id = intval($_SESSION['user_id']);
 $error = '';
 $success = '';
@@ -23,6 +24,12 @@ $certificate_types = [
     'baptismal_certificate' => 'Baptismal Certificate',
     'confirmation_certificate' => 'Confirmation Certificate',
     'first_communion_certificate' => 'First Communion Certificate',
+];
+$certificate_purposes = [
+    'first_communion' => 'First Communion',
+    'confirmation' => 'Confirmation',
+    'marriage' => 'Marriage',
+    'others' => 'Others',
 ];
 $certificate_meta = [
     'baptismal_certificate' => [
@@ -66,16 +73,24 @@ function certificateLabel($value, $labels = []) {
     if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     requireValidCsrfToken();
     $request_type = $_POST['request_type'] ?? '';
-    $description = trim($_POST['description'] ?? '');
+    $purpose = trim((string) ($_POST['purpose'] ?? ''));
+    $purpose_other = trim((string) ($_POST['purpose_other'] ?? ''));
 
     if (!array_key_exists($request_type, $certificate_types)) {
         $error = 'Please select a certificate type.';
+    } elseif (!array_key_exists($purpose, $certificate_purposes)) {
+        $error = 'Please select the purpose of your certificate request.';
+    } elseif ($purpose === 'others' && $purpose_other === '') {
+        $error = 'Please specify the purpose of your certificate request.';
+    } elseif ($purpose === 'others' && strlen($purpose_other) > 180) {
+        $error = 'The custom purpose must be 180 characters or fewer.';
     } elseif (!requestUploadHasFiles($_FILES['requirement_files'] ?? null)) {
         $error = 'Please upload a copy of the PSA / Birth Certificate before submitting your certificate request.';
     } else {
+        $purpose_description = $purpose === 'others' ? $purpose_other : $certificate_purposes[$purpose];
         $description_parts = [
             'Required document: ' . $certificate_required_document,
-            'Details: ' . ($description ?: 'None')
+            'Purpose: ' . $purpose_description
         ];
         $description = implode("\n", $description_parts);
         $reference_number = generateReferenceNumber();
@@ -96,7 +111,6 @@ function certificateLabel($value, $labels = []) {
                     $doc_count = intval($documents['saved'] ?? 0);
                     $file_text = $doc_count === 1 ? 'file' : 'files';
                     createNotification($conn, $user_id, 'Certificate Request Created', 'Your certificate request has been submitted with reference: ' . $reference_number . ' (' . $doc_count . ' ' . $file_text . ' attached)');
-                    sendRequestSubmittedEmail($conn, $user_id, $reference_number, 'certificate request');
                     $success = 'Certificate request submitted successfully! Reference: ' . $reference_number . ' (' . $doc_count . ' file' . ($doc_count === 1 ? '' : 's') . ' attached)';
                 }
             } else {
@@ -107,62 +121,7 @@ function certificateLabel($value, $labels = []) {
     }
 }
 
-$page = intval($_GET['page'] ?? 1);
-$limit = 10;
-$search = trim($_GET['q'] ?? '');
-$status = trim($_GET['status'] ?? '');
-$status = in_array($status, $allowed_statuses, true) ? $status : '';
-$search_like = '%' . $search . '%';
 $certificate_placeholders = implode(',', array_fill(0, count($certificate_type_keys), '?'));
-
-$where = ['user_id = ?', "request_type IN ($certificate_placeholders)"];
-$types = 'i' . str_repeat('s', count($certificate_type_keys));
-$params = array_merge([$user_id], $certificate_type_keys);
-
-if ($status !== '') {
-    $where[] = 'status = ?';
-    $types .= 's';
-    $params[] = $status;
-}
-
-if ($search !== '') {
-    $where[] = '(reference_number LIKE ? OR request_type LIKE ? OR status LIKE ? OR description LIKE ?)';
-    $types .= 'ssss';
-    array_push($params, $search_like, $search_like, $search_like, $search_like);
-}
-
-$where_sql = implode(' AND ', $where);
-$total = 0;
-$stmt = $conn->prepare("SELECT COUNT(*) AS count FROM requests WHERE $where_sql");
-if ($stmt) {
-    $stmt->bind_param($types, ...$params);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $total = intval(($result->fetch_assoc())['count'] ?? 0);
-    $stmt->close();
-}
-
-$pagination = getPaginationData($page, $limit, $total);
-$certificates = [];
-$list_types = $types . 'ii';
-$list_params = array_merge($params, [$pagination['offset'], $pagination['limit']]);
-
-$stmt = $conn->prepare("
-    SELECT request_id, reference_number, request_type, description, status, date_requested, updated_at
-    FROM requests
-    WHERE $where_sql
-    ORDER BY date_requested DESC
-    LIMIT ?, ?
-");
-if ($stmt) {
-    $stmt->bind_param($list_types, ...$list_params);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    while ($row = $result->fetch_assoc()) {
-        $certificates[] = $row;
-    }
-    $stmt->close();
-}
 
 $status_counts = array_fill_keys($allowed_statuses, 0);
 $count_types = 'i' . str_repeat('s', count($certificate_type_keys));
@@ -186,9 +145,25 @@ if ($stmt) {
 <?php include '../includes/back_button.php'; ?>
 
 <style>
+    .certificate-mobile-appbar,
+    .certificate-mobile-breadcrumbs,
+    .certificate-mobile-callout,
+    .certificate-mobile-stepper,
+    .certificate-mobile-type-field {
+        display: none;
+    }
+
     .certificate-page {
         max-width: 1440px;
         margin: 0 auto;
+    }
+
+    .certificate-purpose-other[hidden] {
+        display: none !important;
+    }
+
+    .certificate-purpose-other {
+        margin-top: 12px;
     }
 
     .certificate-hero {
@@ -756,10 +731,625 @@ if ($stmt) {
             z-index: 3;
         }
     }
+
+    /* Phone certificate service: open directly on the working request form. */
+    @media (max-width: 599px) {
+        body.certificate-mobile-page .user-content > .mb-4.no-print,
+        body.certificate-mobile-page .certificate-hero,
+        body.certificate-mobile-page .certificate-status-grid,
+        body.certificate-mobile-page .success-reference a {
+            display: none !important;
+        }
+
+        body.certificate-mobile-page .user-content {
+            padding: 10px 12px max(18px, env(safe-area-inset-bottom)) !important;
+        }
+
+        body.certificate-mobile-page .user-content > .container-fluid {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        body.certificate-mobile-page .certificate-page {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+        }
+
+        body.certificate-mobile-page .certificate-page > .alert {
+            margin: 0 0 12px !important;
+        }
+
+        body.certificate-mobile-page .certificate-form-card {
+            margin: 0 !important;
+            border: 1px solid #E9E1D2 !important;
+            border-radius: 14px !important;
+            box-shadow: 0 4px 14px rgba(42, 36, 28, 0.055) !important;
+        }
+
+        body.certificate-mobile-page .certificate-form-header {
+            min-height: 0 !important;
+            display: flex !important;
+            align-items: flex-start !important;
+            gap: 7px !important;
+            padding: 12px !important;
+            border-bottom: 1px solid #E9E1D2 !important;
+            background: #FFFCF6 !important;
+        }
+
+        body.certificate-mobile-page .certificate-form-header h2 {
+            gap: 7px !important;
+            font-size: 17px !important;
+            line-height: 1.25 !important;
+        }
+
+        body.certificate-mobile-page .certificate-form-header p {
+            margin: 3px 0 0 !important;
+            font-size: 12px !important;
+            line-height: 1.35 !important;
+        }
+
+        body.certificate-mobile-page .certificate-form-header .section-kicker {
+            min-height: 24px !important;
+            padding: 3px 7px !important;
+            font-size: 10px !important;
+            line-height: 1.2 !important;
+            white-space: nowrap !important;
+        }
+
+        body.certificate-mobile-page .form-step {
+            padding: 12px !important;
+        }
+
+        body.certificate-mobile-page .step-heading {
+            min-height: 34px !important;
+            gap: 8px !important;
+            margin: 0 0 9px !important;
+            padding-right: 22px !important;
+        }
+
+        body.certificate-mobile-page .step-number {
+            width: 26px !important;
+            height: 26px !important;
+            min-width: 26px !important;
+            border-radius: 7px !important;
+            font-size: 11px !important;
+        }
+
+        body.certificate-mobile-page .step-heading h3 {
+            font-size: 13.5px !important;
+            font-weight: 700 !important;
+            line-height: 1.25 !important;
+        }
+
+        body.certificate-mobile-page .step-heading p {
+            margin: 1px 0 0 !important;
+            font-size: 11.5px !important;
+            line-height: 1.3 !important;
+        }
+
+        body.certificate-mobile-page .certificate-option-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 8px !important;
+        }
+
+        body.certificate-mobile-page .certificate-option {
+            width: 100% !important;
+            min-width: 0 !important;
+        }
+
+        body.certificate-mobile-page .certificate-option span {
+            width: 100% !important;
+            min-width: 0 !important;
+            min-height: 82px !important;
+            display: grid !important;
+            grid-template-columns: 28px minmax(0, 1fr) !important;
+            grid-template-rows: auto auto !important;
+            align-content: center !important;
+            align-items: center !important;
+            gap: 2px 7px !important;
+            padding: 9px !important;
+            border-color: #E9E1D2 !important;
+            border-radius: 12px !important;
+            box-shadow: none !important;
+            transform: none !important;
+        }
+
+        body.certificate-mobile-page .certificate-option i {
+            grid-column: 1 !important;
+            grid-row: 1 / 3 !important;
+            width: 28px !important;
+            height: 28px !important;
+            border-radius: 7px !important;
+            font-size: 12px !important;
+        }
+
+        body.certificate-mobile-page .certificate-option strong {
+            grid-column: 2 !important;
+            font-size: 11.5px !important;
+            line-height: 1.2 !important;
+            overflow-wrap: anywhere !important;
+        }
+
+        body.certificate-mobile-page .certificate-option small {
+            grid-column: 2 !important;
+            display: -webkit-box !important;
+            overflow: hidden !important;
+            font-size: 9.5px !important;
+            line-height: 1.25 !important;
+            overflow-wrap: anywhere !important;
+            -webkit-box-orient: vertical !important;
+            -webkit-line-clamp: 2 !important;
+        }
+
+        body.certificate-mobile-page .certificate-option input:checked + span {
+            border-color: #B9863A !important;
+            background: #F7ECD6 !important;
+            box-shadow: 0 0 0 1px rgba(185, 134, 58, 0.12) !important;
+        }
+
+        body.certificate-mobile-page .certificate-option input:checked + span::after {
+            top: 6px !important;
+            right: 6px !important;
+            width: 17px !important;
+            height: 17px !important;
+            font-size: 8px !important;
+        }
+
+        body.certificate-mobile-page .certificate-option-grid + .mt-3 {
+            display: none !important;
+        }
+
+        body.certificate-mobile-page .form-step .row.g-3 {
+            --bs-gutter-y: 8px !important;
+        }
+
+        body.certificate-mobile-page .form-step .row.g-3 > .col-lg-4:last-child {
+            display: none !important;
+        }
+
+        body.certificate-mobile-page .form-label {
+            margin-bottom: 4px !important;
+            font-size: 11.5px !important;
+            font-weight: 600 !important;
+            line-height: 1.25 !important;
+        }
+
+        body.certificate-mobile-page .request-form-control,
+        body.certificate-mobile-page .form-control,
+        body.certificate-mobile-page .form-select {
+            min-height: 42px !important;
+            padding: 8px 10px !important;
+            border-color: #E9E1D2 !important;
+            border-radius: 9px !important;
+            font-size: 12px !important;
+            line-height: 1.3 !important;
+        }
+
+        body.certificate-mobile-page textarea.request-form-control {
+            min-height: 92px !important;
+        }
+
+        body.certificate-mobile-page .form-text {
+            margin-top: 5px !important;
+            font-size: 10.5px !important;
+            line-height: 1.3 !important;
+        }
+
+        body.certificate-mobile-page .upload-zone {
+            min-height: 112px !important;
+            gap: 4px !important;
+            padding: 12px 9px !important;
+            border-color: #D8CDBB !important;
+            border-radius: 12px !important;
+            background: #FFFFFF !important;
+        }
+
+        body.certificate-mobile-page .upload-zone i {
+            width: 30px !important;
+            height: 30px !important;
+            border-radius: 7px !important;
+            font-size: 13px !important;
+        }
+
+        body.certificate-mobile-page .upload-zone strong {
+            font-size: 11.5px !important;
+            line-height: 1.25 !important;
+        }
+
+        body.certificate-mobile-page .upload-zone small {
+            font-size: 9.5px !important;
+            line-height: 1.3 !important;
+        }
+
+        body.certificate-mobile-page .file-preview {
+            gap: 7px !important;
+            margin-top: 8px !important;
+            padding: 8px !important;
+            font-size: 11px !important;
+        }
+
+        body.certificate-mobile-page .form-actions {
+            position: sticky !important;
+            bottom: 0 !important;
+            z-index: 4 !important;
+            gap: 5px !important;
+            padding: 11px 12px max(12px, env(safe-area-inset-bottom)) !important;
+            background: linear-gradient(180deg, rgba(247, 243, 236, 0.82), #F7F3EC 28%) !important;
+        }
+
+        body.certificate-mobile-page .submit-request-btn {
+            order: 1 !important;
+            position: static !important;
+            width: 100% !important;
+            min-height: 42px !important;
+            padding: 9px 12px !important;
+            border-radius: 10px !important;
+            background: #8C6427 !important;
+            color: #FFFFFF !important;
+            font-size: 12.5px !important;
+            line-height: 1.2 !important;
+            box-shadow: 0 7px 16px rgba(140, 100, 39, 0.23) !important;
+        }
+
+        body.certificate-mobile-page .privacy-copy {
+            order: 2 !important;
+            text-align: center !important;
+            font-size: 9.5px !important;
+            line-height: 1.25 !important;
+        }
+
+        /* Document-form mobile architecture (375px-430px target). */
+        body.certificate-mobile-page .user-content {
+            padding: 0 0 calc(106px + env(safe-area-inset-bottom)) !important;
+            background: #F7F5F1 !important;
+        }
+
+        body.certificate-mobile-page .certificate-page {
+            display: block !important;
+        }
+
+        body.certificate-mobile-page .certificate-mobile-appbar {
+            position: sticky !important;
+            top: 0 !important;
+            z-index: 1035 !important;
+            min-height: 58px !important;
+            display: grid !important;
+            grid-template-columns: 38px minmax(0, 1fr) 34px !important;
+            align-items: center !important;
+            gap: 10px !important;
+            padding: calc(8px + env(safe-area-inset-top)) 14px 8px !important;
+            border-bottom: 1px solid #E5E7EB !important;
+            background: rgba(255, 255, 255, 0.97) !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.035) !important;
+            backdrop-filter: blur(12px) !important;
+        }
+
+        body.certificate-mobile-page .certificate-mobile-back {
+            width: 38px !important;
+            height: 38px !important;
+            min-width: 38px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            padding: 0 !important;
+            border: 1px solid #E5E7EB !important;
+            border-radius: 10px !important;
+            background: #FFFFFF !important;
+            color: #4A4136 !important;
+            font-size: 13px !important;
+        }
+
+        body.certificate-mobile-page .certificate-mobile-title {
+            min-width: 0 !important;
+            display: grid !important;
+            gap: 1px !important;
+        }
+
+        body.certificate-mobile-page .certificate-mobile-title strong {
+            overflow: hidden !important;
+            color: #26211B !important;
+            font-size: 15px !important;
+            font-weight: 750 !important;
+            line-height: 1.2 !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+        }
+
+        body.certificate-mobile-page .certificate-mobile-title span {
+            color: #7A746C !important;
+            font-size: 10.5px !important;
+            line-height: 1.2 !important;
+        }
+
+        body.certificate-mobile-page .certificate-mobile-profile {
+            width: 34px !important;
+            height: 34px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            border: 1px solid rgba(185, 134, 58, 0.28) !important;
+            border-radius: 50% !important;
+            background: #F7ECD6 !important;
+            color: #76531F !important;
+            font-size: 12px !important;
+            font-weight: 800 !important;
+            text-decoration: none !important;
+        }
+
+        body.certificate-mobile-page .certificate-mobile-breadcrumbs {
+            display: flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            padding: 10px 14px 7px !important;
+            color: #858079 !important;
+            font-size: 10.5px !important;
+            line-height: 1.2 !important;
+            white-space: nowrap !important;
+        }
+
+        body.certificate-mobile-page .certificate-mobile-breadcrumbs a {
+            color: #8C6427 !important;
+            text-decoration: none !important;
+        }
+
+        body.certificate-mobile-page .certificate-mobile-breadcrumbs i {
+            color: #B8B2A9 !important;
+            font-size: 7px !important;
+        }
+
+        body.certificate-mobile-page .certificate-mobile-breadcrumbs strong {
+            overflow: hidden !important;
+            color: #4D4740 !important;
+            font-weight: 650 !important;
+            text-overflow: ellipsis !important;
+        }
+
+        body.certificate-mobile-page .certificate-mobile-callout {
+            display: grid !important;
+            grid-template-columns: 28px minmax(0, 1fr) !important;
+            gap: 9px !important;
+            margin: 4px 12px 10px !important;
+            padding: 10px 11px !important;
+            border: 1px solid #EADDBC !important;
+            border-radius: 12px !important;
+            background: #FFF9EC !important;
+            color: #554730 !important;
+        }
+
+        body.certificate-mobile-page .certificate-mobile-callout > i {
+            width: 28px !important;
+            height: 28px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            border-radius: 8px !important;
+            background: #F4E5C4 !important;
+            color: #8C6427 !important;
+            font-size: 12px !important;
+        }
+
+        body.certificate-mobile-page .certificate-mobile-callout div {
+            min-width: 0 !important;
+            display: grid !important;
+            gap: 2px !important;
+        }
+
+        body.certificate-mobile-page .certificate-mobile-callout strong {
+            font-size: 12px !important;
+            line-height: 1.25 !important;
+        }
+
+        body.certificate-mobile-page .certificate-mobile-callout span {
+            color: #766C5B !important;
+            font-size: 10.5px !important;
+            line-height: 1.35 !important;
+        }
+
+        body.certificate-mobile-page .certificate-mobile-stepper {
+            display: grid !important;
+            grid-template-columns: auto minmax(12px, 1fr) auto minmax(12px, 1fr) auto !important;
+            align-items: center !important;
+            gap: 5px !important;
+            margin: 0 12px 11px !important;
+            padding: 8px 10px !important;
+            border: 1px solid #ECE8E1 !important;
+            border-radius: 12px !important;
+            background: #FFFFFF !important;
+        }
+
+        body.certificate-mobile-page .certificate-mobile-stepper span {
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 4px !important;
+            color: #8C8780 !important;
+            font-size: 9.5px !important;
+            font-weight: 650 !important;
+            white-space: nowrap !important;
+        }
+
+        body.certificate-mobile-page .certificate-mobile-stepper span b {
+            width: 19px !important;
+            height: 19px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            border-radius: 50% !important;
+            background: #F1EFEA !important;
+            color: #7D776F !important;
+            font-size: 9px !important;
+        }
+
+        body.certificate-mobile-page .certificate-mobile-stepper span.is-active {
+            color: #76531F !important;
+        }
+
+        body.certificate-mobile-page .certificate-mobile-stepper span.is-active b {
+            background: #B9863A !important;
+            color: #FFFFFF !important;
+        }
+
+        body.certificate-mobile-page .certificate-mobile-stepper > i {
+            height: 1px !important;
+            background: #E5E1DA !important;
+        }
+
+        body.certificate-mobile-page .certificate-page > .alert {
+            margin: 0 12px 10px !important;
+        }
+
+        body.certificate-mobile-page .certificate-form-card {
+            overflow: visible !important;
+            margin: 0 !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+            background: transparent !important;
+            box-shadow: none !important;
+        }
+
+        body.certificate-mobile-page .certificate-form-header {
+            display: none !important;
+        }
+
+        body.certificate-mobile-page #certificateRequestForm {
+            display: grid !important;
+            gap: 10px !important;
+            padding: 0 12px !important;
+        }
+
+        body.certificate-mobile-page .form-step {
+            padding: 13px !important;
+            border: 1px solid #E5E7EB !important;
+            border-radius: 12px !important;
+            background: #FFFFFF !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+        }
+
+        body.certificate-mobile-page .step-heading {
+            min-height: 0 !important;
+            margin: 0 0 11px !important;
+            padding: 0 !important;
+            cursor: default !important;
+        }
+
+        body.certificate-mobile-page .step-heading::after,
+        body.certificate-mobile-page .step-number {
+            display: none !important;
+        }
+
+        body.certificate-mobile-page .step-heading h3 {
+            color: #302A24 !important;
+            font-size: 14px !important;
+            font-weight: 700 !important;
+            line-height: 1.25 !important;
+        }
+
+        body.certificate-mobile-page .step-heading p {
+            margin-top: 2px !important;
+            color: #77716A !important;
+            font-size: 11.5px !important;
+            line-height: 1.35 !important;
+        }
+
+        body.certificate-mobile-page .certificate-option-grid,
+        body.certificate-mobile-page .certificate-option-grid + .mt-3,
+        body.certificate-mobile-page .certificate-mobile-type-field + .mt-3 {
+            display: none !important;
+        }
+
+        body.certificate-mobile-page .certificate-mobile-type-field {
+            display: block !important;
+        }
+
+        body.certificate-mobile-page .form-label {
+            margin-bottom: 5px !important;
+            color: #4B443D !important;
+            font-size: 11.5px !important;
+            font-weight: 650 !important;
+            line-height: 1.25 !important;
+        }
+
+        body.certificate-mobile-page .request-form-control,
+        body.certificate-mobile-page .form-control,
+        body.certificate-mobile-page .form-select {
+            min-height: 44px !important;
+            padding: 10px 12px !important;
+            border: 1px solid #E5E7EB !important;
+            border-radius: 10px !important;
+            background: #FAFAF9 !important;
+            color: #2F2A25 !important;
+            font-size: 12px !important;
+            line-height: 1.35 !important;
+            box-shadow: none !important;
+        }
+
+        body.certificate-mobile-page textarea.request-form-control {
+            min-height: 96px !important;
+        }
+
+        body.certificate-mobile-page .upload-zone {
+            min-height: 110px !important;
+            padding: 12px !important;
+            border: 1px dashed #D6D0C7 !important;
+            border-radius: 10px !important;
+            background: #FAFAF9 !important;
+        }
+
+        body.certificate-mobile-page .form-actions {
+            position: fixed !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            z-index: 1040 !important;
+            width: 100% !important;
+            display: block !important;
+            padding: 10px 12px calc(10px + env(safe-area-inset-bottom)) !important;
+            border-top: 1px solid #E5E7EB !important;
+            background: rgba(255, 255, 255, 0.97) !important;
+            box-shadow: 0 -4px 14px rgba(0, 0, 0, 0.055) !important;
+            backdrop-filter: blur(12px) !important;
+        }
+
+        body.certificate-mobile-page .privacy-copy {
+            display: none !important;
+        }
+
+        body.certificate-mobile-page .submit-request-btn {
+            width: 100% !important;
+            min-height: 46px !important;
+            padding: 11px 14px !important;
+            border-radius: 10px !important;
+            background: #8C6427 !important;
+            color: #FFFFFF !important;
+            font-size: 13px !important;
+            font-weight: 750 !important;
+            box-shadow: 0 6px 14px rgba(140, 100, 39, 0.22) !important;
+        }
+    }
 </style>
 
 <div class="container-fluid mt-4">
     <div class="certificate-page">
+        <nav class="certificate-mobile-breadcrumbs" aria-label="Breadcrumb">
+            <a href="index.php">Dashboard</a>
+            <i class="fas fa-chevron-right" aria-hidden="true"></i>
+            <span>Certificates</span>
+            <i class="fas fa-chevron-right" aria-hidden="true"></i>
+            <strong>Request</strong>
+        </nav>
+
+        <aside class="certificate-mobile-callout" aria-label="Certificate request requirements">
+            <i class="fas fa-circle-info" aria-hidden="true"></i>
+            <div>
+                <strong>Before you submit</strong>
+                <span>Processing takes 3–5 parish office days. A clear PSA / Birth Certificate copy is required.</span>
+            </div>
+        </aside>
+
+        <?php echo mobileStepRail(['Details', 'Requirements', 'Review'], 1, 'Certificate request progress'); ?>
+
         <section class="certificate-hero">
             <div class="certificate-hero-main">
                 <span class="section-kicker"><i class="fas fa-certificate"></i> Certificate Services</span>
@@ -803,7 +1393,7 @@ if ($stmt) {
     <section class="certificate-status-grid">
         <?php foreach ($status_counts as $status_name => $count): ?>
             <?php $status_info = $status_meta[$status_name] ?? ['icon' => 'fa-circle', 'description' => 'Request status', 'tone' => 'secondary']; ?>
-            <a class="certificate-status-card" href="?status=<?php echo urlencode($status_name); ?>">
+            <a class="certificate-status-card status-<?php echo e($status_name); ?>" href="my-requests.php?status=<?php echo urlencode($status_name); ?>">
                 <div class="status-card-top">
                     <i class="fas <?php echo e($status_info['icon']); ?> text-<?php echo e($status_info['tone']); ?>"></i>
                     <strong><?php echo intval($count); ?></strong>
@@ -845,6 +1435,16 @@ if ($stmt) {
                             </span>
                         </label>
                     <?php endforeach; ?>
+                </div>
+
+                <div class="certificate-mobile-type-field">
+                    <label for="certificateMobileSelect" class="form-label">Document type</label>
+                    <select class="form-select request-form-control" id="certificateMobileSelect" required>
+                        <option value="">Select a certificate</option>
+                        <?php foreach ($certificate_types as $value => $label): ?>
+                            <option value="<?php echo e($value); ?>"><?php echo e($label); ?></option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
 
                 <div class="mt-3">
@@ -890,13 +1490,24 @@ if ($stmt) {
                     <span class="step-number">3</span>
                     <div>
                         <h3>Certificate Details</h3>
-                        <p>Add dates, parents' names, purpose, or parish details that can help staff verify the record.</p>
+                        <p>Select the purpose of your request. Staff will use this to help verify the record.</p>
                     </div>
                 </div>
 
-                <label for="description" class="form-label">Purpose and supporting details</label>
-                <textarea class="form-control request-form-control" id="description" name="description" rows="5" placeholder="Example: For marriage requirements. Baptized around June 2005. Parents: Juan and Maria Santos."></textarea>
-                <div class="form-text"><i class="fas fa-wand-magic-sparkles"></i> TUGON tip: include approximate sacrament date, parents' names, and intended purpose when available.</div>
+                <label for="purpose" class="form-label">Purpose</label>
+                <select class="form-select request-form-control" id="purpose" name="purpose" required>
+                    <option value="">Select purpose</option>
+                    <?php foreach ($certificate_purposes as $purpose_value => $purpose_label): ?>
+                        <option value="<?php echo e($purpose_value); ?>" <?php echo (($_POST['purpose'] ?? '') === $purpose_value) ? 'selected' : ''; ?>><?php echo e($purpose_label); ?></option>
+                    <?php endforeach; ?>
+                </select>
+
+                <div class="certificate-purpose-other" id="purposeOtherField" <?php echo (($_POST['purpose'] ?? '') === 'others') ? '' : 'hidden'; ?>>
+                    <label for="purpose_other" class="form-label">Please specify</label>
+                    <input type="text" class="form-control request-form-control" id="purpose_other" name="purpose_other" maxlength="180" value="<?php echo e($_POST['purpose_other'] ?? ''); ?>" placeholder="e.g. School enrollment, employment requirement">
+                </div>
+
+                <div class="form-text"><i class="fas fa-wand-magic-sparkles"></i> TUGON tip: choose “Others” if your purpose is not listed, then briefly describe it so staff can verify your record faster.</div>
             </section>
 
             <section class="form-step">
@@ -935,115 +1546,38 @@ if ($stmt) {
         </form>
     </div>
 
-    <form class="filter-card" method="GET" action="">
-        <div class="row g-2 align-items-center">
-            <div class="col-lg-6">
-                <label class="form-label">Search requests</label>
-                <div class="input-with-icon">
-                    <i class="fas fa-search"></i>
-                    <input type="text" class="form-control request-form-control" name="q" value="<?php echo e($search); ?>" placeholder="Search certificate, status, details, or reference number">
-                </div>
-            </div>
-            <div class="col-lg-3">
-                <label class="form-label">Status filter</label>
-                <select class="form-select request-form-control" name="status">
-                    <option value="">All Statuses</option>
-                    <?php foreach ($allowed_statuses as $status_option): ?>
-                        <option value="<?php echo e($status_option); ?>" <?php echo $status === $status_option ? 'selected' : ''; ?>>
-                            <?php echo e(certificateLabel($status_option)); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="col-lg-3 d-grid d-md-flex gap-2">
-                <button class="btn btn-primary align-self-end" type="submit"><i class="fas fa-search"></i> Filter</button>
-                <?php if ($search !== '' || $status !== ''): ?>
-                    <a class="btn btn-outline-secondary align-self-end" href="request-certificate.php">Clear</a>
-                <?php endif; ?>
-            </div>
-        </div>
-        <div class="quick-status-tabs">
-            <a href="request-certificate.php" class="<?php echo $status === '' ? 'active' : ''; ?>">All</a>
-            <?php foreach ($allowed_statuses as $status_option): ?>
-                <a href="?status=<?php echo urlencode($status_option); ?>" class="<?php echo $status === $status_option ? 'active' : ''; ?>"><?php echo e(certificateLabel($status_option)); ?></a>
-            <?php endforeach; ?>
-        </div>
-    </form>
-
-    <div class="history-card">
-            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-                <h2 class="section-title"><i class="fas fa-clock-rotate-left"></i> Certificate Request History</h2>
-                <span class="text-muted"><?php echo intval($total); ?> total</span>
-            </div>
-
-            <?php if (!empty($certificates)): ?>
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle history-table">
-                        <thead>
-                            <tr>
-                                <th>Reference</th>
-                                <th>Certificate</th>
-                                <th>Status</th>
-                                <th>Details</th>
-                                <th>Submitted</th>
-                                <th>Updated</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($certificates as $certificate): ?>
-                                <tr onclick="window.location.href='view-request.php?id=<?php echo intval($certificate['request_id']); ?>'" style="cursor:pointer;">
-                                    <td><strong><?php echo e($certificate['reference_number']); ?></strong></td>
-                                    <td><?php echo e(certificateLabel($certificate['request_type'], $certificate_types)); ?></td>
-                                    <td>
-                                        <span class="badge bg-<?php echo getStatusBadgeClass($certificate['status']); ?>">
-                                            <?php echo e(certificateLabel($certificate['status'])); ?>
-                                        </span>
-                                    </td>
-                                    <td><?php echo nl2br(e($certificate['description'] ?: 'No details provided')); ?></td>
-                                    <td><?php echo formatDateTime($certificate['date_requested']); ?></td>
-                                    <td><?php echo formatDateTime($certificate['updated_at']); ?></td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-
-                <?php if ($pagination['total_pages'] > 1): ?>
-                    <nav class="mt-3">
-                        <ul class="pagination justify-content-center">
-                            <?php for ($i = 1; $i <= $pagination['total_pages']; $i++): ?>
-                                <li class="page-item <?php echo $i == $pagination['page'] ? 'active' : ''; ?>">
-                                    <a class="page-link" href="?page=<?php echo $i; ?>&q=<?php echo urlencode($search); ?>&status=<?php echo urlencode($status); ?>">
-                                        <?php echo $i; ?>
-                                    </a>
-                                </li>
-                            <?php endfor; ?>
-                        </ul>
-                    </nav>
-                <?php endif; ?>
-            <?php else: ?>
-                <div class="empty-state">
-                    <i class="fas fa-file-circle-plus"></i>
-                    <h5>No certificate requests yet.</h5>
-                    <p class="mb-3">Your submitted certificate requests and status updates will appear here.</p>
-                    <a href="#certificateRequestForm" class="btn btn-primary"><i class="fas fa-plus"></i> Submit your first request</a>
-                </div>
-            <?php endif; ?>
-    </div>
     </div>
 </div>
 
 <script>
     (function() {
         const select = document.getElementById('certificateSearchSelect');
+        const mobileSelect = document.getElementById('certificateMobileSelect');
         const radios = document.querySelectorAll('input[name="request_type"]');
         const fileInput = document.getElementById('requirement_files');
         const uploadZone = document.getElementById('uploadZone');
+        const purposeSelect = document.getElementById('purpose');
+        const purposeOtherField = document.getElementById('purposeOtherField');
+        const purposeOtherInput = document.getElementById('purpose_other');
         const filePreview = document.getElementById('filePreview');
         const fileName = document.getElementById('fileName');
         const fileSize = document.getElementById('fileSize');
         const form = document.getElementById('certificateRequestForm');
         const submitBtn = document.getElementById('submitRequestBtn');
+
+        function updatePurposeField() {
+            if (!purposeSelect || !purposeOtherField || !purposeOtherInput) return;
+            const showOther = purposeSelect.value === 'others';
+            purposeOtherField.hidden = !showOther;
+            purposeOtherInput.required = showOther;
+            purposeOtherInput.setAttribute('aria-required', showOther ? 'true' : 'false');
+            if (!showOther) purposeOtherInput.value = '';
+        }
+
+        if (purposeSelect) {
+            purposeSelect.addEventListener('change', updatePurposeField);
+            updatePurposeField();
+        }
         const certificateLabels = <?php echo json_encode($certificate_types); ?>;
 
         if (select) {
@@ -1128,6 +1662,105 @@ if ($stmt) {
                 submitBtn.disabled = true;
             });
         }
+    })();
+</script>
+
+<script>
+    (function() {
+        const mobileQuery = window.matchMedia('(min-width: 600px) and (max-width: 767px)');
+        const form = document.getElementById('certificateRequestForm');
+        const steps = Array.from(document.querySelectorAll('#certificateRequestForm .form-step'));
+
+        function setStepExpanded(step, expanded) {
+            const heading = step.querySelector('.step-heading');
+            step.classList.toggle('is-collapsed', !expanded);
+            if (heading) {
+                heading.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+            }
+        }
+
+        function syncMobileSteps() {
+            steps.forEach(function(step, index) {
+                const heading = step.querySelector('.step-heading');
+                if (!heading) return;
+
+                if (mobileQuery.matches) {
+                    heading.setAttribute('role', 'button');
+                    heading.setAttribute('tabindex', '0');
+                    if (!step.dataset.mobileAccordionReady) {
+                        setStepExpanded(step, index === 0);
+                        step.dataset.mobileAccordionReady = 'true';
+                    }
+                } else {
+                    step.classList.remove('is-collapsed');
+                    heading.removeAttribute('role');
+                    heading.removeAttribute('tabindex');
+                    heading.removeAttribute('aria-expanded');
+                    delete step.dataset.mobileAccordionReady;
+                }
+            });
+        }
+
+        if (mobileSelect) {
+            mobileSelect.addEventListener('change', function() {
+                const value = mobileSelect.value;
+                const match = value ? document.querySelector('input[name="request_type"][value="' + value.replace(/"/g, '\\"') + '"]') : null;
+                if (match) {
+                    match.checked = true;
+                }
+            });
+
+            radios.forEach(function(radio) {
+                radio.addEventListener('change', function() {
+                    mobileSelect.value = radio.value;
+                });
+            });
+        }
+
+        const mobileBack = document.querySelector('[data-certificate-mobile-back]');
+        if (mobileBack) {
+            mobileBack.addEventListener('click', function() {
+                if (window.history.length > 1) {
+                    window.history.back();
+                } else {
+                    window.location.href = 'index.php';
+                }
+            });
+        }
+
+        steps.forEach(function(step) {
+            const heading = step.querySelector('.step-heading');
+            if (!heading) return;
+
+            function toggleStep() {
+                if (!mobileQuery.matches) return;
+                setStepExpanded(step, step.classList.contains('is-collapsed'));
+            }
+
+            heading.addEventListener('click', toggleStep);
+            heading.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    toggleStep();
+                }
+            });
+        });
+
+        if (form) {
+            form.addEventListener('invalid', function(event) {
+                const step = event.target.closest('.form-step');
+                if (step && mobileQuery.matches) {
+                    setStepExpanded(step, true);
+                }
+            }, true);
+        }
+
+        if (typeof mobileQuery.addEventListener === 'function') {
+            mobileQuery.addEventListener('change', syncMobileSteps);
+        } else {
+            mobileQuery.addListener(syncMobileSteps);
+        }
+        syncMobileSteps();
     })();
 </script>
 

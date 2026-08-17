@@ -21,6 +21,7 @@ $page_title = 'Calendar & Scheduling';
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css">
+    <link rel="stylesheet" href="../assets/css/style.css">
     <style>
         :root {
             --calendar-primary: #1a73e8;
@@ -466,8 +467,10 @@ $page_title = 'Calendar & Scheduling';
             }
         }
     </style>
+    <link rel="stylesheet" href="../assets/css/theme.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/theme.css') ? filemtime(__DIR__ . '/../assets/css/theme.css') : time(); ?>">
 </head>
 <body>
+<div class="parish-toast-container" id="parishToastContainer" aria-live="polite" aria-atomic="true"></div>
 <div class="admin-layout">
     <?php include '../includes/admin-sidebar.php'; ?>
 
@@ -479,12 +482,6 @@ $page_title = 'Calendar & Scheduling';
                     <h1>Calendar & Scheduling</h1>
                     <span>Manage parish events, tasks, reservations, meetings, and sacramental schedules.</span>
                 </div>
-            </div>
-            <div class="calendar-actions">
-                <button class="toolbar-btn" type="button" id="todayBtn"><i class="fas fa-location-crosshairs"></i><span>Today</span></button>
-                <button class="toolbar-btn" type="button" id="printBtn"><i class="fas fa-print"></i><span>Print</span></button>
-                <button class="toolbar-btn" type="button" id="exportBtn"><i class="fas fa-file-pdf"></i><span>Export PDF</span></button>
-                <button class="icon-btn" type="button" id="darkBtn" aria-label="Dark mode"><i class="fas fa-moon"></i></button>
             </div>
         </div>
 
@@ -500,14 +497,15 @@ $page_title = 'Calendar & Scheduling';
                 <select class="filter-select" id="categoryFilter">
                     <option value="all">All categories</option>
                     <option value="event">Events</option>
-                    <option value="mass">Schedule calendar</option>
-                    <option value="sacramental">Sacramental schedules</option>
+                    <option value="mass">Mass / Public Schedule</option>
+                    <option value="monthly_mass">Monthly Mass</option>
+                    <option value="sacramental">Sacramental Services</option>
+                    <option value="patronal_fiesta">Patronal Fiesta</option>
                     <option value="meeting">Meetings</option>
                     <option value="task">Tasks</option>
                     <option value="blessing">Blessings</option>
                     <option value="reservation">Reservations</option>
                     <option value="announcement">Announcements</option>
-                    <option value="deadline">Deadlines</option>
                 </select>
 
                 <select class="filter-select" id="statusFilter">
@@ -521,10 +519,11 @@ $page_title = 'Calendar & Scheduling';
                 <div class="legend" aria-label="Calendar legend">
                     <div class="legend-item"><span class="legend-dot" style="background:#1a73e8"></span> Parish Event</div>
                     <div class="legend-item"><span class="legend-dot" style="background:#34a853"></span> Mass / Public Schedule</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#a142f4"></span> Sacramental</div>
+                    <div class="legend-item"><span class="legend-dot" style="background:#0f9d58"></span> Monthly Mass</div>
+                    <div class="legend-item"><span class="legend-dot" style="background:#a142f4"></span> Sacramental Services</div>
+                    <div class="legend-item"><span class="legend-dot" style="background:#c026d3"></span> Patronal Fiesta</div>
                     <div class="legend-item"><span class="legend-dot" style="background:#fbbc04"></span> Announcement</div>
                     <div class="legend-item"><span class="legend-dot" style="background:#d7ad43"></span> Blessing</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#ea4335"></span> Deadline / High Priority</div>
                 </div>
 
                 <div class="smart-card">
@@ -566,13 +565,14 @@ $page_title = 'Calendar & Scheduling';
                         <select class="form-select" id="category">
                             <option value="event">Event</option>
                             <option value="mass">Mass schedule</option>
-                            <option value="sacramental">Sacramental schedule</option>
+                            <option value="monthly_mass">Monthly Mass</option>
+                            <option value="sacramental">Sacramental Services</option>
+                            <option value="patronal_fiesta">Patronal Fiesta</option>
                             <option value="meeting">Meeting</option>
                             <option value="task">Task</option>
                             <option value="blessing">Blessing</option>
                             <option value="reservation">Reservation</option>
                             <option value="announcement">Announcement</option>
-                            <option value="deadline">Deadline</option>
                         </select>
                     </div>
                     <div class="col-12">
@@ -699,6 +699,7 @@ $page_title = 'Calendar & Scheduling';
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../assets/js/main.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
 <script>
 const apiUrl = '../api/calendar-events.php';
@@ -712,17 +713,22 @@ let searchTimer;
 const defaultColors = {
     event: '#1a73e8',
     mass: '#34a853',
+    monthly_mass: '#0f9d58',
     sacramental: '#a142f4',
+    patronal_fiesta: '#c026d3',
     meeting: '#00acc1',
     task: '#fbbc04',
     blessing: '#d7ad43',
     reservation: '#188038',
-    announcement: '#fbbc04',
-    deadline: '#ea4335'
+    announcement: '#fbbc04'
 };
 
 // Toast Function - Documents this helper's role in the parish management workflow.
 function toast(message, type = 'success') {
+    if (window.ParishNotify && typeof window.ParishNotify.show === 'function') {
+        window.ParishNotify.show({message, type});
+        return;
+    }
     const el = document.createElement('div');
     el.className = `alert alert-${type === 'error' ? 'danger' : type} shadow-sm`;
     el.textContent = message;
@@ -853,10 +859,6 @@ function showDetails(event) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    if (localStorage.getItem('adminCalendarDark') === 'true') {
-        document.body.classList.add('calendar-dark');
-    }
-
     calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
         initialView: window.innerWidth < 700 ? 'listWeek' : 'dayGridMonth',
         height: 'auto',
@@ -967,14 +969,6 @@ document.getElementById('deleteEventBtn').addEventListener('click', async functi
 document.getElementById('fabAdd').addEventListener('click', function() {
     resetForm(new Date());
     modal.show();
-});
-
-document.getElementById('todayBtn').addEventListener('click', () => calendar.today());
-document.getElementById('printBtn').addEventListener('click', () => window.print());
-document.getElementById('exportBtn').addEventListener('click', () => window.print());
-document.getElementById('darkBtn').addEventListener('click', function() {
-    document.body.classList.toggle('calendar-dark');
-    localStorage.setItem('adminCalendarDark', document.body.classList.contains('calendar-dark'));
 });
 
 document.getElementById('miniMonth').addEventListener('change', function() {

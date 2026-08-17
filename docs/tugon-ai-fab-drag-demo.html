@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TUGON AI FAB free-placement demo</title>
+<style>
+*{box-sizing:border-box}body{margin:0;padding:28px;background:#ded8cc;color:#2a241c;font-family:Arial,sans-serif}.title{text-align:center;margin:0 0 22px;font:700 22px Georgia,serif}.sequence{display:flex;align-items:center;justify-content:center;gap:18px}.frame{width:260px}.label{text-align:center;margin-bottom:8px;color:#8c6427;font-size:12px;font-weight:800}.phone{position:relative;height:460px;overflow:hidden;border:7px solid #211e19;border-radius:28px;background:#f7f3ec;box-shadow:0 16px 32px #0003}.header{height:80px;padding:18px;background:linear-gradient(135deg,#2a241c,#574625);color:#f7ecd6;font:700 18px Georgia,serif}.content{padding:14px}.line{height:58px;margin-bottom:9px;border:1px solid #ece4d3;border-radius:13px;background:#fff}.fab{position:absolute;width:54px;height:54px;display:grid;place-items:center;border:3px solid #f7ecd6;border-radius:50%;background:radial-gradient(circle at 35% 30%,#e0ac5c,#b9863a 55%,#8c6427);box-shadow:0 10px 24px #8c64276b;font-size:20px}.fab:after{content:"";position:absolute;inset:-7px;border:2px solid #b9863a80;border-radius:50%}.tip{position:absolute;right:0;bottom:66px;width:max-content;padding:7px 10px;border-radius:9px;background:#2a241c;color:#f7ecd6;font-size:9px;font-weight:700}.tip b{color:#c9973f}.one .fab{right:14px;bottom:14px}.two .fab{left:95px;top:205px;transform:scale(1.1);box-shadow:0 16px 34px #4e341680}.two .fab:before{content:"Drag";position:absolute;top:-34px;padding:5px 9px;border-radius:999px;background:#fff;color:#8c6427;font-size:9px;font-weight:800}.two .tip,.three .tip{display:none}.three .fab{left:14px;top:118px}.saved{position:absolute;left:14px;top:180px;padding:6px 9px;border-radius:999px;background:#e8f3ea;color:#4c8b5f;font-size:9px;font-weight:800}.arrow{color:#8c6427;font-size:26px}.note{text-align:center;margin-top:18px;color:#6f675c;font-size:11px}
+</style>
+</head>
+<body>
+<h1 class="title">TUGON AI Assistant — Free Placement</h1>
+<div class="sequence">
+  <div class="frame"><div class="label">1. Press and move</div><div class="phone one"><div class="header">TUGON</div><div class="content"><div class="line"></div><div class="line"></div><div class="line"></div><div class="line"></div></div><div class="fab"><div class="tip"><b>TUGON</b> AI Parish Assistant</div>⛪</div></div></div>
+  <div class="arrow">→</div>
+  <div class="frame"><div class="label">2. Drag anywhere safe</div><div class="phone two"><div class="header">TUGON</div><div class="content"><div class="line"></div><div class="line"></div><div class="line"></div><div class="line"></div></div><div class="fab">⛪</div></div></div>
+  <div class="arrow">→</div>
+  <div class="frame"><div class="label">3. Release — position saved</div><div class="phone three"><div class="header">TUGON</div><div class="content"><div class="line"></div><div class="line"></div><div class="line"></div><div class="line"></div></div><div class="fab">⛪</div><div class="saved">✓ Remembered for this user</div></div></div>
+</div>
+<div class="note">The FAB stays inside a 10px safe area and is kept above bottom navigation or sticky actions. Long-press to reset.</div>
+</body>
+</html>

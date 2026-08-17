@@ -12,6 +12,7 @@ if (!isUser()) {
 }
 
 $page_title = 'TUGON AI Parish Assistant';
+$body_extra_class = 'user-ai-chat-page';
 ?>
 <?php include '../templates/header.php'; ?>
 
@@ -102,6 +103,11 @@ $page_title = 'TUGON AI Parish Assistant';
         flex-wrap: wrap;
         justify-content: flex-end;
         gap: 8px;
+    }
+
+    .tugon-ai-mobile-back,
+    .tugon-ai-footer-actions {
+        display: none;
     }
 
     .ai-status-pill,
@@ -538,11 +544,15 @@ $page_title = 'TUGON AI Parish Assistant';
         }
     }
 </style>
+<link rel="stylesheet" href="../assets/css/theme.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/theme.css') ? filemtime(__DIR__ . '/../assets/css/theme.css') : time(); ?>">
 
 <main class="tugon-ai-page" id="tugonAiPage">
     <section class="tugon-ai-shell">
         <div class="tugon-ai-card" id="tugonAiCard">
             <header class="tugon-ai-header">
+                <a class="tugon-ai-mobile-back" href="index.php" aria-label="Back to dashboard menu">
+                    <i class="fas fa-chevron-left" aria-hidden="true"></i>
+                </a>
                 <div class="tugon-ai-identity">
                     <div class="tugon-ai-avatar" aria-hidden="true">
                         <i class="fas fa-church"></i>
@@ -572,14 +582,18 @@ $page_title = 'TUGON AI Parish Assistant';
                     <div class="tugon-ai-welcome" id="aiWelcome">
                         <h2>Welcome to TUGON AI Parish Assistant</h2>
                         <p>I can help you with certificate requests, Mass schedules, parish events, sacramental requirements, announcements, frequently asked questions, and request tracking.</p>
-                        <div class="ai-quick-grid" id="aiQuickActions"></div>
                     </div>
 
                     <div class="tugon-chat-log" id="aiChatLog" aria-live="polite"></div>
 
+                    <nav class="tugon-ai-footer-actions" aria-label="Quick parish assistant actions">
+                        <span class="tugon-ai-footer-actions-label"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> Quick Actions</span>
+                        <div class="ai-quick-grid" id="aiQuickActions"></div>
+                    </nav>
+
                     <form class="tugon-ai-form" id="aiChatForm">
                         <label class="visually-hidden" for="aiMessage">Ask a parish question</label>
-                        <textarea id="aiMessage" rows="1" placeholder="Ask about certificates, sacraments, schedules, announcements, or request status..."></textarea>
+                        <textarea id="aiMessage" rows="1" placeholder="Type your message..."></textarea>
                         <button class="ai-voice-btn" type="button" id="aiVoiceBtn" title="Voice input" aria-label="Voice input">
                             <i class="fas fa-microphone"></i>
                         </button>
@@ -626,6 +640,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const clearBtn = document.getElementById('aiClearBtn');
     const minimizeBtn = document.getElementById('aiMinimizeBtn');
     const voiceBtn = document.getElementById('aiVoiceBtn');
+    const sendBtn = form.querySelector('.ai-send-btn');
+    const conversationHistory = [];
+    let assistantCsrfToken = <?php echo json_encode(generateCsrfToken()); ?>;
 
     const actions = [
         {label: 'Baptism Requirements', prompt: 'What are the Baptism requirements?', icon: 'fa-water'},
@@ -700,19 +717,43 @@ document.addEventListener('DOMContentLoaded', function() {
         return relatedSuggestions[key] || relatedSuggestions.certificate;
     }
 
+    function typingDelayFor(text) {
+        const length = String(text || '').length;
+        return Math.min(1200, Math.max(420, length * 8));
+    }
+
+    function typeText(target, text, done) {
+        const value = String(text || '');
+        let index = 0;
+        const speed = Math.max(10, Math.min(24, Math.floor(900 / Math.max(value.length, 1))));
+        target.textContent = '';
+        function tick() {
+            target.textContent = value.slice(0, index);
+            scrollLatest();
+            index += 1;
+            if (index <= value.length) {
+                window.setTimeout(tick, speed);
+            } else if (typeof done === 'function') {
+                done();
+            }
+        }
+        tick();
+    }
+
     function addMessage(type, options) {
         const title = options.title || (type === 'user' ? 'You' : 'TUGON AI Parish Assistant');
         const body = options.body || '';
         const steps = options.steps || [];
         const suggestions = options.suggestions || [];
         const isLoading = options.loading || false;
+        const shouldStream = options.stream || false;
         const item = document.createElement('div');
         item.className = 'ai-message ' + type + (isLoading ? ' loading' : '');
         const icon = type === 'user' ? 'fa-user' : 'fa-church';
         const stepsHtml = steps.length ? '<ol>' + steps.map(function(step) { return '<li>' + escapeHtml(step) + '</li>'; }).join('') + '</ol>' : '';
         const bodyHtml = isLoading
             ? '<div class="ai-typing-line">TUGON AI is typing <span class="ai-typing-dots"><span></span><span></span><span></span></span></div>'
-            : '<p>' + escapeHtml(body) + '</p>' + stepsHtml;
+            : '<p><span class="ai-response-text">' + (shouldStream ? '' : escapeHtml(body)) + '</span></p>' + stepsHtml;
         const suggestionHtml = suggestions.length && !isLoading
             ? '<div class="ai-suggestions"><span class="ai-suggestion-label">You may also need:</span>' + suggestions.map(function(label) {
                 const found = actions.find(function(action) { return action.label === label; }) || {label: label, prompt: label, icon: 'fa-circle-question'};
@@ -730,6 +771,11 @@ document.addEventListener('DOMContentLoaded', function() {
             '</div>';
         log.appendChild(item);
         scrollLatest();
+        if (shouldStream) {
+            typeText(item.querySelector('.ai-response-text'), body, function() {
+                input.focus();
+            });
+        }
         return item;
     }
 
@@ -742,44 +788,99 @@ document.addEventListener('DOMContentLoaded', function() {
         if (loading) loading.remove();
     }
 
-    function askAssistant(message, mode) {
-        if (!message) return;
-        addMessage('user', {title: 'You', body: message});
-        addMessage('assistant', {loading: true});
-        setTyping(true);
-
-        fetch('../api/ai-assistant.php', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({message: message, mode: mode || 'chat'})
+    function refreshAssistantCsrfToken() {
+        return fetch('../api/csrf-token.php', {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: {'Accept': 'application/json'}
         })
         .then(function(response) { return response.json(); })
         .then(function(data) {
-            removeLoading();
-            setTyping(false);
-            if (!data.success) {
-                addMessage('assistant', {
-                    title: 'TUGON AI Parish Assistant',
-                    body: data.message || 'I am unable to answer right now. Please try again.',
-                    suggestions: ['Mass Schedule', 'Request Certificate', 'Contact Parish Office']
-                });
-                return;
+            if (!data.success || !data.token) {
+                throw new Error(data.error || 'Unable to refresh the secure session token.');
             }
-            addMessage('assistant', {
-                title: data.guidance && data.guidance.title ? data.guidance.title : 'Here is the information you need',
-                body: data.answer || 'Thank you for your question. I would be glad to assist you with parish services.',
-                steps: data.guidance && data.guidance.steps ? data.guidance.steps : [],
-                suggestions: suggestionSet(message)
+            assistantCsrfToken = data.token;
+            return assistantCsrfToken;
+        });
+    }
+
+    function postAssistantMessage(message, mode, retried) {
+        return fetch('../api/ai-assistant.php', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-Token': assistantCsrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({message: message, mode: mode || 'chat', conversation: conversationHistory.slice(-8)})
+        })
+        .then(function(response) {
+            return response.json().then(function(data) {
+                if (response.status === 403 && !retried) {
+                    return refreshAssistantCsrfToken().then(function() {
+                        return postAssistantMessage(message, mode, true);
+                    });
+                }
+                return data;
             });
+        });
+    }
+
+    function askAssistant(message, mode) {
+        if (!message) return;
+        addMessage('user', {title: 'You', body: message});
+        conversationHistory.push({role: 'user', content: message});
+        addMessage('assistant', {loading: true});
+        setTyping(true);
+        sendBtn.disabled = true;
+
+        postAssistantMessage(message, mode, false)
+        .then(function(data) {
+            const answer = data.success
+                ? (data.answer || 'Thank you for your question. I would be glad to assist you with parish services.')
+                : (data.message || 'I am unable to answer right now. Please try again.');
+            const title = data.success
+                ? (data.guidance && data.guidance.title ? data.guidance.title : 'Here is the information you need')
+                : 'TUGON AI Parish Assistant';
+            window.setTimeout(function() {
+                removeLoading();
+                setTyping(false);
+                sendBtn.disabled = false;
+                if (!data.success) {
+                    addMessage('assistant', {
+                        title: title,
+                        body: answer,
+                        suggestions: ['Mass Schedule', 'Request Certificate', 'Contact Parish Office'],
+                        stream: true
+                    });
+                    conversationHistory.push({role: 'assistant', content: answer});
+                    return;
+                }
+                addMessage('assistant', {
+                    title: title,
+                    body: answer,
+                    steps: data.guidance && data.guidance.steps ? data.guidance.steps : [],
+                    suggestions: suggestionSet(message),
+                    stream: true
+                });
+                conversationHistory.push({role: 'assistant', content: answer});
+            }, typingDelayFor(answer));
         })
         .catch(function() {
-            removeLoading();
-            setTyping(false);
-            addMessage('assistant', {
-                title: 'Connection Issue',
-                body: 'Unable to reach the chatbot endpoint. Please try again.',
-                suggestions: ['Mass Schedule', 'Request Certificate', 'Contact Parish Office']
-            });
+            const answer = 'Unable to reach the chatbot endpoint. Please try again.';
+            window.setTimeout(function() {
+                removeLoading();
+                setTyping(false);
+                sendBtn.disabled = false;
+                addMessage('assistant', {
+                    title: 'Connection Issue',
+                    body: answer,
+                    suggestions: ['Mass Schedule', 'Request Certificate', 'Contact Parish Office'],
+                    stream: true
+                });
+            }, typingDelayFor(answer));
         });
     }
 
@@ -787,9 +888,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     addMessage('assistant', {
         title: 'Welcome to TUGON AI Parish Assistant',
-        body: 'Thank you for visiting. I can help you with certificates, sacraments, schedules, announcements, request tracking, and parish office guidance. How may I assist you today?',
+        body: 'Welcome to TUGON AI Parish Assistant. How may I assist you today?',
         suggestions: ['Baptism Requirements', 'Mass Schedule', 'Request Certificate']
     });
+    conversationHistory.push({role: 'assistant', content: 'Welcome to TUGON AI Parish Assistant. How may I assist you today?'});
+    input.focus();
 
     form.addEventListener('submit', function(event) {
         event.preventDefault();
@@ -797,6 +900,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!message) return;
         input.value = '';
         askAssistant(message, 'chat');
+        input.focus();
     });
 
     input.addEventListener('keydown', function(event) {
@@ -828,11 +932,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     clearBtn.addEventListener('click', function() {
         log.innerHTML = '';
+        conversationHistory.length = 0;
         addMessage('assistant', {
             title: 'Conversation Cleared',
             body: 'Let me help you start fresh. You may ask about certificates, sacraments, schedules, announcements, or request status.',
             suggestions: ['Baptism Requirements', 'Mass Schedule', 'Track Request Status']
         });
+        conversationHistory.push({role: 'assistant', content: 'Let me help you start fresh. You may ask about certificates, sacraments, schedules, announcements, or request status.'});
+        input.focus();
     });
 
     minimizeBtn.addEventListener('click', function() {

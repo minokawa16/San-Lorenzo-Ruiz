@@ -91,11 +91,11 @@ if ($event_date !== '') {
     $param_types .= 's';
 }
 
-$order_sql = "a.is_pinned DESC, FIELD(a.type, 'important_notice') DESC, a.published_date DESC";
+$order_sql = "a.published_date DESC, a.announcement_id DESC";
 if ($sort === 'oldest') {
-    $order_sql = "a.is_pinned DESC, FIELD(a.type, 'important_notice') DESC, a.published_date ASC";
+    $order_sql = "a.published_date ASC, a.announcement_id ASC";
 } elseif ($sort === 'event_date') {
-    $order_sql = "a.is_pinned DESC, a.event_date IS NULL, a.event_date ASC, FIELD(a.type, 'important_notice') DESC, a.published_date DESC";
+    $order_sql = "a.event_date IS NULL, a.event_date ASC, a.published_date DESC, a.announcement_id DESC";
 }
 
 $announcements = [];
@@ -115,17 +115,6 @@ if ($stmt) {
         $announcements[] = $row;
     }
     $stmt->close();
-}
-
-$featured_announcement = null;
-foreach ($announcements as $candidate) {
-    if (!empty($candidate['event_date']) && strtotime($candidate['event_date']) >= strtotime(date('Y-m-d'))) {
-        $featured_announcement = $candidate;
-        break;
-    }
-}
-if (!$featured_announcement && !empty($announcements)) {
-    $featured_announcement = $announcements[0];
 }
 
 // Announcement Meta Function - Documents this helper's role in the parish management workflow.
@@ -419,14 +408,15 @@ function announcementCountdown($event_date) {
 
     .announcement-grid {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 16px;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 18px;
     }
 
     .announcement-card {
         overflow: hidden;
         display: grid;
-        min-height: 100%;
+        grid-template-columns: minmax(280px, 0.95fr) minmax(0, 1.05fr);
+        min-height: 300px;
         transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
     }
 
@@ -437,7 +427,8 @@ function announcementCountdown($event_date) {
     }
 
     .announcement-thumb {
-        height: 190px;
+        height: 100%;
+        min-height: 300px;
         background: linear-gradient(135deg, #f8fafc, #eef5fb);
         display: grid;
         place-items: center;
@@ -452,19 +443,20 @@ function announcementCountdown($event_date) {
     }
 
     .announcement-thumb i {
-        font-size: 2.5rem;
+        font-size: 4rem;
         opacity: 0.8;
     }
 
     .announcement-card-body {
-        padding: 18px;
+        padding: 26px;
         display: grid;
-        gap: 10px;
+        align-content: center;
+        gap: 12px;
     }
 
     .announcement-card h3 {
         margin: 0;
-        font-size: 1.05rem;
+        font-size: 1.5rem;
     }
 
     .announcement-card p {
@@ -502,12 +494,6 @@ function announcementCountdown($event_date) {
         line-height: 1.7;
     }
 
-    @media (max-width: 1180px) {
-        .announcement-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-    }
-
     @media (max-width: 768px) {
         .announcements-hero,
         .featured-grid,
@@ -517,6 +503,29 @@ function announcementCountdown($event_date) {
 
         .featured-media {
             min-height: 220px;
+        }
+
+        .announcement-card {
+            grid-template-columns: 1fr;
+            min-height: 0;
+        }
+
+        .announcement-thumb {
+            height: 180px;
+            min-height: 180px;
+        }
+
+        .announcement-thumb i {
+            font-size: 2.5rem;
+        }
+
+        .announcement-card-body {
+            padding: 16px;
+            align-content: start;
+        }
+
+        .announcement-card h3 {
+            font-size: 1.05rem;
         }
     }
 </style>
@@ -537,7 +546,7 @@ function announcementCountdown($event_date) {
             <aside class="announcement-insight">
                 <i class="fas fa-robot"></i>
                 <strong>Smart parish update</strong>
-                <p><?php echo $featured_announcement ? 'Important parish communication detected: ' . e($featured_announcement['title']) : 'No active parish announcements are available right now.'; ?></p>
+                <p><?php echo !empty($announcements) ? 'Latest parish communication: ' . e($announcements[0]['title']) : 'No active parish announcements are available right now.'; ?></p>
             </aside>
         </section>
 
@@ -592,52 +601,6 @@ function announcementCountdown($event_date) {
             </div>
         </form>
 
-        <?php if ($featured_announcement): ?>
-            <?php $featured_meta = announcementMeta($featured_announcement['type'], $announcement_type_meta); ?>
-            <section class="featured-announcement">
-                <div class="featured-grid">
-                    <div class="featured-media">
-                        <?php if (!empty($featured_announcement['attachment_path']) && isAnnouncementImageAttachment($featured_announcement['attachment_mime_type'] ?? '')): ?>
-                            <img src="../announcement-attachment.php?id=<?php echo intval($featured_announcement['announcement_id']); ?>" alt="<?php echo e($featured_announcement['attachment_original_name'] ?: 'Featured announcement image'); ?>">
-                        <?php else: ?>
-                            <i class="fas <?php echo e($featured_meta['icon']); ?>"></i>
-                        <?php endif; ?>
-                    </div>
-                    <div class="featured-body">
-                        <div class="d-flex flex-wrap gap-2">
-                            <span class="announcement-kicker"><i class="fas fa-star"></i> Featured Notice</span>
-                            <span class="category-chip <?php echo e($featured_meta['tone']); ?>"><i class="fas <?php echo e($featured_meta['icon']); ?>"></i> <?php echo e($featured_meta['label']); ?></span>
-                            <?php if (intval($featured_announcement['is_pinned'] ?? 0) === 1): ?>
-                                <span class="announcement-kicker"><i class="fas fa-thumbtack"></i> Pinned</span>
-                            <?php endif; ?>
-                            <?php if (!empty($featured_announcement['event_date'])): ?>
-                                <span class="new-pill"><i class="fas fa-hourglass-half"></i> <?php echo e(announcementCountdown($featured_announcement['event_date'])); ?></span>
-                            <?php endif; ?>
-                        </div>
-                        <h2><?php echo e($featured_announcement['title']); ?></h2>
-                        <p><?php echo e(announcementPreview($featured_announcement['content'], 260)); ?></p>
-                        <div class="announcement-meta">
-                            <span><i class="fas fa-calendar"></i> Posted <?php echo e(formatDateTime($featured_announcement['published_date'])); ?></span>
-                            <span><i class="fas fa-user"></i> <?php echo e($featured_announcement['posted_by']); ?></span>
-                            <?php if (!empty($featured_announcement['event_date'])): ?>
-                                <span><i class="fas fa-calendar-check"></i> Event: <?php echo e(formatDate($featured_announcement['event_date'])); ?></span>
-                            <?php endif; ?>
-                        </div>
-                        <div class="announcement-actions">
-                            <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#announcementModal-<?php echo intval($featured_announcement['announcement_id']); ?>">
-                                <i class="fas fa-book-open"></i> Read More
-                            </button>
-                            <?php if (!empty($featured_announcement['event_date'])): ?>
-                                <a class="btn btn-outline-secondary" href="https://calendar.google.com/calendar/render?action=TEMPLATE&text=<?php echo urlencode($featured_announcement['title']); ?>&dates=<?php echo date('Ymd', strtotime($featured_announcement['event_date'])); ?>/<?php echo date('Ymd', strtotime($featured_announcement['event_date'] . ' +1 day')); ?>" target="_blank">
-                                    <i class="fas fa-calendar-plus"></i> Add to Calendar
-                                </a>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                </div>
-            </section>
-        <?php endif; ?>
-
         <?php if (!empty($announcements)): ?>
             <section class="announcement-grid">
                 <?php foreach ($announcements as $announcement): ?>
@@ -670,7 +633,7 @@ function announcementCountdown($event_date) {
                                 <?php endif; ?>
                             </div>
                             <div class="announcement-actions">
-                                <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#announcementModal-<?php echo intval($announcement['announcement_id']); ?>">
+                                <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#announcementModal-<?php echo intval($announcement['announcement_id']); ?>">
                                     <i class="fas fa-book-open"></i> Read More
                                 </button>
                                 <?php if (!empty($announcement['attachment_path'])): ?>

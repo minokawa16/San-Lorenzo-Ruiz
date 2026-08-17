@@ -97,7 +97,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     $doc_count = intval($documents['saved'] ?? 0);
                     $file_text = $doc_count === 1 ? 'file' : 'files';
                     createNotification($conn, $user_id, 'Blessing Request Created', 'Your blessing request has been submitted with reference: ' . $reference_number . ' (' . $doc_count . ' ' . $file_text . ' attached)');
-                    sendRequestSubmittedEmail($conn, $user_id, $reference_number, 'blessing request');
                     $success = 'Blessing request submitted successfully! Reference: ' . $reference_number . ' (' . $doc_count . ' file' . ($doc_count === 1 ? '' : 's') . ' attached)';
                 }
             } else {
@@ -108,62 +107,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     }
 }
 
-$page = intval($_GET['page'] ?? 1);
-$limit = 10;
-$search = trim($_GET['q'] ?? '');
-$status = trim($_GET['status'] ?? '');
-$status = in_array($status, $allowed_statuses, true) ? $status : '';
-$search_like = '%' . $search . '%';
 $blessing_placeholders = implode(',', array_fill(0, count($blessing_type_keys), '?'));
-
-$where = ['user_id = ?', "request_type IN ($blessing_placeholders)"];
-$types = 'i' . str_repeat('s', count($blessing_type_keys));
-$params = array_merge([$user_id], $blessing_type_keys);
-
-if ($status !== '') {
-    $where[] = 'status = ?';
-    $types .= 's';
-    $params[] = $status;
-}
-
-if ($search !== '') {
-    $where[] = '(reference_number LIKE ? OR request_type LIKE ? OR status LIKE ? OR description LIKE ?)';
-    $types .= 'ssss';
-    array_push($params, $search_like, $search_like, $search_like, $search_like);
-}
-
-$where_sql = implode(' AND ', $where);
-$total = 0;
-$stmt = $conn->prepare("SELECT COUNT(*) AS count FROM requests WHERE $where_sql");
-if ($stmt) {
-    $stmt->bind_param($types, ...$params);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $total = intval(($result->fetch_assoc())['count'] ?? 0);
-    $stmt->close();
-}
-
-$pagination = getPaginationData($page, $limit, $total);
-$blessings = [];
-$list_types = $types . 'ii';
-$list_params = array_merge($params, [$pagination['offset'], $pagination['limit']]);
-
-$stmt = $conn->prepare("
-    SELECT request_id, reference_number, request_type, description, status, date_requested, updated_at
-    FROM requests
-    WHERE $where_sql
-    ORDER BY date_requested DESC
-    LIMIT ?, ?
-");
-if ($stmt) {
-    $stmt->bind_param($list_types, ...$list_params);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    while ($row = $result->fetch_assoc()) {
-        $blessings[] = $row;
-    }
-    $stmt->close();
-}
 
 $status_counts = array_fill_keys($allowed_statuses, 0);
 $count_types = 'i' . str_repeat('s', count($blessing_type_keys));
@@ -232,7 +176,7 @@ if ($stmt) {
     <section class="request-status-grid">
         <?php foreach ($status_counts as $status_name => $count): ?>
             <?php $status_info = $status_meta[$status_name] ?? ['icon' => 'fa-circle', 'description' => 'Request status', 'tone' => 'secondary']; ?>
-            <a class="request-status-card" href="?status=<?php echo urlencode($status_name); ?>">
+            <a class="request-status-card" href="my-requests.php?status=<?php echo urlencode($status_name); ?>">
                 <div class="status-card-top">
                     <i class="fas <?php echo e($status_info['icon']); ?> text-<?php echo e($status_info['tone']); ?>"></i>
                     <strong><?php echo intval($count); ?></strong>
@@ -242,6 +186,8 @@ if ($stmt) {
             </a>
         <?php endforeach; ?>
     </section>
+
+    <?php echo mobileStepRail(['Details', 'Requirements', 'Review'], 1, 'Blessing request progress'); ?>
 
     <div class="request-form-card">
         <div class="request-form-header">
@@ -381,110 +327,6 @@ if ($stmt) {
         </form>
     </div>
 
-    <form class="request-filter-card" method="GET" action="">
-        <div class="row g-2 align-items-center">
-            <div class="col-lg-6">
-                <label class="form-label">Search requests</label>
-                <div class="input-with-icon">
-                    <i class="fas fa-search"></i>
-                    <input type="text" class="form-control request-form-control" name="q" value="<?php echo e($search); ?>" placeholder="Search blessing, status, details, or reference number">
-                </div>
-            </div>
-            <div class="col-lg-3">
-                <label class="form-label">Status filter</label>
-                <select class="form-select request-form-control" name="status">
-                    <option value="">All Statuses</option>
-                    <?php foreach ($allowed_statuses as $status_option): ?>
-                        <option value="<?php echo e($status_option); ?>" <?php echo $status === $status_option ? 'selected' : ''; ?>>
-                            <?php echo e(blessingLabel($status_option)); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="col-lg-3 d-grid d-md-flex gap-2">
-                <button class="btn btn-primary align-self-end" type="submit"><i class="fas fa-search"></i> Filter</button>
-                <?php if ($search !== '' || $status !== ''): ?>
-                    <a class="btn btn-outline-secondary align-self-end" href="request-blessing.php">Clear</a>
-                <?php endif; ?>
-            </div>
-        </div>
-        <div class="quick-status-tabs">
-            <a href="request-blessing.php" class="<?php echo $status === '' ? 'active' : ''; ?>">All</a>
-            <?php foreach ($allowed_statuses as $status_option): ?>
-                <a href="?status=<?php echo urlencode($status_option); ?>" class="<?php echo $status === $status_option ? 'active' : ''; ?>"><?php echo e(blessingLabel($status_option)); ?></a>
-            <?php endforeach; ?>
-        </div>
-    </form>
-
-    <div class="request-history-card">
-            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-                <h2 class="request-section-title"><i class="fas fa-clock-rotate-left"></i> Blessing Request History</h2>
-                <span class="text-muted"><?php echo intval($total); ?> total</span>
-            </div>
-
-            <?php if (!empty($blessings)): ?>
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle request-history-table">
-                        <thead>
-                            <tr>
-                                <th>Reference</th>
-                                <th>Blessing</th>
-                                <th>Schedule</th>
-                                <th>Status</th>
-                                <th>Details</th>
-                                <th>Submitted</th>
-                                <th>Updated</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($blessings as $blessing): ?>
-                                <?php
-                                    $blessing_date = requestCalendarField($blessing['description'], ['Preferred date', 'Event date', 'Date']);
-                                    $blessing_time = requestCalendarField($blessing['description'], ['Preferred time', 'Event time', 'Time']);
-                                ?>
-                                <tr onclick="window.location.href='view-request.php?id=<?php echo intval($blessing['request_id']); ?>'" style="cursor:pointer;">
-                                    <td><strong><?php echo e($blessing['reference_number']); ?></strong></td>
-                                    <td><?php echo e(blessingLabel($blessing['request_type'], $blessing_types)); ?></td>
-                                    <td>
-                                        <?php echo $blessing_date ? formatDate($blessing_date) : 'N/A'; ?><br>
-                                        <small><?php echo $blessing_time ? e(formatTime($blessing_time)) : 'No time'; ?></small>
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-<?php echo getStatusBadgeClass($blessing['status']); ?>">
-                                            <?php echo e(blessingLabel($blessing['status'])); ?>
-                                        </span>
-                                    </td>
-                                    <td><?php echo nl2br(e($blessing['description'] ?: 'No details provided')); ?></td>
-                                    <td><?php echo formatDateTime($blessing['date_requested']); ?></td>
-                                    <td><?php echo formatDateTime($blessing['updated_at']); ?></td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-
-                <?php if ($pagination['total_pages'] > 1): ?>
-                    <nav class="mt-3">
-                        <ul class="pagination justify-content-center">
-                            <?php for ($i = 1; $i <= $pagination['total_pages']; $i++): ?>
-                                <li class="page-item <?php echo $i == $pagination['page'] ? 'active' : ''; ?>">
-                                    <a class="page-link" href="?page=<?php echo $i; ?>&q=<?php echo urlencode($search); ?>&status=<?php echo urlencode($status); ?>">
-                                        <?php echo $i; ?>
-                                    </a>
-                                </li>
-                            <?php endfor; ?>
-                        </ul>
-                    </nav>
-                <?php endif; ?>
-            <?php else: ?>
-                <div class="empty-state">
-                    <i class="fas fa-hands-praying"></i>
-                    <h5>No blessing requests yet.</h5>
-                    <p class="mb-3">Your submitted blessing schedules and status updates will appear here.</p>
-                    <a href="#uploadZone" class="btn btn-primary"><i class="fas fa-plus"></i> Submit your first request</a>
-                </div>
-            <?php endif; ?>
-    </div>
     </div>
 </div>
 

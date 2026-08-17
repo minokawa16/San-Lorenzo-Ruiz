@@ -3,11 +3,32 @@
  * Database Configuration - Defines connection constants and opens the shared MySQL connection.
  */
 // Database Configuration
-define('DB_HOST', '127.0.0.1');
-define('DB_PORT', 3306);
-define('DB_USER', 'root');
-define('DB_PASSWORD', '');
-define('DB_NAME', 'parish_management_system');
+// Local XAMPP defaults are used unless production credentials are provided.
+// For InfinityFree, set these values in config/db.local.php or environment variables:
+// DB_HOST=sql123.infinityfree.com
+// DB_USER=if0_12345678
+// DB_PASSWORD=your_password
+// DB_NAME=if0_12345678_tugondb
+$local_db_config = __DIR__ . '/../config/db.local.php';
+if (is_file($local_db_config)) {
+    require_once $local_db_config;
+}
+
+if (!defined('DB_HOST')) {
+    define('DB_HOST', getenv('DB_HOST') ?: (getenv('MYSQLHOST') ?: '127.0.0.1'));
+}
+if (!defined('DB_PORT')) {
+    define('DB_PORT', intval(getenv('DB_PORT') ?: (getenv('MYSQLPORT') ?: 3306)));
+}
+if (!defined('DB_USER')) {
+    define('DB_USER', getenv('DB_USER') ?: (getenv('MYSQLUSER') ?: 'root'));
+}
+if (!defined('DB_PASSWORD')) {
+    define('DB_PASSWORD', getenv('DB_PASSWORD') ?: (getenv('MYSQLPASSWORD') ?: ''));
+}
+if (!defined('DB_NAME')) {
+    define('DB_NAME', getenv('DB_NAME') ?: (getenv('MYSQLDATABASE') ?: 'parish_management_system'));
+}
 
 // Disable mysqli warnings so we can handle errors gracefully
 mysqli_report(MYSQLI_REPORT_OFF);
@@ -18,7 +39,7 @@ $fp = @fsockopen(DB_HOST, DB_PORT, $errno, $errstr, 1);
 if ($fp) { fclose($fp); $port_open = true; }
 if (!$port_open) {
     $msg = "Cannot connect to MySQL at " . DB_HOST . ":" . DB_PORT . ".";
-    $msg .= " Start MySQL from XAMPP Control Panel and try again.";
+    $msg .= " If you are local, start MySQL from XAMPP Control Panel. If you are on hosting, check your database host, username, password, and database name.";
     die("<div style='font-family:Arial,Helvetica,sans-serif;margin:20px;padding:12px;border:1px solid #e0e0e0;background:#fff7f7;color:#900;'>Database connection error: " . htmlspecialchars($msg) . "</div>");
 }
 
@@ -33,16 +54,16 @@ if ($conn->connect_error) {
         // Connect without specifying database
         $temp_conn = @new mysqli(DB_HOST, DB_USER, DB_PASSWORD, '', DB_PORT);
         if ($temp_conn->connect_error) {
-            die("Connection failed: " . $temp_conn->connect_error . " Please check your database credentials in database/config.php and ensure MySQL is running (start XAMPP MySQL).");
+            die("Connection failed: " . $temp_conn->connect_error . " Please check your database credentials in config/db.local.php or database/config.php.");
         }
 
         $temp_conn->close();
-        die("Database not found. Please run the installation script at /database/install.php");
+        die("Database not found. Please verify DB_NAME in config/db.local.php and import your database tables.");
     }
 
     // Connection actively refused -> usually MySQL not running or firewall/port issue
     if (stripos($err, 'refused') !== false || stripos($err, 'actively refused') !== false || stripos($err, 'No connection could be made') !== false) {
-        die("Connection failed: " . $err . " Please ensure MySQL is running (open XAMPP Control Panel and start MySQL), and that DB_HOST/DB_PORT in database/config.php are correct.");
+        die("Connection failed: " . $err . " If local, start MySQL in XAMPP. If hosted, verify DB_HOST and DB_PORT in config/db.local.php.");
     }
 
     die("Connection failed: " . $err);

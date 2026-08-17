@@ -1,32 +1,139 @@
 <?php
 /**
- * Forgot Password Page
- * Provides a user-facing recovery request screen.
+ * SMS Forgot Password
+ * Sends a TextBee OTP to the registered mobile number before password reset.
  */
-
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+include '../database/config.php';
 include '../includes/helpers.php';
 
+ensureEmailNotificationSchema($conn);
+
 $message = '';
-$email_input = '';
-$logo_file = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'img' . DIRECTORY_SEPARATOR . 'san-lorenzo-logo.png';
-$has_logo = is_file($logo_file);
+$error = csrfFailureMessage();
+$step = $_GET['step'] ?? ($_SESSION['password_reset_step'] ?? 'request');
+$identifier_input = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = isset($_POST['email']) ? trim($_POST['email']) : '';
-    $email_input = htmlspecialchars($email);
+    requireValidCsrfToken();
+    $action = $_POST['action'] ?? '';
 
-    if (empty($email)) {
-        $message = 'Please enter your registered Gmail address.';
-    } elseif (!isValidEmail($email)) {
-        $message = 'Please enter a valid email address.';
-    } else {
-        $message = 'Your recovery request has been noted. Please contact the parish office or system administrator to verify your account and reset your password.';
+    if ($action === 'request_otp') {
+        $identifier = trim($_POST['phone_number'] ?? '');
+        $identifier_input = e($identifier);
+        $is_email_reset = isValidEmail($identifier);
+        $reset_contact = $is_email_reset ? strtolower($identifier) : normalizePhilippineMobileForStorage($identifier);
+        $is_mobile_reset = !$is_email_reset && isValidPhilippineMobile($reset_contact);
+
+        if (!$is_email_reset && !$is_mobile_reset) {
+            $error = 'Please enter a valid registered Gmail address or Philippine mobile number.';
+            $step = 'request';
+        } else {
+            $stmt = $conn->prepare($is_email_reset
+                ? "SELECT id, fullname, email, phone_number FROM users WHERE email = ? LIMIT 1"
+                : "SELECT id, fullname, email, phone_number FROM users WHERE phone_number = ? LIMIT 1");
+            $stmt->bind_param('s', $reset_contact);
+            $stmt->execute();
+            $user = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+
+            if (!$user) {
+                $error = 'No account was found with that email address or mobile number.';
+                $step = 'request';
+            } else {
+                $sent = $is_email_reset
+                    ? sendOtpEmail($conn, intval($user['id']), $reset_contact, 'password_reset')
+                    : sendOtpSms($conn, intval($user['id']), $reset_contact, 'password_reset');
+                if ($sent['ok']) {
+                    $_SESSION['password_reset_user_id'] = intval($user['id']);
+                    $_SESSION['password_reset_phone'] = $reset_contact;
+                    $_SESSION['password_reset_method'] = $is_email_reset ? 'email' : 'mobile';
+                    $_SESSION['password_reset_step'] = 'verify';
+                    $_SESSION['password_reset_verified'] = false;
+                    createAuditLog($conn, intval($user['id']), $is_email_reset ? 'REQUEST_PASSWORD_RESET_EMAIL_OTP' : 'REQUEST_PASSWORD_RESET_SMS_OTP', 'users', intval($user['id']));
+                    $message = $is_email_reset ? 'An OTP has been sent to your registered Gmail address.' : 'An OTP has been sent to your registered mobile number.';
+                    $step = 'verify';
+                } else {
+                    $error = $sent['error'] ?: 'Unable to send OTP. Please try again.';
+                    $step = 'request';
+                }
+            }
+        }
+    } elseif ($action === 'verify_otp') {
+        $user_id = intval($_SESSION['password_reset_user_id'] ?? 0);
+        $contact = $_SESSION['password_reset_phone'] ?? '';
+        $reset_method = $_SESSION['password_reset_method'] ?? 'mobile';
+        $otp = preg_replace('/\D/', '', $_POST['otp'] ?? '');
+
+        if ($user_id <= 0 || ($reset_method === 'email' ? !isValidEmail($contact) : !isValidPhilippineMobile($contact))) {
+            $error = 'Your password reset session expired. Please request a new OTP.';
+            $step = 'request';
+        } elseif (strlen($otp) !== 6) {
+            $error = 'Please enter the 6-digit OTP.';
+            $step = 'verify';
+        } else {
+            $verified = verifyOtpCode($conn, $user_id, $contact, 'password_reset', $otp);
+            if ($verified['ok']) {
+                $_SESSION['password_reset_verified'] = true;
+                $_SESSION['password_reset_step'] = 'reset';
+                createAuditLog($conn, $user_id, $reset_method === 'email' ? 'VERIFY_PASSWORD_RESET_EMAIL_OTP' : 'VERIFY_PASSWORD_RESET_SMS_OTP', 'users', $user_id);
+                $message = 'OTP verified. You may now create a new password.';
+                $step = 'reset';
+            } else {
+                $error = $verified['error'];
+                $step = 'verify';
+            }
+        }
+    } elseif ($action === 'reset_password') {
+        $user_id = intval($_SESSION['password_reset_user_id'] ?? 0);
+        $contact = $_SESSION['password_reset_phone'] ?? '';
+        $reset_method = $_SESSION['password_reset_method'] ?? 'mobile';
+        $verified = !empty($_SESSION['password_reset_verified']);
+        $password = $_POST['password'] ?? '';
+        $confirm_password = $_POST['confirm_password'] ?? '';
+
+        if ($user_id <= 0 || !$verified || ($reset_method === 'email' ? !isValidEmail($contact) : !isValidPhilippineMobile($contact))) {
+            $error = 'Your password reset session expired. Please request a new OTP.';
+            $step = 'request';
+        } elseif ($password !== $confirm_password) {
+            $error = 'Passwords do not match.';
+            $step = 'reset';
+        } elseif (!isValidPassword($password)) {
+            $error = 'Password must be at least 8 characters with uppercase, lowercase, and number.';
+            $step = 'reset';
+        } else {
+            $hash = hashPassword($password);
+            $stmt = $conn->prepare($reset_method === 'email'
+                ? "UPDATE users SET password = ? WHERE id = ? AND email = ?"
+                : "UPDATE users SET password = ? WHERE id = ? AND phone_number = ?");
+            $stmt->bind_param('sis', $hash, $user_id, $contact);
+            $ok = $stmt->execute();
+            $stmt->close();
+
+            if ($ok) {
+                $cleanup = $conn->prepare("DELETE FROM otp_codes WHERE user_id = ? AND email = ? AND purpose = 'password_reset'");
+                if ($cleanup) {
+                    $cleanup->bind_param('is', $user_id, $contact);
+                    $cleanup->execute();
+                    $cleanup->close();
+                }
+                createAuditLog($conn, $user_id, $reset_method === 'email' ? 'RESET_PASSWORD_EMAIL_OTP' : 'RESET_PASSWORD_SMS_OTP', 'users', $user_id);
+                unset($_SESSION['password_reset_user_id'], $_SESSION['password_reset_phone'], $_SESSION['password_reset_method'], $_SESSION['password_reset_step'], $_SESSION['password_reset_verified']);
+                $message = 'Password successfully changed. You may now log in.';
+                $step = 'success';
+            } else {
+                $error = 'Unable to update your password. Please try again.';
+                $step = 'reset';
+            }
+        }
     }
 }
+
+$logo_file = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'img' . DIRECTORY_SEPARATOR . 'san-lorenzo-logo.png';
+$has_logo = is_file($logo_file);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -37,6 +144,277 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/theme.css') ? filemtime(__DIR__ . '/../assets/css/theme.css') : time(); ?>">
+    <style>
+        :root {
+            --reset-ocean: #08739A;
+            --reset-link: #149BB5;
+            --reset-teal: #2AA6AF;
+            --reset-aqua: #91C2B9;
+            --reset-border: #D2D8D3;
+            --reset-text: #203238;
+            --reset-muted: #52686B;
+        }
+
+        body.auth-cinematic-page {
+            background:
+                linear-gradient(90deg, rgba(8, 115, 154, 0.42), rgba(32, 50, 56, 0.18) 45%, rgba(32, 50, 56, 0.58)),
+                linear-gradient(180deg, rgba(8, 115, 154, 0.14), rgba(32, 50, 56, 0.62)),
+                url("../church%20image.png") center center / cover no-repeat fixed !important;
+            color: var(--reset-text) !important;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif !important;
+        }
+
+        body.auth-cinematic-page::before {
+            background-image: url("../church%20image.png") !important;
+            background-size: cover !important;
+            background-position: center center !important;
+            filter: saturate(1.06) contrast(1.03) brightness(0.78) !important;
+        }
+
+        body.auth-cinematic-page::after {
+            background:
+                radial-gradient(circle at 18% 12%, rgba(145, 194, 185, 0.24), transparent 28%),
+                linear-gradient(90deg, rgba(8, 115, 154, 0.42), rgba(32, 50, 56, 0.12) 45%, rgba(32, 50, 56, 0.6)) !important;
+        }
+
+        .auth-ambient {
+            opacity: 0 !important;
+        }
+
+        .auth-screen {
+            width: min(100%, 720px) !important;
+            padding: 32px 16px !important;
+        }
+
+        .auth-glass-card {
+            width: min(100%, 560px) !important;
+            background:
+                radial-gradient(circle at 96% 8%, rgba(145, 194, 185, 0.22), transparent 28%),
+                #FFFFFF !important;
+            border: 1px solid rgba(255, 255, 255, 0.72) !important;
+            border-radius: 18px !important;
+            color: var(--reset-text) !important;
+            box-shadow: 0 28px 70px rgba(8, 115, 154, 0.22) !important;
+            backdrop-filter: none !important;
+            padding: clamp(34px, 5vw, 52px) !important;
+        }
+
+        .auth-brand-mark {
+            background: #FFFFFF !important;
+            border: 1px solid var(--reset-border) !important;
+            box-shadow: 0 14px 34px rgba(8, 115, 154, 0.16) !important;
+        }
+
+        .auth-eyebrow {
+            background: rgba(8, 115, 154, 0.12) !important;
+            border: 1px solid rgba(8, 115, 154, 0.24) !important;
+            color: var(--reset-text) !important;
+            font-size: 14px !important;
+            font-weight: 600 !important;
+        }
+
+        .auth-eyebrow i,
+        .auth-brand-mark i,
+        .auth-input-wrap i {
+            color: var(--reset-teal) !important;
+        }
+
+        .auth-card-header h1 {
+            color: var(--reset-text) !important;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif !important;
+            font-size: clamp(28px, 4vw, 36px) !important;
+            font-weight: 700 !important;
+            line-height: 1.25 !important;
+            letter-spacing: 0 !important;
+        }
+
+        .auth-card-header p,
+        .auth-switch {
+            color: var(--reset-muted) !important;
+            font-size: 16px !important;
+            line-height: 1.6 !important;
+        }
+
+        .auth-form .form-label {
+            color: var(--reset-text) !important;
+            font-size: 15px !important;
+            font-weight: 600 !important;
+        }
+
+        .auth-input-wrap {
+            background: #FFFFFF !important;
+            border: 1px solid var(--reset-border) !important;
+            border-radius: 8px !important;
+            min-height: 48px !important;
+            box-shadow: none !important;
+        }
+
+        .auth-input-wrap .form-control {
+            color: var(--reset-text) !important;
+            -webkit-text-fill-color: var(--reset-text) !important;
+            font-size: 16px !important;
+            min-height: 48px !important;
+        }
+
+        .auth-input-wrap .form-control::placeholder {
+            color: #667575 !important;
+            -webkit-text-fill-color: #667575 !important;
+            opacity: 1 !important;
+        }
+
+        .auth-input-wrap:focus-within {
+            border-color: var(--reset-link) !important;
+            box-shadow: 0 0 0 4px rgba(20, 155, 181, 0.18) !important;
+        }
+
+        .auth-submit {
+            background: var(--reset-link) !important;
+            border: 1px solid var(--reset-link) !important;
+            color: #FFFFFF !important;
+            border-radius: 999px !important;
+            min-height: 48px !important;
+            font-size: 16px !important;
+            font-weight: 600 !important;
+            box-shadow: 0 12px 28px rgba(20, 155, 181, 0.22) !important;
+        }
+
+        .auth-submit *,
+        .auth-submit i {
+            color: #FFFFFF !important;
+        }
+
+        .auth-submit:hover,
+        .auth-submit:focus-visible {
+            background: var(--reset-ocean) !important;
+            border-color: var(--reset-ocean) !important;
+        }
+
+        .auth-switch a {
+            color: var(--reset-link) !important;
+            font-size: 15px !important;
+            font-weight: 600 !important;
+            text-decoration: none !important;
+        }
+
+        .auth-switch a:hover {
+            color: var(--reset-ocean) !important;
+            text-decoration: underline !important;
+        }
+
+        .auth-message {
+            background: #FFFFFF !important;
+            border: 1px solid var(--reset-border) !important;
+            color: var(--reset-text) !important;
+            font-size: 15px !important;
+            line-height: 1.5 !important;
+        }
+
+        .auth-message.alert-danger {
+            border-color: rgba(180, 35, 24, 0.28) !important;
+        }
+
+        .auth-message.alert-success {
+            border-color: rgba(20, 155, 181, 0.28) !important;
+        }
+
+        /* Warm cream/gold password reset restoration. */
+        :root {
+            --reset-ocean: #1C1B18;
+            --reset-link: #B88A22;
+            --reset-teal: #D4A94E;
+            --reset-aqua: #F6DF9F;
+            --reset-border: #DFCFAA;
+            --reset-text: #1C1B18;
+            --reset-muted: #6F675A;
+        }
+
+        body.auth-cinematic-page {
+            background:
+                linear-gradient(90deg, rgba(15, 10, 6, 0.62) 0%, rgba(15, 10, 6, 0.24) 44%, rgba(8, 11, 18, 0.78) 100%),
+                linear-gradient(180deg, rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0.62)),
+                url("../church%20image.png") center center / cover no-repeat fixed !important;
+        }
+
+        body.auth-cinematic-page::before {
+            background-image: url("../church%20image.png") !important;
+            filter: sepia(0.22) saturate(1.18) contrast(1.05) brightness(0.82) !important;
+        }
+
+        body.auth-cinematic-page::after {
+            background:
+                radial-gradient(circle at 39% 30%, rgba(255, 214, 126, 0.22), transparent 25%),
+                radial-gradient(circle at 50% 70%, rgba(255, 184, 64, 0.16), transparent 24%),
+                linear-gradient(90deg, rgba(15, 10, 6, 0.62) 0%, rgba(15, 10, 6, 0.24) 44%, rgba(8, 11, 18, 0.78) 100%) !important;
+        }
+
+        .auth-glass-card {
+            background:
+                radial-gradient(circle at 96% 8%, rgba(246, 223, 159, 0.28), transparent 28%),
+                #FFF8EB !important;
+            border-color: rgba(255, 248, 235, 0.68) !important;
+            color: var(--reset-text) !important;
+            box-shadow: 0 34px 90px rgba(0, 0, 0, 0.32) !important;
+        }
+
+        .auth-brand-mark {
+            background: #FFF8EB !important;
+            border-color: var(--reset-border) !important;
+            box-shadow: 0 14px 34px rgba(28, 27, 24, 0.14) !important;
+        }
+
+        .auth-eyebrow {
+            background: rgba(212, 169, 78, 0.16) !important;
+            border-color: rgba(212, 169, 78, 0.34) !important;
+            color: var(--reset-text) !important;
+        }
+
+        .auth-eyebrow i,
+        .auth-brand-mark i,
+        .auth-input-wrap i {
+            color: var(--reset-link) !important;
+        }
+
+        .auth-input-wrap {
+            background: #FFFFFF !important;
+            border-color: var(--reset-border) !important;
+        }
+
+        .auth-input-wrap:focus-within {
+            border-color: var(--reset-teal) !important;
+            box-shadow: 0 0 0 4px rgba(212, 169, 78, 0.18) !important;
+        }
+
+        .auth-submit {
+            background: linear-gradient(135deg, #D4A94E, #B88A22) !important;
+            border-color: #B88A22 !important;
+            color: var(--reset-text) !important;
+            box-shadow: 0 16px 34px rgba(212, 169, 78, 0.24) !important;
+        }
+
+        .auth-submit *,
+        .auth-submit i {
+            color: var(--reset-text) !important;
+        }
+
+        .auth-submit:hover,
+        .auth-submit:focus-visible {
+            background: linear-gradient(135deg, #B88A22, #9B741A) !important;
+            border-color: #9B741A !important;
+        }
+
+        .auth-switch a {
+            color: var(--reset-link) !important;
+        }
+
+        .auth-message {
+            background: #FFFFFF !important;
+            border-color: var(--reset-border) !important;
+            color: var(--reset-text) !important;
+        }
+    </style>
+    <link rel="stylesheet" href="../assets/css/responsive-unified.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/responsive-unified.css'); ?>">
+    <link rel="stylesheet" href="../assets/css/auth-mobile.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/auth-mobile.css'); ?>">
 </head>
 <body class="auth-cinematic-page">
     <div class="auth-ambient" aria-hidden="true"></div>
@@ -50,37 +428,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <?php endif; ?>
             </a>
             <div class="auth-card-header">
-                <span class="auth-eyebrow"><i class="fas fa-key"></i> Account Recovery</span>
+                <span class="auth-eyebrow"><i class="fas fa-key"></i> Password Reset</span>
                 <h1>Forgot Password?</h1>
-                <p>Enter your registered email address so the parish office can help verify your account recovery request.</p>
+                <p>Use your registered Gmail address or mobile number to receive a secure one-time password.</p>
             </div>
 
+            <?php if ($error): ?>
+                <div class="alert alert-danger auth-message" role="alert"><i class="fas fa-triangle-exclamation"></i> <?php echo e($error); ?></div>
+            <?php endif; ?>
             <?php if ($message): ?>
-                <div class="alert alert-info auth-message" role="status">
-                    <i class="fas fa-circle-info"></i> <?php echo e($message); ?>
-                </div>
+                <div class="alert alert-success auth-message" role="status"><i class="fas fa-circle-check"></i> <?php echo e($message); ?></div>
             <?php endif; ?>
 
-            <form method="POST" action="" class="auth-form">
-                <div class="auth-field">
-                    <label for="email" class="form-label">Registered Email Address</label>
-                    <div class="auth-input-wrap">
-                        <i class="fas fa-envelope"></i>
-                        <input type="email" class="form-control" id="email" name="email" value="<?php echo $email_input; ?>" autocomplete="email" placeholder="name@gmail.com" required autofocus>
+            <?php if ($step === 'verify'): ?>
+                <form method="POST" class="auth-form">
+                    <?php echo csrfInput(); ?>
+                    <input type="hidden" name="action" value="verify_otp">
+                    <div class="auth-field">
+                        <label class="form-label" for="otp">Enter 6-Digit OTP</label>
+                        <div class="auth-input-wrap">
+                            <i class="fas fa-shield-halved"></i>
+                            <input class="form-control" id="otp" name="otp" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" placeholder="483921" required autofocus>
+                        </div>
                     </div>
-                </div>
+                    <button class="auth-submit" type="submit"><i class="fas fa-check"></i> Verify OTP</button>
+                </form>
+            <?php elseif ($step === 'reset'): ?>
+                <form method="POST" class="auth-form">
+                    <?php echo csrfInput(); ?>
+                    <input type="hidden" name="action" value="reset_password">
+                    <div class="auth-field">
+                        <label class="form-label" for="password">New Password</label>
+                        <div class="auth-input-wrap">
+                            <i class="fas fa-lock"></i>
+                            <input class="form-control" id="password" name="password" type="password" autocomplete="new-password" required autofocus>
+                        </div>
+                    </div>
+                    <div class="auth-field">
+                        <label class="form-label" for="confirm_password">Confirm New Password</label>
+                        <div class="auth-input-wrap">
+                            <i class="fas fa-lock"></i>
+                            <input class="form-control" id="confirm_password" name="confirm_password" type="password" autocomplete="new-password" required>
+                        </div>
+                    </div>
+                    <button class="auth-submit" type="submit"><i class="fas fa-key"></i> Change Password</button>
+                </form>
+            <?php elseif ($step === 'success'): ?>
+                <a class="auth-submit text-center text-decoration-none" href="login.php"><i class="fas fa-sign-in-alt"></i> Back to Login</a>
+            <?php else: ?>
+                <form method="POST" class="auth-form">
+                    <?php echo csrfInput(); ?>
+                    <input type="hidden" name="action" value="request_otp">
+                    <div class="auth-field">
+                        <label class="form-label" for="phone_number">Registered Email Address or Mobile Number</label>
+                        <div class="auth-input-wrap">
+                            <i class="fas fa-phone"></i>
+                            <input class="form-control" id="phone_number" name="phone_number" value="<?php echo $identifier_input; ?>" inputmode="text" maxlength="150" placeholder="name@gmail.com or 09XXXXXXXXX" required autofocus>
+                        </div>
+                    </div>
+                    <button class="auth-submit" type="submit"><i class="fas fa-paper-plane"></i> Send OTP</button>
+                </form>
+            <?php endif; ?>
 
-                <button type="submit" class="auth-submit">
-                    <i class="fas fa-paper-plane"></i> Request Help
-                </button>
-            </form>
-
-            <p class="auth-switch">
-                Remembered your password? <a href="login.php">Back to Login</a>
-            </p>
+            <p class="auth-switch">Remembered your password? <a href="login.php">Back to Login</a></p>
         </section>
     </main>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

@@ -262,3 +262,82 @@ Built with:
 **Version**: 1.0  
 **Last Updated**: May 2026  
 **Status**: Active Development
+
+---
+
+## Full-stack Gemini Chat
+
+This repository also contains a standalone React and Express Gemini chat example:
+
+```text
+client/   Vite + React chat interface
+server/   Express API and Gemini integration
+```
+
+### Requirements
+
+- Node.js 20.19+ (Node.js 22 LTS is recommended)
+- A Gemini API key from Google AI Studio
+
+### Configure the backend
+
+```powershell
+cd server
+npm install
+Copy-Item .env.example .env
+```
+
+Open `server/.env` and replace the placeholder with a newly generated key:
+
+```dotenv
+GEMINI_API_KEY=your_new_key_here
+GEMINI_MODEL=gemini-2.5-flash
+PORT=3001
+CLIENT_ORIGIN=http://localhost:5173
+```
+
+Do not use a key that has been posted in chat or committed to source control. The React application never reads this file; only the Express server reads the key.
+
+### Install and run
+
+Use two terminals from the repository root.
+
+Terminal 1:
+
+```powershell
+cd server
+npm install
+npm run dev
+```
+
+Terminal 2:
+
+```powershell
+cd client
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173`. Vite proxies `/api/chat` to `http://localhost:3001`; the browser never contacts Gemini directly.
+
+### API contract
+
+`POST /api/chat`
+
+```json
+{
+  "message": "What is our previous topic?",
+  "history": [
+    { "role": "user", "content": "Let us discuss parish events." },
+    { "role": "assistant", "content": "Certainly. What would you like to know?" }
+  ]
+}
+```
+
+Successful response:
+
+```json
+{ "reply": "..." }
+```
+
+The endpoint accepts at most 15 requests per IP every 15 minutes. Adjust `chatLimiter` in `server/src/index.js` if needed.

@@ -7,7 +7,9 @@ include '../database/config.php';
 include '../includes/helpers.php';
 
 requireAdmin();
-requirePermission('ai.use');
+
+header('Location: ' . BASE_URL . 'admin/dashboard.php');
+exit;
 
 $page_title = 'AI Assistant - Admin';
 ?>
@@ -22,6 +24,7 @@ $page_title = 'AI Assistant - Admin';
     <link rel="stylesheet" href="../assets/css/holy-theme.css">
     <link rel="stylesheet" href="../assets/css/premium-parish.css">
     <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/theme.css') ? filemtime(__DIR__ . '/../assets/css/theme.css') : time(); ?>">
 </head>
 <body class="church-theme">
     <div class="premium-admin-shell">
@@ -43,18 +46,14 @@ $page_title = 'AI Assistant - Admin';
                     <div class="premium-panel-header">
                         <h2 class="premium-panel-title"><i class="fas fa-comments"></i> Ask TUGON AI</h2>
                     </div>
-                    <div class="ai-chat-log" id="aiChatLog" aria-live="polite">
-                        <div class="ai-message assistant">
-                            <strong>AI Parish Assistant</strong>
-                            <p>Ask for pending-request summaries, transaction guidance, parish inquiry responses, or smart search across records available to admins.</p>
-                        </div>
-                    </div>
+                    <div class="ai-chat-log" id="aiChatLog" aria-live="polite"></div>
                     <form class="ai-chat-form" id="aiChatForm">
                         <label class="visually-hidden" for="aiMessage">Ask the admin assistant</label>
                         <textarea id="aiMessage" rows="3" placeholder="Example: Summarize pending requests and search baptismal certificate items"></textarea>
                         <div class="ai-form-actions">
                             <button class="btn btn-outline-primary" type="button" data-ai-prompt="Show analytics report summary">Analytics</button>
                             <button class="btn btn-outline-primary" type="button" data-ai-prompt="Search pending certificate requests">Smart Search</button>
+                            <button class="btn btn-outline-secondary" type="button" id="aiClearBtn"><i class="fas fa-trash-can"></i> Clear</button>
                             <button class="btn btn-primary" type="submit"><i class="fas fa-wand-magic-sparkles"></i> Ask Assistant</button>
                         </div>
                     </form>
@@ -87,6 +86,9 @@ $page_title = 'AI Assistant - Admin';
         const results = document.getElementById('aiSearchResults');
         const analytics = document.getElementById('aiAnalytics');
         const promptButtons = document.querySelectorAll('[data-ai-prompt]');
+        const clearBtn = document.getElementById('aiClearBtn');
+        const sendBtn = form.querySelector('button[type="submit"]');
+        const conversationHistory = [];
 
         // Escape Html Function - Documents this helper's role in the parish management workflow.
         function escapeHtml(value) {
@@ -95,13 +97,70 @@ $page_title = 'AI Assistant - Admin';
             });
         }
 
+        function currentTime() {
+            return new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+        }
+
+        function textFromHtml(html) {
+            const tmp = document.createElement('div');
+            tmp.innerHTML = html;
+            return tmp.textContent || tmp.innerText || '';
+        }
+
+        function typingDelayFor(text) {
+            const length = String(text || '').length;
+            return Math.min(1300, Math.max(430, length * 8));
+        }
+
+        function typeText(target, text, done) {
+            const value = String(text || '');
+            let index = 0;
+            const speed = Math.max(10, Math.min(24, Math.floor(950 / Math.max(value.length, 1))));
+            target.textContent = '';
+            function tick() {
+                target.textContent = value.slice(0, index);
+                log.scrollTop = log.scrollHeight;
+                index += 1;
+                if (index <= value.length) {
+                    window.setTimeout(tick, speed);
+                } else if (typeof done === 'function') {
+                    done();
+                }
+            }
+            tick();
+        }
+
         // Add Message Function - Documents this helper's role in the parish management workflow.
-        function addMessage(type, html) {
+        function addMessage(type, options) {
+            const title = options.title || (type === 'user' ? 'Admin' : 'AI Parish Assistant');
+            const body = options.body || '';
+            const steps = options.steps || [];
+            const loading = options.loading || false;
+            const stream = options.stream || false;
             const item = document.createElement('div');
-            item.className = 'ai-message ' + type;
-            item.innerHTML = html;
+            item.className = 'ai-message ' + type + (loading ? ' loading' : '');
+            const stepsHtml = steps.length ? '<ol>' + steps.map(function(step) { return '<li>' + escapeHtml(step) + '</li>'; }).join('') + '</ol>' : '';
+            const bodyHtml = loading
+                ? '<div class="ai-typing-line">AI Parish Assistant is typing <span class="ai-typing-dots"><span></span><span></span><span></span></span></div>'
+                : '<p><span class="ai-response-text">' + (stream ? '' : escapeHtml(body)) + '</span></p>' + stepsHtml;
+            const copyHtml = type === 'assistant' && !loading ? '<button type="button" class="ai-copy-btn">Copy</button>' : '';
+            item.innerHTML =
+                '<strong>' + escapeHtml(title) + '</strong>' +
+                bodyHtml +
+                '<div class="ai-message-meta"><span>' + currentTime() + '</span>' + copyHtml + '</div>';
             log.appendChild(item);
             log.scrollTop = log.scrollHeight;
+            if (stream) {
+                typeText(item.querySelector('.ai-response-text'), body, function() {
+                    input.focus();
+                });
+            }
+            return item;
+        }
+
+        function removeLoading() {
+            const loading = log.querySelector('.ai-message.loading');
+            if (loading) loading.remove();
         }
 
         // Render Results Function - Documents this helper's role in the parish management workflow.
@@ -135,33 +194,43 @@ $page_title = 'AI Assistant - Admin';
 
         // Ask Assistant Function - Documents this helper's role in the parish management workflow.
         function askAssistant(message, mode) {
-            addMessage('user', '<strong>Admin</strong><p>' + escapeHtml(message) + '</p>');
-            addMessage('assistant loading', '<strong>AI Parish Assistant</strong><p>Analyzing parish data...</p>');
+            addMessage('user', {title: 'Admin', body: message});
+            conversationHistory.push({role: 'user', content: message});
+            addMessage('assistant', {loading: true});
+            sendBtn.disabled = true;
 
             fetch('../api/ai-assistant.php', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({message: message, mode: mode || 'chat'})
+                body: JSON.stringify({message: message, mode: mode || 'chat', conversation: conversationHistory.slice(-8)})
             })
             .then(function(response) { return response.json(); })
             .then(function(data) {
-                const loading = log.querySelector('.ai-message.loading');
-                if (loading) loading.remove();
-                if (!data.success) {
-                    addMessage('assistant', '<strong>AI Parish Assistant</strong><p>' + escapeHtml(data.message || 'Unable to answer right now.') + '</p>');
-                    return;
-                }
-                const steps = data.guidance && data.guidance.steps
-                    ? '<ol>' + data.guidance.steps.map(function(step) { return '<li>' + escapeHtml(step) + '</li>'; }).join('') + '</ol>'
-                    : '';
-                addMessage('assistant', '<strong>' + escapeHtml(data.guidance.title) + '</strong><p>' + escapeHtml(data.answer) + '</p>' + steps);
-                renderResults(data.search_results);
-                renderAnalytics(data.analytics);
+                const answer = data.success ? (data.answer || 'I prepared a parish administration response.') : (data.message || 'Unable to answer right now.');
+                const title = data.success && data.guidance && data.guidance.title ? data.guidance.title : 'AI Parish Assistant';
+                window.setTimeout(function() {
+                    removeLoading();
+                    sendBtn.disabled = false;
+                    addMessage('assistant', {
+                        title: title,
+                        body: answer,
+                        steps: data.success && data.guidance && data.guidance.steps ? data.guidance.steps : [],
+                        stream: true
+                    });
+                    conversationHistory.push({role: 'assistant', content: answer});
+                    if (data.success) {
+                        renderResults(data.search_results);
+                        renderAnalytics(data.analytics);
+                    }
+                }, typingDelayFor(answer));
             })
             .catch(function() {
-                const loading = log.querySelector('.ai-message.loading');
-                if (loading) loading.remove();
-                addMessage('assistant', '<strong>AI Parish Assistant</strong><p>Unable to reach the assistant endpoint. Please try again.</p>');
+                const answer = 'Unable to reach the assistant endpoint. Please try again.';
+                window.setTimeout(function() {
+                    removeLoading();
+                    sendBtn.disabled = false;
+                    addMessage('assistant', {title: 'Connection Issue', body: answer, stream: true});
+                }, typingDelayFor(answer));
             });
         }
 
@@ -171,6 +240,37 @@ $page_title = 'AI Assistant - Admin';
             if (!message) return;
             input.value = '';
             askAssistant(message, 'chat');
+            input.focus();
+        });
+
+        input.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                form.requestSubmit();
+            }
+        });
+
+        log.addEventListener('click', function(event) {
+            const copyButton = event.target.closest('.ai-copy-btn');
+            if (!copyButton) return;
+            const bubble = copyButton.closest('.ai-message');
+            navigator.clipboard.writeText(textFromHtml(bubble.innerHTML).replace(/\s*Copy\s*$/, '').trim()).then(function() {
+                copyButton.textContent = 'Copied';
+                setTimeout(function() { copyButton.textContent = 'Copy'; }, 1400);
+            }).catch(function() {
+                copyButton.textContent = 'Copy failed';
+                setTimeout(function() { copyButton.textContent = 'Copy'; }, 1400);
+            });
+        });
+
+        clearBtn.addEventListener('click', function() {
+            log.innerHTML = '';
+            conversationHistory.length = 0;
+            addMessage('assistant', {
+                title: 'AI Parish Assistant',
+                body: 'Conversation cleared. Ask for pending-request summaries, transaction guidance, parish inquiry responses, analytics, or smart search across records available to admins.'
+            });
+            input.focus();
         });
 
         promptButtons.forEach(function(button) {
@@ -189,7 +289,12 @@ $page_title = 'AI Assistant - Admin';
             });
         }
 
-        askAssistant('Show analytics report summary', 'analytics');
+        addMessage('assistant', {
+            title: 'AI Parish Assistant',
+            body: 'Ask for pending-request summaries, transaction guidance, parish inquiry responses, or smart search across records available to admins.'
+        });
+        conversationHistory.push({role: 'assistant', content: 'Ask for pending-request summaries, transaction guidance, parish inquiry responses, or smart search across records available to admins.'});
+        input.focus();
     });
     </script>
 </body>

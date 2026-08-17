@@ -12,7 +12,7 @@ requireLogin();
 
 if (!ensureScheduleEventsTable($conn)) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Unable to prepare calendar table.']);
+    echo json_encode(actionResponse(false, 'Unable to prepare calendar table.'));
     exit;
 }
 
@@ -31,6 +31,14 @@ if (in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
 // API Response Helper - Sends JSON payloads with the expected HTTP status code.
 function jsonResponse($payload, $status = 200) {
     http_response_code($status);
+    if (is_array($payload) && isset($payload['message']) && !isset($payload['status'])) {
+        $payload = actionResponse(
+            !empty($payload['success']) || !empty($payload['ok']),
+            $payload['message'],
+            $payload['type'] ?? null,
+            $payload
+        );
+    }
     echo json_encode($payload);
     exit;
 }
@@ -184,10 +192,16 @@ function addRecurringScheduleEvents(&$events, $row, $range_start, $range_end, $e
 }
 
 // Calendar Notifications - Sends parish schedule update alerts to active parishioner accounts.
-function notifyCalendarUsers($conn, $title, $message) {
+function notifyCalendarUsers($conn, $title, $message, $send_email = true, $send_sms = true) {
     $result = $conn->query("SELECT id FROM users WHERE role = 'user' AND status = 'active'");
     while ($result && $user = $result->fetch_assoc()) {
-        createNotification($conn, intval($user['id']), $title, $message);
+        $user_id = intval($user['id']);
+        if (createNotification($conn, $user_id, $title, $message, false, 'schedules')) {
+            dispatchNotificationDelivery($conn, $user_id, $title, $message, 'schedules', [
+                'email' => (bool) $send_email,
+                'sms' => (bool) $send_sms
+            ]);
+        }
     }
 }
 
@@ -199,6 +213,12 @@ if ($method === 'GET') {
     $end = $_GET['end'] ?? date('Y-m-t');
     $search = cleanCalendarValue($_GET['q'] ?? '', 100);
     $category = cleanCalendarValue($_GET['category'] ?? 'all', 50);
+    $schedule_category = $category;
+    if ($category === 'monthly_schedule' || $category === 'mass_schedule') {
+        $schedule_category = 'monthly_mass';
+    } elseif ($category === 'patronal_fiesta_schedule') {
+        $schedule_category = 'patronal_fiesta';
+    }
     $status = cleanCalendarValue($_GET['status'] ?? 'all', 50);
     $events = [];
 
@@ -225,10 +245,10 @@ if ($method === 'GET') {
         array_push($params, $search_like, $search_like, $search_like, $search_like);
     }
 
-    if ($category !== 'all' && $category !== '') {
+    if ($schedule_category !== 'all' && $schedule_category !== '') {
         $where[] = "category = ?";
         $types .= 's';
-        $params[] = $category;
+        $params[] = $schedule_category;
     }
 
     if ($status !== 'all' && $status !== '') {
@@ -307,7 +327,7 @@ if ($method === 'GET') {
     }
 
     $announcement_calendar_types = ['announcement', 'monthly_schedule', 'mass_schedule', 'parish_event', 'patronal_fiesta_schedule'];
-    if (in_array($category, array_merge(['all', '', 'announcement', 'event', 'schedule'], $announcement_calendar_types), true)) {
+    if (in_array($category, array_merge(['all', '', 'announcement', 'event', 'schedule', 'mass', 'monthly_mass', 'patronal_fiesta'], $announcement_calendar_types), true)) {
         $announcementWhere = ["status = 'active'", "deleted_at IS NULL", "type IN ('announcement', 'monthly_schedule', 'mass_schedule', 'parish_event', 'patronal_fiesta_schedule')", "DATE(published_date) BETWEEN ? AND ?"];
         $announcementTypes = 'ss';
         $announcementParams = [$range_start, $range_end];
@@ -318,6 +338,12 @@ if ($method === 'GET') {
             $announcementParams[] = $category;
         } elseif ($category === 'event') {
             $announcementWhere[] = "type = 'parish_event'";
+        } elseif ($category === 'monthly_mass') {
+            $announcementWhere[] = "type IN ('monthly_schedule', 'mass_schedule')";
+        } elseif ($category === 'mass') {
+            $announcementWhere[] = "type = 'mass_schedule'";
+        } elseif ($category === 'patronal_fiesta') {
+            $announcementWhere[] = "type = 'patronal_fiesta_schedule'";
         } elseif ($category === 'schedule') {
             $announcementWhere[] = "type IN ('monthly_schedule', 'mass_schedule', 'patronal_fiesta_schedule')";
         }
@@ -339,14 +365,27 @@ if ($method === 'GET') {
             $stmt->execute();
             $result = $stmt->get_result();
             while ($result && $row = $result->fetch_assoc()) {
+                $announcement_category = $row['type'];
+                $announcement_color = '#fbbc04';
+                if ($row['type'] === 'monthly_schedule' || $row['type'] === 'mass_schedule') {
+                    $announcement_category = $row['type'] === 'mass_schedule' ? 'mass' : 'monthly_mass';
+                    $announcement_color = $row['type'] === 'mass_schedule' ? '#34a853' : '#0f9d58';
+                } elseif ($row['type'] === 'patronal_fiesta_schedule') {
+                    $announcement_category = 'patronal_fiesta';
+                    $announcement_color = '#c026d3';
+                } elseif ($row['type'] === 'parish_event') {
+                    $announcement_category = 'event';
+                    $announcement_color = '#1a73e8';
+                }
+
                 $events[] = [
                     'id' => 'announcement-' . $row['announcement_id'],
                     'title' => $row['title'],
                     'start' => date('Y-m-d\T09:00:00', strtotime($row['event_date'] ?: $row['published_date'])),
-                    'color' => '#fbbc04',
+                    'color' => $announcement_color,
                     'editable' => false,
                     'extendedProps' => [
-                        'category' => $row['type'],
+                        'category' => $announcement_category,
                         'status' => 'upcoming',
                         'priority' => 'normal',
                         'source_type' => 'announcement',
@@ -443,7 +482,7 @@ if ($method === 'POST') {
 
     createAuditLog($conn, $_SESSION['user_id'], 'ADD_SCHEDULE_EVENT', 'schedule_events', $schedule_id);
     if ($visibility === 'public' && $approval_status === 'approved' && ($notify_email || $notify_sms)) {
-        notifyCalendarUsers($conn, 'New Parish Schedule', $title . ' is scheduled on ' . formatDate($event_date) . ' at ' . formatTime($start_time) . '.');
+        notifyCalendarUsers($conn, 'New Parish Schedule', $title . ' is scheduled on ' . formatDate($event_date) . ' at ' . formatTime($start_time) . '.', (bool) $notify_email, (bool) $notify_sms);
     }
 
     jsonResponse(['success' => true, 'message' => 'Schedule saved.', 'id' => $schedule_id]);

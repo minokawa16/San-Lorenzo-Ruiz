@@ -63,7 +63,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
 }
 
 $documents = [];
-$stmt = $conn->prepare("SELECT document_id, document_type, original_name, mime_type, file_size, uploaded_at FROM request_documents WHERE request_id = ? AND deleted_at IS NULL ORDER BY uploaded_at DESC");
+$stmt = $conn->prepare("SELECT document_id, document_type, requirement_name, original_name, mime_type, file_size, uploaded_at FROM request_documents WHERE request_id = ? AND deleted_at IS NULL ORDER BY uploaded_at DESC");
 if ($stmt) {
     $stmt->bind_param('i', $request_id);
     $stmt->execute();
@@ -88,9 +88,9 @@ foreach ($documents as $document) {
 }
 $payments = getRequestPayments($conn, $request_id);
 $can_submit_payment = in_array($request['status'], ['approved', 'processing'], true);
-$payment_qr_asset = '../assets/img/payment-qr.png';
-$payment_qr_file = __DIR__ . '/../assets/img/payment-qr.png';
-$payment_qr_url = file_exists($payment_qr_file) ? $payment_qr_asset . '?v=' . filemtime($payment_qr_file) : '';
+$gcash_recipient_name = 'Agnes Calapaan';
+$gcash_recipient_number = '09977428176';
+$gcash_recipient_display = '0997 742 8176';
 $page_title = 'View Request';
 ?>
 <?php include '../templates/header.php'; ?>
@@ -98,70 +98,231 @@ $page_title = 'View Request';
 <style>
     .payment-guide {
         display: grid;
-        grid-template-columns: minmax(180px, 240px) 1fr;
+        grid-template-columns: minmax(230px, 320px) minmax(0, 1fr);
         gap: 18px;
         align-items: start;
         margin-bottom: 18px;
         padding: 16px;
-        border: 1px solid rgba(23, 32, 51, 0.1);
-        border-radius: 8px;
-        background: linear-gradient(135deg, #ffffff, #fff8df 58%, #eef5fb);
+        border: 1px solid #eadfca;
+        border-radius: 16px;
+        background: #fcfaf5;
     }
 
-    .payment-qr-frame {
+    .payment-contact-card {
         display: grid;
-        place-items: center;
-        min-height: 250px;
-        padding: 14px;
-        border: 1px solid rgba(23, 32, 51, 0.12);
-        border-radius: 8px;
-        background: #ffffff;
+        justify-items: center;
+        padding: 20px 16px;
+        border: 1px solid #ead9af;
+        border-radius: 16px;
+        background: linear-gradient(135deg, #fbf3df, #f7ecd6);
         text-align: center;
     }
 
-    .payment-qr-frame img {
-        width: min(100%, 210px);
-        height: auto;
-        display: block;
+    .payment-contact-avatar {
+        width: 52px;
+        height: 52px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 9px;
+        border: 3px solid #fff;
+        border-radius: 50%;
+        color: #2a241c;
+        background: #b9863a;
+        box-shadow: 0 6px 14px rgba(140, 100, 39, 0.25);
+        font-size: 1rem;
+        font-weight: 900;
     }
 
-    .payment-qr-empty {
-        color: #64748b;
-        font-size: 0.9rem;
+    .payment-contact-role {
+        color: #8c6427;
+        font-size: 0.68rem;
+        font-weight: 850;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
     }
 
-    .payment-qr-empty i {
-        display: block;
-        margin-bottom: 10px;
-        color: #17446a;
-        font-size: 2rem;
+    .payment-contact-name {
+        margin-top: 3px;
+        color: #2a241c;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 1.05rem;
+        font-weight: 800;
     }
 
-    .payment-guide h6 {
-        margin-bottom: 8px;
-        color: #172033;
+    .payment-contact-number-row {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-top: 14px;
+        padding: 10px 12px;
+        border: 1px solid #ead9af;
+        border-radius: 12px;
+        background: #fff;
+    }
+
+    .payment-contact-number {
+        color: #2a241c;
+        font-size: 1rem;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        white-space: nowrap;
+    }
+
+    .payment-copy-button {
+        flex: 0 0 auto;
+        min-height: 30px;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 9px;
+        border: 1px solid #ece4d3;
+        border-radius: 999px;
+        color: #8c6427;
+        background: #f7ecd6;
+        font-size: 0.7rem;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .payment-copy-button.copied {
+        color: #3f7448;
+        background: #e8f3e9;
+    }
+
+    .payment-instructions {
+        padding: 14px 16px;
+        border-radius: 14px;
+        background: #f7ecd6;
+    }
+
+    .payment-instructions h6 {
+        margin: 0 0 9px;
+        color: #2a241c;
         font-weight: 900;
     }
 
     .payment-guide-list {
         margin: 0;
-        padding-left: 18px;
-        color: #475569;
+        padding-left: 19px;
+        color: #4f473d;
     }
 
-    .payment-account {
-        display: grid;
-        gap: 6px;
-        margin-top: 12px;
-        padding: 12px;
-        border-radius: 8px;
-        background: rgba(255, 255, 255, 0.74);
-        color: #172033;
+    .payment-guide-list li + li {
+        margin-top: 7px;
     }
 
-    .payment-account span {
-        color: #64748b;
-        font-size: 0.86rem;
+    .payment-receipt-form {
+        padding-top: 2px;
+    }
+
+    .payment-method-display[readonly] {
+        color: #2a241c;
+        background: #faf7f1;
+        cursor: default;
+    }
+
+    .payment-receipt-form input[type="file"] {
+        border-color: #b9863a;
+    }
+
+    .payment-submit-button {
+        width: 100%;
+        min-height: 44px;
+        border-radius: 12px;
+        font-weight: 800;
+    }
+
+    body.app-page-view-request .request-attachment-row {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 8px !important;
+        width: 100%;
+        min-width: 0 !important;
+        height: auto !important;
+        padding: 9px 10px !important;
+    }
+
+    body.app-page-view-request .request-attachment-icon {
+        width: 26px;
+        height: 26px;
+        display: inline-flex !important;
+        flex: 0 0 26px !important;
+        align-items: center;
+        justify-content: center;
+        border-radius: 7px;
+        color: #8c6427;
+        background: #f7ecd6;
+        font-size: 0.7rem;
+    }
+
+    body.app-page-view-request .request-attachment-info {
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        overflow: hidden !important;
+    }
+
+    body.app-page-view-request .request-attachment-requirement,
+    body.app-page-view-request .request-attachment-name {
+        display: block !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        overflow: hidden !important;
+        white-space: nowrap !important;
+        word-break: normal !important;
+        overflow-wrap: normal !important;
+        text-overflow: ellipsis !important;
+    }
+
+    body.app-page-view-request .request-attachment-requirement {
+        margin-bottom: 1px;
+        color: #2a241c;
+        font-size: 0.68rem;
+        line-height: 1.2;
+    }
+
+    body.app-page-view-request .request-attachment-name {
+        color: #8c6427;
+        font-size: 0.68rem;
+        font-weight: 600;
+        line-height: 1.2;
+    }
+
+    body.app-page-view-request .request-attachment-size {
+        display: block !important;
+        margin-top: 1px;
+        color: #8b8375;
+        font-size: 0.62rem;
+        line-height: 1.2;
+        white-space: nowrap !important;
+    }
+
+    body.app-page-view-request .request-attachment-view {
+        display: inline-flex !important;
+        flex: 0 0 auto !important;
+        flex-shrink: 0 !important;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        width: auto !important;
+        min-width: 0 !important;
+        min-height: 0 !important;
+        height: auto !important;
+        padding: 6px 9px !important;
+        border: 1px solid #ece4d3;
+        border-radius: 999px;
+        color: #8c6427;
+        background: #f7ecd6;
+        font-size: 0.66rem !important;
+        font-weight: 700;
+        line-height: 1 !important;
+        white-space: nowrap !important;
+        word-break: normal !important;
+        overflow-wrap: normal !important;
     }
 
     @media (max-width: 768px) {
@@ -223,12 +384,16 @@ $page_title = 'View Request';
                             <h6 class="text-muted mb-2">Submitted Requirements</h6>
                             <div class="list-group">
                                 <?php foreach ($documents_by_type['requirement'] as $document): ?>
-                                    <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" href="../request-document.php?id=<?php echo intval($document['document_id']); ?>" target="_blank">
-                                        <span>
-                                            <i class="fas fa-paperclip"></i>
-                                            <?php echo e($document['original_name']); ?>
+                                    <a class="list-group-item list-group-item-action request-attachment-row" href="../request-document.php?id=<?php echo intval($document['document_id']); ?>" target="_blank" rel="noopener">
+                                        <span class="request-attachment-icon" aria-hidden="true"><i class="fas fa-paperclip"></i></span>
+                                        <span class="request-attachment-info">
+                                            <?php if (!empty($document['requirement_name'])): ?>
+                                                <strong class="request-attachment-requirement"><?php echo e($document['requirement_name']); ?></strong>
+                                            <?php endif; ?>
+                                            <span class="request-attachment-name" title="<?php echo e($document['original_name']); ?>"><?php echo e($document['original_name']); ?></span>
+                                            <small class="request-attachment-size"><?php echo e(formatFileSize($document['file_size'])); ?></small>
                                         </span>
-                                        <small class="text-muted"><?php echo e(formatFileSize($document['file_size'])); ?></small>
+                                        <span class="request-attachment-view"><i class="fas fa-eye" aria-hidden="true"></i> View</span>
                                     </a>
                                 <?php endforeach; ?>
                             </div>
@@ -277,50 +442,41 @@ $page_title = 'View Request';
                             <div class="card-body">
                                 <h6 class="mb-3"><i class="fas fa-receipt"></i> Submit Payment Receipt</h6>
                                 <div class="payment-guide">
-                                    <div class="payment-qr-frame">
-                                        <?php if ($payment_qr_url !== ''): ?>
-                                            <img src="<?php echo e($payment_qr_url); ?>" alt="Payment QR code">
-                                        <?php else: ?>
-                                            <div class="payment-qr-empty">
-                                                <i class="fas fa-qrcode"></i>
-                                                Payment QR image will appear here once configured.
-                                            </div>
-                                        <?php endif; ?>
-                                    </div>
-                                    <div>
-                                        <h6><i class="fas fa-mobile-screen-button"></i> Scan QR for Payment</h6>
-                                        <ul class="payment-guide-list">
-                                            <li>Scan the QR code using your banking or wallet app.</li>
-                                            <li>Use this request reference as the payment basis: <strong><?php echo e($request['reference_number']); ?></strong>.</li>
-                                            <li>After paying, upload the receipt or proof of payment below for admin verification.</li>
-                                            <li>Transfer fees may apply.</li>
-                                        </ul>
-                                        <div class="payment-account">
-                                            <strong>R** MA*K C.</strong>
-                                            <span>Mobile No.: +63 963 586 ....</span>
-                                            <span>User ID: ********ONH82Q</span>
+                                    <div class="payment-contact-card">
+                                        <div class="payment-contact-avatar" aria-hidden="true">AC</div>
+                                        <div class="payment-contact-role">GCash — Parish Secretary</div>
+                                        <div class="payment-contact-name"><?php echo e($gcash_recipient_name); ?></div>
+                                        <div class="payment-contact-number-row">
+                                            <span class="payment-contact-number"><?php echo e($gcash_recipient_display); ?></span>
+                                            <button type="button" class="payment-copy-button" data-copy-gcash="<?php echo e($gcash_recipient_number); ?>" aria-label="Copy GCash number <?php echo e($gcash_recipient_display); ?>">
+                                                <i class="fas fa-copy" aria-hidden="true"></i>
+                                                <span>Copy</span>
+                                            </button>
                                         </div>
                                     </div>
+                                    <div class="payment-instructions">
+                                        <h6><i class="fas fa-money-bill-wave"></i> How to Pay</h6>
+                                        <ul class="payment-guide-list">
+                                            <li>Send your payment via GCash to the name and number above.</li>
+                                            <li>Use this request reference as the payment basis: <strong><?php echo e($request['reference_number']); ?></strong>.</li>
+                                            <li>After paying, upload the receipt or proof of payment below for verification.</li>
+                                        </ul>
+                                    </div>
                                 </div>
-                                <form method="POST" enctype="multipart/form-data" class="row g-3">
+                                <form method="POST" enctype="multipart/form-data" class="row g-3 payment-receipt-form">
                                     <input type="hidden" name="action" value="submit_payment">
+                                    <input type="hidden" name="payment_method" value="gcash">
                                     <div class="col-md-4">
                                         <label class="form-label" for="amount">Amount</label>
-                                        <input type="number" class="form-control" id="amount" name="amount" min="1" step="0.01" required>
+                                        <input type="number" class="form-control" id="amount" name="amount" min="1" step="0.01" inputmode="decimal" placeholder="e.g. 150.00" required>
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label" for="payment_method">Method</label>
-                                        <select class="form-select" id="payment_method" name="payment_method" required>
-                                            <option value="">Choose method</option>
-                                            <option value="cash">Cash</option>
-                                            <option value="gcash">GCash</option>
-                                            <option value="bank_transfer">Bank Transfer</option>
-                                            <option value="other">Other</option>
-                                        </select>
+                                        <input type="text" class="form-control payment-method-display" id="payment_method" value="GCash" readonly aria-readonly="true">
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label" for="reference_number">Reference Number</label>
-                                        <input type="text" class="form-control" id="reference_number" name="reference_number">
+                                        <input type="text" class="form-control" id="reference_number" name="reference_number" placeholder="GCash reference number">
                                     </div>
                                     <div class="col-12">
                                         <label class="form-label" for="receipt_file">Receipt / Proof of Payment</label>
@@ -328,10 +484,10 @@ $page_title = 'View Request';
                                     </div>
                                     <div class="col-12">
                                         <label class="form-label" for="notes">Notes</label>
-                                        <textarea class="form-control" id="notes" name="notes" rows="2"></textarea>
+                                        <textarea class="form-control" id="notes" name="notes" rows="2" placeholder="Optional notes"></textarea>
                                     </div>
                                     <div class="col-12">
-                                        <button type="submit" class="btn btn-primary">
+                                        <button type="submit" class="btn btn-primary payment-submit-button">
                                             <i class="fas fa-upload"></i> Submit Receipt
                                         </button>
                                     </div>
@@ -342,7 +498,7 @@ $page_title = 'View Request';
 
                     <?php if (!empty($documents_by_type['admin_file']) || !empty($documents_by_type['released_certificate'])): ?>
                         <div class="mb-4">
-                            <h6 class="text-muted mb-2">Files from Parish Office</h6>
+                            <h6 class="text-muted mb-2">Certificates from Parish Office</h6>
                             <div class="list-group">
                                 <?php foreach (array_merge($documents_by_type['released_certificate'], $documents_by_type['admin_file']) as $document): ?>
                                     <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" href="../request-document.php?id=<?php echo intval($document['document_id']); ?>" target="_blank">
@@ -379,5 +535,43 @@ $page_title = 'View Request';
         </div>
     </div>
 </div>
+
+<script>
+    (function () {
+        var copyButton = document.querySelector('[data-copy-gcash]');
+        if (!copyButton) return;
+
+        function copyFallback(value) {
+            var input = document.createElement('textarea');
+            input.value = value;
+            input.setAttribute('readonly', '');
+            input.style.position = 'fixed';
+            input.style.opacity = '0';
+            document.body.appendChild(input);
+            input.select();
+            var copied = document.execCommand('copy');
+            input.remove();
+            return copied;
+        }
+
+        copyButton.addEventListener('click', function () {
+            var value = copyButton.getAttribute('data-copy-gcash') || '';
+            var label = copyButton.querySelector('span');
+            var copyTask = navigator.clipboard && window.isSecureContext
+                ? navigator.clipboard.writeText(value).then(function () { return true; }).catch(function () { return copyFallback(value); })
+                : Promise.resolve(copyFallback(value));
+
+            copyTask.then(function (copied) {
+                if (!copied || !label) return;
+                label.textContent = 'Copied';
+                copyButton.classList.add('copied');
+                window.setTimeout(function () {
+                    label.textContent = 'Copy';
+                    copyButton.classList.remove('copied');
+                }, 1600);
+            });
+        });
+    }());
+</script>
 
 <?php include '../templates/footer.php'; ?>

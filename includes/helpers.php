@@ -35,7 +35,30 @@ function isValidEmail($email) {
 }
 
 function isValidPhilippineMobile($phone) {
-    return preg_match('/^09\d{9}$/', (string) $phone);
+    return preg_match('/^(09\d{9}|\+639\d{9}|639\d{9})$/', trim((string) $phone));
+}
+
+function normalizePhilippineMobileForStorage($phone) {
+    $value = trim((string) $phone);
+    $digits = preg_replace('/\D/', '', $value);
+    if (preg_match('/^09\d{9}$/', $digits)) {
+        return $digits;
+    }
+    if (preg_match('/^639\d{9}$/', $digits)) {
+        return '0' . substr($digits, 2);
+    }
+    return $value;
+}
+
+function normalizePhilippineMobileForSms($phone) {
+    $digits = preg_replace('/\D/', '', (string) $phone);
+    if (preg_match('/^09\d{9}$/', $digits)) {
+        return '+63' . substr($digits, 1);
+    }
+    if (preg_match('/^639\d{9}$/', $digits)) {
+        return '+' . $digits;
+    }
+    return trim((string) $phone);
 }
 
 // Hash password using bcrypt (PASSWORD_DEFAULT uses bcrypt by default)
@@ -69,7 +92,9 @@ function generateCsrfToken() {
     }
 
     $name = csrfTokenName();
-    if (empty($_SESSION[$name]) || empty($_SESSION[$name . '_time'])) {
+    $expiry = defined('CSRF_TOKEN_EXPIRY') ? CSRF_TOKEN_EXPIRY : 3600;
+    $is_expired = !empty($_SESSION[$name . '_time']) && (time() - intval($_SESSION[$name . '_time'])) > $expiry;
+    if (empty($_SESSION[$name]) || empty($_SESSION[$name . '_time']) || $is_expired) {
         $_SESSION[$name] = bin2hex(random_bytes(32));
         $_SESSION[$name . '_time'] = time();
     }
@@ -100,16 +125,229 @@ function csrfInput() {
     return '<input type="hidden" name="' . e(csrfTokenName()) . '" value="' . e(generateCsrfToken()) . '">';
 }
 
+function csrfFailureMessage() {
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+
+    $message = $_SESSION['csrf_error'] ?? '';
+    unset($_SESSION['csrf_error']);
+    return $message;
+}
+
+// Global Action Notifications - Queues reusable toast messages for normal and AJAX flows.
+function normalizeActionNotificationType($type) {
+    $type = strtolower(trim((string) $type));
+    $aliases = [
+        'ok' => 'success',
+        'danger' => 'error',
+        'failed' => 'error',
+        'failure' => 'error',
+        'notice' => 'info',
+        'primary' => 'info',
+        'secondary' => 'info',
+    ];
+    $type = $aliases[$type] ?? $type;
+    return in_array($type, ['success', 'error', 'warning', 'info'], true) ? $type : 'info';
+}
+
+function queueActionNotification($message, $type = 'info', $title = '') {
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+
+    $message = trim((string) $message);
+    if ($message === '') {
+        return;
+    }
+
+    if (!isset($_SESSION['action_notifications']) || !is_array($_SESSION['action_notifications'])) {
+        $_SESSION['action_notifications'] = [];
+    }
+
+    $_SESSION['action_notifications'][] = [
+        'type' => normalizeActionNotificationType($type),
+        'message' => $message,
+        'title' => trim((string) $title),
+    ];
+}
+
+function consumeActionNotifications() {
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+
+    $notifications = $_SESSION['action_notifications'] ?? [];
+    unset($_SESSION['action_notifications']);
+
+    return array_values(array_filter((array) $notifications, function($item) {
+        return is_array($item) && trim((string) ($item['message'] ?? '')) !== '';
+    }));
+}
+
+function redirectWithNotification($location, $message, $type = 'success', $title = '') {
+    queueActionNotification($message, $type, $title);
+    header('Location: ' . $location, true, 303);
+    exit;
+}
+
+function actionResponse($success, $message, $type = null, $extra = []) {
+    $success = (bool) $success;
+    $type = $type !== null ? normalizeActionNotificationType($type) : ($success ? 'success' : 'error');
+    return array_merge([
+        'success' => $success,
+        'ok' => $success,
+        'status' => $success ? 'success' : 'error',
+        'type' => $type,
+        'message' => (string) $message,
+    ], (array) $extra);
+}
+
+function sendJsonActionResponse($success, $message, $type = null, $extra = [], $status_code = 200) {
+    http_response_code($status_code);
+    header('Content-Type: application/json');
+    echo json_encode(actionResponse($success, $message, $type, $extra));
+    exit;
+}
+
 function requireValidCsrfToken() {
     $name = csrfTokenName();
     if (!verifyCsrfToken($_POST[$name] ?? '')) {
-        http_response_code(403);
-        die('Security check failed. Please refresh the page and try again.');
+        $_SESSION[$name] = bin2hex(random_bytes(32));
+        $_SESSION[$name . '_time'] = time();
+        $_SESSION['csrf_error'] = 'Your secure session token expired. Please try again.';
+
+        $accept = strtolower((string) ($_SERVER['HTTP_ACCEPT'] ?? ''));
+        $is_json_request = strpos($accept, 'application/json') !== false || strtolower((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'xmlhttprequest';
+        if ($is_json_request) {
+            sendJsonActionResponse(false, $_SESSION['csrf_error'], 'error', ['error' => $_SESSION['csrf_error']], 403);
+        }
+
+        $redirect = strtok((string) ($_SERVER['REQUEST_URI'] ?? ''), "\r\n");
+        if ($redirect === '') {
+            $redirect = $_SERVER['PHP_SELF'] ?? '/';
+        }
+        redirectWithNotification($redirect, $_SESSION['csrf_error'], 'error');
     }
 }
 
+function notificationCategoryFromText($title, $message) {
+    $text = strtolower((string) $title . ' ' . (string) $message);
+    if (strpos($text, 'announcement') !== false) {
+        return 'announcements';
+    }
+    if (strpos($text, 'schedule') !== false || strpos($text, 'reservation') !== false || strpos($text, 'calendar') !== false) {
+        return 'schedules';
+    }
+    if (strpos($text, 'request') !== false || strpos($text, 'certificate') !== false || strpos($text, 'blessing') !== false || strpos($text, 'payment') !== false || strpos($text, 'receipt') !== false || strpos($text, 'file') !== false) {
+        return 'requests';
+    }
+    return 'system';
+}
+
+function userAllowsNotificationCategory($conn, $user_id, $category, $channel) {
+    $column = $channel === 'sms' ? 'sms_enabled' : ($channel === 'in_app' ? 'in_app_enabled' : 'email_enabled');
+    if ($column === 'sms_enabled' && !columnExists($conn, 'notification_preferences', 'sms_enabled')) {
+        return true;
+    }
+    $stmt = $conn->prepare("SELECT $column AS enabled FROM notification_preferences WHERE user_id = ? AND category = ? LIMIT 1");
+    if ($stmt) {
+        $uid = intval($user_id);
+        $stmt->bind_param('is', $uid, $category);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        if ($row) {
+            return intval($row['enabled']) === 1;
+        }
+    }
+    return true;
+}
+
+function notificationSmsMessage($title, $message) {
+    $text = trim('TUGON Parish System: ' . (string) $title . "\n" . (string) $message);
+    $text = preg_replace('/[ \t]+/', ' ', $text);
+    $text = preg_replace("/\n{3,}/", "\n\n", $text);
+    return strlen($text) > 480 ? substr($text, 0, 477) . '...' : $text;
+}
+
+function createRequestStatusNotification($conn, array $request, $status, $admin_note = '') {
+    $user_id = intval($request['user_id'] ?? 0);
+    if ($user_id <= 0) {
+        return false;
+    }
+
+    $status = strtolower(trim((string) $status));
+    $reference = trim((string) ($request['reference_number'] ?? ''));
+    $request_type = tugonRequestTypeLabel($request['request_type'] ?? 'parish');
+    $status_label = ucfirst(str_replace('_', ' ', $status));
+    $admin_note = trim(stripslashes((string) $admin_note));
+    $title = $request_type . ' Request ' . $status_label;
+
+    if ($status === 'approved') {
+        $message = 'Your ' . $request_type . ' request' . ($reference !== '' ? ' (' . $reference . ')' : '') . ' has been approved by the parish office.';
+    } elseif ($status === 'processing') {
+        $message = 'Your ' . $request_type . ' request' . ($reference !== '' ? ' (' . $reference . ')' : '') . ' is now being processed by the parish office.';
+    } elseif ($status === 'rejected') {
+        $message = 'Your ' . $request_type . ' request' . ($reference !== '' ? ' (' . $reference . ')' : '') . ' was rejected by the parish office.';
+    } elseif ($status === 'completed') {
+        $message = 'Your ' . $request_type . ' request' . ($reference !== '' ? ' (' . $reference . ')' : '') . ' has been completed.';
+    } else {
+        $message = 'Your ' . $request_type . ' request' . ($reference !== '' ? ' (' . $reference . ')' : '') . ' status is now ' . $status_label . '.';
+    }
+
+    if ($admin_note !== '') {
+        $message .= ' Parish office note: ' . $admin_note;
+    }
+    $message .= ' Please open your TUGON account for details and next steps.';
+
+    return createNotification($conn, $user_id, $title, $message, true, 'requests');
+}
+
+function dispatchNotificationDelivery($conn, $user_id, $title, $message, $category = null, array $channels = null) {
+    if (!$conn || !tableExists($conn, 'users')) {
+        return ['email' => ['ok' => false, 'skipped' => true], 'sms' => ['ok' => false, 'skipped' => true]];
+    }
+
+    $channels = $channels ?: ['email' => true, 'sms' => true];
+    $category = $category ?: notificationCategoryFromText($title, $message);
+    $stmt = $conn->prepare("SELECT id, fullname, email, phone_number, role, status FROM users WHERE id = ? LIMIT 1");
+    if (!$stmt) {
+        return ['email' => ['ok' => false, 'error' => 'Unable to load user.'], 'sms' => ['ok' => false, 'error' => 'Unable to load user.']];
+    }
+    $uid = intval($user_id);
+    $stmt->bind_param('i', $uid);
+    $stmt->execute();
+    $user = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    if (!$user || ($user['role'] ?? '') !== 'user' || ($user['status'] ?? '') !== 'active') {
+        return ['email' => ['ok' => true, 'skipped' => true], 'sms' => ['ok' => true, 'skipped' => true]];
+    }
+
+    $results = [
+        'email' => ['ok' => true, 'skipped' => true],
+        'sms' => ['ok' => true, 'skipped' => true]
+    ];
+
+    $email = trim((string) ($user['email'] ?? ''));
+    if (!empty($channels['email']) && $email !== '' && isValidEmail($email) && userAllowsNotificationCategory($conn, $uid, $category, 'email')) {
+        $body = '<p>Hello ' . e($user['fullname'] ?: 'Parishioner') . ',</p>'
+            . '<p>' . nl2br(e((string) $message)) . '</p>'
+            . '<p>Please open your TUGON account for full details.</p>';
+        $results['email'] = sendTugonEmail($conn, $email, 'TUGON Notification - ' . (string) $title, tugonEmailTemplate((string) $title, $body), '', $uid, $category);
+    }
+
+    $phone = trim((string) ($user['phone_number'] ?? ''));
+    if (!empty($channels['sms']) && $phone !== '' && isValidPhilippineMobile($phone) && userAllowsNotificationCategory($conn, $uid, $category, 'sms')) {
+        $results['sms'] = sendTugonSms($conn, $phone, notificationSmsMessage($title, $message), $uid, $category);
+    }
+
+    return $results;
+}
+
 // Notification System - Creates in-app alerts for parishioners and staff.
-function createNotification($conn, $user_id, $title, $message) {
+function createNotification($conn, $user_id, $title, $message, $send_outbound = true, $category = null) {
     $stmt = $conn->prepare("INSERT INTO notifications (user_id, title, message) VALUES (?, ?, ?)");
     if (!$stmt) {
         return false;
@@ -119,6 +357,9 @@ function createNotification($conn, $user_id, $title, $message) {
     $stmt->bind_param('iss', $user_id, $title, $message);
     $ok = $stmt->execute();
     $stmt->close();
+    if ($ok && $send_outbound) {
+        dispatchNotificationDelivery($conn, $user_id, $title, $message, $category);
+    }
     return $ok;
 }
 
@@ -151,7 +392,7 @@ function ensureEmailNotificationSchema($conn) {
         user_id INT NOT NULL,
         email VARCHAR(150) NOT NULL,
         purpose VARCHAR(40) NOT NULL,
-        otp_hash CHAR(64) NOT NULL,
+        otp_hash VARCHAR(255) NOT NULL,
         expires_at DATETIME NOT NULL,
         attempts INT DEFAULT 0,
         verified_at DATETIME NULL,
@@ -206,10 +447,16 @@ function ensureEmailNotificationSchema($conn) {
         user_id INT NOT NULL,
         category VARCHAR(80) NOT NULL,
         email_enabled TINYINT(1) DEFAULT 1,
+        sms_enabled TINYINT(1) DEFAULT 1,
         in_app_enabled TINYINT(1) DEFAULT 1,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         UNIQUE KEY uniq_user_category (user_id, category)
     )");
+
+    if (!columnExists($conn, 'notification_preferences', 'sms_enabled')) {
+        $conn->query("ALTER TABLE notification_preferences ADD COLUMN sms_enabled TINYINT(1) DEFAULT 1 AFTER email_enabled");
+        $conn->query("UPDATE notification_preferences SET sms_enabled = 1 WHERE sms_enabled IS NULL");
+    }
 
     $columns = [
         'email_verified_at' => "ALTER TABLE users ADD COLUMN email_verified_at TIMESTAMP NULL DEFAULT NULL AFTER email",
@@ -225,16 +472,73 @@ function ensureEmailNotificationSchema($conn) {
         }
     }
 
+    if (columnExists($conn, 'users', 'email')) {
+        $conn->query("ALTER TABLE users MODIFY email VARCHAR(150) NULL");
+    }
+    if (columnExists($conn, 'users', 'phone_number')) {
+        $conn->query("ALTER TABLE users MODIFY phone_number VARCHAR(20) NULL");
+        $duplicate_phone_result = $conn->query("SELECT phone_number FROM users WHERE phone_number IS NOT NULL AND phone_number <> '' GROUP BY phone_number HAVING COUNT(*) > 1 LIMIT 1");
+        $has_duplicate_phone_numbers = $duplicate_phone_result && $duplicate_phone_result->num_rows > 0;
+        if (!$has_duplicate_phone_numbers && !indexExists($conn, 'users', 'uniq_users_phone_number')) {
+            $conn->query("CREATE UNIQUE INDEX uniq_users_phone_number ON users (phone_number)");
+        }
+    }
+
     $conn->query("UPDATE users SET email_verified_at = COALESCE(email_verified_at, NOW()) WHERE status = 'active' AND email_verified_at IS NULL");
+}
+
+// Environment Loader - Reads simple KEY=value pairs from .env for localhost setup.
+function tugonLoadEnvFile() {
+    static $loaded = false;
+    if ($loaded) {
+        return;
+    }
+    $loaded = true;
+
+    $path = dirname(__DIR__) . '/.env';
+    if (!is_file($path) || !is_readable($path)) {
+        return;
+    }
+
+    $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if ($line === '' || strpos($line, '#') === 0 || strpos($line, '=') === false) {
+            continue;
+        }
+
+        [$key, $value] = explode('=', $line, 2);
+        $key = trim($key);
+        $value = trim($value);
+        if ($key === '' || getenv($key) !== false) {
+            continue;
+        }
+
+        if ((str_starts_with($value, '"') && str_ends_with($value, '"')) || (str_starts_with($value, "'") && str_ends_with($value, "'"))) {
+            $value = substr($value, 1, -1);
+        }
+        putenv($key . '=' . $value);
+        $_ENV[$key] = $value;
+        $_SERVER[$key] = $value;
+    }
 }
 
 // Mail Configuration - Loads email sender settings with safe local defaults.
 function tugonMailConfig() {
+    tugonLoadEnvFile();
+
     $defaults = [
         'from_email' => 'no-reply@tugon.local',
         'from_name' => 'TUGON Parish System',
         'reply_to' => '',
-        'enabled' => true
+        'enabled' => true,
+        'mailer' => 'smtp',
+        'smtp_host' => '127.0.0.1',
+        'smtp_port' => 1025,
+        'smtp_username' => '',
+        'smtp_password' => '',
+        'smtp_encryption' => '',
+        'smtp_timeout' => 10
     ];
     $path = __DIR__ . '/../config/mail.php';
     if (is_file($path)) {
@@ -246,6 +550,136 @@ function tugonMailConfig() {
     return $defaults;
 }
 
+function tugonSmtpRead($socket) {
+    $response = '';
+    while (($line = fgets($socket, 515)) !== false) {
+        $response .= $line;
+        if (strlen($line) >= 4 && $line[3] === ' ') {
+            break;
+        }
+    }
+    return $response;
+}
+
+function tugonSmtpTlsMethod() {
+    $methods = 0;
+
+    if (defined('STREAM_CRYPTO_METHOD_TLSv1_3_CLIENT')) {
+        $methods |= STREAM_CRYPTO_METHOD_TLSv1_3_CLIENT;
+    }
+    if (defined('STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT')) {
+        $methods |= STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT;
+    }
+
+    return $methods !== 0 ? $methods : STREAM_CRYPTO_METHOD_TLS_CLIENT;
+}
+
+function tugonSmtpContext($host) {
+    return stream_context_create([
+        'ssl' => [
+            'peer_name' => $host,
+            'verify_peer' => true,
+            'verify_peer_name' => true,
+            'allow_self_signed' => false,
+            'SNI_enabled' => true
+        ]
+    ]);
+}
+
+function tugonSmtpCommand($socket, $command, array $expected_codes) {
+    if ($command !== '') {
+        fwrite($socket, $command . "\r\n");
+    }
+    $response = tugonSmtpRead($socket);
+    $code = intval(substr($response, 0, 3));
+    if (!in_array($code, $expected_codes, true)) {
+        throw new RuntimeException('SMTP command failed: ' . trim($response));
+    }
+    return $response;
+}
+
+function tugonFriendlySmtpError($error) {
+    $message = trim((string) $error);
+
+    if (stripos($message, '535-5.7.8') !== false || stripos($message, 'Username and Password not accepted') !== false) {
+        return 'Gmail rejected the SMTP login. Check MAIL_USERNAME and use a fresh 16-character Gmail App Password in MAIL_PASSWORD.';
+    }
+
+    return $message;
+}
+
+function tugonEmailHeaders($from_email, $from_name, $to, $subject, $reply_to = '') {
+    $headers = [
+        'MIME-Version: 1.0',
+        'Content-Type: text/html; charset=UTF-8',
+        'From: ' . $from_name . ' <' . $from_email . '>',
+        'To: ' . $to,
+        'Subject: ' . $subject,
+        'Date: ' . date(DATE_RFC2822)
+    ];
+    if ($reply_to !== '') {
+        $headers[] = 'Reply-To: ' . $reply_to;
+    }
+    return implode("\r\n", $headers);
+}
+
+function sendTugonSmtpEmail(array $config, $to, $subject, $html_body) {
+    $host = trim((string) ($config['smtp_host'] ?? ''));
+    $port = intval($config['smtp_port'] ?? 25);
+    if ($host === '') {
+        return ['ok' => false, 'error' => 'SMTP host is not configured.'];
+    }
+
+    if (!empty($config['smtp_username']) && (string) ($config['smtp_password'] ?? '') === '') {
+        return ['ok' => false, 'error' => 'SMTP password is not configured. Add your Gmail App Password to MAIL_PASSWORD in .env.'];
+    }
+
+    $scheme = strtolower((string) ($config['smtp_encryption'] ?? '')) === 'ssl' ? 'ssl://' : 'tcp://';
+    $context = tugonSmtpContext($host);
+    $socket = @stream_socket_client($scheme . $host . ':' . $port, $errno, $errstr, intval($config['smtp_timeout'] ?? 10), STREAM_CLIENT_CONNECT, $context);
+    if (!$socket) {
+        return ['ok' => false, 'error' => 'SMTP connection failed: ' . ($errstr ?: 'unknown error')];
+    }
+
+    try {
+        stream_set_timeout($socket, intval($config['smtp_timeout'] ?? 10));
+        tugonSmtpCommand($socket, '', [220]);
+        tugonSmtpCommand($socket, 'EHLO localhost', [250]);
+
+        if (strtolower((string) ($config['smtp_encryption'] ?? '')) === 'tls') {
+            tugonSmtpCommand($socket, 'STARTTLS', [220]);
+            stream_context_set_option($socket, 'ssl', 'peer_name', $host);
+            stream_context_set_option($socket, 'ssl', 'SNI_enabled', true);
+            if (!stream_socket_enable_crypto($socket, true, tugonSmtpTlsMethod())) {
+                throw new RuntimeException('Unable to start SMTP TLS encryption.');
+            }
+            tugonSmtpCommand($socket, 'EHLO localhost', [250]);
+        }
+
+        if (!empty($config['smtp_username'])) {
+            tugonSmtpCommand($socket, 'AUTH LOGIN', [334]);
+            tugonSmtpCommand($socket, base64_encode((string) $config['smtp_username']), [334]);
+            tugonSmtpCommand($socket, base64_encode((string) $config['smtp_password']), [235]);
+        }
+
+        $from = (string) $config['from_email'];
+        tugonSmtpCommand($socket, 'MAIL FROM:<' . $from . '>', [250]);
+        tugonSmtpCommand($socket, 'RCPT TO:<' . $to . '>', [250, 251]);
+        tugonSmtpCommand($socket, 'DATA', [354]);
+
+        $headers = tugonEmailHeaders($from, (string) $config['from_name'], $to, $subject, (string) ($config['reply_to'] ?? ''));
+        $message = $headers . "\r\n\r\n" . str_replace("\n.", "\n..", $html_body) . "\r\n.";
+        tugonSmtpCommand($socket, $message, [250]);
+        tugonSmtpCommand($socket, 'QUIT', [221]);
+        fclose($socket);
+        return ['ok' => true, 'error' => ''];
+    } catch (Throwable $e) {
+        @fwrite($socket, "QUIT\r\n");
+        @fclose($socket);
+        return ['ok' => false, 'error' => tugonFriendlySmtpError($e->getMessage())];
+    }
+}
+
 // Email Delivery - Sends email when enabled and records each delivery attempt.
 function sendTugonEmail($conn, $to, $subject, $html_body, $text_body = '', $user_id = null, $type = 'system') {
     $config = tugonMailConfig();
@@ -253,20 +687,28 @@ function sendTugonEmail($conn, $to, $subject, $html_body, $text_body = '', $user
     $error = '';
     $ok = false;
 
-    if (!empty($config['enabled'])) {
+    if (!isValidEmail($to)) {
+        $error = 'Invalid email address.';
+    } elseif (!empty($config['enabled'])) {
         $from = $config['from_email'];
         $from_name = $config['from_name'];
-        $headers = [
-            'MIME-Version: 1.0',
-            'Content-type: text/html; charset=UTF-8',
-            'From: ' . $from_name . ' <' . $from . '>'
-        ];
-        if (!empty($config['reply_to'])) {
-            $headers[] = 'Reply-To: ' . $config['reply_to'];
-        }
-        $ok = @mail($to, $subject, $html_body, implode("\r\n", $headers));
-        if (!$ok) {
-            $error = 'PHP mail() failed. Configure SMTP/sendmail in XAMPP or add an SMTP provider.';
+        if (($config['mailer'] ?? 'smtp') === 'smtp' && !empty($config['smtp_host'])) {
+            $smtp = sendTugonSmtpEmail($config, $to, $subject, $html_body);
+            $ok = $smtp['ok'];
+            $error = $smtp['error'];
+        } else {
+            $headers = [
+                'MIME-Version: 1.0',
+                'Content-type: text/html; charset=UTF-8',
+                'From: ' . $from_name . ' <' . $from . '>'
+            ];
+            if (!empty($config['reply_to'])) {
+                $headers[] = 'Reply-To: ' . $config['reply_to'];
+            }
+            $ok = @mail($to, $subject, $html_body, implode("\r\n", $headers));
+            if (!$ok) {
+                $error = 'PHP mail() failed. Configure SMTP/sendmail in XAMPP or use a local SMTP inbox.';
+            }
         }
     } else {
         $error = 'Email sending disabled in config/mail.php.';
@@ -283,6 +725,46 @@ function sendTugonEmail($conn, $to, $subject, $html_body, $text_body = '', $user
     }
 
     return ['ok' => $ok, 'error' => $error];
+}
+
+function sendTugonSms($conn, $phone_number, $message, $user_id = null, $type = 'system') {
+    ensureEmailNotificationSchema($conn);
+
+    $formatted_phone = normalizePhilippineMobileForSms($phone_number);
+    $ok = false;
+    $error = '';
+    $sent_at = null;
+
+    if (function_exists('curl_init')) {
+        require_once __DIR__ . '/../config/sms/send_sms.php';
+        $response = sendSMS($formatted_phone, $message);
+        $decoded = json_decode((string) $response, true);
+        $httpStatus = is_array($decoded) ? intval($decoded['http_status'] ?? 0) : 0;
+        $ok = is_array($decoded) && (
+            (($decoded['data']['success'] ?? false) === true) ||
+            (($decoded['success'] ?? false) === true) ||
+            ($httpStatus >= 200 && $httpStatus < 300 && empty($decoded['error']))
+        );
+        if (!$ok) {
+            $error = is_array($decoded)
+                ? ($decoded['message'] ?? $decoded['error'] ?? ($decoded['response'] ?? 'TextBee SMS request failed.'))
+                : (trim((string) $response) ?: 'TextBee SMS request failed.');
+        }
+        $sent_at = $ok ? date('Y-m-d H:i:s') : null;
+    } else {
+        $error = 'cURL is unavailable. SMS was not sent.';
+    }
+
+    $stmt = $conn->prepare("INSERT INTO sms_notification_logs (user_id, phone_number, message, notification_type, delivery_status, error_message, sent_at) VALUES (?, ?, ?, ?, ?, ?, ?)");
+    if ($stmt) {
+        $uid = $user_id ? intval($user_id) : 0;
+        $status = $ok ? 'sent' : 'failed';
+        $stmt->bind_param('issssss', $uid, $phone_number, $message, $type, $status, $error, $sent_at);
+        $stmt->execute();
+        $stmt->close();
+    }
+
+    return ['ok' => $ok, 'error' => $error, 'sent_at' => $sent_at];
 }
 
 // Tugon Email Template Function - Documents this helper's role in the parish management workflow.
@@ -331,15 +813,16 @@ function createOtpCode($conn, $user_id, $email, $purpose = 'registration') {
     ensureEmailNotificationSchema($conn);
     $conn->query("DELETE FROM otp_codes WHERE expires_at < NOW()");
 
-    $window_start = date('Y-m-d H:i:s', time() - 900);
+    $is_password_reset = $purpose === 'password_reset';
+    $window_start = date('Y-m-d H:i:s', time() - ($is_password_reset ? 3600 : 900));
     $limit = $conn->prepare("SELECT COUNT(*) as total FROM otp_codes WHERE email = ? AND purpose = ? AND created_at >= ?");
     if ($limit) {
         $limit->bind_param('sss', $email, $purpose, $window_start);
         $limit->execute();
         $count = $limit->get_result()->fetch_assoc();
         $limit->close();
-        if (intval($count['total'] ?? 0) >= 4) {
-            return ['ok' => false, 'error' => 'Maximum OTP resend requests reached. Please wait 15 minutes before requesting another code.'];
+        if (intval($count['total'] ?? 0) >= ($is_password_reset ? 5 : 4)) {
+            return ['ok' => false, 'error' => $is_password_reset ? 'Maximum OTP requests reached. Please wait 1 hour before requesting another code.' : 'Maximum OTP resend requests reached. Please wait 15 minutes before requesting another code.'];
         }
     }
 
@@ -370,12 +853,25 @@ function createOtpCode($conn, $user_id, $email, $purpose = 'registration') {
 
 // Send OTP Email Function - Documents this helper's role in the parish management workflow.
 function sendOtpEmail($conn, $user_id, $email, $purpose = 'registration') {
+    if (!isValidEmail($email)) {
+        return ['ok' => false, 'error' => 'Please enter a valid email address.'];
+    }
+
     $created = createOtpCode($conn, $user_id, $email, $purpose);
     if (!$created['ok']) {
         return $created;
     }
     $body = '<p>Your TUGON verification code is:</p><p style="font-size:28px;font-weight:800;letter-spacing:6px;">' . e($created['otp']) . '</p><p>This OTP expires in 5 minutes. Do not share it with anyone.</p>';
     $sent = sendTugonEmail($conn, $email, 'Your TUGON OTP Code', tugonEmailTemplate('One-Time Password', $body), '', $user_id, 'otp_' . $purpose);
+    if (!$sent['ok']) {
+        $cleanup = $conn->prepare("DELETE FROM otp_codes WHERE user_id = ? AND email = ? AND purpose = ? AND verified_at IS NULL");
+        if ($cleanup) {
+            $uid = intval($user_id);
+            $cleanup->bind_param('iss', $uid, $email, $purpose);
+            $cleanup->execute();
+            $cleanup->close();
+        }
+    }
     return ['ok' => $sent['ok'], 'error' => $sent['error'] ?? '', 'expires_at' => $created['expires_at']];
 }
 
@@ -389,51 +885,24 @@ function sendOtpSms($conn, $user_id, $phone_number, $purpose = 'registration') {
         return $created;
     }
 
-    $message = 'Your TUGON OTP code is ' . $created['otp'] . '. It expires in 5 minutes. Do not share it.';
-    $ok = false;
-    $error = '';
-    $sent_at = null;
-
-    require_once __DIR__ . '/../config/security.php';
-    if (defined('TWILIO_ACCOUNT_SID') && TWILIO_ACCOUNT_SID !== '' && defined('TWILIO_AUTH_TOKEN') && TWILIO_AUTH_TOKEN !== '' && defined('TWILIO_PHONE_NUMBER') && TWILIO_PHONE_NUMBER !== '' && function_exists('curl_init')) {
-        $to = '+63' . substr($phone_number, 1);
-        $payload = http_build_query([
-            'To' => $to,
-            'From' => TWILIO_PHONE_NUMBER,
-            'Body' => $message
-        ]);
-        $ch = curl_init('https://api.twilio.com/2010-04-01/Accounts/' . rawurlencode(TWILIO_ACCOUNT_SID) . '/Messages.json');
-        curl_setopt_array($ch, [
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => $payload,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_USERPWD => TWILIO_ACCOUNT_SID . ':' . TWILIO_AUTH_TOKEN,
-            CURLOPT_TIMEOUT => 15
-        ]);
-        $response = curl_exec($ch);
-        $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curl_error = curl_error($ch);
-        curl_close($ch);
-        $ok = $status >= 200 && $status < 300;
-        $error = $ok ? '' : ($curl_error ?: 'Twilio SMS failed with HTTP status ' . $status . '.');
-        $sent_at = $ok ? date('Y-m-d H:i:s') : null;
+    if ($purpose === 'password_reset') {
+        $message = "TUGON Parish System\n\nYour One-Time Password (OTP) is:\n\n" . $created['otp'] . "\n\nThis code will expire in 5 minutes.\n\nDO NOT share this code with anyone.\n\nIf you did not request this password reset, please ignore this message.";
     } else {
-        $ok = true;
-        $sent_at = date('Y-m-d H:i:s');
-        $error = 'SMS provider is not configured or cURL is unavailable. OTP was recorded in the local SMS log for testing.';
+        $message = 'Your TUGON OTP code is ' . $created['otp'] . '. It expires in 5 minutes. Do not share it.';
     }
 
-    $stmt = $conn->prepare("INSERT INTO sms_notification_logs (user_id, phone_number, message, notification_type, delivery_status, error_message, sent_at) VALUES (?, ?, ?, ?, ?, ?, ?)");
-    if ($stmt) {
-        $uid = intval($user_id);
-        $type = 'otp_' . $purpose;
-        $status = $ok ? 'sent' : 'failed';
-        $stmt->bind_param('issssss', $uid, $phone_number, $message, $type, $status, $error, $sent_at);
-        $stmt->execute();
-        $stmt->close();
+    $sent = sendTugonSms($conn, $phone_number, $message, $user_id, 'otp_' . $purpose);
+    if (!$sent['ok']) {
+        $cleanup = $conn->prepare("DELETE FROM otp_codes WHERE user_id = ? AND email = ? AND purpose = ? AND verified_at IS NULL");
+        if ($cleanup) {
+            $uid = intval($user_id);
+            $cleanup->bind_param('iss', $uid, $phone_number, $purpose);
+            $cleanup->execute();
+            $cleanup->close();
+        }
     }
 
-    return ['ok' => $ok, 'error' => $error, 'expires_at' => $created['expires_at']];
+    return ['ok' => $sent['ok'], 'error' => $sent['error'], 'expires_at' => $created['expires_at']];
 }
 
 // OTP Security - Validates passcodes and prevents repeated brute-force attempts.
@@ -462,6 +931,43 @@ function verifyOtpCode($conn, $user_id, $email, $purpose, $otp) {
     }
     $conn->query("UPDATE otp_codes SET verified_at = NOW() WHERE otp_id = " . intval($row['otp_id']));
     return ['ok' => true];
+}
+
+function tugonRequestTypeLabel($value) {
+    $label = str_replace(['_', '-'], ' ', (string) $value);
+    return ucwords(trim($label));
+}
+
+function sendRequestStatusSms($conn, $user_id, $phone_number, $request_type, $reference_number, $status, $admin_remarks = '') {
+    if (trim((string) $phone_number) === '') {
+        return ['ok' => false, 'error' => 'No mobile number available.'];
+    }
+
+    $type = tugonRequestTypeLabel($request_type ?: 'parish');
+    $ref = trim((string) $reference_number) ?: 'N/A';
+    $status = strtolower((string) $status);
+
+    if ($status === 'approved') {
+        $message = "Good day!\n\nYour " . $type . " request has been APPROVED.\n\nReference Number:\n" . $ref . "\n\nPlease visit the parish office for the next instructions.\n\nThank you.\n\nSan Lorenzo Ruiz Mission Station";
+    } elseif (in_array($status, ['rejected', 'declined'], true)) {
+        $reason = trim((string) $admin_remarks) ?: 'No reason was provided.';
+        $message = "Good day!\n\nYour " . $type . " request has been DECLINED.\n\nReason:\n\n" . $reason . "\n\nFor assistance, please contact the parish office.\n\nThank you.";
+    } elseif ($status === 'completed') {
+        $message = "Good day!\n\nYour requested certificate is now READY FOR PICKUP.\n\nReference Number:\n" . $ref . "\n\nPlease visit the parish office during office hours.\n\nThank you.";
+    } else {
+        $message = "Good day!\n\nYour " . $type . " request status is now " . strtoupper($status) . ".\n\nReference Number:\n" . $ref . "\n\nPlease check your TUGON account or contact the parish office for details.\n\nThank you.";
+    }
+
+    return sendTugonSms($conn, $phone_number, $message, $user_id, 'request_' . $status);
+}
+
+function sendScheduleReminderSms($conn, $user_id, $phone_number, $event_type, $date, $time) {
+    if (trim((string) $phone_number) === '') {
+        return ['ok' => false, 'error' => 'No mobile number available.'];
+    }
+
+    $message = "Reminder\n\nYour scheduled\n\n" . tugonRequestTypeLabel($event_type) . "\n\nwill be on\n\n" . $date . "\n\nat\n\n" . $time . "\n\nPlease arrive 30 minutes early.\n\nGod bless.";
+    return sendTugonSms($conn, $phone_number, $message, $user_id, 'schedule_reminder');
 }
 
 // User Allows Email Category Function - Documents this helper's role in the parish management workflow.
@@ -496,6 +1002,9 @@ function sendRequestSubmittedEmail($conn, $user_id, $reference_number, $request_
     $stmt->close();
     if (!$user) {
         return ['ok' => false, 'error' => 'User not found.'];
+    }
+    if (trim((string) ($user['email'] ?? '')) === '') {
+        return ['ok' => true, 'skipped' => true];
     }
     $url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https://' : 'http://') . ($_SERVER['HTTP_HOST'] ?? 'localhost') . BASE_URL . 'users/my-requests.php?q=' . urlencode($reference_number);
     $body = '<p>Hello ' . e($user['fullname']) . ',</p><p>Your ' . e($request_label) . ' was submitted successfully.</p><p>Reference number: <strong>' . e($reference_number) . '</strong></p><p>You will receive updates when the parish office reviews your request.</p>';
@@ -563,6 +1072,217 @@ function logChatbotInquiry($conn, $user_id, $role, $question, $answer, $mode = '
     return $ok;
 }
 
+// Chatbot Knowledge Base - Stores administrator-managed official AI answers.
+function ensureChatbotKnowledgeSchema($conn) {
+    if (!$conn) {
+        return false;
+    }
+
+    $sql = "CREATE TABLE IF NOT EXISTS chatbot_knowledge (
+        knowledge_id INT PRIMARY KEY AUTO_INCREMENT,
+        topic VARCHAR(120) NOT NULL,
+        keywords TEXT NULL,
+        answer TEXT NOT NULL,
+        steps TEXT NULL,
+        category VARCHAR(80) DEFAULT 'general',
+        source VARCHAR(255) NULL,
+        status ENUM('active','inactive') DEFAULT 'active',
+        updated_by INT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_chatbot_knowledge_status (status),
+        INDEX idx_chatbot_knowledge_category (category),
+        FULLTEXT KEY ft_chatbot_knowledge (topic, keywords, answer)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+
+    $created = (bool) $conn->query($sql);
+    if ($created && !columnExists($conn, 'chatbot_knowledge', 'source')) {
+        $conn->query("ALTER TABLE chatbot_knowledge ADD COLUMN source VARCHAR(255) NULL AFTER category");
+    }
+    return $created;
+}
+
+function chatbotKnowledgeOfficialDefaults() {
+    return [
+        [
+            'Baptism Requirements',
+            'what are the baptism requirements,baptism requirements,ano ang requirements sa binyag,what papers are needed for baby baptism,i want to baptize my child what do i need,requirements for baptism,binyag,baptism,baptismal,baptize,pabinyag,baby baptism,christening,requirements,papers,documents',
+            "Before submitting a Baptism request, prepare these official parish requirements.",
+            "Chapel recommendation\nParents' latest marriage contract or receipt, if applicable\nPhotocopy of marriage certificate, if married\nPhotocopy of the child's live birth certificate with registry number\nTwo white cards of sponsors\nWhite cards of parents\nPre-baptismal investigation sheet, if requested by the parish office",
+            'sacrament'
+        ],
+        [
+            'Confirmation Requirements',
+            'what are the confirmation requirements,confirmation requirements,ano ang requirements sa kumpirmasyon,what documents are needed for confirmation,how can i request confirmation,requirements for confirmation,confirmation,kumpil,pakumpil,confirmand,requirements,papers,documents',
+            'For Confirmation, prepare the information and supporting parish documents requested by the parish office.',
+            "Baptismal Certificate\nConfirmation Registration Form\nConfirmation Seminar (recollection)\nConfirmation Sponsor (Godparents)",
+            'sacrament'
+        ],
+        [
+            'Marriage Requirements',
+            'what are the marriage requirements,marriage requirements,ano ang requirements sa kasal,what papers do we need for church wedding,paano magpa schedule ng kasal,requirements for marriage,requirements for wedding,wedding requirements,marriage,wedding,kasal,pakasal,merriage,requirements,papers,documents',
+            'Marriage requirements include the following official parish documents and preparation steps.',
+            "Pre-Cana seminar\nMunicipal marriage license\nBEC recommendation\nBaptismal certificate for marriage purpose\nConfirmation certificate\nPermit to marry, if applicable\nMarriage interview\nConfession\nCO permit, if applicable for police or army personnel",
+            'sacrament'
+        ],
+        [
+            'First Holy Communion Requirements',
+            'what are the first holy communion requirements,first holy communion requirements,first communion requirements,requirements for first communion,first communion,holy communion,communion,komunyon,requirements,papers,documents',
+            'For First Holy Communion, prepare the communicant information and supporting parish records requested by the parish office.',
+            "Baptismal Certificate\nRegistration Form\nCommunion Preparation Classes\nRecollection/Seminar\nFirst Confession",
+            'sacrament'
+        ],
+        [
+            'Anointing of the Sick',
+            'how can i request anointing of the sick,anointing of the sick,pahid ng langis,pabihis,sick call,anointing,sick,ospital,hospital,urgent,priest visit',
+            'For Anointing of the Sick, provide the sick person\'s name, location, contact person, preferred date and time, and urgent details if any.',
+            "Prepare the complete name of the sick person\nProvide the exact address or hospital location\nAdd a contact person and phone number\nContact the parish office directly if the matter is urgent",
+            'sacrament'
+        ],
+        [
+            'Funeral Mass',
+            'how can i request a funeral mass,funeral mass,burol,libing,request funeral,funeral,burial,lamay,patay,memorial',
+            'For Funeral Mass requests, provide the deceased person\'s name, preferred date and time, contact person, parish office instructions, and a Death Certificate.',
+            "Prepare the complete name of the deceased\nUpload a clear copy of the Death Certificate\nChoose the preferred Mass date and time\nProvide the contact person and phone number\nWait for parish office confirmation of availability",
+            'sacrament'
+        ],
+        [
+            'House Blessing',
+            'how can i request a house blessing,house blessing,pabasbas ng bahay,blessing ng bahay,bless house,bahay,pabless bahay,pa bless bahay,home blessing',
+            'For house blessing requests, provide the requester name, exact address, preferred schedule, and contact details.',
+            "Enter the complete house address\nChoose a preferred date and time\nProvide a contact number\nWait for parish office confirmation",
+            'blessing'
+        ],
+        [
+            'Vehicle Blessing',
+            'how can i request a vehicle blessing,vehicle blessing,pabasbas ng sasakyan,car blessing,motor blessing,sasakyan,pabless sasakyan,pa bless car',
+            'For vehicle blessing requests, provide the owner name, vehicle details, preferred schedule, and contact details.',
+            "Provide the owner or requester name\nEnter the vehicle details\nChoose a preferred date and time\nWait for parish office confirmation",
+            'blessing'
+        ],
+        [
+            'Certificate Request',
+            'how can i request a parish certificate,how to request certificate,how to request certificates,request certificate,certificate,baptism certificate,baptismal certificate,confirmation certificate,first communion certificate,marriage certificate,need certificate,get my certificate,record copy,certification',
+            'To request a parish certificate, choose the certificate type, complete the required information, upload supporting documents, and wait for parish review.',
+            "Open the certificate request page\nSelect the certificate type\nEnter accurate names, dates, and related details\nUpload the required supporting documents\nSubmit and track the request status",
+            'certificate'
+        ],
+        [
+            'Mass Schedule',
+            'mass schedule,mass time,what time is mass,sunday mass,sunday mass schedule,what is the sunday mass schedule,weekday mass,wednesday mass,what are the wednesday mass schedules,today mass,misa,oras ng misa,schedule ng misa,church schedule',
+            "Mass Schedule\n\nSunday Mass: 8:30 AM\nWednesday Mass: 5:00 PM\n\nThe parish office manages official Mass schedules through the schedule calendar. Please check the Schedule page or contact the parish office for the latest approved schedule.",
+            '',
+            'schedule'
+        ],
+        [
+            'Office Hours',
+            'office hours,office schedule,what time do you open,what time do you close,opening hours,closing hours,are you open,parish office hours,parish office,opisina,open ba,contact office',
+            "Parish Office Hours\nTuesday - Saturday: 8:00 AM - 5:00 PM\nLunch Break: 12:00 PM - 1:00 PM\nSunday: 7:00 AM - 12:00 PM",
+            '',
+            'office'
+        ],
+        [
+            'Reservations',
+            'how can i make a reservation,reservation,reserve,book a schedule,how to reserve,booking,hall reservation,venue,function hall',
+            'Reservation requests are reviewed based on event type, date, time, location, and parish schedule availability.',
+            "Choose the reservation or service type\nEnter the event date, time, and location\nProvide the purpose and contact details\nWait for approval or parish office follow-up",
+            'general'
+        ],
+        [
+            'Emergency Contact',
+            'who should i contact for urgent parish concerns,emergency contact,urgent concern,emergency,urgent,contact,phone,help,priest urgent',
+            'For urgent sacramental or parish concerns, please contact the parish office directly so staff can assist immediately.',
+            'Prepare the name of the person needing assistance, exact location, and reachable contact number.',
+            'office'
+        ],
+        [
+            'Parish Priest',
+            'who is the parish priest,parish priest,priest,pastor,who is the priest,who is the priest in the aleosan parish',
+            'The Parish Priest is Rev. Fr. Alberto G. Cahilig, OMI.',
+            '',
+            'office'
+        ],
+        [
+            'Parish Vicar',
+            'who is the parish vicar,parish vicar,vicar,assistant priest,parochial vicar',
+            'The Parish Vicar is Rev. Fr. Alvin Vicente C. Barretto, OMI.',
+            '',
+            'office'
+        ],
+        [
+            'Mass Celebrant Assignments',
+            'who is the priest this sunday,celebrant,mass celebrant,priest schedule,who will celebrate mass',
+            'Mass celebrant assignments may change without prior notice. Please contact the parish office for the latest celebrant schedule.',
+            '',
+            'office'
+        ]
+    ];
+}
+
+function chatbotKnowledgeSeedDefaults($conn) {
+    if (!ensureChatbotKnowledgeSchema($conn)) {
+        return false;
+    }
+
+    $version = '2026-07-12-official-specific-entries-v2';
+    $conn->query("CREATE TABLE IF NOT EXISTS chatbot_knowledge_meta (
+        meta_key VARCHAR(80) PRIMARY KEY,
+        meta_value VARCHAR(160) NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    $current_version = '';
+    $result = $conn->query("SELECT meta_value FROM chatbot_knowledge_meta WHERE meta_key = 'official_dataset_version' LIMIT 1");
+    if ($result && $row = $result->fetch_assoc()) {
+        $current_version = (string) $row['meta_value'];
+    }
+    if ($current_version === $version) {
+        return true;
+    }
+
+    $defaults = chatbotKnowledgeOfficialDefaults();
+    $conn->begin_transaction();
+    try {
+        $conn->query("DELETE FROM chatbot_knowledge");
+        $stmt = $conn->prepare("INSERT INTO chatbot_knowledge (topic, keywords, answer, steps, category, status) VALUES (?, ?, ?, ?, ?, 'active')");
+        if (!$stmt) {
+            throw new Exception('Unable to prepare chatbot knowledge import.');
+        }
+        foreach ($defaults as $item) {
+            $stmt->bind_param('sssss', $item[0], $item[1], $item[2], $item[3], $item[4]);
+            if (!$stmt->execute()) {
+                throw new Exception('Unable to import chatbot knowledge item.');
+            }
+        }
+        $stmt->close();
+
+        $meta = $conn->prepare("REPLACE INTO chatbot_knowledge_meta (meta_key, meta_value) VALUES ('official_dataset_version', ?)");
+        if (!$meta) {
+            throw new Exception('Unable to update chatbot knowledge version.');
+        }
+        $meta->bind_param('s', $version);
+        $meta->execute();
+        $meta->close();
+        $conn->commit();
+    } catch (Exception $e) {
+        $conn->rollback();
+        return false;
+    }
+    return true;
+}
+
+function chatbotKnowledgeStepsArray($steps) {
+    $lines = preg_split('/\r\n|\r|\n/', trim((string) $steps));
+    $clean = [];
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if ($line !== '') {
+            $clean[] = $line;
+        }
+    }
+    return $clean;
+}
+
 // Request Management - Extends request records with detailed service and reservation fields.
 function ensureExpandedRequestTypeSchema($conn) {
     if (!$conn) {
@@ -588,6 +1308,7 @@ function ensureRequestDocumentsSchema($conn) {
         request_id INT NOT NULL,
         uploaded_by INT NOT NULL,
         document_type VARCHAR(60) DEFAULT 'requirement',
+        requirement_name VARCHAR(160) NULL,
         file_path VARCHAR(255) NOT NULL,
         original_name VARCHAR(255) NOT NULL,
         mime_type VARCHAR(120) NOT NULL,
@@ -598,7 +1319,12 @@ function ensureRequestDocumentsSchema($conn) {
         INDEX idx_request_documents_uploader (uploaded_by)
     )";
 
-    return (bool) $conn->query($sql);
+    $created = (bool) $conn->query($sql);
+    if ($created && tableExists($conn, 'request_documents') && !columnExists($conn, 'request_documents', 'requirement_name')) {
+        $conn->query("ALTER TABLE request_documents ADD COLUMN requirement_name VARCHAR(160) NULL AFTER document_type");
+    }
+
+    return $created;
 }
 
 // Request Payments - Stores parishioner receipt submissions tied to the parent request.
@@ -659,7 +1385,7 @@ function isRequestImageDocument($mime_type) {
 }
 
 // Request Documents - Validates, stores, and records uploaded supporting documents.
-function saveRequestDocument($conn, $request_id, $uploaded_by, $file, $document_type = 'requirement') {
+function saveRequestDocument($conn, $request_id, $uploaded_by, $file, $document_type = 'requirement', $requirement_name = '') {
     if (!isset($file) || ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
         return ['ok' => true, 'saved' => false];
     }
@@ -711,8 +1437,10 @@ function saveRequestDocument($conn, $request_id, $uploaded_by, $file, $document_
         return ['ok' => false, 'error' => 'Unable to save the requirements file.'];
     }
 
+    ensureRequestDocumentsSchema($conn);
     $db_path = 'uploads/request_requirements/' . $safe_filename;
-    $stmt = $conn->prepare("INSERT INTO request_documents (request_id, uploaded_by, document_type, file_path, original_name, mime_type, file_size) VALUES (?, ?, ?, ?, ?, ?, ?)");
+    $requirement_name = trim((string) $requirement_name);
+    $stmt = $conn->prepare("INSERT INTO request_documents (request_id, uploaded_by, document_type, requirement_name, file_path, original_name, mime_type, file_size) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
     if (!$stmt) {
         @unlink($target_path);
         return ['ok' => false, 'error' => 'Unable to prepare the file record.'];
@@ -720,7 +1448,7 @@ function saveRequestDocument($conn, $request_id, $uploaded_by, $file, $document_
 
     $request_id = intval($request_id);
     $uploaded_by = intval($uploaded_by);
-    $stmt->bind_param('iissssi', $request_id, $uploaded_by, $document_type, $db_path, $original_name, $mime_type, $size);
+    $stmt->bind_param('iisssssi', $request_id, $uploaded_by, $document_type, $requirement_name, $db_path, $original_name, $mime_type, $size);
     if (!$stmt->execute()) {
         @unlink($target_path);
         $stmt->close();
@@ -1018,22 +1746,21 @@ function ensureUserVerificationSchema($conn) {
         'address' => "ALTER TABLE users ADD COLUMN address VARCHAR(255) NULL AFTER chapel_district",
         'birthdate' => "ALTER TABLE users ADD COLUMN birthdate DATE NULL AFTER address",
         'birth_place' => "ALTER TABLE users ADD COLUMN birth_place VARCHAR(150) NULL AFTER birthdate",
+        'sex' => "ALTER TABLE users ADD COLUMN sex VARCHAR(20) NULL AFTER birth_place",
+        'nationality' => "ALTER TABLE users ADD COLUMN nationality VARCHAR(80) NULL AFTER sex",
         'id_number_hash' => "ALTER TABLE users ADD COLUMN id_number_hash CHAR(64) NULL AFTER birth_place",
         'id_number_encrypted' => "ALTER TABLE users ADD COLUMN id_number_encrypted TEXT NULL AFTER id_number_hash",
         'valid_id_path' => "ALTER TABLE users ADD COLUMN valid_id_path VARCHAR(255) NULL AFTER profile_picture",
         'valid_id_original_name' => "ALTER TABLE users ADD COLUMN valid_id_original_name VARCHAR(255) NULL AFTER valid_id_path",
         'valid_id_mime_type' => "ALTER TABLE users ADD COLUMN valid_id_mime_type VARCHAR(100) NULL AFTER valid_id_original_name",
+        'valid_id_back_path' => "ALTER TABLE users ADD COLUMN valid_id_back_path VARCHAR(255) NULL AFTER valid_id_mime_type",
+        'valid_id_back_mime_type' => "ALTER TABLE users ADD COLUMN valid_id_back_mime_type VARCHAR(100) NULL AFTER valid_id_back_path",
         'valid_id_capture_method' => "ALTER TABLE users ADD COLUMN valid_id_capture_method VARCHAR(40) DEFAULT 'live_camera' AFTER valid_id_mime_type",
         'face_image_path' => "ALTER TABLE users ADD COLUMN face_image_path VARCHAR(255) NULL AFTER valid_id_capture_method",
         'face_image_mime_type' => "ALTER TABLE users ADD COLUMN face_image_mime_type VARCHAR(100) NULL AFTER face_image_path",
         'face_verification_status' => "ALTER TABLE users ADD COLUMN face_verification_status VARCHAR(40) DEFAULT 'pending' AFTER face_image_mime_type",
         'face_verified_at' => "ALTER TABLE users ADD COLUMN face_verified_at TIMESTAMP NULL DEFAULT NULL AFTER face_verification_status",
-        'ocr_extracted_text_encrypted' => "ALTER TABLE users ADD COLUMN ocr_extracted_text_encrypted MEDIUMTEXT NULL AFTER face_verified_at",
-        'ocr_extracted_data_encrypted' => "ALTER TABLE users ADD COLUMN ocr_extracted_data_encrypted TEXT NULL AFTER ocr_extracted_text_encrypted",
-        'ocr_match_score' => "ALTER TABLE users ADD COLUMN ocr_match_score TINYINT UNSIGNED DEFAULT 0 AFTER ocr_extracted_data_encrypted",
-        'ocr_status' => "ALTER TABLE users ADD COLUMN ocr_status VARCHAR(40) DEFAULT 'manual_review' AFTER ocr_match_score",
-        'ocr_processed_at' => "ALTER TABLE users ADD COLUMN ocr_processed_at TIMESTAMP NULL DEFAULT NULL AFTER ocr_status",
-        'rejection_reason' => "ALTER TABLE users ADD COLUMN rejection_reason TEXT NULL AFTER ocr_processed_at",
+        'rejection_reason' => "ALTER TABLE users ADD COLUMN rejection_reason TEXT NULL AFTER face_verified_at",
         'verified_at' => "ALTER TABLE users ADD COLUMN verified_at TIMESTAMP NULL DEFAULT NULL AFTER rejection_reason",
         'verified_by' => "ALTER TABLE users ADD COLUMN verified_by INT NULL AFTER verified_at"
     ];
@@ -1181,422 +1908,6 @@ function hashIdentityNumber($id_number) {
     return hash('sha256', normalizeIdentityValue($id_number));
 }
 
-function normalizeOcrText($value) {
-    $value = strtolower((string) $value);
-    $value = strtr($value, [
-        '0' => 'o',
-        '1' => 'l',
-        '|' => 'l',
-        '5' => 's',
-        '8' => 'b'
-    ]);
-    return preg_replace('/[^a-z0-9]/i', '', $value);
-}
-
-function preprocessOcrImage($image_path) {
-    if (!function_exists('imagecreatefromstring') || !is_file($image_path)) {
-        return $image_path;
-    }
-
-    $binary = file_get_contents($image_path);
-    $source = $binary !== false ? @imagecreatefromstring($binary) : false;
-    if (!$source) {
-        return $image_path;
-    }
-
-    $width = imagesx($source);
-    $height = imagesy($source);
-    $scale = max(1, min(4, (int) ceil(2400 / max(1, $width))));
-    $target_width = $width * $scale;
-    $target_height = $height * $scale;
-    $processed = imagecreatetruecolor($target_width, $target_height);
-
-    imagecopyresampled($processed, $source, 0, 0, 0, 0, $target_width, $target_height, $width, $height);
-    imagefilter($processed, IMG_FILTER_GRAYSCALE);
-    imagefilter($processed, IMG_FILTER_CONTRAST, -34);
-    imagefilter($processed, IMG_FILTER_BRIGHTNESS, 10);
-    if (function_exists('imageconvolution')) {
-        imageconvolution($processed, [
-            [0, -1, 0],
-            [-1, 5, -1],
-            [0, -1, 0]
-        ], 1, 0);
-    }
-
-    $processed_path = tempnam(sys_get_temp_dir(), 'tugon_ocr_clean_');
-    if ($processed_path === false) {
-        imagedestroy($source);
-        imagedestroy($processed);
-        return $image_path;
-    }
-    $processed_path .= '.png';
-    imagepng($processed, $processed_path);
-    imagedestroy($source);
-    imagedestroy($processed);
-
-    return $processed_path;
-}
-
-function findLocalTesseractCommand() {
-    $commands = ['tesseract', 'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'];
-    foreach ($commands as $command) {
-        $probe = @shell_exec('"' . $command . '" --version 2>&1');
-        if (is_string($probe) && stripos($probe, 'tesseract') !== false) {
-            return $command;
-        }
-    }
-
-    return '';
-}
-
-// OCR Verification - Extracts text from valid ID images when local OCR tools are available.
-function runValidIdOcr($image_path) {
-    $result = [
-        'available' => false,
-        'text' => '',
-        'error' => ''
-    ];
-
-    if (!is_file($image_path)) {
-        $result['error'] = 'ID image file was not found.';
-        return $result;
-    }
-
-    $command = findLocalTesseractCommand();
-    if ($command !== '') {
-        $ocr_image = preprocessOcrImage($image_path);
-        $ocr_images = array_values(array_unique(array_filter([$ocr_image, $image_path])));
-        $tessdata_flags = '--oem 1 -l eng -c preserve_interword_spaces=1';
-        $psm_modes = [6, 11, 4, 3, 12];
-        $best_text = '';
-        $best_error = '';
-
-        foreach ($ocr_images as $candidate_image) {
-            foreach ($psm_modes as $psm) {
-                $output_base = tempnam(sys_get_temp_dir(), 'parish_ocr_');
-                if ($output_base === false) {
-                    $result['error'] = 'Unable to create OCR temporary file.';
-                    return $result;
-                }
-                @unlink($output_base);
-
-                $ocr_command = '"' . $command . '" "' . $candidate_image . '" "' . $output_base . '" ' . $tessdata_flags . ' --psm ' . intval($psm) . ' 2>&1';
-                $command_output = @shell_exec($ocr_command);
-                $output_file = $output_base . '.txt';
-                $text = is_file($output_file) ? trim((string) file_get_contents($output_file)) : '';
-                @unlink($output_file);
-                if (strlen($text) > strlen($best_text)) {
-                    $best_text = $text;
-                }
-                if (is_string($command_output) && trim($command_output) !== '') {
-                    $best_error = trim($command_output);
-                }
-            }
-        }
-
-        if ($ocr_image !== $image_path && is_file($ocr_image)) {
-            @unlink($ocr_image);
-        }
-
-        $result['available'] = true;
-        $result['text'] = $best_text;
-        $result['error'] = $best_error;
-        return $result;
-    }
-
-    $result['error'] = 'OCR engine is not installed or not available to PHP.';
-    return $result;
-}
-
-function combineOcrResults($results) {
-    $combined = [
-        'available' => false,
-        'text' => '',
-        'error' => ''
-    ];
-    $errors = [];
-
-    foreach ($results as $index => $result) {
-        if (!is_array($result)) {
-            continue;
-        }
-        $combined['available'] = $combined['available'] || !empty($result['available']);
-        $label = $index === 0 ? 'FRONT ID' : 'BACK ID';
-        $text = trim((string) ($result['text'] ?? ''));
-        if ($text !== '') {
-            $combined['text'] .= ($combined['text'] === '' ? '' : "\n\n") . '[' . $label . "]\n" . $text;
-        }
-        $error = trim((string) ($result['error'] ?? ''));
-        if ($error !== '') {
-            $errors[] = $label . ': ' . $error;
-        }
-    }
-
-    $combined['error'] = implode(' | ', $errors);
-    return $combined;
-}
-
-function cleanOcrNameValue($value) {
-    $value = preg_replace('/[^A-Za-zÑñ\s\.,-]/u', ' ', (string) $value);
-    $value = preg_replace('/\b(REPUBLIC|PILIPINAS|PHILIPPINES|GOVERNMENT|VALID|UNTIL|SIGNATURE|ADDRESS|BIRTH|DATE|SEX|NATIONALITY|CARD|NUMBER|ID)\b/i', ' ', $value);
-    return trim(preg_replace('/\s+/', ' ', $value));
-}
-
-function extractOcrLabelValue($text, $lines, $labels) {
-    $label_pattern = implode('|', array_map(function ($label) {
-        return preg_quote($label, '/');
-    }, $labels));
-
-    if (preg_match('/(?:' . $label_pattern . ')\s*[:\-]?\s*([A-ZÑ][A-ZÑ\s\.,-]{1,60})/iu', $text, $matches)) {
-        return trim($matches[1]);
-    }
-
-    foreach ($lines as $index => $line) {
-        if (preg_match('/^(?:' . $label_pattern . ')\s*[:\-]?$/iu', trim($line)) && isset($lines[$index + 1])) {
-            return trim($lines[$index + 1]);
-        }
-        if (preg_match('/(?:' . $label_pattern . ')\s*[:\-]?\s*(.+)$/iu', $line, $matches)) {
-            return trim($matches[1]);
-        }
-    }
-
-    return '';
-}
-
-function splitOcrFullName($full_name) {
-    $name = cleanOcrNameValue($full_name);
-    $parts = array_values(array_filter(preg_split('/\s+/', $name)));
-    $result = [
-        'first_name' => '',
-        'surname' => '',
-        'middle_initial' => ''
-    ];
-
-    if (count($parts) < 2) {
-        return $result;
-    }
-
-    $result['surname'] = strtoupper(array_pop($parts));
-    if (count($parts) >= 2 && preg_match('/^[A-ZÑ]\.?$/i', end($parts))) {
-        $result['middle_initial'] = strtoupper(substr(preg_replace('/[^A-Za-zÑñ]/u', '', array_pop($parts)), 0, 1));
-    }
-    $result['first_name'] = strtoupper(trim(implode(' ', $parts)));
-    return $result;
-}
-
-// OCR Verification - Parses ID type, name, birth date, and number from extracted text.
-function extractValidIdData($ocr_text) {
-    $text = trim((string) $ocr_text);
-    $lines = array_values(array_filter(array_map('trim', preg_split('/\R+/', $text))));
-    $data = [
-        'full_name' => '',
-        'surname' => '',
-        'first_name' => '',
-        'middle_initial' => '',
-        'birthdate' => '',
-        'birth_place' => '',
-        'address' => '',
-        'id_number' => ''
-    ];
-
-    $data['surname'] = strtoupper(cleanOcrNameValue(extractOcrLabelValue($text, $lines, ['surname', 'apelyido', 'last name'])));
-    $data['first_name'] = strtoupper(cleanOcrNameValue(extractOcrLabelValue($text, $lines, ['first name', 'given name', 'given names', 'pangalan'])));
-    $data['middle_initial'] = strtoupper(substr(preg_replace('/[^A-Za-zÑñ]/u', '', cleanOcrNameValue(extractOcrLabelValue($text, $lines, ['middle initial', 'middle name', 'gitnang apelyido']))), 0, 1));
-
-    if (preg_match('/(?:name|pangalan|full\s*name|apelyido.*pangalan|given\s*name|surname)\s*[:\-]?\s*([A-Z][A-Z\s\.,-]{4,})/i', $text, $matches)) {
-        $data['full_name'] = cleanOcrNameValue($matches[1]);
-    } elseif (!empty($lines)) {
-        $name_lines = [];
-        foreach ($lines as $line) {
-            if (preg_match('/[A-Za-z]{2,}\s+[A-Za-z]{2,}/', $line) && !preg_match('/republic|address|birth|date|signature|license|identification|philippines|government|valid|until|sex|nationality/i', $line)) {
-                $data['full_name'] = cleanOcrNameValue($line);
-                break;
-            }
-            $clean_line = trim(preg_replace('/[^A-Za-z\s\.,-]/', ' ', $line));
-            $clean_line = preg_replace('/\s+/', ' ', $clean_line);
-            if (strlen($clean_line) >= 3 && strlen($clean_line) <= 48 && !preg_match('/republic|address|birth|date|signature|license|identification|philippines|government|valid|until|sex|nationality|male|female|card|number|philsys|postal|blood/i', $clean_line)) {
-                $name_lines[] = $clean_line;
-            }
-        }
-        if ($data['full_name'] === '' && count($name_lines) >= 2) {
-            $data['full_name'] = cleanOcrNameValue(implode(' ', array_slice($name_lines, 0, 3)));
-        }
-    }
-
-    if ($data['full_name'] === '' && ($data['first_name'] !== '' || $data['surname'] !== '')) {
-        $data['full_name'] = trim($data['first_name'] . ' ' . ($data['middle_initial'] !== '' ? $data['middle_initial'] . '. ' : '') . $data['surname']);
-    }
-
-    if ($data['first_name'] === '' || $data['surname'] === '') {
-        $split_name = splitOcrFullName($data['full_name']);
-        $data['first_name'] = $data['first_name'] !== '' ? $data['first_name'] : $split_name['first_name'];
-        $data['surname'] = $data['surname'] !== '' ? $data['surname'] : $split_name['surname'];
-        $data['middle_initial'] = $data['middle_initial'] !== '' ? $data['middle_initial'] : $split_name['middle_initial'];
-    }
-
-    if (preg_match('/(?:birth(?:date)?|date of birth|dob|kapanganakan|petsa\s+ng\s+kapanganakan)\s*[:\-]?\s*([0-9]{1,2}[\/\-.][0-9]{1,2}[\/\-.][0-9]{2,4}|[0-9]{1,2}\s+[A-Za-z]{3,9}\s+\d{4}|[A-Za-z]{3,9}\s+\d{1,2},?\s+\d{4})/i', $text, $matches)) {
-        $timestamp = strtotime($matches[1]);
-        $data['birthdate'] = $timestamp ? date('Y-m-d', $timestamp) : '';
-    } elseif (preg_match('/\b([0-9]{4}[\/\-.][0-9]{1,2}[\/\-.][0-9]{1,2}|[0-9]{1,2}[\/\-.][0-9]{1,2}[\/\-.][0-9]{2,4}|[0-9]{1,2}\s+[A-Za-z]{3,9}\s+\d{4}|[A-Za-z]{3,9}\s+\d{1,2},?\s+\d{4})\b/', $text, $matches)) {
-        $timestamp = strtotime($matches[1]);
-        $data['birthdate'] = $timestamp ? date('Y-m-d', $timestamp) : '';
-    }
-
-    if (preg_match('/(?:place\s+of\s+birth|birth\s+place|pook\s+ng\s+kapanganakan|lugar\s+ng\s+kapanganakan)\s*[:\-]?\s*(.{4,120})/i', $text, $matches)) {
-        $data['birth_place'] = trim(preg_replace('/\s+/', ' ', $matches[1]));
-    } else {
-        foreach ($lines as $line) {
-            if (preg_match('/\b(cotabato|aleosan|midsayap|kidapawan|davao|general santos|manila|quezon|cebu|iloilo|province|city|municipality)\b/i', $line)
-                && !preg_match('/address|residence|tirahan|valid|until|signature/i', $line)) {
-                $data['birth_place'] = trim($line);
-                break;
-            }
-        }
-    }
-
-    if (preg_match('/(?:address|tirahan|residence)\s*[:\-]?\s*(.{8,160})/i', $text, $matches)) {
-        $data['address'] = trim($matches[1]);
-    } else {
-        foreach ($lines as $line) {
-            if (preg_match('/\b(aleosan|cotabato|barangay|brgy\.?|purok|street|st\.)\b/i', $line)) {
-                $data['address'] = $line;
-                break;
-            }
-        }
-    }
-
-    if (preg_match('/(?:id(?:\s*no\.?|\s*number)?|card\s*no\.?|license\s*no\.?|crn|tin|sss|umid|philhealth|psn|pcn|philsys\s*(?:card)?\s*(?:no\.?|number)?)\s*[:\-#]?\s*([A-Z0-9\- ]{5,36})/i', $text, $matches)) {
-        $data['id_number'] = trim($matches[1]);
-    } elseif (preg_match('/\b([A-Z0-9]{2,5}[- ]?[A-Z0-9]{3,6}[- ]?[A-Z0-9]{3,8}(?:[- ]?[A-Z0-9]{2,8})?)\b/', $text, $matches)) {
-        $data['id_number'] = trim($matches[1]);
-    }
-
-    return $data;
-}
-
-function getOcrFieldConfidence($extracted, $checks) {
-    $confidence = [];
-    foreach (['full_name' => 'name', 'surname' => 'surname', 'first_name' => 'first_name', 'middle_initial' => 'middle_initial', 'birthdate' => 'birthdate', 'birth_place' => 'birth_place', 'address' => 'address', 'id_number' => 'id_number'] as $field => $check_key) {
-        $value = trim((string) ($extracted[$field] ?? ''));
-        if ($value === '') {
-            $confidence[$field] = 0;
-        } elseif (!empty($checks[$check_key])) {
-            $confidence[$field] = $field === 'id_number' ? 95 : 90;
-        } else {
-            $confidence[$field] = 45;
-        }
-    }
-
-    return $confidence;
-}
-
-// Identity Matching - Compares submitted registration details against OCR-extracted ID data.
-function compareIdentityData($submitted, $extracted, $ocr_text = '') {
-    $checks = [];
-    $score = 0;
-    $normalized_ocr = normalizeOcrText($ocr_text);
-
-    $submitted_name = normalizeIdentityValue($submitted['fullname'] ?? '');
-    $extracted_name = normalizeIdentityValue($extracted['full_name'] ?? '');
-    similar_text($submitted_name, $extracted_name, $name_percent);
-    $submitted_name_ocr = normalizeOcrText($submitted['fullname'] ?? '');
-    $name_parts = array_values(array_filter([
-        normalizeOcrText($submitted['first_name'] ?? ''),
-        normalizeOcrText($submitted['surname'] ?? '')
-    ]));
-    $matched_name_parts = 0;
-    foreach ($name_parts as $name_part) {
-        if ($name_part !== '' && strpos($normalized_ocr, $name_part) !== false) {
-            $matched_name_parts++;
-        }
-    }
-    $checks['name'] = ($extracted_name !== '' && $name_percent >= 58)
-        || ($submitted_name_ocr !== '' && strpos($normalized_ocr, $submitted_name_ocr) !== false)
-        || ($submitted_name_ocr !== '' && $extracted_name !== '' && levenshtein(substr($submitted_name_ocr, 0, 60), substr(normalizeOcrText($extracted_name), 0, 60)) <= 8)
-        || ($matched_name_parts >= max(1, min(2, count($name_parts))));
-    $score += $checks['name'] ? 35 : 0;
-
-    foreach (['surname', 'first_name'] as $name_key) {
-        $submitted_part = normalizeIdentityValue($submitted[$name_key] ?? '');
-        $extracted_part = normalizeIdentityValue($extracted[$name_key] ?? '');
-        $checks[$name_key] = $submitted_part !== '' && (
-            ($extracted_part !== '' && ($submitted_part === $extracted_part || levenshtein(substr($submitted_part, 0, 40), substr($extracted_part, 0, 40)) <= 5))
-            || strpos($normalized_ocr, normalizeOcrText($submitted[$name_key] ?? '')) !== false
-        );
-    }
-
-    $submitted_middle = strtoupper(substr(preg_replace('/[^A-Za-z]/', '', (string) ($submitted['middle_initial'] ?? '')), 0, 1));
-    $extracted_middle = strtoupper(substr(preg_replace('/[^A-Za-z]/', '', (string) ($extracted['middle_initial'] ?? '')), 0, 1));
-    $checks['middle_initial'] = $submitted_middle !== '' && ($extracted_middle === '' || $submitted_middle === $extracted_middle || strpos($normalized_ocr, strtolower($submitted_middle)) !== false);
-
-    $submitted_birthdate = (string) ($submitted['birthdate'] ?? '');
-    $extracted_birthdate = (string) ($extracted['birthdate'] ?? '');
-    $birth_variants = [];
-    if ($submitted_birthdate !== '') {
-        $ts = strtotime($submitted_birthdate);
-        if ($ts) {
-            $birth_variants = [
-                date('Ymd', $ts),
-                date('mdY', $ts),
-                date('dmY', $ts),
-                strtolower(date('MjdY', $ts)),
-                strtolower(date('FjdY', $ts))
-            ];
-        }
-    }
-    $checks['birthdate'] = $submitted_birthdate !== '' && ($submitted_birthdate === $extracted_birthdate || count(array_filter($birth_variants, function ($variant) use ($normalized_ocr) {
-        return $variant !== '' && strpos($normalized_ocr, normalizeOcrText($variant)) !== false;
-    })) > 0);
-    $score += $checks['birthdate'] ? 20 : 0;
-
-    $submitted_birth_place = normalizeIdentityValue($submitted['birth_place'] ?? '');
-    $extracted_birth_place = normalizeIdentityValue($extracted['birth_place'] ?? '');
-    $birth_place_tokens = array_values(array_filter(preg_split('/\s+/', strtolower((string) ($submitted['birth_place'] ?? ''))), function ($token) {
-        return strlen(preg_replace('/[^a-z0-9]/i', '', $token)) >= 4;
-    }));
-    $matched_birth_place_tokens = 0;
-    foreach ($birth_place_tokens as $token) {
-        if (strpos($normalized_ocr, normalizeOcrText($token)) !== false) {
-            $matched_birth_place_tokens++;
-        }
-    }
-    $checks['birth_place'] = $submitted_birth_place !== '' && (
-        ($extracted_birth_place !== '' && levenshtein(substr($submitted_birth_place, 0, 80), substr($extracted_birth_place, 0, 80)) <= 35)
-        || ($matched_birth_place_tokens >= max(1, min(2, count($birth_place_tokens))))
-    );
-    $score += $checks['birth_place'] ? 10 : 0;
-
-    $submitted_address = normalizeIdentityValue($submitted['address'] ?? '');
-    $extracted_address = normalizeIdentityValue($extracted['address'] ?? '');
-    $address_tokens = array_values(array_filter(preg_split('/\s+/', strtolower((string) ($submitted['address'] ?? ''))), function ($token) {
-        return strlen(preg_replace('/[^a-z0-9]/i', '', $token)) >= 4;
-    }));
-    $matched_tokens = 0;
-    foreach ($address_tokens as $token) {
-        if (strpos($normalized_ocr, normalizeOcrText($token)) !== false) {
-            $matched_tokens++;
-        }
-    }
-    $checks['address'] = $extracted_address !== '' && (strpos($extracted_address, 'aleosan') !== false || levenshtein(substr($submitted_address, 0, 80), substr($extracted_address, 0, 80)) <= 45)
-        || ($matched_tokens >= max(1, min(3, count($address_tokens))));
-    $score += $checks['address'] ? 20 : 0;
-
-    $submitted_id = normalizeIdentityValue($submitted['id_number'] ?? '');
-    $extracted_id = normalizeIdentityValue($extracted['id_number'] ?? '');
-    $checks['id_number'] = ($submitted_id === '' && $extracted_id !== '') || ($submitted_id !== '' && (
-        ($extracted_id !== '' && ($submitted_id === $extracted_id || strpos($extracted_id, $submitted_id) !== false || strpos($submitted_id, $extracted_id) !== false))
-        || strpos($normalized_ocr, normalizeOcrText($submitted['id_number'] ?? '')) !== false
-        || ($extracted_id !== '' && levenshtein(substr($submitted_id, 0, 32), substr($extracted_id, 0, 32)) <= 3)
-    ));
-    $score += $checks['id_number'] ? 20 : 0;
-
-    return [
-        'score' => min(100, $score),
-        'checks' => $checks,
-        'status' => $score >= 70 ? 'matched' : ($score > 0 ? 'needs_review' : 'manual_review')
-    ];
-}
-
 // Get User Status Label Function - Documents this helper's role in the parish management workflow.
 function getUserStatusLabel($status) {
     $labels = [
@@ -1640,27 +1951,26 @@ function getSystemIntegrationReadiness($conn) {
         }
     }
 
-    $ai_api_configured = getenv('OPENAI_API_KEY') || getenv('GEMINI_API_KEY') || getenv('AI_API_KEY');
+    $ollama_configured = true;
     $smtp_configured = defined('SMTP_HOST') && SMTP_HOST !== '' && SMTP_HOST !== 'localhost' && defined('SMTP_USERNAME') && SMTP_USERNAME !== '';
     $twilio_configured = defined('TWILIO_ACCOUNT_SID') && TWILIO_ACCOUNT_SID !== '' && defined('TWILIO_AUTH_TOKEN') && TWILIO_AUTH_TOKEN !== '' && defined('TWILIO_PHONE_NUMBER') && TWILIO_PHONE_NUMBER !== '';
     $pdf_library_ready = class_exists('Dompdf\\Dompdf') || class_exists('Mpdf\\Mpdf') || class_exists('TCPDF');
-    $tesseract_command = findLocalTesseractCommand();
 
     $items = [];
     $items[] = integrationStatusItem(
         1,
         'AI Technologies and Third-Party Components',
-        $ai_api_configured && $smtp_configured && $twilio_configured && $pdf_library_ready ? 92 : 78,
-        $ai_api_configured ? 'Online-ready' : 'Offline-ready',
-        $ai_api_configured ? 'External AI credentials detected' : 'Local AI-assisted assistant with offline fallback',
+        $ollama_configured && $smtp_configured && $twilio_configured && $pdf_library_ready ? 92 : 82,
+        'Offline-ready',
+        'Local Ollama/Llama chatbot with MySQL knowledge retrieval',
         [
             'AI assistant pages and chatbot inquiry logging are available.',
-            $tesseract_command ? 'Local OCR engine detected: ' . basename($tesseract_command) : 'OCR fallback/manual review is available.',
+            'Offline RAG knowledge base is managed from AI Knowledge Base.',
             $twilio_configured ? 'Twilio SMS credentials are configured.' : 'SMS uses local logging until Twilio credentials are added.',
             $smtp_configured ? 'SMTP settings appear configured.' : 'Email uses PHP mail/local server behavior until SMTP is configured.'
         ],
         [
-            'Add live AI API credentials only when internet hosting is ready.',
+            'Install Ollama and run: ollama pull llama3.2',
             'Install a PDF library such as Dompdf/mPDF for true PDF exports.',
             'Configure SMTP and Twilio in production.'
         ]
@@ -1722,24 +2032,6 @@ function getSystemIntegrationReadiness($conn) {
     );
 
     $items[] = integrationStatusItem(
-        5,
-        'OCR-Based Identity Verification Improvement',
-        $tesseract_command ? 86 : 78,
-        $tesseract_command ? 'OCR available' : 'Manual-review fallback',
-        $tesseract_command ? 'Local Tesseract OCR' : 'Offline capture plus admin review',
-        [
-            'Live face capture and valid ID capture are stored for admin review.',
-            'OCR match score/status fields are available.',
-            $tesseract_command ? 'Tesseract command is callable by PHP.' : 'Tesseract is not detected; registrations route to review.'
-        ],
-        [
-            'Install Tesseract on the production server.',
-            'Define acceptance thresholds in the documentation.',
-            'Use a face matching provider only if the parish requires true biometric matching.'
-        ]
-    );
-
-    $items[] = integrationStatusItem(
         6,
         'Certificate Request Validation Enhancement',
         tableExists($conn, 'request_documents') && tableExists($conn, 'request_payments') ? 88 : 80,
@@ -1786,18 +2078,6 @@ function getUserStatusBadgeClass($status) {
         'archived' => 'secondary'
     ];
     return $classes[$status] ?? 'secondary';
-}
-
-// Get OCR Status Label Function - Documents this helper's role in the parish management workflow.
-function getOcrStatusLabel($status) {
-    $labels = [
-        'matched' => 'Matched',
-        'needs_review' => 'Needs Review',
-        'manual_review' => 'Manual Review',
-        'unreadable' => 'Unreadable ID',
-        'ocr_unavailable' => 'OCR Unavailable'
-    ];
-    return $labels[$status] ?? ucfirst(str_replace('_', ' ', (string) $status));
 }
 
 // Get notification count
@@ -2336,8 +2616,11 @@ function syncApprovedRequestToCalendar($conn, $request_id, $admin_user_id) {
     $blessing_request_types = ['house_blessing', 'car_blessing', 'vehicle_blessing', 'business_blessing', 'office_blessing', 'event_blessing'];
     $service_request_types = ['baptism_service', 'marriage_wedding_service', 'funeral_mass', 'anointing_of_the_sick', 'patronal_fiesta'];
     $category = in_array($request['request_type'], $blessing_request_types, true) ? 'blessing' : (in_array($request['request_type'], $service_request_types, true) ? 'sacramental' : 'reservation');
+    if ($request['request_type'] === 'patronal_fiesta') {
+        $category = 'patronal_fiesta';
+    }
     $priority = 'normal';
-    $color_label = $category === 'blessing' ? '#d7ad43' : ($category === 'sacramental' ? '#7c3aed' : '#188038');
+    $color_label = $category === 'blessing' ? '#d7ad43' : ($category === 'patronal_fiesta' ? '#c026d3' : ($category === 'sacramental' ? '#7c3aed' : '#188038'));
     $recurrence_rule = 'none';
     $assigned_personnel = '';
     $visibility = 'public';

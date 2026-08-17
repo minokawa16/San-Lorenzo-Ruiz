@@ -151,11 +151,13 @@ $breadcrumbs = [
     .audit-hero {
         border-radius: 8px;
         padding: 24px;
-        color: #fff;
+        color: #1C1B18;
         background:
-            radial-gradient(circle at 12% 15%, rgba(255,255,255,0.42), transparent 18%),
-            linear-gradient(135deg, #172033, #425f92 58%, #987a2d);
-        box-shadow: 0 14px 36px rgba(15, 23, 42, 0.16);
+            radial-gradient(circle at 90% 12%, rgba(246, 223, 159, 0.34), transparent 28%),
+            linear-gradient(135deg, #FFFFFF 0%, #FFF8EB 100%);
+        border: 1px solid #DFCFAA;
+        border-top: 3px solid #D4A94E;
+        box-shadow: 0 16px 36px rgba(28, 27, 24, 0.08);
     }
 
     .audit-hero h1 {
@@ -163,13 +165,18 @@ $breadcrumbs = [
         align-items: center;
         gap: 10px;
         margin: 0 0 8px;
-        font-weight: 800;
+        color: #1C1B18;
+        font-size: clamp(28px, 3vw, 36px);
+        font-weight: 700;
+        line-height: 1.25;
     }
 
     .audit-hero p {
         max-width: 760px;
         margin: 0;
-        color: rgba(255,255,255,0.8);
+        color: #1C1B18;
+        font-size: 16px;
+        line-height: 1.6;
     }
 
     .audit-stats {
@@ -184,8 +191,8 @@ $breadcrumbs = [
     .audit-filter {
         border: 1px solid rgba(23, 32, 51, 0.1);
         border-radius: 8px;
-        background: linear-gradient(150deg, rgba(255,255,255,0.9), rgba(255,250,240,0.76));
-        box-shadow: 0 14px 40px rgba(30, 41, 59, 0.08);
+        background: #FFFFFF;
+        box-shadow: 0 16px 36px rgba(28, 27, 24, 0.08);
     }
 
     .audit-card {
@@ -194,17 +201,17 @@ $breadcrumbs = [
 
     .audit-card span {
         display: block;
-        color: #64748b;
-        font-size: 0.78rem;
-        font-weight: 800;
-        text-transform: uppercase;
+        color: #6F675A;
+        font-size: 14px;
+        font-weight: 600;
+        text-transform: none;
     }
 
     .audit-card strong {
         display: block;
         margin-top: 8px;
-        color: #172033;
-        font-size: 1.6rem;
+        color: #1C1B18;
+        font-size: 1.75rem;
     }
 
     .audit-filter {
@@ -221,9 +228,10 @@ $breadcrumbs = [
     }
 
     .audit-table-card thead th {
-        background: #f8fafc;
-        color: #475569;
-        font-size: 0.76rem;
+        background: rgba(246, 223, 159, 0.44);
+        color: #1C1B18;
+        font-size: 14px;
+        font-weight: 700;
         text-transform: uppercase;
     }
 
@@ -233,16 +241,17 @@ $breadcrumbs = [
         gap: 6px;
         border-radius: 999px;
         padding: 5px 10px;
-        background: #fff3c4;
-        color: #4a3410;
-        font-weight: 800;
-        font-size: 0.78rem;
+        background: rgba(212, 169, 78, 0.16);
+        color: #1C1B18;
+        border: 1px solid rgba(212, 169, 78, 0.32);
+        font-weight: 600;
+        font-size: 14px;
     }
 
     .audit-detail {
         max-width: 360px;
-        color: #475569;
-        font-size: 0.88rem;
+        color: #1C1B18;
+        font-size: 15px;
     }
 
     .audit-summary-list {
@@ -253,12 +262,13 @@ $breadcrumbs = [
     }
 
     .audit-summary-pill {
-        border: 1px solid rgba(255,255,255,0.22);
+        border: 1px solid rgba(212, 169, 78, 0.32);
         border-radius: 999px;
         padding: 7px 12px;
-        color: #fff;
-        background: rgba(255,255,255,0.12);
-        font-size: 0.85rem;
+        color: #1C1B18;
+        background: rgba(212, 169, 78, 0.16);
+        font-size: 14px;
+        font-weight: 600;
     }
 
     @media (max-width: 768px) {

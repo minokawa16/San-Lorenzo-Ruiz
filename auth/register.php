@@ -9,12 +9,21 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
+
 include '../config/security.php';
 include '../database/config.php';
 include '../includes/helpers.php';
 
 ensureUserVerificationSchema($conn);
 ensureEmailNotificationSchema($conn);
+
+if (empty($_SESSION['registration_verification_id'])) {
+    $_SESSION['registration_verification_id'] = bin2hex(random_bytes(16));
+}
+$registration_verification_id = $_SESSION['registration_verification_id'];
 
 if (isset($_SESSION['user_id']) && !empty($_SESSION['user_id'])) {
     if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
@@ -38,7 +47,9 @@ $form_data = [
     'address' => '',
     'birthdate' => '',
     'birth_place' => '',
-    'id_number' => ''
+    'id_number' => '',
+    'sex' => '',
+    'nationality' => ''
 ];
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
@@ -47,11 +58,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $surname = isset($_POST['surname']) ? sanitize($_POST['surname']) : '';
     $middle_initial = isset($_POST['middle_initial']) ? strtoupper(substr(preg_replace('/[^A-Za-z]/', '', sanitize($_POST['middle_initial'])), 0, 1)) : '';
     $fullname = trim($first_name . ' ' . ($middle_initial !== '' ? $middle_initial . '. ' : '') . $surname);
-    $phone_number = isset($_POST['phone_number']) ? sanitize($_POST['phone_number']) : '';
-    $email = isset($_POST['email']) ? sanitize($_POST['email']) : '';
+    $phone_number = isset($_POST['phone_number']) ? normalizePhilippineMobileForStorage(sanitize($_POST['phone_number'])) : '';
+    $email = isset($_POST['email']) ? strtolower(sanitize($_POST['email'])) : '';
     $verification_method = $_POST['verification_method'] ?? 'email';
     if (!in_array($verification_method, ['email', 'mobile'], true)) {
         $verification_method = 'email';
+    }
+    if ($verification_method === 'email') {
+        $phone_number = '';
+    } else {
+        $email = '';
     }
     $chapel_district = isset($_POST['chapel_district']) ? sanitize($_POST['chapel_district']) : '';
     $address = isset($_POST['address']) ? sanitize($_POST['address']) : '';
@@ -61,6 +77,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $birthdate_display = $birthdate_timestamp ? date('F d, Y', $birthdate_timestamp) : $birthdate_input;
     $birth_place = isset($_POST['birth_place']) ? sanitize($_POST['birth_place']) : '';
     $id_number = isset($_POST['id_number']) ? sanitize($_POST['id_number']) : '';
+    $sex = isset($_POST['sex']) ? sanitize($_POST['sex']) : '';
+    $nationality = isset($_POST['nationality']) ? sanitize($_POST['nationality']) : '';
     $password = isset($_POST['password']) ? $_POST['password'] : '';
     $confirm_password = isset($_POST['confirm_password']) ? $_POST['confirm_password'] : '';
 
@@ -75,35 +93,53 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         'address' => $address,
         'birthdate' => $birthdate_display,
         'birth_place' => $birth_place,
-        'id_number' => $id_number
+        'id_number' => $id_number,
+        'sex' => $sex,
+        'nationality' => $nationality
     ];
 
-    if (empty($first_name) || empty($surname) || empty($phone_number) || empty($email) || empty($chapel_district) || empty($address) || empty($birthdate_input) || empty($birth_place) || empty($password) || empty($confirm_password)) {
+    if (empty($first_name) || empty($surname) || empty($chapel_district) || empty($address) || empty($birthdate_input) || empty($birth_place) || empty($password) || empty($confirm_password)) {
         $error = 'Please complete all required fields.';
-    } elseif (!isValidEmail($email)) {
+    } elseif ($verification_method === 'email' && $email === '') {
+        $error = 'Please enter your Gmail address.';
+    } elseif ($verification_method === 'mobile' && $phone_number === '') {
+        $error = 'Please enter your mobile number.';
+    } elseif ($verification_method === 'email' && !isValidEmail($email)) {
         $error = 'Please enter a valid email address.';
-    } elseif (!preg_match('/@gmail\.com$/i', $email)) {
+    } elseif ($verification_method === 'email' && !preg_match('/@gmail\.com$/i', $email)) {
         $error = 'Please use a Gmail address ending in @gmail.com.';
-    } elseif (!isValidPhilippineMobile($phone_number)) {
-        $error = 'Invalid mobile number. Please enter a valid 11-digit Philippine mobile number.';
+    } elseif ($verification_method === 'mobile' && !isValidPhilippineMobile($phone_number)) {
+        $error = 'Invalid mobile number. Please enter a valid Philippine mobile number.';
     } elseif (!$birthdate_timestamp || $birthdate_timestamp > strtotime('-13 years')) {
         $error = 'Please enter a valid birthdate in Month DD, YYYY format. Registrants must be at least 13 years old.';
     } elseif (strlen($password) < 8) {
         $error = 'Password must be at least 8 characters.';
     } elseif ($password !== $confirm_password) {
         $error = 'Passwords do not match.';
+    } elseif (empty($id_number)) {
+        $error = 'ID number is required.';
     } elseif (empty($_POST['face_capture']) || empty($_POST['valid_id_capture']) || empty($_POST['valid_id_back_capture'])) {
-        $error = 'Live face verification and front/back ID verification must be completed before registration.';
-    } elseif (($_POST['face_match_status'] ?? '') !== 'matched') {
-        $error = 'Face verification must be successfully matched before registration can proceed.';
+        $error = 'Live face capture and front/back ID verification must be completed before registration.';
+    } elseif (($_POST['id_ocr_status'] ?? 'pending') === 'mismatch') {
+        $error = 'Please correct the fields flagged by the front ID scan before registration.';
     } else {
-        $email_safe = $conn->real_escape_string($email);
-        $sql = "SELECT id FROM users WHERE email = '$email_safe' LIMIT 1";
-        $result = $conn->query($sql);
-
-        if ($result && $result->num_rows > 0) {
-            $error = 'This Gmail address is already registered.';
+        if ($verification_method === 'email') {
+            $email_safe = $conn->real_escape_string($email);
+            $sql = "SELECT id FROM users WHERE email = '$email_safe' LIMIT 1";
+            $result = $conn->query($sql);
+            if ($result && $result->num_rows > 0) {
+                $error = 'This Gmail address is already registered.';
+            }
         } else {
+            $phone_safe = $conn->real_escape_string($phone_number);
+            $sql = "SELECT id FROM users WHERE phone_number = '$phone_safe' LIMIT 1";
+            $result = $conn->query($sql);
+            if ($result && $result->num_rows > 0) {
+                $error = 'This mobile number is already registered.';
+            }
+        }
+
+        if (!$error) {
             $face_capture = decodeCameraCapture($_POST['face_capture'], 10 * 1024 * 1024);
             $id_capture = decodeCameraCapture($_POST['valid_id_capture'], 10 * 1024 * 1024);
             $id_back_capture = decodeCameraCapture($_POST['valid_id_back_capture'], 10 * 1024 * 1024);
@@ -117,79 +153,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             } else {
                 $id_upload_dir = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'valid_ids';
                 $face_upload_dir = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'live_faces';
-                $ocr_front_tmp = tempnam(sys_get_temp_dir(), 'tugon_id_front_');
-                $ocr_back_tmp = tempnam(sys_get_temp_dir(), 'tugon_id_back_');
-                file_put_contents($ocr_front_tmp, $id_capture['binary']);
-                file_put_contents($ocr_back_tmp, $id_back_capture['binary']);
-
-                $ocr_front_result = runValidIdOcr($ocr_front_tmp);
-                $ocr_back_result = runValidIdOcr($ocr_back_tmp);
-                $ocr_result = combineOcrResults([$ocr_front_result, $ocr_back_result]);
-                $extracted_data = extractValidIdData($ocr_result['text']);
-                $identity_match = compareIdentityData([
-                    'fullname' => $fullname,
-                    'first_name' => $first_name,
-                    'surname' => $surname,
-                    'middle_initial' => $middle_initial,
-                    'birthdate' => $birthdate,
-                    'birth_place' => $birth_place,
-                    'address' => $address,
-                    'id_number' => $extracted_data['id_number'] ?? ''
-                ], $extracted_data, $ocr_result['text']);
-
-                if ($ocr_result['available'] && trim($ocr_result['text']) === '') {
-                    $identity_match['status'] = 'unreadable';
-                } elseif (!$ocr_result['available']) {
-                    $identity_match['status'] = 'ocr_unavailable';
-                }
-
-                $id_number = trim((string) ($extracted_data['id_number'] ?? ''));
-                $required_ocr_fields = ['birthdate', 'birth_place', 'address', 'id_number'];
-                $missing_ocr_fields = array_filter($required_ocr_fields, function ($field) use ($extracted_data) {
-                    return trim((string) ($extracted_data[$field] ?? '')) === '';
-                });
-                if (trim((string) ($extracted_data['full_name'] ?? '')) === '' && (trim((string) ($extracted_data['first_name'] ?? '')) === '' || trim((string) ($extracted_data['surname'] ?? '')) === '')) {
-                    $missing_ocr_fields[] = 'name';
-                }
-                $clear_mismatches = [];
-                foreach (['name', 'birthdate', 'birth_place', 'address'] as $check_key) {
-                    $field_key = $check_key === 'name' ? 'full_name' : $check_key;
-                    $field_value = $check_key === 'name'
-                        ? trim((string) (($extracted_data['full_name'] ?? '') ?: trim(($extracted_data['first_name'] ?? '') . ' ' . ($extracted_data['surname'] ?? ''))))
-                        : trim((string) ($extracted_data[$field_key] ?? ''));
-                    if ($field_value !== '' && empty($identity_match['checks'][$check_key])) {
-                        $clear_mismatches[] = $check_key;
-                    }
-                }
-
-                if ($id_number === '') {
-                    @unlink($ocr_front_tmp);
-                    @unlink($ocr_back_tmp);
-                    $error = 'OCR could not read the ID number. Please retake the ID photo with better lighting and make sure the whole ID is visible.';
-                } elseif (!empty($clear_mismatches)) {
-                    @unlink($ocr_front_tmp);
-                    @unlink($ocr_back_tmp);
-                    $error = 'OCR identity verification failed because the scanned ID details do not match the registration form.';
-                } else {
-                    if (!empty($missing_ocr_fields) || intval($identity_match['score']) < 70) {
-                        $identity_match['status'] = 'needs_review';
-                    }
-                    $id_number_hash = hashIdentityNumber($id_number);
-                    $id_number_hash_safe = $conn->real_escape_string($id_number_hash);
-                    $duplicate_id_result = $conn->query("SELECT id FROM users WHERE id_number_hash = '$id_number_hash_safe' LIMIT 1");
-                    if ($duplicate_id_result && $duplicate_id_result->num_rows > 0) {
-                        @unlink($ocr_front_tmp);
-                        @unlink($ocr_back_tmp);
-                        $error = 'This ID has already been registered in the system.';
-                    }
+                $id_number_hash = hashIdentityNumber($id_number);
+                $id_number_hash_safe = $conn->real_escape_string($id_number_hash);
+                $duplicate_id_result = $conn->query("SELECT id FROM users WHERE id_number_hash = '$id_number_hash_safe' LIMIT 1");
+                if ($duplicate_id_result && $duplicate_id_result->num_rows > 0) {
+                    $error = 'This ID has already been registered in the system.';
                 }
 
                 if (!$error) {
-                $id_saved = saveEncryptedCameraCapture($id_capture, $id_upload_dir, 'live-valid-id-front');
-                $id_back_saved = saveEncryptedCameraCapture($id_back_capture, $id_upload_dir, 'live-valid-id-back');
-                $face_saved = saveEncryptedCameraCapture($face_capture, $face_upload_dir, 'live-face');
-                @unlink($ocr_front_tmp);
-                @unlink($ocr_back_tmp);
+                    $fullname = trim($first_name . ' ' . ($middle_initial !== '' ? $middle_initial . '. ' : '') . $surname);
+                    $id_saved = saveEncryptedCameraCapture($id_capture, $id_upload_dir, 'live-valid-id-front');
+                    $id_back_saved = saveEncryptedCameraCapture($id_back_capture, $id_upload_dir, 'live-valid-id-back');
+                    $face_saved = saveEncryptedCameraCapture($face_capture, $face_upload_dir, 'live-face');
 
                     if (!$id_saved || !$id_back_saved || !$face_saved) {
                         if ($id_saved && is_file($id_saved['path'])) {
@@ -207,93 +182,101 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         $back_db_path = 'uploads/valid_ids/' . $id_back_saved['filename'];
                         $face_db_path = 'uploads/live_faces/' . $face_saved['filename'];
                         $mime_type = $id_capture['mime_type'];
+                        $back_mime_type = $id_back_capture['mime_type'];
                         $face_mime_type = $face_capture['mime_type'];
                         $original_name = 'front-back-id-verification.' . $id_capture['extension'];
                     $hashed_password = hashPassword($password);
                     $id_number_encrypted = encryptSensitiveValue($id_number);
-                    $ocr_text_encrypted = encryptSensitiveValue($ocr_result['text']);
-                    $ocr_data_encrypted = encryptSensitiveValue(json_encode([
-                        'extracted' => $extracted_data,
-                        'checks' => $identity_match['checks'],
-                        'confidence' => getOcrFieldConfidence($extracted_data, $identity_match['checks']),
-                        'ocr_error' => $ocr_result['error'],
-                        'back_id_path' => $back_db_path
-                    ]));
-                    $ocr_score = intval($identity_match['score']);
-                    $ocr_status = $identity_match['status'];
                     $allowed_face_statuses = ['matched', 'mismatch', 'admin_review', 'pending'];
                     $face_status = $_POST['face_match_status'] ?? 'admin_review';
                     if (!in_array($face_status, $allowed_face_statuses, true) || $face_status === 'pending') {
                         $face_status = 'admin_review';
                     }
 
-                    $stmt = $conn->prepare("INSERT INTO users (fullname, first_name, surname, middle_initial, phone_number, email, verification_method, chapel_district, address, birthdate, birth_place, id_number_hash, id_number_encrypted, password, role, status, valid_id_path, valid_id_original_name, valid_id_mime_type, valid_id_capture_method, face_image_path, face_image_mime_type, face_verification_status, face_verified_at, ocr_extracted_text_encrypted, ocr_extracted_data_encrypted, ocr_match_score, ocr_status, ocr_processed_at)
-                                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'user', 'pending_verification', ?, ?, ?, 'live_camera', ?, ?, ?, NOW(), ?, ?, ?, ?, NOW())");
+                    $phone_number_db = $phone_number !== '' ? $phone_number : null;
+                    $email_db = $email !== '' ? $email : null;
+
+                    $stmt = $conn->prepare("INSERT INTO users (fullname, first_name, surname, middle_initial, phone_number, email, verification_method, chapel_district, address, birthdate, birth_place, sex, nationality, id_number_hash, id_number_encrypted, password, role, status, valid_id_path, valid_id_original_name, valid_id_mime_type, valid_id_back_path, valid_id_back_mime_type, valid_id_capture_method, face_image_path, face_image_mime_type, face_verification_status, face_verified_at)
+                                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'user', 'pending_verification', ?, ?, ?, ?, ?, 'live_camera', ?, ?, ?, NOW())");
 
                     if ($stmt) {
                         $stmt->bind_param(
-                            'ssssssssssssssssssssssis',
+                            'ssssssssssssssssssssssss',
                             $fullname,
                             $first_name,
                             $surname,
                             $middle_initial,
-                            $phone_number,
-                            $email,
+                            $phone_number_db,
+                            $email_db,
                             $verification_method,
                             $chapel_district,
                             $address,
                             $birthdate,
                             $birth_place,
+                            $sex,
+                            $nationality,
                             $id_number_hash,
                             $id_number_encrypted,
                             $hashed_password,
                             $db_path,
                             $original_name,
                             $mime_type,
+                            $back_db_path,
+                            $back_mime_type,
                             $face_db_path,
                             $face_mime_type,
-                            $face_status,
-                            $ocr_text_encrypted,
-                            $ocr_data_encrypted,
-                            $ocr_score,
-                            $ocr_status
+                            $face_status
                         );
                     }
 
                     if ($stmt && $stmt->execute()) {
-                        $success = $ocr_status === 'matched'
-                            ? 'Your ID details were scanned successfully. Your registration is now under parish administrator review.'
-                            : 'Your registration is under review. The ID scan needs administrator verification before approval.';
-                        $form_data = [
-                            'first_name' => '',
-                            'surname' => '',
-                            'middle_initial' => '',
-                            'phone_number' => '',
-                            'email' => '',
-                            'verification_method' => 'email',
-                            'chapel_district' => '',
-                            'address' => '',
-                            'birthdate' => '',
-                            'birth_place' => '',
-                            'id_number' => ''
-                        ];
-
                         $new_user_id = $conn->insert_id;
                         if ($verification_method === 'mobile') {
-                            sendOtpSms($conn, $new_user_id, $phone_number, 'registration');
+                            $otp_sent = sendOtpSms($conn, $new_user_id, $phone_number, 'registration');
+                            if (empty($otp_sent['ok'])) {
+                                $error = $otp_sent['error'] ?: 'Unable to send OTP to your mobile number. Please check the number and try again.';
+                                createAuditLog($conn, $new_user_id, 'REGISTRATION_MOBILE_OTP_SEND_FAILED', 'users', $new_user_id, null, [
+                                    'phone_number' => $phone_number,
+                                    'error' => $error
+                                ]);
+                                if (is_file($id_saved['path'])) {
+                                    @unlink($id_saved['path']);
+                                }
+                                if (is_file($id_back_saved['path'])) {
+                                    @unlink($id_back_saved['path']);
+                                }
+                                if (is_file($face_saved['path'])) {
+                                    @unlink($face_saved['path']);
+                                }
+                                $conn->query("DELETE FROM users WHERE id = " . intval($new_user_id) . " AND status = 'pending_verification'");
+                            }
                             $otp_contact = $phone_number;
                         } else {
                             sendEmailVerificationMessage($conn, $new_user_id, $email, $fullname);
                             sendOtpEmail($conn, $new_user_id, $email, 'registration');
                             $otp_contact = $email;
                         }
-                        createAuditLog($conn, $new_user_id, 'REGISTRATION_OCR_PENDING_VERIFICATION', 'users', $new_user_id, null, [
-                            'ocr_status' => $ocr_status,
-                            'ocr_match_score' => $ocr_score,
-                            'verification_method' => $verification_method
-                        ]);
-                        header('Location: verify-otp.php?purpose=registration&method=' . urlencode($verification_method) . '&user_id=' . urlencode($new_user_id) . '&contact=' . urlencode($otp_contact));
-                        exit;
+                        if (!$error) {
+                            $success = 'Your registration is now under parish administrator review.';
+                            $form_data = [
+                                'first_name' => '',
+                                'surname' => '',
+                                'middle_initial' => '',
+                                'phone_number' => '',
+                                'email' => '',
+                                'verification_method' => 'email',
+                                'chapel_district' => '',
+                                'address' => '',
+                                'birthdate' => '',
+                                'birth_place' => '',
+                                'id_number' => ''
+                            ];
+                            createAuditLog($conn, $new_user_id, 'REGISTRATION_PENDING_VERIFICATION', 'users', $new_user_id, null, [
+                                'verification_method' => $verification_method
+                            ]);
+                            header('Location: verify-otp.php?purpose=registration&method=' . urlencode($verification_method) . '&user_id=' . urlencode($new_user_id) . '&contact=' . urlencode($otp_contact));
+                            exit;
+                        }
                     } else {
                         if (is_file($id_saved['path'])) {
                             unlink($id_saved['path']);
@@ -333,8 +316,14 @@ $has_logo = is_file($logo_file);
         <title>Register | San Lorenzo Ruiz Mission Station</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../assets/css/style.css">
-    <link rel="stylesheet" href="../assets/css/premium-parish.css">
+    <?php
+    $style_version = file_exists(__DIR__ . '/../assets/css/style.css') ? filemtime(__DIR__ . '/../assets/css/style.css') : time();
+    $premium_style_version = file_exists(__DIR__ . '/../assets/css/premium-parish.css') ? filemtime(__DIR__ . '/../assets/css/premium-parish.css') : time();
+    $theme_style_version = file_exists(__DIR__ . '/../assets/css/theme.css') ? filemtime(__DIR__ . '/../assets/css/theme.css') : time();
+    ?>
+    <link rel="stylesheet" href="../assets/css/style.css?v=<?php echo $style_version; ?>">
+    <link rel="stylesheet" href="../assets/css/premium-parish.css?v=<?php echo $premium_style_version; ?>">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=<?php echo $theme_style_version; ?>">
     <style>
         :root {
             --register-navy: #0b1f3a;
@@ -1011,145 +1000,6 @@ $has_logo = is_file($logo_file);
             display: block;
         }
 
-        .identity-match-panel {
-            display: grid;
-            gap: 14px;
-            padding: 16px;
-            border-radius: 8px;
-            border: 1px solid rgba(255, 248, 235, 0.2);
-            background: rgba(255, 248, 235, 0.1);
-        }
-
-        .identity-match-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-        }
-
-        .identity-match-header h3 {
-            margin: 0;
-            color: #fff8eb;
-            font-size: 0.95rem;
-            font-weight: 900;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-
-        .identity-score {
-            display: inline-flex;
-            align-items: center;
-            min-height: 30px;
-            padding: 5px 10px;
-            border-radius: 999px;
-            color: #14100d;
-            background: linear-gradient(135deg, var(--register-gold-soft), var(--register-gold));
-            font-size: 0.82rem;
-            font-weight: 900;
-        }
-
-        .ocr-status-badge {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 30px;
-            padding: 5px 10px;
-            border-radius: 999px;
-            color: #fff8eb;
-            background: rgba(255, 248, 235, 0.14);
-            border: 1px solid rgba(255, 248, 235, 0.22);
-            font-size: 0.74rem;
-            font-weight: 900;
-            text-transform: uppercase;
-        }
-
-        .ocr-status-badge.processing {
-            color: #14100d;
-            background: linear-gradient(135deg, var(--register-gold-soft), var(--register-gold));
-        }
-
-        .ocr-status-badge.verified {
-            color: #dcfce7;
-            border-color: rgba(74, 222, 128, 0.42);
-            background: rgba(22, 101, 52, 0.52);
-        }
-
-        .ocr-status-badge.failed {
-            color: #fecaca;
-            border-color: rgba(248, 113, 113, 0.42);
-            background: rgba(127, 29, 29, 0.42);
-        }
-
-        .ocr-status-badge.review {
-            color: #fef3c7;
-            border-color: rgba(251, 191, 36, 0.38);
-            background: rgba(120, 53, 15, 0.42);
-        }
-
-        .match-grid {
-            display: grid;
-            grid-template-columns: repeat(5, minmax(0, 1fr));
-            gap: 8px;
-        }
-
-        .match-chip {
-            min-height: 38px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 7px;
-            padding: 8px;
-            border-radius: 8px;
-            color: #fecaca;
-            background: rgba(127, 29, 29, 0.32);
-            border: 1px solid rgba(248, 113, 113, 0.32);
-            font-size: 0.78rem;
-            font-weight: 900;
-            text-align: center;
-        }
-
-        .match-chip.is-match {
-            color: #dcfce7;
-            background: rgba(22, 101, 52, 0.42);
-            border-color: rgba(74, 222, 128, 0.42);
-        }
-
-        .match-chip.is-review {
-            color: #fef3c7;
-            background: rgba(120, 53, 15, 0.32);
-            border-color: rgba(251, 191, 36, 0.34);
-        }
-
-        .extracted-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px;
-        }
-
-        .extracted-item {
-            padding: 10px;
-            border-radius: 8px;
-            background: rgba(255, 248, 235, 0.08);
-            border: 1px solid rgba(255, 248, 235, 0.14);
-        }
-
-        .extracted-item span {
-            display: block;
-            color: rgba(255, 248, 235, 0.58);
-            font-size: 0.73rem;
-            font-weight: 900;
-            text-transform: uppercase;
-            margin-bottom: 4px;
-        }
-
-        .extracted-item strong {
-            display: block;
-            min-height: 20px;
-            color: #fff8eb;
-            font-size: 0.88rem;
-            overflow-wrap: anywhere;
-        }
-
         .face-match-status {
             display: flex;
             align-items: flex-start;
@@ -1180,15 +1030,39 @@ $has_logo = is_file($logo_file);
             border-color: rgba(251, 191, 36, 0.34);
         }
 
+        .id-ocr-status {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px;
+            border-radius: 8px;
+            color: rgba(255, 248, 235, 0.8);
+            background: rgba(255, 248, 235, 0.08);
+            border: 1px solid rgba(255, 248, 235, 0.14);
+            font-weight: 800;
+        }
+
+        .id-ocr-status.success {
+            color: #dcfce7;
+            background: rgba(22, 101, 52, 0.42);
+            border-color: rgba(74, 222, 128, 0.42);
+        }
+
+        .id-ocr-status.error {
+            color: #fecaca;
+            background: rgba(127, 29, 29, 0.32);
+            border-color: rgba(248, 113, 113, 0.32);
+        }
+
+        .id-ocr-status.warning {
+            color: #fef3c7;
+            background: rgba(120, 53, 15, 0.32);
+            border-color: rgba(251, 191, 36, 0.34);
+        }
+
         .is-invalid-field {
             border-color: #f04438 !important;
             box-shadow: 0 0 0 4px rgba(240, 68, 56, 0.12) !important;
-        }
-
-        .ocr-corrected-field {
-            border-color: #10b981 !important;
-            background: rgba(16, 185, 129, 0.16) !important;
-            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.14) !important;
         }
 
         .auth-alert {
@@ -1437,9 +1311,7 @@ $has_logo = is_file($logo_file);
             .verification-steps,
             .camera-actions,
             .id-upload-actions,
-            .capture-previews,
-            .match-grid,
-            .extracted-grid {
+            .capture-previews {
                 grid-template-columns: 1fr;
             }
 
@@ -1454,9 +1326,677 @@ $has_logo = is_file($logo_file);
                 width: auto;
             }
         }
+
+        .auth-register-screen {
+            width: min(1380px, calc(100% - 32px));
+            justify-content: center;
+            gap: 0;
+        }
+
+        .auth-register-screen .auth-login-side {
+            display: flex;
+            min-height: 760px;
+            width: min(38vw, 500px);
+        }
+
+        .auth-register-card.register-card {
+            align-self: stretch;
+            width: min(62vw, 760px);
+            min-height: 760px;
+            max-height: min(92vh, 900px);
+            overflow-y: auto;
+            padding: clamp(34px, 4vw, 52px);
+            display: block;
+            border-radius: 0 8px 8px 0;
+            background: rgba(255, 248, 235, 0.96);
+            border: 1px solid rgba(20, 16, 13, 0.08);
+            color: #14100d;
+            box-shadow: 0 34px 90px rgba(0, 0, 0, 0.32);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        .auth-register-card.register-card::before,
+        .auth-register-card .register-card-icon,
+        .auth-register-card + .register-card-icon {
+            display: none;
+        }
+
+        .auth-register-card .register-card-header {
+            width: min(100%, 620px);
+            margin: 0 auto 28px;
+            text-align: left;
+        }
+
+        .auth-register-card .register-card-header h2 {
+            color: #14100d;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: clamp(2.1rem, 3.6vw, 2.8rem);
+            font-weight: 900;
+            line-height: 1.05;
+        }
+
+        .auth-register-card .register-card-header p,
+        .auth-register-card .form-hint,
+        .auth-register-card .login-link,
+        .auth-register-card .auth-switch {
+            color: rgba(20, 16, 13, 0.62);
+        }
+
+        .auth-register-card .registration-form,
+        .auth-register-card .community-quote,
+        .auth-register-card .verification-notice,
+        .auth-register-card .login-link,
+        .auth-register-card .register-socials {
+            width: min(100%, 620px);
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .auth-register-card .community-quote,
+        .auth-register-card .verification-notice {
+            color: rgba(20, 16, 13, 0.74);
+            background: #ffffff;
+            border: 1px solid rgba(20, 16, 13, 0.14);
+            border-radius: 8px;
+        }
+
+        .auth-register-card .community-quote i,
+        .auth-register-card .verification-notice i,
+        .auth-register-card .input-wrap .field-icon {
+            color: rgba(216, 165, 58, 0.82);
+        }
+
+        .auth-register-card .field-label {
+            color: #14100d;
+        }
+
+        .auth-register-card .form-control,
+        .auth-register-card .form-select,
+        .auth-register-card #chapel_district {
+            color: #14100d !important;
+            -webkit-text-fill-color: #14100d;
+            background: #ffffff;
+            border: 1px solid rgba(20, 16, 13, 0.88);
+            box-shadow: none;
+        }
+
+        .auth-register-card .form-control::placeholder {
+            color: rgba(20, 16, 13, 0.42);
+            -webkit-text-fill-color: rgba(20, 16, 13, 0.42);
+        }
+
+        .auth-register-card .form-control:focus,
+        .auth-register-card .form-select:focus,
+        .auth-register-card #chapel_district:focus {
+            color: #14100d !important;
+            -webkit-text-fill-color: #14100d;
+            background: #ffffff;
+            border-color: rgba(216, 165, 58, 0.84);
+            box-shadow: 0 0 0 4px rgba(216, 165, 58, 0.18);
+            transform: none;
+        }
+
+        .auth-register-card .verification-option,
+        .auth-register-card .live-verification,
+        .auth-register-card .verification-step,
+        .auth-register-card .capture-preview,
+        .auth-register-card .face-match-status,
+        .auth-register-card .id-ocr-status,
+        .auth-register-card .id-side-upload {
+            color: #14100d;
+            background: #ffffff;
+            border: 1px solid rgba(20, 16, 13, 0.16);
+            border-radius: 8px;
+        }
+
+        .auth-register-card .verification-option span,
+        .auth-register-card .capture-preview span,
+        .auth-register-card .terms-check {
+            color: #14100d;
+        }
+
+        .auth-register-card .camera-status {
+            color: rgba(20, 16, 13, 0.66);
+        }
+
+        .auth-register-card .submit-btn {
+            width: min(100%, 620px);
+            margin: 6px auto 0;
+            min-height: 50px;
+            border-radius: 8px;
+            color: #14100d;
+            background: #c39b2a;
+            border: 1px solid #b48c1e;
+            box-shadow: none;
+        }
+
+        .auth-register-card .submit-btn:hover:not(:disabled),
+        .auth-register-card .submit-btn:focus-visible {
+            transform: none;
+            background: #b98f20;
+            box-shadow: 0 12px 28px rgba(184, 143, 32, 0.22);
+        }
+
+        .auth-register-card .login-link a {
+            color: #b98414;
+        }
+
+        .auth-register-card .login-link a:hover {
+            color: #14100d;
+        }
+
+        .auth-register-card .register-social-btn {
+            min-height: 46px;
+            color: #14100d;
+            background: #ffffff;
+            border: 1px solid rgba(20, 16, 13, 0.88);
+            border-radius: 8px;
+            box-shadow: none;
+        }
+
+        @media (max-width: 900px) {
+            .auth-register-screen {
+                display: grid;
+                width: min(100% - 24px, 760px);
+                padding: 18px 0;
+            }
+
+            .auth-register-screen .auth-login-side,
+            .auth-register-card.register-card {
+                width: 100%;
+                min-height: auto;
+                max-height: none;
+                border-radius: 8px;
+            }
+
+            .auth-register-screen .auth-login-side {
+                padding: 28px;
+                border-right: 1px solid rgba(246, 217, 139, 0.16);
+                gap: 28px;
+            }
+
+            .auth-register-card.register-card {
+                padding: 34px 24px;
+            }
+        }
+
+        :root {
+            --register-navy: #203238;
+            --register-navy-soft: #08739A;
+            --register-gold: #149BB5;
+            --register-gold-soft: #91C2B9;
+            --register-gray: #EEF6F5;
+            --register-muted: #52686B;
+            --register-danger: #b42318;
+            --register-success: #08739A;
+            --register-ocean: #08739A;
+            --register-link: #149BB5;
+            --register-teal: #2AA6AF;
+            --register-aqua: #91C2B9;
+            --register-stone: #E3E0D8;
+            --register-border: #D2D8D3;
+            --register-surface: #FFFFFF;
+            --register-text: #203238;
+        }
+
+        .auth-register-card.register-card {
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(238, 246, 245, 0.9)) !important;
+            border: 1px solid var(--register-border) !important;
+            color: var(--register-text) !important;
+            box-shadow: 0 34px 90px rgba(8, 115, 154, 0.24) !important;
+        }
+
+        .auth-register-card.register-card::before {
+            border-color: rgba(42, 166, 175, 0.28) !important;
+        }
+
+        .auth-register-card .register-card-icon,
+        .auth-register-card .input-wrap .field-icon {
+            background: rgba(145, 194, 185, 0.34) !important;
+            color: var(--register-ocean) !important;
+            border-color: var(--register-border) !important;
+        }
+
+        .auth-register-card .register-card-header h2 {
+            color: var(--register-text) !important;
+            font-size: clamp(28px, 3vw, 36px) !important;
+            line-height: 1.25 !important;
+            font-weight: 700 !important;
+        }
+
+        .auth-register-card .register-card-header p,
+        .auth-register-card .form-hint,
+        .auth-register-card .login-link,
+        .auth-register-card .auth-switch,
+        .auth-register-card .community-quote,
+        .auth-register-card .verification-notice {
+            color: var(--register-muted) !important;
+            font-size: 16px !important;
+            line-height: 1.6 !important;
+        }
+
+        .auth-register-card .field-label,
+        .auth-register-card .form-label,
+        .auth-register-card label {
+            color: var(--register-text) !important;
+            font-size: 15px !important;
+            line-height: 1.45 !important;
+            font-weight: 600 !important;
+        }
+
+        .auth-register-card .form-control,
+        .auth-register-card .form-select,
+        .auth-register-card #chapel_district {
+            background: #FFFFFF !important;
+            border-color: var(--register-border) !important;
+            color: var(--register-text) !important;
+            font-size: 16px !important;
+            line-height: 1.5 !important;
+            min-height: 44px !important;
+        }
+
+        .auth-register-card .form-control:focus,
+        .auth-register-card .form-select:focus,
+        .auth-register-card #chapel_district:focus {
+            border-color: var(--register-link) !important;
+            box-shadow: 0 0 0 4px rgba(20, 155, 181, 0.18) !important;
+        }
+
+        .auth-register-card .verification-option,
+        .auth-register-card .live-verification,
+        .auth-register-card .verification-step,
+        .auth-register-card .capture-preview,
+        .auth-register-card .face-match-status,
+        .auth-register-card .id-ocr-status,
+        .auth-register-card .id-side-upload,
+        .auth-register-card .community-quote,
+        .auth-register-card .verification-notice {
+            background: rgba(145, 194, 185, 0.18) !important;
+            border-color: var(--register-border) !important;
+            color: var(--register-text) !important;
+        }
+
+        .auth-register-card .verification-option span,
+        .auth-register-card .capture-preview span,
+        .auth-register-card .terms-check,
+        .auth-register-card .camera-status {
+            color: var(--register-text) !important;
+            font-size: 15px !important;
+            line-height: 1.5 !important;
+        }
+
+        .auth-register-card .submit-btn {
+            background: var(--register-link) !important;
+            border-color: var(--register-link) !important;
+            color: #FFFFFF !important;
+            min-height: 44px !important;
+            font-size: 16px !important;
+            font-weight: 600 !important;
+        }
+
+        .auth-register-card .submit-btn:hover:not(:disabled),
+        .auth-register-card .submit-btn:focus-visible {
+            background: var(--register-ocean) !important;
+            border-color: var(--register-ocean) !important;
+        }
+
+        .auth-register-card .login-link a,
+        .auth-register-card .register-social-btn {
+            color: var(--register-link) !important;
+            font-size: 15px !important;
+            font-weight: 600 !important;
+        }
+
+        .auth-register-card .register-social-btn {
+            background: #FFFFFF !important;
+            border-color: var(--register-border) !important;
+        }
+
+        /* Final ocean registration pass: UI only, keeps all form behavior intact. */
+        body.auth-cinematic-page {
+            background:
+                radial-gradient(circle at 12% 8%, rgba(145, 194, 185, 0.48), transparent 28%),
+                radial-gradient(circle at 86% 20%, rgba(42, 166, 175, 0.2), transparent 30%),
+                linear-gradient(180deg, #F7FBFA 0%, #EEF6F5 46%, #DDECE9 100%) !important;
+            color: var(--register-text) !important;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif !important;
+        }
+
+        body.auth-cinematic-page::before,
+        body.auth-cinematic-page::after {
+            opacity: 0 !important;
+            display: none !important;
+        }
+
+        .auth-register-screen {
+            width: min(1380px, calc(100% - 32px)) !important;
+            align-items: stretch !important;
+            border-radius: 18px !important;
+            overflow: hidden !important;
+            background: #FFFFFF !important;
+            border: 1px solid var(--register-border) !important;
+            box-shadow: 0 28px 70px rgba(8, 115, 154, 0.18) !important;
+        }
+
+        .auth-register-screen .auth-login-side {
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0)),
+                var(--register-ocean) !important;
+            color: #FFFFFF !important;
+            border-right: 0 !important;
+            box-shadow: none !important;
+        }
+
+        .auth-register-screen .auth-login-side *,
+        .auth-register-screen .auth-login-side p,
+        .auth-register-screen .auth-login-side span,
+        .auth-register-screen .auth-login-side strong {
+            color: #FFFFFF !important;
+        }
+
+        .auth-register-screen .auth-brand-logo {
+            background: #FFFFFF !important;
+            border: 1px solid rgba(255, 255, 255, 0.42) !important;
+            box-shadow: 0 14px 34px rgba(0, 0, 0, 0.14) !important;
+        }
+
+        .auth-register-screen .auth-feature-pill {
+            background: rgba(255, 255, 255, 0.14) !important;
+            border-color: rgba(255, 255, 255, 0.28) !important;
+            color: #FFFFFF !important;
+            min-height: 44px !important;
+            font-size: 14px !important;
+        }
+
+        .auth-register-card.register-card {
+            width: min(62vw, 780px) !important;
+            background:
+                radial-gradient(circle at 96% 6%, rgba(145, 194, 185, 0.22), transparent 26%),
+                #FFFFFF !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            color: var(--register-text) !important;
+            scrollbar-color: var(--register-aqua) #EEF6F5;
+        }
+
+        .auth-register-card .register-card-header h2 {
+            font-family: "Inter", "Segoe UI", Arial, sans-serif !important;
+            color: var(--register-text) !important;
+            letter-spacing: 0 !important;
+        }
+
+        .auth-register-card .community-quote,
+        .auth-register-card .verification-notice {
+            background: rgba(145, 194, 185, 0.16) !important;
+            border: 1px solid rgba(8, 115, 154, 0.18) !important;
+            color: var(--register-text) !important;
+            padding: 14px 16px !important;
+        }
+
+        .auth-register-card .community-quote i,
+        .auth-register-card .verification-notice i,
+        .auth-register-card .field-icon,
+        .auth-register-card .input-wrap .field-icon {
+            color: var(--register-teal) !important;
+        }
+
+        .auth-register-card .verification-options {
+            gap: 14px !important;
+        }
+
+        .auth-register-card .verification-option {
+            background: #FFFFFF !important;
+            border: 1px solid var(--register-border) !important;
+            color: var(--register-text) !important;
+            min-height: 54px !important;
+            font-size: 15px !important;
+        }
+
+        .auth-register-card .verification-option:hover,
+        .auth-register-card .verification-option:focus-within {
+            border-color: var(--register-link) !important;
+            box-shadow: 0 0 0 4px rgba(20, 155, 181, 0.12) !important;
+        }
+
+        .auth-register-card .verification-option input:checked + span,
+        .auth-register-card .verification-option:has(input:checked) {
+            background: rgba(145, 194, 185, 0.22) !important;
+            border-color: var(--register-link) !important;
+        }
+
+        .auth-register-card .form-control,
+        .auth-register-card .form-select,
+        .auth-register-card #chapel_district {
+            border-radius: 8px !important;
+            border: 1px solid var(--register-border) !important;
+            background: #FFFFFF !important;
+            color: var(--register-text) !important;
+            -webkit-text-fill-color: var(--register-text) !important;
+            min-height: 48px !important;
+            font-size: 16px !important;
+            box-shadow: none !important;
+        }
+
+        .auth-register-card .form-control::placeholder {
+            color: #667575 !important;
+            -webkit-text-fill-color: #667575 !important;
+            opacity: 1 !important;
+        }
+
+        .auth-register-card .form-control:focus,
+        .auth-register-card .form-select:focus,
+        .auth-register-card #chapel_district:focus {
+            border-color: var(--register-link) !important;
+            box-shadow: 0 0 0 4px rgba(20, 155, 181, 0.18) !important;
+        }
+
+        .auth-register-card .live-verification,
+        .auth-register-card .verification-step,
+        .auth-register-card .capture-preview,
+        .auth-register-card .face-match-status,
+        .auth-register-card .id-ocr-status,
+        .auth-register-card .id-side-upload {
+            background: rgba(238, 246, 245, 0.82) !important;
+            border: 1px solid var(--register-border) !important;
+            color: var(--register-text) !important;
+        }
+
+        .auth-register-card .verification-step.is-current,
+        .auth-register-card .verification-step.is-done {
+            border-color: var(--register-link) !important;
+            background: rgba(145, 194, 185, 0.26) !important;
+        }
+
+        .auth-register-card .camera-btn,
+        .auth-register-card .submit-btn {
+            background: var(--register-link) !important;
+            border: 1px solid var(--register-link) !important;
+            color: #FFFFFF !important;
+            border-radius: 999px !important;
+            min-height: 48px !important;
+            font-size: 16px !important;
+            font-weight: 600 !important;
+            box-shadow: 0 12px 28px rgba(20, 155, 181, 0.22) !important;
+        }
+
+        .auth-register-card .camera-btn.secondary,
+        .auth-register-card .register-social-btn {
+            background: #FFFFFF !important;
+            border: 1px solid var(--register-border) !important;
+            color: var(--register-ocean) !important;
+            box-shadow: none !important;
+        }
+
+        .auth-register-card .camera-btn:hover:not(:disabled),
+        .auth-register-card .submit-btn:hover:not(:disabled),
+        .auth-register-card .submit-btn:focus-visible {
+            background: var(--register-ocean) !important;
+            border-color: var(--register-ocean) !important;
+            transform: translateY(-1px) !important;
+        }
+
+        .auth-register-card .login-link a {
+            color: var(--register-link) !important;
+            text-decoration: none !important;
+        }
+
+        .auth-register-card .login-link a:hover {
+            color: var(--register-ocean) !important;
+            text-decoration: underline !important;
+        }
+
+        .auth-toast {
+            background: #FFFFFF !important;
+            border: 1px solid var(--register-border) !important;
+            color: var(--register-text) !important;
+            box-shadow: 0 18px 44px rgba(8, 115, 154, 0.18) !important;
+        }
+
+        @media (max-width: 900px) {
+            .auth-register-screen {
+                display: grid !important;
+                width: min(100% - 24px, 760px) !important;
+                overflow: visible !important;
+                border-radius: 18px !important;
+            }
+
+            .auth-register-screen .auth-login-side,
+            .auth-register-card.register-card {
+                width: 100% !important;
+                border-radius: 0 !important;
+            }
+
+            .auth-register-screen .auth-login-side {
+                min-height: auto !important;
+            }
+        }
+
+        /* Warm cream/gold registration restoration. */
+        :root {
+            --register-navy: #1C1B18;
+            --register-navy-soft: #27231D;
+            --register-gold: #D4A94E;
+            --register-gold-soft: #F6DF9F;
+            --register-gray: #FAF6EE;
+            --register-muted: #6F675A;
+            --register-success: #2F6D3B;
+            --register-ocean: #1C1B18;
+            --register-link: #B88A22;
+            --register-teal: #D4A94E;
+            --register-aqua: #F6DF9F;
+            --register-stone: #DFCFAA;
+            --register-border: #DFCFAA;
+            --register-surface: #FFFFFF;
+            --register-text: #1C1B18;
+        }
+
+        body.auth-cinematic-page {
+            background:
+                linear-gradient(90deg, rgba(15, 10, 6, 0.62) 0%, rgba(15, 10, 6, 0.24) 44%, rgba(8, 11, 18, 0.78) 100%),
+                linear-gradient(180deg, rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0.62)),
+                url("../church%20image.png") center center / cover no-repeat fixed !important;
+            color: var(--register-text) !important;
+        }
+
+        body.auth-cinematic-page::before {
+            display: block !important;
+            opacity: 1 !important;
+            background-image: url("../church%20image.png") !important;
+            filter: sepia(0.22) saturate(1.18) contrast(1.05) brightness(0.82) !important;
+        }
+
+        body.auth-cinematic-page::after {
+            display: block !important;
+            opacity: 1 !important;
+            background:
+                radial-gradient(circle at 39% 30%, rgba(255, 214, 126, 0.22), transparent 25%),
+                radial-gradient(circle at 50% 70%, rgba(255, 184, 64, 0.16), transparent 24%),
+                linear-gradient(90deg, rgba(15, 10, 6, 0.62) 0%, rgba(15, 10, 6, 0.24) 44%, rgba(8, 11, 18, 0.78) 100%) !important;
+        }
+
+        .auth-register-screen {
+            background: #FFF8EB !important;
+            border: 1px solid rgba(255, 248, 235, 0.68) !important;
+            box-shadow: 0 34px 90px rgba(0, 0, 0, 0.32) !important;
+        }
+
+        .auth-register-screen .auth-login-side {
+            background:
+                radial-gradient(circle at 88% 12%, rgba(212, 169, 78, 0.2), transparent 28%),
+                linear-gradient(135deg, rgba(28, 27, 24, 0.96), rgba(39, 35, 29, 0.94)) !important;
+        }
+
+        .auth-register-card.register-card {
+            background:
+                radial-gradient(circle at 96% 8%, rgba(246, 223, 159, 0.28), transparent 28%),
+                #FFF8EB !important;
+            color: var(--register-text) !important;
+        }
+
+        .auth-register-card .community-quote,
+        .auth-register-card .verification-notice,
+        .auth-register-card .verification-option,
+        .auth-register-card .live-verification,
+        .auth-register-card .verification-step,
+        .auth-register-card .capture-preview,
+        .auth-register-card .face-match-status,
+        .auth-register-card .id-ocr-status,
+        .auth-register-card .id-side-upload {
+            background: rgba(246, 223, 159, 0.22) !important;
+            border-color: var(--register-border) !important;
+            color: var(--register-text) !important;
+        }
+
+        .auth-register-card .form-control,
+        .auth-register-card .form-select,
+        .auth-register-card #chapel_district {
+            background: #FFFFFF !important;
+            border-color: var(--register-border) !important;
+            color: var(--register-text) !important;
+        }
+
+        .auth-register-card .form-control:focus,
+        .auth-register-card .form-select:focus,
+        .auth-register-card #chapel_district:focus {
+            border-color: var(--register-gold) !important;
+            box-shadow: 0 0 0 4px rgba(212, 169, 78, 0.18) !important;
+        }
+
+        .auth-register-card .register-card-icon,
+        .auth-register-card .input-wrap .field-icon,
+        .auth-register-card .community-quote i,
+        .auth-register-card .verification-notice i {
+            color: var(--register-link) !important;
+        }
+
+        .auth-register-card .camera-btn,
+        .auth-register-card .submit-btn {
+            background: linear-gradient(135deg, var(--register-gold), #B88A22) !important;
+            border-color: #B88A22 !important;
+            color: var(--register-text) !important;
+        }
+
+        .auth-register-card .camera-btn *,
+        .auth-register-card .submit-btn * {
+            color: var(--register-text) !important;
+        }
+
+        .auth-register-card .camera-btn.secondary,
+        .auth-register-card .register-social-btn {
+            background: #FFFFFF !important;
+            border-color: var(--register-border) !important;
+            color: var(--register-link) !important;
+        }
+
+        .auth-register-card .login-link a {
+            color: var(--register-link) !important;
+        }
     </style>
+    <link rel="stylesheet" href="../assets/css/auth-mobile.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/auth-mobile.css'); ?>">
 </head>
-<body class="register-page">
+<body class="auth-cinematic-page">
     <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true">
         <?php if ($error): ?>
             <div class="auth-toast error" role="alert">
@@ -1479,8 +2019,33 @@ $has_logo = is_file($logo_file);
         <?php endif; ?>
     </div>
 
-    <main class="register-shell">
-        <section class="register-card" aria-label="Registration form">
+    <div class="auth-ambient" aria-hidden="true"></div>
+    <main class="auth-screen auth-login-screen auth-register-screen">
+        <aside class="auth-copy auth-login-side" aria-label="System introduction">
+            <a href="../index.php" class="auth-side-brand" aria-label="Back to TUGON homepage">
+                <span class="auth-side-logo">
+                    <?php if ($has_logo): ?>
+                        <img src="../assets/img/san-lorenzo-logo.png" alt="San Lorenzo Ruiz logo">
+                    <?php else: ?>
+                        <i class="fas fa-church"></i>
+                    <?php endif; ?>
+                </span>
+                <span>
+                    <strong>San Lorenzo Ruiz</strong>
+                    <small>Mission Station</small>
+                </span>
+            </a>
+            <blockquote>"Where faith, community, and service meet in harmony."</blockquote>
+            <p>Register for TUGON to access parish requests, sacramental records, reservations, and announcements.</p>
+            <div class="auth-copy-list" aria-label="Platform features">
+                <span><i class="fas fa-check"></i> Secure identity verification</span>
+                <span><i class="fas fa-check"></i> Parishioner services</span>
+                <span><i class="fas fa-check"></i> Registration review</span>
+            </div>
+        </aside>
+
+        <section class="auth-glass-card auth-login-card register-card auth-register-card" aria-label="Registration form">
+            <a href="login.php" class="mobile-auth-back"><i class="fas fa-arrow-left" aria-hidden="true"></i> Back</a>
             <div class="register-card-header">
                 <a href="../index.php" class="register-card-icon" aria-label="Back to Parish System homepage">
                     <?php if ($has_logo): ?>
@@ -1489,7 +2054,7 @@ $has_logo = is_file($logo_file);
                         <i class="fas fa-church"></i>
                     <?php endif; ?>
                 </a>
-                <h2>Create Your Parish Account</h2>
+                <h2><span class="desktop-auth-only">Create Your Parish Account</span><span class="mobile-auth-only">Create an Account</span></h2>
                 <p>Register to access parish requests, sacramental records, schedules, and church services.</p>
             </div>
 
@@ -1519,6 +2084,20 @@ $has_logo = is_file($logo_file);
 
             <form method="POST" action="" class="registration-form" id="registrationForm" novalidate>
                 <?php echo csrfInput(); ?>
+                <div class="field-group full">
+                    <span class="field-label">Registration Method</span>
+                    <div class="verification-options">
+                        <label class="verification-option">
+                            <input type="radio" name="verification_method" value="email" <?php echo $form_data['verification_method'] === 'email' ? 'checked' : ''; ?>>
+                            <span><i class="fas fa-envelope-circle-check"></i> Register using Email Address</span>
+                        </label>
+                        <label class="verification-option">
+                            <input type="radio" name="verification_method" value="mobile" <?php echo $form_data['verification_method'] === 'mobile' ? 'checked' : ''; ?>>
+                            <span><i class="fas fa-mobile-screen-button"></i> Register using Mobile Number</span>
+                        </label>
+                    </div>
+                    <div class="field-message" data-error-for="verification_method"></div>
+                </div>
                 <div class="form-grid">
                     <div class="field-group">
                         <label for="first_name" class="field-label">First Name</label>
@@ -1547,38 +2126,23 @@ $has_logo = is_file($logo_file);
                         <div class="field-message" data-error-for="middle_initial"></div>
                     </div>
 
-                    <div class="field-group">
+                    <div class="field-group" data-registration-field="mobile">
                         <label for="phone_number" class="field-label">Phone Number</label>
                         <div class="input-wrap">
                             <i class="fas fa-phone field-icon"></i>
-                            <input type="tel" class="form-control" id="phone_number" name="phone_number" value="<?php echo e($form_data['phone_number']); ?>" autocomplete="tel" inputmode="numeric" pattern="09[0-9]{9}" maxlength="11" placeholder="09XXXXXXXXX" required>
+                            <input type="tel" class="form-control" id="phone_number" name="phone_number" value="<?php echo e($form_data['phone_number']); ?>" autocomplete="tel" inputmode="tel" pattern="(09[0-9]{9}|\+639[0-9]{9})" maxlength="13" placeholder="09XXXXXXXXX or +639XXXXXXXXX">
                         </div>
-                        <div class="form-hint">Use 11 digits only, starting with 09.</div>
+                        <div class="form-hint">Use 09XXXXXXXXX or +639XXXXXXXXX.</div>
                         <div class="field-message" data-error-for="phone_number"></div>
                     </div>
 
-                    <div class="field-group">
+                    <div class="field-group" data-registration-field="email">
                         <label for="email" class="field-label">Gmail Address</label>
                         <div class="input-wrap">
                             <i class="fas fa-envelope field-icon"></i>
-                            <input type="email" class="form-control" id="email" name="email" value="<?php echo e($form_data['email']); ?>" autocomplete="email" placeholder="name@gmail.com" required>
+                            <input type="email" class="form-control" id="email" name="email" value="<?php echo e($form_data['email']); ?>" autocomplete="email" placeholder="name@gmail.com">
                         </div>
                         <div class="field-message" data-error-for="email"></div>
-                    </div>
-
-                    <div class="field-group full">
-                        <span class="field-label">Choose Verification Method</span>
-                        <div class="verification-options">
-                            <label class="verification-option">
-                                <input type="radio" name="verification_method" value="email" <?php echo $form_data['verification_method'] === 'email' ? 'checked' : ''; ?>>
-                                <span><i class="fas fa-envelope-circle-check"></i> Verify via Gmail</span>
-                            </label>
-                            <label class="verification-option">
-                                <input type="radio" name="verification_method" value="mobile" <?php echo $form_data['verification_method'] === 'mobile' ? 'checked' : ''; ?>>
-                                <span><i class="fas fa-mobile-screen-button"></i> Verify via Mobile Number</span>
-                            </label>
-                        </div>
-                        <div class="field-message" data-error-for="verification_method"></div>
                     </div>
 
                     <div class="field-group">
@@ -1595,18 +2159,6 @@ $has_logo = is_file($logo_file);
                             </select>
                         </div>
                         <div class="field-message" data-error-for="chapel_district"></div>
-                    </div>
-
-                    <div class="field-group">
-                        <label for="role_selection" class="field-label">Role Selection</label>
-                        <div class="input-wrap">
-                            <i class="fas fa-user-shield field-icon"></i>
-                            <select class="form-select" id="role_selection" name="role_selection" required>
-                                <option value="user" selected>Parishioner</option>
-                                <option value="volunteer">Volunteer / Ministry Member</option>
-                            </select>
-                        </div>
-                        <div class="form-hint">Administrator access is granted only by parish staff after verification.</div>
                     </div>
 
                     <div class="field-group full">
@@ -1640,9 +2192,9 @@ $has_logo = is_file($logo_file);
                         <label for="id_number" class="field-label">ID Number</label>
                         <div class="input-wrap">
                             <i class="fas fa-fingerprint field-icon"></i>
-                            <input type="text" class="form-control" id="id_number" name="id_number" value="<?php echo e($form_data['id_number']); ?>" autocomplete="off" placeholder="Scanned automatically from ID" readonly required>
+                            <input type="text" class="form-control" id="id_number" name="id_number" value="<?php echo e($form_data['id_number']); ?>" autocomplete="off" placeholder="Enter ID number" required>
                         </div>
-                        <div class="form-hint">This field is filled by OCR only and locked to prevent manual edits.</div>
+                        <div class="form-hint">Enter the ID number shown on your valid ID.</div>
                         <div class="field-message" data-error-for="id_number"></div>
                     </div>
 
@@ -1749,38 +2301,22 @@ $has_logo = is_file($logo_file);
                                 </div>
                             </div>
 
-                            <div class="identity-match-panel" id="identityMatchPanel">
-                                <div class="identity-match-header">
-                                    <h3><i class="fas fa-id-card-clip"></i> OCR Identity Match</h3>
-                                    <div class="d-flex gap-2 flex-wrap justify-content-end">
-                                        <span class="ocr-status-badge" id="ocrStatusBadge">Pending</span>
-                                        <span class="identity-score" id="ocrScore">0%</span>
-                                    </div>
-                                </div>
-                                <div class="match-grid">
-                                    <div class="match-chip" data-match-chip="name"><i class="fas fa-xmark"></i> Name</div>
-                                    <div class="match-chip" data-match-chip="birthdate"><i class="fas fa-xmark"></i> Birthdate</div>
-                                    <div class="match-chip" data-match-chip="birth_place"><i class="fas fa-xmark"></i> Birth Place</div>
-                                    <div class="match-chip" data-match-chip="address"><i class="fas fa-xmark"></i> Address</div>
-                                    <div class="match-chip" data-match-chip="id_number"><i class="fas fa-xmark"></i> ID No.</div>
-                                </div>
-                                <div class="extracted-grid">
-                                    <div class="extracted-item"><span>Name</span><strong id="extractedName">Waiting for ID scan</strong></div>
-                                    <div class="extracted-item"><span>Birthdate</span><strong id="extractedBirthdate">Waiting for ID scan</strong></div>
-                                    <div class="extracted-item"><span>Birth Place</span><strong id="extractedBirthPlace">Waiting for ID scan</strong></div>
-                                    <div class="extracted-item"><span>ID No.</span><strong id="extractedIdNumber">Waiting for ID scan</strong></div>
-                                    <div class="extracted-item"><span>Address</span><strong id="extractedAddress">Waiting for ID scan</strong></div>
-                                </div>
-                                <div class="face-match-status warning" id="faceMatchStatus">
-                                    <i class="fas fa-user-shield"></i>
-                                    <span>Capture your live face and valid ID to compare identity details.</span>
-                                </div>
+                            <div class="face-match-status warning" id="faceMatchStatus">
+                                <i class="fas fa-user-shield"></i>
+                                <span>Capture your live face and valid ID to compare identity details.</span>
+                            </div>
+
+                            <div class="id-ocr-status warning" id="idOcrStatus">
+                                <i class="fas fa-id-card-clip"></i>
+                                <span>Front and back ID text will be scanned to auto-fill identity details.</span>
                             </div>
                         </div>
                         <input type="hidden" id="face_capture" name="face_capture">
                         <input type="hidden" id="valid_id_capture" name="valid_id_capture">
                         <input type="hidden" id="valid_id_back_capture" name="valid_id_back_capture">
                         <input type="hidden" id="face_match_status_input" name="face_match_status" value="pending">
+                        <input type="hidden" id="id_ocr_status_input" name="id_ocr_status" value="pending">
+                        <input type="hidden" id="registration_id" name="registration_id" value="<?php echo htmlspecialchars($registration_verification_id, ENT_QUOTES); ?>">
                         <div class="field-message" data-error-for="live_verification"></div>
                     </div>
 
@@ -1804,16 +2340,23 @@ $has_logo = is_file($logo_file);
                 Already have an account? <a href="login.php">Login here</a>
             </p>
 
-            <div class="register-socials" aria-label="Registration helpers">
-                <button type="button" class="register-social-btn" title="Email verification placeholder">
-                    <i class="fas fa-envelope-circle-check"></i> Verify Email
-                </button>
+            <div class="auth-verification-actions register-socials" aria-label="Registration helpers">
+                <a href="../index.php" class="auth-social-btn register-social-btn">
+                    <i class="fas fa-arrow-left"></i> Back to Home
+                </a>
+                <a href="login.php" class="auth-social-btn register-social-btn">
+                    <i class="fas fa-right-to-bracket"></i> Sign In
+                </a>
             </div>
         </section>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <script defer src="/ParishSystem/assets/js/face-verification.js?v=20260708-facefix"></script>
     <script>
+        const registrationVerificationId = <?php echo json_encode($registration_verification_id); ?>;
+        const csrfTokenName = <?php echo json_encode(csrfTokenName()); ?>;
         const form = document.getElementById('registrationForm');
         const submitButton = document.getElementById('registerSubmit');
         const submitText = submitButton.querySelector('.submit-text');
@@ -1837,6 +2380,7 @@ $has_logo = is_file($logo_file);
             terms_check: document.getElementById('terms_check')
         };
         const verificationMethodInputs = Array.from(document.querySelectorAll('input[name="verification_method"]'));
+        const registrationFieldGroups = Array.from(document.querySelectorAll('[data-registration-field]'));
         const cameraStage = document.querySelector('.camera-stage');
         const video = document.getElementById('verificationVideo');
         const canvas = document.getElementById('captureCanvas');
@@ -1853,28 +2397,14 @@ $has_logo = is_file($logo_file);
         const idFrontPreviewImage = document.getElementById('idFrontPreviewImage');
         const idBackPreviewImage = document.getElementById('idBackPreviewImage');
         const faceMatchStatusInput = document.getElementById('face_match_status_input');
-        const ocrStatusBadge = document.getElementById('ocrStatusBadge');
-        const ocrScore = document.getElementById('ocrScore');
-        const extractedName = document.getElementById('extractedName');
-        const extractedBirthdate = document.getElementById('extractedBirthdate');
-        const extractedBirthPlace = document.getElementById('extractedBirthPlace');
-        const extractedIdNumber = document.getElementById('extractedIdNumber');
-        const extractedAddress = document.getElementById('extractedAddress');
         const faceMatchStatus = document.getElementById('faceMatchStatus');
-        const matchChips = {
-            name: document.querySelector('[data-match-chip="name"]'),
-            birthdate: document.querySelector('[data-match-chip="birthdate"]'),
-            birth_place: document.querySelector('[data-match-chip="birth_place"]'),
-            address: document.querySelector('[data-match-chip="address"]'),
-            id_number: document.querySelector('[data-match-chip="id_number"]')
-        };
+        const idOcrStatusInput = document.getElementById('id_ocr_status_input');
+        const idOcrStatus = document.getElementById('idOcrStatus');
         const strengthBars = Array.from(document.querySelectorAll('.password-strength span'));
         const strengthText = document.getElementById('passwordStrengthText');
         let cameraStream = null;
         let verificationMode = 'face';
         let activeIdSide = 'front';
-        let ocrVerified = false;
-        let faceDetector = null;
         let faceDetectedSince = 0;
         let detectionTimer = null;
 
@@ -1896,7 +2426,8 @@ $has_logo = is_file($logo_file);
         function validateForm() {
             let isValid = true;
             const emailPattern = /^[^\s@]+@gmail\.com$/i;
-            const phonePattern = /^09\d{9}$/;
+            const phonePattern = /^(09\d{9}|\+639\d{9})$/;
+            const registrationMethod = getRegistrationMethod();
 
             Object.keys(fields).forEach((fieldName) => setFieldError(fieldName, ''));
 
@@ -1915,12 +2446,12 @@ $has_logo = is_file($logo_file);
                 isValid = false;
             }
 
-            if (!phonePattern.test(fields.phone_number.value.trim())) {
-                setFieldError('phone_number', 'Invalid mobile number. Please enter a valid 11-digit Philippine mobile number.');
+            if (registrationMethod === 'mobile' && !phonePattern.test(fields.phone_number.value.trim())) {
+                setFieldError('phone_number', 'Invalid mobile number. Please enter 09XXXXXXXXX or +639XXXXXXXXX.');
                 isValid = false;
             }
 
-            if (!emailPattern.test(fields.email.value.trim())) {
+            if (registrationMethod === 'email' && !emailPattern.test(fields.email.value.trim())) {
                 setFieldError('email', 'Use a valid Gmail address.');
                 isValid = false;
             }
@@ -1974,13 +2505,10 @@ $has_logo = is_file($logo_file);
             }
 
             if (!fields.face_capture.value || !fields.valid_id_capture.value || !fields.valid_id_back_capture.value) {
-                setFieldError('live_verification', 'Complete live face verification plus front and back ID images.');
+                setFieldError('live_verification', 'Complete live face capture plus front and back ID images.');
                 isValid = false;
-            } else if (!ocrVerified) {
-                setFieldError('live_verification', 'OCR identity verification must be successful before registration.');
-                isValid = false;
-            } else if (faceMatchStatusInput.value !== 'matched') {
-                setFieldError('live_verification', 'Face Matched status is required before registration.');
+            } else if (idOcrStatusInput.value === 'mismatch') {
+                setFieldError('live_verification', 'Fix the fields flagged by the front ID scan before registration.');
                 isValid = false;
             }
 
@@ -2024,24 +2552,26 @@ $has_logo = is_file($logo_file);
             }, 4200);
         }
 
-        function setMatchChip(key, matched) {
-            const chip = matchChips[key];
-            if (!chip) return;
-            const label = {
-                name: 'Name',
-                birthdate: 'Birthdate',
-                birth_place: 'Birth Place',
-                address: 'Address',
-                id_number: 'ID No.'
-            }[key] || key;
-            chip.classList.remove('is-match', 'is-review');
-            if (matched === null) {
-                chip.classList.add('is-review');
-                chip.innerHTML = '<i class="fas fa-triangle-exclamation"></i> ' + label + ' Review';
-                return;
-            }
-            chip.classList.toggle('is-match', Boolean(matched));
-            chip.innerHTML = '<i class="fas ' + (matched ? 'fa-check' : 'fa-xmark') + '"></i> ' + label;
+        function getRegistrationMethod() {
+            const selected = verificationMethodInputs.find((input) => input.checked);
+            return selected ? selected.value : 'email';
+        }
+
+        function syncRegistrationMethod() {
+            const method = getRegistrationMethod();
+            registrationFieldGroups.forEach((group) => {
+                const isActive = group.dataset.registrationField === method;
+                group.hidden = !isActive;
+                group.querySelectorAll('input').forEach((input) => {
+                    input.required = isActive;
+                    input.disabled = !isActive;
+                    if (!isActive) {
+                        input.classList.remove('is-invalid-field');
+                    }
+                });
+            });
+            setFieldError(method === 'email' ? 'phone_number' : 'email', '');
+            setFieldError('verification_method', '');
         }
 
         function setFaceStatus(type, message, score = null) {
@@ -2052,269 +2582,303 @@ $has_logo = is_file($logo_file);
             faceMatchStatusInput.value = type === 'success' ? 'matched' : (type === 'error' ? 'mismatch' : 'admin_review');
         }
 
-        function setOcrStatus(status) {
-            ocrStatusBadge.className = 'ocr-status-badge ' + status;
-            ocrStatusBadge.textContent = status === 'processing' ? 'Processing' : (status === 'verified' ? 'Verified' : (status === 'review' ? 'Review' : (status === 'failed' ? 'Failed' : 'Pending')));
+        function setIdOcrStatus(type, message) {
+            idOcrStatus.className = 'id-ocr-status ' + type;
+            const icon = type === 'success' ? 'fa-circle-check' : (type === 'error' ? 'fa-circle-xmark' : 'fa-id-card-clip');
+            idOcrStatus.innerHTML = '<i class="fas ' + icon + '"></i><span>' + message + '</span>';
+            idOcrStatusInput.value = type === 'success' ? 'verified' : (type === 'error' ? 'mismatch' : 'pending');
+        }
+
+        function hasFilledIdDetails() {
+            return Boolean(
+                fields.first_name.value.trim() &&
+                fields.surname.value.trim() &&
+                fields.address.value.trim() &&
+                fields.birthdate.value.trim() &&
+                fields.birth_place.value.trim() &&
+                fields.id_number.value.trim()
+            );
+        }
+
+        function formatIsoDateForDisplay(value) {
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) {
+                return '';
+            }
+            const parts = value.split('-').map(Number);
+            const date = new Date(parts[0], parts[1] - 1, parts[2]);
+            return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
         }
 
         function parseDisplayDate(value) {
             const raw = String(value || '').trim();
-            if (!raw) return new Date(NaN);
-            if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-                return new Date(raw + 'T00:00:00');
+            if (!raw) {
+                return new Date(NaN);
             }
-            return new Date(raw);
-        }
-
-        function formatDisplayDate(value) {
-            const date = parseDisplayDate(value);
-            if (Number.isNaN(date.getTime())) {
-                return value || '';
+            const parsed = new Date(raw);
+            if (!Number.isNaN(parsed.getTime())) {
+                return parsed;
             }
-            return date.toLocaleDateString('en-US', {
-                month: 'long',
-                day: '2-digit',
-                year: 'numeric'
-            });
-        }
-
-        function normalizeOcrCompare(value) {
-            return String(value || '')
-                .toLowerCase()
-                .replace(/[^a-z0-9]/g, '')
-                .trim();
-        }
-
-        function markOcrCorrected(field) {
-            if (!field) return;
-            field.classList.add('ocr-corrected-field');
-            window.setTimeout(() => field.classList.remove('ocr-corrected-field'), 6500);
-        }
-
-        function applyOcrCorrection(field, value, options = {}) {
-            if (!field || !String(value || '').trim()) return false;
-            const nextValue = options.uppercase ? String(value).trim().toUpperCase() : String(value).trim();
-            const currentComparable = options.date ? normalizeOcrCompare(formatDisplayDate(field.value)) : normalizeOcrCompare(field.value);
-            const nextComparable = options.date ? normalizeOcrCompare(formatDisplayDate(nextValue)) : normalizeOcrCompare(nextValue);
-            if (currentComparable === nextComparable) return false;
-            field.value = options.date ? formatDisplayDate(nextValue) : nextValue;
-            markOcrCorrected(field);
-            setFieldError(field.id, '');
-            return true;
-        }
-
-        function updateExtractedPanel(data) {
-            const extracted = data.extracted || {};
-            const checks = data.checks || {};
-            const confidence = data.confidence || {};
-            function setExtractedValue(target, value, field) {
-                const percent = Number(confidence[field] || 0);
-                const displayValue = field === 'birthdate' && value ? formatDisplayDate(value) : value;
-                target.textContent = (displayValue || 'Needs Review') + (percent ? ' (' + percent + '%)' : '');
+            const match = raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+            if (!match) {
+                return new Date(NaN);
             }
-            const extractedFullName = extracted.full_name || [extracted.first_name, extracted.middle_initial, extracted.surname].filter(Boolean).join(' ');
-            setExtractedValue(extractedName, extractedFullName, 'full_name');
-            setExtractedValue(extractedBirthdate, extracted.birthdate, 'birthdate');
-            setExtractedValue(extractedBirthPlace, extracted.birth_place, 'birth_place');
-            setExtractedValue(extractedIdNumber, extracted.id_number, 'id_number');
-            setExtractedValue(extractedAddress, extracted.address, 'address');
-            ocrScore.textContent = (data.score || 0) + '%';
-            const needsReview = ['ocr_unavailable', 'unreadable', 'manual_review'].includes(data.status) && !(data.text || '').trim();
-            setMatchChip('name', needsReview || !extractedFullName ? null : checks.name);
-            setMatchChip('birthdate', needsReview || !extracted.birthdate ? null : checks.birthdate);
-            setMatchChip('birth_place', needsReview || !extracted.birth_place ? null : checks.birth_place);
-            setMatchChip('address', needsReview || !extracted.address ? null : checks.address);
-            setMatchChip('id_number', needsReview || !extracted.id_number ? null : checks.id_number);
+            return new Date(Number(match[3]), Number(match[1]) - 1, Number(match[2]));
+        }
 
-            let corrected = false;
-            const correctedKeys = new Set();
-            const surnameCorrected = applyOcrCorrection(fields.surname, extracted.surname, { uppercase: true });
-            const firstNameCorrected = applyOcrCorrection(fields.first_name, extracted.first_name, { uppercase: true });
-            const middleCorrected = applyOcrCorrection(fields.middle_initial, extracted.middle_initial, { uppercase: true });
-            const birthdateCorrected = applyOcrCorrection(fields.birthdate, extracted.birthdate, { date: true });
-            corrected = surnameCorrected || firstNameCorrected || middleCorrected || birthdateCorrected;
-            if (surnameCorrected || firstNameCorrected || middleCorrected) correctedKeys.add('name');
-            if (birthdateCorrected) correctedKeys.add('birthdate');
-            if (!extracted.first_name && !extracted.surname && extracted.full_name) {
-                const nameParts = extracted.full_name.replace(/\s+/g, ' ').trim().split(' ');
-                if (nameParts.length > 1) {
-                    const fallbackSurnameCorrected = applyOcrCorrection(fields.surname, nameParts[nameParts.length - 1], { uppercase: true });
-                    const fallbackFirstCorrected = applyOcrCorrection(fields.first_name, nameParts.slice(0, -1).join(' '), { uppercase: true });
-                    corrected = fallbackSurnameCorrected || fallbackFirstCorrected || corrected;
-                    if (fallbackSurnameCorrected || fallbackFirstCorrected) correctedKeys.add('name');
+        function inferBirthPlaceFromAddress(address) {
+            const parts = String(address || '')
+                .split(',')
+                .map((part) => part.trim())
+                .filter(Boolean);
+            if (parts.length < 2) {
+                return '';
+            }
+            return (parts[parts.length - 2] + ', ' + parts[parts.length - 1]).toUpperCase();
+        }
+
+        function extractFirstJsonObject(text) {
+            const source = String(text || '');
+            const start = source.indexOf('{');
+            if (start < 0) {
+                return source;
+            }
+            let depth = 0;
+            let inString = false;
+            let escaped = false;
+            for (let i = start; i < source.length; i++) {
+                const char = source[i];
+                if (escaped) {
+                    escaped = false;
+                    continue;
+                }
+                if (char === '\\') {
+                    escaped = inString;
+                    continue;
+                }
+                if (char === '"') {
+                    inString = !inString;
+                    continue;
+                }
+                if (inString) {
+                    continue;
+                }
+                if (char === '{') {
+                    depth++;
+                } else if (char === '}') {
+                    depth--;
+                    if (depth === 0) {
+                        return source.slice(start, i + 1);
+                    }
                 }
             }
-            if (extracted.birth_place && !fields.birth_place.value.trim()) {
-                fields.birth_place.value = extracted.birth_place;
-                markOcrCorrected(fields.birth_place);
-                correctedKeys.add('birth_place');
-            }
-            if (extracted.address && !fields.address.value.trim()) {
-                fields.address.value = extracted.address;
-                markOcrCorrected(fields.address);
-                correctedKeys.add('address');
-            }
-            if (extracted.id_number) {
-                fields.id_number.value = extracted.id_number;
-                fields.id_number.readOnly = true;
-                markOcrCorrected(fields.id_number);
-            }
-            if (corrected) {
-                showToast('success', 'Information updated based on the verified government-issued ID.', 'Registration details were automatically corrected using verified ID information.');
-            }
-            correctedKeys.forEach((key) => setMatchChip(key, true));
-
-            const hasExtractedValue = Boolean(extractedFullName || extracted.birthdate || extracted.birth_place || extracted.id_number || extracted.address);
-            const hasCriticalOcrValue = Boolean(extracted.id_number);
-            const clearMismatch = ['name', 'birthdate', 'birth_place', 'address'].some((key) => {
-                const field = key === 'name' ? 'full_name' : key;
-                const value = key === 'name' ? extractedFullName : extracted[field];
-                return Boolean(value) && checks[key] === false && !correctedKeys.has(key);
-            });
-            ocrVerified = hasCriticalOcrValue && !clearMismatch && Boolean(data.ocr_available || data.ocr_available === undefined);
-            if (data.duplicate_id) {
-                ocrVerified = false;
-                setOcrStatus('failed');
-                setFieldError('id_number', 'This ID has already been registered in the system.');
-                showToast('error', 'Duplicate ID detected', 'This ID has already been registered in the system.');
-                setCameraStatus('This ID has already been registered in the system.', true);
-            } else if (!hasExtractedValue && (data.ocr_available || data.ocr_available === undefined)) {
-                setOcrStatus('failed');
-                showToast('error', 'ID text was not readable', 'Please upload or capture a clearer front and back ID image.');
-                setCameraStatus('OCR could not read the ID text. Recapture or upload clearer ID images before continuing.', true);
-                captureIdFrontBtn.disabled = false;
-                captureIdBackBtn.disabled = false;
-                idFrontStep.classList.toggle('is-current', !fields.valid_id_capture.value);
-                idBackStep.classList.toggle('is-current', !fields.valid_id_back_capture.value);
-                cameraStage.classList.add('is-id-mode');
-            } else if (ocrVerified) {
-                setOcrStatus(data.status === 'needs_review' ? 'review' : 'verified');
-                showToast(data.status === 'needs_review' ? 'error' : 'success', data.status === 'needs_review' ? 'Some ID details need review' : 'OCR extraction completed', data.status === 'needs_review' ? 'Some ID details could not be read clearly. The administrator will review them.' : 'Name, birthdate, birth place, address, and ID number were detected.');
-                setFieldError('live_verification', '');
-            } else {
-                setOcrStatus('failed');
-                setCameraStatus('Some ID details could not be read clearly. Please retake the ID photo with better lighting and make sure the whole ID is visible.', true);
-            }
+            return source.slice(start);
         }
 
-        async function scanCapturedId() {
-            if (!fields.valid_id_capture.value && !fields.valid_id_back_capture.value) return;
-            ocrVerified = false;
-            setOcrStatus('processing');
-            ocrScore.textContent = 'Scanning...';
-            extractedName.textContent = 'Scanning ID image...';
-            extractedBirthdate.textContent = 'Scanning ID image...';
-            extractedBirthPlace.textContent = 'Scanning ID image...';
-            extractedIdNumber.textContent = 'Scanning ID image...';
-            extractedAddress.textContent = 'Scanning ID image...';
-
-            const payload = new URLSearchParams();
-            payload.set('id_front_image', fields.valid_id_capture.value);
-            payload.set('id_back_image', fields.valid_id_back_capture.value);
-            payload.set('id_image', fields.valid_id_capture.value || fields.valid_id_back_capture.value);
-            payload.set('first_name', fields.first_name.value.trim());
-            payload.set('surname', fields.surname.value.trim());
-            payload.set('middle_initial', fields.middle_initial.value.trim());
-            payload.set('birthdate', fields.birthdate.value);
-            payload.set('birth_place', fields.birth_place.value.trim());
-            payload.set('address', fields.address.value.trim());
-            payload.set('id_number', fields.id_number.value.trim());
-
-            try {
-                const response = await fetch('../api/ocr-identity.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: payload.toString()
-                });
-                const data = await response.json();
-                if (!data.ok) {
-                    throw new Error(data.error || 'OCR scan failed.');
-                }
-                updateExtractedPanel(data);
-                if (!data.ocr_available) {
-                    showToast('error', 'OCR unavailable', 'The ID was captured, but OCR needs Tesseract installed on the server.');
-                }
-            } catch (error) {
-                ocrScore.textContent = '0%';
-                setOcrStatus('failed');
-                extractedName.textContent = 'OCR unavailable';
-                extractedBirthdate.textContent = 'OCR unavailable';
-                extractedBirthPlace.textContent = 'OCR unavailable';
-                extractedIdNumber.textContent = 'OCR unavailable';
-                extractedAddress.textContent = 'OCR unavailable';
-                showToast('error', 'OCR scan failed', error.message || 'Please recapture the ID clearly.');
-            }
-        }
-
-        function loadImage(src) {
-            return new Promise((resolve, reject) => {
-                const image = new Image();
-                image.onload = () => resolve(image);
-                image.onerror = reject;
-                image.src = src;
-            });
-        }
-
-        function cropFaceSignature(image, box) {
-            const sampleCanvas = document.createElement('canvas');
-            const size = 32;
-            sampleCanvas.width = size;
-            sampleCanvas.height = size;
-            const ctx = sampleCanvas.getContext('2d');
-            ctx.drawImage(image, box.x, box.y, box.width, box.height, 0, 0, size, size);
-            const pixels = ctx.getImageData(0, 0, size, size).data;
-            const signature = [];
-            for (let i = 0; i < pixels.length; i += 4) {
-                signature.push(Math.round((pixels[i] + pixels[i + 1] + pixels[i + 2]) / 3));
-            }
-            return signature;
-        }
-
-        function signatureSimilarity(a, b) {
-            if (!a.length || a.length !== b.length) return 0;
-            let diff = 0;
-            for (let i = 0; i < a.length; i++) {
-                diff += Math.abs(a[i] - b[i]);
-            }
-            return Math.max(0, 1 - (diff / (a.length * 255)));
-        }
-
-        async function compareCapturedFaces() {
-            if (!fields.face_capture.value || !fields.valid_id_capture.value) return;
-            if (!('FaceDetector' in window)) {
-                setFaceStatus('error', 'Face verification cannot continue because this browser does not support local face detection.');
+        async function scanCapturedIdText() {
+            if (!fields.valid_id_capture.value || !fields.valid_id_back_capture.value) {
+                setIdOcrStatus('warning', 'Capture both the front and back ID before scanning registration details.');
                 return;
             }
 
-            try {
-                setFaceStatus('warning', 'Comparing the live face with the face printed on the ID...');
-                const detector = new FaceDetector({ fastMode: false, maxDetectedFaces: 1 });
-                const liveImage = await loadImage(fields.face_capture.value);
-                const idImage = await loadImage(fields.valid_id_capture.value);
-                const liveFaces = await detector.detect(liveImage);
-                const idFaces = await detector.detect(idImage);
+            const csrfField = form.querySelector('input[name="' + csrfTokenName + '"]');
+            const fd = new FormData();
+            fd.append('id_photo_data', fields.valid_id_capture.value);
+            fd.append('id_back_photo_data', fields.valid_id_back_capture.value);
+            fd.append('first_name', fields.first_name.value);
+            fd.append('surname', fields.surname.value);
+            fd.append('middle_initial', fields.middle_initial.value);
+            fd.append('address', fields.address.value);
+            fd.append('birthdate', fields.birthdate.value);
+            fd.append('birth_place', fields.birth_place.value);
+            fd.append('id_number', fields.id_number.value);
+            if (csrfField) {
+                fd.append(csrfTokenName, csrfField.value);
+            }
 
-                if (liveFaces.length !== 1 || idFaces.length !== 1) {
-                    setFaceStatus('error', 'Face Verification Failed: The uploaded ID photo does not match the captured selfie.');
+            try {
+                setIdOcrStatus('warning', 'Scanning the front and back ID text for registration details...');
+                const res = await fetch('../ocr/api_process_id.php?t=' + Date.now(), {
+                    method: 'POST',
+                    body: fd,
+                    cache: 'no-store',
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                const responseText = await res.text();
+                let data;
+                try {
+                    data = JSON.parse(extractFirstJsonObject(responseText));
+                } catch (parseError) {
+                    throw new Error('The ID text could not be scanned clearly. Please retake the ID photo and try again.');
+                }
+
+                if (!res.ok || !data.success) {
+                    throw new Error(data.error || 'The ID text could not be scanned.');
+                }
+
+                const idData = data.id_data || {};
+                if (!idData.birth_place) {
+                    idData.birth_place = inferBirthPlaceFromAddress(idData.address);
+                }
+                const readableFields = {
+                    last_name: 'last name',
+                    first_name: 'first name',
+                    middle_name: 'middle name',
+                    address: 'address',
+                    date_of_birth: 'birthdate',
+                    birth_place: 'place of birth',
+                    id_number: 'ID number'
+                };
+                const readLabels = Object.keys(readableFields)
+                    .filter((key) => Boolean(idData[key]))
+                    .map((key) => readableFields[key]);
+                let filledCount = 0;
+                function fillFromOcr(fieldName, value, formatter = null) {
+                    if (!value || !fields[fieldName]) {
+                        return false;
+                    }
+                    const nextValue = formatter ? formatter(value) : value;
+                    if (!nextValue) {
+                        return false;
+                    }
+                    fields[fieldName].value = nextValue;
+                    setFieldError(fieldName, '');
+                    return true;
+                }
+
+                if (fillFromOcr('surname', idData.last_name)) {
+                    setFieldError('surname', '');
+                    filledCount++;
+                }
+                if (fillFromOcr('first_name', idData.first_name)) {
+                    setFieldError('first_name', '');
+                    filledCount++;
+                }
+                if (fillFromOcr('middle_initial', idData.middle_name, (value) => String(value).replace(/[^A-Za-z]/g, '').slice(0, 1).toUpperCase())) {
+                    setFieldError('middle_initial', '');
+                    filledCount++;
+                }
+                if (fillFromOcr('address', idData.address)) {
+                    setFieldError('address', '');
+                    filledCount++;
+                }
+                if (fillFromOcr('birth_place', idData.birth_place)) {
+                    setFieldError('birth_place', '');
+                    filledCount++;
+                }
+                if (fillFromOcr('id_number', idData.id_number)) {
+                    setFieldError('id_number', '');
+                    filledCount++;
+                }
+                if (fillFromOcr('birthdate', idData.date_of_birth, formatIsoDateForDisplay)) {
+                    setFieldError('birthdate', '');
+                    filledCount++;
+                }
+
+                const fieldMap = {
+                    last_name: 'surname',
+                    first_name: 'first_name',
+                    middle_name: 'middle_initial',
+                    address: 'address'
+                };
+                let hasMismatch = false;
+                let correctedCount = 0;
+                let readableCount = filledCount;
+
+                Object.keys(fieldMap).forEach((ocrField) => {
+                    const result = data.comparison && data.comparison[ocrField];
+                    const inputName = fieldMap[ocrField];
+                    if (!result || !fields[inputName]) {
+                        return;
+                    }
+
+                    if (result.status === 'corrected') {
+                        fields[inputName].value = inputName === 'middle_initial'
+                            ? String(result.final_value || '').replace(/[^A-Za-z]/g, '').slice(0, 1).toUpperCase()
+                            : result.final_value;
+                        setFieldError(inputName, '');
+                        correctedCount++;
+                        readableCount++;
+                    } else if (result.status === 'match' || result.status === 'id_field_not_found') {
+                        setFieldError(inputName, '');
+                        if (result.status === 'match') {
+                            readableCount++;
+                        }
+                    } else if (result.status === 'mismatch') {
+                        const ocrValue = idData[ocrField] || result.final_value;
+                        if (ocrValue) {
+                            fields[inputName].value = inputName === 'middle_initial'
+                                ? String(ocrValue || '').replace(/[^A-Za-z]/g, '').slice(0, 1).toUpperCase()
+                                : ocrValue;
+                            setFieldError(inputName, '');
+                            correctedCount++;
+                            readableCount++;
+                            return;
+                        }
+                        hasMismatch = true;
+                        const similarity = result.similarity === null ? '' : ' Similarity: ' + result.similarity + '%.';
+                        setFieldError(inputName, 'This does not match the ID scan.' + similarity);
+                    }
+                });
+
+                if (hasMismatch) {
+                    setIdOcrStatus('error', 'ID scan found field mismatches. Review the highlighted values before submitting.');
+                    showToast('error', 'ID scan mismatch', 'Please correct the fields highlighted by the ID scan.');
                     return;
                 }
 
-                const liveSignature = cropFaceSignature(liveImage, liveFaces[0].boundingBox);
-                const idSignature = cropFaceSignature(idImage, idFaces[0].boundingBox);
-                const similarity = signatureSimilarity(liveSignature, idSignature);
-
-                const matchPercent = Math.round(similarity * 100);
-
-                if (similarity >= 0.58) {
-                    setFaceStatus('success', 'Face Verification Successful', matchPercent);
-                } else {
-                    setFaceStatus('error', 'Face Verification Failed: The uploaded ID photo does not match the captured selfie.', matchPercent);
+                if (readableCount === 0) {
+                    setIdOcrStatus('warning', 'OCR could not read the ID text. Retake the front and back ID photos upright, sharp, and filling the frame.');
+                    return;
                 }
+
+                const changedTotal = correctedCount + filledCount;
+                const readSummary = readLabels.length ? ' Read: ' + readLabels.join(', ') + '.' : '';
+                setIdOcrStatus('success', changedTotal > 0
+                    ? 'ID scanned successfully and filled the registration details.' + readSummary
+                    : 'ID scanned successfully. Typed details match the readable ID fields.' + readSummary);
             } catch (error) {
-                setFaceStatus('error', 'Face verification failed. Please make sure both the live face and front ID image are clear.');
+                if (hasFilledIdDetails()) {
+                    setIdOcrStatus('success', 'ID scanned successfully and filled the registration details.');
+                    return;
+                }
+                const rawMessage = error && error.message ? error.message : '';
+                const message = rawMessage.includes('Unexpected non-whitespace character after JSON')
+                    ? 'ID scanned successfully. Refresh the page only if the fields did not fill.'
+                    : (rawMessage || 'The ID text could not be scanned.');
+                setIdOcrStatus('warning', message);
             }
         }
 
+        async function verifyCapturedFace() {
+            if (!fields.face_capture.value || !fields.valid_id_capture.value || !fields.valid_id_back_capture.value) return;
+
+            try {
+                if (!window.FaceVerification || typeof window.FaceVerification.verifyLiveAgainstId !== 'function') {
+                    throw new Error('Face verification module is not loaded.');
+                }
+
+                setFaceStatus('warning', 'Comparing the live face with the face printed on the ID...');
+                const faceResult = await window.FaceVerification.verifyLiveAgainstId(facePreviewImage, idFrontPreviewImage);
+                const faceScore = Number(faceResult.score ?? faceResult.matchScore ?? faceResult.distanceScore ?? 0);
+                const faceIsMatch = Boolean(faceResult.is_match ?? faceResult.isMatch ?? faceResult.match);
+
+                if (faceIsMatch) {
+                    setFaceStatus('success', 'Face Verification Successful', Math.round(faceScore));
+                    setFieldError('live_verification', '');
+                } else {
+                    setFaceStatus('warning', 'Face verification needs admin review. You can continue because the ID details will be checked manually.', Math.round(faceScore));
+                    setFieldError('live_verification', '');
+                }
+            } catch (error) {
+                const rawMessage = error && error.message ? error.message : '';
+                const isModelJsonError = rawMessage.includes('Unexpected non-whitespace character after JSON');
+                const message = isModelJsonError
+                    ? 'Face verification needs admin review. You can continue because the ID details will be checked manually.'
+                    : 'Face verification needs admin review. You can continue because the ID details will be checked manually.';
+                setFaceStatus('warning', message);
+                setFieldError('live_verification', '');
+            }
+        }
         Object.values(fields).forEach((field) => {
             if (!field) {
                 return;
@@ -2324,14 +2888,19 @@ $has_logo = is_file($logo_file);
                     field.value = field.value.replace(/[^A-Za-z]/g, '').slice(0, 1).toUpperCase();
                 }
                 if (field === fields.phone_number) {
-                    field.value = field.value.replace(/\D/g, '').slice(0, 11);
+                    let value = field.value.replace(/[^\d+]/g, '');
+                    if (value.indexOf('+') > 0) {
+                        value = value.replace(/\+/g, '');
+                    }
+                    if (value.startsWith('+')) {
+                        value = '+' + value.slice(1).replace(/\D/g, '').slice(0, 12);
+                    } else {
+                        value = value.replace(/\D/g, '').slice(0, 11);
+                    }
+                    field.value = value;
                 }
                 if (field === fields.password) {
                     updatePasswordStrength();
-                }
-                if ([fields.first_name, fields.surname, fields.middle_initial, fields.birthdate, fields.birth_place, fields.address].includes(field) && (fields.valid_id_capture.value || fields.valid_id_back_capture.value)) {
-                    window.clearTimeout(field._ocrTimer);
-                    field._ocrTimer = window.setTimeout(scanCapturedId, 500);
                 }
                 if (field.classList.contains('is-invalid-field')) {
                     validateForm();
@@ -2346,9 +2915,10 @@ $has_logo = is_file($logo_file);
 
         verificationMethodInputs.forEach((input) => {
             input.addEventListener('change', () => {
-                setFieldError('verification_method', '');
+                syncRegistrationMethod();
             });
         });
+        syncRegistrationMethod();
 
         // Set Camera Status Function - Documents this helper's role in the parish management workflow.
         function setCameraStatus(message, isError = false) {
@@ -2394,15 +2964,22 @@ $has_logo = is_file($logo_file);
                 height
             };
 
-            if (mode === 'id') {
+            if (mode === 'face') {
+                source.x = Math.round(width * 0.24);
+                source.y = Math.round(height * 0.04);
+                source.width = Math.round(width * 0.52);
+                source.height = Math.round(height * 0.82);
+            } else if (mode === 'id') {
                 source.x = Math.round(width * 0.07);
                 source.y = Math.round(height * 0.17);
                 source.width = Math.round(width * 0.86);
                 source.height = Math.round(height * 0.66);
             }
 
-            canvas.width = mode === 'id' ? 1800 : width;
-            canvas.height = mode === 'id' ? Math.round(1800 * (source.height / source.width)) : height;
+            canvas.width = mode === 'id' ? 1800 : (mode === 'face' ? 720 : width);
+            canvas.height = mode === 'id'
+                ? Math.round(1800 * (source.height / source.width))
+                : (mode === 'face' ? Math.round(720 * (source.height / source.width)) : height);
             canvas.getContext('2d').drawImage(
                 video,
                 source.x,
@@ -2444,28 +3021,43 @@ $has_logo = is_file($logo_file);
                 return;
             }
 
-            if ('FaceDetector' in window && !faceDetector) {
-                faceDetector = new FaceDetector({ fastMode: true, maxDetectedFaces: 1 });
-            }
-
             try {
-                if (faceDetector) {
-                    const faces = await faceDetector.detect(video);
-                    if (faces.length === 1) {
-                        const box = faces[0].boundingBox;
+                if (!video.videoWidth || video.readyState < 2) {
+                    setCameraStatus('Camera is starting. Keep your face inside the guide.');
+                    return;
+                }
+
+                if (window.FaceVerification && window.faceapi) {
+                    await window.FaceVerification.loadModels();
+                    const result = await faceapi.detectSingleFace(
+                        video,
+                        new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.25 })
+                    );
+                    if (result) {
+                        const box = result.box || (result.detection && result.detection.box);
+                        if (!box) {
+                            setCameraStatus('Face detected. Hold still for automatic capture.');
+                            faceDetectedSince = faceDetectedSince || Date.now();
+                            if (Date.now() - faceDetectedSince > 900) {
+                                fields.face_capture.value = captureFrame('face');
+                                facePreviewImage.src = fields.face_capture.value;
+                                switchToIdCapture();
+                            }
+                            return;
+                        }
                         const centerX = box.x + box.width / 2;
                         const centerY = box.y + box.height / 2;
-                        const aligned = centerX > video.videoWidth * 0.32 &&
-                            centerX < video.videoWidth * 0.68 &&
-                            centerY > video.videoHeight * 0.22 &&
-                            centerY < video.videoHeight * 0.78 &&
-                            box.width > video.videoWidth * 0.16;
+                        const aligned = centerX > video.videoWidth * 0.22 &&
+                            centerX < video.videoWidth * 0.78 &&
+                            centerY > video.videoHeight * 0.12 &&
+                            centerY < video.videoHeight * 0.88 &&
+                            box.width > video.videoWidth * 0.08;
 
                         if (aligned) {
                             faceDetectedSince = faceDetectedSince || Date.now();
                             setCameraStatus('Face detected. Hold still for automatic capture.');
                             if (Date.now() - faceDetectedSince > 900) {
-                                fields.face_capture.value = captureFrame();
+                                fields.face_capture.value = captureFrame('face');
                                 facePreviewImage.src = fields.face_capture.value;
                                 switchToIdCapture();
                             }
@@ -2478,40 +3070,36 @@ $has_logo = is_file($logo_file);
                 }
 
                 faceDetectedSince = faceDetectedSince || Date.now();
-                setCameraStatus('Native face detection is unavailable. Hold still inside the guide for live capture.');
+                setCameraStatus('Face detector is loading. Hold still inside the guide.');
                 if (Date.now() - faceDetectedSince > 2200) {
-                    fields.face_capture.value = captureFrame();
+                    fields.face_capture.value = captureFrame('face');
                     facePreviewImage.src = fields.face_capture.value;
                     switchToIdCapture();
                 }
             } catch (error) {
-                faceDetectedSince = 0;
-                setCameraStatus('Face detection failed. Improve lighting and keep your face clear.', true);
+                faceDetectedSince = faceDetectedSince || Date.now();
+                setCameraStatus('Face detector is warming up. Hold still inside the guide.');
+                if (Date.now() - faceDetectedSince > 2600) {
+                    fields.face_capture.value = captureFrame('face');
+                    facePreviewImage.src = fields.face_capture.value;
+                    switchToIdCapture();
+                }
             }
         }
 
         startCameraBtn.addEventListener('click', async () => {
             verificationMode = 'face';
             activeIdSide = 'front';
-            ocrVerified = false;
             fields.face_capture.value = '';
             fields.valid_id_capture.value = '';
             fields.valid_id_back_capture.value = '';
-            fields.id_number.value = '';
-            fields.id_number.readOnly = true;
             faceMatchStatusInput.value = 'pending';
+            idOcrStatusInput.value = 'pending';
             facePreviewImage.removeAttribute('src');
             idFrontPreviewImage.removeAttribute('src');
             idBackPreviewImage.removeAttribute('src');
-            setOcrStatus('pending');
-            ocrScore.textContent = '0%';
-            extractedName.textContent = 'Waiting for ID scan';
-            extractedBirthdate.textContent = 'Waiting for ID scan';
-            extractedBirthPlace.textContent = 'Waiting for ID scan';
-            extractedIdNumber.textContent = 'Waiting for ID scan';
-            extractedAddress.textContent = 'Waiting for ID scan';
-            Object.keys(matchChips).forEach((key) => setMatchChip(key, false));
             setFaceStatus('warning', 'Capture your live face and valid ID to compare identity details.');
+            setIdOcrStatus('warning', 'Front and back ID text will be scanned to auto-fill identity details.');
             faceStep.className = 'verification-step is-current';
             idFrontStep.className = 'verification-step';
             idBackStep.className = 'verification-step';
@@ -2538,16 +3126,13 @@ $has_logo = is_file($logo_file);
                 markStepDone(idFrontStep);
             }
 
-            ocrVerified = false;
-            fields.id_number.value = '';
-            fields.id_number.readOnly = true;
             setFieldError('live_verification', '');
 
             if (fields.valid_id_capture.value && fields.valid_id_back_capture.value) {
                 cameraStage.classList.remove('is-id-mode');
-                setCameraStatus('Front and back ID images are ready. Scanning OCR and comparing the front ID face...');
-                scanCapturedId();
-                compareCapturedFaces();
+                setCameraStatus('Front and back ID images are ready. Scanning ID text and comparing the front ID face...');
+                scanCapturedIdText();
+                verifyCapturedFace();
             } else {
                 const nextSide = fields.valid_id_capture.value ? 'back' : 'front';
                 switchToIdCapture(nextSide);
@@ -2583,7 +3168,7 @@ $has_logo = is_file($logo_file);
             try {
                 const dataUrl = await readImageUpload(input.files[0]);
                 updateIdSide(side, dataUrl);
-                showToast('success', side === 'front' ? 'Front ID uploaded' : 'Back ID uploaded', 'The image is ready for OCR scanning.');
+                showToast('success', side === 'front' ? 'Front ID uploaded' : 'Back ID uploaded', 'The image is ready for verification.');
             } catch (error) {
                 showToast('error', 'Upload failed', error.message);
             } finally {

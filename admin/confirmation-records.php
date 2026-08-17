@@ -12,7 +12,7 @@ include '../database/config.php';
 
 // Define BASE_URL if not already defined
 if (!defined('BASE_URL')) {
-    define('BASE_URL', 'http://localhost/ParishSystem/');
+    define('BASE_URL', '/ParishSystem/');
 }
 
 // Check admin access
@@ -68,7 +68,9 @@ function ensure_confirmation_record_book_schema($conn) {
         'parents' => "ALTER TABLE confirmation_records ADD COLUMN parents VARCHAR(200) NULL AFTER baptismal_place",
         'stipend_pesos' => "ALTER TABLE confirmation_records ADD COLUMN stipend_pesos VARCHAR(30) NULL AFTER bishop_priest",
         'stipend_cents' => "ALTER TABLE confirmation_records ADD COLUMN stipend_cents VARCHAR(30) NULL AFTER stipend_pesos",
-        'observations' => "ALTER TABLE confirmation_records ADD COLUMN observations TEXT NULL AFTER stipend_cents"
+        'observations' => "ALTER TABLE confirmation_records ADD COLUMN observations TEXT NULL AFTER stipend_cents",
+        'parish_priest' => "ALTER TABLE confirmation_records ADD COLUMN parish_priest VARCHAR(120) NULL AFTER observations",
+        'parish_secretary' => "ALTER TABLE confirmation_records ADD COLUMN parish_secretary VARCHAR(120) NULL AFTER parish_priest"
     );
 
     foreach ($columns as $column => $sql) {
@@ -116,13 +118,15 @@ if ($action === 'add' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $stipend_pesos = trim($_POST['stipend_pesos'] ?? '');
     $stipend_cents = trim($_POST['stipend_cents'] ?? '');
     $observations = trim($_POST['observations'] ?? '');
+    $parish_priest = trim($_POST['parish_priest'] ?? '');
+    $parish_secretary = trim($_POST['parish_secretary'] ?? '');
     $status = $_POST['status'] ?? 'active';
     $request_id = !empty($_POST['request_id']) ? (int)$_POST['request_id'] : null;
 
     if ($fullname && $confirmation_date) {
-        $stmt = $conn->prepare("INSERT INTO confirmation_records (registry_no, fullname, birth_date, confirmation_date, confirmation_name, age, origin_parish, origin_province, baptismal_place, parents, sponsor, bishop_priest, stipend_pesos, stipend_cents, observations, status, request_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt = $conn->prepare("INSERT INTO confirmation_records (registry_no, fullname, birth_date, confirmation_date, confirmation_name, age, origin_parish, origin_province, baptismal_place, parents, sponsor, bishop_priest, stipend_pesos, stipend_cents, observations, parish_priest, parish_secretary, status, request_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         if ($stmt) {
-            $stmt->bind_param("ssssssssssssssssi", $registry_no, $fullname, $birth_date, $confirmation_date, $confirmation_name, $age, $origin_parish, $origin_province, $baptismal_place, $parents, $sponsor, $bishop_priest, $stipend_pesos, $stipend_cents, $observations, $status, $request_id);
+            $stmt->bind_param("ssssssssssssssssssi", $registry_no, $fullname, $birth_date, $confirmation_date, $confirmation_name, $age, $origin_parish, $origin_province, $baptismal_place, $parents, $sponsor, $bishop_priest, $stipend_pesos, $stipend_cents, $observations, $parish_priest, $parish_secretary, $status, $request_id);
             if ($stmt->execute()) {
                 $message = "Confirmation record added successfully!";
                 $alert_type = "success";
@@ -156,13 +160,15 @@ if ($action === 'edit' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $stipend_pesos = trim($_POST['stipend_pesos'] ?? '');
     $stipend_cents = trim($_POST['stipend_cents'] ?? '');
     $observations = trim($_POST['observations'] ?? '');
+    $parish_priest = trim($_POST['parish_priest'] ?? '');
+    $parish_secretary = trim($_POST['parish_secretary'] ?? '');
     $status = $_POST['status'] ?? 'active';
     $request_id = !empty($_POST['request_id']) ? (int)$_POST['request_id'] : null;
 
     if ($record_id && $fullname && $confirmation_date) {
-        $stmt = $conn->prepare("UPDATE confirmation_records SET registry_no=?, fullname=?, birth_date=?, confirmation_date=?, confirmation_name=?, age=?, origin_parish=?, origin_province=?, baptismal_place=?, parents=?, sponsor=?, bishop_priest=?, stipend_pesos=?, stipend_cents=?, observations=?, status=?, request_id=? WHERE confirmation_id=?");
+        $stmt = $conn->prepare("UPDATE confirmation_records SET registry_no=?, fullname=?, birth_date=?, confirmation_date=?, confirmation_name=?, age=?, origin_parish=?, origin_province=?, baptismal_place=?, parents=?, sponsor=?, bishop_priest=?, stipend_pesos=?, stipend_cents=?, observations=?, parish_priest=?, parish_secretary=?, status=?, request_id=? WHERE confirmation_id=?");
         if ($stmt) {
-            $stmt->bind_param("ssssssssssssssssii", $registry_no, $fullname, $birth_date, $confirmation_date, $confirmation_name, $age, $origin_parish, $origin_province, $baptismal_place, $parents, $sponsor, $bishop_priest, $stipend_pesos, $stipend_cents, $observations, $status, $request_id, $record_id);
+            $stmt->bind_param("ssssssssssssssssssii", $registry_no, $fullname, $birth_date, $confirmation_date, $confirmation_name, $age, $origin_parish, $origin_province, $baptismal_place, $parents, $sponsor, $bishop_priest, $stipend_pesos, $stipend_cents, $observations, $parish_priest, $parish_secretary, $status, $request_id, $record_id);
             if ($stmt->execute()) {
                 $message = "Confirmation record updated successfully!";
                 $alert_type = "success";
@@ -622,6 +628,7 @@ $page_title = 'Confirmation Records - Parish Management';
             animation: fadeInUp 0.6s ease-out;
         }
     </style>
+    <link rel="stylesheet" href="../assets/css/theme.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/theme.css') ? filemtime(__DIR__ . '/../assets/css/theme.css') : time(); ?>">
 </head>
 <body>
     <div style="display: flex;">
@@ -632,6 +639,9 @@ $page_title = 'Confirmation Records - Parish Management';
         <div class="admin-content">
             <!-- Page Header -->
             <div style="margin-bottom: 30px;">
+                <a href="manage-records.php" class="btn btn-primary-gold" style="margin-bottom: 14px;">
+                    <i class="fas fa-arrow-left"></i> Back to Sacramental Records
+                </a>
                 <h1 class="page-title">
                     <i class="fas fa-cross"></i> Confirmation Records
                 </h1>
@@ -711,6 +721,8 @@ $page_title = 'Confirmation Records - Parish Management';
                                             'stipend_pesos' => $record['stipend_pesos'] ?? '',
                                             'stipend_cents' => $record['stipend_cents'] ?? '',
                                             'observations' => $record['observations'] ?? '',
+                                            'parish_priest' => $record['parish_priest'] ?? '',
+                                            'parish_secretary' => $record['parish_secretary'] ?? '',
                                             'status' => $record['status'] ?? 'active',
                                             'request_id' => $record['request_id'] ?? ''
                                         );
@@ -880,6 +892,16 @@ $page_title = 'Confirmation Records - Parish Management';
                         <label>Remarks / Observations</label>
                         <textarea id="observations" name="observations" placeholder="Observations / remarks"></textarea>
                     </div>
+
+                    <div class="form-group">
+                        <label>Parish Priest</label>
+                        <input type="text" id="parishPriest" name="parish_priest" placeholder="Name printed above Parish Priest">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Parish Secretary</label>
+                        <input type="text" id="parishSecretary" name="parish_secretary" placeholder="Name printed above Parish Secretary">
+                    </div>
                 </div>
 
                 <div class="modal-footer">
@@ -939,6 +961,8 @@ $page_title = 'Confirmation Records - Parish Management';
             document.getElementById('stipendPesos').value = record.stipend_pesos || '';
             document.getElementById('stipendCents').value = record.stipend_cents || '';
             document.getElementById('observations').value = record.observations || '';
+            document.getElementById('parishPriest').value = record.parish_priest || '';
+            document.getElementById('parishSecretary').value = record.parish_secretary || '';
             document.getElementById('recordStatus').value = record.status || 'active';
             document.getElementById('requestId').value = record.request_id || '';
             document.getElementById('actionInput').value = 'edit';
