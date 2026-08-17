@@ -44,5 +44,4 @@ database/test_db_connection.php
 database/test_smtp_connection.php
 config/sms/test_sms.php
 sms/test_sms.php
-api/api/HTML
-api/api/JavaScript
+api/api
