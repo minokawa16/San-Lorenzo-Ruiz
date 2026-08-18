@@ -266,9 +266,9 @@ $father_name = trim((string) ($data['father_name'] ?? '')) ?: $parents['father']
 $mother_name = trim((string) ($data['mother_name'] ?? '')) ?: $parents['mother'];
 $godfather = trim((string) ($data['godfather'] ?? '')) ?: $sponsors['godfather'];
 $godmother = trim((string) ($data['godmother'] ?? '')) ?: $sponsors['godmother'];
-$volume_no = trim((string) ($data['volume_no'] ?? '')) ?: (trim((string) ($data['book_no'] ?? '')) ?: 'N/A');
+$volume_no = trim((string) ($data['volume_no'] ?? '')) ?: (trim((string) ($data['book_no'] ?? '')) ?: (trim((string) ($data['folio'] ?? '')) ?: 'N/A'));
 $page_no = trim((string) ($data['page_no'] ?? '')) ?: 'N/A';
-$entry_no = trim((string) ($data['entry_no'] ?? '')) ?: (trim((string) ($data['registry_no'] ?? '')) ?: (trim((string) ($data['baptism_id'] ?? '')) ?: 'N/A'));
+$entry_no = trim((string) ($data['entry_no'] ?? '')) ?: (trim((string) ($data['registry_no'] ?? '')) ?: (trim((string) ($data['baptism_id'] ?? ($data['communion_id'] ?? ($data['confirmation_id'] ?? '')))) ?: 'N/A'));
 $issued_timestamp = strtotime($issue['issued_at'] ?? date('Y-m-d')) ?: time();
 $issued_day = date('jS', $issued_timestamp);
 $issued_month = date('F', $issued_timestamp);
@@ -871,6 +871,108 @@ if (strcasecmp($layout_secretary_position, 'Signature / Parish Stamp') === 0) {
                 <?php endif; ?>
             </section>
         </main>
+    <?php elseif ($cert_type === 'communion'): ?>
+        <main class="certificate-page" id="certificateDocument">
+            <section class="certificate-sheet">
+                <?php echo $certificate_template_layer; ?>
+                <?php echo layoutImageTag($certificate_layout_settings, 'watermark', 'layout-watermark-image', 'Certificate watermark'); ?>
+                <div class="watermark-text"><?php echo e($layout_watermark_text); ?></div>
+                <div class="certificate-number"><?php echo e($issue['certificate_number']); ?></div>
+                <div class="cert-content">
+                    <header class="cert-header">
+                        <div class="certificate-logo-slot">
+                            <?php if ($archdiocese_logo): ?>
+                                <img class="certificate-logo archdiocese-logo" src="<?php echo e($archdiocese_logo); ?>" alt="Official Archdiocese of Cotabato crest">
+                            <?php endif; ?>
+                        </div>
+                        <div>
+                            <div class="parish"><?php echo e(strtoupper($layout_church_title)); ?></div>
+                            <div class="diocese"><?php echo e(strtoupper($layout_diocese_name)); ?></div>
+                            <div class="parish"><?php echo e(strtoupper($display_parish_name)); ?></div>
+                            <div class="location"><?php echo e(strtoupper($display_ceremony_place)); ?></div>
+                            <div class="cert-title"><?php echo e($layout_certificate_title); ?></div>
+                            <div class="cert-subline"><?php echo e($layout_certificate_subtitle); ?></div>
+                        </div>
+                        <div class="certificate-logo-slot">
+                            <img class="certificate-logo" src="<?php echo e($mission_logo); ?>" alt="San Lorenzo Ruiz Mission Station logo">
+                        </div>
+                    </header>
+
+                    <div class="recipient"><?php echo e($data['fullname'] ?? 'N/A'); ?></div>
+
+                    <p class="statement">
+                        This is to certify that <?php echo $is_manual_certificate ? 'the above-named person received First Holy Communion' : 'according to the records of this parish, the above-named person received First Holy Communion'; ?> according to the rite of the
+                        <strong>ROMAN CATHOLIC CHURCH</strong>.
+                    </p>
+
+                    <div class="details">
+                        <div class="label">Full Name:</div><div class="value"><?php echo e($data['fullname'] ?? 'N/A'); ?></div>
+                        <div class="label">Date of Birth:</div><div class="value"><?php echo e(displayDate($data['birth_date'] ?? '')); ?></div>
+                        <div class="label">Date of First Communion:</div><div class="value"><?php echo e(displayDate($data['communion_date'] ?? '')); ?></div>
+                        <div class="label">Place:</div><div class="value"><?php echo e($display_parish_name . ', ' . $display_ceremony_place); ?></div>
+                        <div class="label">Parents:</div><div class="value"><?php echo e($data['parents'] ?? 'N/A'); ?></div>
+                        <div class="label">Residence:</div><div class="value"><?php echo e($data['domicile'] ?? 'N/A'); ?></div>
+                        <div class="label">Baptismal Date:</div><div class="value"><?php echo e(displayDate($data['baptismal_date'] ?? '')); ?></div>
+                        <div class="label">Baptismal Place:</div><div class="value"><?php echo e($data['baptismal_place'] ?? 'N/A'); ?></div>
+                    </div>
+
+                    <div class="church-line">
+                        Received First Holy Communion according to the Rite of the
+                        <span class="roman">ROMAN CATHOLIC CHURCH</span>
+                    </div>
+                    <div class="minister">
+                        Minister:
+                        <strong><?php echo e($data['priest'] ?? 'N/A'); ?></strong>
+                    </div>
+
+                    <div class="lower-grid">
+                        <div>
+                            <div class="sponsors">
+                                <strong>Sponsor:</strong>
+                                <div class="sponsor-lines"><?php echo e($data['sponsor'] ?? 'N/A'); ?></div>
+                            </div>
+                            <div class="registry-box">
+                                <div><strong>Book/Folio</strong><br><?php echo e($volume_no); ?></div>
+                                <div><strong>Page No.</strong><br><?php echo e($page_no); ?></div>
+                                <div><strong>Entry No.</strong><br><?php echo e($entry_no); ?></div>
+                                <div><strong>Communion Date</strong><br><?php echo e(displayDate($data['communion_date'] ?? '', 'm/d/Y')); ?></div>
+                                <div><strong>Reference</strong><br><?php echo e($issue['certificate_number']); ?></div>
+                                <div><strong>Status</strong><br><?php echo e(ucfirst($issue['status'])); ?></div>
+                            </div>
+                            <div class="remarks mt-2">
+                                <strong>Remarks:</strong> <?php echo e($data['remarks'] ?? 'Issued for parish record purposes.'); ?>
+                            </div>
+                        </div>
+                        <div class="auth-box">
+                            <div class="issued">
+                                <strong>Date Issued:</strong><br><?php echo e(displayDate($issue['issued_at'] ?? date('Y-m-d'))); ?><br>
+                                <strong>Certificate No.:</strong><br><?php echo e($issue['certificate_number']); ?>
+                            </div>
+                            <div class="qr-row">
+                                <div class="seal-area">Official<br>Dry Seal<br>Area</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="signature-grid">
+                        <div class="signature">
+                            <div class="signature-line"><?php echo layoutImageTag($certificate_layout_settings, 'priest_signature', 'certificate-logo', 'Priest signature') . e($layout_priest_name); ?></div>
+                            <span><?php echo e($layout_priest_position); ?></span>
+                        </div>
+                        <div class="signature">
+                            <div class="signature-line"><?php echo layoutImageTag($certificate_layout_settings, 'secretary_signature', 'certificate-logo', 'Secretary signature') . e($layout_secretary_name); ?></div>
+                            <span><?php echo e($layout_secretary_position); ?></span>
+                        </div>
+                    </div>
+                </div>
+                <?php if (!$is_manual_certificate): ?>
+                    <div class="verification-code">
+                        <span>Verify: <?php echo e($verification_url); ?></span>
+                        <span>Unauthorized alteration invalidates this certificate.</span>
+                    </div>
+                <?php endif; ?>
+            </section>
+        </main>
     <?php elseif (in_array($cert_type, ['marriage_certification', 'first_communion_certification', 'confirmation_certification', 'funeral_certification'], true)): ?>
         <?php
             $recommendation = [
@@ -1074,80 +1176,105 @@ if (strcasecmp($layout_secretary_position, 'Signature / Parish Stamp') === 0) {
             </section>
         </main>
     <?php elseif ($cert_type === 'confirmation'): ?>
-        <main class="confirmation-page" id="certificateDocument">
-            <section class="confirmation-sheet">
+        <main class="certificate-page" id="certificateDocument">
+            <section class="certificate-sheet">
                 <?php echo $certificate_template_layer; ?>
-                <div class="confirmation-left-line" aria-hidden="true"></div>
-                <div class="confirmation-right-line" aria-hidden="true"></div>
-                <div class="confirmation-content">
-                    <header class="confirmation-header">
+                <?php echo layoutImageTag($certificate_layout_settings, 'watermark', 'layout-watermark-image', 'Certificate watermark'); ?>
+                <div class="watermark-text"><?php echo e($layout_watermark_text); ?></div>
+                <div class="certificate-number"><?php echo e($issue['certificate_number']); ?></div>
+                <div class="cert-content">
+                    <header class="cert-header">
                         <div class="certificate-logo-slot">
                             <?php if ($archdiocese_logo): ?>
-                                <img class="confirmation-logo archdiocese-logo" src="<?php echo e($archdiocese_logo); ?>" alt="Official Archdiocese of Cotabato crest">
+                                <img class="certificate-logo archdiocese-logo" src="<?php echo e($archdiocese_logo); ?>" alt="Official Archdiocese of Cotabato crest">
                             <?php endif; ?>
                         </div>
                         <div>
-                            <div class="confirmation-diocese"><?php echo e(strtoupper($layout_diocese_name)); ?></div>
-                            <div class="confirmation-parish"><?php echo e(strtoupper($display_parish_name)); ?></div>
-                            <div class="confirmation-location"><?php echo e(strtoupper($display_ceremony_place)); ?></div>
-                            <div class="confirmation-title"><?php echo e($layout_certificate_title); ?></div>
+                            <div class="parish"><?php echo e(strtoupper($layout_church_title)); ?></div>
+                            <div class="diocese"><?php echo e(strtoupper($layout_diocese_name)); ?></div>
+                            <div class="parish"><?php echo e(strtoupper($display_parish_name)); ?></div>
+                            <div class="location"><?php echo e(strtoupper($display_ceremony_place)); ?></div>
+                            <div class="cert-title"><?php echo e($layout_certificate_title); ?></div>
+                            <div class="cert-subline"><?php echo e($layout_certificate_subtitle); ?></div>
                         </div>
                         <div class="certificate-logo-slot">
-                            <img class="confirmation-logo" src="<?php echo e($mission_logo); ?>" alt="San Lorenzo Ruiz Mission Station logo">
+                            <img class="certificate-logo" src="<?php echo e($mission_logo); ?>" alt="San Lorenzo Ruiz Mission Station logo">
                         </div>
                     </header>
 
-                    <div class="confirmation-name"><?php echo e($data['fullname'] ?? 'N/A'); ?></div>
+                    <div class="recipient"><?php echo e($data['fullname'] ?? 'N/A'); ?></div>
 
-                    <div class="confirmation-facts">
-                        <div class="rowline"><strong>Child of:</strong><span><?php echo e($data['parents'] ?? 'N/A'); ?></span></div>
-                        <div class="rowline"><strong>and</strong><span><?php echo e($data['origin_parish'] ?? $data['origin_province'] ?? 'N/A'); ?></span></div>
-                        <div class="rowline"><strong>Born In:</strong><span><?php echo e($data['baptismal_place'] ?? $data['origin_province'] ?? 'N/A'); ?></span></div>
-                        <div class="rowline"><strong>Born On</strong><span><?php echo e(displayDate($data['birth_date'] ?? '')); ?></span></div>
+                    <p class="statement">
+                        This is to certify that <?php echo $is_manual_certificate ? 'the above-named person received the Sacrament of Confirmation' : 'according to the records of this parish, the above-named person received the Sacrament of Confirmation'; ?> according to the rite of the
+                        <strong>ROMAN CATHOLIC CHURCH</strong>.
+                    </p>
+
+                    <div class="details">
+                        <div class="label">Full Name:</div><div class="value"><?php echo e($data['fullname'] ?? 'N/A'); ?></div>
+                        <div class="label">Confirmation Name:</div><div class="value"><?php echo e($data['confirmation_name'] ?? 'N/A'); ?></div>
+                        <div class="label">Date of Birth:</div><div class="value"><?php echo e(displayDate($data['birth_date'] ?? '')); ?></div>
+                        <div class="label">Date of Confirmation:</div><div class="value"><?php echo e(displayDate($data['confirmation_date'] ?? '')); ?></div>
+                        <div class="label">Parents:</div><div class="value"><?php echo e($data['parents'] ?? 'N/A'); ?></div>
+                        <div class="label">Parish of Origin:</div><div class="value"><?php echo e($data['origin_parish'] ?? 'N/A'); ?></div>
+                        <div class="label">Province:</div><div class="value"><?php echo e($data['origin_province'] ?? 'N/A'); ?></div>
+                        <div class="label">Place of Baptism:</div><div class="value"><?php echo e($data['baptismal_place'] ?? 'N/A'); ?></div>
                     </div>
 
-                    <div class="confirmation-rite">
-                        Was Solemnly Confirmed according to the rite of the
-                        <strong>ROMAN CATHOLIC CHURCH</strong>
+                    <div class="church-line">
+                        Was Solemnly Confirmed according to the Rite of the
+                        <span class="roman">ROMAN CATHOLIC CHURCH</span>
+                    </div>
+                    <div class="minister">
+                        Minister:
+                        <strong><?php echo e($data['bishop_priest'] ?? 'N/A'); ?></strong>
                     </div>
 
-                    <div class="confirmation-event">
-                        On <?php echo e(displayDate($data['confirmation_date'] ?? '')); ?><br>
-                        by: <span class="minister-name"><?php echo e($data['bishop_priest'] ?? 'N/A'); ?></span>
-                    </div>
-
-                    <div class="confirmation-note">
-                        The sponsor being: <?php echo e($data['sponsor'] ?? 'N/A'); ?><br>
-                        whose name appears from the Book of Confirmation.
-                    </div>
-
-                    <div class="confirmation-registry">
-                        <div>Book No: <?php echo e($data['book_no'] ?? '1'); ?></div>
-                        <div>PageNo: <?php echo e($data['page_no'] ?? '1'); ?></div>
-                        <div>LineNo: <?php echo e($data['registry_no'] ?? ($data['confirmation_id'] ?? '1')); ?></div>
-                        <div>Ref: <?php echo e($issue['certificate_number']); ?></div>
-                    </div>
-
-                    <div class="confirmation-purpose">
-                        This is issued upon the request of the aforementioned person for<br>
-                        <?php echo e(trim((string) ($data['purpose'] ?? '')) ?: 'Parish certificate purpose'); ?>
-                    </div>
-
-                    <div class="confirmation-issue">
-                        Issued on: <?php echo e(displayDate($issue['issued_at'] ?? date('Y-m-d'))); ?><br>
-                        Issued by:
-                        <div class="issuer">
-                            <strong><?php echo e($_SESSION['fullname'] ?? 'Authorized Staff'); ?></strong>
-                            Secretary
+                    <div class="lower-grid">
+                        <div>
+                            <div class="sponsors">
+                                <strong>Sponsor / Godparent:</strong>
+                                <div class="sponsor-lines"><?php echo e($data['sponsor'] ?? 'N/A'); ?></div>
+                            </div>
+                            <div class="registry-box">
+                                <div><strong>Book No.</strong><br><?php echo e($volume_no); ?></div>
+                                <div><strong>Page No.</strong><br><?php echo e($page_no); ?></div>
+                                <div><strong>Entry No.</strong><br><?php echo e($entry_no); ?></div>
+                                <div><strong>Confirmation Date</strong><br><?php echo e(displayDate($data['confirmation_date'] ?? '', 'm/d/Y')); ?></div>
+                                <div><strong>Reference</strong><br><?php echo e($issue['certificate_number']); ?></div>
+                                <div><strong>Status</strong><br><?php echo e(ucfirst($issue['status'])); ?></div>
+                            </div>
+                            <div class="remarks mt-2">
+                                <strong>Remarks:</strong> <?php echo e($data['observations'] ?? ($data['remarks'] ?? 'Issued for parish record purposes.')); ?>
+                            </div>
+                        </div>
+                        <div class="auth-box">
+                            <div class="issued">
+                                <strong>Date Issued:</strong><br><?php echo e(displayDate($issue['issued_at'] ?? date('Y-m-d'))); ?><br>
+                                <strong>Certificate No.:</strong><br><?php echo e($issue['certificate_number']); ?>
+                            </div>
+                            <div class="qr-row">
+                                <div class="seal-area">Official<br>Dry Seal<br>Area</div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="confirmation-signature">
-                        <?php echo layoutImageTag($certificate_layout_settings, 'priest_signature', 'certificate-logo', 'Priest signature'); ?>
-                        <strong><?php echo e($layout_priest_name); ?></strong>
-                        <span><?php echo e($layout_priest_position); ?></span>
+                    <div class="signature-grid">
+                        <div class="signature">
+                            <div class="signature-line"><?php echo layoutImageTag($certificate_layout_settings, 'priest_signature', 'certificate-logo', 'Priest signature') . e($layout_priest_name); ?></div>
+                            <span><?php echo e($layout_priest_position); ?></span>
+                        </div>
+                        <div class="signature">
+                            <div class="signature-line"><?php echo layoutImageTag($certificate_layout_settings, 'secretary_signature', 'certificate-logo', 'Secretary signature') . e($layout_secretary_name); ?></div>
+                            <span><?php echo e($layout_secretary_position); ?></span>
+                        </div>
                     </div>
                 </div>
+                <?php if (!$is_manual_certificate): ?>
+                    <div class="verification-code">
+                        <span>Verify: <?php echo e($verification_url); ?></span>
+                        <span>Unauthorized alteration invalidates this certificate.</span>
+                    </div>
+                <?php endif; ?>
             </section>
         </main>
     <?php else: ?>
