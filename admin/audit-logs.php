@@ -16,12 +16,16 @@ $q = trim($_GET['q'] ?? '');
 $q_safe = $conn->real_escape_string($q);
 $from = trim($_GET['from'] ?? '');
 $to = trim($_GET['to'] ?? '');
+$admin_filter = trim($_GET['admin_id'] ?? '');
 
 if ($from !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $from)) {
     $from = '';
 }
 if ($to !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $to)) {
     $to = '';
+}
+if ($admin_filter !== 'system' && !preg_match('/^\d+$/', $admin_filter)) {
+    $admin_filter = '';
 }
 
 $from_sql = $from !== '' ? $conn->real_escape_string($from . ' 00:00:00') : '';
@@ -83,6 +87,7 @@ $action_summary = [];
 $total_logs = 0;
 $unique_admins = 0;
 $latest_action = null;
+$admin_options = [];
 
 if (!empty($source_queries)) {
     $audit_union = implode(' UNION ALL ', $source_queries);
@@ -102,7 +107,19 @@ if (!empty($source_queries)) {
     if ($to_sql !== '') {
         $conditions[] = "l.activity_date <= '$to_sql'";
     }
+    if ($admin_filter === 'system') {
+        $conditions[] = "l.user_id IS NULL";
+    } elseif ($admin_filter !== '') {
+        $conditions[] = "l.user_id = " . intval($admin_filter);
+    }
     $where = !empty($conditions) ? 'WHERE ' . implode(' AND ', $conditions) : '';
+
+    $admin_options_sql = "SELECT l.user_id, COALESCE(u.fullname, 'System') AS admin_name, COALESCE(u.email, '') AS admin_email, COUNT(*) AS log_count
+                          FROM ($audit_union) l
+                          LEFT JOIN users u ON l.user_id = u.id
+                          GROUP BY l.user_id, u.fullname, u.email
+                          ORDER BY admin_name ASC";
+    $admin_options = auditFetchRows($conn, $admin_options_sql);
 
     $audit_sql = "SELECT l.*, COALESCE(u.fullname, 'System') AS admin_name, COALESCE(u.email, '') AS admin_email
                   FROM ($audit_union) l
@@ -312,9 +329,27 @@ $breadcrumbs = [
 
         <form class="audit-filter" method="GET">
             <div class="row g-2 align-items-end">
-                <div class="col-lg-5">
+                <div class="col-lg-4">
                     <label for="auditSearch" class="form-label fw-bold">Search Audit Logs</label>
                     <input type="search" id="auditSearch" name="q" class="form-control" placeholder="Search action, admin, email, table, record ID, or IP address" value="<?php echo e($q); ?>">
+                </div>
+                <div class="col-sm-6 col-lg-2">
+                    <label for="auditAdmin" class="form-label fw-bold">Admin/System</label>
+                    <select id="auditAdmin" name="admin_id" class="form-select">
+                        <option value="">All admins</option>
+                        <?php foreach ($admin_options as $admin_option): ?>
+                            <?php
+                                $option_user_id = $admin_option['user_id'];
+                                $option_value = $option_user_id === null ? 'system' : (string) $option_user_id;
+                                $option_label = trim((string) $admin_option['admin_name']) ?: 'System';
+                                $option_email = trim((string) $admin_option['admin_email']);
+                                $option_count = intval($admin_option['log_count'] ?? 0);
+                            ?>
+                            <option value="<?php echo e($option_value); ?>" <?php echo $admin_filter === $option_value ? 'selected' : ''; ?>>
+                                <?php echo e($option_label . ($option_email !== '' ? ' - ' . $option_email : '') . ' (' . number_format($option_count) . ')'); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
                 <div class="col-sm-6 col-lg-2">
                     <label for="auditFrom" class="form-label fw-bold">From Date</label>
@@ -326,7 +361,7 @@ $breadcrumbs = [
                 </div>
                 <div class="col-lg-3 d-grid gap-2 d-lg-flex">
                     <button class="btn btn-primary flex-fill" type="submit"><i class="fas fa-filter"></i> Filter</button>
-                    <?php if ($q !== '' || $from !== '' || $to !== ''): ?>
+                    <?php if ($q !== '' || $admin_filter !== '' || $from !== '' || $to !== ''): ?>
                         <a class="btn btn-outline-secondary" href="audit-logs.php">Clear All</a>
                     <?php endif; ?>
                 </div>
