@@ -38,44 +38,17 @@ registration page.
 
 ## 2. Server requirements
 
-**A. Install the Tesseract OCR engine (the actual OCR software, separate from PHP):**
+**A. Configure OCR.space API key:**
 
+Set the environment variable `OCR_SPACE_API_KEY` in your environment / Vercel project settings:
 ```bash
-# Ubuntu / Debian
-sudo apt-get update
-sudo apt-get install -y tesseract-ocr
-
-# CentOS / AlmaLinux / RHEL
-sudo yum install -y tesseract
-
-# macOS (local dev)
-brew install tesseract
+OCR_SPACE_API_KEY="your_ocr_space_api_key"
 ```
 
-Confirm it's installed:
+**B. Install PHP extensions** (cURL + Imagick or GD):
 ```bash
-tesseract --version
-```
-
-> **Shared hosting note:** Most shared cPanel hosts will NOT let you install
-> tesseract-ocr because it's a system binary, not a PHP extension. If you're
-> on shared hosting, use the Cloud API alternative in Section 6 instead.
-
-**B. Install PHP extensions** (usually already present, but check):
-```bash
+php -m | grep -i curl
 php -m | grep -i imagick   # or gd — one of these is required for preprocessing
-```
-If neither is installed:
-```bash
-sudo apt-get install -y php-imagick
-# or
-sudo apt-get install -y php-gd
-```
-
-**C. Install the PHP Composer package:**
-```bash
-cd /path/to/id-ocr
-composer require thiagoalessio/tesseract_ocr
 ```
 
 ## 3. File permissions
@@ -95,7 +68,7 @@ government IDs, so it must not be publicly downloadable.
 3. JS sends the photo + typed values to `api_process_id.php`.
 4. The script:
    - Preprocesses the image (grayscale, contrast boost, upscale) for better OCR accuracy.
-   - Runs Tesseract to extract raw text.
+   - Calls the OCR.space REST API over HTTPS to extract raw text.
    - Parses out Last Name / First Name / Middle Name (or Initial) / Address / Date of Birth using label patterns common on PH IDs (also handles unlabeled "SURNAME, GIVEN NAME" formats like driver's licenses).
    - Compares each typed field against the ID using a similarity score — with special-case logic for a middle-initial-only ID, and a more lenient threshold for the address field.
    - Deletes the uploaded ID image immediately after processing (privacy).
@@ -127,17 +100,9 @@ government IDs, so it must not be publicly downloadable.
   glare-heavy photos. Consider adding a client-side blur/glare check before
   upload if this becomes a problem.
 
-## 6. Alternative: Cloud OCR API (if you can't install Tesseract, e.g. shared hosting)
+## 6. Cloud OCR API Integration
 
-Google Cloud Vision or AWS Textract read ID cards more reliably than
-Tesseract (better with holograms, colored backgrounds, and small print), at
-the cost of a per-image fee and needing an API key. If you want this route
-instead, the only thing that changes is the `extractText()` method in
-`IDOCRProcessor.php` — swap the Tesseract call for an HTTP request to the
-cloud API using PHP's `curl` or Guzzle, everything else (parsing, comparison,
-the endpoint, the front-end) stays the same. Let me know if you want this
-version built out instead — it requires you to have a Google Cloud or AWS
-account and billing set up.
+The application uses OCR.space REST API over HTTPS via `runCloudOcr()` requiring `OCR_SPACE_API_KEY`.
 
 ## 7. Testing checklist before going live
 

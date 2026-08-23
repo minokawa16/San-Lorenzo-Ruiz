@@ -33,6 +33,24 @@ function sendOcrJson(array $payload, int $statusCode = 200): void
     exit;
 }
 
+register_shutdown_function(static function (): void {
+    $error = error_get_last();
+    if (!$error || !in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
+        return;
+    }
+
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+
+    http_response_code(500);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => false,
+        'error' => 'OCR processing failed: ' . $error['message'],
+    ]);
+});
+
 function inferBirthPlaceFromAddress(?string $address): ?string
 {
     $address = trim((string) $address);
@@ -46,6 +64,41 @@ function inferBirthPlaceFromAddress(?string $address): ?string
     }
 
     return null;
+}
+
+if (!function_exists('runCloudOcr')) {
+    function runCloudOcr(string $base64Image): string
+    {
+        $apiKey = getenv('OCR_SPACE_API_KEY');
+        if (!$apiKey) {
+            throw new Exception('OCR service is not configured. Missing OCR_SPACE_API_KEY.');
+        }
+        $ch = curl_init('https://apipro1.ocr.space/parse/image');
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 20,
+            CURLOPT_POSTFIELDS => http_build_query([
+                'apikey' => $apiKey,
+                'base64Image' => $base64Image,
+                'OCREngine' => 2,
+                'scale' => true,
+                'isTable' => false,
+            ]),
+        ]);
+        $response = curl_exec($ch);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+
+        if ($response === false) {
+            throw new Exception('OCR request failed: ' . $curlError);
+        }
+        $data = json_decode($response, true);
+        if (empty($data['ParsedResults'][0]['ParsedText'])) {
+            throw new Exception('The ID text could not be read. Retake the photo in better lighting.');
+        }
+        return $data['ParsedResults'][0]['ParsedText'];
+    }
 }
 
 if (session_status() === PHP_SESSION_NONE) {
@@ -154,21 +207,35 @@ try {
     $idData    = $processor->scanID($destPath);
     if ($backDestPath) {
         $backData = $processor->scanID($backDestPath);
+        $frontConfidence = $idData['field_confidence'] ?? [];
+        $backConfidence = $backData['field_confidence'] ?? [];
         foreach ($backData as $field => $value) {
             if ($field === 'raw_text') {
                 $idData['raw_text'] = trim(($idData['raw_text'] ?? '') . "\n" . ($value ?? ''));
                 continue;
             }
-            if (($idData[$field] ?? null) === null && $value !== null && $value !== '') {
+            if ($field === 'field_confidence') {
+                continue;
+            }
+            $frontScore = (float) ($frontConfidence[$field] ?? 0);
+            $backScore = (float) ($backConfidence[$field] ?? 0);
+            if ($value !== null && $value !== '' && (($idData[$field] ?? null) === null || $backScore > $frontScore)) {
                 $idData[$field] = $value;
+                $frontConfidence[$field] = $backScore;
             }
         }
+        $idData['field_confidence'] = $frontConfidence;
         if (!empty($backData['birth_place'])) {
-            $idData['birth_place'] = $backData['birth_place'];
+            $backBirthScore = (float) ($backConfidence['birth_place'] ?? 0);
+            if ($backBirthScore > (float) ($frontConfidence['birth_place'] ?? 0)) {
+                $idData['birth_place'] = $backData['birth_place'];
+                $idData['field_confidence']['birth_place'] = $backBirthScore;
+            }
         }
     }
     if (empty($idData['birth_place'])) {
         $idData['birth_place'] = inferBirthPlaceFromAddress($idData['address'] ?? null);
+        $idData['field_confidence']['birth_place'] = 0.45;
     }
     $comparison = $processor->compareAll($formData, $idData);
 

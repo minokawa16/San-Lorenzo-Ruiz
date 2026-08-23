@@ -12,19 +12,8 @@
  * legitimate name into garbage.
  *
  * Requires:
- *  - tesseract-ocr installed on the server (binary, not just a PHP package)
- *  - PHP extensions: imagick (or gd as fallback), mbstring
- *  - Composer package: thiagoalessio/tesseract_ocr
- *
- * Install tesseract on Ubuntu/Debian:
- *   sudo apt-get update && sudo apt-get install -y tesseract-ocr
- * On CentOS/AlmaLinux:
- *   sudo yum install -y tesseract
- * On cPanel/shared hosting: you likely cannot install tesseract-ocr — see
- * README.md for the cloud-API alternative (Google Vision / AWS Textract).
- *
- * Install PHP wrapper:
- *   composer require thiagoalessio/tesseract_ocr
+ *  - OCR.space REST API key (OCR_SPACE_API_KEY environment variable)
+ *  - PHP extensions: imagick (or gd as fallback), mbstring, curl
  */
 
 $autoloadPaths = [
@@ -66,8 +55,19 @@ class IDOCRProcessor
     public function scanID(string $uploadedImagePath): array
     {
         $cleanedImage = $this->preprocessImage($uploadedImagePath);
-        $rawText      = $this->extractText($cleanedImage);
-        $fields       = $this->parseFields($rawText);
+        $texts        = $this->extractTextCandidates($cleanedImage);
+        $rawText      = $texts[0] ?? '';
+        $bestScore    = -1;
+        $parsed       = [];
+        foreach ($texts as $text) {
+            $parsed[] = $this->parseFields($text);
+            $score = $this->ocrTextScore($text);
+            if ($score > $bestScore) {
+                $bestScore = $score;
+                $rawText = $text;
+            }
+        }
+        $fields       = $this->mergeFieldCandidates($parsed);
         $fields['raw_text'] = $rawText;
 
         // clean up temp file
@@ -81,7 +81,7 @@ class IDOCRProcessor
     /**
      * Improves OCR accuracy: grayscale, upscale, boost contrast, sharpen.
      * ID photos taken with a phone camera are usually low-contrast / small,
-     * and tesseract accuracy drops sharply without this step.
+     * and OCR accuracy drops sharply without this step.
      */
     private function preprocessImage(string $imagePath): string
     {
@@ -92,7 +92,7 @@ class IDOCRProcessor
             $img->setImageColorspace(Imagick::COLORSPACE_GRAY);
             $img->normalizeImage();                 // stretch contrast
             $img->sharpenImage(0, 1);
-            // Upscale small images — tesseract likes ~300dpi-equivalent text height
+            // Upscale small images — OCR likes ~300dpi-equivalent text height
             $geo = $img->getImageGeometry();
             if ($geo['width'] < 1500) {
                 $img->resizeImage($geo['width'] * 2, $geo['height'] * 2, Imagick::FILTER_LANCZOS, 1);
@@ -140,60 +140,85 @@ class IDOCRProcessor
         }
     }
 
-    private function extractText(string $imagePath): string
+    private function extractTextCandidates(string $imagePath): array
     {
-        if (!class_exists('\\thiagoalessio\\TesseractOCR\\TesseractOCR')) {
-            throw new RuntimeException('OCR dependency is not installed. Run composer require thiagoalessio/tesseract_ocr and make sure the tesseract binary is available.');
+        $mime = @mime_content_type($imagePath) ?: 'image/png';
+        $binary = @file_get_contents($imagePath);
+        if ($binary === false || $binary === '') {
+            throw new RuntimeException('Failed to read image file for OCR processing.');
         }
-
-        $bestText = '';
-        foreach ([5, 3, 1, 4, 6, 11, 12] as $psm) {
-            $text = $this->runOcrWithPsm($imagePath, $psm);
-            if ($this->ocrTextScore($text) > $this->ocrTextScore($bestText)) {
-                $bestText = $text;
-            }
-        }
-
-        return $bestText;
-
-        $ocr = new \thiagoalessio\TesseractOCR\TesseractOCR($imagePath);
-        $windowsTesseractPath = 'C:\\Program Files\\Tesseract-OCR\\tesseract.exe';
-        if (is_file($windowsTesseractPath)) {
-            $ocr->executable($windowsTesseractPath);
-        }
-        $ocr->lang('eng');
-        $ocr->psm(1);
-        $ocr->psm(4); // assume a single column of text of variable sizes — good for ID cards
-        $ocr->psm(1);
-
-        try {
-            return @$ocr->run();
-        } catch (\thiagoalessio\TesseractOCR\UnsuccessfulCommandException $e) {
-            if (stripos($e->getMessage(), 'did not produce any output') !== false) {
-                return '';
-            }
-            throw $e;
-        }
+        $base64Image = 'data:' . $mime . ';base64,' . base64_encode($binary);
+        $text = runCloudOcr($base64Image);
+        return [trim($text)];
     }
 
-    private function runOcrWithPsm(string $imagePath, int $psm): string
+    private function mergeFieldCandidates(array $passes): array
     {
-        $ocr = new \thiagoalessio\TesseractOCR\TesseractOCR($imagePath);
-        $windowsTesseractPath = 'C:\\Program Files\\Tesseract-OCR\\tesseract.exe';
-        if (is_file($windowsTesseractPath)) {
-            $ocr->executable($windowsTesseractPath);
-        }
-        $ocr->lang('eng');
-        $ocr->psm($psm);
+        $fields = ['last_name', 'first_name', 'middle_name', 'date_of_birth', 'birth_place', 'id_number', 'address'];
+        $result = array_fill_keys($fields, null);
+        $confidence = array_fill_keys($fields, 0.0);
+        $passCount = max(1, count($passes));
 
-        try {
-            return @$ocr->run();
-        } catch (\thiagoalessio\TesseractOCR\UnsuccessfulCommandException $e) {
-            if (stripos($e->getMessage(), 'did not produce any output') !== false) {
-                return '';
+        foreach ($fields as $field) {
+            $clusters = [];
+            foreach ($passes as $pass) {
+                $value = trim((string) ($pass[$field] ?? ''));
+                if (!$this->isPlausibleFieldValue($field, $value)) {
+                    continue;
+                }
+                $key = $this->normalizeConsensusValue($value);
+                $matchedKey = null;
+                foreach ($clusters as $clusterKey => $cluster) {
+                    similar_text($key, $clusterKey, $similarity);
+                    if ($similarity >= ($field === 'address' ? 78 : 88)) {
+                        $matchedKey = $clusterKey;
+                        break;
+                    }
+                }
+                $matchedKey = $matchedKey ?? $key;
+                if (!isset($clusters[$matchedKey])) {
+                    $clusters[$matchedKey] = ['values' => [], 'count' => 0];
+                }
+                $clusters[$matchedKey]['values'][] = $value;
+                $clusters[$matchedKey]['count']++;
             }
-            throw $e;
+            if (!$clusters) {
+                continue;
+            }
+            uasort($clusters, static fn($a, $b) => $b['count'] <=> $a['count']);
+            $winner = reset($clusters);
+            usort($winner['values'], static fn($a, $b) => mb_strlen($b) <=> mb_strlen($a));
+            $result[$field] = $winner['values'][0];
+            $agreement = $winner['count'] / $passCount;
+            $confidence[$field] = round(min(0.98, 0.45 + ($agreement * 0.55)), 2);
         }
+
+        $result['field_confidence'] = $confidence;
+        return $result;
+    }
+
+    private function normalizeConsensusValue(string $value): string
+    {
+        return preg_replace('/[^\p{L}\p{N}]/u', '', mb_strtoupper($value, 'UTF-8'));
+    }
+
+    private function isPlausibleFieldValue(string $field, string $value): bool
+    {
+        if ($value === '') {
+            return false;
+        }
+        if ($field === 'date_of_birth') {
+            $date = DateTime::createFromFormat('Y-m-d', $value);
+            return $date instanceof DateTime && $date->format('Y-m-d') === $value && $date <= new DateTime('today');
+        }
+        if ($field === 'id_number') {
+            return strlen(preg_replace('/[^A-Z0-9]/i', '', $value)) >= 5;
+        }
+        if (in_array($field, ['last_name', 'first_name', 'middle_name'], true)) {
+            return (bool) preg_match("/^[\\p{L}][\\p{L}\\p{M}' .\\-]{0,59}$/u", $value)
+                && !preg_match('/\b(NAME|PANGALAN|APELYIDO|REPUBLIC|PHILIPPINES|ADDRESS|BIRTH)\b/ui', $value);
+        }
+        return mb_strlen($value) >= 3 && mb_strlen($value) <= 180;
     }
 
     private function ocrTextScore(string $text): int
@@ -259,6 +284,15 @@ class IDOCRProcessor
             }
         }
 
+        // Prefer line-aware label parsing. It avoids consuming the next printed
+        // label as a person's name, which happens often on bilingual PhilIDs.
+        foreach ($labelMap as $field => $labels) {
+            $candidate = $this->extractNameNearLabel($lines, $labels, $field);
+            if ($candidate !== null) {
+                $result[$field] = $candidate;
+            }
+        }
+
         // ---- Address (long, potentially multi-line free text — handled separately) ----
         $result['address'] = $this->parseAddress($text);
 
@@ -290,6 +324,30 @@ class IDOCRProcessor
         $this->repairPhilIdFields($result, $lines, $text);
 
         return $result;
+    }
+
+    private function extractNameNearLabel(array $lines, array $labels, string $field): ?string
+    {
+        foreach ($lines as $index => $line) {
+            $upperLine = mb_strtoupper($line, 'UTF-8');
+            foreach ($labels as $label) {
+                if (mb_strpos($upperLine, $label) === false) {
+                    continue;
+                }
+                $after = trim((string) preg_replace('/^.*?' . preg_quote($label, '/') . '\s*[:\-]?\s*/ui', '', $line));
+                $candidates = $after !== '' ? [$after, $lines[$index + 1] ?? ''] : [$lines[$index + 1] ?? ''];
+                foreach ($candidates as $candidate) {
+                    if (preg_match('/\b(NAME|PANGALAN|APELYIDO|SURNAME|GIVEN|MIDDLE)\b/ui', $candidate)) {
+                        continue;
+                    }
+                    $clean = $this->cleanNameCandidate($candidate, $field === 'middle_name' ? 'middle' : ($field === 'last_name' ? 'last' : 'first'));
+                    if ($clean !== null && $this->isPlausibleFieldValue($field, $clean)) {
+                        return $clean;
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     private function repairPhilIdFields(array &$result, array $lines, string $text): void
@@ -325,22 +383,19 @@ class IDOCRProcessor
 
     private function cleanNameCandidate(string $line, string $mode): ?string
     {
-        $clean = mb_strtoupper($line);
+        $clean = mb_strtoupper($line, 'UTF-8');
         $clean = preg_replace('/[^A-ZÃ‘ ]/u', ' ', $clean);
-        $tokens = array_values(array_filter(preg_split('/\s+/', trim($clean)), function ($token) {
-            return mb_strlen($token) > 1
+        // Re-normalize with Unicode letter support (including Ñ) after legacy cleanup.
+        $clean = preg_replace("/[^\\p{L}\\p{M}' .\\- ]/u", ' ', mb_strtoupper($line, 'UTF-8'));
+        $tokens = array_values(array_filter(preg_split('/\s+/', trim($clean)), function ($token) use ($mode) {
+            return (mb_strlen($token) > 1 || ($mode === 'middle' && mb_strlen($token) === 1))
                 && !in_array($token, ['YEV', 'YEY', 'GE', 'AZ', 'PP', 'MEGA', 'MEA', 'PANGALAN', 'GIVEN', 'NAMES'], true);
         }));
         if (empty($tokens)) {
             return null;
         }
-        if ($mode === 'last') {
-            return end($tokens) ?: null;
-        }
-        if ($mode === 'first') {
-            return implode(' ', array_slice($tokens, 0, 2));
-        }
-        return $tokens[0] ?? null;
+        // Preserve compound Filipino names such as DELA CRUZ and MARIA LUISA.
+        return implode(' ', array_slice($tokens, 0, $mode === 'middle' ? 3 : 4));
     }
 
     private function guessSurnameFromPhilIdLines(array $lines, ?string $firstName): ?string
