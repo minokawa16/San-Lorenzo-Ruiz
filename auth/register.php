@@ -5,9 +5,7 @@
  * Handles user registration with proper password hashing and validation
  */
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+require_once '../includes/session.php';
 
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
@@ -25,13 +23,9 @@ if (empty($_SESSION['registration_verification_id'])) {
 }
 $registration_verification_id = $_SESSION['registration_verification_id'];
 
-if (isset($_SESSION['user_id']) && !empty($_SESSION['user_id'])) {
-    if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
-        header("Location: ../admin/dashboard.php", true, 302);
-    } else {
-        header("Location: ../users/dashboard.php", true, 302);
-    }
-    exit();
+if (isLoggedIn()) {
+    header('Location: ' . getUserDashboardURL(), true, 302);
+    exit;
 }
 
 $error = '';
@@ -106,14 +100,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $error = 'Please enter your mobile number.';
     } elseif ($verification_method === 'email' && !isValidEmail($email)) {
         $error = 'Please enter a valid email address.';
-    } elseif ($verification_method === 'email' && !preg_match('/@gmail\.com$/i', $email)) {
-        $error = 'Please use a Gmail address ending in @gmail.com.';
     } elseif ($verification_method === 'mobile' && !isValidPhilippineMobile($phone_number)) {
         $error = 'Invalid mobile number. Please enter a valid Philippine mobile number.';
     } elseif (!$birthdate_timestamp || $birthdate_timestamp > strtotime('-13 years')) {
         $error = 'Please enter a valid birthdate in Month DD, YYYY format. Registrants must be at least 13 years old.';
-    } elseif (strlen($password) < 8) {
-        $error = 'Password must be at least 8 characters.';
+    } elseif (!isValidPassword($password)) {
+        $error = passwordRequirementsMessage();
     } elseif ($password !== $confirm_password) {
         $error = 'Passwords do not match.';
     } elseif (empty($id_number)) {
@@ -123,20 +115,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     } elseif (($_POST['id_ocr_status'] ?? 'pending') === 'mismatch') {
         $error = 'Please correct the fields flagged by the front ID scan before registration.';
     } else {
-        if ($verification_method === 'email') {
-            $email_safe = $conn->real_escape_string($email);
-            $sql = "SELECT id FROM users WHERE email = '$email_safe' LIMIT 1";
-            $result = $conn->query($sql);
-            if ($result && $result->num_rows > 0) {
-                $error = 'This Gmail address is already registered.';
-            }
-        } else {
-            $phone_safe = $conn->real_escape_string($phone_number);
-            $sql = "SELECT id FROM users WHERE phone_number = '$phone_safe' LIMIT 1";
-            $result = $conn->query($sql);
-            if ($result && $result->num_rows > 0) {
-                $error = 'This mobile number is already registered.';
-            }
+        $identifier_type = $verification_method === 'mobile' ? 'mobile' : 'email';
+        $identifier_value = $verification_method === 'mobile' ? $phone_number : $email;
+        if (!authenticationIdentifierAvailable($conn, $identifier_type, $identifier_value)) {
+            $error = 'Unable to complete registration with the information provided. Use account recovery or contact the parish office if you already applied.';
         }
 
         if (!$error) {
@@ -187,17 +169,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         $original_name = 'front-back-id-verification.' . $id_capture['extension'];
                     $hashed_password = hashPassword($password);
                     $id_number_encrypted = encryptSensitiveValue($id_number);
-                    $allowed_face_statuses = ['matched', 'mismatch', 'admin_review', 'pending'];
-                    $face_status = $_POST['face_match_status'] ?? 'admin_review';
-                    if (!in_array($face_status, $allowed_face_statuses, true) || $face_status === 'pending') {
-                        $face_status = 'admin_review';
-                    }
+                    // Browser-side face matching is a usability signal only. A hidden
+                    // form value must never establish server-side identity assurance.
+                    // Every testing/production registration remains pending until an
+                    // authorized parish reviewer compares the protected captures.
+                    $face_status = 'admin_review';
 
                     $phone_number_db = $phone_number !== '' ? $phone_number : null;
                     $email_db = $email !== '' ? $email : null;
 
                     $stmt = $conn->prepare("INSERT INTO users (fullname, first_name, surname, middle_initial, phone_number, email, verification_method, chapel_district, address, birthdate, birth_place, sex, nationality, id_number_hash, id_number_encrypted, password, role, status, valid_id_path, valid_id_original_name, valid_id_mime_type, valid_id_back_path, valid_id_back_mime_type, valid_id_capture_method, face_image_path, face_image_mime_type, face_verification_status, face_verified_at)
-                                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'user', 'pending_verification', ?, ?, ?, ?, ?, 'live_camera', ?, ?, ?, NOW())");
+                                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'user', 'pending_verification', ?, ?, ?, ?, ?, 'live_camera', ?, ?, ?, NULL)");
 
                     if ($stmt) {
                         $stmt->bind_param(
@@ -231,30 +213,30 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
                     if ($stmt && $stmt->execute()) {
                         $new_user_id = $conn->insert_id;
-                        if ($verification_method === 'mobile') {
-                            $otp_sent = sendOtpSms($conn, $new_user_id, $phone_number, 'registration');
-                            if (empty($otp_sent['ok'])) {
-                                $error = $otp_sent['error'] ?: 'Unable to send OTP to your mobile number. Please check the number and try again.';
-                                createAuditLog($conn, $new_user_id, 'REGISTRATION_MOBILE_OTP_SEND_FAILED', 'users', $new_user_id, null, [
-                                    'phone_number' => $phone_number,
-                                    'error' => $error
-                                ]);
-                                if (is_file($id_saved['path'])) {
-                                    @unlink($id_saved['path']);
+                        $security_provisioned = synchronizeAuthenticationIdentifier(
+                            $conn,
+                            $new_user_id,
+                            $identifier_type,
+                            $identifier_value,
+                            null
+                        ) && assignUserRole($conn, $new_user_id, 'parishioner', null)
+                            && recordAccountStatusChange($conn, $new_user_id, null, 'pending_verification', 'submitted', null, $new_user_id)
+                            && recordRegistrationReview($conn, $new_user_id, 'submitted', null, 'pending_verification', null, $new_user_id);
+                        $otp_sent = $security_provisioned
+                            ? createOtpTransaction($conn, $new_user_id, 'registration', $verification_method)
+                            : ['ok' => false, 'error' => 'Unable to provision account security.'];
+                        if (empty($otp_sent['ok'])) {
+                            $error = 'Unable to complete secure registration. Please try again later.';
+                            createAuditLog($conn, $new_user_id, 'REGISTRATION_OTP_SEND_FAILED', 'users', $new_user_id);
+                            foreach ([$id_saved['path'], $id_back_saved['path'], $face_saved['path']] as $capture_path) {
+                                if (is_file($capture_path)) {
+                                    @unlink($capture_path);
                                 }
-                                if (is_file($id_back_saved['path'])) {
-                                    @unlink($id_back_saved['path']);
-                                }
-                                if (is_file($face_saved['path'])) {
-                                    @unlink($face_saved['path']);
-                                }
-                                $conn->query("DELETE FROM users WHERE id = " . intval($new_user_id) . " AND status = 'pending_verification'");
                             }
-                            $otp_contact = $phone_number;
-                        } else {
-                            sendEmailVerificationMessage($conn, $new_user_id, $email, $fullname);
-                            sendOtpEmail($conn, $new_user_id, $email, 'registration');
-                            $otp_contact = $email;
+                            $delete = $conn->prepare("DELETE FROM users WHERE id = ? AND status = 'pending_verification'");
+                            $delete->bind_param('i', $new_user_id);
+                            $delete->execute();
+                            $delete->close();
                         }
                         if (!$error) {
                             $success = 'Your registration is now under parish administrator review.';
@@ -274,7 +256,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             createAuditLog($conn, $new_user_id, 'REGISTRATION_PENDING_VERIFICATION', 'users', $new_user_id, null, [
                                 'verification_method' => $verification_method
                             ]);
-                            header('Location: verify-otp.php?purpose=registration&method=' . urlencode($verification_method) . '&user_id=' . urlencode($new_user_id) . '&contact=' . urlencode($otp_contact));
+                            $_SESSION['pending_registration_transaction'] = $otp_sent['transaction_id'];
+                            header('Location: verify-otp.php?transaction=' . urlencode($otp_sent['transaction_id']), true, 303);
                             exit;
                         }
                     } else {
@@ -2202,12 +2185,12 @@ $has_logo = is_file($logo_file);
                         <label for="password" class="field-label">Password</label>
                         <div class="input-wrap password">
                             <i class="fas fa-lock field-icon"></i>
-                            <input type="password" class="form-control" id="password" name="password" autocomplete="new-password" required>
+                            <input type="password" class="form-control" id="password" name="password" autocomplete="new-password" minlength="<?php echo (int) PASSWORD_MIN_LENGTH; ?>" required>
                             <button type="button" class="password-toggle" data-toggle-password="password" aria-label="Show password">
                                 <i class="fas fa-eye"></i>
                             </button>
                         </div>
-                        <div class="form-hint">Use at least 8 characters.</div>
+                        <div class="form-hint"><?php echo e(passwordRequirementsMessage()); ?></div>
                         <div class="password-strength" aria-label="Password strength">
                             <span></span><span></span><span></span><span></span>
                         </div>
@@ -2219,7 +2202,7 @@ $has_logo = is_file($logo_file);
                         <label for="confirm_password" class="field-label">Confirm Password</label>
                         <div class="input-wrap password">
                             <i class="fas fa-key field-icon"></i>
-                            <input type="password" class="form-control" id="confirm_password" name="confirm_password" autocomplete="new-password" required>
+                            <input type="password" class="form-control" id="confirm_password" name="confirm_password" autocomplete="new-password" minlength="<?php echo (int) PASSWORD_MIN_LENGTH; ?>" required>
                             <button type="button" class="password-toggle" data-toggle-password="confirm_password" aria-label="Show confirm password">
                                 <i class="fas fa-eye"></i>
                             </button>
@@ -2353,13 +2336,14 @@ $has_logo = is_file($logo_file);
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
-    <script defer src="/ParishSystem/assets/js/face-verification.js?v=20260708-facefix"></script>
+    <script defer src="<?php echo e(BASE_URL); ?>assets/js/face-verification.js?v=20260822-deploy"></script>
     <script>
         const registrationVerificationId = <?php echo json_encode($registration_verification_id); ?>;
         const csrfTokenName = <?php echo json_encode(csrfTokenName()); ?>;
         const form = document.getElementById('registrationForm');
         const submitButton = document.getElementById('registerSubmit');
         const submitText = submitButton.querySelector('.submit-text');
+        let registrationSubmitInProgress = false;
 
         const fields = {
             first_name: document.getElementById('first_name'),
@@ -2379,6 +2363,31 @@ $has_logo = is_file($logo_file);
             valid_id_back_capture: document.getElementById('valid_id_back_capture'),
             terms_check: document.getElementById('terms_check')
         };
+
+        function currentCsrfField() {
+            return form.querySelector('input[name="' + csrfTokenName + '"]');
+        }
+
+        async function refreshRegistrationCsrfToken() {
+            const response = await fetch('../api/csrf-token.php?context=registration&registration_id=' + encodeURIComponent(registrationVerificationId) + '&t=' + Date.now(), {
+                method: 'GET',
+                cache: 'no-store',
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || !data.success || !data.token) {
+                throw new Error(data.error || 'Your secure session token expired. Please refresh the registration page and try again.');
+            }
+            const csrfField = currentCsrfField();
+            if (csrfField) {
+                csrfField.value = data.token;
+            }
+            return data.token;
+        }
         const verificationMethodInputs = Array.from(document.querySelectorAll('input[name="verification_method"]'));
         const registrationFieldGroups = Array.from(document.querySelectorAll('[data-registration-field]'));
         const cameraStage = document.querySelector('.camera-stage');
@@ -2494,8 +2503,8 @@ $has_logo = is_file($logo_file);
                 isValid = false;
             }
 
-            if (fields.password.value.length < 8) {
-                setFieldError('password', 'Password must be at least 8 characters.');
+            if (fields.password.value.length < <?php echo (int) PASSWORD_MIN_LENGTH; ?>) {
+                setFieldError('password', <?php echo json_encode(passwordRequirementsMessage()); ?>);
                 isValid = false;
             }
 
@@ -2680,7 +2689,13 @@ $has_logo = is_file($logo_file);
                 return;
             }
 
-            const csrfField = form.querySelector('input[name="' + csrfTokenName + '"]');
+            let csrfToken = '';
+            try {
+                csrfToken = await refreshRegistrationCsrfToken();
+            } catch (error) {
+                const existing = currentCsrfField();
+                csrfToken = existing && existing.value ? existing.value : '';
+            }
             const fd = new FormData();
             fd.append('id_photo_data', fields.valid_id_capture.value);
             fd.append('id_back_photo_data', fields.valid_id_back_capture.value);
@@ -2691,17 +2706,23 @@ $has_logo = is_file($logo_file);
             fd.append('birthdate', fields.birthdate.value);
             fd.append('birth_place', fields.birth_place.value);
             fd.append('id_number', fields.id_number.value);
-            if (csrfField) {
-                fd.append(csrfTokenName, csrfField.value);
+            fd.append('registration_id', registrationVerificationId || '');
+            if (csrfToken) {
+                fd.append(csrfTokenName, csrfToken);
             }
 
             try {
                 setIdOcrStatus('warning', 'Scanning the front and back ID text for registration details...');
+                const headers = { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' };
+                if (csrfToken) {
+                    headers['X-CSRF-Token'] = csrfToken;
+                }
                 const res = await fetch('../ocr/api_process_id.php?t=' + Date.now(), {
                     method: 'POST',
                     body: fd,
                     cache: 'no-store',
-                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                    credentials: 'same-origin',
+                    headers: headers
                 });
                 const responseText = await res.text();
                 let data;
@@ -2716,6 +2737,17 @@ $has_logo = is_file($logo_file);
                 }
 
                 const idData = data.id_data || {};
+                const fieldConfidence = idData.field_confidence || {};
+                const confidenceThresholds = {
+                    last_name: 0.67,
+                    first_name: 0.67,
+                    middle_name: 0.67,
+                    address: 0.60,
+                    date_of_birth: 0.67,
+                    birth_place: 0.60,
+                    id_number: 0.67
+                };
+                const isTrustedOcr = (key) => Number(fieldConfidence[key] || 0) >= (confidenceThresholds[key] || 0.67);
                 if (!idData.birth_place) {
                     idData.birth_place = inferBirthPlaceFromAddress(idData.address);
                 }
@@ -2729,11 +2761,14 @@ $has_logo = is_file($logo_file);
                     id_number: 'ID number'
                 };
                 const readLabels = Object.keys(readableFields)
-                    .filter((key) => Boolean(idData[key]))
+                    .filter((key) => Boolean(idData[key]) && isTrustedOcr(key))
+                    .map((key) => readableFields[key]);
+                const uncertainLabels = Object.keys(readableFields)
+                    .filter((key) => Boolean(idData[key]) && !isTrustedOcr(key))
                     .map((key) => readableFields[key]);
                 let filledCount = 0;
-                function fillFromOcr(fieldName, value, formatter = null) {
-                    if (!value || !fields[fieldName]) {
+                function fillFromOcr(fieldName, ocrKey, value, formatter = null) {
+                    if (!value || !fields[fieldName] || !isTrustedOcr(ocrKey)) {
                         return false;
                     }
                     const nextValue = formatter ? formatter(value) : value;
@@ -2745,31 +2780,31 @@ $has_logo = is_file($logo_file);
                     return true;
                 }
 
-                if (fillFromOcr('surname', idData.last_name)) {
+                if (fillFromOcr('surname', 'last_name', idData.last_name)) {
                     setFieldError('surname', '');
                     filledCount++;
                 }
-                if (fillFromOcr('first_name', idData.first_name)) {
+                if (fillFromOcr('first_name', 'first_name', idData.first_name)) {
                     setFieldError('first_name', '');
                     filledCount++;
                 }
-                if (fillFromOcr('middle_initial', idData.middle_name, (value) => String(value).replace(/[^A-Za-z]/g, '').slice(0, 1).toUpperCase())) {
+                if (fillFromOcr('middle_initial', 'middle_name', idData.middle_name, (value) => String(value).replace(/[^A-Za-z]/g, '').slice(0, 1).toUpperCase())) {
                     setFieldError('middle_initial', '');
                     filledCount++;
                 }
-                if (fillFromOcr('address', idData.address)) {
+                if (fillFromOcr('address', 'address', idData.address)) {
                     setFieldError('address', '');
                     filledCount++;
                 }
-                if (fillFromOcr('birth_place', idData.birth_place)) {
+                if (fillFromOcr('birth_place', 'birth_place', idData.birth_place)) {
                     setFieldError('birth_place', '');
                     filledCount++;
                 }
-                if (fillFromOcr('id_number', idData.id_number)) {
+                if (fillFromOcr('id_number', 'id_number', idData.id_number)) {
                     setFieldError('id_number', '');
                     filledCount++;
                 }
-                if (fillFromOcr('birthdate', idData.date_of_birth, formatIsoDateForDisplay)) {
+                if (fillFromOcr('birthdate', 'date_of_birth', idData.date_of_birth, formatIsoDateForDisplay)) {
                     setFieldError('birthdate', '');
                     filledCount++;
                 }
@@ -2787,7 +2822,7 @@ $has_logo = is_file($logo_file);
                 Object.keys(fieldMap).forEach((ocrField) => {
                     const result = data.comparison && data.comparison[ocrField];
                     const inputName = fieldMap[ocrField];
-                    if (!result || !fields[inputName]) {
+                    if (!result || !fields[inputName] || !isTrustedOcr(ocrField)) {
                         return;
                     }
 
@@ -2833,18 +2868,16 @@ $has_logo = is_file($logo_file);
 
                 const changedTotal = correctedCount + filledCount;
                 const readSummary = readLabels.length ? ' Read: ' + readLabels.join(', ') + '.' : '';
+                if (uncertainLabels.length) {
+                    setIdOcrStatus('warning', 'Some ID text needs your review: ' + uncertainLabels.join(', ') + '. Retake the ID closer and in bright, even light if a value is wrong.' + readSummary);
+                    return;
+                }
                 setIdOcrStatus('success', changedTotal > 0
                     ? 'ID scanned successfully and filled the registration details.' + readSummary
                     : 'ID scanned successfully. Typed details match the readable ID fields.' + readSummary);
             } catch (error) {
-                if (hasFilledIdDetails()) {
-                    setIdOcrStatus('success', 'ID scanned successfully and filled the registration details.');
-                    return;
-                }
                 const rawMessage = error && error.message ? error.message : '';
-                const message = rawMessage.includes('Unexpected non-whitespace character after JSON')
-                    ? 'ID scanned successfully. Refresh the page only if the fields did not fill.'
-                    : (rawMessage || 'The ID text could not be scanned.');
+                const message = rawMessage || 'The ID text could not be scanned.';
                 setIdOcrStatus('warning', message);
             }
         }
@@ -2928,7 +2961,11 @@ $has_logo = is_file($logo_file);
 
         async function startCamera(facingMode = 'user') {
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                setFieldError('live_verification', 'This browser does not support camera access.');
+                const reason = window.isSecureContext
+                    ? 'This browser does not support camera access.'
+                    : 'Camera access requires HTTPS. Open the secure https:// site and try again.';
+                setCameraStatus(reason, true);
+                setFieldError('live_verification', reason);
                 return false;
             }
 
@@ -2937,26 +2974,57 @@ $has_logo = is_file($logo_file);
             }
 
             try {
-                cameraStream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: { ideal: facingMode }, width: { ideal: 1280 }, height: { ideal: 720 } },
+                const preferred = {
+                    video: { facingMode: { ideal: facingMode }, width: { ideal: 1920 }, height: { ideal: 1080 } },
                     audio: false
-                });
+                };
+                try {
+                    cameraStream = await navigator.mediaDevices.getUserMedia(preferred);
+                } catch (preferredError) {
+                    if (preferredError && ['NotAllowedError', 'SecurityError'].includes(preferredError.name)) {
+                        throw preferredError;
+                    }
+                    // Desktop webcams and older mobile browsers may reject facingMode.
+                    cameraStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                }
                 video.srcObject = cameraStream;
+                await new Promise((resolve) => {
+                    if (video.readyState >= 1 && video.videoWidth > 0) {
+                        resolve();
+                        return;
+                    }
+                    video.addEventListener('loadedmetadata', resolve, { once: true });
+                });
                 await video.play();
+                const track = cameraStream.getVideoTracks()[0];
+                const capabilities = track && typeof track.getCapabilities === 'function' ? track.getCapabilities() : {};
+                if (Array.isArray(capabilities.focusMode) && capabilities.focusMode.includes('continuous')) {
+                    track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+                }
                 cameraStage.classList.add('is-active');
                 setFieldError('live_verification', '');
                 return true;
             } catch (error) {
-                setCameraStatus('Camera is blocked or unavailable. Please allow camera access and try again.', true);
-                setFieldError('live_verification', 'Camera access is required for registration.');
+                const blocked = error && ['NotAllowedError', 'SecurityError'].includes(error.name);
+                const unavailable = error && ['NotFoundError', 'DevicesNotFoundError'].includes(error.name);
+                const message = blocked
+                    ? 'Camera permission is blocked. Allow camera access for this site in your browser settings, then try again.'
+                    : (unavailable
+                        ? 'No usable camera was found on this device.'
+                        : 'The camera could not start. Close other apps using it and try again.');
+                setCameraStatus(message, true);
+                setFieldError('live_verification', message);
                 return false;
             }
         }
 
         // Capture Frame Function - Documents this helper's role in the parish management workflow.
         function captureFrame(mode = 'full') {
-            const width = video.videoWidth || 1280;
-            const height = video.videoHeight || 720;
+            if (!cameraStream || video.readyState < 2 || !video.videoWidth || !video.videoHeight) {
+                throw new Error('The camera is not ready yet. Wait for the live preview, then capture again.');
+            }
+            const width = video.videoWidth;
+            const height = video.videoHeight;
             const source = {
                 x: 0,
                 y: 0,
@@ -2970,10 +3038,20 @@ $has_logo = is_file($logo_file);
                 source.width = Math.round(width * 0.52);
                 source.height = Math.round(height * 0.82);
             } else if (mode === 'id') {
-                source.x = Math.round(width * 0.07);
-                source.y = Math.round(height * 0.17);
-                source.width = Math.round(width * 0.86);
-                source.height = Math.round(height * 0.66);
+                // Crop to the physical ID-1 card ratio (85.60 x 53.98 mm).
+                // This stays correct whether the camera preview is portrait or landscape.
+                const cardRatio = 1.586;
+                const maxWidth = width * 0.92;
+                const maxHeight = height * 0.80;
+                if (maxWidth / maxHeight > cardRatio) {
+                    source.height = Math.round(maxHeight);
+                    source.width = Math.round(source.height * cardRatio);
+                } else {
+                    source.width = Math.round(maxWidth);
+                    source.height = Math.round(source.width / cardRatio);
+                }
+                source.x = Math.round((width - source.width) / 2);
+                source.y = Math.round((height - source.height) / 2);
             }
 
             canvas.width = mode === 'id' ? 1800 : (mode === 'face' ? 720 : width);
@@ -3001,7 +3079,7 @@ $has_logo = is_file($logo_file);
         }
 
         // Switch To ID Capture Function - Documents this helper's role in the parish management workflow.
-        function switchToIdCapture(side = 'front') {
+        async function switchToIdCapture(side = 'front') {
             verificationMode = 'id';
             activeIdSide = side;
             clearInterval(detectionTimer);
@@ -3010,10 +3088,15 @@ $has_logo = is_file($logo_file);
             markStepDone(faceStep);
             idFrontStep.classList.toggle('is-current', side === 'front');
             idBackStep.classList.toggle('is-current', side === 'back');
-            captureIdFrontBtn.disabled = false;
-            captureIdBackBtn.disabled = false;
-            setCameraStatus('Capture or upload the ' + (side === 'front' ? 'front' : 'back') + ' side of the ID. Fill the yellow frame and keep text sharp.');
-            startCamera('environment');
+            captureIdFrontBtn.disabled = true;
+            captureIdBackBtn.disabled = true;
+            setCameraStatus('Switching to the ID camera...');
+            const started = await startCamera('environment');
+            if (started) {
+                captureIdFrontBtn.disabled = false;
+                captureIdBackBtn.disabled = false;
+                setCameraStatus('Capture or upload the ' + (side === 'front' ? 'front' : 'back') + ' side of the ID. Fill the yellow frame and keep text sharp.');
+            }
         }
 
         async function detectFaceLoop() {
@@ -3141,14 +3224,22 @@ $has_logo = is_file($logo_file);
 
         captureIdFrontBtn.addEventListener('click', () => {
             if (verificationMode !== 'id') return;
-            activeIdSide = 'front';
-            updateIdSide('front', captureFrame('id'));
+            try {
+                activeIdSide = 'front';
+                updateIdSide('front', captureFrame('id'));
+            } catch (error) {
+                setCameraStatus(error.message, true);
+            }
         });
 
         captureIdBackBtn.addEventListener('click', () => {
             if (verificationMode !== 'id') return;
-            activeIdSide = 'back';
-            updateIdSide('back', captureFrame('id'));
+            try {
+                activeIdSide = 'back';
+                updateIdSide('back', captureFrame('id'));
+            } catch (error) {
+                setCameraStatus(error.message, true);
+            }
         });
 
         function readImageUpload(file) {
@@ -3191,9 +3282,13 @@ $has_logo = is_file($logo_file);
             });
         });
 
-        form.addEventListener('submit', (event) => {
+        form.addEventListener('submit', async (event) => {
+            if (registrationSubmitInProgress) {
+                return;
+            }
+            event.preventDefault();
+
             if (!validateForm()) {
-                event.preventDefault();
                 showToast('error', 'Check the form', 'Please correct the highlighted fields before creating your account.');
                 return;
             }
@@ -3201,6 +3296,16 @@ $has_logo = is_file($logo_file);
             submitButton.disabled = true;
             submitButton.classList.add('is-loading');
             submitText.textContent = 'Creating account...';
+            try {
+                await refreshRegistrationCsrfToken();
+                registrationSubmitInProgress = true;
+                form.submit();
+            } catch (error) {
+                submitButton.disabled = false;
+                submitButton.classList.remove('is-loading');
+                submitText.textContent = 'Create Account';
+                showToast('error', 'Session token refresh failed', error.message || 'Please refresh the registration page and try again.');
+            }
         });
     </script>
 </body>

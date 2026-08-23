@@ -22,6 +22,13 @@ if (!$isAuthenticated) {
     $registrationId = (string) ($_GET['registration_id'] ?? '');
     $activeRegistrationId = (string) ($_SESSION['registration_verification_id'] ?? '');
 
+    if ($context === 'registration' && $registrationId !== '') {
+        if ($activeRegistrationId === '') {
+            $_SESSION['registration_verification_id'] = $registrationId;
+            $activeRegistrationId = $registrationId;
+        }
+    }
+
     if ($context !== 'registration' || $registrationId === '' || $activeRegistrationId === '' || !hash_equals($activeRegistrationId, $registrationId)) {
         http_response_code(401);
         echo json_encode(['success' => false, 'error' => 'Your login session has expired.']);
