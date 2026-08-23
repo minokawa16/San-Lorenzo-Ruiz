@@ -16,10 +16,17 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
     exit;
 }
 
-if (!isLoggedIn()) {
-    http_response_code(401);
-    echo json_encode(['success' => false, 'error' => 'Your login session has expired.']);
-    exit;
+$isAuthenticated = isLoggedIn();
+if (!$isAuthenticated) {
+    $context = (string) ($_GET['context'] ?? '');
+    $registrationId = (string) ($_GET['registration_id'] ?? '');
+    $activeRegistrationId = (string) ($_SESSION['registration_verification_id'] ?? '');
+
+    if ($context !== 'registration' || $registrationId === '' || $activeRegistrationId === '' || !hash_equals($activeRegistrationId, $registrationId)) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Your login session has expired.']);
+        exit;
+    }
 }
 
 echo json_encode([
@@ -27,4 +34,3 @@ echo json_encode([
     'token' => generateCsrfToken(),
     'name' => csrfTokenName(),
 ]);
-
