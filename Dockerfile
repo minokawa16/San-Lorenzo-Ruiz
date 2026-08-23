@@ -24,6 +24,8 @@ RUN apt-get update \
         libpng-dev \
         libwebp-dev \
         libzip-dev \
+        tesseract-ocr \
+        tesseract-ocr-eng \
     && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
     && docker-php-ext-install -j"$(nproc)" curl gd mbstring mysqli pdo_mysql zip \
     && (a2dismod mpm_event mpm_worker || true)
