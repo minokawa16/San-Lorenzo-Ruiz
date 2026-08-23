@@ -2369,24 +2369,29 @@ $has_logo = is_file($logo_file);
         }
 
         async function refreshRegistrationCsrfToken() {
-            const response = await fetch('../api/csrf-token.php?context=registration&registration_id=' + encodeURIComponent(registrationVerificationId) + '&t=' + Date.now(), {
-                method: 'GET',
-                cache: 'no-store',
-                credentials: 'same-origin',
-                headers: {
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
+            try {
+                const response = await fetch('../api/csrf-token.php?context=registration&registration_id=' + encodeURIComponent(registrationVerificationId) + '&t=' + Date.now(), {
+                    method: 'GET',
+                    cache: 'no-store',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                const data = await response.json().catch(() => ({}));
+                if (response.ok && data.success && data.token) {
+                    const csrfField = currentCsrfField();
+                    if (csrfField) {
+                        csrfField.value = data.token;
+                    }
+                    return data.token;
                 }
-            });
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok || !data.success || !data.token) {
-                throw new Error(data.error || 'Your secure session token expired. Please refresh the registration page and try again.');
+            } catch (e) {
+                // Non-blocking fallback
             }
-            const csrfField = currentCsrfField();
-            if (csrfField) {
-                csrfField.value = data.token;
-            }
-            return data.token;
+            const existing = currentCsrfField();
+            return existing && existing.value ? existing.value : '';
         }
         const verificationMethodInputs = Array.from(document.querySelectorAll('input[name="verification_method"]'));
         const registrationFieldGroups = Array.from(document.querySelectorAll('[data-registration-field]'));

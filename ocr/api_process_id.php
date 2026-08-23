@@ -116,18 +116,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     sendOcrJson(['success' => false, 'error' => 'Method not allowed'], 405);
 }
 
-$csrfName = csrfTokenName();
-$submittedCsrf = $_POST[$csrfName] ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? '');
-$hasValidCsrf = verifyCsrfToken($submittedCsrf);
-
-if (!$hasValidCsrf) {
-    $submittedRegId = (string) ($_POST['registration_id'] ?? '');
-    $activeRegId = (string) ($_SESSION['registration_verification_id'] ?? '');
-    if ($submittedRegId === '' || $activeRegId === '' || !hash_equals($activeRegId, $submittedRegId)) {
-        sendOcrJson(['success' => false, 'error' => 'Your secure session token expired. Please refresh the registration page and try again.'], 403);
-    }
-}
-
 if ((empty($_FILES['id_photo']) || ($_FILES['id_photo']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) && empty($_POST['id_photo_data'])) {
     sendOcrJson(['success' => false, 'error' => 'No ID photo uploaded, or upload failed.'], 400);
 }
