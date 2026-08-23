@@ -3,9 +3,7 @@
  * SMS Forgot Password
  * Sends a TextBee OTP to the registered mobile number before password reset.
  */
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+require_once '../includes/session.php';
 
 include '../database/config.php';
 include '../includes/helpers.php';
@@ -24,108 +22,111 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'request_otp') {
         $identifier = trim($_POST['phone_number'] ?? '');
         $identifier_input = e($identifier);
-        $is_email_reset = isValidEmail($identifier);
-        $reset_contact = $is_email_reset ? strtolower($identifier) : normalizePhilippineMobileForStorage($identifier);
-        $is_mobile_reset = !$is_email_reset && isValidPhilippineMobile($reset_contact);
-
-        if (!$is_email_reset && !$is_mobile_reset) {
-            $error = 'Please enter a valid registered Gmail address or Philippine mobile number.';
-            $step = 'request';
-        } else {
-            $stmt = $conn->prepare($is_email_reset
-                ? "SELECT id, fullname, email, phone_number FROM users WHERE email = ? LIMIT 1"
-                : "SELECT id, fullname, email, phone_number FROM users WHERE phone_number = ? LIMIT 1");
-            $stmt->bind_param('s', $reset_contact);
-            $stmt->execute();
-            $user = $stmt->get_result()->fetch_assoc();
-            $stmt->close();
-
-            if (!$user) {
-                $error = 'No account was found with that email address or mobile number.';
-                $step = 'request';
-            } else {
-                $sent = $is_email_reset
-                    ? sendOtpEmail($conn, intval($user['id']), $reset_contact, 'password_reset')
-                    : sendOtpSms($conn, intval($user['id']), $reset_contact, 'password_reset');
-                if ($sent['ok']) {
-                    $_SESSION['password_reset_user_id'] = intval($user['id']);
-                    $_SESSION['password_reset_phone'] = $reset_contact;
-                    $_SESSION['password_reset_method'] = $is_email_reset ? 'email' : 'mobile';
-                    $_SESSION['password_reset_step'] = 'verify';
-                    $_SESSION['password_reset_verified'] = false;
-                    createAuditLog($conn, intval($user['id']), $is_email_reset ? 'REQUEST_PASSWORD_RESET_EMAIL_OTP' : 'REQUEST_PASSWORD_RESET_SMS_OTP', 'users', intval($user['id']));
-                    $message = $is_email_reset ? 'An OTP has been sent to your registered Gmail address.' : 'An OTP has been sent to your registered mobile number.';
-                    $step = 'verify';
-                } else {
-                    $error = $sent['error'] ?: 'Unable to send OTP. Please try again.';
-                    $step = 'request';
-                }
+        $normalized = normalizeAuthenticationIdentifier($identifier);
+        $user = $normalized['valid'] ? findUserByAuthenticationIdentifier($conn, $identifier) : null;
+        $transactionId = bin2hex(random_bytes(32));
+        if ($user && ($user['status'] ?? '') === 'active') {
+            $sent = createOtpTransaction($conn, (int) $user['id'], 'password_reset', $normalized['type']);
+            if (!empty($sent['ok'])) {
+                $transactionId = $sent['transaction_id'];
+                $_SESSION['password_reset_user_id'] = (int) $user['id'];
+                $_SESSION['password_reset_delivery_type'] = $normalized['type'];
+                recordPasswordRecoveryEvent($conn, (int) $user['id'], 'recovery_requested', $normalized['type']);
+                createAuditLog($conn, (int) $user['id'], 'REQUEST_PASSWORD_RESET_OTP', 'users', (int) $user['id']);
             }
         }
+        $_SESSION['password_reset_transaction'] = $transactionId;
+        $_SESSION['password_reset_step'] = 'verify';
+        unset($_SESSION['password_reset_verified_transaction']);
+        $message = 'If an eligible account matches the information provided, a verification code has been sent.';
+        $step = 'verify';
+    } elseif ($action === 'resend_otp') {
+        $userId = (int) ($_SESSION['password_reset_user_id'] ?? 0);
+        $deliveryType = (string) ($_SESSION['password_reset_delivery_type'] ?? 'sms');
+        $transactionId = (string) ($_SESSION['password_reset_transaction'] ?? '');
+
+        if ($userId <= 0 && preg_match('/^[a-f0-9]{64}$/', $transactionId)) {
+            $prevTx = otpTransactionByPublicId($conn, $transactionId);
+            if ($prevTx && !empty($prevTx['user_id'])) {
+                $userId = (int) $prevTx['user_id'];
+                $deliveryType = $prevTx['delivery_method'] ?? 'sms';
+            }
+        }
+
+        if ($userId > 0) {
+            $sent = createOtpTransaction($conn, $userId, 'password_reset', $deliveryType);
+            if (!empty($sent['ok'])) {
+                $_SESSION['password_reset_transaction'] = $sent['transaction_id'];
+                $_SESSION['password_reset_user_id'] = $userId;
+                $_SESSION['password_reset_delivery_type'] = $deliveryType;
+                recordPasswordRecoveryEvent($conn, $userId, 'recovery_requested', $deliveryType);
+                createAuditLog($conn, $userId, 'RESEND_PASSWORD_RESET_OTP', 'users', $userId);
+                $message = 'A new 6-digit verification code has been sent.';
+            } else {
+                $error = $sent['error'] ?? 'Unable to send a new code. Please try again.';
+            }
+        } else {
+            $message = 'If an eligible account matches the information provided, a new verification code has been sent.';
+        }
+        $step = 'verify';
     } elseif ($action === 'verify_otp') {
-        $user_id = intval($_SESSION['password_reset_user_id'] ?? 0);
-        $contact = $_SESSION['password_reset_phone'] ?? '';
-        $reset_method = $_SESSION['password_reset_method'] ?? 'mobile';
+        $transactionId = (string) ($_SESSION['password_reset_transaction'] ?? '');
         $otp = preg_replace('/\D/', '', $_POST['otp'] ?? '');
 
-        if ($user_id <= 0 || ($reset_method === 'email' ? !isValidEmail($contact) : !isValidPhilippineMobile($contact))) {
+        if (!preg_match('/^[a-f0-9]{64}$/', $transactionId)) {
             $error = 'Your password reset session expired. Please request a new OTP.';
             $step = 'request';
         } elseif (strlen($otp) !== 6) {
             $error = 'Please enter the 6-digit OTP.';
             $step = 'verify';
         } else {
-            $verified = verifyOtpCode($conn, $user_id, $contact, 'password_reset', $otp);
+            $verified = verifyOtpTransaction($conn, $transactionId, $otp, 'password_reset', false);
             if ($verified['ok']) {
-                $_SESSION['password_reset_verified'] = true;
+                $user_id = (int) $verified['transaction']['user_id'];
+                $_SESSION['password_reset_verified_transaction'] = $transactionId;
                 $_SESSION['password_reset_step'] = 'reset';
-                createAuditLog($conn, $user_id, $reset_method === 'email' ? 'VERIFY_PASSWORD_RESET_EMAIL_OTP' : 'VERIFY_PASSWORD_RESET_SMS_OTP', 'users', $user_id);
+                recordPasswordRecoveryEvent($conn, $user_id, 'recovery_otp_verified', $verified['transaction']['delivery_method']);
+                createAuditLog($conn, $user_id, 'VERIFY_PASSWORD_RESET_OTP', 'users', $user_id);
                 $message = 'OTP verified. You may now create a new password.';
                 $step = 'reset';
             } else {
-                $error = $verified['error'];
+                $error = 'The verification code is invalid or expired.';
                 $step = 'verify';
             }
         }
     } elseif ($action === 'reset_password') {
-        $user_id = intval($_SESSION['password_reset_user_id'] ?? 0);
-        $contact = $_SESSION['password_reset_phone'] ?? '';
-        $reset_method = $_SESSION['password_reset_method'] ?? 'mobile';
-        $verified = !empty($_SESSION['password_reset_verified']);
+        $transactionId = (string) ($_SESSION['password_reset_verified_transaction'] ?? '');
         $password = $_POST['password'] ?? '';
         $confirm_password = $_POST['confirm_password'] ?? '';
 
-        if ($user_id <= 0 || !$verified || ($reset_method === 'email' ? !isValidEmail($contact) : !isValidPhilippineMobile($contact))) {
+        $verifiedTransaction = preg_match('/^[a-f0-9]{64}$/', $transactionId)
+            ? otpTransactionByPublicId($conn, $transactionId)
+            : null;
+        $resetAuthorized = $verifiedTransaction
+            && $verifiedTransaction['purpose'] === 'password_reset'
+            && $verifiedTransaction['verified_at']
+            && !$verifiedTransaction['consumed_at']
+            && !$verifiedTransaction['invalidated_at'];
+        if (!$resetAuthorized) {
             $error = 'Your password reset session expired. Please request a new OTP.';
             $step = 'request';
         } elseif ($password !== $confirm_password) {
             $error = 'Passwords do not match.';
             $step = 'reset';
         } elseif (!isValidPassword($password)) {
-            $error = 'Password must be at least 8 characters with uppercase, lowercase, and number.';
+            $error = passwordRequirementsMessage();
             $step = 'reset';
         } else {
-            $hash = hashPassword($password);
-            $stmt = $conn->prepare($reset_method === 'email'
-                ? "UPDATE users SET password = ? WHERE id = ? AND email = ?"
-                : "UPDATE users SET password = ? WHERE id = ? AND phone_number = ?");
-            $stmt->bind_param('sis', $hash, $user_id, $contact);
-            $ok = $stmt->execute();
-            $stmt->close();
-
-            if ($ok) {
-                $cleanup = $conn->prepare("DELETE FROM otp_codes WHERE user_id = ? AND email = ? AND purpose = 'password_reset'");
-                if ($cleanup) {
-                    $cleanup->bind_param('is', $user_id, $contact);
-                    $cleanup->execute();
-                    $cleanup->close();
-                }
-                createAuditLog($conn, $user_id, $reset_method === 'email' ? 'RESET_PASSWORD_EMAIL_OTP' : 'RESET_PASSWORD_SMS_OTP', 'users', $user_id);
-                unset($_SESSION['password_reset_user_id'], $_SESSION['password_reset_phone'], $_SESSION['password_reset_method'], $_SESSION['password_reset_step'], $_SESSION['password_reset_verified']);
+            $changed = resetPasswordUsingVerifiedTransaction($conn, $transactionId, $password);
+            if (!empty($changed['ok'])) {
+                $user_id = (int) $changed['user_id'];
+                recordPasswordRecoveryEvent($conn, $user_id, 'password_reset_completed', $changed['delivery_method']);
+                createAuditLog($conn, $user_id, 'RESET_PASSWORD_OTP', 'users', $user_id);
+                unset($_SESSION['password_reset_transaction'], $_SESSION['password_reset_verified_transaction'], $_SESSION['password_reset_step']);
                 $message = 'Password successfully changed. You may now log in.';
                 $step = 'success';
             } else {
-                $error = 'Unable to update your password. Please try again.';
+                $error = $changed['error'] ?? 'Unable to update your password. Please try again.';
                 $step = 'reset';
             }
         }
@@ -441,7 +442,7 @@ $has_logo = is_file($logo_file);
             <?php endif; ?>
 
             <?php if ($step === 'verify'): ?>
-                <form method="POST" class="auth-form">
+                <form method="POST" class="auth-form" id="verifyOtpForm">
                     <?php echo csrfInput(); ?>
                     <input type="hidden" name="action" value="verify_otp">
                     <div class="auth-field">
@@ -453,6 +454,20 @@ $has_logo = is_file($logo_file);
                     </div>
                     <button class="auth-submit" type="submit"><i class="fas fa-check"></i> Verify OTP</button>
                 </form>
+
+                <div class="auth-switch mt-3 pt-2 border-top d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <form method="POST" class="d-inline m-0 p-0" id="resendOtpForm">
+                        <?php echo csrfInput(); ?>
+                        <input type="hidden" name="action" value="resend_otp">
+                        <span style="font-size: 0.9rem; color: var(--reset-muted);">Didn't receive code?</span>
+                        <button type="submit" class="btn btn-link p-0 ms-1 text-decoration-none fw-semibold" id="resendOtpBtn" style="color: var(--reset-link); font-size: 0.92rem; vertical-align: baseline;">
+                            <i class="fas fa-rotate-right me-1"></i> Resend OTP
+                        </button>
+                    </form>
+                    <a href="forgot-password.php?step=request" class="text-decoration-none" style="font-size: 0.88rem; color: var(--reset-muted);">
+                        <i class="fas fa-pen-to-square me-1"></i> Change number/email
+                    </a>
+                </div>
             <?php elseif ($step === 'reset'): ?>
                 <form method="POST" class="auth-form">
                     <?php echo csrfInput(); ?>
@@ -461,14 +476,14 @@ $has_logo = is_file($logo_file);
                         <label class="form-label" for="password">New Password</label>
                         <div class="auth-input-wrap">
                             <i class="fas fa-lock"></i>
-                            <input class="form-control" id="password" name="password" type="password" autocomplete="new-password" required autofocus>
+                            <input class="form-control" id="password" name="password" type="password" autocomplete="new-password" minlength="<?php echo (int) PASSWORD_MIN_LENGTH; ?>" required autofocus>
                         </div>
                     </div>
                     <div class="auth-field">
                         <label class="form-label" for="confirm_password">Confirm New Password</label>
                         <div class="auth-input-wrap">
                             <i class="fas fa-lock"></i>
-                            <input class="form-control" id="confirm_password" name="confirm_password" type="password" autocomplete="new-password" required>
+                            <input class="form-control" id="confirm_password" name="confirm_password" type="password" autocomplete="new-password" minlength="<?php echo (int) PASSWORD_MIN_LENGTH; ?>" required>
                         </div>
                     </div>
                     <button class="auth-submit" type="submit"><i class="fas fa-key"></i> Change Password</button>
