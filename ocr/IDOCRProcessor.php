@@ -45,6 +45,43 @@ class IDOCRProcessor
         $this->similarityThreshold = $similarityThreshold;
     }
 
+    public function runCloudOcr(string $base64Image): string
+    {
+        if (function_exists('runCloudOcr')) {
+            return runCloudOcr($base64Image);
+        }
+
+        $apiKey = getenv('OCR_SPACE_API_KEY');
+        if (!$apiKey) {
+            throw new Exception('OCR service is not configured. Missing OCR_SPACE_API_KEY environment variable on server.');
+        }
+        $ch = curl_init('https://apipro1.ocr.space/parse/image');
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 20,
+            CURLOPT_POSTFIELDS => http_build_query([
+                'apikey' => $apiKey,
+                'base64Image' => $base64Image,
+                'OCREngine' => 2,
+                'scale' => true,
+                'isTable' => false,
+            ]),
+        ]);
+        $response = curl_exec($ch);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+
+        if ($response === false) {
+            throw new Exception('OCR request failed: ' . $curlError);
+        }
+        $data = json_decode($response, true);
+        if (empty($data['ParsedResults'][0]['ParsedText'])) {
+            throw new Exception('The ID text could not be read. Retake the photo in better lighting.');
+        }
+        return $data['ParsedResults'][0]['ParsedText'];
+    }
+
     /**
      * Full pipeline: preprocess -> OCR -> parse fields.
      * Returns an array like:
@@ -148,7 +185,7 @@ class IDOCRProcessor
             throw new RuntimeException('Failed to read image file for OCR processing.');
         }
         $base64Image = 'data:' . $mime . ';base64,' . base64_encode($binary);
-        $text = runCloudOcr($base64Image);
+        $text = $this->runCloudOcr($base64Image);
         return [trim($text)];
     }
 
