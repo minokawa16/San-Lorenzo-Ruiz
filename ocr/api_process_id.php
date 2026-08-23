@@ -29,6 +29,8 @@ function sendOcrJson(array $payload, int $statusCode = 200): void
     }
     http_response_code($statusCode);
     header('Content-Type: application/json');
+    header('X-OCR-Engine: OCR.space Cloud API');
+    header('X-OCR-Build: 0b0db4e-cloud');
     echo json_encode($payload);
     exit;
 }
