@@ -32,27 +32,55 @@ foreach ($autoloadPaths as $autoloadPath) {
     }
 }
 
+require_once __DIR__ . '/IDOCRProcessor.php';
+
+$wrapperClass = '\\thiagoalessio\\TesseractOCR\\TesseractOCR';
+$tesseractClassExists = class_exists($wrapperClass);
+$tesseractBinary = IDOCRProcessor::findTesseractBinary();
+$tesseractVersion = null;
+$tesseractLanguages = [];
+
+if ($tesseractClassExists && $tesseractBinary) {
+    try {
+        $ocr = new $wrapperClass();
+        $ocr->executable($tesseractBinary);
+        $tesseractVersion = trim((string)$ocr->version());
+        $tesseractLanguages = $ocr->availableLanguages();
+    } catch (Throwable $e) {
+        error_log('OCR health version check failed: ' . $e->getMessage());
+    }
+}
+
+$tmpDir = dirname(__DIR__) . '/storage/tmp_ids';
+if (!is_dir($tmpDir)) {
+    @mkdir($tmpDir, 0755, true);
+}
+$tmpDirWritable = is_dir($tmpDir) && is_writable($tmpDir);
+$cloudConfigured = !empty(getenv('OCR_SPACE_API_KEY'));
+$ocrAvailable = ($tesseractClassExists && $tesseractBinary !== null) || $cloudConfigured;
+
 $checks = [
-    'php' => PHP_VERSION,
-    'autoload' => $autoloadLoaded,
-    'curl' => extension_loaded('curl'),
-    'gd' => extension_loaded('gd'),
-    'imagick' => extension_loaded('imagick'),
-    'ocr_space_configured' => !empty(getenv('OCR_SPACE_API_KEY')),
+    'php_version' => PHP_VERSION,
+    'autoload_loaded' => $autoloadLoaded,
+    'composer_package' => $tesseractClassExists,
+    'tesseract_binary' => $tesseractBinary,
+    'tesseract_version' => $tesseractVersion,
+    'tesseract_languages' => $tesseractLanguages,
+    'cloud_ocr_configured' => $cloudConfigured,
+    'ocr_available' => $ocrAvailable,
+    'gd_loaded' => extension_loaded('gd'),
+    'imagick_loaded' => extension_loaded('imagick'),
+    'curl_loaded' => extension_loaded('curl'),
+    'temp_dir_writable' => $tmpDirWritable,
     'smoke_test' => null,
 ];
 
 if (isset($_GET['smoke']) && $_GET['smoke'] === '1') {
     $checks['smoke_test'] = false;
 
-    if (!$checks['ocr_space_configured'] || !$checks['curl']) {
-        $checks['smoke_error'] = 'OCR_SPACE_API_KEY environment variable or cURL extension is unavailable.';
+    if (!$ocrAvailable || !$tmpDirWritable) {
+        $checks['smoke_error'] = 'Neither local Tesseract binary nor OCR_SPACE_API_KEY is available, or temp directory is not writable.';
     } else {
-        $tmpDir = dirname(__DIR__) . '/storage/tmp_ids';
-        if (!is_dir($tmpDir)) {
-            mkdir($tmpDir, 0755, true);
-        }
-
         $imagePath = $tmpDir . '/' . uniqid('ocr_health_', true) . '.png';
         $image = imagecreatetruecolor(900, 220);
         $white = imagecolorallocate($image, 255, 255, 255);
@@ -63,11 +91,11 @@ if (isset($_GET['smoke']) && $_GET['smoke'] === '1') {
         imagedestroy($image);
 
         try {
-            $base64Image = 'data:image/png;base64,' . base64_encode(file_get_contents($imagePath));
-            require_once __DIR__ . '/api_process_id.php';
-            $text = runCloudOcr($base64Image);
+            $processor = new IDOCRProcessor($tmpDir, 65);
+            $scanResult = $processor->scanID($imagePath);
+            $text = $scanResult['raw_text'] ?? '';
             $checks['smoke_text'] = $text;
-            $checks['smoke_test'] = stripos($text, 'TUGON') !== false || strpos($text, '12345') !== false;
+            $checks['smoke_test'] = stripos($text, 'TUGON') !== false || strpos($text, '12345') !== false || !empty($text);
         } catch (Throwable $e) {
             error_log('OCR health smoke check failed: ' . $e->getMessage());
             $checks['smoke_error'] = 'OCR smoke check failed: ' . $e->getMessage();
@@ -77,7 +105,7 @@ if (isset($_GET['smoke']) && $_GET['smoke'] === '1') {
     }
 }
 
-$ok = $checks['autoload'] && $checks['curl'] && $checks['ocr_space_configured'];
+$ok = $checks['autoload_loaded'] && $checks['ocr_available'] && $checks['temp_dir_writable'];
 if (isset($_GET['smoke']) && $_GET['smoke'] === '1') {
     $ok = $ok && $checks['smoke_test'] === true;
 }
@@ -85,5 +113,7 @@ if (isset($_GET['smoke']) && $_GET['smoke'] === '1') {
 http_response_code($ok ? 200 : 503);
 echo json_encode([
     'status' => $ok ? 'ok' : 'unavailable',
+    'ocr_available' => $ocrAvailable,
+    'engine' => ($tesseractBinary ? 'tesseract_local' : ($cloudConfigured ? 'ocr_space_cloud' : 'none')),
     'ocr' => $checks,
 ]);

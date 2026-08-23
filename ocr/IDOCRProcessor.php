@@ -177,8 +177,73 @@ class IDOCRProcessor
         }
     }
 
+    public static function findTesseractBinary(): ?string
+    {
+        $envPath = getenv('TESSERACT_PATH');
+        if ($envPath && (is_file($envPath) || is_file(rtrim($envPath, '/\\') . DIRECTORY_SEPARATOR . 'tesseract.exe'))) {
+            return is_file($envPath) ? $envPath : rtrim($envPath, '/\\') . DIRECTORY_SEPARATOR . 'tesseract.exe';
+        }
+
+        $candidates = [];
+        if (strncasecmp(PHP_OS, 'WIN', 3) === 0) {
+            $candidates = [
+                'C:\\Program Files\\Tesseract-OCR\\tesseract.exe',
+                'C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe',
+                'C:\\Tesseract-OCR\\tesseract.exe',
+            ];
+        } else {
+            $candidates = [
+                '/usr/bin/tesseract',
+                '/usr/local/bin/tesseract',
+                '/opt/homebrew/bin/tesseract',
+            ];
+        }
+
+        foreach ($candidates as $candidate) {
+            if (is_file($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private function runLocalTesseract(string $imagePath): array
+    {
+        if (!class_exists('\\thiagoalessio\\TesseractOCR\\TesseractOCR')) {
+            return [];
+        }
+
+        $binary = self::findTesseractBinary();
+        $texts = [];
+
+        foreach ([3, 4, 6, 11, 12] as $psm) {
+            try {
+                $ocr = new \thiagoalessio\TesseractOCR\TesseractOCR($imagePath);
+                if ($binary) {
+                    $ocr->executable($binary);
+                }
+                $ocr->lang('eng');
+                $ocr->psm($psm);
+                $text = @$ocr->run();
+                if (trim((string)$text) !== '' && !in_array($text, $texts, true)) {
+                    $texts[] = $text;
+                }
+            } catch (Throwable $e) {
+                continue;
+            }
+        }
+
+        return $texts;
+    }
+
     private function extractTextCandidates(string $imagePath): array
     {
+        $localTexts = $this->runLocalTesseract($imagePath);
+        if (!empty($localTexts)) {
+            return $localTexts;
+        }
+
         $mime = @mime_content_type($imagePath) ?: 'image/png';
         $binary = @file_get_contents($imagePath);
         if ($binary === false || $binary === '') {
