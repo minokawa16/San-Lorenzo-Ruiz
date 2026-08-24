@@ -117,6 +117,9 @@ if ($action === 'check_pw') {
             echo "  Hash: " . substr($u['password'], 0, 20) . "... (no standard dictionary match)\n";
         }
     }
+    echo "\n";
+}
+
 if ($action === 'test_login') {
     $targetPhone = $paramPhone ?: '09635866550';
     $password = $_GET['password'] ?? ($argv[3] ?? 'Reymark@123');
