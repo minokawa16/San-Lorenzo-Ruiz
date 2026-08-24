@@ -37,3 +37,4 @@ backups/*.zip
 !uploads/request_requirements/.htaccess
 !uploads/request_requirements/index.php
 .codex-deploy-clean/
+TUGON-AI-PRODUCTION-BACKUP/

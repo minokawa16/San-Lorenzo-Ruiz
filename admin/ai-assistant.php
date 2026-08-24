@@ -146,12 +146,15 @@ $page_title = 'AI Assistant - Admin';
                 ? '<div class="ai-typing-line">AI Parish Assistant is typing <span class="ai-typing-dots"><span></span><span></span><span></span></span></div>'
                 : '<p><span class="ai-response-text">' + (stream ? '' : escapeHtml(body)) + '</span></p>' + stepsHtml;
             const copyHtml = type === 'assistant' && !loading ? '<button type="button" class="ai-copy-btn">Copy</button>' : '';
-            const sourceHtml = (options.sources || []).map(function(source) { return '<small class="d-block"><strong>Source:</strong> ' + escapeHtml(source.title) + ' · ' + escapeHtml(source.last_updated) + '</small>'; }).join('');
+            const sourceHtml = (options.sources || []).map(function(source) { return '<small class="d-block"><strong>Source:</strong> ' + escapeHtml(source.title) + ' · ' + escapeHtml(source.last_updated) + '</small>'; }).join('');            
+            const promptsHtml = (options.prompts || []).length
+                ? '<div class="ai-chip-group mt-2">' + options.prompts.map(function(p) { return '<button type="button" class="btn btn-sm btn-outline-primary ai-chip-btn me-1 mb-1" data-ai-prompt="' + escapeHtml(p) + '">' + escapeHtml(p) + '</button>'; }).join('') + '</div>'
+                : '';
             const feedbackHtml = type === 'assistant' && options.responseReference ? '<div class="ai-feedback" data-response-reference="' + escapeHtml(options.responseReference) + '"><span>Review:</span> <button type="button" data-ai-rating="correct">Correct</button> <button type="button" data-ai-rating="incorrect">Incorrect</button> <button type="button" data-ai-rating="needs_review">Needs review</button></div>' : '';
             const escalationHtml = options.escalation ? '<p><a class="btn btn-sm btn-outline-secondary" href="' + escapeHtml(options.escalation.url) + '">' + escapeHtml(options.escalation.label) + '</a></p>' : '';
             item.innerHTML =
                 '<strong>' + escapeHtml(title) + '</strong>' +
-                bodyHtml + sourceHtml + escalationHtml + feedbackHtml +
+                bodyHtml + sourceHtml + escalationHtml + promptsHtml + feedbackHtml +
                 '<div class="ai-message-meta"><span>' + currentTime() + '</span>' + copyHtml + '</div>';
             log.appendChild(item);
             log.scrollTop = log.scrollHeight;
@@ -223,6 +226,7 @@ $page_title = 'AI Assistant - Admin';
                         sources: data.sources || [],
                         responseReference: data.response_reference || '',
                         escalation: data.escalation || null,
+                        prompts: data.suggested_prompts || [],
                         stream: true
                     });
                     conversationHistory.push({role: 'assistant', content: answer});
@@ -259,6 +263,12 @@ $page_title = 'AI Assistant - Admin';
         });
 
         log.addEventListener('click', function(event) {
+            const promptBtn = event.target.closest('[data-ai-prompt]');
+            if (promptBtn) {
+                const prompt = promptBtn.getAttribute('data-ai-prompt');
+                if (prompt) askAssistant(prompt, 'chat');
+                return;
+            }
             const ratingButton = event.target.closest('[data-ai-rating]');
             if (ratingButton) {
                 const group = ratingButton.closest('[data-response-reference]');
@@ -283,10 +293,13 @@ $page_title = 'AI Assistant - Admin';
         clearBtn.addEventListener('click', function() {
             log.innerHTML = '';
             conversationHistory.length = 0;
+            const welcomeText = "Hello! 👋 I'm TUGON AI.\nI'm here to help you with parish information, sacramental services, requests, requirements, schedules, and other TUGON-related concerns.\n\nHow may I assist you today?";
             addMessage('assistant', {
-                title: 'AI Parish Assistant',
-                body: 'Conversation cleared. Ask for pending-request summaries, transaction guidance, parish inquiry responses, analytics, or smart search across records available to admins.'
+                title: 'TUGON AI',
+                body: welcomeText,
+                prompts: ['Baptism Requirements', 'Certificate Request', 'Sunday Mass Schedule', 'Parish Office Hours', 'Reservations', 'Show analytics report summary']
             });
+            conversationHistory.push({role: 'assistant', content: welcomeText});
             input.focus();
         });
 
@@ -306,11 +319,13 @@ $page_title = 'AI Assistant - Admin';
             });
         }
 
+        const initialWelcome = "Hello! 👋 I'm TUGON AI.\nI'm here to help you with parish administration, sacramental requirements, certificate requests, schedules, reservations, and analytics.\n\nHow may I assist you today?";
         addMessage('assistant', {
-            title: 'AI Parish Assistant',
-            body: 'Ask for pending-request summaries, transaction guidance, parish inquiry responses, or smart search across records available to admins.'
+            title: 'TUGON AI',
+            body: initialWelcome,
+            prompts: ['Baptism Requirements', 'Certificate Request', 'Sunday Mass Schedule', 'Parish Office Hours', 'Reservations', 'Show analytics report summary']
         });
-        conversationHistory.push({role: 'assistant', content: 'Ask for pending-request summaries, transaction guidance, parish inquiry responses, or smart search across records available to admins.'});
+        conversationHistory.push({role: 'assistant', content: initialWelcome});
         input.focus();
     });
     </script>
