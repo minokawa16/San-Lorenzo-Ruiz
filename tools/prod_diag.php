@@ -75,6 +75,19 @@ if ($action === 'test_sms') {
     echo "Result: " . json_encode($smsResult) . "\n\n";
 }
 
+if ($action === 'test_forgot_pw') {
+    $targetPhone = $paramPhone ?: '09635866550';
+    echo "Simulating Forgot Password OTP creation for {$targetPhone} on Railway...\n";
+    $user = findUserByAuthenticationIdentifier($conn, $targetPhone);
+    if (!$user) {
+        echo "findUserByAuthenticationIdentifier returned NULL for {$targetPhone}\n";
+    } else {
+        echo "Found User #{$user['id']} ({$user['fullname']}), status: {$user['status']}\n";
+        $sent = createOtpTransaction($conn, (int) $user['id'], 'password_reset', 'mobile');
+        echo "createOtpTransaction result: " . json_encode($sent) . "\n\n";
+    }
+}
+
 echo "=== PRODUCTION USERS ===\n";
 $res = $conn->query("SELECT id, fullname, phone_number, email, role, status FROM users ORDER BY id");
 while ($r = $res->fetch_assoc()) {
