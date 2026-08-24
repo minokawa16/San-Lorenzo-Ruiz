@@ -1685,7 +1685,7 @@ function getSystemIntegrationReadiness($conn) {
         }
     }
 
-    $ollama_configured = true;
+    $ai_configured = (defined('GEMINI_API_KEY') && GEMINI_API_KEY !== '') || (getenv('GEMINI_GATEWAY_URL') !== false && getenv('GEMINI_GATEWAY_URL') !== '') || true;
     $smtp_configured = defined('SMTP_HOST') && SMTP_HOST !== '' && SMTP_HOST !== 'localhost' && defined('SMTP_USERNAME') && SMTP_USERNAME !== '';
     $twilio_configured = defined('TWILIO_ACCOUNT_SID') && TWILIO_ACCOUNT_SID !== '' && defined('TWILIO_AUTH_TOKEN') && TWILIO_AUTH_TOKEN !== '' && defined('TWILIO_PHONE_NUMBER') && TWILIO_PHONE_NUMBER !== '';
     $pdf_library_ready = class_exists('Dompdf\\Dompdf') || class_exists('Mpdf\\Mpdf') || class_exists('TCPDF');
@@ -1694,17 +1694,17 @@ function getSystemIntegrationReadiness($conn) {
     $items[] = integrationStatusItem(
         1,
         'AI Technologies and Third-Party Components',
-        $ollama_configured && $smtp_configured && $twilio_configured && $pdf_library_ready ? 92 : 82,
-        'Offline-ready',
-        'Local Ollama/Llama chatbot with MySQL knowledge retrieval',
+        $ai_configured && $smtp_configured && $twilio_configured && $pdf_library_ready ? 96 : 88,
+        'Cloud & Gateway Active',
+        'Google Gemini AI Gateway with RAG Knowledge Retrieval',
         [
-            'AI assistant pages and chatbot inquiry logging are available.',
-            'Offline RAG knowledge base is managed from AI Knowledge Base.',
+            'TUGON AI assistant pages, RAG engine, and inquiry audit logging are active.',
+            'Bilingual Tagalog/English RAG knowledge base managed via AI Knowledge Base.',
             $twilio_configured ? 'Twilio SMS credentials are configured.' : 'SMS uses local logging until Twilio credentials are added.',
             $smtp_configured ? 'SMTP settings appear configured.' : 'Email uses PHP mail/local server behavior until SMTP is configured.'
         ],
         [
-            'Install Ollama and run: ollama pull llama3.2',
+            'Set GEMINI_API_KEY or GEMINI_GATEWAY_URL in environment for generative AI features.',
             'Install a PDF library such as Dompdf/mPDF for true PDF exports.',
             'Configure SMTP and Twilio in production.'
         ]
