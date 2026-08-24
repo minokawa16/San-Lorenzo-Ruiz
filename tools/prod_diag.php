@@ -43,7 +43,7 @@ if ($action === 'add_user') {
         echo "Users columns: " . implode(', ', $cols) . "\n";
         
         $pw = password_hash('Parishioner@123', PASSWORD_DEFAULT);
-        $insertSql = "INSERT INTO users (fullname, email, phone_number, password, role, status) VALUES (?, ?, ?, ?, 'parishioner', 'active')";
+        $insertSql = "INSERT INTO users (fullname, email, phone_number, password, role, status) VALUES (?, ?, ?, ?, 'user', 'active')";
         $stmt = $conn->prepare($insertSql);
         if (!$stmt) {
             echo "Prepare failed: " . $conn->error . "\n";
@@ -77,9 +77,9 @@ if ($action === 'test_sms') {
 }
 
 echo "=== PRODUCTION USERS ===\n";
-$res = $conn->query("SELECT id, fullname, phone_number, email, status FROM users ORDER BY id");
+$res = $conn->query("SELECT id, fullname, phone_number, email, role, status FROM users ORDER BY id");
 while ($r = $res->fetch_assoc()) {
-    echo "User #" . $r['id'] . ": " . $r['fullname'] . " | Phone: [" . $r['phone_number'] . "] | Email: [" . $r['email'] . "] | Status: " . $r['status'] . "\n";
+    echo "User #" . $r['id'] . ": " . $r['fullname'] . " | Phone: [" . $r['phone_number'] . "] | Email: [" . $r['email'] . "] | Role: [" . $r['role'] . "] | Status: " . $r['status'] . "\n";
 }
 
 echo "\n=== PRODUCTION USER_AUTH_IDENTIFIERS ===\n";
