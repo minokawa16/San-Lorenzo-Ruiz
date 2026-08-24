@@ -89,9 +89,10 @@ function createOtpTransaction(mysqli $conn, int $userId, string $purpose, string
         return ['ok' => false, 'error' => 'Unable to create a secure verification transaction.'];
     }
     $statement = $conn->prepare(
-        'SELECT u.id, u.fullname, u.status, i.normalized_value AS destination, i.verified_at AS destination_verified_at
+        'SELECT u.id, u.fullname, u.status, u.email, u.phone_number,
+                i.normalized_value AS destination, i.verified_at AS destination_verified_at
          FROM users u
-         JOIN user_auth_identifiers i ON i.user_id = u.id AND i.identifier_type = ?
+         LEFT JOIN user_auth_identifiers i ON i.user_id = u.id AND i.identifier_type = ?
          WHERE u.id = ? LIMIT 1'
     );
     if (!$statement) {
@@ -105,12 +106,17 @@ function createOtpTransaction(mysqli $conn, int $userId, string $purpose, string
         return ['ok' => false, 'error' => 'Unable to create a secure verification transaction.'];
     }
     $destination = (string) ($user['destination'] ?? '');
+    if ($destination === '') {
+        $destination = $method === 'mobile'
+            ? normalizePhilippineMobileForStorage((string) ($user['phone_number'] ?? ''))
+            : strtolower(trim((string) ($user['email'] ?? '')));
+        if ($destination !== '' && function_exists('synchronizeAuthenticationIdentifier')) {
+            synchronizeAuthenticationIdentifier($conn, $userId, $method, $destination);
+        }
+    }
     if (($method === 'mobile' && !isValidPhilippineMobile($destination))
         || ($method === 'email' && !isValidEmail($destination))) {
         return ['ok' => false, 'error' => 'No valid delivery method is available.'];
-    }
-    if (!in_array($purpose, ['registration', 'resubmission', 'password_reset'], true) && empty($user['destination_verified_at'])) {
-        return ['ok' => false, 'error' => 'No verified delivery method is available.'];
     }
     $ip = authenticationClientIp();
     if (!otpRateLimitAllows($conn, $userId, $ip)) {

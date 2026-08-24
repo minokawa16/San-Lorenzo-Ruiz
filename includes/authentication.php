@@ -65,24 +65,36 @@ function findUserByAuthenticationIdentifier(mysqli $conn, string $identifier): ?
             $user = $stmt->get_result()->fetch_assoc() ?: null;
             $stmt->close();
             if ($user) {
-                if (function_exists('ensureUserAuthIdentifier')) {
-                    ensureUserAuthIdentifier($conn, (int)$user['id'], 'email', $normalized['value'], true);
+                if (function_exists('synchronizeAuthenticationIdentifier')) {
+                    synchronizeAuthenticationIdentifier($conn, (int)$user['id'], 'email', $normalized['value'], $user['email_verified_at'] ?? null);
                 }
                 return $user;
             }
         }
     } elseif ($normalized['type'] === 'mobile') {
-        $stmt = $conn->prepare('SELECT * FROM users WHERE phone_number = ? OR phone = ? LIMIT 1');
-        if ($stmt) {
-            $stmt->bind_param('ss', $normalized['value'], $normalized['value']);
-            $stmt->execute();
-            $user = $stmt->get_result()->fetch_assoc() ?: null;
-            $stmt->close();
-            if ($user) {
-                if (function_exists('ensureUserAuthIdentifier')) {
-                    ensureUserAuthIdentifier($conn, (int)$user['id'], 'mobile', $normalized['value'], true);
+        $storagePhone = normalizePhilippineMobileForStorage($normalized['value']);
+        $smsPhone = normalizePhilippineMobileForSms($normalized['value']);
+        $rawPhone = (string) $normalized['value'];
+        $countStmt = $conn->prepare('SELECT COUNT(*) as cnt FROM users WHERE phone_number = ? OR phone_number = ? OR phone_number = ?');
+        if ($countStmt) {
+            $countStmt->bind_param('sss', $rawPhone, $storagePhone, $smsPhone);
+            $countStmt->execute();
+            $cnt = (int) (($countStmt->get_result()->fetch_assoc())['cnt'] ?? 0);
+            $countStmt->close();
+            if ($cnt === 1) {
+                $stmt = $conn->prepare('SELECT * FROM users WHERE phone_number = ? OR phone_number = ? OR phone_number = ? LIMIT 1');
+                if ($stmt) {
+                    $stmt->bind_param('sss', $rawPhone, $storagePhone, $smsPhone);
+                    $stmt->execute();
+                    $user = $stmt->get_result()->fetch_assoc() ?: null;
+                    $stmt->close();
+                    if ($user) {
+                        if (function_exists('synchronizeAuthenticationIdentifier')) {
+                            synchronizeAuthenticationIdentifier($conn, (int)$user['id'], 'mobile', $storagePhone, $user['phone_verified_at'] ?? null);
+                        }
+                        return $user;
+                    }
                 }
-                return $user;
             }
         }
     }

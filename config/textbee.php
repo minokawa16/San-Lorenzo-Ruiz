@@ -1,5 +1,14 @@
 <?php
 
+if (function_exists('tugonLoadEnvFile')) {
+    tugonLoadEnvFile();
+} elseif (file_exists(__DIR__ . '/../includes/helpers.php')) {
+    require_once __DIR__ . '/../includes/helpers.php';
+    if (function_exists('tugonLoadEnvFile')) {
+        tugonLoadEnvFile();
+    }
+}
+
 if (!defined('TEXTBEE_API_KEY')) {
     define('TEXTBEE_API_KEY', getenv('TEXTBEE_API_KEY') ?: '');
 }
