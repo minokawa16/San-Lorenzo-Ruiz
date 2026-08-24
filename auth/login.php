@@ -77,6 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 redirectAfterLogin();
             }
         }
+    }
 }
 $action_notifications = function_exists('consumeActionNotifications') ? consumeActionNotifications() : [];
 ?>
