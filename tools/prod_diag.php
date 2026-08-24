@@ -193,7 +193,14 @@ if ($action === 'sync_knowledge') {
            OR (r.role_key = 'finance_staff' AND p.permission_key IN ('ai.staff.use','ai.search.reports'))
            OR (r.role_key = 'parish_staff' AND p.permission_key IN ('ai.staff.use','ai.search.records'))");
 
-    echo "RBAC permissions verified and updated.\n\n";
+    // Ensure all users have roles mapped
+    $conn->query("INSERT INTO user_roles (user_id, role_id)
+        SELECT u.id, r.role_id
+        FROM users u
+        JOIN roles r ON r.role_key = CASE WHEN u.role = 'admin' THEN 'administrator' ELSE 'parishioner' END
+        ON DUPLICATE KEY UPDATE role_id = VALUES(role_id)");
+
+    echo "RBAC permissions and user roles verified and updated.\n\n";
 }
 
 if ($action === 'check_ai') {
