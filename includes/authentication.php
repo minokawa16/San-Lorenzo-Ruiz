@@ -141,7 +141,6 @@ function loginThrottleState(mysqli $conn, string $identifier): array {
     $normalized = normalizeAuthenticationIdentifier($identifier);
     $hashValue = $normalized['valid'] ? $normalized['type'] . ':' . $normalized['value'] : 'invalid:' . strtolower(trim($identifier));
     $identifierHash = hash('sha256', $hashValue);
-    $ip = authenticationClientIp();
     $window = max(60, (int) securitySetting($conn, 'auth.failure_window_seconds', 900));
     $maximum = max(3, (int) securitySetting($conn, 'auth.max_failed_attempts', 5));
     $lockout = max(60, (int) securitySetting($conn, 'auth.lockout_seconds', 900));
@@ -150,16 +149,16 @@ function loginThrottleState(mysqli $conn, string $identifier): array {
     $statement = $conn->prepare(
         'SELECT COUNT(*) AS failures, MAX(attempted_at) AS last_failure
          FROM login_attempts
-         WHERE identifier_hash = ? AND ip_address = ? AND was_successful = 0 AND attempted_at >= ?
+         WHERE identifier_hash = ? AND was_successful = 0 AND attempted_at >= ?
            AND attempted_at > COALESCE((
                SELECT MAX(success.attempted_at) FROM login_attempts success
-               WHERE success.identifier_hash = ? AND success.ip_address = ? AND success.was_successful = 1
+               WHERE success.identifier_hash = ? AND success.was_successful = 1
            ), "1970-01-01 00:00:00")'
     );
     $failures = 0;
     $lastFailure = null;
     if ($statement) {
-        $statement->bind_param('sssss', $identifierHash, $ip, $windowStart, $identifierHash, $ip);
+        $statement->bind_param('sss', $identifierHash, $windowStart, $identifierHash);
         $statement->execute();
         $row = $statement->get_result()->fetch_assoc();
         $failures = (int) ($row['failures'] ?? 0);
@@ -167,18 +166,7 @@ function loginThrottleState(mysqli $conn, string $identifier): array {
         $statement->close();
     }
 
-    $ipStatement = $conn->prepare(
-        'SELECT COUNT(*) AS failures FROM login_attempts WHERE ip_address = ? AND was_successful = 0 AND attempted_at >= ?'
-    );
-    $ipFailures = 0;
-    if ($ipStatement) {
-        $ipStatement->bind_param('ss', $ip, $windowStart);
-        $ipStatement->execute();
-        $ipFailures = (int) (($ipStatement->get_result()->fetch_assoc())['failures'] ?? 0);
-        $ipStatement->close();
-    }
-
-    $locked = $failures >= $maximum || $ipFailures >= ($maximum * 5);
+    $locked = $failures >= $maximum;
     $retryAfter = 0;
     if ($locked && $lastFailure) {
         $retryAfter = max(1, strtotime($lastFailure) + $lockout - time());

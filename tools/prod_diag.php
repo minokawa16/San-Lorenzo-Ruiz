@@ -25,6 +25,37 @@ if ($action === 'activate_all') {
     echo "All users updated to 'active' status.\n\n";
 }
 
+if ($action === 'unlock_all') {
+    echo "=== UNLOCKING ALL LOGINS AND RESETTING FAILED ATTEMPTS ===\n";
+    $conn->query("DELETE FROM login_attempts WHERE was_successful = 0");
+    echo "Deleted failed login attempts: " . $conn->affected_rows . "\n";
+    
+    // Ensure 09635866550 has Reymark@123 password and active status
+    $targetPhone = '09635866550';
+    $hash = password_hash('Reymark@123', PASSWORD_DEFAULT);
+    $conn->query("UPDATE users SET password = '{$hash}', status = 'active' WHERE phone_number = '{$targetPhone}' OR email = '{$targetPhone}'");
+    echo "User 09635866550 password set to Reymark@123.\n";
+
+    // Ensure 09631237247 has Parishioner@123 password and active status
+    $adminPhone = '09631237247';
+    $adminHash = password_hash('Parishioner@123', PASSWORD_DEFAULT);
+    $conn->query("UPDATE users SET password = '{$adminHash}', status = 'active' WHERE phone_number = '{$adminPhone}' OR email = '{$adminPhone}' OR email = 'princeondoy0@gmail.com'");
+    echo "Admin 09631237247 password set to Parishioner@123.\n";
+
+    // Synchronize identifiers
+    $res = $conn->query("SELECT id, phone_number, email FROM users");
+    while ($row = $res->fetch_assoc()) {
+        if (!empty($row['phone_number'])) {
+            synchronizeAuthenticationIdentifier($conn, (int)$row['id'], 'mobile', $row['phone_number']);
+        }
+        if (!empty($row['email'])) {
+            synchronizeAuthenticationIdentifier($conn, (int)$row['id'], 'email', $row['email']);
+        }
+    }
+
+    echo "Status: UNLOCKED\n\n";
+}
+
 if ($action === 'add_user') {
     $phone = $paramPhone ?: '09631237247';
     $name = $_GET['name'] ?? ($argv[3] ?? 'Prince Ondoy');
