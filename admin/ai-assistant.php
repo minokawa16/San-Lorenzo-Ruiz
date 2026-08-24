@@ -146,7 +146,6 @@ $page_title = 'AI Assistant - Admin';
                 ? '<div class="ai-typing-line">AI Parish Assistant is typing <span class="ai-typing-dots"><span></span><span></span><span></span></span></div>'
                 : '<p><span class="ai-response-text">' + (stream ? '' : escapeHtml(body)) + '</span></p>' + stepsHtml;
             const copyHtml = type === 'assistant' && !loading ? '<button type="button" class="ai-copy-btn">Copy</button>' : '';
-            const sourceHtml = (options.sources || []).map(function(source) { return '<small class="d-block"><strong>Source:</strong> ' + escapeHtml(source.title) + ' · ' + escapeHtml(source.last_updated) + '</small>'; }).join('');            
             const promptsHtml = (options.prompts || []).length
                 ? '<div class="ai-chip-group mt-2">' + options.prompts.map(function(p) { return '<button type="button" class="btn btn-sm btn-outline-primary ai-chip-btn me-1 mb-1" data-ai-prompt="' + escapeHtml(p) + '">' + escapeHtml(p) + '</button>'; }).join('') + '</div>'
                 : '';
@@ -154,7 +153,7 @@ $page_title = 'AI Assistant - Admin';
             const escalationHtml = options.escalation ? '<p><a class="btn btn-sm btn-outline-secondary" href="' + escapeHtml(options.escalation.url) + '">' + escapeHtml(options.escalation.label) + '</a></p>' : '';
             item.innerHTML =
                 '<strong>' + escapeHtml(title) + '</strong>' +
-                bodyHtml + sourceHtml + escalationHtml + promptsHtml + feedbackHtml +
+                bodyHtml + escalationHtml + promptsHtml + feedbackHtml +
                 '<div class="ai-message-meta"><span>' + currentTime() + '</span>' + copyHtml + '</div>';
             log.appendChild(item);
             log.scrollTop = log.scrollHeight;

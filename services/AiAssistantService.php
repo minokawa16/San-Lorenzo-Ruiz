@@ -122,8 +122,6 @@ final class AiAssistantService
             $answer .= "\n\n" . $primary['steps'];
         }
 
-        $answer .= "\n\nSource: " . $primary['title'] . "\nLast updated: " . date('F j, Y', strtotime($primary['updated_at']));
-
         return $this->persist($userId, $audience, $mode, $language, $message, $answer, $sources, $searchResults, null, $correlation, 'approved-knowledge');
     }
 
