@@ -272,12 +272,15 @@ function establishAuthenticatedSession(mysqli $conn, array $user, bool $mfaVerif
 function beginPasswordAuthentication(mysqli $conn, string $identifier, string $password): array {
     $genericError = 'The credentials provided are invalid.';
     $throttle = loginThrottleState($conn, $identifier);
-    if ($throttle['locked']) {
-        return ['ok' => false, 'error' => 'Unable to sign in right now. Please wait and try again.', 'retry_after' => $throttle['retry_after']];
-    }
 
     $user = findUserByAuthenticationIdentifier($conn, $identifier);
     $passwordValid = $user && password_verify($password, (string) $user['password']);
+
+    // If locked and password is NOT valid, block attempt
+    if ($throttle['locked'] && !$passwordValid) {
+        return ['ok' => false, 'error' => 'Unable to sign in right now. Please wait and try again.', 'retry_after' => $throttle['retry_after']];
+    }
+
     if (!$passwordValid) {
         recordLoginAttempt($conn, $user ? (int) $user['id'] : null, $identifier, false, 'invalid_credentials');
         applyFailedLoginDelay($conn, $throttle['failures'] + 1);
@@ -296,6 +299,10 @@ function beginPasswordAuthentication(mysqli $conn, string $identifier, string $p
     }
 
     recordLoginAttempt($conn, (int) $user['id'], $identifier, true, null);
+    if (!empty($user['id'])) {
+        $conn->query("DELETE FROM login_attempts WHERE user_id = " . (int)$user['id'] . " AND was_successful = 0");
+    }
+
     session_regenerate_id(true);
     $_SESSION['password_authenticated'] = true;
     $_SESSION['password_authenticated_at'] = time();
