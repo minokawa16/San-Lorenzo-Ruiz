@@ -77,274 +77,215 @@ $page_title = 'Sacramental Records - Parish Management';
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../assets/css/holy-theme.css">
+    <link rel="stylesheet" href="../assets/css/premium-parish.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/premium-parish.css') ? filemtime(__DIR__ . '/../assets/css/premium-parish.css') : time(); ?>">
+    <link rel="stylesheet" href="../assets/css/parish-design-system.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/parish-design-system.css') ? filemtime(__DIR__ . '/../assets/css/parish-design-system.css') : time(); ?>">
+    <link rel="stylesheet" href="../assets/css/admin-sidebar.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/admin-sidebar.css') ? filemtime(__DIR__ . '/../assets/css/admin-sidebar.css') : time(); ?>">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/theme.css') ? filemtime(__DIR__ . '/../assets/css/theme.css') : time(); ?>">
     <style>
-        :root {
-            --records-navy: #111827;
-            --records-gold: #d4af37;
-            --records-muted: #64748b;
-            --records-surface: rgba(255, 255, 255, 0.92);
-        }
-
-        body {
-            min-height: 100vh;
-            background:
-                radial-gradient(circle at 18% 12%, rgba(212, 175, 55, 0.16), transparent 28%),
-                linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%);
-            font-family: 'Inter', sans-serif;
-        }
-
-        .admin-content {
-            margin-left: 280px;
-            padding: 24px;
-            transition: margin-left 0.3s;
-        }
-
-        body.admin-sidebar-collapsed .admin-content {
-            margin-left: 108px;
-        }
-
-        .records-hero {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) auto;
+        .sacramental-hub-topbar {
+            display: flex;
             align-items: center;
-            gap: 20px;
-            padding: 24px;
-            margin-bottom: 20px;
-            border-radius: 18px;
-            color: #ffffff;
-            background:
-                radial-gradient(circle at 8% 10%, rgba(212, 175, 55, 0.32), transparent 26%),
-                linear-gradient(135deg, rgba(17, 24, 39, 0.96), rgba(26, 31, 58, 0.92));
-            box-shadow: 0 20px 46px rgba(17, 24, 39, 0.14);
-        }
-
-        .records-hero h1 {
-            margin: 0;
-            font-size: clamp(1.8rem, 3vw, 2.4rem);
-            font-weight: 850;
-            color: #ffffff;
-        }
-
-        .records-hero p {
-            max-width: 820px;
-            margin: 10px 0 0;
-            color: rgba(255, 255, 255, 0.78);
-            line-height: 1.65;
-        }
-
-        .records-total {
-            min-width: 160px;
-            padding: 16px;
-            border-radius: 14px;
-            text-align: center;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.16);
-        }
-
-        .records-total strong {
-            display: block;
-            font-size: 2rem;
-            line-height: 1;
-            color: #f4dc82;
-        }
-
-        .records-note {
-            display: flex;
-            gap: 12px;
-            padding: 15px 16px;
-            margin-bottom: 20px;
-            border-radius: 14px;
-            color: #334155;
-            background: rgba(255, 255, 255, 0.82);
-            border: 1px solid rgba(212, 175, 55, 0.22);
-        }
-
-        .records-note i {
-            color: var(--records-gold);
-            margin-top: 3px;
-        }
-
-        .registry-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 18px;
-        }
-
-        .registry-card {
-            display: grid;
-            gap: 16px;
-            min-height: 230px;
-            padding: 22px;
-            border-radius: 16px;
-            color: var(--records-navy);
-            background: var(--records-surface);
-            border: 1px solid rgba(15, 23, 42, 0.08);
-            box-shadow: 0 14px 34px rgba(17, 24, 39, 0.08);
-            text-decoration: none;
-            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-        }
-
-        .registry-card:hover,
-        .registry-card:focus-visible {
-            transform: translateY(-4px);
-            border-color: rgba(212, 175, 55, 0.42);
-            box-shadow: 0 22px 46px rgba(17, 24, 39, 0.13);
-            outline: none;
-        }
-
-        .registry-card-header {
-            display: flex;
-            align-items: flex-start;
             justify-content: space-between;
-            gap: 12px;
+            flex-wrap: wrap;
+            gap: 16px;
+            padding: 16px 20px;
+            background: #ffffff;
+            border: 1px solid rgba(28, 27, 24, 0.08);
+            border-radius: 12px;
+            margin-bottom: 18px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
         }
-
-        .registry-icon {
-            width: 56px;
-            height: 56px;
-            border-radius: 14px;
+        .sacramental-hub-heading h1 {
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: #1c1b18;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .sacramental-hub-heading p {
+            font-size: 0.84rem;
+            color: #6b7280;
+            margin: 3px 0 0 0;
+        }
+        .sacramental-stat-chip {
+            background: rgba(200, 155, 60, 0.08);
+            border: 1px solid rgba(200, 155, 60, 0.25);
+            padding: 6px 16px;
+            border-radius: 8px;
+            text-align: right;
+        }
+        .sacramental-stat-chip strong {
+            display: block;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #8c6427;
+            line-height: 1.1;
+        }
+        .sacramental-stat-chip span {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        .sacramental-banner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding: 12px 18px;
+            background: #ffffff;
+            border: 1px solid rgba(28, 27, 24, 0.08);
+            border-left: 4px solid #c89b3c;
+            border-radius: 10px;
+            margin-bottom: 18px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        }
+        .sacramental-banner-text {
+            font-size: 0.84rem;
+            color: #374151;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .sacramental-banner-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .registry-hub-card {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 100%;
+            min-height: 180px;
+            padding: 18px 20px;
+            border-radius: 12px;
+            background: #ffffff;
+            border: 1px solid rgba(28, 27, 24, 0.1);
+            text-decoration: none;
+            color: #1c1b18;
+            transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+        }
+        .registry-hub-card:hover {
+            transform: translateY(-2px);
+            border-color: #c89b3c;
+            box-shadow: 0 6px 16px rgba(200, 155, 60, 0.12);
+            color: #1c1b18;
+        }
+        .registry-hub-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            background: rgba(200, 155, 60, 0.12);
+            color: #8c6427;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            color: var(--records-navy);
-            background: linear-gradient(135deg, #fff8eb, #f4dc82, var(--records-gold));
-            font-size: 1.45rem;
-            box-shadow: 0 12px 24px rgba(212, 175, 55, 0.2);
-        }
-
-        .registry-count {
-            padding: 7px 11px;
-            border-radius: 999px;
-            color: #7c5f12;
-            background: rgba(212, 175, 55, 0.14);
-            font-size: 0.82rem;
-            font-weight: 800;
-        }
-
-        .registry-card h2 {
-            margin: 0;
-            color: var(--records-navy);
             font-size: 1.25rem;
-            font-weight: 850;
         }
-
-        .registry-card p {
+        .registry-hub-count {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #8c6427;
+            background: rgba(200, 155, 60, 0.12);
+            padding: 4px 10px;
+            border-radius: 999px;
+        }
+        .registry-hub-card h2 {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #1c1b18;
+            margin: 12px 0 6px 0;
+        }
+        .registry-hub-card p {
+            font-size: 0.82rem;
+            color: #6b7280;
+            line-height: 1.5;
             margin: 0;
-            color: var(--records-muted);
-            line-height: 1.58;
         }
-
-        .registry-action {
+        .registry-hub-action {
+            margin-top: 14px;
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            width: fit-content;
-            margin-top: auto;
-            padding: 10px 14px;
-            border-radius: 999px;
-            color: var(--records-navy);
-            background: linear-gradient(135deg, #fff8eb, #f4dc82);
-            font-weight: 850;
-        }
-
-        .certificate-link {
-            margin-top: 22px;
-            padding: 18px;
-            border-radius: 16px;
-            background: rgba(17, 24, 39, 0.92);
-            color: rgba(255, 255, 255, 0.78);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-        }
-
-        .certificate-link strong {
-            display: block;
-            color: #ffffff;
-            margin-bottom: 4px;
-        }
-
-        .certificate-link .btn {
-            white-space: nowrap;
-        }
-
-        @media (max-width: 900px) {
-            .admin-content {
-                margin-left: 0;
-                padding: 18px;
-            }
-
-            .records-hero,
-            .certificate-link {
-                grid-template-columns: 1fr;
-                flex-direction: column;
-                align-items: flex-start;
-            }
-
-            .registry-grid {
-                grid-template-columns: 1fr;
-            }
+            gap: 6px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: #8c6427;
         }
     </style>
-    <link rel="stylesheet" href="../assets/css/theme.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/theme.css') ? filemtime(__DIR__ . '/../assets/css/theme.css') : time(); ?>">
 </head>
-<body>
-    <?php include '../includes/admin-sidebar.php'; ?>
+<body class="premium-admin">
+    <div class="premium-admin-shell">
+        <!-- Include Admin Sidebar -->
+        <?php include '../includes/admin-sidebar.php'; ?>
 
-    <main class="admin-content">
-        <section class="records-hero">
-            <div>
-                <h1><i class="fas fa-book-bible"></i> Sacramental Records</h1>
-                <p>
-                    This area is the manual parish registry for parishioners who received Baptism, First Communion,
-                    Confirmation, Marriage, and Funeral. Admins encode the record-book information here directly.
-                </p>
-            </div>
-        <div class="records-total">
-                <strong><?php echo $total_records; ?></strong>
-                <span>Active Records</span>
-            </div>
-        </section>
+        <!-- Main Content -->
+        <div class="premium-admin-content pds-page-container">
+            
+            <!-- Hub Topbar -->
+            <header class="sacramental-hub-topbar">
+                <div class="sacramental-hub-heading">
+                    <h1><i class="fas fa-book-bible" style="color: #c89b3c;"></i> Sacramental Records</h1>
+                    <p>Official parish registry for Baptism, First Communion, Confirmation, Marriage, and Funeral.</p>
+                </div>
+                <div class="sacramental-stat-chip">
+                    <strong><?php echo number_format($total_records); ?></strong>
+                    <span>Active Records</span>
+                </div>
+            </header>
 
-        <div class="records-note">
-            <i class="fas fa-circle-info"></i>
-            <div>
-                <strong>Records and certificates are separate.</strong>
-                Add or update parish registry information here. Generate or print certificates only from the
-                Generate Certificates area.
-                <div class="mt-2"><a class="btn btn-sm btn-outline-primary" href="record-corrections.php"><i class="fas fa-pen-to-square"></i> Review corrections</a> <a class="btn btn-sm btn-outline-primary" href="sacramental-import.php"><i class="fas fa-file-csv"></i> Validated CSV import</a></div>
+            <!-- Info & Actions Banner -->
+            <div class="sacramental-banner">
+                <div class="sacramental-banner-text">
+                    <i class="fas fa-circle-info" style="color: #c89b3c; font-size: 1.1rem;"></i>
+                    <span><strong>Records and certificates are separate.</strong> Add or update parish registry books here. To generate or release official certificates, use Certificates.</span>
+                </div>
+                <div class="sacramental-banner-actions">
+                    <a class="btn btn-sm pds-btn pds-btn-ghost-outline" href="record-corrections.php">
+                        <i class="fas fa-pen-to-square"></i> Corrections
+                    </a>
+                    <a class="btn btn-sm pds-btn pds-btn-ghost-outline" href="sacramental-import.php">
+                        <i class="fas fa-file-csv"></i> CSV Import
+                    </a>
+                    <a class="btn btn-sm pds-btn pds-btn-primary-gold" href="certificate-generator.php">
+                        <i class="fas fa-certificate"></i> Certificates
+                    </a>
+                </div>
             </div>
-        </div>
 
-        <section class="registry-grid" aria-label="Manual sacramental registry sections">
-            <?php foreach ($registries as $registry): ?>
-                <a class="registry-card" href="<?php echo htmlspecialchars($registry['href']); ?>">
-                    <div class="registry-card-header">
-                        <span class="registry-icon"><i class="fas <?php echo htmlspecialchars($registry['icon']); ?>"></i></span>
-                        <span class="registry-count"><?php echo $registry['count']; ?> active</span>
-    </div>
-                    <div>
-                        <h2><?php echo htmlspecialchars($registry['title']); ?></h2>
-                        <p><?php echo htmlspecialchars($registry['description']); ?></p>
+            <!-- Registry Cards Grid -->
+            <div class="row g-3">
+                <?php foreach ($registries as $registry): ?>
+                    <div class="col-md-6 col-lg-4">
+                        <a href="<?php echo htmlspecialchars($registry['href']); ?>" class="registry-hub-card">
+                            <div>
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <div class="registry-hub-icon">
+                                        <i class="fas <?php echo htmlspecialchars($registry['icon']); ?>"></i>
+                                    </div>
+                                    <span class="registry-hub-count">
+                                        <?php echo number_format($registry['count']); ?> active
+                                    </span>
+                                </div>
+                                <h2><?php echo htmlspecialchars($registry['title']); ?></h2>
+                                <p><?php echo htmlspecialchars($registry['description']); ?></p>
+                            </div>
+                            <div class="registry-hub-action">
+                                <span>Open Registry</span> <i class="fas fa-arrow-right" style="font-size: 0.75rem;"></i>
+                            </div>
+                        </a>
                     </div>
-                    <span class="registry-action">
-                        Open <i class="fas fa-arrow-right"></i>
-                    </span>
-                </a>
-            <?php endforeach; ?>
-        </section>
-
-        <section class="certificate-link">
-            <div>
-                <strong><i class="fas fa-certificate"></i> Need to make a certificate?</strong>
-                <span>Use the certificate module only for generating certificate documents. It does not replace manual record encoding.</span>
+                <?php endforeach; ?>
             </div>
-            <a href="certificate-generator.php" class="btn btn-warning fw-bold">
-                Go to Certificates
-            </a>
-        </section>
-    </main>
+
+        </div><!-- /.premium-admin-content -->
+    </div><!-- /.premium-admin-shell -->
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="../assets/js/components.js"></script>

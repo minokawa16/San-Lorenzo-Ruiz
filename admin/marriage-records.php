@@ -20,32 +20,33 @@ if (!defined('BASE_URL')) {
 requireAdmin();
 requirePermission('records.manage');
 
-// Fetch All Assoc Function - Documents this helper's role in the parish management workflow.
-function fetch_all_assoc($stmt) {
-    $rows = array();
-    $meta = $stmt->result_metadata();
-    if (!$meta) {
+if (!function_exists('fetch_all_assoc')) {
+    function fetch_all_assoc($stmt) {
+        $rows = array();
+        $meta = $stmt->result_metadata();
+        if (!$meta) {
+            return $rows;
+        }
+
+        $fields = $meta->fetch_fields();
+        $row = array();
+        $bind = array();
+
+        foreach ($fields as $field) {
+            $row[$field->name] = null;
+            $bind[] = &$row[$field->name];
+        }
+
+        call_user_func_array(array($stmt, 'bind_result'), $bind);
+
+        while ($stmt->fetch()) {
+            $rows[] = array_map(function ($value) {
+                return $value;
+            }, $row);
+        }
+
         return $rows;
     }
-
-    $fields = $meta->fetch_fields();
-    $row = array();
-    $bind = array();
-
-    foreach ($fields as $field) {
-        $row[$field->name] = null;
-        $bind[] = &$row[$field->name];
-    }
-
-    call_user_func_array(array($stmt, 'bind_result'), $bind);
-
-    while ($stmt->fetch()) {
-        $rows[] = array_map(function ($value) {
-            return $value;
-        }, $row);
-    }
-
-    return $rows;
 }
 
 // Marriage Column Exists Function - Documents this helper's role in the parish management workflow.
@@ -644,15 +645,19 @@ $page_title = 'Marriage Records - Parish Management';
             animation: fadeInUp 0.6s ease-out;
         }
     </style>
+    <link rel="stylesheet" href="../assets/css/holy-theme.css">
+    <link rel="stylesheet" href="../assets/css/premium-parish.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/premium-parish.css') ? filemtime(__DIR__ . '/../assets/css/premium-parish.css') : time(); ?>">
+    <link rel="stylesheet" href="../assets/css/parish-design-system.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/parish-design-system.css') ? filemtime(__DIR__ . '/../assets/css/parish-design-system.css') : time(); ?>">
+    <link rel="stylesheet" href="../assets/css/admin-sidebar.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/admin-sidebar.css') ? filemtime(__DIR__ . '/../assets/css/admin-sidebar.css') : time(); ?>">
     <link rel="stylesheet" href="../assets/css/theme.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/theme.css') ? filemtime(__DIR__ . '/../assets/css/theme.css') : time(); ?>">
 </head>
-<body>
-    <div style="display: flex;">
+<body class="premium-admin">
+    <div class="premium-admin-shell">
         <!-- Include Admin Sidebar -->
         <?php include '../includes/admin-sidebar.php'; ?>
 
         <!-- Main Content -->
-        <div class="admin-content">
+        <div class="premium-admin-content pds-page-container">
             <!-- Page Header -->
             <div style="margin-bottom: 30px;">
                 <a href="manage-records.php" class="btn btn-primary-gold" style="margin-bottom: 14px;">

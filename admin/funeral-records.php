@@ -530,13 +530,19 @@ $page_title = 'Funeral Records - Parish Management';
             }
         }
     </style>
+    <link rel="stylesheet" href="../assets/css/holy-theme.css">
+    <link rel="stylesheet" href="../assets/css/premium-parish.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/premium-parish.css') ? filemtime(__DIR__ . '/../assets/css/premium-parish.css') : time(); ?>">
+    <link rel="stylesheet" href="../assets/css/parish-design-system.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/parish-design-system.css') ? filemtime(__DIR__ . '/../assets/css/parish-design-system.css') : time(); ?>">
+    <link rel="stylesheet" href="../assets/css/admin-sidebar.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/admin-sidebar.css') ? filemtime(__DIR__ . '/../assets/css/admin-sidebar.css') : time(); ?>">
     <link rel="stylesheet" href="../assets/css/theme.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/theme.css') ? filemtime(__DIR__ . '/../assets/css/theme.css') : time(); ?>">
 </head>
-<body>
-    <div style="display: flex;">
+<body class="premium-admin">
+    <div class="premium-admin-shell">
+        <!-- Include Admin Sidebar -->
         <?php include '../includes/admin-sidebar.php'; ?>
 
-        <div class="admin-content">
+        <!-- Main Content -->
+        <div class="premium-admin-content pds-page-container">
             <div style="margin-bottom: 30px;">
                 <a href="manage-records.php" class="btn btn-primary-gold" style="margin-bottom: 14px;">
                     <i class="fas fa-arrow-left"></i> Back to Sacramental Records
