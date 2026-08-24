@@ -117,6 +117,13 @@ if ($action === 'check_pw') {
             echo "  Hash: " . substr($u['password'], 0, 20) . "... (no standard dictionary match)\n";
         }
     }
+if ($action === 'test_login') {
+    $targetPhone = $paramPhone ?: '09635866550';
+    $password = $_GET['password'] ?? ($argv[3] ?? 'Reymark@123');
+    echo "=== TESTING LOGIN AUTHENTICATION FOR [{$targetPhone}] ===\n";
+    $auth = beginPasswordAuthentication($conn, $targetPhone, $password);
+    echo "Result:\n";
+    print_r($auth);
     echo "\n";
 }
 
