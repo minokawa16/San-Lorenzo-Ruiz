@@ -348,15 +348,7 @@ html body .user-sidebar .sidebar-nav .pill-badge {
     font-weight: 800 !important;
 }
 
-/* Content Layout Alignment */
-html body.user-area .user-main {
-    margin-left: var(--admin-sidebar-width) !important;
-    width: calc(100% - var(--admin-sidebar-width)) !important;
-    min-width: 0 !important;
-    padding: 12px clamp(12px, 1.8vw, 24px) 24px !important;
-    transition: margin-left 0.24s ease !important;
-}
-
+/* Topbar Layout */
 html body.user-area .user-topbar,
 html body .app-global-header.user-topbar {
     display: flex !important;
@@ -392,6 +384,14 @@ html body .responsive-nav-toggle {
 }
 
 @media (min-width: 1024px) {
+    html body.user-area .user-main {
+        margin-left: var(--admin-sidebar-width) !important;
+        width: calc(100% - var(--admin-sidebar-width)) !important;
+        min-width: 0 !important;
+        padding: 12px clamp(12px, 1.8vw, 24px) 24px !important;
+        transition: margin-left 0.24s ease !important;
+    }
+
     html body.admin-sidebar-collapsed .admin-sidebar,
     html body.user-sidebar-collapsed .user-sidebar {
         width: var(--admin-sidebar-collapsed-width) !important;
@@ -417,9 +417,35 @@ html body .responsive-nav-toggle {
 }
 
 @media (max-width: 1023px) {
+    html body.user-area .user-main,
+    html body.user-sidebar-collapsed .user-main,
+    html body.premium-admin .premium-admin-content,
+    html body.premium-admin .admin-content,
+    html body.admin-sidebar-collapsed .premium-admin-content,
+    html body.admin-sidebar-collapsed .admin-content {
+        margin-left: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        padding: 10px clamp(10px, 3vw, 16px) 24px !important;
+    }
+
     html body .admin-sidebar,
-    html body .user-sidebar {
+    html body .user-sidebar,
+    html body.user-area .user-sidebar,
+    html body.premium-admin .admin-sidebar {
+        display: block !important;
         width: min(var(--admin-sidebar-width), calc(100vw - 40px)) !important;
+        transform: translateX(-105%) !important;
+        transition: transform 220ms ease !important;
+        z-index: 1060 !important;
+    }
+
+    html body .admin-sidebar.open,
+    html body .user-sidebar.open,
+    html body.user-area .user-sidebar.open,
+    html body.premium-admin .admin-sidebar.open {
+        transform: translateX(0) !important;
     }
 
     html body .responsive-nav-toggle {
