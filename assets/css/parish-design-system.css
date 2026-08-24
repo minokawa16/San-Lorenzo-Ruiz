@@ -476,27 +476,77 @@ body.church-theme {
     font-weight: 800;
 }
 
-.pds-row-action {
+.pds-action-btn-group {
     display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    min-height: 32px;
-    margin: 0.1rem 0.1rem 0.1rem 0;
-    padding: 0.36rem 0.62rem;
-    border: 1px solid var(--ink-black);
-    border-radius: var(--pds-radius-md);
-    background: var(--surface-white);
-    color: var(--ink-black);
-    font-size: 0.8rem;
-    font-weight: 800;
-    text-decoration: none;
+    flex-direction: column;
+    gap: 4px;
+    width: 84px;
+    min-width: 84px;
+    align-items: stretch;
+}
+
+.pds-action-btn-group .pds-action-form,
+.pds-action-btn-group form {
+    display: block;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+}
+
+.pds-row-action {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 5px !important;
+    width: 84px !important;
+    min-width: 84px !important;
+    max-width: 84px !important;
+    height: 28px !important;
+    min-height: 28px !important;
+    max-height: 28px !important;
+    padding: 2px 8px !important;
+    margin: 0 !important;
+    border: 1px solid #1c1b18 !important;
+    border-radius: 6px !important;
+    background: #ffffff !important;
+    color: #1c1b18 !important;
+    font-family: "Inter", "Segoe UI", Arial, sans-serif !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    line-height: 1 !important;
+    text-align: center !important;
+    text-decoration: none !important;
+    white-space: nowrap !important;
+    box-sizing: border-box !important;
+    transition: all 0.15s ease !important;
+}
+
+.pds-row-action i {
+    font-size: 11px !important;
+    width: 12px !important;
+    min-width: 12px !important;
+    text-align: center !important;
+    flex-shrink: 0 !important;
+}
+
+.pds-row-action span {
+    display: inline-block !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
 }
 
 .pds-row-action:hover,
 .pds-row-action:focus {
-    background: var(--gold-soft);
-    color: var(--ink-black);
-    border-color: var(--gold-rich);
+    background: var(--gold-soft) !important;
+    color: var(--ink-black) !important;
+    border-color: var(--gold-rich) !important;
+}
+
+.pds-row-action-archive:hover,
+.pds-row-action-archive:focus {
+    background: rgba(239, 68, 68, 0.08) !important;
+    border-color: #ef4444 !important;
+    color: #dc2626 !important;
 }
 
 .pds-filter-tabs {

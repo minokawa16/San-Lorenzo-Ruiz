@@ -406,21 +406,25 @@ $breadcrumbs = [
                                     </td>
                                     <td><?php echo formatDate($request['submitted_at']); ?></td>
                                     <td>
-                                        <?php if (!$is_reservation): ?>
-                                            <a href="request-workflow.php?id=<?php echo intval($request['item_id']); ?>" class="btn btn-sm pds-row-action">
-                                                <i class="fas fa-eye"></i> View
-                                            </a>
-                                            <form method="POST" action="" class="d-inline" onsubmit="return confirm('Archive this request? It will be hidden from this list but kept in the database.');">
-                                                <?php echo csrfInput(); ?>
-                                                <input type="hidden" name="action" value="archive_request">
-                                                <input type="hidden" name="request_id" value="<?php echo intval($request['item_id']); ?>">
-                                                <button type="submit" class="btn btn-sm pds-row-action">
-                                                    <i class="fas fa-archive"></i> Archive
-                                                </button>
-                                            </form>
-                                        <?php else: ?>
-                                            <a href="manage-reservations.php?q=<?php echo urlencode($request['email']); ?>" class="btn btn-sm pds-row-action"><i class="fas fa-calendar-check"></i> Manage</a>
-                                        <?php endif; ?>
+                                        <div class="pds-action-btn-group">
+                                            <?php if (!$is_reservation): ?>
+                                                <a href="request-workflow.php?id=<?php echo intval($request['item_id']); ?>" class="btn btn-sm pds-row-action">
+                                                    <i class="fas fa-eye"></i> <span>View</span>
+                                                </a>
+                                                <form method="POST" action="" class="pds-action-form" onsubmit="return confirm('Archive this request? It will be hidden from this list but kept in the database.');">
+                                                    <?php echo csrfInput(); ?>
+                                                    <input type="hidden" name="action" value="archive_request">
+                                                    <input type="hidden" name="request_id" value="<?php echo intval($request['item_id']); ?>">
+                                                    <button type="submit" class="btn btn-sm pds-row-action pds-row-action-archive">
+                                                        <i class="fas fa-box-archive"></i> <span>Archive</span>
+                                                    </button>
+                                                </form>
+                                            <?php else: ?>
+                                                <a href="manage-reservations.php?q=<?php echo urlencode($request['email']); ?>" class="btn btn-sm pds-row-action">
+                                                    <i class="fas fa-calendar-check"></i> <span>Manage</span>
+                                                </a>
+                                            <?php endif; ?>
+                                        </div>
                                     </td>
                                 </tr>
                             <?php endwhile; ?>
