@@ -1,11 +1,7 @@
 <?php
-/**
- * Backward-compatible chat endpoint.
- *
- * The production chatbot logic lives in ../ai-assistant.php so the Ollama
- * integration, security checks, logging, and fallback behavior stay centralized.
- */
-
-define('TUGON_AI_ALLOW_GUEST', true);
-require_once __DIR__ . '/../ai-assistant.php';
+/** Retired insecure guest AI route. Use the authenticated /api/ai-assistant.php endpoint. */
+http_response_code(410);
+header('Content-Type: application/json; charset=utf-8');
+header('Cache-Control: no-store');
+echo json_encode(['success'=>false,'message'=>'This legacy endpoint has been retired.']);
 ?>

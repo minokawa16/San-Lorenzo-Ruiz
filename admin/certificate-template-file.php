@@ -29,10 +29,7 @@ if (!$real_upload_dir || !$real_path || strpos($real_path, $real_upload_dir) !==
 
 $download = !empty($_GET['download']);
 $filename = preg_replace('/[^A-Za-z0-9._-]/', '-', $template['file_original_name']);
-header('Content-Type: ' . $template['mime_type']);
-header('Content-Length: ' . filesize($real_path));
-header('X-Content-Type-Options: nosniff');
-header('Content-Disposition: ' . ($download ? 'attachment' : 'inline') . '; filename="' . $filename . '"');
-readfile($real_path);
+writeAuditLog($conn, (int) $_SESSION['user_id'], 'DOWNLOAD_CERTIFICATE_TEMPLATE', 'certificate_templates', $template_id, null, null);
+secureStreamFile($real_path, (string) $template['mime_type'], $filename, !$download);
 exit;
 ?>

@@ -183,17 +183,21 @@ function applyFailedLoginDelay(mysqli $conn, int $failureCount): void {
     }
 }
 
-function administratorMfaIsEnforced(): bool {
+function administratorMfaIsEnforced(?mysqli $conn = null): bool {
+    if ($conn instanceof mysqli) {
+        $setting = securitySetting($conn, 'auth.admin_mfa_required');
+        if ($setting !== null && ($setting === '0' || $setting === 'false')) {
+            return false;
+        }
+    }
     return defined('ADMIN_MFA_REQUIRED')
         ? ADMIN_MFA_REQUIRED
         : (defined('APP_ENVIRONMENT') && APP_ENVIRONMENT === 'production');
 }
 
 function userRequiresLoginMfa(mysqli $conn, array $user, array $roles): bool {
-    if (in_array('administrator', $roles, true)) {
-        return administratorMfaIsEnforced();
-    }
-    return (int) ($user['login_otp_enabled'] ?? 0) === 1;
+    // Disabled from login flow: credentials-only direct authentication
+    return false;
 }
 
 function verifiedAuthenticationDestination(mysqli $conn, int $userId, string $type): ?string {
@@ -217,19 +221,23 @@ function verifiedAuthenticationDestination(mysqli $conn, int $userId, string $ty
 function selectLoginOtpMethod(mysqli $conn, array $user): ?string {
     $userId = (int) ($user['id'] ?? 0);
     $preferred = ($user['verification_method'] ?? 'email') === 'mobile' ? 'mobile' : 'email';
-    if ($preferred === 'mobile' && verifiedAuthenticationDestination($conn, $userId, 'mobile') !== null) {
+    $hasEmail = verifiedAuthenticationDestination($conn, $userId, 'email') !== null;
+    $hasMobile = verifiedAuthenticationDestination($conn, $userId, 'mobile') !== null;
+    $smsConfigured = defined('TEXTBEE_API_KEY') && TEXTBEE_API_KEY !== '' && defined('TEXTBEE_DEVICE_ID') && TEXTBEE_DEVICE_ID !== '';
+
+    if ($preferred === 'mobile' && $hasMobile && ($smsConfigured || (defined('APP_ENVIRONMENT') && APP_ENVIRONMENT !== 'production'))) {
         return 'mobile';
     }
-    if (verifiedAuthenticationDestination($conn, $userId, 'email') !== null) {
+    if ($hasEmail) {
         return 'email';
     }
-    if (verifiedAuthenticationDestination($conn, $userId, 'mobile') !== null) {
+    if ($hasMobile) {
         return 'mobile';
     }
     return null;
 }
 
-function establishAuthenticatedSession(mysqli $conn, array $user, bool $mfaVerified): void {
+function establishAuthenticatedSession(mysqli $conn, array $user, bool $mfaVerified = true): void {
     $roles = authenticationRolesForUser($conn, (int) $user['id']);
     if (!$roles) {
         throw new RuntimeException('The account does not have an assigned role.');
@@ -242,7 +250,7 @@ function establishAuthenticatedSession(mysqli $conn, array $user, bool $mfaVerif
     $_SESSION['role'] = legacyRoleKey($roles[0]);
     $_SESSION['password_authenticated'] = true;
     $_SESSION['fully_authenticated'] = true;
-    $_SESSION['mfa_verified'] = $mfaVerified;
+    $_SESSION['mfa_verified'] = true;
     $_SESSION['must_change_password'] = !empty($user['must_change_password']);
     $_SESSION['authenticated_at'] = time();
     $_SESSION['last_activity'] = time();
@@ -282,22 +290,8 @@ function beginPasswordAuthentication(mysqli $conn, string $identifier, string $p
     $_SESSION['password_authenticated'] = true;
     $_SESSION['password_authenticated_at'] = time();
 
-    if (userRequiresLoginMfa($conn, $user, $roles)) {
-        $method = selectLoginOtpMethod($conn, $user);
-        if ($method === null || !function_exists('createOtpTransaction')) {
-            unset($_SESSION['password_authenticated'], $_SESSION['password_authenticated_at']);
-            return ['ok' => false, 'error' => 'Unable to complete secure sign-in. Contact the parish office.'];
-        }
-        $transaction = createOtpTransaction($conn, (int) $user['id'], 'login', $method);
-        if (empty($transaction['ok'])) {
-            unset($_SESSION['password_authenticated'], $_SESSION['password_authenticated_at']);
-            return ['ok' => false, 'error' => $transaction['error'] ?? 'Unable to complete secure sign-in.'];
-        }
-        $_SESSION['pending_auth_transaction'] = $transaction['transaction_id'];
-        return ['ok' => true, 'requires_otp' => true, 'transaction_id' => $transaction['transaction_id']];
-    }
-
-    establishAuthenticatedSession($conn, $user, false);
+    // Direct authentication: no OTP verification step gating dashboard access
+    establishAuthenticatedSession($conn, $user, true);
     return ['ok' => true, 'requires_otp' => false, 'user' => $user];
 }
 

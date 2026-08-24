@@ -1,0 +1,10 @@
+/* WCAG AA contrast layer, loaded after visual theme overrides. */
+:root { --tugon-action-gold: #76520d; --tugon-action-ink: #1c1b18; }
+html body #main-content .btn-primary,html body #main-content .ai-send-btn,html body #main-content .submit-btn { background-color: var(--tugon-action-gold) !important; border-color: var(--tugon-action-gold) !important; color: #fff !important; }
+html body #main-content .btn-outline-primary,html body #main-content .btn-outline-secondary,html body #main-content .ai-copy-btn { color: #65470c !important; border-color: #76520d !important; background-color: #fff !important; }
+html body #main-content .btn-outline-danger { color: #851e1e !important; border-color: #a62b2b !important; background-color: #fff !important; }
+html body #main-content .table thead th,html body #main-content .table th { color: #37332d !important; background-color: #f5ecd5 !important; }
+html body #main-content .notification-chip { color: #65470c !important; }
+html body #main-content .notification-chip.active { color: #1c1b18 !important; background-color: #f0d894 !important; }
+html body #main-content .text-muted,html body #main-content .form-text,html body #main-content small.text-muted { color: #555047 !important; }
+@media (forced-colors: active) { :where(a,button,input,select,textarea):focus { outline: 2px solid CanvasText !important; } }

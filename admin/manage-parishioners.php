@@ -16,13 +16,21 @@ $error = '';
 $success = '';
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+    requireValidCsrfToken();
     $action = $_POST['action'] ?? '';
     $user_id = intval($_POST['user_id'] ?? 0);
 
     if ($action === 'archive_parishioner' && $user_id > 0) {
-        $sql = "UPDATE users SET status = 'archived' WHERE id = $user_id AND role = 'user'";
+        $isParishioner = $conn->prepare(
+            "SELECT 1 FROM user_roles ur JOIN roles r ON r.role_id = ur.role_id
+             WHERE ur.user_id = ? AND r.role_key = 'parishioner' LIMIT 1"
+        );
+        $isParishioner->bind_param('i', $user_id);
+        $isParishioner->execute();
+        $allowed = $isParishioner->get_result()->num_rows > 0;
+        $isParishioner->close();
 
-        if ($conn->query($sql)) {
+        if ($allowed && transitionAccountStatus($conn, $user_id, 'archived', 'archived', null, (int) $_SESSION['user_id'])) {
             createAuditLog($conn, $_SESSION['user_id'], 'ARCHIVE_PARISHIONER', 'users', $user_id);
             $success = 'Parishioner archived successfully!';
         } else {

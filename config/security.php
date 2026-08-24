@@ -4,6 +4,9 @@
  * Centralized security settings for the application
  */
 
+require_once __DIR__ . '/app.php';
+$isProduction = APP_ENVIRONMENT === 'production';
+
 if (!function_exists('defineSecurityConstant')) {
     function defineSecurityConstant($name, $value) {
         if (!defined($name)) {
@@ -17,7 +20,7 @@ if (!function_exists('defineSecurityConstant')) {
 // ===================================================================
 
 // Password Security
-defineSecurityConstant('PASSWORD_MIN_LENGTH', 8);
+defineSecurityConstant('PASSWORD_MIN_LENGTH', max($isProduction ? 12 : 8, (int) (getenv('PASSWORD_MIN_LENGTH') ?: 0)));
 defineSecurityConstant('PASSWORD_REQUIRE_UPPERCASE', true);
 defineSecurityConstant('PASSWORD_REQUIRE_NUMBERS', true);
 defineSecurityConstant('PASSWORD_REQUIRE_SPECIAL_CHARS', true);
@@ -28,9 +31,10 @@ defineSecurityConstant('PASSWORD_HASH_COST', 12); // Higher = more secure but sl
 defineSecurityConstant('SESSION_TIMEOUT', 30 * 60); // 30 minutes in seconds
 defineSecurityConstant('SESSION_REGENERATE_INTERVAL', 5 * 60); // Regenerate every 5 minutes
 defineSecurityConstant('SESSION_COOKIE_HTTPONLY', true);
-$isProduction = strtolower((string) (getenv('APP_ENV') ?: 'local')) === 'production';
 defineSecurityConstant('SESSION_COOKIE_SECURE', $isProduction);
 defineSecurityConstant('SESSION_COOKIE_SAMESITE', 'Lax');
+// Keep local development login convenient; production administrators must use MFA.
+defineSecurityConstant('ADMIN_MFA_REQUIRED', $isProduction);
 
 // Login Security
 defineSecurityConstant('MAX_LOGIN_ATTEMPTS', 5);
@@ -99,7 +103,7 @@ defineSecurityConstant('CACHE_REDIS_PORT', 6379);
 
 defineSecurityConstant('LOG_ENABLED', true);
 defineSecurityConstant('LOG_DIR', __DIR__ . '/../logs/');
-defineSecurityConstant('LOG_LEVEL', 'debug'); // Options: 'debug', 'info', 'warning', 'error'
+defineSecurityConstant('LOG_LEVEL', getenv('LOG_LEVEL') ?: ($isProduction ? 'info' : 'debug'));
 defineSecurityConstant('LOG_MAX_SIZE', 10 * 1024 * 1024); // 10 MB per file
 defineSecurityConstant('LOG_RETENTION_DAYS', 30);
 
@@ -110,7 +114,7 @@ defineSecurityConstant('LOG_RETENTION_DAYS', 30);
 defineSecurityConstant('DEBUG_MODE', false); // Set to false in production
 defineSecurityConstant('DISPLAY_ERRORS', DEBUG_MODE);
 defineSecurityConstant('LOG_ERRORS', true);
-defineSecurityConstant('ERROR_REPORT_EMAIL', 'admin@parish.local');
+defineSecurityConstant('ERROR_REPORT_EMAIL', getenv('ERROR_REPORT_EMAIL') ?: '');
 
 // ===================================================================
 // API SETTINGS
@@ -137,7 +141,7 @@ $SECURITY_HEADERS = [
     'X-Frame-Options' => 'DENY',
     'X-XSS-Protection' => '1; mode=block',
     'Referrer-Policy' => 'strict-origin-when-cross-origin',
-    'Permissions-Policy' => 'geolocation=(), microphone=(), camera=()',
+    'Permissions-Policy' => 'geolocation=(), microphone=(), camera=(self)',
     'Content-Security-Policy' => "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; img-src 'self' data: https:; font-src 'self' https://cdnjs.cloudflare.com"
 ];
 
@@ -180,11 +184,11 @@ $IP_BLACKLIST = [];
 // ALLOWED CORS ORIGINS
 // ===================================================================
 
-$ALLOWED_ORIGINS = [
-    'http://localhost',
-    'http://localhost:3000',
-    'http://localhost:8000',
-];
+$configuredOrigins = array_values(array_filter(array_map('trim', explode(',', (string) (getenv('ALLOWED_ORIGINS') ?: '')))));
+$publicOrigin = APP_URL !== '' ? ((string) parse_url(APP_URL, PHP_URL_SCHEME) . '://' . (string) parse_url(APP_URL, PHP_URL_HOST) . ((int) parse_url(APP_URL, PHP_URL_PORT) > 0 ? ':' . (int) parse_url(APP_URL, PHP_URL_PORT) : '')) : '';
+$ALLOWED_ORIGINS = $isProduction
+    ? array_values(array_unique(array_filter(array_merge([$publicOrigin], $configuredOrigins))))
+    : ['http://localhost', 'http://localhost:3000', 'http://localhost:8000'];
 
 if (!in_array($_SERVER['HTTP_ORIGIN'] ?? '', $ALLOWED_ORIGINS, true)) {
     // Set to empty array in production

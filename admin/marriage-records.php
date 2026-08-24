@@ -9,6 +9,7 @@ include '../config/security.php';
 include '../includes/session.php';
 include '../includes/helpers.php';
 include '../database/config.php';
+require_once '../services/SacramentalRecordService.php';
 
 // Define BASE_URL if not already defined
 if (!defined('BASE_URL')) {
@@ -16,10 +17,8 @@ if (!defined('BASE_URL')) {
 }
 
 // Check admin access
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-    header("Location: ../auth/login.php");
-    exit();
-}
+requireAdmin();
+requirePermission('records.manage');
 
 // Fetch All Assoc Function - Documents this helper's role in the parish management workflow.
 function fetch_all_assoc($stmt) {
@@ -51,37 +50,18 @@ function fetch_all_assoc($stmt) {
 
 // Marriage Column Exists Function - Documents this helper's role in the parish management workflow.
 function marriage_column_exists($conn, $column) {
-    $safe_column = $conn->real_escape_string($column);
-    $result = $conn->query("SHOW COLUMNS FROM marriage_records LIKE '$safe_column'");
-    return $result && $result->num_rows > 0;
+    return schemaColumnExists($conn, 'marriage_records', (string) $column);
 }
 
 // Ensure Marriage Record Book Schema Function - Documents this helper's role in the parish management workflow.
 function ensure_marriage_record_book_schema($conn) {
-    $columns = [
-        'request_id' => "ALTER TABLE marriage_records ADD COLUMN request_id INT NULL AFTER marriage_id",
-        'registry_no' => "ALTER TABLE marriage_records ADD COLUMN registry_no VARCHAR(50) NULL AFTER request_id",
-        'husband_status' => "ALTER TABLE marriage_records ADD COLUMN husband_status VARCHAR(80) NULL AFTER husband_name",
-        'husband_age' => "ALTER TABLE marriage_records ADD COLUMN husband_age VARCHAR(30) NULL AFTER husband_status",
-        'husband_birth_origin' => "ALTER TABLE marriage_records ADD COLUMN husband_birth_origin VARCHAR(150) NULL AFTER husband_age",
-        'husband_residence' => "ALTER TABLE marriage_records ADD COLUMN husband_residence VARCHAR(200) NULL AFTER husband_birth_origin",
-        'husband_parents' => "ALTER TABLE marriage_records ADD COLUMN husband_parents VARCHAR(200) NULL AFTER husband_residence",
-        'wife_status' => "ALTER TABLE marriage_records ADD COLUMN wife_status VARCHAR(80) NULL AFTER wife_name",
-        'wife_age' => "ALTER TABLE marriage_records ADD COLUMN wife_age VARCHAR(30) NULL AFTER wife_status",
-        'wife_birth_origin' => "ALTER TABLE marriage_records ADD COLUMN wife_birth_origin VARCHAR(150) NULL AFTER wife_age",
-        'wife_residence' => "ALTER TABLE marriage_records ADD COLUMN wife_residence VARCHAR(200) NULL AFTER wife_birth_origin",
-        'wife_parents' => "ALTER TABLE marriage_records ADD COLUMN wife_parents VARCHAR(200) NULL AFTER wife_residence",
-        'witnesses_residence' => "ALTER TABLE marriage_records ADD COLUMN witnesses_residence VARCHAR(200) NULL AFTER sponsors",
-        'remarks' => "ALTER TABLE marriage_records ADD COLUMN remarks TEXT NULL AFTER officiating_priest",
-        'parish_priest' => "ALTER TABLE marriage_records ADD COLUMN parish_priest VARCHAR(120) NULL AFTER remarks",
-        'parish_secretary' => "ALTER TABLE marriage_records ADD COLUMN parish_secretary VARCHAR(120) NULL AFTER parish_priest"
-    ];
-
-    foreach ($columns as $column => $sql) {
-        if (!marriage_column_exists($conn, $column)) {
-            $conn->query($sql);
-        }
-    }
+    return requireSchemaColumns($conn, 'marriage_records', [
+        'request_id', 'registry_no', 'husband_status', 'husband_age',
+        'husband_birth_origin', 'husband_residence', 'husband_parents',
+        'wife_status', 'wife_age', 'wife_birth_origin', 'wife_residence',
+        'wife_parents', 'witnesses_residence', 'remarks', 'parish_priest',
+        'parish_secretary'
+    ], 'marriage records');
 }
 
 // Format Marriage Record Date Function - Documents this helper's role in the parish management workflow.
@@ -105,6 +85,18 @@ ensure_marriage_record_book_schema($conn);
 $action = $_POST['action'] ?? $_GET['action'] ?? null;
 $message = '';
 $alert_type = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['add','edit','archive','restore'], true)) {
+    requireValidCsrfToken();
+    try {
+        $records=new SacramentalRecordService($conn);$actor=(int)($_SESSION['user_id']??0);
+        if($action==='add'){$records->create('marriage',$_POST,$actor);$notice='Marriage record created.';}
+        elseif($action==='edit'){$records->requestCorrection('marriage',(int)($_POST['record_id']??0),$_POST,(string)($_POST['correction_reason']??''),$actor);$notice='Correction submitted for review; the official record was not overwritten.';}
+        elseif($action==='archive'){$records->archive('marriage',(int)($_POST['record_id']??0),(string)($_POST['archive_reason']??''),$actor);$notice='Marriage record archived.';}
+        else{$records->restore('marriage',(int)($_POST['record_id']??0),$actor);$notice='Marriage record restored.';}
+        redirectWithNotification('marriage-records.php',$notice,'success');
+    } catch(Throwable $exception){$message=$exception->getMessage();$alert_type='danger';$action=null;}
+}
 
 // Add new marriage record
 if ($action === 'add' && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -748,7 +740,9 @@ $page_title = 'Marriage Records - Parish Management';
                                             'parish_priest' => $record['parish_priest'] ?? '',
                                             'parish_secretary' => $record['parish_secretary'] ?? '',
                                             'status' => $record['status'] ?? 'active',
-                                            'request_id' => $record['request_id'] ?? ''
+                                            'request_id' => $record['request_id'] ?? '',
+                                            'book_no' => $record['book_no'] ?? '', 'page_no' => $record['page_no'] ?? '', 'entry_no' => $record['entry_no'] ?? '',
+                                            'husband_birth_date' => $record['husband_birth_date'] ?? '', 'wife_birth_date' => $record['wife_birth_date'] ?? '', 'wedding_location' => $record['wedding_location'] ?? ''
                                         ];
                                     ?>
                                     <tr>
@@ -836,6 +830,7 @@ $page_title = 'Marriage Records - Parish Management';
                 <span onclick="closeModal()" style="cursor: pointer; font-size: 1.5rem; color: #999;">&times;</span>
             </div>
             <form id="recordForm" method="POST" action="">
+                <?php echo csrfInput(); ?>
                 <input type="hidden" id="actionInput" name="action" value="add">
                 <input type="hidden" id="recordIdInput" name="record_id" value="">
 
@@ -844,6 +839,7 @@ $page_title = 'Marriage Records - Parish Management';
                         <label>Record No.</label>
                         <input type="text" id="registryNo" name="registry_no">
                     </div>
+                    <div class="form-group"><label>Book / Page / Entry</label><div style="display:flex;gap:6px"><input id="bookNo" name="book_no" placeholder="Book"><input id="pageNo" name="page_no" placeholder="Page"><input id="entryNo" name="entry_no" placeholder="Entry"></div></div>
 
                     <div class="form-group">
                         <label>Marriage Contract Date *</label>
@@ -854,6 +850,7 @@ $page_title = 'Marriage Records - Parish Management';
                         <label>Contracting Party Name and Family Name *</label>
                         <input type="text" id="husbandName" name="husband_name" placeholder="Husband / Groom" required>
                     </div>
+                    <div class="form-group"><label>Groom birth date *</label><input id="husbandBirthDate" type="date" name="husband_birth_date" required max="<?php echo date('Y-m-d'); ?>"></div>
 
                     <div class="form-group">
                         <label>Status</label>
@@ -884,6 +881,8 @@ $page_title = 'Marriage Records - Parish Management';
                         <label>Contracting Party Name and Family Name *</label>
                         <input type="text" id="wifeName" name="wife_name" placeholder="Wife / Bride" required>
                     </div>
+                    <div class="form-group"><label>Bride birth date *</label><input id="wifeBirthDate" type="date" name="wife_birth_date" required max="<?php echo date('Y-m-d'); ?>"></div>
+                    <div class="form-group"><label>Wedding location *</label><input id="weddingLocation" type="text" name="wedding_location" required></div>
 
                     <div class="form-group">
                         <label>Status</label>
@@ -911,8 +910,8 @@ $page_title = 'Marriage Records - Parish Management';
                     </div>
 
                     <div class="form-group full-width">
-                        <label>Witnesses Name and Family Name</label>
-                        <input type="text" id="sponsors" name="sponsors">
+                        <label>Witnesses Name and Family Name *</label>
+                        <input type="text" id="sponsors" name="sponsors" required>
                     </div>
 
                     <div class="form-group full-width">
@@ -921,8 +920,8 @@ $page_title = 'Marriage Records - Parish Management';
                     </div>
 
                     <div class="form-group full-width">
-                        <label>Name of Minister</label>
-                        <input type="text" id="officiatingPriest" name="officiating_priest">
+                        <label>Name of Minister *</label>
+                        <input type="text" id="officiatingPriest" name="officiating_priest" required>
                     </div>
 
                     <div class="form-group full-width">
@@ -959,6 +958,7 @@ $page_title = 'Marriage Records - Parish Management';
                             <?php endforeach; ?>
                         </select>
                     </div>
+                    <div class="form-group full-width"><label>Correction reason (required when editing)</label><textarea name="correction_reason" minlength="5"></textarea></div>
                 </div>
 
                 <div class="modal-footer">
@@ -978,8 +978,10 @@ $page_title = 'Marriage Records - Parish Management';
             </div>
             <p style="margin-bottom: 20px; color: #666;">Archive this marriage record? It will be hidden from active records but kept in Archives.</p>
             <form id="deleteForm" method="POST" action="">
+                <?php echo csrfInput(); ?>
                 <input type="hidden" name="action" value="archive">
                 <input type="hidden" id="deleteRecordId" name="record_id" value="">
+                <div class="form-group"><label>Archive reason *</label><textarea name="archive_reason" required minlength="5"></textarea></div>
                 <div class="modal-footer">
                     <button type="button" class="btn-cancel" onclick="closeDeleteModal()">Cancel</button>
                     <button type="submit" class="btn-delete" style="padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; background: #d7ad43; color: #181204;">Archive</button>
@@ -1004,6 +1006,12 @@ $page_title = 'Marriage Records - Parish Management';
         function openEditModal(record) {
             document.getElementById('recordIdInput').value = record.id || '';
             document.getElementById('registryNo').value = record.registry_no || '';
+            document.getElementById('bookNo').value = record.book_no || '';
+            document.getElementById('pageNo').value = record.page_no || '';
+            document.getElementById('entryNo').value = record.entry_no || '';
+            document.getElementById('husbandBirthDate').value = record.husband_birth_date || '';
+            document.getElementById('wifeBirthDate').value = record.wife_birth_date || '';
+            document.getElementById('weddingLocation').value = record.wedding_location || '';
             document.getElementById('husbandName').value = record.husband_name || '';
             document.getElementById('husbandStatus').value = record.husband_status || '';
             document.getElementById('husbandAge').value = record.husband_age || '';

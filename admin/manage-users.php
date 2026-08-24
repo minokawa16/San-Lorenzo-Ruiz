@@ -19,6 +19,8 @@ $success = '';
 
 // Handle user status update
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') == 'POST') {
+    requirePermission('users.manage');
+    requireValidCsrfToken();
     $action = $_POST['action'] ?? '';
     $user_id = intval($_POST['user_id'] ?? 0);
     
@@ -28,19 +30,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') == 'POST') {
         if (!in_array($status, $allowed_statuses, true)) {
             $status = 'inactive';
         }
-        $status = $conn->real_escape_string($status);
-        $sql = "UPDATE users SET status = '$status' WHERE id = $user_id AND role = 'user'";
-        
-        if ($conn->query($sql)) {
+        if (transitionAccountStatus($conn, $user_id, $status, 'status_updated', null, (int) $_SESSION['user_id'])) {
             createAuditLog($conn, $_SESSION['user_id'], 'UPDATE_USER', 'users', $user_id);
             $success = 'Parishioner status updated successfully!';
         } else {
             $error = 'Error updating parishioner: ' . $conn->error;
         }
     } elseif ($action == 'archive_user') {
-        $sql = "UPDATE users SET status = 'archived' WHERE id = $user_id AND role = 'user'";
-
-        if ($conn->query($sql)) {
+        if (transitionAccountStatus($conn, $user_id, 'archived', 'archived', null, (int) $_SESSION['user_id'])) {
             createAuditLog($conn, $_SESSION['user_id'], 'ARCHIVE_USER', 'users', $user_id);
             $success = 'Parishioner archived successfully!';
         } else {
@@ -184,6 +181,7 @@ $breadcrumbs = [
                                         </button>
                                         <?php if ($user['status'] !== 'archived'): ?>
                                             <form method="POST" action="" class="d-inline" onsubmit="return confirm('Archive this parishioner? The account will be hidden from the active parishioner list.');">
+                                                <?php echo csrfInput(); ?>
                                                 <input type="hidden" name="action" value="archive_user">
                                                 <input type="hidden" name="user_id" value="<?php echo $user['id']; ?>">
                                                 <button type="submit" class="btn btn-sm btn-outline-secondary">

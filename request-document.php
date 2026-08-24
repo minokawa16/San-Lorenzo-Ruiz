@@ -2,17 +2,11 @@
 /**
  * Request Document Module - Securely serves uploaded request documents to authorized users.
  */
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
+require_once 'includes/session.php';
 include 'database/config.php';
 include 'includes/helpers.php';
 
-if (!isLoggedIn()) {
-    http_response_code(403);
-    exit('Login required.');
-}
+requireLogin();
 
 ensureRequestDocumentsSchema($conn);
 
@@ -44,14 +38,16 @@ if (!$document) {
     exit('Document not found.');
 }
 
-if (!isAdmin() && intval($document['user_id']) !== intval($_SESSION['user_id'])) {
+$can_manage_requests = hasPermission('requests.manage');
+$owns_request = intval($document['user_id']) === intval($_SESSION['user_id']);
+if (!$can_manage_requests && !$owns_request) {
     http_response_code(403);
     exit('Access denied.');
 }
 
 $base_dir = realpath(__DIR__ . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'request_requirements');
 $file_path = realpath(__DIR__ . DIRECTORY_SEPARATOR . $document['file_path']);
-if (!$base_dir || !$file_path || strpos($file_path, $base_dir) !== 0 || !is_file($file_path)) {
+if (!$base_dir || !$file_path || !str_starts_with($file_path, $base_dir . DIRECTORY_SEPARATOR) || !is_file($file_path)) {
     http_response_code(404);
     exit('Document file not found.');
 }
@@ -60,9 +56,5 @@ $mime_type = $document['mime_type'] ?: 'application/octet-stream';
 $filename = $document['original_name'] ?: basename($file_path);
 $disposition = isRequestImageDocument($mime_type) || $mime_type === 'application/pdf' ? 'inline' : 'attachment';
 
-header('Content-Type: ' . $mime_type);
-header('Content-Length: ' . filesize($file_path));
-header('Content-Disposition: ' . $disposition . '; filename="' . str_replace('"', '', $filename) . '"');
-header('Cache-Control: private, max-age=300');
-header('X-Content-Type-Options: nosniff');
-readfile($file_path);
+writeAuditLog($conn, (int) $_SESSION['user_id'], 'DOWNLOAD_REQUEST_DOCUMENT', 'request_documents', $document_id, null, null);
+secureStreamFile($file_path, $mime_type, $filename, $disposition === 'inline');

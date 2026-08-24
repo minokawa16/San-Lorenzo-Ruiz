@@ -8,9 +8,11 @@
 include '../includes/session.php';
 include '../database/config.php';
 include '../includes/helpers.php';
+require_once '../services/ReservationService.php';
 
 // Require admin access
 requireAdmin();
+requirePermission('requests.manage');
 if (!hasAnyPermission(['requests.manage', 'reservations.manage'])) {
     redirect('dashboard.php');
 }
@@ -20,15 +22,11 @@ ensureRequestPaymentsSchema($conn);
 
 $error = '';
 $success = '';
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') requireValidCsrfToken();
 
 // Ensure Request Archive Column Function - Documents this helper's role in the parish management workflow.
 function ensureRequestArchiveColumn($conn) {
-    $result = $conn->query("SHOW COLUMNS FROM requests LIKE 'deleted_at'");
-    if ($result && $result->num_rows > 0) {
-        return true;
-    }
-
-    return $conn->query("ALTER TABLE requests ADD COLUMN deleted_at TIMESTAMP NULL DEFAULT NULL AFTER updated_at");
+    return columnExists($conn, 'requests', 'deleted_at');
 }
 
 // Request Category Helpers - Keep admin filtering readable while preserving existing request values.
@@ -40,7 +38,7 @@ function adminRequestTypeGroups() {
         ],
         'blessing' => [
             'label' => 'Blessing',
-            'types' => ['house_blessing', 'car_blessing', 'vehicle_blessing', 'business_blessing', 'office_blessing', 'event_blessing']
+            'types' => ['house_blessing', 'car_blessing', 'vehicle_blessing', 'business_blessing', 'office_blessing', 'event_blessing', 'other_blessing']
         ],
         'sacramental' => [
             'label' => 'Sacramental Services',
@@ -93,61 +91,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
     if ($reservation_id <= 0 || !in_array($status, $allowed_reservation_statuses, true)) {
         $error = 'Please choose a valid reservation status.';
     } else {
-        $conflict = ['conflict' => false, 'message' => ''];
-        if ($status === 'approved') {
-            $conflict = reservationApprovalConflict($conn, $reservation_id);
-        }
-
-        if ($conflict['conflict']) {
-            $error = $conflict['message'] . ' Please choose another schedule before approving.';
-        } else {
-            $stmt = $conn->prepare("UPDATE reservations SET status = ?, admin_notes = ? WHERE reservation_id = ?");
-            if (!$stmt) {
-                $error = 'Unable to prepare reservation update.';
-            } else {
-                $stmt->bind_param('ssi', $status, $admin_notes, $reservation_id);
-                if ($stmt->execute()) {
-                    $lookup = $conn->prepare("SELECT r.user_id, r.reservation_type, u.phone_number FROM reservations r JOIN users u ON u.id = r.user_id WHERE r.reservation_id = ?");
-                    if ($lookup) {
-                        $lookup->bind_param('i', $reservation_id);
-                        $lookup->execute();
-                        $reservation = $lookup->get_result()->fetch_assoc();
-                        $lookup->close();
-
-                        if ($reservation) {
-                            createNotification(
-                                $conn,
-                                intval($reservation['user_id']),
-                                'Reservation Update',
-                                'Your ' . ucfirst(str_replace('_', ' ', $reservation['reservation_type'])) . ' reservation is now ' . ucfirst($status) . '.'
-                            );
-                        }
-                    }
-
-                    createAuditLog($conn, $_SESSION['user_id'], 'UPDATE_RESERVATION', 'reservations', $reservation_id);
-
-                    if ($status === 'approved') {
-                        $sync_result = syncApprovedReservationToCalendar($conn, $reservation_id, $_SESSION['user_id']);
-                        $success = 'Reservation updated successfully.';
-                        $success .= $sync_result['success']
-                            ? ' It is now synced to the calendar.'
-                            : ' Calendar sync failed: ' . $sync_result['message'];
-                    } else {
-                        ensureScheduleEventsTable($conn);
-                        $cancel_stmt = $conn->prepare("UPDATE schedule_events SET status = 'cancelled' WHERE source_type = 'reservation' AND source_id = ?");
-                        if ($cancel_stmt) {
-                            $cancel_stmt->bind_param('i', $reservation_id);
-                            $cancel_stmt->execute();
-                            $cancel_stmt->close();
-                        }
-                        $success = 'Reservation updated successfully.';
-                    }
-                } else {
-                    $error = 'Error updating reservation: ' . $conn->error;
-                }
-                $stmt->close();
-            }
-        }
+        try {
+            $result=(new ReservationService($conn))->changeStatus($reservation_id,$status,(int)$_SESSION['user_id'],$admin_notes);
+            $success='Reservation updated successfully. '.$result['calendar']['message'];
+        } catch(Throwable $e) { $error=$e->getMessage(); }
     }
 } elseif (($_SERVER['REQUEST_METHOD'] ?? 'GET') == 'POST' && ($_POST['action'] ?? '') == 'archive_request') {
     $request_id = intval($_POST['request_id']);
@@ -215,7 +162,7 @@ $type_groups = adminRequestTypeGroups();
 $type_filter = isset($type_groups[$type_filter]) ? $type_filter : '';
 $request_category_sql = adminRequestCategorySql('r.request_type');
 $reservation_category_sql = adminRequestCategorySql('r.reservation_type');
-$request_where = ["r.deleted_at IS NULL"];
+$request_where = ["r.deleted_at IS NULL", "NOT EXISTS (SELECT 1 FROM reservations linked_reservation WHERE linked_reservation.request_id=r.request_id)"];
 $reservation_where = ["1=1"];
 if (!empty($status_filter)) {
     $status_filter = $conn->real_escape_string($status_filter);
@@ -464,12 +411,15 @@ $breadcrumbs = [
                                                 <i class="fas fa-eye"></i> View
                                             </a>
                                             <form method="POST" action="" class="d-inline" onsubmit="return confirm('Archive this request? It will be hidden from this list but kept in the database.');">
+                                                <?php echo csrfInput(); ?>
                                                 <input type="hidden" name="action" value="archive_request">
                                                 <input type="hidden" name="request_id" value="<?php echo intval($request['item_id']); ?>">
                                                 <button type="submit" class="btn btn-sm pds-row-action">
                                                     <i class="fas fa-archive"></i> Archive
                                                 </button>
                                             </form>
+                                        <?php else: ?>
+                                            <a href="manage-reservations.php?q=<?php echo urlencode($request['email']); ?>" class="btn btn-sm pds-row-action"><i class="fas fa-calendar-check"></i> Manage</a>
                                         <?php endif; ?>
                                     </td>
                                 </tr>

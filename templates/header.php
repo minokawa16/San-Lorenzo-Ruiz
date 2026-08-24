@@ -212,15 +212,9 @@ $header_user_role = $is_admin_area ? 'Administrator' : 'Parishioner';
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="../assets/css/style.css?v=<?php echo $style_version; ?>">
-    <link rel="stylesheet" href="../assets/css/premium-parish.css?v=<?php echo $premium_style_version; ?>">
-    <link rel="stylesheet" href="../assets/css/parish-design-system.css?v=<?php echo $design_system_version; ?>">
-    <?php $responsive_style_version = filemtime(__DIR__ . '/../assets/css/responsive-unified.css'); ?>
-    <link rel="stylesheet" href="../assets/css/responsive-unified.css?v=<?php echo $responsive_style_version; ?>">
-    <!-- Keep the current warm palette last, then pin the sidebar green before first paint. -->
-    <link rel="stylesheet" href="../assets/css/theme.css?v=<?php echo $theme_style_version; ?>">
-    <link rel="stylesheet" href="../assets/css/mobile-design-system.css?v=<?php echo $mobile_design_style_version; ?>">
+    <!-- Generated from readable source files by tools/build-assets.php. -->
+    <?php $core_bundle = __DIR__ . '/../assets/css/tugon-core.bundle.min.css'; ?>
+    <link rel="stylesheet" href="../assets/css/tugon-core.bundle.min.css?v=<?php echo filemtime($core_bundle); ?>">
     <style id="critical-sidebar-colors">
         .admin-sidebar,
         .premium-admin-sidebar,
@@ -240,6 +234,7 @@ $header_user_role = $is_admin_area ? 'Administrator' : 'Parishioner';
     </style>
 </head>
 <body class="<?php echo $is_user_area ? 'user-area' : ($is_admin_area ? 'premium-admin' : ''); ?> church-theme app-page-<?php echo e(preg_replace('/[^a-z0-9-]+/', '-', strtolower(pathinfo($current_page, PATHINFO_FILENAME)))); ?><?php echo !empty($body_extra_class) ? ' ' . e($body_extra_class) : ''; ?>">
+    <a class="tugon-skip-link" href="#main-content">Skip to main content</a>
     <?php if ($is_user_area): ?>
     <div class="user-shell">
         <?php include '../includes/user-sidebar.php'; ?>
@@ -283,11 +278,11 @@ $header_user_role = $is_admin_area ? 'Administrator' : 'Parishioner';
                     </div>
                 </div>
             </header>
-            <main class="user-content">
+            <main class="user-content" id="main-content" tabindex="-1">
     <?php elseif ($is_admin_area): ?>
     <div class="premium-admin-shell">
         <?php include '../includes/admin-sidebar.php'; ?>
-        <main class="premium-admin-content">
+        <main class="premium-admin-content" id="main-content" tabindex="-1">
             <?php if (empty($hide_global_header)): ?>
             <header class="app-global-header admin-global-topbar premium-glass">
                 <div class="app-header-left admin-global-title">
@@ -381,5 +376,5 @@ $header_user_role = $is_admin_area ? 'Administrator' : 'Parishioner';
     </nav>
 
     <!-- Page Content -->
-    <div class="page-content">
+    <div class="page-content" id="main-content" tabindex="-1">
     <?php endif; ?>

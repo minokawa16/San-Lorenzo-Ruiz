@@ -7,9 +7,7 @@ include '../database/config.php';
 include '../includes/helpers.php';
 
 requireLogin();
-if (!isUser()) {
-    redirect('../auth/login.php');
-}
+requirePermission('ai.parishioner.use');
 
 $page_title = 'TUGON AI Parish Assistant';
 $body_extra_class = 'user-ai-chat-page';

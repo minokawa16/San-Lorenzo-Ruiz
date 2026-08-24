@@ -28,4 +28,6 @@ return [
     'smtp_password' => $smtp_password,
     'smtp_encryption' => getenv('MAIL_ENCRYPTION') ?: ($using_gmail_aliases ? 'tls' : ''),
     'smtp_timeout' => intval(getenv('MAIL_TIMEOUT') ?: 10),
+    'http_endpoint' => trim((string) (getenv('MAIL_HTTP_ENDPOINT') ?: '')),
+    'http_token' => (string) (getenv('MAIL_HTTP_TOKEN') ?: ''),
 ];

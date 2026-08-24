@@ -15,6 +15,7 @@ include __DIR__ . '/../database/BaseDB.php';
 include __DIR__ . '/../database/config.php';
 include __DIR__ . '/../includes/session.php';
 include __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../services/RequestService.php';
 
 // Check admin access
 requireAdmin();
@@ -74,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $status_map = [
             'approve' => 'approved',
             'reject' => 'rejected',
-            'request_more' => 'processing',
+            'request_more' => 'needs_information',
             'complete' => 'completed',
             'remark' => $request['status']  // Keep current status
         ];
@@ -88,30 +89,26 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
         }
 
-        // Start transaction
-        $db->beginTransaction();
-
         try {
-            // Update request
-            $update_sql = "UPDATE requests 
-                          SET status = ?, 
-                              admin_response = ?, 
-                              updated_at = NOW() 
-                          WHERE request_id = ?";
-            
-            $db->update($update_sql, 'ssi', [$new_status, $admin_response, $request_id]);
+            if ($action !== 'remark') {
+                $workflow = new RequestService($conn);
+                $currentWorkflowStatus = RequestStateMachine::normalize((string) $request['status']);
+                // Legacy pending approvals are explicitly walked through the
+                // review stage; no direct submitted->approved bypass remains.
+                if ($action === 'approve' && $currentWorkflowStatus === 'submitted') {
+                    $workflow->transition($request_id, 'requirements_review', (int) $_SESSION['user_id'], 'Requirements review completed.');
+                }
+                $workflow->transition($request_id, $new_status, (int) $_SESSION['user_id'], $admin_response);
+            }
 
             // Log to audit trail
-            $audit_sql = "INSERT INTO audit_logs (user_id, action_type, table_name, record_id, new_value) 
-                         VALUES (?, ?, ?, ?, ?)";
             $action_type = strtoupper($action);
             $new_value = json_encode(['status' => $new_status, 'admin_response' => $admin_response]);
-            $db->insert($audit_sql, 'issss', [$_SESSION['user_id'], $action_type, 'requests', $request_id, $new_value]);
+            if (!writeAuditLog($conn, (int) $_SESSION['user_id'], $action_type, 'requests', $request_id, null, $new_value)) {
+                throw new RuntimeException('Unable to record the request audit event.');
+            }
 
             createRequestStatusNotification($conn, $request, $new_status, $admin_response);
-
-            // Commit transaction
-            $db->commit();
 
             $success_message = 'Request ' . $action . 'd successfully! User has been notified.';
             if ($action === 'approve') {
@@ -142,10 +139,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             // Refresh request data
             $request = $db->selectOne($sql, 'i', [$request_id]);
 
-        } catch (Exception $e) {
-            $db->rollback();
-            throw $e;
-        }
+        } catch (Exception $e) { throw $e; }
 
     } catch (Exception $e) {
         $error_message = $e->getMessage();
@@ -154,9 +148,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 }
 
 // Get request history
-$history_sql = "SELECT * FROM audit_logs 
+$history_sql = "SELECT * FROM audit_log 
                WHERE table_name = 'requests' AND record_id = ? 
-               ORDER BY timestamp DESC";
+               ORDER BY created_at DESC";
 $history = $db->select($history_sql, 'i', [$request_id]);
 
 // Get request documents if any
@@ -604,13 +598,13 @@ $page_title = 'Review Request - #' . $request['reference_number'];
                                         </div>
                                         <div class="timeline-content">
                                             <div class="timeline-date">
-                                                <?php echo date('F d, Y H:i A', strtotime($item['timestamp'])); ?>
+                                                <?php echo date('F d, Y H:i A', strtotime($item['created_at'])); ?>
                                             </div>
                                             <div class="timeline-title">
-                                                <?php echo ucfirst(str_replace('_', ' ', $item['action_type'])); ?>
+                                                <?php echo ucfirst(str_replace('_', ' ', $item['action'])); ?>
                                             </div>
                                             <div class="timeline-description">
-                                                <?php echo htmlspecialchars($item['action_type']); ?> by Admin
+                                                <?php echo htmlspecialchars($item['action']); ?> by Admin
                                             </div>
                                         </div>
                                     </div>

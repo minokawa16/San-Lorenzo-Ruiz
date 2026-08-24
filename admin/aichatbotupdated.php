@@ -2,8 +2,9 @@
 include '../includes/session.php';
 include '../includes/helpers.php';
 
-requireAdmin();
-header('Location: ' . BASE_URL . 'admin/dashboard.php');
+requireLogin();
+requirePermission('ai.manage.knowledge');
+header('Location: ' . BASE_URL . 'admin/chatbot-knowledge.php', true, 301);
 exit;
 /**
  * AI Chatbot Knowledge Updater

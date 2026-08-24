@@ -20,33 +20,9 @@ $project_root = realpath(__DIR__ . '/..');
 
 // Recovery Schema - Creates logs and settings tables used by backup and maintenance tools.
 function ensureRecoverySchema($conn) {
-    $conn->query("CREATE TABLE IF NOT EXISTS recovery_logs (
-        recovery_id INT PRIMARY KEY AUTO_INCREMENT,
-        admin_id INT NULL,
-        recovery_type VARCHAR(80) NOT NULL,
-        backup_file VARCHAR(255) NULL,
-        files_restored INT DEFAULT 0,
-        status VARCHAR(40) NOT NULL,
-        details TEXT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_recovery_logs_created (created_at)
-    )");
-
-    $conn->query("CREATE TABLE IF NOT EXISTS maintenance_logs (
-        maintenance_id INT PRIMARY KEY AUTO_INCREMENT,
-        admin_id INT NULL,
-        maintenance_type VARCHAR(80) NOT NULL,
-        status VARCHAR(40) NOT NULL,
-        details TEXT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_maintenance_logs_created (created_at)
-    )");
-
-    $conn->query("CREATE TABLE IF NOT EXISTS system_settings (
-        setting_key VARCHAR(120) PRIMARY KEY,
-        setting_value TEXT NULL,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    )");
+    return requireSchemaTables($conn, [
+        'recovery_logs', 'maintenance_logs', 'system_settings'
+    ], 'backup and recovery');
 }
 
 ensureRecoverySchema($conn);
@@ -68,16 +44,16 @@ function scopeTables($scope) {
     $map = [
         'sacramental_records' => [
             'baptism_records', 'confirmation_records', 'marriage_records', 'funeral_records',
-            'communion_records', 'first_communion_records', 'death_records', 'sacramental_records',
-            'certificates', 'certificate_requests', 'certificate_templates', 'requests',
-            'request_documents', 'record_attachments'
+            'first_communion_records', 'certificate_templates', 'certificate_file_templates',
+            'certificate_layouts', 'certificate_issuances', 'requests', 'request_documents',
+            'request_payments'
         ],
         'user_accounts' => [
-            'users', 'user_roles', 'roles', 'permissions', 'role_permissions',
-            'login_history', 'login_attempts', 'audit_log', 'audit_logs', 'notification_preferences'
+            'users', 'audit_log', 'notification_preferences', 'email_verifications',
+            'otp_codes', 'notification_logs', 'sms_notification_logs'
         ],
         'announcements' => [
-            'announcements', 'announcement_recipients', 'announcement_attachments', 'notification_logs', 'notifications'
+            'announcements', 'announcement_recipients', 'notification_logs', 'notifications'
         ]
     ];
 
@@ -895,6 +871,7 @@ if (isset($_GET['download'])) {
 }
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+    requireValidCsrfToken();
     $action = $_POST['action'] ?? '';
 
     try {
@@ -1078,6 +1055,7 @@ $breadcrumbs = [
         </div>
         <div class="hero-actions">
             <form method="POST">
+                <?php echo csrfInput(); ?>
                 <input type="hidden" name="action" value="full_backup">
                 <button type="submit" class="btn btn-primary" data-progress-button>
                     <i class="fas fa-box-archive"></i> Complete System Backup
@@ -1200,6 +1178,7 @@ $breadcrumbs = [
                 <?php endforeach; ?>
             </ul>
             <form method="POST">
+                <?php echo csrfInput(); ?>
                 <input type="hidden" name="action" value="full_backup">
                 <button type="submit" class="btn btn-primary w-100" data-progress-button><i class="fas fa-file-zipper"></i> Create Recovery Package</button>
             </form>
@@ -1219,6 +1198,7 @@ $breadcrumbs = [
         <div class="enterprise-card">
             <h3><i class="fas fa-calendar-check"></i> Automated Backup Schedule</h3>
             <form method="POST">
+                <?php echo csrfInput(); ?>
                 <input type="hidden" name="action" value="save_schedule">
                 <div class="form-check form-switch mb-3">
                     <input class="form-check-input" type="checkbox" name="scheduler_enabled" id="schedulerEnabled" <?php echo $scheduler_enabled ? 'checked' : ''; ?>>
@@ -1247,6 +1227,7 @@ $breadcrumbs = [
                 <li>Monthly backups retained for 2 years</li>
             </ul>
             <form method="POST">
+                <?php echo csrfInput(); ?>
                 <input type="hidden" name="action" value="run_maintenance">
                 <button type="submit" class="btn btn-warning w-100" data-confirm="Run monthly maintenance now?" data-progress-button><i class="fas fa-broom"></i> Run Maintenance</button>
             </form>
@@ -1285,6 +1266,7 @@ $breadcrumbs = [
         <div class="row g-3">
             <div class="col-lg-6">
                 <form method="POST" enctype="multipart/form-data">
+                    <?php echo csrfInput(); ?>
                     <input type="hidden" name="action" value="validate_backup">
                     <label class="form-label">Upload Recovery Package</label>
                     <input type="file" name="recovery_package" class="form-control mb-2" accept=".zip,.sql">
@@ -1300,6 +1282,7 @@ $breadcrumbs = [
             </div>
             <div class="col-lg-6">
                 <form method="POST" id="restoreForm">
+                    <?php echo csrfInput(); ?>
                     <input type="hidden" name="action" value="restore_backup">
                     <label class="form-label">Recovery Package</label>
                     <select name="backup_file" class="form-select mb-2" required>
@@ -1345,10 +1328,12 @@ $breadcrumbs = [
                 <h2 class="h5 mb-0"><i class="fas fa-clock-rotate-left"></i> Available Backup Files</h2>
                 <div class="d-flex flex-wrap gap-2">
                     <form method="POST">
+                        <?php echo csrfInput(); ?>
                         <input type="hidden" name="action" value="database_backup">
                         <button type="submit" class="btn btn-sm btn-outline-primary" data-progress-button><i class="fas fa-database"></i> Daily DB Backup</button>
                     </form>
                     <form method="POST">
+                        <?php echo csrfInput(); ?>
                         <input type="hidden" name="action" value="weekly_backup">
                         <button type="submit" class="btn btn-sm btn-outline-success" data-progress-button><i class="fas fa-folder-tree"></i> Weekly Backup</button>
                     </form>

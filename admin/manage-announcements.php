@@ -7,6 +7,7 @@
 include '../includes/session.php';
 include '../database/config.php';
 include '../includes/helpers.php';
+require_once '../services/AnnouncementService.php';
 
 requireAdmin();
 requirePermission('announcements.manage');
@@ -42,19 +43,9 @@ $announcement_meta = [
 
 // Ensure Announcement Management Schema Function - Documents this helper's role in the parish management workflow.
 function ensureAnnouncementManagementSchema($conn) {
-    if (!columnExists($conn, 'announcements', 'deleted_at')) {
-        $conn->query("ALTER TABLE announcements ADD COLUMN deleted_at TIMESTAMP NULL DEFAULT NULL AFTER updated_at");
-    }
-    if (!columnExists($conn, 'announcements', 'event_date')) {
-        $conn->query("ALTER TABLE announcements ADD COLUMN event_date DATE NULL AFTER expiry_date");
-    }
-    if (!columnExists($conn, 'announcements', 'is_pinned')) {
-        $conn->query("ALTER TABLE announcements ADD COLUMN is_pinned TINYINT(1) DEFAULT 0 AFTER event_date");
-    }
-    if (!columnExists($conn, 'announcements', 'scheduled_at')) {
-        $conn->query("ALTER TABLE announcements ADD COLUMN scheduled_at DATETIME NULL AFTER published_date");
-    }
-    return true;
+    return requireSchemaColumns($conn, 'announcements', [
+        'deleted_at', 'event_date', 'is_pinned', 'scheduled_at'
+    ], 'announcement management');
 }
 
 // Announcement Type Meta Function - Documents this helper's role in the parish management workflow.
@@ -141,6 +132,15 @@ function saveAnnouncementAttachment($file) {
     ];
 }
 
+function recordAnnouncementAttachment($conn, $announcement_id, array $attachment, $actor_id) {
+    if (empty($attachment['path'])) return;
+    $absolute = dirname(__DIR__) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $attachment['path']);
+    $hash = is_file($absolute) ? hash_file('sha256', $absolute) : str_repeat('0', 64);
+    $stmt = $conn->prepare('INSERT INTO announcement_attachments(announcement_id,stored_path,original_name,mime_type,file_size,file_hash,uploaded_by) VALUES(?,?,?,?,?,?,?)');
+    $stmt->bind_param('isssisi', $announcement_id, $attachment['path'], $attachment['original_name'], $attachment['mime_type'], $attachment['size'], $hash, $actor_id);
+    $stmt->execute(); $stmt->close();
+}
+
 function announcementRelativeTime($value) {
     $timestamp = strtotime((string) $value);
     if (!$timestamp) {
@@ -166,15 +166,9 @@ function announcementRelativeTime($value) {
 }
 
 function ensureAnnouncementDeliveryQueueSchema($conn) {
-    if (!columnExists($conn, 'announcement_recipients', 'sms_delivery_status')) {
-        $conn->query("ALTER TABLE announcement_recipients ADD COLUMN sms_delivery_status VARCHAR(30) DEFAULT 'skipped' AFTER delivery_status");
-    }
-    if (!columnExists($conn, 'announcement_recipients', 'sms_sent_at')) {
-        $conn->query("ALTER TABLE announcement_recipients ADD COLUMN sms_sent_at DATETIME NULL AFTER sent_at");
-    }
-    if (!columnExists($conn, 'announcement_recipients', 'last_error')) {
-        $conn->query("ALTER TABLE announcement_recipients ADD COLUMN last_error TEXT NULL AFTER sms_sent_at");
-    }
+    return requireSchemaColumns($conn, 'announcement_recipients', [
+        'sms_delivery_status', 'sms_sent_at', 'last_error'
+    ], 'announcement delivery queue');
 }
 
 // Announcement Notification Queue - Creates in-app alerts now and queues email/SMS delivery for fast posting.
@@ -285,49 +279,26 @@ function processAnnouncementDeliveryQueue($conn, $announcement_id = 0, $limit = 
 
 // Publish Due Scheduled Announcements Function - Documents this helper's role in the parish management workflow.
 function publishDueScheduledAnnouncements($conn) {
-    $due = $conn->query("SELECT announcement_id, title, content FROM announcements WHERE deleted_at IS NULL AND status = 'inactive' AND scheduled_at IS NOT NULL AND scheduled_at <= NOW()");
-    while ($due && $announcement = $due->fetch_assoc()) {
-        $id = intval($announcement['announcement_id']);
-        if ($conn->query("UPDATE announcements SET status = 'active', published_date = NOW() WHERE announcement_id = $id")) {
-            queueAnnouncementNotifications($conn, $id, $announcement['title'], true, true, true);
-        }
-    }
+    (new AnnouncementService($conn))->tick((int)($_SESSION['user_id']??0));
 }
 
 ensureAnnouncementManagementSchema($conn);
 publishDueScheduledAnnouncements($conn);
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+    requireValidCsrfToken();
     $action = $_POST['action'] ?? '';
     $announcement_id = intval($_POST['announcement_id'] ?? 0);
+    $announcement_service = new AnnouncementService($conn);
 
     if ($action === 'process_announcement_queue') {
         header('Content-Type: application/json');
         echo json_encode(processAnnouncementDeliveryQueue($conn, $announcement_id, 5));
         exit;
     } elseif ($action === 'archive_announcement' && $announcement_id > 0) {
-        if ($conn->query("UPDATE announcements SET deleted_at = NOW(), status = 'inactive', is_pinned = 0 WHERE announcement_id = $announcement_id")) {
-            createAuditLog($conn, $_SESSION['user_id'], 'ARCHIVE_ANNOUNCEMENT', 'announcements', $announcement_id);
-            $success = 'Announcement archived successfully.';
-        } else {
-            $error = 'Error archiving announcement: ' . $conn->error;
-        }
+        try{$announcement_service->archive($announcement_id,(string)($_POST['archive_reason']??'Archived through announcement management.'),(int)$_SESSION['user_id']);$success='Announcement archived successfully.';}catch(Throwable $e){$error=$e->getMessage();}
     } elseif ($action === 'delete_announcement' && $announcement_id > 0) {
-        $file_result = $conn->query("SELECT attachment_path FROM announcements WHERE announcement_id = $announcement_id");
-        $file_row = $file_result ? $file_result->fetch_assoc() : null;
-        $conn->query("DELETE FROM announcement_recipients WHERE announcement_id = $announcement_id");
-        if ($conn->query("DELETE FROM announcements WHERE announcement_id = $announcement_id")) {
-            if (!empty($file_row['attachment_path'])) {
-                $full_path = dirname(__DIR__) . DIRECTORY_SEPARATOR . $file_row['attachment_path'];
-                if (is_file($full_path)) {
-                    @unlink($full_path);
-                }
-            }
-            createAuditLog($conn, $_SESSION['user_id'], 'DELETE_ANNOUNCEMENT', 'announcements', $announcement_id);
-            $success = 'Announcement deleted permanently.';
-        } else {
-            $error = 'Error deleting announcement: ' . $conn->error;
-        }
+        try{$announcement_service->archive($announcement_id,(string)($_POST['archive_reason']??'Archived instead of permanent deletion.'),(int)$_SESSION['user_id']);$success='Announcement archived; its history and attachments were preserved.';}catch(Throwable $e){$error=$e->getMessage();}
     } elseif ($action === 'toggle_pin' && $announcement_id > 0) {
         $conn->query("UPDATE announcements SET is_pinned = IF(is_pinned = 1, 0, 1) WHERE announcement_id = $announcement_id AND deleted_at IS NULL");
         createAuditLog($conn, $_SESSION['user_id'], 'PIN_ANNOUNCEMENT', 'announcements', $announcement_id);
@@ -348,13 +319,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $stmt->close();
         }
     } elseif ($action === 'send_notification' && $announcement_id > 0) {
-        $announcement = $conn->query("SELECT title, content FROM announcements WHERE announcement_id = $announcement_id")->fetch_assoc();
-        if ($announcement) {
-            $result = queueAnnouncementNotifications($conn, $announcement_id, $announcement['title'], true, true, true);
-            createAuditLog($conn, $_SESSION['user_id'], 'SEND_ANNOUNCEMENT_NOTIFICATION', 'announcements', $announcement_id);
-            $queued_announcement_id = $announcement_id;
-            $success = 'Notifications queued: ' . $result['system'] . ' dashboard, ' . $result['queued_email'] . ' email, ' . $result['queued_sms'] . ' SMS.';
-        }
+        $announcement_service->notifyNow($announcement_id,(int)$_SESSION['user_id']);
+        $success = 'Audience-aware notifications processed. Existing deliveries were not duplicated.';
     } elseif (in_array($action, ['add_announcement', 'edit_announcement'], true)) {
         $title = trim(sanitize($_POST['title'] ?? ''));
         $content = cleanAnnouncementContent($_POST['content'] ?? '');
@@ -365,7 +331,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $publish_mode = $_POST['publish_mode'] ?? 'now';
         $scheduled_at = trim($_POST['scheduled_at'] ?? '');
         $scheduled_value = $publish_mode === 'later' && $scheduled_at !== '' ? str_replace('T', ' ', $scheduled_at) . ':00' : null;
-        $status = $publish_mode === 'later' ? 'inactive' : 'active';
+        $status = $publish_mode === 'now' ? 'active' : 'inactive';
+        $expires_value = !empty($_POST['expires_at']) ? str_replace('T',' ',trim($_POST['expires_at'])).':00' : null;
+        $audience_type = (string)($_POST['audience_type']??'everyone');
+        $audience_values = array_values(array_filter(array_map('trim',explode(',',(string)($_POST['audience_values']??'')))));
         $is_pinned = isset($_POST['is_pinned']) ? 1 : 0;
         $notify_all = isset($_POST['notify_all']);
         $notify_email = isset($_POST['notify_email']);
@@ -390,12 +359,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     $stmt->bind_param('ssssssisisssi', $title, $content, $image_path, $attachment['path'], $attachment['original_name'], $attachment['mime_type'], $attachment_size, $type, $admin_id, $scheduled_value, $status, $event_date_value, $is_pinned);
                     if ($stmt->execute()) {
                         $new_id = $stmt->insert_id;
+                        recordAnnouncementAttachment($conn,$new_id,$attachment,(int)$_SESSION['user_id']);
+                        $announcement_service->configure($new_id,$publish_mode,$scheduled_value,$expires_value,$audience_type,$audience_values,(int)$_SESSION['user_id']);
                         createAuditLog($conn, $_SESSION['user_id'], 'ADD_ANNOUNCEMENT', 'announcements', $new_id);
-                        if ($status === 'active' && ($notify_all || $notify_email || $notify_sms || $notify_system)) {
-                            $result = queueAnnouncementNotifications($conn, $new_id, $title, $notify_all || $notify_email, $notify_all || $notify_system, $notify_all || $notify_sms);
-                            $queued_announcement_id = ($result['queued_email'] + $result['queued_sms']) > 0 ? $new_id : 0;
-                        }
-                        $success = $status === 'active' ? 'Announcement published successfully.' : 'Announcement scheduled successfully.';
+                        $success = $publish_mode === 'now' ? 'Announcement published successfully.' : ($publish_mode==='draft'?'Announcement saved as draft.':'Announcement scheduled successfully.');
                     } else {
                         $error = 'Error posting announcement: ' . $stmt->error;
                     }
@@ -417,11 +384,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 if ($stmt) {
                     $stmt->bind_param($types, ...$params);
                     if ($stmt->execute()) {
+                        recordAnnouncementAttachment($conn,$announcement_id,$attachment,(int)$_SESSION['user_id']);
+                        $announcement_service->configure($announcement_id,$publish_mode,$scheduled_value,$expires_value,$audience_type,$audience_values,(int)$_SESSION['user_id']);
                         createAuditLog($conn, $_SESSION['user_id'], 'EDIT_ANNOUNCEMENT', 'announcements', $announcement_id);
-                        if ($status === 'active' && ($notify_all || $notify_email || $notify_sms || $notify_system)) {
-                            $result = queueAnnouncementNotifications($conn, $announcement_id, $title, $notify_all || $notify_email, $notify_all || $notify_system, $notify_all || $notify_sms);
-                            $queued_announcement_id = ($result['queued_email'] + $result['queued_sms']) > 0 ? $announcement_id : 0;
-                        }
                         $success = 'Announcement updated successfully.';
                     } else {
                         $error = 'Error updating announcement: ' . $stmt->error;
@@ -686,10 +651,10 @@ $breadcrumbs = [
                                                 <button class="dropdown-item announcement-details-toggle" type="button" data-target="announcement-details-<?php echo intval($announcement['announcement_id']); ?>"><i class="fas fa-eye"></i> View details</button>
                                                 <?php if (!$is_archived): ?>
                                                     <button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#editAnnouncement-<?php echo intval($announcement['announcement_id']); ?>"><i class="fas fa-pen"></i> Edit</button>
-                                                    <form method="POST"><input type="hidden" name="action" value="toggle_pin"><input type="hidden" name="announcement_id" value="<?php echo intval($announcement['announcement_id']); ?>"><button class="dropdown-item" type="submit"><i class="fas fa-thumbtack"></i> <?php echo intval($announcement['is_pinned'] ?? 0) === 1 ? 'Unpin' : 'Pin'; ?></button></form>
-                                                    <form method="POST"><input type="hidden" name="action" value="duplicate_announcement"><input type="hidden" name="announcement_id" value="<?php echo intval($announcement['announcement_id']); ?>"><button class="dropdown-item" type="submit"><i class="fas fa-copy"></i> Duplicate</button></form>
-                                                    <form method="POST"><input type="hidden" name="action" value="send_notification"><input type="hidden" name="announcement_id" value="<?php echo intval($announcement['announcement_id']); ?>"><button class="dropdown-item" type="submit"><i class="fas fa-paper-plane"></i> Send notification</button></form>
-                                                    <form method="POST" onsubmit="return confirm('Archive this announcement?');"><input type="hidden" name="action" value="archive_announcement"><input type="hidden" name="announcement_id" value="<?php echo intval($announcement['announcement_id']); ?>"><button class="dropdown-item" type="submit"><i class="fas fa-archive"></i> Archive</button></form>
+                                                    <form method="POST"><?php echo csrfInput(); ?><input type="hidden" name="action" value="toggle_pin"><input type="hidden" name="announcement_id" value="<?php echo intval($announcement['announcement_id']); ?>"><button class="dropdown-item" type="submit"><i class="fas fa-thumbtack"></i> <?php echo intval($announcement['is_pinned'] ?? 0) === 1 ? 'Unpin' : 'Pin'; ?></button></form>
+                                                    <form method="POST"><?php echo csrfInput(); ?><input type="hidden" name="action" value="duplicate_announcement"><input type="hidden" name="announcement_id" value="<?php echo intval($announcement['announcement_id']); ?>"><button class="dropdown-item" type="submit"><i class="fas fa-copy"></i> Duplicate</button></form>
+                                                    <form method="POST"><?php echo csrfInput(); ?><input type="hidden" name="action" value="send_notification"><input type="hidden" name="announcement_id" value="<?php echo intval($announcement['announcement_id']); ?>"><button class="dropdown-item" type="submit"><i class="fas fa-paper-plane"></i> Send notification</button></form>
+                                                    <form method="POST" onsubmit="return confirm('Archive this announcement?');"><?php echo csrfInput(); ?><input type="hidden" name="action" value="archive_announcement"><input type="hidden" name="archive_reason" value="Archived through announcement management."><input type="hidden" name="announcement_id" value="<?php echo intval($announcement['announcement_id']); ?>"><button class="dropdown-item" type="submit"><i class="fas fa-archive"></i> Archive</button></form>
                                                 <?php endif; ?>
                                                 <button class="dropdown-item text-danger" type="button" data-bs-toggle="modal" data-bs-target="#deleteAnnouncement-<?php echo intval($announcement['announcement_id']); ?>"><i class="fas fa-trash"></i> Delete</button>
                                             </div>
@@ -779,6 +744,7 @@ $modal_announcements = array_merge([$blank_announcement], $announcements);
         <div class="modal-dialog modal-xl modal-dialog-scrollable">
             <div class="modal-content">
                 <form method="POST" enctype="multipart/form-data" class="announcement-form">
+                    <?php echo csrfInput(); ?>
                     <div class="modal-header">
                         <div>
                             <span class="gold-kicker mb-1"><i class="fas fa-bullhorn"></i> Announcement Editor</span>
@@ -831,12 +797,16 @@ $modal_announcements = array_merge([$blank_announcement], $announcements);
                                 <select class="form-select control-lg publish-mode" name="publish_mode">
                                     <option value="now" <?php echo !$is_later ? 'selected' : ''; ?>>Publish Now</option>
                                     <option value="later" <?php echo $is_later ? 'selected' : ''; ?>>Schedule for Later</option>
+                                    <option value="draft">Save as Draft</option>
                                 </select>
                             </div>
                             <div class="col-lg-4 schedule-field" style="<?php echo $is_later ? '' : 'display:none;'; ?>">
                                 <label class="form-label">Publish Date and Time</label>
                                 <input class="form-control control-lg scheduled-at" type="datetime-local" name="scheduled_at" value="<?php echo e($scheduled_local); ?>">
                             </div>
+                            <div class="col-lg-4"><label class="form-label">Expiration (optional)</label><input class="form-control control-lg" type="datetime-local" name="expires_at" value="<?php echo !empty($modal_item['expires_at'])?e(date('Y-m-d\TH:i',strtotime($modal_item['expires_at']))):''; ?>"></div>
+                            <div class="col-lg-4"><label class="form-label">Audience</label><select class="form-select control-lg" name="audience_type"><option value="everyone">Everyone</option><option value="district">District</option><option value="chapel">Chapel</option><option value="selected_users">Selected users</option></select></div>
+                            <div class="col-lg-4"><label class="form-label">Audience values</label><input class="form-control control-lg" name="audience_values" placeholder="Comma-separated chapel/district names or user IDs"><div class="form-text">Leave blank only for Everyone.</div></div>
                             <div class="col-lg-8">
                                 <label class="form-label">Notification Settings</label>
                                 <div class="d-flex flex-wrap gap-3 pt-2">
@@ -864,19 +834,21 @@ $modal_announcements = array_merge([$blank_announcement], $announcements);
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <form method="POST">
+                    <?php echo csrfInput(); ?>
                     <div class="modal-header">
                         <h5 class="modal-title">Delete Announcement</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
-                        <p class="mb-1">Delete <strong><?php echo e($announcement['title']); ?></strong> permanently?</p>
-                        <p class="text-muted mb-0">Archiving is recommended when you want to keep a record.</p>
+                        <p class="mb-1">Archive <strong><?php echo e($announcement['title']); ?></strong>?</p>
+                        <p class="text-muted mb-0">The announcement and its history will be preserved.</p>
                         <input type="hidden" name="action" value="delete_announcement">
                         <input type="hidden" name="announcement_id" value="<?php echo intval($announcement['announcement_id']); ?>">
+                        <label class="form-label mt-3">Archive reason</label><textarea class="form-control" name="archive_reason" required minlength="5"></textarea>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-danger"><i class="fas fa-trash"></i> Delete</button>
+                        <button type="submit" class="btn btn-danger"><i class="fas fa-archive"></i> Archive</button>
                     </div>
                 </form>
             </div>
@@ -892,6 +864,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function processAnnouncementQueue(announcementId) {
         const body = new URLSearchParams();
         body.set('action', 'process_announcement_queue');
+        body.set('<?php echo e(csrfTokenName()); ?>', '<?php echo e(generateCsrfToken()); ?>');
         if (announcementId > 0) {
             body.set('announcement_id', String(announcementId));
         }

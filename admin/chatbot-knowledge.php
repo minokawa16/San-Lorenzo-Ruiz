@@ -8,16 +8,12 @@ include '../includes/session.php';
 include '../database/config.php';
 include '../includes/helpers.php';
 
-requireAdmin();
-
-header('Location: ' . BASE_URL . 'admin/dashboard.php');
-exit;
+requireLogin();
+requirePermission('ai.manage.knowledge');
 
 $page_title = 'Chatbot Knowledge Base';
 $error = '';
 $success = '';
-
-chatbotKnowledgeSeedDefaults($conn);
 
 $categories = [
     'sacrament' => 'Sacrament',
@@ -46,6 +42,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $source = trim((string) ($_POST['source'] ?? ''));
         $category = $_POST['category'] ?? 'general';
         $status = $_POST['status'] ?? 'active';
+        $approval_status = $_POST['approval_status'] ?? 'draft';
+        $effective_date = trim((string)($_POST['effective_date'] ?? '')) ?: null;
+        $expiry_date = trim((string)($_POST['expiry_date'] ?? '')) ?: null;
+        $language = $_POST['language'] ?? 'bilingual';
 
         if ($topic === '' || $answer === '') {
             $error = 'Topic and official answer are required.';
@@ -53,11 +53,19 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $error = 'Please choose a valid category.';
         } elseif (!in_array($status, ['active', 'inactive'], true)) {
             $error = 'Please choose a valid status.';
+        } elseif (!in_array($approval_status, ['draft','approved','rejected','superseded'], true) || !in_array($language, ['en','fil','bilingual'], true)) {
+            $error = 'Please choose valid governance metadata.';
+        } elseif ($approval_status === 'approved' && ($source === '' || $effective_date === null)) {
+            $error = 'Approved knowledge requires a verified source and effective date.';
+        } elseif ($expiry_date !== null && $effective_date !== null && $expiry_date < $effective_date) {
+            $error = 'Expiry date cannot be before the effective date.';
         } else {
+            $actor = intval($_SESSION['user_id'] ?? 0);
+            $reviewer = $approval_status === 'approved' ? $actor : null;
+            $content_hash = hash('sha256', implode('|', [$topic,$keywords,$answer,$steps]));
             if ($knowledge_id > 0) {
-                $stmt = $conn->prepare("UPDATE chatbot_knowledge SET topic = ?, keywords = ?, answer = ?, steps = ?, category = ?, source = ?, status = ?, updated_by = ? WHERE knowledge_id = ?");
-                $updated_by = intval($_SESSION['user_id'] ?? 0);
-                $stmt->bind_param('sssssssii', $topic, $keywords, $answer, $steps, $category, $source, $status, $updated_by, $knowledge_id);
+                $stmt = $conn->prepare("UPDATE chatbot_knowledge SET topic=?,keywords=?,answer=?,steps=?,category=?,source=?,status=?,approval_status=?,author_id=COALESCE(author_id,?),reviewer_id=?,version=version+1,effective_date=?,expiry_date=?,language=?,reviewed_at=IF(?='approved',NOW(),NULL),content_hash=?,updated_by=? WHERE knowledge_id=?");
+                $stmt->bind_param('ssssssssiisssssii', $topic,$keywords,$answer,$steps,$category,$source,$status,$approval_status,$actor,$reviewer,$effective_date,$expiry_date,$language,$approval_status,$content_hash,$actor,$knowledge_id);
                 $ok = $stmt->execute();
                 $stmt->close();
                 if ($ok) {
@@ -67,9 +75,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     $error = 'Unable to update chatbot knowledge.';
                 }
             } else {
-                $stmt = $conn->prepare("INSERT INTO chatbot_knowledge (topic, keywords, answer, steps, category, source, status, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-                $updated_by = intval($_SESSION['user_id'] ?? 0);
-                $stmt->bind_param('sssssssi', $topic, $keywords, $answer, $steps, $category, $source, $status, $updated_by);
+                $stmt = $conn->prepare("INSERT INTO chatbot_knowledge(topic,keywords,answer,steps,category,source,status,approval_status,author_id,reviewer_id,effective_date,expiry_date,language,reviewed_at,content_hash,updated_by) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,IF(?='approved',NOW(),NULL),?,?)");
+                $stmt->bind_param('ssssssssiisssssi', $topic,$keywords,$answer,$steps,$category,$source,$status,$approval_status,$actor,$reviewer,$effective_date,$expiry_date,$language,$approval_status,$content_hash,$actor);
                 $ok = $stmt->execute();
                 $new_id = $stmt->insert_id;
                 $stmt->close();
@@ -82,7 +89,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             }
         }
     } elseif ($action === 'toggle' && $knowledge_id > 0) {
-        $stmt = $conn->prepare("UPDATE chatbot_knowledge SET status = IF(status = 'active', 'inactive', 'active'), updated_by = ? WHERE knowledge_id = ?");
+        $stmt = $conn->prepare("UPDATE chatbot_knowledge SET status=IF(status='active','inactive','active'),approval_status=IF(status='active','superseded','draft'),version=version+1,updated_by=? WHERE knowledge_id=?");
         $updated_by = intval($_SESSION['user_id'] ?? 0);
         $stmt->bind_param('ii', $updated_by, $knowledge_id);
         if ($stmt->execute()) {
@@ -93,11 +100,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         }
         $stmt->close();
     } elseif ($action === 'delete' && $knowledge_id > 0) {
-        $stmt = $conn->prepare("DELETE FROM chatbot_knowledge WHERE knowledge_id = ?");
-        $stmt->bind_param('i', $knowledge_id);
+        $actor=intval($_SESSION['user_id']??0);
+        $stmt = $conn->prepare("UPDATE chatbot_knowledge SET status='inactive',approval_status='superseded',version=version+1,updated_by=? WHERE knowledge_id=?");
+        $stmt->bind_param('ii',$actor,$knowledge_id);
         if ($stmt->execute()) {
             createAuditLog($conn, $_SESSION['user_id'], 'DELETE_CHATBOT_KNOWLEDGE', 'chatbot_knowledge', $knowledge_id);
-            $success = 'Chatbot knowledge deleted.';
+            $success = 'Chatbot knowledge was safely superseded.';
         } else {
             $error = 'Unable to delete chatbot knowledge.';
         }
@@ -125,13 +133,16 @@ if ($search !== '') {
     $params = [$like, $like, $like, $like];
     $types = 'ssss';
 }
+$countSql="SELECT COUNT(*) count FROM chatbot_knowledge $where";
+if($params){$countStmt=$conn->prepare($countSql);$countStmt->bind_param($types,...$params);$countStmt->execute();$total_items=(int)($countStmt->get_result()->fetch_assoc()['count']??0);$countStmt->close();}else{$total_items=(int)($conn->query($countSql)->fetch_assoc()['count']??0);}
 
-$items = [];
+$page=max(1,intval($_GET['page']??1)); $per_page=25; $offset=($page-1)*$per_page; $items = [];
+$total_pages=max(1,(int)ceil($total_items/$per_page));
 $sql = "SELECT ck.*, u.fullname AS updated_by_name
         FROM chatbot_knowledge ck
         LEFT JOIN users u ON u.id = ck.updated_by
         $where
-        ORDER BY ck.status = 'active' DESC, ck.updated_at DESC, ck.topic ASC";
+        ORDER BY ck.status = 'active' DESC, ck.updated_at DESC, ck.topic ASC LIMIT $per_page OFFSET $offset";
 if ($params) {
     $stmt = $conn->prepare($sql);
     $stmt->bind_param($types, ...$params);
@@ -159,6 +170,7 @@ if ($params) {
     <link rel="stylesheet" href="../assets/css/holy-theme.css">
     <link rel="stylesheet" href="../assets/css/premium-parish.css">
     <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="../assets/css/parish-design-system.css">
     <style>
         .kb-grid { display: grid; grid-template-columns: minmax(320px, 420px) minmax(0, 1fr); gap: 18px; align-items: start; }
         .kb-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; box-shadow: 0 14px 32px rgba(15,23,42,.08); }
@@ -170,11 +182,13 @@ if ($params) {
         @media (max-width: 992px) { .kb-grid { grid-template-columns: 1fr; } }
     </style>
     <link rel="stylesheet" href="../assets/css/theme.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/theme.css') ? filemtime(__DIR__ . '/../assets/css/theme.css') : time(); ?>">
+    <link rel="stylesheet" href="../assets/css/accessibility.css">
 </head>
 <body class="church-theme">
+    <a class="tugon-skip-link" href="#main-content">Skip to main content</a>
     <div class="premium-admin-shell">
         <?php include '../includes/admin-sidebar.php'; ?>
-        <main class="premium-admin-content">
+        <main class="premium-admin-content" id="main-content" tabindex="-1">
             <section class="premium-admin-hero">
                 <div>
                     <span class="premium-pill landing-eyebrow"><i class="fas fa-robot"></i> TUGON AI</span>
@@ -198,8 +212,8 @@ if ($params) {
                         <input type="hidden" name="knowledge_id" value="<?php echo intval($edit_item['knowledge_id'] ?? 0); ?>">
 
                         <div class="mb-3">
-                            <label class="form-label">Topic <span class="text-danger">*</span></label>
-                            <input class="form-control" name="topic" required value="<?php echo e($edit_item['topic'] ?? ''); ?>" placeholder="Example: Baptism Requirements">
+                            <label class="form-label" for="kbTopic">Topic <span class="text-danger">*</span></label>
+                            <input class="form-control" id="kbTopic" name="topic" required value="<?php echo e($edit_item['topic'] ?? ''); ?>" placeholder="Example: Baptism Requirements">
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Keywords / Phrases</label>
@@ -215,9 +229,35 @@ if ($params) {
                             <textarea class="form-control" name="steps" rows="7" placeholder="One item per line"><?php echo e($edit_item['steps'] ?? ''); ?></textarea>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Verified Source</label>
-                            <input class="form-control" name="source" maxlength="255" value="<?php echo e($edit_item['source'] ?? ''); ?>" placeholder="Example: Parish office memorandum, 2026">
+                            <label class="form-label" for="kbSource">Verified Source</label>
+                            <input class="form-control" id="kbSource" name="source" maxlength="255" value="<?php echo e($edit_item['source'] ?? ''); ?>" placeholder="Example: Parish office memorandum, 2026">
                             <div class="form-text">Identify where staff verified this information.</div>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" for="kbApproval">Approval</label>
+                                <select class="form-select" id="kbApproval" name="approval_status">
+                                    <?php foreach (['draft'=>'Draft','approved'=>'Approved','rejected'=>'Rejected','superseded'=>'Superseded'] as $key=>$label): ?>
+                                    <option value="<?php echo e($key); ?>" <?php echo (($edit_item['approval_status']??'draft')===$key)?'selected':''; ?>><?php echo e($label); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" for="kbLanguage">Language</label>
+                                <select class="form-select" id="kbLanguage" name="language">
+                                    <option value="bilingual" <?php echo (($edit_item['language']??'bilingual')==='bilingual')?'selected':''; ?>>English + Tagalog</option>
+                                    <option value="en" <?php echo (($edit_item['language']??'')==='en')?'selected':''; ?>>English</option>
+                                    <option value="fil" <?php echo (($edit_item['language']??'')==='fil')?'selected':''; ?>>Tagalog</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" for="kbEffective">Effective date</label>
+                                <input class="form-control" id="kbEffective" type="date" name="effective_date" value="<?php echo e($edit_item['effective_date']??date('Y-m-d')); ?>">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" for="kbExpiry">Expiry date</label>
+                                <input class="form-control" id="kbExpiry" type="date" name="expiry_date" value="<?php echo e($edit_item['expiry_date']??''); ?>">
+                            </div>
                         </div>
                         <div class="row g-2">
                             <div class="col-md-6 mb-3">
@@ -284,11 +324,11 @@ if ($params) {
                                                 <input type="hidden" name="knowledge_id" value="<?php echo intval($item['knowledge_id']); ?>">
                                                 <button class="btn btn-sm btn-outline-warning" type="submit"><i class="fas fa-power-off"></i></button>
                                             </form>
-                                            <form method="POST" class="d-inline" onsubmit="return confirm('Delete this chatbot knowledge item?');">
+                                            <form method="POST" class="d-inline" data-confirm="Supersede this knowledge entry? It will remain in history and stop appearing in official AI answers.">
                                                 <?php echo csrfInput(); ?>
                                                 <input type="hidden" name="action" value="delete">
                                                 <input type="hidden" name="knowledge_id" value="<?php echo intval($item['knowledge_id']); ?>">
-                                                <button class="btn btn-sm btn-outline-danger" type="submit"><i class="fas fa-trash"></i></button>
+                                                <button class="btn btn-sm btn-outline-danger" type="submit" aria-label="Supersede <?php echo e($item['topic']); ?>"><i class="fas fa-box-archive" aria-hidden="true"></i></button>
                                             </form>
                                         </td>
                                     </tr>
@@ -296,10 +336,12 @@ if ($params) {
                             </tbody>
                         </table>
                     </div>
+                    <?php if($total_pages>1): ?><nav class="p-3" aria-label="Knowledge pages"><ul class="pagination mb-0"><?php for($p=max(1,$page-2);$p<=min($total_pages,$page+2);$p++): ?><li class="page-item <?php echo $p===$page?'active':''; ?>"><a class="page-link" href="?<?php echo e(http_build_query(array_filter(['q'=>$search,'page'=>$p]))); ?>"><?php echo $p; ?></a></li><?php endfor; ?></ul></nav><?php endif; ?>
                 </div>
             </section>
         </main>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../assets/js/accessibility.js"></script>
 </body>
 </html>

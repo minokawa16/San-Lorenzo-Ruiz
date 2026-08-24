@@ -6,6 +6,8 @@
 .env.*
 config/db.local.php
 node_modules
+vendor
+ocr/vendor
 client
 server
 ai_identity_service
@@ -15,11 +17,13 @@ backups
 logs
 cache
 storage
+uploads
 uploads/announcements
 uploads/live_faces
 uploads/valid_ids
 uploads/request_requirements
 *.sql
+!database/canonical-migrations/*.sql
 *.zip
 mobile-*
 certificate-mobile-preview.png

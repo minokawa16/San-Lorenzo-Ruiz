@@ -10,6 +10,8 @@ if (!defined('CERTIFICATE_LAYOUT_ASSET_DIR')) {
     define('CERTIFICATE_LAYOUT_ASSET_DIR', dirname(__DIR__) . '/uploads/certificate_layout_assets');
 }
 
+require_once __DIR__ . '/schema.php';
+
 function certificateTemplateTypes() {
     return [
         'baptism' => 'Baptism Certificate',
@@ -42,43 +44,19 @@ function normalizeCertificateTemplateType($type, $custom_type = '') {
 }
 
 function ensureCertificateTemplateSchema($conn) {
-    $conn->query("CREATE TABLE IF NOT EXISTS certificate_file_templates (
-        template_id INT PRIMARY KEY AUTO_INCREMENT,
-        template_name VARCHAR(150) NOT NULL,
-        certificate_type VARCHAR(80) NOT NULL,
-        file_original_name VARCHAR(255) NOT NULL,
-        file_stored_name VARCHAR(255) NOT NULL,
-        file_path VARCHAR(500) NOT NULL,
-        mime_type VARCHAR(120) NOT NULL,
-        file_size INT NOT NULL DEFAULT 0,
-        description TEXT NULL,
-        version VARCHAR(50) NULL,
-        is_active TINYINT(1) NOT NULL DEFAULT 0,
-        status VARCHAR(30) NOT NULL DEFAULT 'available',
-        created_by INT NULL,
-        updated_by INT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX idx_cert_template_type (certificate_type),
-        INDEX idx_cert_template_active (certificate_type, is_active),
-        INDEX idx_cert_template_status (status)
-    )");
-
-    $columns = [
-        'template_id' => "ALTER TABLE certificate_issuances ADD COLUMN template_id INT NULL AFTER record_id",
-        'layout_snapshot' => "ALTER TABLE certificate_issuances ADD COLUMN layout_snapshot LONGTEXT NULL AFTER template_id",
-    ];
-
-    $has_issuances = $conn->query("SHOW TABLES LIKE 'certificate_issuances'");
-    if ($has_issuances && $has_issuances->num_rows > 0) {
-        foreach ($columns as $column => $sql) {
-            $safe_column = $conn->real_escape_string($column);
-            $exists = $conn->query("SHOW COLUMNS FROM certificate_issuances LIKE '$safe_column'");
-            if (!$exists || $exists->num_rows === 0) {
-                $conn->query($sql);
-            }
-        }
-    }
+    $schemaReady = requireSchemaColumns($conn, 'certificate_file_templates', [
+        'template_id', 'template_name', 'certificate_type', 'file_original_name',
+        'file_stored_name', 'file_path', 'mime_type', 'file_size', 'description',
+        'version', 'is_active', 'status', 'created_by', 'updated_by', 'created_at', 'updated_at'
+    ], 'certificate templates')
+        && requireSchemaColumns($conn, 'certificate_issuances', [
+            'certificate_id', 'certificate_type', 'record_table', 'record_id',
+            'template_id', 'layout_snapshot', 'certificate_number', 'verification_code'
+        ], 'certificate issuances')
+        && requireSchemaColumns($conn, 'certificate_layouts', [
+            'layout_id', 'certificate_type', 'layout_name', 'layout_settings',
+            'created_by', 'updated_by', 'created_at', 'updated_at'
+        ], 'certificate layouts');
 
     if (!is_dir(CERTIFICATE_TEMPLATE_UPLOAD_DIR)) {
         @mkdir(CERTIFICATE_TEMPLATE_UPLOAD_DIR, 0755, true);
@@ -87,17 +65,7 @@ function ensureCertificateTemplateSchema($conn) {
         @mkdir(CERTIFICATE_LAYOUT_ASSET_DIR, 0755, true);
     }
 
-    $conn->query("CREATE TABLE IF NOT EXISTS certificate_layouts (
-        layout_id INT PRIMARY KEY AUTO_INCREMENT,
-        certificate_type VARCHAR(80) NOT NULL UNIQUE,
-        layout_name VARCHAR(150) NOT NULL,
-        layout_settings LONGTEXT NOT NULL,
-        created_by INT NULL,
-        updated_by INT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX idx_certificate_layout_type (certificate_type)
-    )");
+    return $schemaReady;
 }
 
 function defaultCertificateLayoutSettings($certificate_type) {
@@ -259,12 +227,13 @@ function saveCertificateLayoutAsset($file, $certificate_type, $asset_key) {
     return ['ok' => true, 'path' => 'uploads/certificate_layout_assets/' . $stored_name, 'mime_type' => $mime];
 }
 
-function certificateLayoutAssetUrl($relative_path) {
+function certificateLayoutAssetUrl($relative_path, $download = false) {
     $relative_path = trim((string) $relative_path);
     if ($relative_path === '') {
         return '';
     }
-    return '../' . str_replace('\\', '/', $relative_path);
+    $asset = basename(str_replace('\\', '/', $relative_path));
+    return '../certificate-layout-asset.php?asset=' . rawurlencode($asset) . ($download ? '&download=1' : '');
 }
 
 function certificateTemplateAllowedMimes() {
@@ -397,10 +366,6 @@ function activateCertificateTemplate($conn, $template_id, $user_id = null) {
 
 function templateIsUsedByIssuedCertificate($conn, $template_id) {
     $template_id = intval($template_id);
-    $has_column = $conn->query("SHOW COLUMNS FROM certificate_issuances LIKE 'template_id'");
-    if (!$has_column || $has_column->num_rows === 0) {
-        return false;
-    }
     $stmt = $conn->prepare("SELECT certificate_id FROM certificate_issuances WHERE template_id = ? LIMIT 1");
     if (!$stmt) {
         return false;

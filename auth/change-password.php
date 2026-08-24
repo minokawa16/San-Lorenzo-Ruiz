@@ -24,7 +24,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     } elseif ($new_password !== $confirm_new_password) {
         $error = 'New password and confirmation do not match.';
     } elseif (!isValidPassword($new_password)) {
-        $error = 'Password must be at least 8 characters and include uppercase, lowercase, and a number.';
+        $error = passwordRequirementsMessage();
     } else {
         $stmt = $conn->prepare("SELECT password FROM users WHERE id = ? LIMIT 1");
         if (!$stmt) {
@@ -39,20 +39,20 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             if (!$user || !verifyPassword($current_password, $user['password'])) {
                 $error = 'Current password is incorrect.';
             } else {
-                $hashed_password = hashPassword($new_password);
-                $stmt = $conn->prepare("UPDATE users SET password = ? WHERE id = ?");
-                if (!$stmt) {
-                    $error = 'Unable to update password.';
+                $changed = updateAccountPassword(
+                    $conn,
+                    $user_id,
+                    $new_password,
+                    !empty($_SESSION['must_change_password']) ? 'temporary_password_change' : 'authenticated_change',
+                    $user_id,
+                    !empty($_SESSION['must_change_password']) ? 'temporary_password_replaced' : 'password_changed'
+                );
+                if (!empty($changed['ok'])) {
+                    createAuditLog($conn, $user_id, 'CHANGE_PASSWORD', 'users', $user_id);
+                    createNotification($conn, $user_id, 'Password Changed', 'Your account password was changed successfully.');
+                    $success = 'Password changed successfully.';
                 } else {
-                    $stmt->bind_param('si', $hashed_password, $user_id);
-                    if ($stmt->execute()) {
-                        createAuditLog($conn, $user_id, 'CHANGE_PASSWORD', 'users', $user_id);
-                        createNotification($conn, $user_id, 'Password Changed', 'Your account password was changed successfully.');
-                        $success = 'Password changed successfully.';
-                    } else {
-                        $error = 'Unable to update password.';
-                    }
-                    $stmt->close();
+                    $error = $changed['error'] ?? 'Unable to update password.';
                 }
             }
         }
@@ -60,6 +60,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 }
 
 $page_title = 'Change Password';
+$rotation_user = getAuthenticatedUser($conn);
+$rotation_pending = !empty($_SESSION['must_change_password']) || !empty($rotation_user['must_change_password']);
 ?>
 <?php include '../templates/header.php'; ?>
 
@@ -71,6 +73,11 @@ $page_title = 'Change Password';
                     <h5 class="mb-0"><i class="fas fa-key"></i> Change Password</h5>
                 </div>
                 <div class="card-body">
+                    <?php if ($rotation_pending && !passwordChangeIsEnforced()): ?>
+                        <div class="alert alert-warning" role="status">
+                            Password replacement is required before production deployment, but local development navigation remains available.
+                        </div>
+                    <?php endif; ?>
                     <?php if ($error): ?>
                         <div class="alert alert-danger alert-dismissible fade show">
                             <?php echo e($error); ?>
@@ -93,14 +100,15 @@ $page_title = 'Change Password';
                         </div>
                         <div class="mb-3">
                             <label for="new_password" class="form-label">New Password</label>
-                            <input type="password" class="form-control" id="new_password" name="new_password" required>
+                            <input type="password" class="form-control" id="new_password" name="new_password" minlength="<?php echo (int) PASSWORD_MIN_LENGTH; ?>" autocomplete="new-password" required>
+                            <div class="form-text"><?php echo e(passwordRequirementsMessage()); ?></div>
                         </div>
                         <div class="mb-3">
                             <label for="confirm_new_password" class="form-label">Confirm New Password</label>
-                            <input type="password" class="form-control" id="confirm_new_password" name="confirm_new_password" required>
+                            <input type="password" class="form-control" id="confirm_new_password" name="confirm_new_password" minlength="<?php echo (int) PASSWORD_MIN_LENGTH; ?>" autocomplete="new-password" required>
                         </div>
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                            <a href="profile.php" class="btn btn-outline-secondary">Back to Profile</a>
+                            <a href="<?php echo e(getUserDashboardURL()); ?>" class="btn btn-outline-secondary">Return to Dashboard</a>
                             <button type="submit" class="btn btn-warning">Change Password</button>
                         </div>
                     </form>

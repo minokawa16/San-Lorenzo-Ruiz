@@ -841,3 +841,14 @@ body.premium-admin::before {
 body[data-theme="dark"].premium-admin {
     background: #1c1b18 !important;
 }
+
+/* Cross-application accessibility and responsive behavior. */
+.tugon-skip-link { position: fixed; z-index: 100000; top: 8px; left: 8px; transform: translateY(-150%); padding: 12px 16px; border-radius: 6px; background: #172033; color: #fff; font-weight: 700; }
+.tugon-skip-link:focus { transform: translateY(0); color: #fff; }
+:where(a,button,input,select,textarea,[tabindex]):focus-visible { outline: 3px solid #0b70c9 !important; outline-offset: 3px !important; box-shadow: 0 0 0 2px #fff !important; }
+:where(button,.btn,.nav-link,.page-link,input,select) { min-height: 44px; }
+.table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-responsive th { white-space: nowrap; }
+.tugon-live-region { position: fixed; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+@media (max-width: 576px) { .modal-dialog { margin: 0; min-height: 100%; max-width: none; } .modal-content { min-height: 100vh; border-radius: 0 !important; } .modal-footer { position: sticky; bottom: 0; background: inherit; } }
+@media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }

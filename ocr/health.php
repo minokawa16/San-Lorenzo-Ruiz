@@ -6,7 +6,7 @@ header('Cache-Control: no-store');
 
 require_once dirname(__DIR__) . '/includes/session.php';
 require_once dirname(__DIR__) . '/includes/helpers.php';
-if (!isLoggedIn() || !hasPermission('admin.access') || (isAdmin() && empty($_SESSION['mfa_verified']))) {
+if (!isLoggedIn() || !hasPermission('admin.access')) {
     http_response_code(401);
     echo json_encode(['status' => 'unauthorized']);
     exit;

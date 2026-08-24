@@ -10,6 +10,6 @@ requireAdmin();
 requirePermission('certificates.manage');
 
 // Redirect to certificate generator
-header("Location: certificate-generator.php");
+header("Location: certificate-workflow.php");
 exit;
 ?>

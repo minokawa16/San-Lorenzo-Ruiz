@@ -41,13 +41,7 @@ ensureScheduleEventsTable($conn);
 
 // Ensure Dashboard Archive Column Function - Documents this helper's role in the parish management workflow.
 function ensureDashboardArchiveColumn($conn, $table) {
-    $table = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
-    $result = $conn->query("SHOW COLUMNS FROM `$table` LIKE 'deleted_at'");
-    if ($result && $result->num_rows > 0) {
-        return;
-    }
-
-    $conn->query("ALTER TABLE `$table` ADD COLUMN deleted_at TIMESTAMP NULL DEFAULT NULL AFTER updated_at");
+    return columnExists($conn, $table, 'deleted_at');
 }
 
 ensureDashboardArchiveColumn($conn, 'requests');
@@ -218,7 +212,7 @@ $dashboard_profile_name = sanitize($_SESSION['fullname'] ?? 'Administrator');
                 <a class="dashboard-action-btn primary" href="manage-requests.php">
                     <i class="fas fa-circle-plus"></i> New Request
                 </a>
-                <a class="dashboard-action-btn gold" href="certificate-generator.php">
+                <a class="dashboard-action-btn gold" href="<?php echo e(BASE_URL . 'admin/certificate-generator.php'); ?>">
                     <i class="fas fa-award"></i> Generate Certificate
                 </a>
                 <a class="dashboard-action-btn secondary" href="manage-calendar.php">

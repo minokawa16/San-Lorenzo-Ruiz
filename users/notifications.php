@@ -5,6 +5,7 @@
 include '../includes/session.php';
 include '../database/config.php';
 include '../includes/helpers.php';
+require_once '../services/NotificationService.php';
 
 requireLogin();
 if (!isUser()) {
@@ -99,24 +100,11 @@ function notificationTypeCatalog() {
 }
 
 function notificationTypeMeta($notification) {
-    $text = strtolower(($notification['title'] ?? '') . ' ' . ($notification['message'] ?? ''));
-
-    foreach (notificationTypeCatalog() as $key => $meta) {
-        foreach ($meta['keywords'] as $keyword) {
-            if (strpos($text, $keyword) !== false) {
-                return [
-                    'key' => $key,
-                    'label' => $meta['label'],
-                    'icon' => $meta['icon'],
-                    'tone' => $meta['tone']
-                ];
-            }
-        }
-    }
-
-    $fallback = notificationTypeCatalog()['notice'];
+    $type=(string)($notification['notification_type']??'system');
+    $key=str_starts_with($type,'reservation_')?'schedule':(str_starts_with($type,'request_')?'request':(str_starts_with($type,'certificate_')?'certificate':($type==='announcement_published'?'announcement':($type==='system'?'notice':'account'))));
+    $fallback = notificationTypeCatalog()[$key] ?? notificationTypeCatalog()['notice'];
     return [
-        'key' => 'notice',
+        'key' => $key,
         'label' => $fallback['label'],
         'icon' => $fallback['icon'],
         'tone' => $fallback['tone']
@@ -141,17 +129,7 @@ function notificationGroupLabel($date) {
 }
 
 function notificationActionUrl($notification) {
-    $text = strtolower(($notification['title'] ?? '') . ' ' . ($notification['message'] ?? ''));
-    if (strpos($text, 'payment') !== false || strpos($text, 'file') !== false || strpos($text, 'certificate') !== false || strpos($text, 'request') !== false || strpos($text, 'reference') !== false) {
-        return 'my-requests.php';
-    }
-    if (strpos($text, 'announcement') !== false) {
-        return 'announcements.php';
-    }
-    if (strpos($text, 'schedule') !== false || strpos($text, 'reservation') !== false) {
-        return 'view-schedule.php';
-    }
-    return 'index.php';
+    return NotificationService::actionUrl($notification['action_key'] ?? null);
 }
 
 function notificationShortMessage($message, $limit = 150) {
@@ -166,14 +144,7 @@ function notificationShortMessage($message, $limit = 150) {
 }
 
 function notificationReferenceNumber($notification) {
-    $text = ($notification['title'] ?? '') . ' ' . ($notification['message'] ?? '');
-    if (preg_match('/\b[A-Z]{1,5}-\d{4,}(?:-\d+)*\b/i', $text, $matches)) {
-        return strtoupper($matches[0]);
-    }
-    if (preg_match('/reference(?:\s+number)?[:\s#-]+([A-Z0-9-]+)/i', $text, $matches)) {
-        return strtoupper($matches[1]);
-    }
-    return 'Not linked';
+    return !empty($notification['entity_type']) && !empty($notification['entity_id']) ? ucfirst($notification['entity_type']).' #'.(int)$notification['entity_id'] : 'Not linked';
 }
 
 function notificationMatchesType($notification, $type_filter) {
@@ -207,41 +178,22 @@ function notificationCount($conn, $sql) {
 }
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+    requireValidCsrfToken();
     $action = $_POST['action'] ?? '';
+    $notificationService = new NotificationService($conn);
 
     if ($action === 'mark_all_read') {
-        $stmt = $conn->prepare("UPDATE notifications SET is_read = 1 WHERE user_id = ?");
-        if ($stmt) {
-            $stmt->bind_param('i', $user_id);
-            $success = $stmt->execute() ? 'All notifications marked as read.' : 'Unable to update notifications.';
-            $stmt->close();
-        } else {
-            $error = 'Unable to update notifications.';
-        }
+        $notificationService->markAllRead($user_id);$success='All notifications marked as read.';
     }
 
     if ($action === 'mark_read') {
         $notification_id = intval($_POST['notification_id'] ?? 0);
-        $stmt = $conn->prepare("UPDATE notifications SET is_read = 1 WHERE notification_id = ? AND user_id = ?");
-        if ($stmt) {
-            $stmt->bind_param('ii', $notification_id, $user_id);
-            $success = $stmt->execute() ? 'Notification marked as read.' : 'Unable to update notification.';
-            $stmt->close();
-        } else {
-            $error = 'Unable to update notification.';
-        }
+        $notificationService->transition($notification_id,$user_id,'read');$success='Notification marked as read.';
     }
 
-    if ($action === 'delete_notification') {
+    if ($action === 'archive_notification' || $action === 'delete_notification') {
         $notification_id = intval($_POST['notification_id'] ?? 0);
-        $stmt = $conn->prepare("DELETE FROM notifications WHERE notification_id = ? AND user_id = ?");
-        if ($stmt) {
-            $stmt->bind_param('ii', $notification_id, $user_id);
-            $success = $stmt->execute() ? 'Notification deleted.' : 'Unable to delete notification.';
-            $stmt->close();
-        } else {
-            $error = 'Unable to delete notification.';
-        }
+        $notificationService->transition($notification_id,$user_id,$action==='archive_notification'?'archived':'deleted');$success=$action==='archive_notification'?'Notification archived.':'Notification removed.';
     }
 }
 
@@ -264,15 +216,32 @@ if (!in_array($sort, $allowed_sorts, true)) {
 }
 
 $notifications = [];
-$where = ['user_id = ?'];
+$where = ['user_id = ?', "state <> 'deleted'"];
 $types = 'i';
 $params = [$user_id];
 
 if ($read_filter === 'unread') {
-    $where[] = 'is_read = 0';
+    $where[] = "state = 'unread'";
 } elseif ($read_filter === 'read') {
-    $where[] = 'is_read = 1';
+    $where[] = "state = 'read'";
 }
+if($type_filter==='archived')$where[]="state='archived'";else$where[]="state<>'archived'";
+$typeSql=[
+    'request'=>"(notification_type LIKE 'request_%' OR notification_type LIKE 'payment_%')",
+    'payment'=>"notification_type LIKE 'payment_%'",
+    'file'=>"notification_type IN ('certificate_ready','certificate_released')",
+    'certificate'=>"notification_type LIKE 'certificate_%'",
+    'approved'=>"notification_type LIKE '%_approved'",
+    'processing'=>"notification_type IN ('request_submitted','reservation_created')",
+    'rejected'=>"notification_type LIKE '%_rejected'",
+    'submitted'=>"notification_type IN ('request_submitted','reservation_created')",
+    'announcement'=>"notification_type LIKE 'announcement_%'",
+    'schedule'=>"(notification_type LIKE 'reservation_%' OR notification_type LIKE 'schedule_%')",
+    'account'=>"notification_type IN ('system','account','password_changed')",
+    'ai'=>"notification_type LIKE 'ai_%'",
+    'notice'=>"notification_type='system'"
+];
+if(isset($typeSql[$type_filter]))$where[]=$typeSql[$type_filter];
 
 if ($search !== '') {
     $where[] = '(title LIKE ? OR message LIKE ?)';
@@ -283,9 +252,10 @@ if ($search !== '') {
 }
 
 $order_sql = $sort === 'oldest' ? 'created_at ASC' : 'created_at DESC';
-$stmt = $conn->prepare("SELECT notification_id, title, message, is_read, created_at FROM notifications WHERE " . implode(' AND ', $where) . " ORDER BY $order_sql");
+$page=max(1,(int)($_GET['page']??1));$per_page=30;$countStmt=$conn->prepare("SELECT COUNT(*) count FROM notifications WHERE ".implode(' AND ',$where));$countStmt->bind_param($types,...$params);$countStmt->execute();$filtered_total=(int)($countStmt->get_result()->fetch_assoc()['count']??0);$countStmt->close();$total_pages=max(1,(int)ceil($filtered_total/$per_page));$offset=($page-1)*$per_page;
+$stmt = $conn->prepare("SELECT notification_id,notification_type,title,message,entity_type,entity_id,action_key,state,is_read,created_at FROM notifications WHERE " . implode(' AND ', $where) . " ORDER BY $order_sql LIMIT ? OFFSET ?");
 if ($stmt) {
-    $stmt->bind_param($types, ...$params);
+    $queryTypes=$types.'ii';$queryParams=array_merge($params,[$per_page,$offset]);$stmt->bind_param($queryTypes, ...$queryParams);
     $stmt->execute();
     $result = $stmt->get_result();
     while ($row = $result->fetch_assoc()) {
@@ -294,19 +264,11 @@ if ($stmt) {
     $stmt->close();
 }
 
-if ($type_filter === 'archived') {
-    $notifications = [];
-} elseif ($type_filter !== 'all') {
-    $notifications = array_values(array_filter($notifications, function($notification) use ($type_filter) {
-        return notificationMatchesType($notification, $type_filter);
-    }));
-}
-
-$total_count = notificationCount($conn, "SELECT COUNT(*) AS count FROM notifications WHERE user_id = $user_id");
-$unread_count = notificationCount($conn, "SELECT COUNT(*) AS count FROM notifications WHERE user_id = $user_id AND is_read = 0");
+$total_count = notificationCount($conn, "SELECT COUNT(*) AS count FROM notifications WHERE user_id = $user_id AND state<>'deleted'");
+$unread_count = notificationCount($conn, "SELECT COUNT(*) AS count FROM notifications WHERE user_id = $user_id AND state='unread'");
 $read_count = max(0, $total_count - $unread_count);
 $today_count = notificationCount($conn, "SELECT COUNT(*) AS count FROM notifications WHERE user_id = $user_id AND DATE(created_at) = CURDATE()");
-$archived_count = 0;
+$archived_count = notificationCount($conn, "SELECT COUNT(*) AS count FROM notifications WHERE user_id = $user_id AND state='archived'");
 
 $category_filters = [
     'all' => ['label' => 'All Notifications', 'icon' => 'fa-inbox', 'type' => 'all'],
@@ -324,22 +286,19 @@ $category_counts = array_fill_keys(array_keys($category_filters), 0);
 $category_counts['all'] = $total_count;
 $category_counts['unread'] = $unread_count;
 $category_counts['archived'] = $archived_count;
-$stmt = $conn->prepare("SELECT notification_id, title, message, is_read, created_at FROM notifications WHERE user_id = ?");
+$stmt = $conn->prepare("SELECT notification_type,COUNT(*) count FROM notifications WHERE user_id = ? AND state='unread' GROUP BY notification_type");
 if ($stmt) {
     $stmt->bind_param('i', $user_id);
     $stmt->execute();
     $result = $stmt->get_result();
     while ($row = $result->fetch_assoc()) {
-        if (intval($row['is_read']) === 0) {
-            foreach ($category_filters as $category_key => $category) {
-                if (in_array($category_key, ['all', 'unread', 'archived'], true)) {
-                    continue;
-                }
-                if (notificationMatchesType($row, $category['type'])) {
-                    $category_counts[$category_key]++;
-                }
-            }
-        }
+        $type=(string)$row['notification_type'];$count=(int)$row['count'];
+        if(str_starts_with($type,'request_')||str_starts_with($type,'payment_'))$category_counts['request']+=$count;
+        if(str_starts_with($type,'certificate_'))$category_counts['certificate']+=$count;
+        if(str_starts_with($type,'announcement_'))$category_counts['announcement']+=$count;
+        if(str_starts_with($type,'reservation_')||str_starts_with($type,'schedule_'))$category_counts['schedule']+=$count;
+        if(in_array($type,['system','account','password_changed'],true))$category_counts['account']+=$count;
+        if(str_starts_with($type,'ai_'))$category_counts['ai']+=$count;
     }
     $stmt->close();
 }
@@ -1036,6 +995,7 @@ $body_extra_class = 'user-notifications-page';
                 <h2>Categories</h2>
                 <?php if ($unread_count > 0): ?>
                     <form method="POST" class="notification-mobile-mark-all">
+                        <?php echo csrfInput(); ?>
                         <input type="hidden" name="action" value="mark_all_read">
                         <button type="submit" aria-label="Mark all notifications as read" title="Mark all as read"><i class="fas fa-check-double" aria-hidden="true"></i></button>
                     </form>
@@ -1132,6 +1092,7 @@ $body_extra_class = 'user-notifications-page';
                 </form>
                 <?php if ($unread_count > 0): ?>
                     <form method="POST" class="notification-mark-all-form">
+                        <?php echo csrfInput(); ?>
                         <input type="hidden" name="action" value="mark_all_read">
                         <button type="submit" class="btn btn-outline-primary toolbar-control">
                             <i class="fas fa-check-double"></i> Mark All as Read
@@ -1173,6 +1134,7 @@ $body_extra_class = 'user-notifications-page';
                                     <a class="btn btn-sm btn-outline-primary" href="<?php echo e(notificationActionUrl($notification)); ?>"><i class="fas fa-arrow-up-right-from-square"></i> View</a>
                                     <?php if (!$notification['is_read']): ?>
                                         <form method="POST">
+                                            <?php echo csrfInput(); ?>
                                             <input type="hidden" name="action" value="mark_read">
                                             <input type="hidden" name="notification_id" value="<?php echo intval($notification['notification_id']); ?>">
                                             <button type="submit" class="btn btn-sm btn-outline-success"><i class="fas fa-check"></i> Mark as Read</button>
@@ -1180,8 +1142,9 @@ $body_extra_class = 'user-notifications-page';
                                     <?php else: ?>
                                         <button type="button" class="btn btn-sm btn-outline-secondary" disabled><i class="fas fa-envelope-open"></i> Read</button>
                                     <?php endif; ?>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled title="Archiving is not enabled for this notification record yet."><i class="fas fa-box-archive"></i> Archive</button>
+                                    <form method="POST"><?php echo csrfInput(); ?><input type="hidden" name="action" value="archive_notification"><input type="hidden" name="notification_id" value="<?php echo intval($notification['notification_id']); ?>"><button class="btn btn-sm btn-outline-secondary"><i class="fas fa-box-archive"></i> Archive</button></form>
                                     <form method="POST" onsubmit="return confirm('Delete this notification?');">
+                                        <?php echo csrfInput(); ?>
                                         <input type="hidden" name="action" value="delete_notification">
                                         <input type="hidden" name="notification_id" value="<?php echo intval($notification['notification_id']); ?>">
                                         <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i> Delete</button>
@@ -1236,6 +1199,7 @@ $body_extra_class = 'user-notifications-page';
                     <p class="mb-0">No notifications match your current filters. New request and parish updates will appear here.</p>
                 </div>
             <?php endif; ?>
+            <?php if($total_pages>1): ?><nav class="mt-3" aria-label="Notification pages"><ul class="pagination flex-wrap"><?php for($p=max(1,$page-2);$p<=min($total_pages,$page+2);$p++): ?><li class="page-item <?php echo $p===$page?'active':''; ?>"><a class="page-link" href="?<?php echo e(http_build_query(['q'=>$search,'read'=>$read_filter,'type'=>$type_filter,'sort'=>$sort,'page'=>$p])); ?>"><?php echo $p; ?></a></li><?php endfor; ?></ul></nav><?php endif; ?>
         </main>
     </div>
 </div>

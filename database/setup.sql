@@ -369,10 +369,8 @@ CREATE TABLE IF NOT EXISTS audit_log (
     INDEX (created_at)
 );
 
--- Create default admin user (password: admin123)
-INSERT INTO users (fullname, phone_number, email, chapel_district, password, role, status) 
-VALUES ('Admin', '555-0000', 'admin@gmail.com', 'Main Chapel', '$2y$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcg7b3XeKeUxWdeS86E36DxYXpm', 'admin', 'active')
-ON DUPLICATE KEY UPDATE id=id;
+-- No default administrator is created. Provision the first administrator with
+-- a unique password through the controlled CLI/bootstrap procedure.
 
 -- Create default certificate templates
 INSERT INTO certificate_templates (certificate_type, template_content, created_by) 

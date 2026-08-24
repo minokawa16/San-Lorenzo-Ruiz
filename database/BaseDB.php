@@ -1,4 +1,6 @@
 <?php
+require_once dirname(__DIR__) . '/includes/audit.php';
+
 /**
  * BaseDB Class - Secure Database Abstraction Layer
  * Handles prepared statements, error handling, and query caching
@@ -280,17 +282,7 @@ class BaseDB {
      */
     private function logAudit($action, $sql, $params) {
         if (isset($_SESSION['user_id'])) {
-            $user_id = $_SESSION['user_id'];
-            $audit_sql = "INSERT INTO audit_logs (user_id, action_type, ip_address, user_agent) VALUES (?, ?, ?, ?)";
-            $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-            $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
-            
-            $stmt = $this->conn->prepare($audit_sql);
-            if ($stmt) {
-                $stmt->bind_param('isss', $user_id, $action, $ip, $user_agent);
-                $stmt->execute();
-                $stmt->close();
-            }
+            writeAuditLog($this->conn, (int) $_SESSION['user_id'], $action);
         }
     }
 

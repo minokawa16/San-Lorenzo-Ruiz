@@ -14,6 +14,7 @@ $error = '';
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    requireValidCsrfToken();
     $action = $_POST['action'] ?? '';
     $user_id = intval($_POST['user_id'] ?? 0);
 
@@ -29,39 +30,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$target_user) {
         $error = 'User registration not found.';
+    } elseif ($target_user['status'] !== 'pending_verification') {
+        $error = 'Only pending registrations can be reviewed.';
     } elseif ($action === 'approve') {
-        $stmt = $conn->prepare("UPDATE users SET status = 'active', rejection_reason = NULL, verified_at = NOW(), verified_by = ? WHERE id = ? AND role = 'user'");
-        if ($stmt) {
-            $admin_id = intval($_SESSION['user_id']);
-            $stmt->bind_param('ii', $admin_id, $user_id);
-            if ($stmt->execute()) {
-                createNotification($conn, $user_id, 'Account Approved', 'Your account has been approved. You may now log in to the Parish Management System.');
-                createAuditLog($conn, $_SESSION['user_id'], 'APPROVE_REGISTRATION', 'users', $user_id);
-                $success = 'Registration approved successfully.';
-            } else {
-                $error = 'Unable to approve registration.';
-            }
-            $stmt->close();
+        $admin_id = (int) $_SESSION['user_id'];
+        if (transitionAccountStatus($conn, $user_id, 'active', 'approved', null, $admin_id)) {
+            createNotification($conn, $user_id, 'Account Approved', 'Your account has been approved. You may now log in to the Parish Management System.');
+            createAuditLog($conn, $admin_id, 'APPROVE_REGISTRATION', 'users', $user_id);
+            $success = 'Registration approved successfully.';
+        } else {
+            $error = 'Unable to approve registration.';
         }
     } elseif ($action === 'reject') {
         $reason = trim($_POST['rejection_reason'] ?? '');
-        if ($reason === '') {
-            $error = 'Please add a rejection reason.';
+        if (mb_strlen($reason) < 10) {
+            $error = 'Please add a meaningful rejection reason of at least 10 characters.';
         } elseif (mb_strlen($reason) > 1000) {
             $error = 'Rejection reason is too long. Please keep it under 1000 characters.';
         } else {
-            $stmt = $conn->prepare("UPDATE users SET status = 'rejected', rejection_reason = ?, verified_at = NOW(), verified_by = ? WHERE id = ? AND role = 'user'");
-            if ($stmt) {
-                $admin_id = intval($_SESSION['user_id']);
-                $stmt->bind_param('sii', $reason, $admin_id, $user_id);
-                if ($stmt->execute()) {
-                    createNotification($conn, $user_id, 'Registration Not Approved', 'Your registration was not approved by the parish administrator. Reason: ' . $reason);
-                    createAuditLog($conn, $_SESSION['user_id'], 'REJECT_REGISTRATION', 'users', $user_id, null, ['reason' => $reason]);
-                    $success = 'Registration rejected successfully.';
-                } else {
-                    $error = 'Unable to reject registration.';
-                }
-                $stmt->close();
+            $admin_id = (int) $_SESSION['user_id'];
+            if (transitionAccountStatus($conn, $user_id, 'rejected', 'rejected', $reason, $admin_id)) {
+                createNotification($conn, $user_id, 'Registration Not Approved', 'Your registration was not approved by the parish administrator. Reason: ' . $reason);
+                createAuditLog($conn, $admin_id, 'REJECT_REGISTRATION', 'users', $user_id, null, ['reason' => $reason]);
+                $success = 'Registration rejected successfully.';
+            } else {
+                $error = 'Unable to reject registration.';
             }
         }
     }
@@ -268,6 +261,7 @@ $page_title = 'Registration Verification';
                     <?php if ($user['status'] === 'pending_verification'): ?>
                         <div class="verification-actions">
                             <form method="POST">
+                                <?php echo csrfInput(); ?>
                                 <input type="hidden" name="action" value="approve">
                                 <input type="hidden" name="user_id" value="<?php echo intval($user['id']); ?>">
                                 <button class="btn btn-success w-100" type="submit"><i class="fas fa-check"></i> Approve</button>
@@ -278,6 +272,7 @@ $page_title = 'Registration Verification';
                         </div>
                         <div class="collapse mt-3" id="reject-<?php echo intval($user['id']); ?>">
                             <form method="POST" class="reject-form">
+                                <?php echo csrfInput(); ?>
                                 <input type="hidden" name="action" value="reject">
                                 <input type="hidden" name="user_id" value="<?php echo intval($user['id']); ?>">
                                 <label class="form-label">Rejection reason</label>

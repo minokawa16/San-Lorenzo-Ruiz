@@ -7,6 +7,7 @@
 include '../includes/session.php';
 include '../database/config.php';
 include '../includes/helpers.php';
+require_once '../services/SacramentalRecordService.php';
 
 requireAdmin();
 requirePermission('archives.manage');
@@ -26,20 +27,13 @@ $date_to = trim((string) ($_GET['date_to'] ?? ''));
 
 // Ensure Archive Column Function - Documents this helper's role in the parish management workflow.
 function ensureArchiveColumn($conn, $table) {
-    $table = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
-    $result = $conn->query("SHOW COLUMNS FROM `$table` LIKE 'deleted_at'");
-    if ($result && $result->num_rows > 0) {
-        return true;
-    }
-
-    return $conn->query("ALTER TABLE `$table` ADD COLUMN deleted_at TIMESTAMP NULL DEFAULT NULL AFTER updated_at");
+    return columnExists($conn, $table, 'deleted_at');
 }
 
 // Archive Table Exists Function - Documents this helper's role in the parish management workflow.
 function archiveTableExists($conn, $table) {
     $table = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
-    $result = $conn->query("SHOW TABLES LIKE '$table'");
-    return $result && $result->num_rows > 0;
+    return schemaTableExists($conn, $table);
 }
 
 ensureArchiveColumn($conn, 'requests');
@@ -89,6 +83,7 @@ $record_tables = [
 ];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    requireValidCsrfToken();
     $action = $_POST['action'] ?? '';
 
     if ($action === 'restore_request') {
@@ -102,7 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     } elseif ($action === 'restore_announcement') {
         $announcement_id = intval($_POST['announcement_id'] ?? 0);
-        if ($conn->query("UPDATE announcements SET deleted_at = NULL, status = 'active' WHERE announcement_id = $announcement_id")) {
+        if ($conn->query("UPDATE announcements SET deleted_at = NULL, status = 'inactive', lifecycle_status='draft', archived_at=NULL, archived_by=NULL, archive_reason=NULL WHERE announcement_id = $announcement_id")) {
             createAuditLog($conn, $_SESSION['user_id'], 'RESTORE_ANNOUNCEMENT', 'announcements', $announcement_id);
             $success = 'Announcement restored successfully!';
             $active_tab = 'announcements';
@@ -115,16 +110,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (isset($record_tables[$record_type])) {
             $meta = $record_tables[$record_type];
-            $table = $meta['table'];
-            $id_column = $meta['id'];
-
-            if ($conn->query("UPDATE `$table` SET status = 'active' WHERE `$id_column` = $record_id")) {
-                createAuditLog($conn, $_SESSION['user_id'], 'RESTORE_SACRAMENTAL_RECORD', $table, $record_id);
+            try {
+                (new SacramentalRecordService($conn))->restore($record_type,$record_id,(int)$_SESSION['user_id']);
                 $success = $meta['label'] . ' record restored successfully!';
                 $active_tab = 'records';
-            } else {
-                $error = 'Error restoring record: ' . $conn->error;
-            }
+            } catch(Throwable $exception) {$error=$exception->getMessage();}
         }
     }
 }
@@ -383,6 +373,7 @@ $breadcrumbs = [
                                         <td><?php echo formatDateTime($request['deleted_at']); ?></td>
                                         <td>
                                             <form method="POST" class="d-inline" onsubmit="return confirm('Restore this request?');">
+                                                <?php echo csrfInput(); ?>
                                                 <input type="hidden" name="action" value="restore_request">
                                                 <input type="hidden" name="request_id" value="<?php echo $request['request_id']; ?>">
                                                 <button type="submit" class="btn btn-sm btn-outline-success">
@@ -423,6 +414,7 @@ $breadcrumbs = [
                                         <td><?php echo formatDateTime($announcement['deleted_at']); ?></td>
                                         <td>
                                             <form method="POST" class="d-inline" onsubmit="return confirm('Restore this announcement?');">
+                                                <?php echo csrfInput(); ?>
                                                 <input type="hidden" name="action" value="restore_announcement">
                                                 <input type="hidden" name="announcement_id" value="<?php echo $announcement['announcement_id']; ?>">
                                                 <button type="submit" class="btn btn-sm btn-outline-success">
@@ -462,6 +454,7 @@ $breadcrumbs = [
                                         <td><?php echo formatDateTime($record['archived_at']); ?></td>
                                         <td>
                                             <form method="POST" class="d-inline" onsubmit="return confirm('Restore this sacramental record?');">
+                                                <?php echo csrfInput(); ?>
                                                 <input type="hidden" name="action" value="restore_record">
                                                 <input type="hidden" name="record_type" value="<?php echo e($record['record_type']); ?>">
                                                 <input type="hidden" name="record_id" value="<?php echo $record['record_id']; ?>">

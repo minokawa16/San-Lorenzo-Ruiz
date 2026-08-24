@@ -14,18 +14,9 @@ if (!isUser()) {
 $page_title = 'Announcements';
 ensureExpandedAnnouncementTypeSchema($conn);
 ensureAnnouncementAttachmentSchema($conn);
-if (!columnExists($conn, 'announcements', 'event_date')) {
-    $conn->query("ALTER TABLE announcements ADD COLUMN event_date DATE NULL AFTER expiry_date");
-}
-if (!columnExists($conn, 'announcements', 'deleted_at')) {
-    $conn->query("ALTER TABLE announcements ADD COLUMN deleted_at TIMESTAMP NULL DEFAULT NULL AFTER updated_at");
-}
-if (!columnExists($conn, 'announcements', 'is_pinned')) {
-    $conn->query("ALTER TABLE announcements ADD COLUMN is_pinned TINYINT(1) DEFAULT 0 AFTER event_date");
-}
-if (!columnExists($conn, 'announcements', 'scheduled_at')) {
-    $conn->query("ALTER TABLE announcements ADD COLUMN scheduled_at DATETIME NULL AFTER published_date");
-}
+requireSchemaColumns($conn, 'announcements', [
+    'event_date', 'deleted_at', 'is_pinned', 'scheduled_at'
+], 'parishioner announcements');
 
 $announcement_types = [
     'announcement' => 'General Announcements',
@@ -68,9 +59,10 @@ if ($event_date !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $event_date)) {
     $event_date = '';
 }
 
-$where = ["a.status = 'active'", "a.deleted_at IS NULL", "(a.scheduled_at IS NULL OR a.scheduled_at <= NOW())", "(a.expiry_date IS NULL OR a.expiry_date >= NOW())"];
-$params = [];
-$param_types = '';
+$audience_stmt=$conn->prepare('SELECT chapel_district FROM users WHERE id=?');$audience_stmt->bind_param('i',$_SESSION['user_id']);$audience_stmt->execute();$audience_user=$audience_stmt->get_result()->fetch_assoc();$audience_stmt->close();$chapel_district=(string)($audience_user['chapel_district']??'');
+$where = ["a.status = 'active'", "a.lifecycle_status='published'", "a.deleted_at IS NULL", "a.publish_at <= NOW()", "(a.expires_at IS NULL OR a.expires_at > NOW())", "(a.audience_type='everyone' OR EXISTS(SELECT 1 FROM announcement_audiences aa WHERE aa.announcement_id=a.announcement_id AND ((aa.audience_type='selected_user' AND aa.user_id=?) OR (aa.audience_type IN('district','chapel') AND aa.audience_value=?))))"];
+$params = [(int)$_SESSION['user_id'],$chapel_district];
+$param_types = 'is';
 
 if ($type !== 'all') {
     $where[] = 'a.type = ?';

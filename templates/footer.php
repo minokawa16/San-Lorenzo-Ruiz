@@ -1118,11 +1118,13 @@
             border-color: rgba(255, 255, 255, 0.14) !important;
         }
     </style>
+    <?php if (isset($is_admin_area) && $is_admin_area): ?>
+    <?php $canonical_admin_sidebar_version = filemtime(__DIR__ . '/../assets/css/admin-sidebar.css'); ?>
+    <link rel="stylesheet" href="../assets/css/admin-sidebar.css?v=<?php echo $canonical_admin_sidebar_version; ?>">
+    <?php endif; ?>
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <!-- Custom JS -->
     <?php $main_script_version = file_exists(__DIR__ . '/../assets/js/main.js') ? filemtime(__DIR__ . '/../assets/js/main.js') : time(); ?>
     <script src="../assets/js/main.js?v=<?php echo $main_script_version; ?>"></script>
@@ -1729,5 +1731,8 @@
             });
         })();
     </script>
+    <!-- Re-apply after page/footer inline themes so WCAG contrast rules win deterministically. -->
+    <link rel="stylesheet" href="../assets/css/accessibility.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/accessibility.css'); ?>">
+    <script src="../assets/js/accessibility.js?v=<?php echo filemtime(__DIR__ . '/../assets/js/accessibility.js'); ?>"></script>
 </body>
 </html>

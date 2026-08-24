@@ -301,7 +301,7 @@ $page_title = 'Sacramental Records - Parish Management';
                     Confirmation, Marriage, and Funeral. Admins encode the record-book information here directly.
                 </p>
             </div>
-            <div class="records-total">
+        <div class="records-total">
                 <strong><?php echo $total_records; ?></strong>
                 <span>Active Records</span>
             </div>
@@ -313,6 +313,7 @@ $page_title = 'Sacramental Records - Parish Management';
                 <strong>Records and certificates are separate.</strong>
                 Add or update parish registry information here. Generate or print certificates only from the
                 Generate Certificates area.
+                <div class="mt-2"><a class="btn btn-sm btn-outline-primary" href="record-corrections.php"><i class="fas fa-pen-to-square"></i> Review corrections</a> <a class="btn btn-sm btn-outline-primary" href="sacramental-import.php"><i class="fas fa-file-csv"></i> Validated CSV import</a></div>
             </div>
         </div>
 
@@ -322,7 +323,7 @@ $page_title = 'Sacramental Records - Parish Management';
                     <div class="registry-card-header">
                         <span class="registry-icon"><i class="fas <?php echo htmlspecialchars($registry['icon']); ?>"></i></span>
                         <span class="registry-count"><?php echo $registry['count']; ?> active</span>
-                    </div>
+    </div>
                     <div>
                         <h2><?php echo htmlspecialchars($registry['title']); ?></h2>
                         <p><?php echo htmlspecialchars($registry['description']); ?></p>

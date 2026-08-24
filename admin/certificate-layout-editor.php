@@ -257,14 +257,14 @@ $simple_text_fields = [
                             <input type="hidden" name="certificate_type" value="<?php echo e($certificate_type); ?>">
                             <input type="hidden" name="asset_key" value="<?php echo e($key); ?>">
                             <input class="form-control form-control-sm" type="file" name="asset_file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" required>
-                            <button class="btn btn-sm btn-outline-primary" type="submit"><i class="fas fa-upload"></i></button>
+                            <button class="btn btn-sm btn-outline-primary" type="submit" title="Upload selected logo" aria-label="Upload selected <?php echo e($label); ?>"><i class="fas fa-upload"></i></button>
                         </form>
                         <form method="POST">
                             <?php echo csrfInput(); ?>
                             <input type="hidden" name="action" value="delete_asset">
                             <input type="hidden" name="certificate_type" value="<?php echo e($certificate_type); ?>">
                             <input type="hidden" name="asset_key" value="<?php echo e($key); ?>">
-                            <button class="btn btn-sm btn-outline-danger" type="submit"><i class="fas fa-trash"></i></button>
+                            <button class="btn btn-sm btn-outline-danger" type="submit" title="Remove current logo" aria-label="Remove current <?php echo e($label); ?>"><i class="fas fa-trash"></i></button>
                         </form>
                     </div>
                 <?php endforeach; ?>
@@ -291,7 +291,7 @@ $simple_text_fields = [
 const settings = <?php echo json_encode($settings, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
 const assetUrls = {};
 Object.entries(settings.images).forEach(([key, value]) => {
-    assetUrls[key] = value ? '../' + value.replace(/\\/g, '/') : '';
+    assetUrls[key] = value ? '../certificate-layout-asset.php?asset=' + encodeURIComponent(value.replace(/\\/g, '/').split('/').pop()) : '';
 });
 
 function getPath(path) {

@@ -6,10 +6,8 @@ include '../includes/session.php';
 include '../database/config.php';
 include '../includes/helpers.php';
 
-requireAdmin();
-
-header('Location: ' . BASE_URL . 'admin/dashboard.php');
-exit;
+requireLogin();
+requirePermission('ai.staff.use');
 
 $page_title = 'AI Assistant - Admin';
 ?>
@@ -24,12 +22,15 @@ $page_title = 'AI Assistant - Admin';
     <link rel="stylesheet" href="../assets/css/holy-theme.css">
     <link rel="stylesheet" href="../assets/css/premium-parish.css">
     <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="../assets/css/parish-design-system.css">
     <link rel="stylesheet" href="../assets/css/theme.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/theme.css') ? filemtime(__DIR__ . '/../assets/css/theme.css') : time(); ?>">
+    <link rel="stylesheet" href="../assets/css/accessibility.css">
 </head>
 <body class="church-theme">
+    <a class="tugon-skip-link" href="#main-content">Skip to main content</a>
     <div class="premium-admin-shell">
         <?php include '../includes/admin-sidebar.php'; ?>
-        <main class="premium-admin-content">
+        <main class="premium-admin-content" id="main-content" tabindex="-1">
             <section class="premium-admin-hero">
                 <div>
                     <span class="premium-pill landing-eyebrow"><i class="fas fa-robot"></i> AI-powered operations</span>
@@ -89,6 +90,7 @@ $page_title = 'AI Assistant - Admin';
         const clearBtn = document.getElementById('aiClearBtn');
         const sendBtn = form.querySelector('button[type="submit"]');
         const conversationHistory = [];
+        let assistantCsrfToken = <?php echo json_encode(generateCsrfToken()); ?>;
 
         // Escape Html Function - Documents this helper's role in the parish management workflow.
         function escapeHtml(value) {
@@ -144,9 +146,12 @@ $page_title = 'AI Assistant - Admin';
                 ? '<div class="ai-typing-line">AI Parish Assistant is typing <span class="ai-typing-dots"><span></span><span></span><span></span></span></div>'
                 : '<p><span class="ai-response-text">' + (stream ? '' : escapeHtml(body)) + '</span></p>' + stepsHtml;
             const copyHtml = type === 'assistant' && !loading ? '<button type="button" class="ai-copy-btn">Copy</button>' : '';
+            const sourceHtml = (options.sources || []).map(function(source) { return '<small class="d-block"><strong>Source:</strong> ' + escapeHtml(source.title) + ' · ' + escapeHtml(source.last_updated) + '</small>'; }).join('');
+            const feedbackHtml = type === 'assistant' && options.responseReference ? '<div class="ai-feedback" data-response-reference="' + escapeHtml(options.responseReference) + '"><span>Review:</span> <button type="button" data-ai-rating="correct">Correct</button> <button type="button" data-ai-rating="incorrect">Incorrect</button> <button type="button" data-ai-rating="needs_review">Needs review</button></div>' : '';
+            const escalationHtml = options.escalation ? '<p><a class="btn btn-sm btn-outline-secondary" href="' + escapeHtml(options.escalation.url) + '">' + escapeHtml(options.escalation.label) + '</a></p>' : '';
             item.innerHTML =
                 '<strong>' + escapeHtml(title) + '</strong>' +
-                bodyHtml +
+                bodyHtml + sourceHtml + escalationHtml + feedbackHtml +
                 '<div class="ai-message-meta"><span>' + currentTime() + '</span>' + copyHtml + '</div>';
             log.appendChild(item);
             log.scrollTop = log.scrollHeight;
@@ -201,7 +206,7 @@ $page_title = 'AI Assistant - Admin';
 
             fetch('../api/ai-assistant.php', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: {'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-Token': assistantCsrfToken, 'X-Requested-With': 'XMLHttpRequest'},
                 body: JSON.stringify({message: message, mode: mode || 'chat', conversation: conversationHistory.slice(-8)})
             })
             .then(function(response) { return response.json(); })
@@ -215,6 +220,9 @@ $page_title = 'AI Assistant - Admin';
                         title: title,
                         body: answer,
                         steps: data.success && data.guidance && data.guidance.steps ? data.guidance.steps : [],
+                        sources: data.sources || [],
+                        responseReference: data.response_reference || '',
+                        escalation: data.escalation || null,
                         stream: true
                     });
                     conversationHistory.push({role: 'assistant', content: answer});
@@ -251,6 +259,15 @@ $page_title = 'AI Assistant - Admin';
         });
 
         log.addEventListener('click', function(event) {
+            const ratingButton = event.target.closest('[data-ai-rating]');
+            if (ratingButton) {
+                const group = ratingButton.closest('[data-response-reference]');
+                const comments = ratingButton.dataset.aiRating === 'correct' ? '' : (window.prompt('Optional review comments (do not include private information):') || '');
+                ratingButton.disabled = true;
+                fetch('../api/ai-assistant.php', {method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-Token':assistantCsrfToken,'X-Requested-With':'XMLHttpRequest'},body:JSON.stringify({action:'feedback',response_reference:group.dataset.responseReference,rating:ratingButton.dataset.aiRating,comments:comments})})
+                    .then(function(response){return response.json();}).then(function(data){group.textContent=data.success?'Feedback saved.':(data.message||'Unable to save feedback.');}).catch(function(){ratingButton.disabled=false;});
+                return;
+            }
             const copyButton = event.target.closest('.ai-copy-btn');
             if (!copyButton) return;
             const bubble = copyButton.closest('.ai-message');
@@ -297,5 +314,6 @@ $page_title = 'AI Assistant - Admin';
         input.focus();
     });
     </script>
+    <script src="../assets/js/accessibility.js"></script>
 </body>
 </html>

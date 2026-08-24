@@ -9,6 +9,9 @@ include '../database/config.php';
 include '../includes/helpers.php';
 
 requireLogin();
+if (in_array(($_SERVER['REQUEST_METHOD'] ?? 'GET'), ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
+    requireValidCsrfToken();
+}
 
 if (!ensureScheduleEventsTable($conn)) {
     http_response_code(500);
@@ -320,10 +323,6 @@ if ($method === 'GET') {
             }
             $stmt->close();
         }
-    }
-
-    if (tableExists($conn, 'announcements') && !columnExists($conn, 'announcements', 'event_date')) {
-        $conn->query("ALTER TABLE announcements ADD COLUMN event_date DATE NULL AFTER expiry_date");
     }
 
     $announcement_calendar_types = ['announcement', 'monthly_schedule', 'mass_schedule', 'parish_event', 'patronal_fiesta_schedule'];

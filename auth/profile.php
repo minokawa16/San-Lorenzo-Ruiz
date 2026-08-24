@@ -23,9 +23,22 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') == 'POST') {
 
     if ($action === 'preferences') {
         $login_otp_enabled = isset($_POST['login_otp_enabled']) ? 1 : 0;
+        if (isAdmin() && administratorMfaIsEnforced()) {
+            $login_otp_enabled = 1;
+        }
+        if ($login_otp_enabled === 1
+            && verifiedAuthenticationDestination($conn, (int) $user_id, 'email') === null
+            && verifiedAuthenticationDestination($conn, (int) $user_id, 'mobile') === null) {
+            $error = 'Verify an email address or mobile number before enabling login verification.';
+        }
         $categories = ['announcements', 'requests', 'schedules', 'system'];
-        $conn->query("UPDATE users SET login_otp_enabled = $login_otp_enabled WHERE id = " . intval($user_id));
-        foreach ($categories as $category) {
+        if ($error === '') {
+            $otpPreference = $conn->prepare('UPDATE users SET login_otp_enabled = ? WHERE id = ?');
+            $otpPreference->bind_param('ii', $login_otp_enabled, $user_id);
+            $otpPreference->execute();
+            $otpPreference->close();
+        }
+        foreach ($error === '' ? $categories : [] as $category) {
             $email_enabled = isset($_POST['email_' . $category]) ? 1 : 0;
             $sms_enabled = isset($_POST['sms_' . $category]) ? 1 : 0;
             $stmt = $conn->prepare("INSERT INTO notification_preferences (user_id, category, email_enabled, sms_enabled, in_app_enabled) VALUES (?, ?, ?, ?, 1)
@@ -36,26 +49,35 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') == 'POST') {
                 $stmt->close();
             }
         }
-        $success = 'Notification and security preferences updated.';
+        if ($error === '') {
+            $success = 'Notification and security preferences updated.';
+            createAuditLog($conn, $user_id, $login_otp_enabled ? 'ENABLE_LOGIN_OTP' : 'DISABLE_LOGIN_OTP', 'users', $user_id);
+        }
         $user = getUserById($conn, $user_id);
     } else {
     $fullname = trim($_POST['fullname'] ?? '');
-    $phone_number = trim($_POST['phone_number'] ?? '');
+    $phone_number = normalizePhilippineMobileForStorage($_POST['phone_number'] ?? '');
     $chapel_district = trim($_POST['chapel_district'] ?? '');
 
-    if ($fullname === '' || $phone_number === '') {
+    if ($fullname === '' || !isValidPhilippineMobile($phone_number)) {
         $error = 'Full name and phone number are required.';
+    } elseif (!authenticationIdentifierAvailable($conn, 'mobile', $phone_number, (int) $user_id)) {
+        $error = 'That mobile number is not available for this account.';
     } else {
-        $stmt = $conn->prepare("UPDATE users SET fullname = ?, phone_number = ?, chapel_district = ? WHERE id = ?");
+        $stmt = $conn->prepare("UPDATE users SET fullname = ?, phone_verified_at = CASE WHEN phone_number = ? THEN phone_verified_at ELSE NULL END, phone_number = ?, chapel_district = ? WHERE id = ?");
         if (!$stmt) {
             $error = 'Unable to update profile.';
         } else {
-            $stmt->bind_param('sssi', $fullname, $phone_number, $chapel_district, $user_id);
+            $stmt->bind_param('ssssi', $fullname, $phone_number, $phone_number, $chapel_district, $user_id);
         }
     }
 
     if (!$error && $stmt->execute()) {
         $_SESSION['fullname'] = $fullname;
+        $phoneVerifiedAt = normalizePhilippineMobileForStorage($user['phone_number'] ?? '') === $phone_number
+            ? ($user['phone_verified_at'] ?? null)
+            : null;
+        synchronizeAuthenticationIdentifier($conn, (int) $user_id, 'mobile', $phone_number, $phoneVerifiedAt);
         $success = 'Profile updated successfully!';
         $user = getUserById($conn, $user_id);
     } else {
@@ -193,7 +215,7 @@ $page_title = 'My Profile';
                         </div>
 
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                            <a href="<?php echo isAdmin() ? '../admin/dashboard.php' : '../users/dashboard.php'; ?>" class="btn btn-outline-secondary">Cancel</a>
+                            <a href="<?php echo isAdmin() ? '../admin/dashboard.php' : '../users/index.php'; ?>" class="btn btn-outline-secondary">Cancel</a>
                             <button type="submit" class="btn btn-primary">Save Changes</button>
                         </div>
                     </form>
@@ -207,8 +229,10 @@ $page_title = 'My Profile';
                             <input type="hidden" name="action" value="preferences">
                             <div class="col-12">
                                 <label class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="login_otp_enabled" <?php echo !empty($user['login_otp_enabled']) ? 'checked' : ''; ?>>
-                                    <span class="form-check-label">Require email OTP after password login</span>
+                                    <input class="form-check-input" type="checkbox" name="login_otp_enabled" <?php echo ((isAdmin() && administratorMfaIsEnforced()) || !empty($user['login_otp_enabled'])) ? 'checked' : ''; ?> <?php echo (isAdmin() && administratorMfaIsEnforced()) ? 'disabled' : ''; ?>>
+                                    <?php if (isAdmin() && administratorMfaIsEnforced()): ?><input type="hidden" name="login_otp_enabled" value="1"><?php endif; ?>
+                                    <span class="form-check-label"><?php echo (isAdmin() && administratorMfaIsEnforced()) ? 'Login OTP is mandatory for administrators' : 'Require OTP after password login'; ?></span>
+                                    <?php if (isAdmin() && !administratorMfaIsEnforced()): ?><span class="form-text d-block">Administrator OTP is optional during local development and mandatory in production.</span><?php endif; ?>
                                 </label>
                             </div>
                             <?php

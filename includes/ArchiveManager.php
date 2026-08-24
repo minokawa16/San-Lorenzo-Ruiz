@@ -217,9 +217,10 @@ class ArchiveManager {
      */
     public function supportsArchiving($table) {
         $table = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
-        
-        $result = $this->conn->query("SHOW COLUMNS FROM `$table` LIKE 'deleted_at'");
-        return $result && $result->num_rows > 0;
+        return in_array($table, [
+            'requests', 'announcements', 'baptism_records', 'confirmation_records',
+            'first_communion_records', 'marriage_records', 'funeral_records'
+        ], true);
     }
 }
 ?>

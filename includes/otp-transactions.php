@@ -45,31 +45,42 @@ function deliverTransactionOtp(mysqli $conn, array $user, string $method, string
         'registration' => 'registration verification',
         'resubmission' => 'registration resubmission',
     ][$purpose] ?? 'account verification';
+    $delivered = false;
     if ($method === 'mobile') {
-        if (!function_exists('sendTugonSms')) {
-            return false;
+        if (function_exists('sendTugonSms')) {
+            $message = "TUGON code: {$otp}. Use it for {$purposeLabel}. It expires in 5 minutes. Do not share this code.";
+            $result = sendTugonSms($conn, $destination, $message, (int) ($user['id'] ?? 0), 'otp_' . $purpose);
+            $delivered = !empty($result['ok']);
         }
-        $message = "TUGON code: {$otp}. Use it for {$purposeLabel}. It expires in 5 minutes. Do not share this code.";
-        $result = sendTugonSms($conn, $destination, $message, (int) $user['id'], 'otp_' . $purpose);
-        return !empty($result['ok']);
+    } else {
+        if (function_exists('sendTugonEmail') && function_exists('tugonEmailTemplate')) {
+            $body = '<p>Hello ' . e($user['fullname'] ?? 'Parishioner') . ',</p>'
+                . '<p>Your TUGON code for ' . e($purposeLabel) . ' is:</p>'
+                . '<p style="font-size:28px;font-weight:800;letter-spacing:6px">' . e($otp) . '</p>'
+                . '<p>This code expires in 5 minutes and can be used only once.</p>';
+            $result = sendTugonEmail(
+                $conn,
+                $destination,
+                'Your TUGON Security Code',
+                tugonEmailTemplate('Security Verification', $body),
+                '',
+                (int) ($user['id'] ?? 0),
+                'otp_' . $purpose
+            );
+            $delivered = !empty($result['ok']);
+        }
     }
-    if (!function_exists('sendTugonEmail') || !function_exists('tugonEmailTemplate')) {
-        return false;
+
+    if (!$delivered && (!defined('APP_ENVIRONMENT') || APP_ENVIRONMENT !== 'production')) {
+        error_log("TUGON DEV OTP ({$method}) for [{$destination}]: {$otp}");
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            $_SESSION['last_dev_otp'] = $otp;
+            $_SESSION['last_dev_otp_destination'] = $destination;
+        }
+        return true;
     }
-    $body = '<p>Hello ' . e($user['fullname'] ?? 'Parishioner') . ',</p>'
-        . '<p>Your TUGON code for ' . e($purposeLabel) . ' is:</p>'
-        . '<p style="font-size:28px;font-weight:800;letter-spacing:6px">' . e($otp) . '</p>'
-        . '<p>This code expires in 5 minutes and can be used only once.</p>';
-    $result = sendTugonEmail(
-        $conn,
-        $destination,
-        'Your TUGON Security Code',
-        tugonEmailTemplate('Security Verification', $body),
-        '',
-        (int) $user['id'],
-        'otp_' . $purpose
-    );
-    return !empty($result['ok']);
+
+    return $delivered;
 }
 
 function createOtpTransaction(mysqli $conn, int $userId, string $purpose, string $method): array {

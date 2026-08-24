@@ -9,17 +9,15 @@ include '../config/security.php';
 include '../includes/session.php';
 include '../includes/helpers.php';
 include '../database/config.php';
+require_once '../services/SacramentalRecordService.php';
 
 // Define BASE_URL if not already defined
 if (!defined('BASE_URL')) {
     define('BASE_URL', '/ParishSystem/');
 }
 
-// Check admin access
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-    header("Location: ../auth/login.php");
-    exit();
-}
+requireAdmin();
+requirePermission('records.manage');
 
 // Fetch All Assoc Function - Documents this helper's role in the parish management workflow.
 function fetch_all_assoc($stmt) {
@@ -51,33 +49,16 @@ function fetch_all_assoc($stmt) {
 
 // Baptism Column Exists Function - Documents this helper's role in the parish management workflow.
 function baptism_column_exists($conn, $column) {
-    $safe_column = $conn->real_escape_string($column);
-    $result = $conn->query("SHOW COLUMNS FROM baptism_records LIKE '$safe_column'");
-    return $result && $result->num_rows > 0;
+    return schemaColumnExists($conn, 'baptism_records', (string) $column);
 }
 
 // Ensure Baptism Record Book Schema Function - Documents this helper's role in the parish management workflow.
 function ensure_baptism_record_book_schema($conn) {
-    $columns = [
-        'request_id' => "ALTER TABLE baptism_records ADD COLUMN request_id INT NULL AFTER baptism_id",
-        'registry_no' => "ALTER TABLE baptism_records ADD COLUMN registry_no VARCHAR(50) NULL AFTER request_id",
-        'book_no' => "ALTER TABLE baptism_records ADD COLUMN book_no VARCHAR(40) NULL AFTER registry_no",
-        'page_no' => "ALTER TABLE baptism_records ADD COLUMN page_no VARCHAR(40) NULL AFTER book_no",
-        'entry_no' => "ALTER TABLE baptism_records ADD COLUMN entry_no VARCHAR(40) NULL AFTER page_no",
-        'birth_place' => "ALTER TABLE baptism_records ADD COLUMN birth_place VARCHAR(150) NULL AFTER birth_date",
-        'birth_status' => "ALTER TABLE baptism_records ADD COLUMN birth_status VARCHAR(80) NULL AFTER birth_place",
-        'parent_address' => "ALTER TABLE baptism_records ADD COLUMN parent_address VARCHAR(200) NULL AFTER parents",
-        'parish_address' => "ALTER TABLE baptism_records ADD COLUMN parish_address VARCHAR(200) NULL AFTER godparents",
-        'remarks' => "ALTER TABLE baptism_records ADD COLUMN remarks TEXT NULL AFTER priest",
-        'parish_priest' => "ALTER TABLE baptism_records ADD COLUMN parish_priest VARCHAR(120) NULL AFTER remarks",
-        'parish_secretary' => "ALTER TABLE baptism_records ADD COLUMN parish_secretary VARCHAR(120) NULL AFTER parish_priest"
-    ];
-
-    foreach ($columns as $column => $sql) {
-        if (!baptism_column_exists($conn, $column)) {
-            $conn->query($sql);
-        }
-    }
+    return requireSchemaColumns($conn, 'baptism_records', [
+        'request_id', 'registry_no', 'book_no', 'page_no', 'entry_no', 'birth_place',
+        'birth_status', 'parent_address', 'parish_address', 'remarks',
+        'parish_priest', 'parish_secretary'
+    ], 'baptism records');
 }
 
 // Format Baptism Record Date Function - Documents this helper's role in the parish management workflow.
@@ -101,6 +82,32 @@ ensure_baptism_record_book_schema($conn);
 $action = $_POST['action'] ?? $_GET['action'] ?? null;
 $message = '';
 $alert_type = '';
+
+// Phase 8: all mutations pass through the authoritative workflow service.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['add', 'edit', 'archive', 'restore'], true)) {
+    requireValidCsrfToken();
+    try {
+        $records = new SacramentalRecordService($conn);
+        $actor = (int)($_SESSION['user_id'] ?? 0);
+        if ($action === 'add') {
+            $records->create('baptism', $_POST, $actor);
+            redirectWithNotification('baptism-records.php', 'Baptism record created.', 'success');
+        } elseif ($action === 'edit') {
+            $records->requestCorrection('baptism', (int)($_POST['record_id'] ?? 0), $_POST, (string)($_POST['correction_reason'] ?? ''), $actor);
+            redirectWithNotification('baptism-records.php', 'Correction submitted for review; the official record was not overwritten.', 'success');
+        } elseif ($action === 'archive') {
+            $records->archive('baptism', (int)($_POST['record_id'] ?? 0), (string)($_POST['archive_reason'] ?? ''), $actor);
+            redirectWithNotification('baptism-records.php', 'Baptism record archived.', 'success');
+        } else {
+            $records->restore('baptism', (int)($_POST['record_id'] ?? 0), $actor);
+            redirectWithNotification('baptism-records.php', 'Baptism record restored.', 'success');
+        }
+    } catch (Throwable $exception) {
+        $message = $exception->getMessage();
+        $alert_type = 'danger';
+        $action = null;
+    }
+}
 
 // Add new baptism record
 if ($action === 'add' && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -743,7 +750,8 @@ $page_title = 'Baptism Records - Parish Management';
                                             'parish_priest' => $record['parish_priest'] ?? '',
                                             'parish_secretary' => $record['parish_secretary'] ?? '',
                                             'status' => $record['status'] ?? 'active',
-                                            'request_id' => $record['request_id'] ?? ''
+                                            'request_id' => $record['request_id'] ?? '',
+                                            'entry_no' => $record['entry_no'] ?? ''
                                         ];
                                     ?>
                                     <tr>
@@ -831,11 +839,14 @@ $page_title = 'Baptism Records - Parish Management';
                 <span onclick="closeModal()" style="cursor: pointer; font-size: 1.5rem; color: #999;">&times;</span>
             </div>
             <form id="recordForm" method="POST" action="">
+                <?php echo csrfInput(); ?>
                 <input type="hidden" id="actionInput" name="action" value="add">
                 <input type="hidden" id="recordIdInput" name="record_id" value="">
 
                 <div class="form-grid">
                     <input type="hidden" id="registryNo" name="registry_no">
+
+                    <div class="form-group"><label>Registry Number</label><input type="text" id="registryNoVisible" name="registry_no_display" oninput="document.getElementById('registryNo').value=this.value" placeholder="Or use Book + Page + Entry"></div>
 
                     <div class="form-group">
                         <label>Book Number</label>
@@ -846,6 +857,8 @@ $page_title = 'Baptism Records - Parish Management';
                         <label>Page Number</label>
                         <input type="text" id="pageNo" name="page_no" placeholder="Page No.">
                     </div>
+
+                    <div class="form-group"><label>Entry Number</label><input type="text" id="entryNo" name="entry_no" placeholder="Entry No."></div>
 
                     <div class="form-group">
                         <label>Date Baptized *</label>
@@ -858,8 +871,8 @@ $page_title = 'Baptism Records - Parish Management';
                     </div>
 
                     <div class="form-group">
-                        <label>Birth Date</label>
-                        <input type="date" id="birthDate" name="birth_date">
+                        <label>Birth Date *</label>
+                        <input type="date" id="birthDate" name="birth_date" required max="<?php echo date('Y-m-d'); ?>">
                     </div>
 
                     <div class="form-group">
@@ -868,8 +881,8 @@ $page_title = 'Baptism Records - Parish Management';
                     </div>
 
                     <div class="form-group full-width">
-                        <label>Place of Birth</label>
-                        <input type="text" id="birthPlace" name="birth_place">
+                        <label>Place of Birth *</label>
+                        <input type="text" id="birthPlace" name="birth_place" required>
                     </div>
 
                     <div class="form-group full-width">
@@ -883,8 +896,8 @@ $page_title = 'Baptism Records - Parish Management';
                     </div>
 
                     <div class="form-group full-width">
-                        <label>Sponsors Name and Surname</label>
-                        <input type="text" id="godparents" name="godparents">
+                        <label>Sponsors Name and Surname *</label>
+                        <input type="text" id="godparents" name="godparents" required>
                     </div>
 
                     <div class="form-group full-width">
@@ -893,8 +906,8 @@ $page_title = 'Baptism Records - Parish Management';
                     </div>
 
                     <div class="form-group full-width">
-                        <label>Minister Name and Surname</label>
-                        <input type="text" id="priestName" name="priest">
+                        <label>Minister Name and Surname *</label>
+                        <input type="text" id="priestName" name="priest" required>
                     </div>
 
                     <div class="form-group full-width">
@@ -919,6 +932,8 @@ $page_title = 'Baptism Records - Parish Management';
                             <option value="archived">Archived</option>
                         </select>
                     </div>
+
+                    <div class="form-group full-width"><label>Correction reason (required when editing)</label><textarea name="correction_reason" minlength="5"></textarea></div>
 
                     <div class="form-group">
                         <label>Link to Request</label>
@@ -950,8 +965,10 @@ $page_title = 'Baptism Records - Parish Management';
             </div>
             <p style="margin-bottom: 20px; color: #666;">Archive this baptism record? It will be hidden from active records but kept in Archives.</p>
             <form id="deleteForm" method="POST" action="">
+                <?php echo csrfInput(); ?>
                 <input type="hidden" name="action" value="archive">
                 <input type="hidden" id="deleteRecordId" name="record_id" value="">
+                <div class="form-group"><label>Archive reason *</label><textarea name="archive_reason" required minlength="5"></textarea></div>
                 <div class="modal-footer">
                     <button type="button" class="btn-cancel" onclick="closeDeleteModal()">Cancel</button>
                     <button type="submit" class="btn-delete" style="padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; background: #d7ad43; color: #181204;">Archive</button>
@@ -979,6 +996,8 @@ $page_title = 'Baptism Records - Parish Management';
         function openEditModal(record) {
             document.getElementById('recordIdInput').value = record.id || '';
             document.getElementById('registryNo').value = record.registry_no || '';
+            document.getElementById('registryNoVisible').value = record.registry_no || '';
+            document.getElementById('entryNo').value = record.entry_no || '';
             document.getElementById('bookNo').value = record.book_no || '';
             document.getElementById('pageNo').value = record.page_no || '';
             document.getElementById('fullName').value = record.fullname || '';

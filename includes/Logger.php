@@ -58,22 +58,23 @@ class Logger {
             return;
         }
 
-        $log_file = $this->log_dir . 'app_' . date('Y-m-d') . '.log';
-        $timestamp = date('Y-m-d H:i:s');
-        $user_id = $_SESSION['user_id'] ?? 'anonymous';
-        $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-
-        $log_entry = sprintf(
-            "[%s] [%s] [User: %s] [IP: %s] %s %s\n",
-            $timestamp,
-            strtoupper($level),
-            $user_id,
-            $ip,
-            $message,
-            !empty($context) ? json_encode($context) : ''
-        );
-
-        file_put_contents($log_file, $log_entry, FILE_APPEND);
+        require_once __DIR__ . '/audit.php';
+        $log_file = $this->log_dir . 'app_' . gmdate('Y-m-d') . '.log';
+        $component = preg_replace('/[^a-z0-9._-]+/i', '-', (string)($context['component'] ?? 'application'));
+        $event = preg_replace('/[^a-z0-9._-]+/i', '-', (string)($context['event'] ?? 'log'));
+        unset($context['component'], $context['event']);
+        $entry = [
+            'timestamp' => gmdate('c'),
+            'severity' => strtoupper($level),
+            'correlation_id' => tugonCorrelationId(),
+            'component' => $component,
+            'event' => $event,
+            'error_id' => $level === 'error' ? 'ERR-' . strtoupper(bin2hex(random_bytes(6))) : null,
+            'user_id' => isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : null,
+            'message' => tugonRedactSensitive((string)$message),
+            'context' => tugonRedactSensitive($context),
+        ];
+        file_put_contents($log_file, json_encode($entry, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . PHP_EOL, FILE_APPEND | LOCK_EX);
 
         // Rotate logs if too large
         if (filesize($log_file) > LOG_MAX_SIZE) {
@@ -88,9 +89,11 @@ class Logger {
         $archived = $log_file . '.' . date('Y-m-d-H-i-s');
         rename($log_file, $archived);
         
-        // Compress if available
-        if (function_exists('gzcompress')) {
-            system("gzip $archived");
+        if (function_exists('gzencode') && is_file($archived)) {
+            $raw = file_get_contents($archived);
+            if ($raw !== false && file_put_contents($archived . '.gz', gzencode($raw, 6), LOCK_EX) !== false) {
+                unlink($archived);
+            }
         }
 
         // Clean old logs

@@ -1,8 +1,13 @@
 <?php
 /**
- * Requirements Module Functions
- * Handles requirement submissions, validations, and status management
+ * Retired legacy requirements workflow.
+ *
+ * Modern request requirements are handled by request_documents through the
+ * functions in helpers.php. This file remains only as historical reference and
+ * intentionally registers no runtime functions.
  */
+
+return;
 
 if (!function_exists('submitRequirement')) {
     /**

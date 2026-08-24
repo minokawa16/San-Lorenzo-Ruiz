@@ -1,8 +1,13 @@
 <?php
 /**
- * Payments Module Functions
- * Handles payment submission, verification, and tracking
+ * Retired legacy payment workflow.
+ *
+ * Modern request payments are handled by request_payments through the current
+ * request pages. This file remains only as historical reference and
+ * intentionally registers no runtime functions.
  */
+
+return;
 
 if (!function_exists('submitPayment')) {
     /**

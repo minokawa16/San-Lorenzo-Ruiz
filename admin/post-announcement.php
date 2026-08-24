@@ -39,6 +39,8 @@ if ($_POST) {
 <html>
 <head>
     <title>Quick Announcement Posting</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body { font-family: Arial; margin: 20px; background: #f5f5f5; }
         .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
@@ -63,7 +65,10 @@ if ($_POST) {
     <link rel="stylesheet" href="../assets/css/theme.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/theme.css') ? filemtime(__DIR__ . '/../assets/css/theme.css') : time(); ?>">
     <link rel="stylesheet" href="../assets/css/responsive-unified.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/responsive-unified.css'); ?>">
 </head>
-<body>
+<body class="premium-admin church-theme">
+<div class="premium-admin-shell">
+<?php include '../includes/admin-sidebar.php'; ?>
+<main class="premium-admin-content" id="main-content" tabindex="-1">
 <div class="container">
     <h1>📢 Post Announcement to Users</h1>
     
@@ -109,6 +114,8 @@ if ($_POST) {
             <li><a href="dashboard.php">Admin Dashboard</a></li>
         </ul>
     </div>
+</div>
+</main>
 </div>
 </body>
 </html>

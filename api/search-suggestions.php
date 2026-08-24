@@ -12,23 +12,32 @@ requireLogin();
 
 $query = trim($_GET['q'] ?? '');
 $scope = trim($_GET['scope'] ?? '');
-$role = $_SESSION['role'] ?? 'user';
+$role = hasPermission('admin.access') ? 'admin' : 'user';
+$can_users = hasPermission('users.view');
+$can_requests = hasAnyPermission(['requests.view', 'requests.manage']);
+$can_reservations = hasPermission('reservations.manage');
+$can_calendar = hasPermission('calendar.manage');
+$can_announcements = hasPermission('announcements.manage');
+$can_records = hasAnyPermission(['records.view', 'records.manage']);
 $user_id = intval($_SESSION['user_id'] ?? 0);
 $suggestions = [];
 
 // Suggestion Table Exists Function - Documents this helper's role in the parish management workflow.
 function suggestionTableExists($conn, $table) {
-    $safe = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
-    $result = $conn->query("SHOW TABLES LIKE '$safe'");
-    return $result && $result->num_rows > 0;
+    return in_array($table, ['users','requests','reservations','schedule_events','announcements','baptism_records','first_communion_records','confirmation_records','marriage_records','funeral_records'], true);
 }
 
 // Suggestion Column Exists Function - Documents this helper's role in the parish management workflow.
 function suggestionColumnExists($conn, $table, $column) {
-    $safe_table = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
-    $safe_column = $conn->real_escape_string($column);
-    $result = $conn->query("SHOW COLUMNS FROM `$safe_table` LIKE '$safe_column'");
-    return $result && $result->num_rows > 0;
+    $columns=[
+        'requests'=>['deleted_at'], 'announcements'=>['deleted_at'],
+        'baptism_records'=>['fullname','registry_no','parents','godparents','priest'],
+        'first_communion_records'=>['fullname','registry_no','parents','priest','sponsor'],
+        'confirmation_records'=>['fullname','registry_no','parents','godparents','priest'],
+        'marriage_records'=>['groom_name','registry_no','bride_name','priest','witnesses'],
+        'funeral_records'=>['fullname','registry_no','cemetery','priest','cause_of_death']
+    ];
+    return in_array($column,$columns[$table]??[],true);
 }
 
 // Add Suggestion Function - Documents this helper's role in the parish management workflow.
@@ -52,7 +61,7 @@ function addSuggestion(&$suggestions, $label, $meta, $url, $icon = 'fa-search') 
 if ($query !== '') {
     $like = '%' . $query . '%';
 
-    if ($role === 'admin' && $scope === 'reservations' && suggestionTableExists($conn, 'reservations') && suggestionTableExists($conn, 'users')) {
+    if ($can_reservations && $scope === 'reservations' && suggestionTableExists($conn, 'reservations') && suggestionTableExists($conn, 'users')) {
         $stmt = $conn->prepare("
             SELECT u.fullname, u.email, r.reservation_type, r.event_date, r.status
             FROM reservations r
@@ -90,7 +99,7 @@ if ($query !== '') {
         exit;
     }
 
-    if ($role === 'admin' && suggestionTableExists($conn, 'users')) {
+    if ($can_users && suggestionTableExists($conn, 'users')) {
         $stmt = $conn->prepare("SELECT id, fullname, email FROM users WHERE role = 'user' AND (fullname LIKE ? OR email LIKE ?) ORDER BY fullname ASC LIMIT 6");
         if ($stmt) {
             $stmt->bind_param('ss', $like, $like);
@@ -105,7 +114,7 @@ if ($query !== '') {
 
     if (suggestionTableExists($conn, 'requests')) {
         $deleted_filter = suggestionColumnExists($conn, 'requests', 'deleted_at') ? ' AND deleted_at IS NULL' : '';
-        if ($role === 'admin') {
+        if ($can_requests) {
             $stmt = $conn->prepare("SELECT request_id, reference_number, request_type, status FROM requests WHERE (reference_number LIKE ? OR request_type LIKE ? OR status LIKE ? OR description LIKE ?)$deleted_filter ORDER BY date_requested DESC LIMIT 6");
             if ($stmt) {
                 $stmt->bind_param('ssss', $like, $like, $like, $like);
@@ -122,7 +131,7 @@ if ($query !== '') {
             $result = $stmt->get_result();
             while ($row = $result->fetch_assoc()) {
                 $label = ($row['reference_number'] ?: 'Request') . ' - ' . ucfirst(str_replace('_', ' ', $row['request_type']));
-                $url = $role === 'admin'
+                $url = $can_requests
                     ? '../admin/process-request.php?id=' . intval($row['request_id'])
                     : '../users/view-request.php?id=' . intval($row['request_id']);
                 addSuggestion($suggestions, $label, 'Request - ' . ucfirst($row['status']), $url, 'fa-file-lines');
@@ -132,7 +141,7 @@ if ($query !== '') {
         }
     }
 
-    if ($role === 'admin' && suggestionTableExists($conn, 'reservations')) {
+    if ($can_reservations && suggestionTableExists($conn, 'reservations')) {
         $stmt = $conn->prepare("
             SELECT r.reservation_type, r.event_date, r.status, u.fullname, u.email
             FROM reservations r
@@ -166,14 +175,14 @@ if ($query !== '') {
     }
 
     if (suggestionTableExists($conn, 'schedule_events')) {
-        $visibility = $role === 'admin' ? '' : " AND visibility = 'public' AND approval_status = 'approved'";
+        $visibility = $can_calendar ? '' : " AND visibility = 'public' AND approval_status = 'approved'";
         $stmt = $conn->prepare("SELECT title, event_date, start_time, location FROM schedule_events WHERE status != 'cancelled'$visibility AND (title LIKE ? OR description LIKE ? OR location LIKE ?) ORDER BY event_date ASC LIMIT 5");
         if ($stmt) {
             $stmt->bind_param('sss', $like, $like, $like);
             $stmt->execute();
             $result = $stmt->get_result();
             while ($row = $result->fetch_assoc()) {
-                $url = $role === 'admin' ? '../admin/manage-calendar.php' : '../users/view-schedule.php';
+                $url = $can_calendar ? '../admin/manage-calendar.php' : '../users/view-schedule.php';
                 addSuggestion($suggestions, $row['title'], 'Schedule - ' . formatDate($row['event_date']) . ' ' . formatTime($row['start_time']), $url, 'fa-calendar-days');
             }
             $stmt->close();
@@ -188,14 +197,14 @@ if ($query !== '') {
             $stmt->execute();
             $result = $stmt->get_result();
             while ($row = $result->fetch_assoc()) {
-                $url = $role === 'admin' ? '../admin/manage-announcements.php?q=' . urlencode($query) : '../users/announcements.php?q=' . urlencode($query);
+                $url = $can_announcements ? '../admin/manage-announcements.php?q=' . urlencode($query) : '../users/announcements.php?q=' . urlencode($query);
                 addSuggestion($suggestions, $row['title'], ucfirst($row['type']) . ' - ' . formatDate($row['published_date']), $url, 'fa-bullhorn');
             }
             $stmt->close();
         }
     }
 
-    if ($role === 'admin') {
+    if ($can_records) {
         $record_sources = [
             [
                 'table' => 'baptism_records',

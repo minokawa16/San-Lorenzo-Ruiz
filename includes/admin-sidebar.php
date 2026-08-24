@@ -52,7 +52,7 @@
     <?php if (hasAnyPermission(['requests.manage', 'requests.view', 'reservations.manage', 'reservations.view', 'calendar.manage'])): ?>
     <div class="nav-section-label"><?php echo e(t('nav.request_management', 'Request Management')); ?></div>
     <?php if (hasAnyPermission(['requests.manage', 'requests.view', 'reservations.manage', 'reservations.view'])): ?>
-    <a href="<?php echo BASE_URL; ?>admin/manage-requests.php" class="nav-link <?php echo in_array(basename($_SERVER['PHP_SELF']), ['manage-requests.php', 'request-workflow.php', 'process-request.php'], true) ? 'active' : ''; ?>" data-tooltip="<?php echo e(t('nav.requests', 'Requests')); ?>">
+    <a href="<?php echo BASE_URL; ?>admin/manage-requests.php" class="nav-link <?php echo in_array(basename($_SERVER['PHP_SELF']), ['manage-requests.php', 'request-workflow.php', 'process-request.php', 'manage-reservations.php', 'manage-resources.php'], true) ? 'active' : ''; ?>" data-tooltip="<?php echo e(t('nav.requests', 'Requests')); ?>">
       <i class="fas fa-inbox"></i>
       <span><?php echo e(t('nav.requests', 'Requests')); ?></span>
       <span class="pill-badge" id="pendingBadge" style="display:none;">0</span>
@@ -69,7 +69,7 @@
     <?php if (hasAnyPermission(['records.manage', 'archives.manage'])): ?>
     <div class="nav-section-label"><?php echo e(t('nav.sacramental_records', 'Sacramental Records')); ?></div>
     <?php if (hasPermission('records.manage')): ?>
-    <a href="<?php echo BASE_URL; ?>admin/manage-records.php" class="nav-link <?php echo in_array(basename($_SERVER['PHP_SELF']), ['manage-records.php', 'baptism-records.php', 'confirmation-records.php', 'communion-records.php', 'marriage-records.php', 'funeral-records.php'], true) ? 'active' : ''; ?>" data-tooltip="<?php echo e(t('nav.sacramental_records', 'Sacramental Records')); ?>">
+    <a href="<?php echo BASE_URL; ?>admin/manage-records.php" class="nav-link <?php echo in_array(basename($_SERVER['PHP_SELF']), ['manage-records.php', 'baptism-records.php', 'confirmation-records.php', 'communion-records.php', 'marriage-records.php', 'funeral-records.php', 'sacramental-import.php', 'record-corrections.php'], true) ? 'active' : ''; ?>" data-tooltip="<?php echo e(t('nav.sacramental_records', 'Sacramental Records')); ?>">
       <i class="fas fa-book-bible"></i>
       <span><?php echo e(t('nav.sacramental_records', 'Sacramental Records')); ?></span>
     </a>
@@ -84,7 +84,7 @@
 
     <?php if (hasPermission('certificates.manage')): ?>
     <div class="nav-section-label">Certificates</div>
-    <a href="<?php echo BASE_URL; ?>admin/certificate-generator.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'certificate-generator.php') ? 'active' : ''; ?>" data-tooltip="<?php echo e(t('nav.generate_certificates', 'Generate Certificates')); ?>">
+    <a href="<?php echo BASE_URL; ?>admin/certificate-generator.php" class="nav-link <?php echo in_array(basename($_SERVER['PHP_SELF']), ['certificate-generator.php', 'manual-certificate-generator.php', 'certificate-workflow.php'], true) ? 'active' : ''; ?>" data-tooltip="<?php echo e(t('nav.generate_certificates', 'Generate Certificates')); ?>">
       <i class="fas fa-certificate"></i>
       <span><?php echo e(t('nav.generate_certificates', 'Generate Certificates')); ?></span>
     </a>
@@ -708,6 +708,9 @@ body.premium-admin .admin-sidebar .nav-link.active i,
 }
 
 </style>
+
+<?php $canonical_admin_sidebar_version = filemtime(__DIR__ . '/../assets/css/admin-sidebar.css'); ?>
+<link rel="stylesheet" href="../assets/css/admin-sidebar.css?v=<?php echo $canonical_admin_sidebar_version; ?>">
 
 <script>
 // Sidebar Toggle for Mobile

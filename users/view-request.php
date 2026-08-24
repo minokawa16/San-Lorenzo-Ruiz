@@ -6,6 +6,7 @@ include '../includes/session.php';
 include '../config/security.php';
 include '../database/config.php';
 include '../includes/helpers.php';
+require_once '../services/ReservationService.php';
 
 requireLogin();
 if (!hasPermission('requests.view_own')) {
@@ -37,7 +38,13 @@ ensureRequestPaymentsSchema($conn);
 $error = '';
 $success = '';
 
-if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '') === 'submit_payment') {
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '') === 'respond_schedule_proposal') {
+    requireValidCsrfToken();
+    try {
+        (new ReservationService($conn))->respondToProposal((int)($_POST['proposal_id']??0),$user_id,($_POST['response']??'')==='accept');
+        $success=($_POST['response']??'')==='accept'?'The proposed schedule was accepted.':'The proposed schedule was rejected.';
+    } catch(Throwable $e){$error=$e->getMessage();}
+} elseif (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '') === 'submit_payment') {
     requireValidCsrfToken();
     if (!in_array($request['status'], ['approved', 'processing'], true)) {
         $error = 'Payment receipts can be submitted after the parish office approves or starts processing the request.';
@@ -88,6 +95,9 @@ foreach ($documents as $document) {
 }
 $payments = getRequestPayments($conn, $request_id);
 $can_submit_payment = in_array($request['status'], ['approved', 'processing'], true);
+$reservation=null;$schedule_proposals=[];
+$stmt=$conn->prepare("SELECT r.*,GROUP_CONCAT(x.name ORDER BY x.name SEPARATOR ', ') resource_names FROM reservations r LEFT JOIN reservation_resources rr ON rr.reservation_id=r.reservation_id LEFT JOIN resources x ON x.resource_id=rr.resource_id WHERE r.request_id=? AND r.user_id=? GROUP BY r.reservation_id");$stmt->bind_param('ii',$request_id,$user_id);$stmt->execute();$reservation=$stmt->get_result()->fetch_assoc();$stmt->close();
+if($reservation){$stmt=$conn->prepare("SELECT p.*,GROUP_CONCAT(x.name ORDER BY x.name SEPARATOR ', ') resource_names FROM schedule_proposals p LEFT JOIN schedule_proposal_resources pr ON pr.proposal_id=p.proposal_id LEFT JOIN resources x ON x.resource_id=pr.resource_id WHERE p.reservation_id=? GROUP BY p.proposal_id ORDER BY p.created_at DESC");$stmt->bind_param('i',$reservation['reservation_id']);$stmt->execute();$schedule_proposals=$stmt->get_result()->fetch_all(MYSQLI_ASSOC);$stmt->close();}
 $gcash_recipient_name = 'Agnes Calapaan';
 $gcash_recipient_number = '09977428176';
 $gcash_recipient_display = '0997 742 8176';
@@ -378,6 +388,17 @@ $page_title = 'View Request';
                         <h6 class="text-muted mb-2">Description</h6>
                         <p><?php echo sanitize($request['description'] ?? 'No description provided'); ?></p>
                     </div>
+
+                    <?php if ($reservation): ?>
+                        <div class="card border mb-4"><div class="card-body"><h6><i class="fas fa-calendar-check"></i> Reservation schedule</h6><p class="mb-1"><strong><?php echo e(date('M j, Y g:i A',strtotime($reservation['start_at']))); ?></strong> to <?php echo e(date('g:i A',strtotime($reservation['end_at']))); ?> (Asia/Manila)</p><p class="text-muted mb-0">Resources: <?php echo e($reservation['resource_names']?:'Unassigned'); ?></p></div></div>
+                        <?php foreach($schedule_proposals as $proposal): ?>
+                            <div class="alert <?php echo $proposal['status']==='pending'?'alert-warning':'alert-secondary'; ?>">
+                                <strong>Schedule proposal:</strong> <?php echo e(date('M j, Y g:i A',strtotime($proposal['proposed_start_at']))); ?>–<?php echo e(date('g:i A',strtotime($proposal['proposed_end_at']))); ?><br>
+                                <span>Resources: <?php echo e($proposal['resource_names']); ?>. Reason: <?php echo e($proposal['reason']); ?></span>
+                                <?php if($proposal['status']==='pending'&&(!$proposal['expires_at']||$proposal['expires_at']>=date('Y-m-d H:i:s'))): ?><form method="POST" class="mt-2 d-flex gap-2"><?php echo csrfInput(); ?><input type="hidden" name="action" value="respond_schedule_proposal"><input type="hidden" name="proposal_id" value="<?php echo intval($proposal['proposal_id']); ?>"><button class="btn btn-sm btn-success" name="response" value="accept">Accept</button><button class="btn btn-sm btn-outline-danger" name="response" value="reject">Reject</button></form><?php else: ?><div class="mt-2"><span class="badge bg-secondary"><?php echo e(ucfirst($proposal['status'])); ?></span></div><?php endif; ?>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
 
                     <?php if (!empty($documents_by_type['requirement'])): ?>
                         <div class="mb-4">

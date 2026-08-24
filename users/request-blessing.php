@@ -25,14 +25,16 @@ $blessing_types = [
     'vehicle_blessing' => 'Vehicle Blessing',
     'business_blessing' => 'Business Blessing',
     'office_blessing' => 'Office Blessing',
-    'event_blessing' => 'Event Blessing'
+    'event_blessing' => 'Event Blessing',
+    'other_blessing' => 'Other Blessing'
 ];
 $blessing_meta = [
     'house_blessing' => ['icon' => 'fa-house-chimney', 'hint' => 'Schedule a blessing for your home and family.'],
     'vehicle_blessing' => ['icon' => 'fa-car-side', 'hint' => 'Request a blessing for a new or existing vehicle.'],
     'business_blessing' => ['icon' => 'fa-store', 'hint' => 'For business openings, anniversaries, or milestones.'],
     'office_blessing' => ['icon' => 'fa-building', 'hint' => 'For offices, workspaces, or institutional spaces.'],
-    'event_blessing' => ['icon' => 'fa-calendar-check', 'hint' => 'For gatherings, programs, and special occasions.']
+    'event_blessing' => ['icon' => 'fa-calendar-check', 'hint' => 'For gatherings, programs, and special occasions.'],
+    'other_blessing' => ['icon' => 'fa-hands-praying', 'hint' => 'Specify another blessing not listed here.']
 ];
 $status_meta = [
     'pending' => ['icon' => 'fa-hourglass-half', 'description' => 'Waiting for parish review', 'tone' => 'warning'],
@@ -58,6 +60,8 @@ function blessingLabel($value, $labels = []) {
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     requireValidCsrfToken();
     $request_type = $_POST['request_type'] ?? '';
+    $other_blessing_name = trim((string) ($_POST['other_blessing_name'] ?? ''));
+    $other_blessing_length = function_exists('mb_strlen') ? mb_strlen($other_blessing_name) : strlen($other_blessing_name);
     $preferred_date = trim($_POST['preferred_date'] ?? '');
     $preferred_time = trim($_POST['preferred_time'] ?? '');
     $location = trim($_POST['location'] ?? '');
@@ -65,6 +69,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
     if (!array_key_exists($request_type, $blessing_types)) {
         $error = 'Please choose a blessing type.';
+    } elseif ($request_type === 'other_blessing' && ($other_blessing_name === '' || $other_blessing_length > 120)) {
+        $error = 'Please specify the other blessing you are requesting (maximum 120 characters).';
     } elseif ($preferred_date === '') {
         $error = 'Please choose a preferred blessing date.';
     } elseif ($preferred_time === '') {
@@ -72,12 +78,16 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     } elseif ($location === '') {
         $error = 'Please provide the blessing location.';
     } else {
-        $description_parts = [
+        $description_parts = [];
+        if ($request_type === 'other_blessing') {
+            $description_parts[] = 'Requested blessing: ' . $other_blessing_name;
+        }
+        $description_parts = array_merge($description_parts, [
             'Preferred date: ' . $preferred_date,
             'Preferred time: ' . $preferred_time,
             'Location: ' . $location,
             'Details: ' . ($details ?: 'None'),
-        ];
+        ]);
         $description = implode("\n", $description_parts);
         $reference_number = generateReferenceNumber();
         $status = 'pending';
@@ -129,7 +139,7 @@ if ($stmt) {
 
 <?php include '../includes/breadcrumb.php'; ?>
 <?php include '../includes/back_button.php'; ?>
-<link rel="stylesheet" href="../assets/css/request-modern.css">
+<link rel="stylesheet" href="../assets/css/request-modern.css?v=<?php echo filemtime('../assets/css/request-modern.css'); ?>">
 
 <div class="container-fluid mt-4">
     <div class="request-modern-page">
@@ -213,7 +223,7 @@ if ($stmt) {
                     <?php foreach ($blessing_types as $value => $label): ?>
                         <?php $meta = $blessing_meta[$value] ?? ['icon' => 'fa-hands-praying', 'hint' => 'Blessing request']; ?>
                         <label class="request-type-option">
-                            <input type="radio" name="request_type" value="<?php echo e($value); ?>" required>
+                            <input type="radio" name="request_type" value="<?php echo e($value); ?>" <?php echo (($_POST['request_type'] ?? '') === $value) ? 'checked' : ''; ?> required>
                             <span>
                                 <i class="fas <?php echo e($meta['icon']); ?>"></i>
                                 <strong><?php echo e($label); ?></strong>
@@ -221,6 +231,22 @@ if ($stmt) {
                             </span>
                         </label>
                     <?php endforeach; ?>
+                </div>
+
+                <div class="mt-3" id="otherBlessingWrap" data-other-request-wrap <?php echo (($_POST['request_type'] ?? '') === 'other_blessing') ? '' : 'hidden'; ?>>
+                    <label for="other_blessing_name" class="form-label">Specify the blessing you need</label>
+                    <input
+                        type="text"
+                        class="form-control request-form-control"
+                        id="other_blessing_name"
+                        name="other_blessing_name"
+                        value="<?php echo e($_POST['other_blessing_name'] ?? ''); ?>"
+                        maxlength="120"
+                        placeholder="Example: blessing of religious items"
+                        aria-describedby="otherBlessingHelp"
+                        <?php echo (($_POST['request_type'] ?? '') === 'other_blessing') ? 'required aria-required="true"' : 'aria-required="false"'; ?>
+                    >
+                    <div class="form-text" id="otherBlessingHelp">Enter the specific blessing so the parish office can prepare appropriately.</div>
                 </div>
 
                 <div class="mt-3">

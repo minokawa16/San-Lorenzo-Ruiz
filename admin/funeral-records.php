@@ -8,15 +8,14 @@ include '../config/security.php';
 include '../includes/session.php';
 include '../includes/helpers.php';
 include '../database/config.php';
+require_once '../services/SacramentalRecordService.php';
 
 if (!defined('BASE_URL')) {
     define('BASE_URL', '/ParishSystem/');
 }
 
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-    header("Location: ../auth/login.php");
-    exit();
-}
+requireAdmin();
+requirePermission('records.manage');
 
 // Funeral Fetch All Assoc Function - Documents this helper's role in the parish management workflow.
 function funeral_fetch_all_assoc($stmt) {
@@ -30,28 +29,12 @@ function funeral_fetch_all_assoc($stmt) {
 
 // Ensure Funeral Records Schema Function - Documents this helper's role in the parish management workflow.
 function ensure_funeral_records_schema($conn) {
-    $conn->query("CREATE TABLE IF NOT EXISTS funeral_records (
-        funeral_id INT PRIMARY KEY AUTO_INCREMENT,
-        request_id INT NULL,
-        registry_no VARCHAR(50) NULL,
-        deceased_name VARCHAR(150) NOT NULL,
-        family_name VARCHAR(150) NULL,
-        date_of_death DATE NULL,
-        date_of_burial DATE NULL,
-        civil_status VARCHAR(80) NULL,
-        funeral_rites VARCHAR(120) NULL,
-        cause_of_death VARCHAR(200) NULL,
-        place_of_burial VARCHAR(200) NULL,
-        minister VARCHAR(120) NULL,
-        remarks TEXT NULL,
-        status ENUM('active', 'archived') DEFAULT 'active',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX (deceased_name),
-        INDEX (family_name),
-        INDEX (date_of_burial),
-        INDEX (request_id)
-    )");
+    return requireSchemaColumns($conn, 'funeral_records', [
+        'funeral_id', 'request_id', 'registry_no', 'deceased_name', 'family_name',
+        'date_of_death', 'date_of_burial', 'civil_status', 'funeral_rites',
+        'cause_of_death', 'place_of_burial', 'minister', 'remarks', 'status',
+        'created_at', 'updated_at'
+    ], 'funeral records');
 }
 
 // Funeral Format Date Function - Documents this helper's role in the parish management workflow.
@@ -73,6 +56,18 @@ ensure_funeral_records_schema($conn);
 $action = $_POST['action'] ?? null;
 $message = '';
 $alert_type = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['add','edit','archive','restore'], true)) {
+    requireValidCsrfToken();
+    try {
+        $records=new SacramentalRecordService($conn);$actor=(int)($_SESSION['user_id']??0);
+        if($action==='add'){$records->create('funeral',$_POST,$actor);$notice='Funeral record created.';}
+        elseif($action==='edit'){$records->requestCorrection('funeral',(int)($_POST['record_id']??0),$_POST,(string)($_POST['correction_reason']??''),$actor);$notice='Correction submitted for review; the official record was not overwritten.';}
+        elseif($action==='archive'){$records->archive('funeral',(int)($_POST['record_id']??0),(string)($_POST['archive_reason']??''),$actor);$notice='Funeral record archived.';}
+        else{$records->restore('funeral',(int)($_POST['record_id']??0),$actor);$notice='Funeral record restored.';}
+        redirectWithNotification('funeral-records.php',$notice,'success');
+    } catch(Throwable $exception){$message=$exception->getMessage();$alert_type='danger';$action=null;}
+}
 
 if (($action === 'add' || $action === 'edit') && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $record_id = (int)($_POST['record_id'] ?? 0);
@@ -616,7 +611,8 @@ $page_title = 'Funeral Records - Parish Management';
                                             'minister' => $record['minister'] ?? '',
                                             'remarks' => $record['remarks'] ?? '',
                                             'status' => $record['status'] ?? 'active',
-                                            'request_id' => $record['request_id'] ?? ''
+                                            'request_id' => $record['request_id'] ?? '',
+                                            'book_no' => $record['book_no'] ?? '', 'page_no' => $record['page_no'] ?? '', 'entry_no' => $record['entry_no'] ?? '', 'birth_date' => $record['birth_date'] ?? ''
                                         );
                                     ?>
                                     <tr>
@@ -681,6 +677,7 @@ $page_title = 'Funeral Records - Parish Management';
                 <span onclick="closeModal()" style="cursor: pointer; font-size: 1.5rem; color: #999;">&times;</span>
             </div>
             <form id="recordForm" method="POST" action="">
+                <?php echo csrfInput(); ?>
                 <input type="hidden" id="actionInput" name="action" value="add">
                 <input type="hidden" id="recordIdInput" name="record_id" value="">
 
@@ -689,6 +686,7 @@ $page_title = 'Funeral Records - Parish Management';
                         <label>No.</label>
                         <input type="text" id="registryNo" name="registry_no" placeholder="Record number">
                     </div>
+                    <div class="form-group"><label>Book / Page / Entry</label><div style="display:flex;gap:6px"><input id="bookNo" name="book_no" placeholder="Book"><input id="pageNo" name="page_no" placeholder="Page"><input id="entryNo" name="entry_no" placeholder="Entry"></div></div>
 
                     <div class="form-group">
                         <label>Link to Burial Request</label>
@@ -706,6 +704,7 @@ $page_title = 'Funeral Records - Parish Management';
                         <label>Deceased Name *</label>
                         <input type="text" id="deceasedName" name="deceased_name" required>
                     </div>
+                    <div class="form-group"><label>Birth Date *</label><input id="birthDate" type="date" name="birth_date" required max="<?php echo date('Y-m-d'); ?>"></div>
 
                     <div class="form-group">
                         <label>Family Name</label>
@@ -713,8 +712,8 @@ $page_title = 'Funeral Records - Parish Management';
                     </div>
 
                     <div class="form-group">
-                        <label>Date of Death</label>
-                        <input type="date" id="dateOfDeath" name="date_of_death">
+                        <label>Date of Death *</label>
+                        <input type="date" id="dateOfDeath" name="date_of_death" required>
                     </div>
 
                     <div class="form-group">
@@ -738,13 +737,13 @@ $page_title = 'Funeral Records - Parish Management';
                     </div>
 
                     <div class="form-group">
-                        <label>Place of Burial</label>
-                        <input type="text" id="placeOfBurial" name="place_of_burial">
+                        <label>Place of Burial *</label>
+                        <input type="text" id="placeOfBurial" name="place_of_burial" required>
                     </div>
 
                     <div class="form-group">
-                        <label>Minister Name</label>
-                        <input type="text" id="minister" name="minister" placeholder="Priest / minister">
+                        <label>Minister Name *</label>
+                        <input type="text" id="minister" name="minister" placeholder="Priest / minister" required>
                     </div>
 
                     <div class="form-group">
@@ -759,6 +758,7 @@ $page_title = 'Funeral Records - Parish Management';
                         <label>Remarks</label>
                         <textarea id="remarks" name="remarks" placeholder="Additional remarks"></textarea>
                     </div>
+                    <div class="form-group full-width"><label>Correction reason (required when editing)</label><textarea name="correction_reason" minlength="5"></textarea></div>
                 </div>
 
                 <div class="modal-footer">
@@ -777,8 +777,10 @@ $page_title = 'Funeral Records - Parish Management';
             </div>
             <p style="margin-bottom: 20px; color: #666;">Archive this funeral record? It will be hidden from active records but kept in Archives.</p>
             <form method="POST" action="">
+                <?php echo csrfInput(); ?>
                 <input type="hidden" name="action" value="archive">
                 <input type="hidden" id="archiveRecordId" name="record_id" value="">
+                <div class="form-group"><label>Archive reason *</label><textarea name="archive_reason" required minlength="5"></textarea></div>
                 <div class="modal-footer">
                     <button type="button" class="btn-cancel" onclick="closeArchiveModal()">Cancel</button>
                     <button type="submit" class="btn-delete" style="padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 700; background: #d7ad43; color: #181204;">Archive</button>
@@ -803,6 +805,10 @@ $page_title = 'Funeral Records - Parish Management';
         function openEditModal(record) {
             document.getElementById('recordIdInput').value = record.id || '';
             document.getElementById('registryNo').value = record.registry_no || '';
+            document.getElementById('bookNo').value = record.book_no || '';
+            document.getElementById('pageNo').value = record.page_no || '';
+            document.getElementById('entryNo').value = record.entry_no || '';
+            document.getElementById('birthDate').value = record.birth_date || '';
             document.getElementById('deceasedName').value = record.deceased_name || '';
             document.getElementById('familyName').value = record.family_name || '';
             document.getElementById('dateOfDeath').value = record.date_of_death || '';

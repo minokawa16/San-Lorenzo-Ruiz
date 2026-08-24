@@ -53,10 +53,10 @@ body {
 }
 
 /* Church theme background and cinematic overlay
-   - Place the uploaded church image at: assets/img/san_lorenzo_ruiz.jpg
+   - Uses the bundled parish logo image from assets/img.
    - The CSS gracefully falls back to a soft gradient if the image is missing. */
 body.church-theme {
-    background-image: url('../assets/img/san_lorenzo_ruiz.jpg'), linear-gradient(180deg, rgba(240,214,214,0.55), rgba(162,167,228,0.15));
+    background-image: url('../img/san-lorenzo-logo-final.jfif'), linear-gradient(180deg, rgba(240,214,214,0.55), rgba(162,167,228,0.15));
     background-size: cover, cover;
     background-position: center center, center center;
     background-repeat: no-repeat;

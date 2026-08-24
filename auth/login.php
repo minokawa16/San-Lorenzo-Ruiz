@@ -5,10 +5,7 @@
  * Handles user authentication with proper password verification and security
  */
 
-// Start session directly without session.php to avoid conflicts
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+require_once '../includes/session.php';
 
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
@@ -29,13 +26,9 @@ if ($conn->connect_error) {
 
 // If already logged in, redirect to appropriate dashboard
 // Check if session variables actually exist (not just the array)
-if (isset($_SESSION['user_id']) && !empty($_SESSION['user_id'])) {
-    if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
-        header("Location: ../admin/dashboard.php", true, 302);
-    } else {
-        header("Location: ../users/dashboard.php", true, 302);
-    }
-    exit();
+if (isLoggedIn()) {
+    header('Location: ' . getUserDashboardURL(), true, 302);
+    exit;
 }
 
 $error = '';
@@ -66,103 +59,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if ($form_action === 'check_status') {
         $status_email = trim($_POST['status_email'] ?? '');
         $status_email_input = htmlspecialchars($status_email);
-        $status_identifier = isValidEmail($status_email) ? strtolower($status_email) : normalizePhilippineMobileForStorage($status_email);
-        $is_status_mobile = !isValidEmail($status_email) && isValidPhilippineMobile($status_identifier);
+        $status_notice = 'If the information matches a registration, its current status and any required next step will be available after secure identity verification. Contact the parish office if you need assistance.';
+    } else {
+        $identifier = trim((string) ($_POST['email'] ?? ''));
+        $password = (string) ($_POST['password'] ?? '');
+        $identifier_input = htmlspecialchars($identifier);
 
-        if ($status_email === '') {
-            $status_error = 'Please enter the email address or mobile number used during registration.';
-        } elseif (!isValidEmail($status_identifier) && !$is_status_mobile) {
-            $status_error = 'Invalid email address or mobile number.';
+        if ($identifier === '' || $password === '') {
+            $error = 'The credentials provided are invalid.';
         } else {
-            $stmt = $conn->prepare("SELECT fullname, status, rejection_reason FROM users WHERE " . ($is_status_mobile ? "phone_number = ?" : "email = ?") . " AND role = 'user' LIMIT 1");
-            if ($stmt) {
-                $stmt->bind_param('s', $status_identifier);
-                $stmt->execute();
-                $status_user = $stmt->get_result()->fetch_assoc();
-                $stmt->close();
-
-                if (!$status_user) {
-                    $status_error = 'No parishioner registration was found for that email address or mobile number.';
-                } elseif ($status_user['status'] === 'active') {
-                    $status_notice = 'Your account has been approved. You may now log in.';
-                } elseif ($status_user['status'] === 'pending_verification') {
-                    $status_notice = 'Your registration is still under review by the parish administrator.';
-                } elseif ($status_user['status'] === 'rejected') {
-                    $reason = trim((string) ($status_user['rejection_reason'] ?? ''));
-                    $status_error = 'Your registration was not approved by the parish administrator.';
-                    if ($reason !== '') {
-                        $status_error .= ' Reason: ' . $reason;
-                    }
-                } else {
-                    $status_error = 'Your account status is ' . ucfirst(str_replace('_', ' ', $status_user['status'])) . '. Please contact the parish office for assistance.';
-                }
+            $authentication = beginPasswordAuthentication($conn, $identifier, $password);
+            if (empty($authentication['ok'])) {
+                createAuditLog($conn, null, 'LOGIN_FAILURE', 'users', null, null, ['identifier_hash'=>hash('sha256',strtolower($identifier)),'reason'=>'authentication_failed']);
+                $error = $authentication['error'] ?? 'The credentials provided are invalid.';
             } else {
-                $status_error = 'Unable to check registration status right now.';
+                createAuditLog($conn, (int) $_SESSION['user_id'], 'LOGIN', 'users', (int) $_SESSION['user_id']);
+                redirectAfterLogin();
             }
         }
-    } else {
-    // Get and sanitize input
-    $identifier = isset($_POST['email']) ? trim($_POST['email']) : '';
-    $password = isset($_POST['password']) ? $_POST['password'] : '';
-    
-    // Store identifier for form repopulation (for non-sensitive display)
-    $identifier_input = htmlspecialchars($identifier);
-    
-    // Validate input
-    if (empty($identifier) || empty($password)) {
-        $error = 'Email address or mobile number and password are required';
-    } else {
-        $login_identifier = isValidEmail($identifier) ? strtolower($identifier) : normalizePhilippineMobileForStorage($identifier);
-        $is_mobile_login = !isValidEmail($identifier) && isValidPhilippineMobile($login_identifier);
-
-        if (!isValidEmail($login_identifier) && !$is_mobile_login) {
-            $error = 'Enter a valid email address or Philippine mobile number';
-        } else {
-        $stmt = $conn->prepare("SELECT id, fullname, email, phone_number, password, role, status, rejection_reason FROM users WHERE " . ($is_mobile_login ? "phone_number = ?" : "email = ?") . " LIMIT 1");
-
-        if (!$stmt) {
-            $error = 'Database error: ' . $conn->error;
-        } else {
-            $stmt->bind_param('s', $login_identifier);
-            $stmt->execute();
-            $result = $stmt->get_result();
-
-            if ($result->num_rows > 0) {
-                $user = $result->fetch_assoc();
-            
-            // Check if account is active
-            if ($user['status'] === 'pending_verification') {
-                $error = 'Your registration is currently under review by the parish administrator. Please wait for approval before logging in.';
-            } elseif ($user['status'] === 'rejected') {
-                $reason = !empty($user['rejection_reason']) ? ' Reason: ' . $user['rejection_reason'] : '';
-                $error = 'Your registration was not approved by the parish administrator.' . $reason;
-            } elseif ($user['status'] !== 'active') {
-                $error = 'Your account is inactive. Please contact the administrator.';
-            } else {
-                // Verify password using bcrypt password_verify()
-                if (verifyPassword($password, $user['password'])) {
-                    // Use auth function to set session
-                    loginUser($user['id'], $user['fullname'], $user['email'] ?? '', $user['role']);
-                    
-                    // Create audit log for successful login
-                    createAuditLog($conn, $user['id'], 'LOGIN', 'users', $user['id']);
-                    
-                    // Role-based redirection using auth function
-                    redirectAfterLogin();
-                } else {
-                    // Password verification failed
-                    $error = 'Invalid email or password';
-                }
-            }
-            } else {
-                // Email not found
-                $error = 'Invalid email or password';
-            }
-            $stmt->close();
-        }
-    }
-    }
-    }
 }
 $action_notifications = function_exists('consumeActionNotifications') ? consumeActionNotifications() : [];
 ?>

@@ -123,30 +123,21 @@ class RoleManager {
      * @return bool Has permission
      */
     public function hasPermission($user_id, $permission) {
-        // Get user role
-        $user_role_sql = "SELECT role FROM users WHERE id = ? LIMIT 1";
-        $user_stmt = $this->conn->prepare($user_role_sql);
-        if (!$user_stmt) {
-            return false;
-        }
-
-        $user_stmt->bind_param('i', $user_id);
-        $user_stmt->execute();
-        $user_result = $user_stmt->get_result();
-        $user = $user_result->fetch_assoc();
-        $user_stmt->close();
-
-        if (!$user) {
-            return false;
-        }
-
-        // Get role configuration
-        $role_config = $this->getRoleConfig($user['role']);
-        if (!$role_config) {
-            return false;
-        }
-
-        return in_array($permission, $role_config['permissions']);
+        // Phase 2 authorization is sourced exclusively from the normalized
+        // roles and role_permissions tables. Keep this class as a compatibility
+        // facade for older dashboard callers.
+        $stmt = $this->conn->prepare(
+            'SELECT 1 FROM user_roles ur
+             JOIN role_permissions rp ON rp.role_id = ur.role_id
+             JOIN permissions p ON p.permission_id = rp.permission_id
+             WHERE ur.user_id = ? AND p.permission_key = ? LIMIT 1'
+        );
+        if (!$stmt) return false;
+        $stmt->bind_param('is', $user_id, $permission);
+        $stmt->execute();
+        $allowed = $stmt->get_result()->num_rows > 0;
+        $stmt->close();
+        return $allowed;
     }
 
     /**

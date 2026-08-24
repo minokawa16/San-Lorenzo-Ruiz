@@ -3,6 +3,7 @@
  * Manual Certificate Generator - Creates certificate previews from temporary manual input only.
  */
 include '../includes/session.php';
+include '../database/config.php';
 include '../includes/helpers.php';
 
 requireAdmin();
@@ -228,8 +229,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="stylesheet" href="../assets/css/theme.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/theme.css') ? filemtime(__DIR__ . '/../assets/css/theme.css') : time(); ?>">
     <link rel="stylesheet" href="../assets/css/responsive-unified.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/responsive-unified.css'); ?>">
 </head>
-<body>
-    <main class="manual-shell">
+<body class="premium-admin church-theme">
+    <div class="premium-admin-shell">
+        <?php include '../includes/admin-sidebar.php'; ?>
+        <main class="premium-admin-content" id="main-content" tabindex="-1">
+        <div class="manual-shell">
         <div class="manual-header">
             <div>
                 <h1><i class="fas fa-file-signature"></i> Manual Certificate Generator</h1>
@@ -293,7 +297,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             </form>
         </section>
-    </main>
+        </div>
+        </main>
+    </div>
 
     <script>
         const fieldsByType = <?php echo json_encode($fields_by_type); ?>;

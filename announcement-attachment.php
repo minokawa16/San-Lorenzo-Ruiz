@@ -8,6 +8,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
 include 'database/config.php';
 include 'includes/helpers.php';
+require_once 'services/AnnouncementService.php';
 
 if (!isLoggedIn()) {
     http_response_code(403);
@@ -21,8 +22,9 @@ if ($announcement_id <= 0) {
     http_response_code(404);
     exit('Attachment not found.');
 }
+if (!(new AnnouncementService($conn))->canView($announcement_id,(int)$_SESSION['user_id']) && !hasPermission('announcements.manage')) { http_response_code(404); exit('Attachment not found.'); }
 
-$stmt = $conn->prepare("SELECT attachment_path, attachment_original_name, attachment_mime_type FROM announcements WHERE announcement_id = ? AND status = 'active' LIMIT 1");
+$stmt = $conn->prepare("SELECT attachment_path, attachment_original_name, attachment_mime_type FROM announcements WHERE announcement_id = ? LIMIT 1");
 if (!$stmt) {
     http_response_code(500);
     exit('Unable to load attachment.');
@@ -49,9 +51,5 @@ $mime_type = $announcement['attachment_mime_type'] ?: 'application/octet-stream'
 $filename = $announcement['attachment_original_name'] ?: basename($file_path);
 $disposition = isAnnouncementImageAttachment($mime_type) || $mime_type === 'application/pdf' ? 'inline' : 'attachment';
 
-header('Content-Type: ' . $mime_type);
-header('Content-Length: ' . filesize($file_path));
-header('Content-Disposition: ' . $disposition . '; filename="' . str_replace('"', '', $filename) . '"');
-header('Cache-Control: private, max-age=300');
-header('X-Content-Type-Options: nosniff');
-readfile($file_path);
+writeAuditLog($conn, (int) $_SESSION['user_id'], 'DOWNLOAD_ANNOUNCEMENT_ATTACHMENT', 'announcements', $announcement_id, null, null);
+secureStreamFile($file_path, $mime_type, $filename, $disposition === 'inline');

@@ -37,6 +37,9 @@ for directory in uploads storage backups cache logs; do
 done
 
 chown -R www-data:www-data "${data_root}"
+chmod 0750 "${data_root}"
+find "${data_root}" -type d -exec chmod 0750 {} \;
+find "${data_root}" -type f -exec chmod 0640 {} \;
 printf '%s\n' \
     "session.save_path=\"${data_root}/sessions\"" \
     'session.cookie_secure=1' \
@@ -44,5 +47,23 @@ printf '%s\n' \
     'session.cookie_samesite="Lax"' \
     'session.use_strict_mode=1' \
     > /usr/local/etc/php/conf.d/tugon-session.ini
+
+if [ "${APP_ENV:-local}" = "production" ]; then
+    if [ "${TUGON_RUN_MIGRATIONS:-false}" = "true" ]; then
+        php /var/www/html/database/migrate.php up
+    fi
+    php /var/www/html/database/production-readiness.php --startup
+fi
+
+# Small testing deployments may run the queue worker beside Apache when the
+# hosting plan cannot provision a second service. Production can keep this
+# disabled and run the same worker command as a dedicated singleton service.
+if [ "${TUGON_RUN_EMBEDDED_WORKER:-false}" = "true" ] && [ "${1:-}" != "tugon-worker" ]; then
+    gosu www-data tugon-worker &
+fi
+
+if [ "$(id -u)" = "0" ] && [ "${1:-}" = "tugon-worker" ]; then
+    exec gosu www-data "$@"
+fi
 
 exec "$@"

@@ -2,82 +2,105 @@
 /**
  * OTP Verification Module - Validates one-time passcodes for secure account access.
  */
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
-include '../database/config.php';
-include '../includes/helpers.php';
+require_once '../includes/session.php';
+require_once '../database/config.php';
+require_once '../includes/helpers.php';
+require_once '../includes/auth.php';
 
 ensureEmailNotificationSchema($conn);
 
-$purpose = $_GET['purpose'] ?? ($_POST['purpose'] ?? 'registration');
-$allowed_purposes = ['registration', 'login'];
-if (!in_array($purpose, $allowed_purposes, true)) {
-    $purpose = 'registration';
-}
-
-$user_id = intval($_GET['user_id'] ?? ($_POST['user_id'] ?? ($_SESSION['pending_otp_user_id'] ?? 0)));
-$method = $_GET['method'] ?? ($_POST['method'] ?? ($_SESSION['pending_otp_method'] ?? 'email'));
-if (!in_array($method, ['email', 'mobile'], true)) {
-    $method = 'email';
-}
-$contact = trim($_GET['contact'] ?? ($_POST['contact'] ?? ''));
-$email = trim($_GET['email'] ?? ($_POST['email'] ?? ($_SESSION['pending_otp_email'] ?? '')));
-if ($contact === '') {
-    $contact = $email;
-}
-if ($method === 'email' && $email === '' && $contact !== '') {
-    $email = $contact;
-}
-$otp_recipient = $method === 'mobile' ? $contact : $email;
+$public_id = strtolower(trim((string) ($_GET['transaction'] ?? $_POST['transaction'] ?? '')));
+$transaction = otpTransactionByPublicId($conn, $public_id);
+$purpose = $transaction['purpose'] ?? '';
+$method = $transaction['delivery_method'] ?? 'email';
+$otp_recipient = $transaction['destination'] ?? '';
 $error = '';
 $success = '';
 
-if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+$session_key = $purpose === 'login' ? 'pending_auth_transaction' : 'pending_registration_transaction';
+$bound_transaction = (string) ($_SESSION[$session_key] ?? '');
+$transaction_is_bound = $transaction
+    && $bound_transaction !== ''
+    && hash_equals($bound_transaction, $public_id)
+    && ($purpose !== 'login' || !empty($_SESSION['password_authenticated']));
+
+if (!$transaction_is_bound) {
+    $error = 'The verification transaction is invalid or expired. Please start again.';
+}
+
+if ($transaction_is_bound && $purpose === 'login') {
+    $user_id = (int) $transaction['user_id'];
+    $roles = authenticationRolesForUser($conn, $user_id);
+    if ($roles && ($transaction['status'] ?? '') === 'active') {
+        $invalidate = $conn->prepare('UPDATE otp_transactions SET invalidated_at = NOW() WHERE public_id = ? AND verified_at IS NULL');
+        if ($invalidate) {
+            $invalidate->bind_param('s', $public_id);
+            $invalidate->execute();
+            $invalidate->close();
+        }
+        $transaction['id'] = $user_id;
+        establishAuthenticatedSession($conn, $transaction, true);
+        createAuditLog($conn, $user_id, 'LOGIN_MFA_BYPASSED', 'users', $user_id);
+        redirectAfterLogin();
+    }
+}
+
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $transaction_is_bound) {
+    requireValidCsrfToken();
     $action = $_POST['action'] ?? 'verify';
 
     if ($action === 'resend') {
-        $sent = $method === 'mobile'
-            ? sendOtpSms($conn, $user_id, $otp_recipient, $purpose)
-            : sendOtpEmail($conn, $user_id, $otp_recipient, $purpose);
-        $success = $sent['ok']
-            ? ($method === 'mobile' ? 'A new OTP was sent to your mobile number.' : 'A new OTP was sent to your Gmail address.')
-            : ($sent['error'] ?: 'Unable to send OTP.');
+        $sent = resendOtpTransaction($conn, $public_id);
+        if (!empty($sent['ok'])) {
+            $success = $method === 'mobile' ? 'A new OTP was sent to your mobile number.' : 'A new OTP was sent to your email address.';
+        } else {
+            $error = $sent['error'] ?? 'Unable to send the verification code.';
+        }
     } else {
         $otp = preg_replace('/\D/', '', $_POST['otp'] ?? '');
         if (strlen($otp) !== 6) {
             $error = 'Please enter the 6-digit OTP.';
         } else {
-            $verified = verifyOtpCode($conn, $user_id, $otp_recipient, $purpose, $otp);
+            $verified = verifyOtpTransaction($conn, $public_id, $otp, $purpose, true);
             if ($verified['ok']) {
+                $verified_transaction = $verified['transaction'];
+                $user_id = (int) $verified_transaction['user_id'];
                 if ($purpose === 'registration') {
+                    $verifiedAt = date('Y-m-d H:i:s');
                     if ($method === 'mobile') {
-                        $conn->query("UPDATE users SET phone_verified_at = NOW() WHERE id = " . intval($user_id));
+                        $stmt = $conn->prepare('UPDATE users SET phone_verified_at = ? WHERE id = ?');
                         createAuditLog($conn, $user_id, 'VERIFY_REGISTRATION_MOBILE_OTP', 'users', $user_id);
                     } else {
-                        $conn->query("UPDATE users SET email_verified_at = NOW() WHERE id = " . intval($user_id));
+                        $stmt = $conn->prepare('UPDATE users SET email_verified_at = ? WHERE id = ?');
                         createAuditLog($conn, $user_id, 'VERIFY_REGISTRATION_EMAIL_OTP', 'users', $user_id);
                     }
-                    $success = 'OTP verified. Your registration is now ready for parish administrator review.';
-                } else {
-                    $stmt = $conn->prepare($method === 'mobile'
-                        ? "SELECT id, fullname, email, role FROM users WHERE id = ? AND phone_number = ? LIMIT 1"
-                        : "SELECT id, fullname, email, role FROM users WHERE id = ? AND email = ? LIMIT 1");
+                    $stmt->bind_param('si', $verifiedAt, $user_id);
+                    $updated = $stmt->execute();
+                    $stmt->close();
+                    $identifierUpdated = $updated && synchronizeAuthenticationIdentifier(
+                        $conn,
+                        $user_id,
+                        $method,
+                        (string) $verified_transaction['destination'],
+                        $verifiedAt
+                    );
+                    if ($identifierUpdated) {
+                        unset($_SESSION['pending_registration_transaction']);
+                        $success = 'OTP verified. Your registration is now ready for parish administrator review.';
+                    } else {
+                        $error = 'Unable to complete account verification. Please contact the parish office.';
+                    }
+                } elseif ($purpose === 'login') {
+                    $stmt = $conn->prepare('SELECT * FROM users WHERE id = ? AND status = "active" LIMIT 1');
                     if ($stmt) {
-                        $stmt->bind_param('is', $user_id, $otp_recipient);
+                        $stmt->bind_param('i', $user_id);
                         $stmt->execute();
                         $user = $stmt->get_result()->fetch_assoc();
                         $stmt->close();
                         if ($user) {
-                            $_SESSION['user_id'] = $user['id'];
-                            $_SESSION['fullname'] = $user['fullname'];
-                            $_SESSION['email'] = $user['email'] ?? '';
-                            $_SESSION['role'] = $user['role'];
-                            unset($_SESSION['pending_otp_user_id'], $_SESSION['pending_otp_email'], $_SESSION['pending_otp_method']);
+                            establishAuthenticatedSession($conn, $user, true);
                             createAuditLog($conn, $user_id, 'VERIFY_LOGIN_OTP', 'users', $user_id);
-                            header("Location: " . ($user['role'] === 'admin' ? '../admin/dashboard.php' : '../users/dashboard.php'));
-                            exit;
+                            redirectAfterLogin();
                         }
                     }
                     $error = 'Unable to complete login OTP verification.';
@@ -90,8 +113,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 }
 ?>
 <?php
-$verification_title = $method === 'mobile' ? 'Verify Your Mobile Number' : 'Verify Your Email Address';
-$recipient_label = $method === 'mobile' ? 'mobile number' : 'Gmail address';
+$verification_title = $purpose === 'login' ? 'Complete Secure Sign-In' : ($method === 'mobile' ? 'Verify Your Mobile Number' : 'Verify Your Email Address');
+$recipient_label = $method === 'mobile' ? 'mobile number' : 'email address';
 $masked_recipient = $otp_recipient;
 if ($method === 'mobile') {
     $digits = preg_replace('/\D/', '', $otp_recipient);
@@ -568,13 +591,16 @@ if ($method === 'mobile') {
                     <span><?php echo e($success); ?></span>
                 </div>
             <?php endif; ?>
+            <?php if (!empty($_SESSION['last_dev_otp']) && (!defined('APP_ENVIRONMENT') || APP_ENVIRONMENT !== 'production')): ?>
+                <div class="otp-alert info" role="status" style="background: rgba(200, 155, 60, 0.15); border-color: rgba(200, 155, 60, 0.4); color: #805c10;">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Development Code: Your OTP is <strong><?php echo e($_SESSION['last_dev_otp']); ?></strong></span>
+                </div>
+            <?php endif; ?>
 
-            <form method="POST" class="otp-form" id="verifyForm" <?php echo ($success && $purpose === 'registration') ? 'hidden' : ''; ?> novalidate>
-                <input type="hidden" name="user_id" value="<?php echo intval($user_id); ?>">
-                <input type="hidden" name="email" value="<?php echo e($email); ?>">
-                <input type="hidden" name="contact" value="<?php echo e($otp_recipient); ?>">
-                <input type="hidden" name="method" value="<?php echo e($method); ?>">
-                <input type="hidden" name="purpose" value="<?php echo e($purpose); ?>">
+            <form method="POST" class="otp-form" id="verifyForm" <?php echo (($success && $purpose === 'registration') || !$transaction_is_bound) ? 'hidden' : ''; ?> novalidate>
+                <?php echo csrfInput(); ?>
+                <input type="hidden" name="transaction" value="<?php echo e($public_id); ?>">
                 <input type="hidden" name="action" value="verify">
                 <input type="hidden" id="otp" name="otp" value="">
 
@@ -599,12 +625,9 @@ if ($method === 'mobile') {
                 </div>
             </form>
 
-            <form method="POST" class="otp-actions" id="resendForm" <?php echo ($success && $purpose === 'registration') ? 'hidden' : ''; ?>>
-                <input type="hidden" name="user_id" value="<?php echo intval($user_id); ?>">
-                <input type="hidden" name="email" value="<?php echo e($email); ?>">
-                <input type="hidden" name="contact" value="<?php echo e($otp_recipient); ?>">
-                <input type="hidden" name="method" value="<?php echo e($method); ?>">
-                <input type="hidden" name="purpose" value="<?php echo e($purpose); ?>">
+            <form method="POST" class="otp-actions" id="resendForm" <?php echo (($success && $purpose === 'registration') || !$transaction_is_bound) ? 'hidden' : ''; ?>>
+                <?php echo csrfInput(); ?>
+                <input type="hidden" name="transaction" value="<?php echo e($public_id); ?>">
                 <input type="hidden" name="action" value="resend">
                 <button type="submit" class="otp-btn secondary" id="resendBtn" disabled>
                     <i class="fas fa-rotate"></i>

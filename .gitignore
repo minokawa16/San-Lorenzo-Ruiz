@@ -36,3 +36,4 @@ backups/*.zip
 !uploads/announcements/index.php
 !uploads/request_requirements/.htaccess
 !uploads/request_requirements/index.php
+.codex-deploy-clean/

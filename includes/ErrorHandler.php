@@ -70,8 +70,10 @@ class ErrorHandler {
      * Handle exceptions
      */
     public function handleException(Throwable $e) {
+        $error_id = 'ERR-' . gmdate('Ymd') . '-' . strtoupper(bin2hex(random_bytes(4)));
         $error_message = sprintf(
-            "Exception: %s in %s on line %d",
+            "[%s] Exception: %s in %s on line %d",
+            $error_id,
             $e->getMessage(),
             $e->getFile(),
             $e->getLine()
@@ -82,7 +84,7 @@ class ErrorHandler {
             'trace' => $e->getTraceAsString()
         ]);
 
-        $this->showErrorPage(500, 'An unexpected error occurred');
+        $this->showErrorPage(500, 'An unexpected error occurred. Error ID: ' . $error_id);
     }
 
     /**
@@ -106,11 +108,8 @@ class ErrorHandler {
     private function showErrorPage($code, $message) {
         http_response_code($code);
         
-        if ($this->environment === 'development') {
-            echo "Error $code: $message";
-        } else {
-            echo "An error occurred. Please try again later.";
-        }
+        // Never expose exception details, SQL, paths, or stack traces.
+        echo htmlspecialchars((string) $message, ENT_QUOTES, 'UTF-8');
         exit;
     }
 }

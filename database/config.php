@@ -14,6 +14,21 @@ if (is_file($local_db_config)) {
     require_once $local_db_config;
 }
 
+$databaseProduction = strtolower(trim((string) (getenv('APP_ENV') ?: 'local'))) === 'production';
+$databaseEnvironment = [
+    'host' => getenv('DB_HOST') ?: getenv('MYSQLHOST'),
+    'user' => getenv('DB_USER') ?: getenv('MYSQLUSER'),
+    'password' => getenv('DB_PASSWORD') ?: getenv('MYSQLPASSWORD'),
+    'name' => getenv('DB_NAME') ?: getenv('MYSQLDATABASE'),
+];
+if ($databaseProduction) {
+    foreach ($databaseEnvironment as $label => $value) {
+        if ($value === false || trim((string) $value) === '') {
+            throw new RuntimeException('Production database ' . $label . ' must be configured through the environment.');
+        }
+    }
+}
+
 if (!defined('DB_HOST')) {
     define('DB_HOST', getenv('DB_HOST') ?: (getenv('MYSQLHOST') ?: '127.0.0.1'));
 }
@@ -69,7 +84,15 @@ if ($conn->connect_error) {
     die("Connection failed: " . $err);
 }
 
-// Set charset to UTF-8
-$conn->set_charset("utf8");
+// Use full Unicode so names, multilingual content, and symbols are preserved.
+if (!$conn->set_charset('utf8mb4')) {
+    error_log('Unable to configure the database connection for utf8mb4.');
+    http_response_code(500);
+    exit('Database character-set configuration error.');
+}
+
+// TUGON's authoritative civil timezone for parish schedules.
+date_default_timezone_set('Asia/Manila');
+$conn->query("SET time_zone = '+08:00'");
 
 ?>

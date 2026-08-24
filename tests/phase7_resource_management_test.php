@@ -1,0 +1,9 @@
+<?php
+require_once __DIR__.'/../database/config.php';require_once __DIR__.'/../services/ResourceAvailabilityService.php';
+$pass=0;$fail=0;function r7($ok,$name){global$pass,$fail;echo($ok?'PASS':'FAIL').": $name\n";$ok?$pass++:$fail++;}$id=0;
+try{$suffix=bin2hex(random_bytes(4));$type='equipment';$name='Phase 7 Test '.$suffix;$description='Created by automated resource test';$location='Test storage';$capacity=1;$status='available';$stmt=$conn->prepare('INSERT INTO resources (resource_type,name,description,location,capacity,status) VALUES (?,?,?,?,?,?)');$stmt->bind_param('ssssis',$type,$name,$description,$location,$capacity,$status);$stmt->execute();$id=$stmt->insert_id;$stmt->close();r7($id>0,'authorized resource create persistence works');
+$newName=$name.' Edited';$newStatus='maintenance';$stmt=$conn->prepare('UPDATE resources SET name=?,status=? WHERE resource_id=?');$stmt->bind_param('ssi',$newName,$newStatus,$id);$stmt->execute();$stmt->close();$row=$conn->query("SELECT name,status FROM resources WHERE resource_id=$id")->fetch_assoc();r7($row['name']===$newName&&$row['status']==='maintenance','resource edit persists status and metadata');
+$availability=new ResourceAvailabilityService($conn);$blocked=false;$conn->begin_transaction();try{$availability->lockAvailableResources([$id]);}catch(DomainException$e){$blocked=true;}$conn->rollback();r7($blocked,'maintenance resource cannot be booked');
+$conn->query("UPDATE resources SET status='archived',deleted_at=NOW() WHERE resource_id=$id");$visible=(int)$conn->query("SELECT COUNT(*) c FROM resources WHERE resource_id=$id AND deleted_at IS NULL")->fetch_assoc()['c'];r7($visible===0,'archived resource is removed from bookable inventory');
+}catch(Throwable$e){echo'FAIL: unexpected resource test error: '.$e->getMessage()."\n";$fail++;}finally{if($id)$conn->query("DELETE FROM resources WHERE resource_id=$id");}
+echo"Phase 7 resources: $pass passed, $fail failed.\n";exit($fail?1:0);

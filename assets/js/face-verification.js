@@ -1,5 +1,8 @@
 (function () {
-    const MODEL_URL = '/ParishSystem/models';
+    const scriptUrl = document.currentScript && document.currentScript.src
+        ? document.currentScript.src
+        : new URL('assets/js/face-verification.js', document.baseURI).href;
+    const MODEL_URL = new URL('../../models', scriptUrl).pathname.replace(/\/$/, '');
     const MATCH_DISTANCE_THRESHOLD = 0.62;
     let modelPromise = null;
 

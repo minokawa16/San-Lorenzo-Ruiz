@@ -2,7 +2,7 @@
 /**
  * Certificate Generator Module - Builds sacramental certificate data for preview, print, and verification.
  */
-session_start();
+require_once '../includes/session.php';
 include '../database/config.php';
 include '../includes/helpers.php';
 
@@ -14,8 +14,9 @@ $success = '';
 
 // Handle certificate generation
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    requireValidCsrfToken();
     $cert_type = $_POST['cert_type'] ?? '';
-    $record_id = intval($_POST['record_id']);
+    $record_id = intval($_POST['record_id'] ?? 0);
     
     if ($cert_type == 'baptism' || $cert_type == 'baptism_certification') {
         $sql = "SELECT * FROM baptism_records WHERE baptism_id = $record_id";
@@ -262,6 +263,7 @@ $page_title = 'Certificate Generator';
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST" action="">
+                <?php echo csrfInput(); ?>
                 <div class="modal-body">
                     <input type="hidden" name="cert_type" id="cert_type">
                     

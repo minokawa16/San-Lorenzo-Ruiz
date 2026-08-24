@@ -9,6 +9,7 @@ include '../config/security.php';
 include '../includes/session.php';
 include '../includes/helpers.php';
 include '../database/config.php';
+require_once '../services/SacramentalRecordService.php';
 
 // Define BASE_URL if not already defined
 if (!defined('BASE_URL')) {
@@ -16,10 +17,8 @@ if (!defined('BASE_URL')) {
 }
 
 // Check admin access
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-    header("Location: ../auth/login.php");
-    exit();
-}
+requireAdmin();
+requirePermission('records.manage');
 
 // Fetch All Assoc Function - Documents this helper's role in the parish management workflow.
 function fetch_all_assoc($stmt) {
@@ -51,33 +50,16 @@ function fetch_all_assoc($stmt) {
 
 // Confirmation Column Exists Function - Documents this helper's role in the parish management workflow.
 function confirmation_column_exists($conn, $column_name) {
-    $safe_column = $conn->real_escape_string($column_name);
-    $result = $conn->query("SHOW COLUMNS FROM confirmation_records LIKE '$safe_column'");
-    return $result && $result->num_rows > 0;
+    return schemaColumnExists($conn, 'confirmation_records', (string) $column_name);
 }
 
 // Ensure Confirmation Record Book Schema Function - Documents this helper's role in the parish management workflow.
 function ensure_confirmation_record_book_schema($conn) {
-    $columns = array(
-        'request_id' => "ALTER TABLE confirmation_records ADD COLUMN request_id INT NULL AFTER confirmation_id",
-        'registry_no' => "ALTER TABLE confirmation_records ADD COLUMN registry_no VARCHAR(50) NULL AFTER request_id",
-        'age' => "ALTER TABLE confirmation_records ADD COLUMN age VARCHAR(30) NULL AFTER confirmation_name",
-        'origin_parish' => "ALTER TABLE confirmation_records ADD COLUMN origin_parish VARCHAR(150) NULL AFTER age",
-        'origin_province' => "ALTER TABLE confirmation_records ADD COLUMN origin_province VARCHAR(150) NULL AFTER origin_parish",
-        'baptismal_place' => "ALTER TABLE confirmation_records ADD COLUMN baptismal_place VARCHAR(150) NULL AFTER origin_province",
-        'parents' => "ALTER TABLE confirmation_records ADD COLUMN parents VARCHAR(200) NULL AFTER baptismal_place",
-        'stipend_pesos' => "ALTER TABLE confirmation_records ADD COLUMN stipend_pesos VARCHAR(30) NULL AFTER bishop_priest",
-        'stipend_cents' => "ALTER TABLE confirmation_records ADD COLUMN stipend_cents VARCHAR(30) NULL AFTER stipend_pesos",
-        'observations' => "ALTER TABLE confirmation_records ADD COLUMN observations TEXT NULL AFTER stipend_cents",
-        'parish_priest' => "ALTER TABLE confirmation_records ADD COLUMN parish_priest VARCHAR(120) NULL AFTER observations",
-        'parish_secretary' => "ALTER TABLE confirmation_records ADD COLUMN parish_secretary VARCHAR(120) NULL AFTER parish_priest"
-    );
-
-    foreach ($columns as $column => $sql) {
-        if (!confirmation_column_exists($conn, $column)) {
-            $conn->query($sql);
-        }
-    }
+    return requireSchemaColumns($conn, 'confirmation_records', [
+        'request_id', 'registry_no', 'age', 'origin_parish', 'origin_province',
+        'baptismal_place', 'parents', 'stipend_pesos', 'stipend_cents',
+        'observations', 'parish_priest', 'parish_secretary'
+    ], 'confirmation records');
 }
 
 // Format Record Date Function - Documents this helper's role in the parish management workflow.
@@ -100,6 +82,18 @@ ensure_confirmation_record_book_schema($conn);
 $action = $_POST['action'] ?? $_GET['action'] ?? null;
 $message = '';
 $alert_type = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['add','edit','archive','restore'], true)) {
+    requireValidCsrfToken();
+    try {
+        $records=new SacramentalRecordService($conn);$actor=(int)($_SESSION['user_id']??0);
+        if($action==='add'){$records->create('confirmation',$_POST,$actor);$notice='Confirmation record created.';}
+        elseif($action==='edit'){$records->requestCorrection('confirmation',(int)($_POST['record_id']??0),$_POST,(string)($_POST['correction_reason']??''),$actor);$notice='Correction submitted for review; the official record was not overwritten.';}
+        elseif($action==='archive'){$records->archive('confirmation',(int)($_POST['record_id']??0),(string)($_POST['archive_reason']??''),$actor);$notice='Confirmation record archived.';}
+        else{$records->restore('confirmation',(int)($_POST['record_id']??0),$actor);$notice='Confirmation record restored.';}
+        redirectWithNotification('confirmation-records.php',$notice,'success');
+    } catch(Throwable $exception){$message=$exception->getMessage();$alert_type='danger';$action=null;}
+}
 
 // Add new confirmation record
 if ($action === 'add' && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -724,7 +718,8 @@ $page_title = 'Confirmation Records - Parish Management';
                                             'parish_priest' => $record['parish_priest'] ?? '',
                                             'parish_secretary' => $record['parish_secretary'] ?? '',
                                             'status' => $record['status'] ?? 'active',
-                                            'request_id' => $record['request_id'] ?? ''
+                                            'request_id' => $record['request_id'] ?? '',
+                                            'book_no' => $record['book_no'] ?? '', 'page_no' => $record['page_no'] ?? '', 'entry_no' => $record['entry_no'] ?? ''
                                         );
                                     ?>
                                     <tr>
@@ -794,6 +789,7 @@ $page_title = 'Confirmation Records - Parish Management';
                 <span onclick="closeModal()" style="cursor: pointer; font-size: 1.5rem; color: #999;">&times;</span>
             </div>
             <form id="recordForm" method="POST" action="">
+                <?php echo csrfInput(); ?>
                 <input type="hidden" id="actionInput" name="action" value="add">
                 <input type="hidden" id="recordIdInput" name="record_id" value="">
 
@@ -802,6 +798,7 @@ $page_title = 'Confirmation Records - Parish Management';
                         <label>No.</label>
                         <input type="text" id="registryNo" name="registry_no" placeholder="Record number">
                     </div>
+                    <div class="form-group"><label>Book / Page / Entry</label><div style="display:flex;gap:6px"><input id="bookNo" name="book_no" placeholder="Book"><input id="pageNo" name="page_no" placeholder="Page"><input id="entryNo" name="entry_no" placeholder="Entry"></div></div>
 
                     <div class="form-group">
                         <label>Confirmation Date *</label>
@@ -839,18 +836,18 @@ $page_title = 'Confirmation Records - Parish Management';
                     </div>
 
                     <div class="form-group">
-                        <label>Parents</label>
-                        <input type="text" id="parents" name="parents" placeholder="Parents">
+                        <label>Parents *</label>
+                        <input type="text" id="parents" name="parents" placeholder="Parents" required>
                     </div>
 
                     <div class="form-group">
-                        <label>Sponsor / Godparent</label>
-                        <input type="text" id="sponsor" name="sponsor" placeholder="Sponsor / godparent">
+                        <label>Sponsor / Godparent *</label>
+                        <input type="text" id="sponsor" name="sponsor" placeholder="Sponsor / godparent" required>
                     </div>
 
                     <div class="form-group">
-                        <label>Minister Name</label>
-                        <input type="text" id="ministerName" name="minister" placeholder="Minister / bishop / priest">
+                        <label>Minister Name *</label>
+                        <input type="text" id="ministerName" name="minister" placeholder="Minister / bishop / priest" required>
                     </div>
 
                     <div class="form-group">
@@ -864,8 +861,8 @@ $page_title = 'Confirmation Records - Parish Management';
                     </div>
 
                     <div class="form-group">
-                        <label>Birth Date</label>
-                        <input type="date" id="birthDate" name="birth_date">
+                        <label>Birth Date *</label>
+                        <input type="date" id="birthDate" name="birth_date" required max="<?php echo date('Y-m-d'); ?>">
                     </div>
 
                     <div class="form-group">
@@ -902,6 +899,7 @@ $page_title = 'Confirmation Records - Parish Management';
                         <label>Parish Secretary</label>
                         <input type="text" id="parishSecretary" name="parish_secretary" placeholder="Name printed above Parish Secretary">
                     </div>
+                    <div class="form-group full-width"><label>Correction reason (required when editing)</label><textarea name="correction_reason" minlength="5"></textarea></div>
                 </div>
 
                 <div class="modal-footer">
@@ -921,8 +919,10 @@ $page_title = 'Confirmation Records - Parish Management';
             </div>
             <p style="margin-bottom: 20px; color: #666;">Archive this confirmation record? It will be hidden from active records but kept in Archives.</p>
             <form id="deleteForm" method="POST" action="">
+                <?php echo csrfInput(); ?>
                 <input type="hidden" name="action" value="archive">
                 <input type="hidden" id="deleteRecordId" name="record_id" value="">
+                <div class="form-group"><label>Archive reason *</label><textarea name="archive_reason" required minlength="5"></textarea></div>
                 <div class="modal-footer">
                     <button type="button" class="btn-cancel" onclick="closeDeleteModal()">Cancel</button>
                     <button type="submit" class="btn-delete" style="padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; background: #d7ad43; color: #181204;">Archive</button>
@@ -947,6 +947,9 @@ $page_title = 'Confirmation Records - Parish Management';
         function openEditModal(record) {
             document.getElementById('recordIdInput').value = record.id || '';
             document.getElementById('registryNo').value = record.registry_no || '';
+            document.getElementById('bookNo').value = record.book_no || '';
+            document.getElementById('pageNo').value = record.page_no || '';
+            document.getElementById('entryNo').value = record.entry_no || '';
             document.getElementById('fullName').value = record.fullname || '';
             document.getElementById('birthDate').value = record.birth_date || '';
             document.getElementById('confirmationDate').value = record.confirmation_date || '';

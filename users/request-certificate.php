@@ -6,6 +6,7 @@ include '../includes/session.php';
 include '../config/security.php';
 include '../database/config.php';
 include '../includes/helpers.php';
+require_once __DIR__ . '/../services/RequestService.php';
 
 requireLogin();
 if (!hasPermission('requests.create')) {
@@ -17,6 +18,7 @@ $body_extra_class = 'certificate-mobile-page';
 $user_id = intval($_SESSION['user_id']);
 $error = '';
 $success = '';
+$request_idempotency_key = bin2hex(random_bytes(32));
 ensureRequestDocumentsSchema($conn);
 ensureEmailNotificationSchema($conn);
 
@@ -93,16 +95,10 @@ function certificateLabel($value, $labels = []) {
             'Purpose: ' . $purpose_description
         ];
         $description = implode("\n", $description_parts);
-        $reference_number = generateReferenceNumber();
-        $status = 'pending';
-        $stmt = $conn->prepare("INSERT INTO requests (user_id, request_type, description, status, reference_number) VALUES (?, ?, ?, ?, ?)");
-
-        if (!$stmt) {
-            $error = 'Unable to prepare your certificate request. Please contact the parish office.';
-        } else {
-            $stmt->bind_param('issss', $user_id, $request_type, $description, $status, $reference_number);
-            if ($stmt->execute()) {
-                $request_id = $conn->insert_id;
+        try {
+            $requestResult = (new RequestService($conn))->create(['request_type' => $request_type, 'description' => $description], $user_id, (string) ($_POST['idempotency_key'] ?? ''));
+            $request_id = (int) $requestResult['request_id'];
+            $reference_number = $requestResult['reference_number'];
                 $documents = saveMultipleRequirementDocuments($conn, $request_id, $user_id, $_FILES['requirement_files'] ?? null);
                 if (!$documents['ok'] && empty($documents['saved'])) {
                     $error = $documents['error'] . ' Your request was saved, but the files were not attached. Reference: ' . $reference_number;
@@ -113,10 +109,8 @@ function certificateLabel($value, $labels = []) {
                     createNotification($conn, $user_id, 'Certificate Request Created', 'Your certificate request has been submitted with reference: ' . $reference_number . ' (' . $doc_count . ' ' . $file_text . ' attached)');
                     $success = 'Certificate request submitted successfully! Reference: ' . $reference_number . ' (' . $doc_count . ' file' . ($doc_count === 1 ? '' : 's') . ' attached)';
                 }
-            } else {
-                $error = 'Error submitting certificate request: ' . $conn->error;
-            }
-            $stmt->close();
+        } catch (Throwable $exception) {
+            $error = $exception->getMessage();
         }
     }
 }
@@ -1414,7 +1408,8 @@ if ($stmt) {
         </div>
 
         <form method="POST" action="" enctype="multipart/form-data" id="certificateRequestForm">
-            <?php echo csrfInput(); ?>
+                        <?php echo csrfInput(); ?>
+                        <input type="hidden" name="idempotency_key" value="<?php echo e($request_idempotency_key); ?>">
             <section class="form-step">
                 <div class="step-heading">
                     <span class="step-number">1</span>

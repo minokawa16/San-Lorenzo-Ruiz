@@ -1,3 +1,1 @@
-<?php
-
-require_once __DIR__ . '/../config/sms/test_sms.php';
+<?php require dirname(__DIR__) . '/includes/retired-development-endpoint.php';

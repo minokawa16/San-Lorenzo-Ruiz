@@ -3,12 +3,12 @@
  * Records Lookup API - Retrieves sacramental records for administrator tools.
  */
 header('Content-Type: application/json');
-session_start();
+require_once '../includes/session.php';
 include '../database/config.php';
 include '../includes/helpers.php';
 
 requireAdmin();
-requirePermission('records.manage');
+requirePermission('certificates.manage');
 
 $type = $_GET['type'] ?? '';
 $response = ['success' => false, 'records' => []];

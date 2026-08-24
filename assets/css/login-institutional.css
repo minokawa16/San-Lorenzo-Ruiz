@@ -477,21 +477,24 @@ body.auth-cinematic-page .auth-switch a:focus-visible {
 body.auth-cinematic-page .auth-verification-actions {
     display: flex !important;
     flex-direction: column !important;
-    align-items: flex-start !important;
+    align-items: center !important;
     gap: 4px !important;
     margin-top: 20px !important;
+    text-align: center !important;
 }
 
 body.auth-cinematic-page .auth-status-prompt {
+    width: 100% !important;
     margin: 0 !important;
     color: var(--login-muted) !important;
     font-size: 0.8rem !important;
+    text-align: center !important;
 }
 
 body.auth-cinematic-page .auth-status-btn {
     display: inline-flex !important;
     align-items: center !important;
-    justify-content: flex-start !important;
+    justify-content: center !important;
     gap: 8px !important;
     width: auto !important;
     min-height: 44px !important;
@@ -519,6 +522,7 @@ body.auth-cinematic-page .auth-status-btn:hover {
 body.auth-cinematic-page .auth-home-link {
     display: inline-flex !important;
     align-items: center !important;
+    justify-content: center !important;
     gap: 7px !important;
     min-height: 44px !important;
     padding: 7px 0 !important;
@@ -536,7 +540,7 @@ body.auth-cinematic-page .auth-switch {
     margin-top: 20px !important;
     color: var(--login-muted) !important;
     font-size: 0.88rem !important;
-    text-align: left !important;
+    text-align: center !important;
 }
 
 body.auth-cinematic-page .auth-security-note {

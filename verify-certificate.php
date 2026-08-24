@@ -6,14 +6,14 @@ include 'database/config.php';
 include 'includes/helpers.php';
 
 $code = trim($_GET['code'] ?? '');
+$number = trim($_GET['number'] ?? '');
 $certificate = null;
-$record = null;
 $error = '';
 
 if ($code === '') {
     $error = 'No verification code was provided.';
 } else {
-    $stmt = $conn->prepare("SELECT * FROM certificate_issuances WHERE verification_code = ? LIMIT 1");
+        $stmt = $conn->prepare("SELECT certificate_number,certificate_type,issued_to,status,issued_at,revocation_reason,pdf_path,certificate_hash FROM certificate_issuances WHERE verification_code = ? LIMIT 1");
     if ($stmt) {
         $stmt->bind_param('s', $code);
         $stmt->execute();
@@ -23,21 +23,9 @@ if ($code === '') {
 
     if (!$certificate) {
         $error = 'Certificate verification code was not found.';
-    } else {
-        $allowed_tables = [
-            'baptism_records' => 'baptism_id',
-            'first_communion_records' => 'communion_id',
-            'confirmation_records' => 'confirmation_id'
-        ];
-        $table = $certificate['record_table'];
-        if (isset($allowed_tables[$table])) {
-            $id_column = $allowed_tables[$table];
-            $record_id = intval($certificate['record_id']);
-            $result = $conn->query("SELECT * FROM `$table` WHERE `$id_column` = $record_id LIMIT 1");
-            if ($result) {
-                $record = $result->fetch_assoc();
-            }
-        }
+    } elseif ($number !== '' && !hash_equals((string)$certificate['certificate_number'], $number)) {
+        $certificate = null;
+        $error = 'The certificate number and verification token do not match.';
     }
 }
 
@@ -51,7 +39,8 @@ function verifyDate($value) {
 }
 
 $status = $certificate['status'] ?? 'invalid';
-$is_valid = $certificate && $status === 'valid';
+if ($certificate && in_array($status, ['issued','released'], true) && (empty($certificate['certificate_hash']) || empty($certificate['pdf_path']))) $status = 'unverified';
+$is_valid = $certificate && in_array($status, ['issued', 'released'], true);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -154,6 +143,11 @@ $is_valid = $certificate && $status === 'valid';
             </div>
         </header>
         <section class="verify-body">
+            <form method="get" class="row g-2 mb-4" aria-label="Certificate verification form">
+                <div class="col-md-5"><label class="form-label" for="number">Certificate number</label><input class="form-control" id="number" name="number" value="<?php echo e($number); ?>" placeholder="BAP-2026-000001"></div>
+                <div class="col-md-5"><label class="form-label" for="code">Verification token</label><input class="form-control" id="code" name="code" value="<?php echo e($code); ?>" required autocomplete="off"></div>
+                <div class="col-md-2 d-flex align-items-end"><button class="btn btn-dark w-100">Verify</button></div>
+            </form>
             <?php if ($error): ?>
                 <span class="status-pill"><i class="fas fa-circle-xmark"></i> Invalid Certificate</span>
                 <p class="mt-3 mb-0"><?php echo e($error); ?></p>
@@ -164,8 +158,8 @@ $is_valid = $certificate && $status === 'valid';
                     <div class="detail"><span>Verification Code</span><strong><?php echo e($certificate['verification_code']); ?></strong></div>
                     <div class="detail"><span>Certificate Type</span><strong><?php echo e(ucfirst(str_replace('_', ' ', $certificate['certificate_type']))); ?></strong></div>
                     <div class="detail"><span>Date Issued</span><strong><?php echo e(verifyDate($certificate['issued_at'])); ?></strong></div>
-                    <div class="detail"><span>Name on Record</span><strong><?php echo e($record['fullname'] ?? $certificate['issued_to'] ?? 'N/A'); ?></strong></div>
-                    <div class="detail"><span>Sacramental Date</span><strong><?php echo e(verifyDate($record['baptism_date'] ?? $record['communion_date'] ?? $record['confirmation_date'] ?? '')); ?></strong></div>
+                    <div class="detail"><span>Name on Certificate</span><strong><?php echo e($certificate['issued_to'] ?? 'N/A'); ?></strong></div>
+                    <div class="detail"><span>Verification result</span><strong><?php echo $is_valid ? 'Valid parish-issued certificate' : e(ucfirst($status)); ?></strong></div>
                 </div>
                 <p class="text-muted mt-3 mb-0">This verification confirms that the certificate reference exists in the Tugon Parish Management System. Any alteration to the printed document invalidates the certificate.</p>
             <?php endif; ?>

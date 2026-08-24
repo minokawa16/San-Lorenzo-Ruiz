@@ -1,0 +1,6 @@
+Options -Indexes
+<FilesMatch "\.(php|phtml|phar|cgi|pl|py|jsp|asp|aspx)$">
+    Require all denied
+</FilesMatch>
+# Uploaded documents are served only through authorized PHP endpoints.
+Require all denied

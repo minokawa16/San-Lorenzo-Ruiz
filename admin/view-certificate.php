@@ -24,47 +24,17 @@ $is_confirmation_certification = $cert_type === 'confirmation_certification';
 $is_first_communion_certification = $cert_type === 'first_communion_certification';
 $is_funeral_certification = $cert_type === 'funeral_certification';
 
-// Cert Column Exists Function - Documents this helper's role in the parish management workflow.
-function certColumnExists($conn, $table, $column) {
-    $safe_table = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
-    $safe_column = $conn->real_escape_string($column);
-    $result = $conn->query("SHOW COLUMNS FROM `$safe_table` LIKE '$safe_column'");
-    return $result && $result->num_rows > 0;
-}
-
 // Ensure Certificate Schema Function - Documents this helper's role in the parish management workflow.
 function ensureCertificateSchema($conn) {
-    $conn->query("CREATE TABLE IF NOT EXISTS certificate_issuances (
-        certificate_id INT PRIMARY KEY AUTO_INCREMENT,
-        certificate_type VARCHAR(50) NOT NULL,
-        record_table VARCHAR(80) NOT NULL,
-        record_id INT NOT NULL,
-        template_id INT NULL,
-        layout_snapshot LONGTEXT NULL,
-        certificate_number VARCHAR(40) NOT NULL UNIQUE,
-        verification_code VARCHAR(80) NOT NULL UNIQUE,
-        issued_by INT NULL,
-        issued_to VARCHAR(150) NULL,
-        status VARCHAR(30) DEFAULT 'valid',
-        issued_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX idx_certificate_record (record_table, record_id),
-        INDEX idx_certificate_status (status)
-    )");
-
-    ensureCertificateTemplateSchema($conn);
-
-    $optional_columns = [
-        'book_no' => "ALTER TABLE baptism_records ADD COLUMN book_no VARCHAR(40) NULL AFTER registry_no",
-        'page_no' => "ALTER TABLE baptism_records ADD COLUMN page_no VARCHAR(40) NULL AFTER book_no",
-        'entry_no' => "ALTER TABLE baptism_records ADD COLUMN entry_no VARCHAR(40) NULL AFTER page_no"
-    ];
-
-    foreach ($optional_columns as $column => $sql) {
-        if (!certColumnExists($conn, 'baptism_records', $column)) {
-            $conn->query($sql);
-        }
-    }
+    return requireSchemaColumns($conn, 'certificate_issuances', [
+        'certificate_id', 'certificate_type', 'record_table', 'record_id',
+        'template_id', 'layout_snapshot', 'certificate_number', 'verification_code',
+        'issued_by', 'issued_to', 'status', 'issued_at', 'updated_at'
+    ], 'certificate issuance')
+        && ensureCertificateTemplateSchema($conn)
+        && requireSchemaColumns($conn, 'baptism_records', [
+            'book_no', 'page_no', 'entry_no'
+        ], 'baptism certificate registry');
 }
 
 // Certificate Record Meta Function - Documents this helper's role in the parish management workflow.
@@ -97,72 +67,6 @@ function certificateRecordMeta($cert_type) {
         return ['table' => 'manual_certificates', 'id' => 'manual_id', 'prefix' => 'GEN', 'title' => 'PARISH CERTIFICATE'];
     }
     return ['table' => 'confirmation_records', 'id' => 'confirmation_id', 'prefix' => 'CON', 'title' => 'CONFIRMATION CERTIFICATE'];
-}
-
-// Generate Certificate Number Function - Documents this helper's role in the parish management workflow.
-function generateCertificateNumber($conn, $prefix) {
-    $year = date('Y');
-    $like = $conn->real_escape_string($prefix . '-' . $year . '-%');
-    $result = $conn->query("SELECT certificate_number FROM certificate_issuances WHERE certificate_number LIKE '$like' ORDER BY certificate_id DESC LIMIT 1");
-    $next = 1;
-    if ($result && $row = $result->fetch_assoc()) {
-        $parts = explode('-', $row['certificate_number']);
-        $next = intval(end($parts)) + 1;
-    }
-    return $prefix . '-' . $year . '-' . str_pad((string) $next, 6, '0', STR_PAD_LEFT);
-}
-
-// Get Or Create Certificate Issue Function - Documents this helper's role in the parish management workflow.
-function getOrCreateCertificateIssue($conn, $cert_type, $data) {
-    $meta = certificateRecordMeta($cert_type);
-    $record_id = intval($data[$meta['id']] ?? 0);
-    if ($record_id <= 0) {
-        throw new Exception('Unable to identify the sacramental record for certificate issuance.');
-    }
-
-    $stmt = $conn->prepare("SELECT * FROM certificate_issuances WHERE certificate_type = ? AND record_table = ? AND record_id = ? AND status = 'valid' ORDER BY certificate_id DESC LIMIT 1");
-    if ($stmt) {
-        $stmt->bind_param('ssi', $cert_type, $meta['table'], $record_id);
-        $stmt->execute();
-        $existing = $stmt->get_result()->fetch_assoc();
-        $stmt->close();
-        if ($existing) {
-            return $existing;
-        }
-    }
-
-    $certificate_number = generateCertificateNumber($conn, $meta['prefix']);
-    $verification_code = strtoupper($meta['prefix'] . '-' . bin2hex(random_bytes(4)) . '-' . substr(hash('sha256', $certificate_number . microtime(true)), 0, 8));
-    $issued_by = intval($_SESSION['user_id'] ?? 0);
-    $issued_to = $data['fullname'] ?? ($data['deceased_name'] ?? trim(($data['husband_name'] ?? '') . ' and ' . ($data['wife_name'] ?? '')));
-    $template_id = null;
-    $layout = getCertificateLayout($conn, $cert_type);
-    $layout_snapshot = json_encode($layout['settings'], JSON_UNESCAPED_SLASHES);
-    $stmt = $conn->prepare("INSERT INTO certificate_issuances (certificate_type, record_table, record_id, template_id, layout_snapshot, certificate_number, verification_code, issued_by, issued_to) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-    if (!$stmt) {
-        throw new Exception('Unable to prepare certificate issuance record.');
-    }
-    $stmt->bind_param('ssiisssis', $cert_type, $meta['table'], $record_id, $template_id, $layout_snapshot, $certificate_number, $verification_code, $issued_by, $issued_to);
-    $stmt->execute();
-    $certificate_id = $stmt->insert_id;
-    $stmt->close();
-
-    createAuditLog($conn, $issued_by, 'ISSUE_CERTIFICATE', $meta['table'], $record_id, null, ['certificate_number' => $certificate_number]);
-
-    return [
-        'certificate_id' => $certificate_id,
-        'certificate_type' => $cert_type,
-        'record_table' => $meta['table'],
-        'record_id' => $record_id,
-        'template_id' => $template_id,
-        'layout_snapshot' => $layout_snapshot,
-        'certificate_number' => $certificate_number,
-        'verification_code' => $verification_code,
-        'issued_by' => $issued_by,
-        'issued_to' => $issued_to,
-        'status' => 'valid',
-        'issued_at' => date('Y-m-d H:i:s')
-    ];
 }
 
 // Display Date Function - Documents this helper's role in the parish management workflow.
@@ -203,7 +107,7 @@ function splitParents($parents) {
 function siteBaseUrl() {
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-    return $scheme . '://' . $host . BASE_URL;
+    return appUrl();
 }
 
 function splitSponsors($sponsors) {
@@ -258,7 +162,22 @@ if ($is_manual_certificate) {
     ];
 } else {
     ensureCertificateSchema($conn);
-    $issue = getOrCreateCertificateIssue($conn, $cert_type, $data);
+    // Preview is deliberately non-persistent. Number, token, snapshot, PDF and
+    // record lock are created only by CertificateService::issue().
+    $issue = [
+        'certificate_id' => 0,
+        'certificate_type' => $cert_type,
+        'record_table' => $meta['table'],
+        'record_id' => (int)($data[$meta['id']] ?? 0),
+        'certificate_number' => 'PREVIEW - NOT ISSUED',
+        'verification_code' => '',
+        'issued_by' => (int)($_SESSION['user_id'] ?? 0),
+        'issued_to' => $data['fullname'] ?? ($data['deceased_name'] ?? trim(($data['husband_name'] ?? '') . ' and ' . ($data['wife_name'] ?? ''))),
+        'status' => 'draft-preview',
+        'issued_at' => date('Y-m-d'),
+        'template_id' => null,
+        'layout_snapshot' => null,
+    ];
 }
 $parents = splitParents($data['parents'] ?? '');
 $sponsors = splitSponsors($data['godparents'] ?? ($data['sponsors'] ?? ''));
@@ -293,7 +212,7 @@ $wedding_timestamp = strtotime($data['wedding_date'] ?? '');
 $wedding_day = $wedding_timestamp ? date('jS', $wedding_timestamp) : 'N/A';
 $wedding_month = $wedding_timestamp ? date('F', $wedding_timestamp) : 'N/A';
 $wedding_year = $wedding_timestamp ? date('Y', $wedding_timestamp) : 'N/A';
-$verification_url = $is_manual_certificate ? '' : siteBaseUrl() . 'verify-certificate.php?code=' . urlencode($issue['verification_code']);
+$verification_url = (!$is_manual_certificate && !empty($issue['verification_code'])) ? siteBaseUrl() . 'verify-certificate.php?code=' . urlencode($issue['verification_code']) : '';
 $page_title = ucfirst($cert_type) . ' Certificate';
 $certificate_subject = $data['fullname'] ?? ($data['deceased_name'] ?? trim(($data['husband_name'] ?? '') . ' and ' . ($data['wife_name'] ?? '')));
 $certificate_subject = $certificate_subject !== '' ? $certificate_subject : 'N/A';
@@ -648,8 +567,12 @@ if (strcasecmp($layout_secretary_position, 'Signature / Parish Stamp') === 0) {
     <div class="cert-toolbar">
         <h1><i class="fas fa-certificate"></i> Certificate Preview</h1>
         <div class="d-flex flex-wrap gap-2">
-            <button class="btn btn-primary" onclick="window.print()"><i class="fas fa-print"></i> Print Certificate</button>
-            <button class="btn btn-success" type="button" id="downloadPdfBtn"><i class="fas fa-file-pdf"></i> Download PDF</button>
+            <?php if ($is_manual_certificate): ?>
+            <button class="btn btn-primary" onclick="window.print()"><i class="fas fa-print"></i> Print Manual Certificate</button>
+            <button class="btn btn-success" type="button" id="downloadPdfBtn"><i class="fas fa-file-pdf"></i> Download Preview PDF</button>
+            <?php else: ?>
+            <form method="post" action="certificate-workflow.php" class="d-inline"><?php echo csrfInput(); ?><input type="hidden" name="action" value="create_draft"><input type="hidden" name="certificate_type" value="<?php echo e($cert_type); ?>"><input type="hidden" name="record_id" value="<?php echo (int)$issue['record_id']; ?>"><button class="btn btn-success"><i class="fas fa-file-circle-check"></i> Create Controlled Draft</button></form>
+            <?php endif; ?>
             <?php if (!$is_manual_certificate): ?>
                 <a class="btn btn-outline-dark" href="<?php echo e($verification_url); ?>" target="_blank"><i class="fas fa-shield-check"></i> Verify Certificate</a>
             <?php endif; ?>
@@ -659,6 +582,7 @@ if (strcasecmp($layout_secretary_position, 'Signature / Parish Stamp') === 0) {
             <?php endif; ?>
             <a href="certificate-generator.php" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back</a>
         </div>
+        <?php if (!$is_manual_certificate): ?><div class="alert alert-warning mt-3"><strong>PREVIEW — NOT ISSUED.</strong> No certificate number, verification token, PDF, or record lock has been created.</div><?php endif; ?>
     </div>
     <?php if ($certificate_template_is_pdf): ?>
         <div class="alert alert-warning mx-auto" style="max-width: 900px;">

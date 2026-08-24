@@ -13,6 +13,24 @@
     const searchInput = document.getElementById('requestSearchSelect');
     const optionsList = document.getElementById('requestTypeOptions');
     const radios = document.querySelectorAll('input[name="request_type"]');
+    const otherRequestWrap = document.querySelector('[data-other-request-wrap]');
+    const otherRequestInput = otherRequestWrap ? otherRequestWrap.querySelector('input, textarea') : null;
+
+    function syncOtherRequestField() {
+        if (!otherRequestWrap || !otherRequestInput) {
+            return;
+        }
+        const selected = document.querySelector('input[name="request_type"]:checked');
+        const showOther = selected && selected.value === 'other_blessing';
+        otherRequestWrap.hidden = !showOther;
+        otherRequestInput.required = Boolean(showOther);
+        otherRequestInput.setAttribute('aria-required', showOther ? 'true' : 'false');
+    }
+
+    radios.forEach(function(radio) {
+        radio.addEventListener('change', syncOtherRequestField);
+    });
+    syncOtherRequestField();
 
     // Render File(s) Function - Handles both single and multiple files
     function renderFiles(files) {

@@ -42,14 +42,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $step = 'verify';
     } elseif ($action === 'resend_otp') {
         $userId = (int) ($_SESSION['password_reset_user_id'] ?? 0);
-        $deliveryType = (string) ($_SESSION['password_reset_delivery_type'] ?? 'sms');
+        $deliveryType = (string) ($_SESSION['password_reset_delivery_type'] ?? 'mobile');
         $transactionId = (string) ($_SESSION['password_reset_transaction'] ?? '');
 
         if ($userId <= 0 && preg_match('/^[a-f0-9]{64}$/', $transactionId)) {
             $prevTx = otpTransactionByPublicId($conn, $transactionId);
             if ($prevTx && !empty($prevTx['user_id'])) {
                 $userId = (int) $prevTx['user_id'];
-                $deliveryType = $prevTx['delivery_method'] ?? 'sms';
+                $deliveryType = $prevTx['delivery_method'] ?? 'mobile';
             }
         }
 
@@ -439,6 +439,11 @@ $has_logo = is_file($logo_file);
             <?php endif; ?>
             <?php if ($message): ?>
                 <div class="alert alert-success auth-message" role="status"><i class="fas fa-circle-check"></i> <?php echo e($message); ?></div>
+            <?php endif; ?>
+            <?php if ($step === 'verify' && !empty($_SESSION['last_dev_otp']) && (!defined('APP_ENVIRONMENT') || APP_ENVIRONMENT !== 'production')): ?>
+                <div class="alert alert-info auth-message" role="status" style="background: rgba(200, 155, 60, 0.15); border-color: rgba(200, 155, 60, 0.4); color: #805c10;">
+                    <i class="fas fa-info-circle"></i> Development Code: Your OTP is <strong><?php echo e($_SESSION['last_dev_otp']); ?></strong>
+                </div>
             <?php endif; ?>
 
             <?php if ($step === 'verify'): ?>

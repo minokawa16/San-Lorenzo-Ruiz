@@ -40,6 +40,7 @@ if (!$request) {
 }
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+    requireValidCsrfToken();
     $action = $_POST['action'] ?? '';
 
     if ($action === 'update_status') {
@@ -299,6 +300,7 @@ $breadcrumbs = [
                                     <span class="badge bg-<?php echo e($badge); ?> align-self-start"><?php echo e(ucfirst($payment['status'])); ?></span>
                                 </div>
                                 <form method="POST" class="row g-2 mt-3">
+                                    <?php echo csrfInput(); ?>
                                     <input type="hidden" name="action" value="verify_payment">
                                     <input type="hidden" name="request_id" value="<?php echo intval($request_id); ?>">
                                     <input type="hidden" name="payment_id" value="<?php echo intval($payment['payment_id']); ?>">
@@ -351,6 +353,7 @@ $breadcrumbs = [
                 </div>
                 <div class="card-body">
                     <form method="POST">
+                        <?php echo csrfInput(); ?>
                         <input type="hidden" name="action" value="update_status">
                         <input type="hidden" name="request_id" value="<?php echo intval($request_id); ?>">
                         <div class="mb-3">
@@ -376,6 +379,7 @@ $breadcrumbs = [
                 </div>
                 <div class="card-body">
                     <form method="POST" enctype="multipart/form-data">
+                        <?php echo csrfInput(); ?>
                         <input type="hidden" name="action" value="upload_release">
                         <input type="hidden" name="request_id" value="<?php echo intval($request_id); ?>">
                         <div class="mb-3">

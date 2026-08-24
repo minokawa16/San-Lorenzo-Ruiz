@@ -12,6 +12,9 @@ include '../database/config.php';
 include '../includes/helpers.php';
 
 ensureEmailNotificationSchema($conn);
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+    requireValidCsrfToken();
+}
 
 function otpJson($ok, $message, $status = 200, $extra = []) {
     http_response_code($status);

@@ -5,9 +5,20 @@
  * Provides utility functions for authentication, validation, and security
  */
 
-if (!defined('BASE_URL')) {
-    define('BASE_URL', '/ParishSystem/');
-}
+require_once __DIR__ . '/../config/app.php';
+
+require_once __DIR__ . '/session.php';
+require_once __DIR__ . '/schema.php';
+require_once __DIR__ . '/permissions.php';
+require_once __DIR__ . '/notifications.php';
+require_once __DIR__ . '/uploads.php';
+require_once __DIR__ . '/secure-files.php';
+require_once __DIR__ . '/validation.php';
+require_once __DIR__ . '/audit.php';
+require_once __DIR__ . '/authentication.php';
+require_once __DIR__ . '/otp-transactions.php';
+require_once __DIR__ . '/account-management.php';
+require_once __DIR__ . '/password-security.php';
 
 if (!function_exists('t')) {
     include_once __DIR__ . '/i18n.php';
@@ -16,49 +27,14 @@ if (!function_exists('t')) {
 // Core Utilities - Provides common formatting, escaping, validation, and password helpers.
 // Generate unique reference numbers for requests
 function generateReferenceNumber() {
-    return 'PRQ-' . date('Ymd') . '-' . mt_rand(10000, 99999);
-}
-
-// Sanitize input data - remove special characters and trim whitespace
-function sanitize($data) {
-    return htmlspecialchars(stripslashes(trim($data)));
+    // Collision-resistant, user-friendly identifier. The UNIQUE constraint on
+    // requests.reference_number remains the final authority under concurrency.
+    return 'TUGON-' . date('Y') . '-' . strtoupper(bin2hex(random_bytes(4)));
 }
 
 // Escape Output Function - Documents this helper's role in the parish management workflow.
 function e($data) {
     return htmlspecialchars((string) $data, ENT_QUOTES, 'UTF-8');
-}
-
-// Validate email format
-function isValidEmail($email) {
-    return filter_var($email, FILTER_VALIDATE_EMAIL);
-}
-
-function isValidPhilippineMobile($phone) {
-    return preg_match('/^(09\d{9}|\+639\d{9}|639\d{9})$/', trim((string) $phone));
-}
-
-function normalizePhilippineMobileForStorage($phone) {
-    $value = trim((string) $phone);
-    $digits = preg_replace('/\D/', '', $value);
-    if (preg_match('/^09\d{9}$/', $digits)) {
-        return $digits;
-    }
-    if (preg_match('/^639\d{9}$/', $digits)) {
-        return '0' . substr($digits, 2);
-    }
-    return $value;
-}
-
-function normalizePhilippineMobileForSms($phone) {
-    $digits = preg_replace('/\D/', '', (string) $phone);
-    if (preg_match('/^09\d{9}$/', $digits)) {
-        return '+63' . substr($digits, 1);
-    }
-    if (preg_match('/^639\d{9}$/', $digits)) {
-        return '+' . $digits;
-    }
-    return trim((string) $phone);
 }
 
 // Hash password using bcrypt (PASSWORD_DEFAULT uses bcrypt by default)
@@ -76,20 +52,12 @@ function passwordNeedsRehash($hash) {
     return password_needs_rehash($hash, PASSWORD_DEFAULT, ['cost' => 10]);
 }
 
-// Validate password strength
-function isValidPassword($password) {
-    // Minimum 8 characters, at least one uppercase, one lowercase, one number
-    return preg_match('/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{8,}$/', $password);
-}
-
 function csrfTokenName() {
     return defined('CSRF_TOKEN_NAME') ? CSRF_TOKEN_NAME : '_csrf_token';
 }
 
 function generateCsrfToken() {
-    if (session_status() === PHP_SESSION_NONE) {
-        session_start();
-    }
+    if (session_status() === PHP_SESSION_NONE) require_once __DIR__ . '/session.php';
 
     $name = csrfTokenName();
     $expiry = defined('CSRF_TOKEN_EXPIRY') ? CSRF_TOKEN_EXPIRY : 3600;
@@ -103,9 +71,7 @@ function generateCsrfToken() {
 }
 
 function verifyCsrfToken($token) {
-    if (session_status() === PHP_SESSION_NONE) {
-        session_start();
-    }
+    if (session_status() === PHP_SESSION_NONE) require_once __DIR__ . '/session.php';
 
     $name = csrfTokenName();
     $expiry = defined('CSRF_TOKEN_EXPIRY') ? CSRF_TOKEN_EXPIRY : 3600;
@@ -126,93 +92,20 @@ function csrfInput() {
 }
 
 function csrfFailureMessage() {
-    if (session_status() === PHP_SESSION_NONE) {
-        session_start();
-    }
+    if (session_status() === PHP_SESSION_NONE) require_once __DIR__ . '/session.php';
 
     $message = $_SESSION['csrf_error'] ?? '';
     unset($_SESSION['csrf_error']);
     return $message;
 }
 
-// Global Action Notifications - Queues reusable toast messages for normal and AJAX flows.
-function normalizeActionNotificationType($type) {
-    $type = strtolower(trim((string) $type));
-    $aliases = [
-        'ok' => 'success',
-        'danger' => 'error',
-        'failed' => 'error',
-        'failure' => 'error',
-        'notice' => 'info',
-        'primary' => 'info',
-        'secondary' => 'info',
-    ];
-    $type = $aliases[$type] ?? $type;
-    return in_array($type, ['success', 'error', 'warning', 'info'], true) ? $type : 'info';
-}
-
-function queueActionNotification($message, $type = 'info', $title = '') {
-    if (session_status() === PHP_SESSION_NONE) {
-        session_start();
-    }
-
-    $message = trim((string) $message);
-    if ($message === '') {
-        return;
-    }
-
-    if (!isset($_SESSION['action_notifications']) || !is_array($_SESSION['action_notifications'])) {
-        $_SESSION['action_notifications'] = [];
-    }
-
-    $_SESSION['action_notifications'][] = [
-        'type' => normalizeActionNotificationType($type),
-        'message' => $message,
-        'title' => trim((string) $title),
-    ];
-}
-
-function consumeActionNotifications() {
-    if (session_status() === PHP_SESSION_NONE) {
-        session_start();
-    }
-
-    $notifications = $_SESSION['action_notifications'] ?? [];
-    unset($_SESSION['action_notifications']);
-
-    return array_values(array_filter((array) $notifications, function($item) {
-        return is_array($item) && trim((string) ($item['message'] ?? '')) !== '';
-    }));
-}
-
-function redirectWithNotification($location, $message, $type = 'success', $title = '') {
-    queueActionNotification($message, $type, $title);
-    header('Location: ' . $location, true, 303);
-    exit;
-}
-
-function actionResponse($success, $message, $type = null, $extra = []) {
-    $success = (bool) $success;
-    $type = $type !== null ? normalizeActionNotificationType($type) : ($success ? 'success' : 'error');
-    return array_merge([
-        'success' => $success,
-        'ok' => $success,
-        'status' => $success ? 'success' : 'error',
-        'type' => $type,
-        'message' => (string) $message,
-    ], (array) $extra);
-}
-
-function sendJsonActionResponse($success, $message, $type = null, $extra = [], $status_code = 200) {
-    http_response_code($status_code);
-    header('Content-Type: application/json');
-    echo json_encode(actionResponse($success, $message, $type, $extra));
-    exit;
-}
-
 function requireValidCsrfToken() {
     $name = csrfTokenName();
-    if (!verifyCsrfToken($_POST[$name] ?? '')) {
+    $headerToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+    $submittedToken = is_string($headerToken) && $headerToken !== ''
+        ? $headerToken
+        : ($_POST[$name] ?? '');
+    if (!verifyCsrfToken($submittedToken)) {
         $_SESSION[$name] = bin2hex(random_bytes(32));
         $_SESSION[$name . '_time'] = time();
         $_SESSION['csrf_error'] = 'Your secure session token expired. Please try again.';
@@ -220,7 +113,13 @@ function requireValidCsrfToken() {
         $accept = strtolower((string) ($_SERVER['HTTP_ACCEPT'] ?? ''));
         $is_json_request = strpos($accept, 'application/json') !== false || strtolower((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'xmlhttprequest';
         if ($is_json_request) {
-            sendJsonActionResponse(false, $_SESSION['csrf_error'], 'error', ['error' => $_SESSION['csrf_error']], 403);
+            if (function_exists('sendJsonActionResponse')) {
+                sendJsonActionResponse(false, 'The request could not be validated.', 'error', ['error' => 'SECURITY_VALIDATION_FAILED'], 403);
+            }
+            http_response_code(403);
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['success' => false, 'error' => 'SECURITY_VALIDATION_FAILED', 'message' => 'The request could not be validated.']);
+            exit;
         }
 
         $redirect = strtok((string) ($_SERVER['REQUEST_URI'] ?? ''), "\r\n");
@@ -301,7 +200,9 @@ function createRequestStatusNotification($conn, array $request, $status, $admin_
     }
     $message .= ' Please open your TUGON account for details and next steps.';
 
-    return createNotification($conn, $user_id, $title, $message, true, 'requests');
+    require_once dirname(__DIR__) . '/services/NotificationService.php';
+    $type = in_array($status, ['approved','rejected'], true) ? 'request_' . $status : 'request_submitted';
+    return (new NotificationService($conn))->create($user_id, $type, ['request_reference'=>$reference], 'request', (int)($request['request_id']??0), 'request.view', $status . '|' . ($request['updated_at']??microtime(true)), true) !== null;
 }
 
 function dispatchNotificationDelivery($conn, $user_id, $title, $message, $category = null, array $channels = null) {
@@ -311,7 +212,7 @@ function dispatchNotificationDelivery($conn, $user_id, $title, $message, $catego
 
     $channels = $channels ?: ['email' => true, 'sms' => true];
     $category = $category ?: notificationCategoryFromText($title, $message);
-    $stmt = $conn->prepare("SELECT id, fullname, email, phone_number, role, status FROM users WHERE id = ? LIMIT 1");
+    $stmt = $conn->prepare("SELECT id, fullname, email, phone_number, status FROM users WHERE id = ? LIMIT 1");
     if (!$stmt) {
         return ['email' => ['ok' => false, 'error' => 'Unable to load user.'], 'sms' => ['ok' => false, 'error' => 'Unable to load user.']];
     }
@@ -321,7 +222,7 @@ function dispatchNotificationDelivery($conn, $user_id, $title, $message, $catego
     $user = $stmt->get_result()->fetch_assoc();
     $stmt->close();
 
-    if (!$user || ($user['role'] ?? '') !== 'user' || ($user['status'] ?? '') !== 'active') {
+    if (!$user || !in_array('parishioner', authenticationRolesForUser($conn, (int) $user['id']), true) || ($user['status'] ?? '') !== 'active') {
         return ['email' => ['ok' => true, 'skipped' => true], 'sms' => ['ok' => true, 'skipped' => true]];
     }
 
@@ -348,19 +249,8 @@ function dispatchNotificationDelivery($conn, $user_id, $title, $message, $catego
 
 // Notification System - Creates in-app alerts for parishioners and staff.
 function createNotification($conn, $user_id, $title, $message, $send_outbound = true, $category = null) {
-    $stmt = $conn->prepare("INSERT INTO notifications (user_id, title, message) VALUES (?, ?, ?)");
-    if (!$stmt) {
-        return false;
-    }
-
-    $user_id = intval($user_id);
-    $stmt->bind_param('iss', $user_id, $title, $message);
-    $ok = $stmt->execute();
-    $stmt->close();
-    if ($ok && $send_outbound) {
-        dispatchNotificationDelivery($conn, $user_id, $title, $message, $category);
-    }
-    return $ok;
+    require_once dirname(__DIR__) . '/services/NotificationService.php';
+    return (new NotificationService($conn))->createLegacy((int)$user_id,(string)$title,(string)$message,(bool)$send_outbound,(string)($category?:'system')) !== null;
 }
 
 function createNotificationSafe($conn, $user_id, $title, $message) {
@@ -373,118 +263,18 @@ function createNotificationSafe($conn, $user_id, $title, $message) {
 
 // Email Notification Schema - Prepares verification, OTP, preferences, and delivery log tables.
 function ensureEmailNotificationSchema($conn) {
-    ensureUserVerificationSchema($conn);
-
-    $conn->query("CREATE TABLE IF NOT EXISTS email_verifications (
-        verification_id INT PRIMARY KEY AUTO_INCREMENT,
-        user_id INT NOT NULL,
-        email VARCHAR(150) NOT NULL,
-        token_hash CHAR(64) NOT NULL,
-        expires_at DATETIME NOT NULL,
-        verified_at DATETIME NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_email_verifications_user (user_id),
-        INDEX idx_email_verifications_token (token_hash)
-    )");
-
-    $conn->query("CREATE TABLE IF NOT EXISTS otp_codes (
-        otp_id INT PRIMARY KEY AUTO_INCREMENT,
-        user_id INT NOT NULL,
-        email VARCHAR(150) NOT NULL,
-        purpose VARCHAR(40) NOT NULL,
-        otp_hash VARCHAR(255) NOT NULL,
-        expires_at DATETIME NOT NULL,
-        attempts INT DEFAULT 0,
-        verified_at DATETIME NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_otp_user_purpose (user_id, purpose),
-        INDEX idx_otp_email_purpose (email, purpose)
-    )");
-
-    $conn->query("DELETE FROM otp_codes WHERE expires_at < DATE_SUB(NOW(), INTERVAL 1 DAY)");
-
-    $conn->query("CREATE TABLE IF NOT EXISTS sms_notification_logs (
-        log_id INT PRIMARY KEY AUTO_INCREMENT,
-        user_id INT NULL,
-        phone_number VARCHAR(20) NOT NULL,
-        message TEXT NOT NULL,
-        notification_type VARCHAR(80) DEFAULT 'system',
-        delivery_status VARCHAR(30) DEFAULT 'pending',
-        error_message TEXT NULL,
-        sent_at DATETIME NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_sms_logs_phone (phone_number),
-        INDEX idx_sms_logs_created (created_at)
-    )");
-
-    $conn->query("CREATE TABLE IF NOT EXISTS notification_logs (
-        log_id INT PRIMARY KEY AUTO_INCREMENT,
-        user_id INT NULL,
-        email VARCHAR(150) NOT NULL,
-        subject VARCHAR(255) NOT NULL,
-        notification_type VARCHAR(80) DEFAULT 'system',
-        delivery_status VARCHAR(30) DEFAULT 'pending',
-        error_message TEXT NULL,
-        sent_at DATETIME NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_notification_logs_status (delivery_status),
-        INDEX idx_notification_logs_created (created_at)
-    )");
-
-    $conn->query("CREATE TABLE IF NOT EXISTS announcement_recipients (
-        recipient_id INT PRIMARY KEY AUTO_INCREMENT,
-        announcement_id INT NOT NULL,
-        user_id INT NOT NULL,
-        email VARCHAR(150) NOT NULL,
-        delivery_status VARCHAR(30) DEFAULT 'pending',
-        sent_at DATETIME NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE KEY uniq_announcement_user (announcement_id, user_id)
-    )");
-
-    $conn->query("CREATE TABLE IF NOT EXISTS notification_preferences (
-        preference_id INT PRIMARY KEY AUTO_INCREMENT,
-        user_id INT NOT NULL,
-        category VARCHAR(80) NOT NULL,
-        email_enabled TINYINT(1) DEFAULT 1,
-        sms_enabled TINYINT(1) DEFAULT 1,
-        in_app_enabled TINYINT(1) DEFAULT 1,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        UNIQUE KEY uniq_user_category (user_id, category)
-    )");
-
-    if (!columnExists($conn, 'notification_preferences', 'sms_enabled')) {
-        $conn->query("ALTER TABLE notification_preferences ADD COLUMN sms_enabled TINYINT(1) DEFAULT 1 AFTER email_enabled");
-        $conn->query("UPDATE notification_preferences SET sms_enabled = 1 WHERE sms_enabled IS NULL");
-    }
-
-    $columns = [
-        'email_verified_at' => "ALTER TABLE users ADD COLUMN email_verified_at TIMESTAMP NULL DEFAULT NULL AFTER email",
-        'email_verification_sent_at' => "ALTER TABLE users ADD COLUMN email_verification_sent_at TIMESTAMP NULL DEFAULT NULL AFTER email_verified_at",
-        'phone_verified_at' => "ALTER TABLE users ADD COLUMN phone_verified_at TIMESTAMP NULL DEFAULT NULL AFTER email_verification_sent_at",
-        'verification_method' => "ALTER TABLE users ADD COLUMN verification_method ENUM('email','mobile') DEFAULT 'email' AFTER phone_verified_at",
-        'login_otp_enabled' => "ALTER TABLE users ADD COLUMN login_otp_enabled TINYINT(1) DEFAULT 0 AFTER verification_method"
-    ];
-
-    foreach ($columns as $column => $sql) {
-        if (!columnExists($conn, 'users', $column)) {
-            $conn->query($sql);
-        }
-    }
-
-    if (columnExists($conn, 'users', 'email')) {
-        $conn->query("ALTER TABLE users MODIFY email VARCHAR(150) NULL");
-    }
-    if (columnExists($conn, 'users', 'phone_number')) {
-        $conn->query("ALTER TABLE users MODIFY phone_number VARCHAR(20) NULL");
-        $duplicate_phone_result = $conn->query("SELECT phone_number FROM users WHERE phone_number IS NOT NULL AND phone_number <> '' GROUP BY phone_number HAVING COUNT(*) > 1 LIMIT 1");
-        $has_duplicate_phone_numbers = $duplicate_phone_result && $duplicate_phone_result->num_rows > 0;
-        if (!$has_duplicate_phone_numbers && !indexExists($conn, 'users', 'uniq_users_phone_number')) {
-            $conn->query("CREATE UNIQUE INDEX uniq_users_phone_number ON users (phone_number)");
-        }
-    }
-
-    $conn->query("UPDATE users SET email_verified_at = COALESCE(email_verified_at, NOW()) WHERE status = 'active' AND email_verified_at IS NULL");
+    return ensureUserVerificationSchema($conn)
+        && requireSchemaTables($conn, [
+            'email_verifications',
+            'otp_codes',
+            'sms_notification_logs',
+            'notification_logs',
+            'announcement_recipients',
+            'notification_preferences',
+        ], 'email and notification services')
+        && requireSchemaColumns($conn, 'notification_preferences', [
+            'email_enabled', 'sms_enabled', 'in_app_enabled'
+        ], 'notification preferences');
 }
 
 // Environment Loader - Reads simple KEY=value pairs from .env for localhost setup.
@@ -634,50 +424,105 @@ function sendTugonSmtpEmail(array $config, $to, $subject, $html_body) {
         return ['ok' => false, 'error' => 'SMTP password is not configured. Add your Gmail App Password to MAIL_PASSWORD in .env.'];
     }
 
-    $scheme = strtolower((string) ($config['smtp_encryption'] ?? '')) === 'ssl' ? 'ssl://' : 'tcp://';
-    $context = tugonSmtpContext($host);
-    $socket = @stream_socket_client($scheme . $host . ':' . $port, $errno, $errstr, intval($config['smtp_timeout'] ?? 10), STREAM_CLIENT_CONNECT, $context);
-    if (!$socket) {
-        return ['ok' => false, 'error' => 'SMTP connection failed: ' . ($errstr ?: 'unknown error')];
-    }
+    $attempt = function(int $targetPort, string $encryption) use ($config, $host, $to, $subject, $html_body) {
+        $scheme = strtolower($encryption) === 'ssl' ? 'ssl://' : 'tcp://';
+        $context = tugonSmtpContext($host);
+        $socket = @stream_socket_client($scheme . $host . ':' . $targetPort, $errno, $errstr, intval($config['smtp_timeout'] ?? 10), STREAM_CLIENT_CONNECT, $context);
+        if (!$socket) {
+            return ['ok' => false, 'error' => 'SMTP connection failed on port ' . $targetPort . ': ' . ($errstr ?: 'unknown error')];
+        }
 
-    try {
-        stream_set_timeout($socket, intval($config['smtp_timeout'] ?? 10));
-        tugonSmtpCommand($socket, '', [220]);
-        tugonSmtpCommand($socket, 'EHLO localhost', [250]);
-
-        if (strtolower((string) ($config['smtp_encryption'] ?? '')) === 'tls') {
-            tugonSmtpCommand($socket, 'STARTTLS', [220]);
-            stream_context_set_option($socket, 'ssl', 'peer_name', $host);
-            stream_context_set_option($socket, 'ssl', 'SNI_enabled', true);
-            if (!stream_socket_enable_crypto($socket, true, tugonSmtpTlsMethod())) {
-                throw new RuntimeException('Unable to start SMTP TLS encryption.');
-            }
+        try {
+            stream_set_timeout($socket, intval($config['smtp_timeout'] ?? 10));
+            tugonSmtpCommand($socket, '', [220]);
             tugonSmtpCommand($socket, 'EHLO localhost', [250]);
+
+            if (strtolower($encryption) === 'tls') {
+                tugonSmtpCommand($socket, 'STARTTLS', [220]);
+                stream_context_set_option($socket, 'ssl', 'peer_name', $host);
+                stream_context_set_option($socket, 'ssl', 'SNI_enabled', true);
+                if (!stream_socket_enable_crypto($socket, true, tugonSmtpTlsMethod())) {
+                    throw new RuntimeException('Unable to start SMTP TLS encryption.');
+                }
+                tugonSmtpCommand($socket, 'EHLO localhost', [250]);
+            }
+
+            if (!empty($config['smtp_username'])) {
+                tugonSmtpCommand($socket, 'AUTH LOGIN', [334]);
+                tugonSmtpCommand($socket, base64_encode((string) $config['smtp_username']), [334]);
+                tugonSmtpCommand($socket, base64_encode((string) $config['smtp_password']), [235]);
+            }
+
+            $from = (string) $config['from_email'];
+            tugonSmtpCommand($socket, 'MAIL FROM:<' . $from . '>', [250]);
+            tugonSmtpCommand($socket, 'RCPT TO:<' . $to . '>', [250, 251]);
+            tugonSmtpCommand($socket, 'DATA', [354]);
+
+            $headers = tugonEmailHeaders($from, (string) $config['from_name'], $to, $subject, (string) ($config['reply_to'] ?? ''));
+            $message = $headers . "\r\n\r\n" . str_replace("\n.", "\n..", $html_body) . "\r\n.";
+            tugonSmtpCommand($socket, $message, [250]);
+            tugonSmtpCommand($socket, 'QUIT', [221]);
+            fclose($socket);
+            return ['ok' => true, 'error' => ''];
+        } catch (Throwable $e) {
+            @fwrite($socket, "QUIT\r\n");
+            @fclose($socket);
+            return ['ok' => false, 'error' => tugonFriendlySmtpError($e->getMessage())];
         }
+    };
 
-        if (!empty($config['smtp_username'])) {
-            tugonSmtpCommand($socket, 'AUTH LOGIN', [334]);
-            tugonSmtpCommand($socket, base64_encode((string) $config['smtp_username']), [334]);
-            tugonSmtpCommand($socket, base64_encode((string) $config['smtp_password']), [235]);
+    $initialEnc = (string) ($config['smtp_encryption'] ?? ($port === 465 ? 'ssl' : ($port === 587 ? 'tls' : '')));
+    $result = $attempt($port, $initialEnc);
+    if (!$result['ok'] && ($host === 'smtp.gmail.com' || str_contains($host, 'gmail.com'))) {
+        $fallbackPort = ($port === 587) ? 465 : 587;
+        $fallbackEnc = ($fallbackPort === 465) ? 'ssl' : 'tls';
+        $fallbackResult = $attempt($fallbackPort, $fallbackEnc);
+        if ($fallbackResult['ok']) {
+            return $fallbackResult;
         }
-
-        $from = (string) $config['from_email'];
-        tugonSmtpCommand($socket, 'MAIL FROM:<' . $from . '>', [250]);
-        tugonSmtpCommand($socket, 'RCPT TO:<' . $to . '>', [250, 251]);
-        tugonSmtpCommand($socket, 'DATA', [354]);
-
-        $headers = tugonEmailHeaders($from, (string) $config['from_name'], $to, $subject, (string) ($config['reply_to'] ?? ''));
-        $message = $headers . "\r\n\r\n" . str_replace("\n.", "\n..", $html_body) . "\r\n.";
-        tugonSmtpCommand($socket, $message, [250]);
-        tugonSmtpCommand($socket, 'QUIT', [221]);
-        fclose($socket);
-        return ['ok' => true, 'error' => ''];
-    } catch (Throwable $e) {
-        @fwrite($socket, "QUIT\r\n");
-        @fclose($socket);
-        return ['ok' => false, 'error' => tugonFriendlySmtpError($e->getMessage())];
     }
+    return $result;
+}
+
+function sendTugonHttpEmail(array $config, $to, $subject, $html_body, $text_body = '') {
+    $endpoint = trim((string) ($config['http_endpoint'] ?? ''));
+    $token = (string) ($config['http_token'] ?? '');
+    if ($endpoint === '' || $token === '') {
+        return ['ok' => false, 'error' => 'HTTPS email relay is not configured.'];
+    }
+    if (!function_exists('curl_init')) {
+        return ['ok' => false, 'error' => 'cURL is unavailable for HTTPS email delivery.'];
+    }
+
+    $handle = curl_init($endpoint);
+    curl_setopt_array($handle, [
+        CURLOPT_POST => true,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CONNECTTIMEOUT => 8,
+        CURLOPT_TIMEOUT => 20,
+        CURLOPT_HTTPHEADER => [
+            'Authorization: Bearer ' . $token,
+            'Content-Type: application/json',
+            'Accept: application/json'
+        ],
+        CURLOPT_POSTFIELDS => json_encode([
+            'to' => $to,
+            'subject' => $subject,
+            'html' => $html_body,
+            'text' => $text_body
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+    ]);
+    $response = curl_exec($handle);
+    $status = (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
+    $curlError = curl_error($handle);
+    curl_close($handle);
+
+    $decoded = is_string($response) ? json_decode($response, true) : null;
+    $ok = $status >= 200 && $status < 300 && is_array($decoded) && !empty($decoded['ok']);
+    return [
+        'ok' => $ok,
+        'error' => $ok ? '' : ($curlError !== '' ? 'HTTPS email relay failed: ' . $curlError : 'HTTPS email relay returned status ' . $status . '.')
+    ];
 }
 
 // Email Delivery - Sends email when enabled and records each delivery attempt.
@@ -692,10 +537,21 @@ function sendTugonEmail($conn, $to, $subject, $html_body, $text_body = '', $user
     } elseif (!empty($config['enabled'])) {
         $from = $config['from_email'];
         $from_name = $config['from_name'];
-        if (($config['mailer'] ?? 'smtp') === 'smtp' && !empty($config['smtp_host'])) {
+        if (($config['mailer'] ?? 'smtp') === 'http') {
+            $http = sendTugonHttpEmail($config, $to, $subject, $html_body, $text_body);
+            $ok = $http['ok'];
+            $error = $http['error'];
+        } elseif (($config['mailer'] ?? 'smtp') === 'smtp' && !empty($config['smtp_host'])) {
             $smtp = sendTugonSmtpEmail($config, $to, $subject, $html_body);
             $ok = $smtp['ok'];
             $error = $smtp['error'];
+            if (!$ok && !empty($config['http_endpoint']) && !empty($config['http_token'])) {
+                $http = sendTugonHttpEmail($config, $to, $subject, $html_body, $text_body);
+                if ($http['ok']) {
+                    $ok = true;
+                    $error = '';
+                }
+            }
         } else {
             $headers = [
                 'MIME-Version: 1.0',
@@ -802,7 +658,8 @@ function createEmailVerification($conn, $user_id, $email) {
 // Send Email Verification Message Function - Documents this helper's role in the parish management workflow.
 function sendEmailVerificationMessage($conn, $user_id, $email, $fullname = '') {
     $token = createEmailVerification($conn, $user_id, $email);
-    $base = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https://' : 'http://') . ($_SERVER['HTTP_HOST'] ?? 'localhost') . BASE_URL;
+    $base = appUrl();
+    $base .= str_ends_with($base, '/') ? '' : '/';
     $url = $base . 'auth/verify-email.php?token=' . urlencode($token);
     $body = '<p>Hello ' . e($fullname ?: 'Parishioner') . ',</p><p>Please verify your Gmail address to continue your TUGON registration.</p><p>This verification link expires in 24 hours.</p>';
     return sendTugonEmail($conn, $email, 'Verify your TUGON Gmail account', tugonEmailTemplate('Gmail Verification', $body, 'Verify Gmail', $url), '', $user_id, 'email_verification');
@@ -1006,7 +863,7 @@ function sendRequestSubmittedEmail($conn, $user_id, $reference_number, $request_
     if (trim((string) ($user['email'] ?? '')) === '') {
         return ['ok' => true, 'skipped' => true];
     }
-    $url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https://' : 'http://') . ($_SERVER['HTTP_HOST'] ?? 'localhost') . BASE_URL . 'users/my-requests.php?q=' . urlencode($reference_number);
+    $url = appUrl('users/my-requests.php') . '?q=' . urlencode($reference_number);
     $body = '<p>Hello ' . e($user['fullname']) . ',</p><p>Your ' . e($request_label) . ' was submitted successfully.</p><p>Reference number: <strong>' . e($reference_number) . '</strong></p><p>You will receive updates when the parish office reviews your request.</p>';
     return sendTugonEmail($conn, $user['email'], 'TUGON Request Submitted - ' . $reference_number, tugonEmailTemplate('Request Submitted', $body, 'Track Request', $url), '', $user_id, 'request_submitted');
 }
@@ -1014,38 +871,22 @@ function sendRequestSubmittedEmail($conn, $user_id, $reference_number, $request_
 // Column Exists Function - Documents this helper's role in the parish management workflow.
 function columnExists($conn, $table, $column) {
     $table = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
-    $column_safe = $conn->real_escape_string($column);
-    $result = $conn->query("SHOW COLUMNS FROM `$table` LIKE '$column_safe'");
-    return $result && $result->num_rows > 0;
+    return $conn instanceof mysqli && schemaColumnExists($conn, $table, (string) $column);
 }
 
 // Table Exists Function - Documents this helper's role in the parish management workflow.
 function tableExists($conn, $table) {
-    $table_safe = $conn->real_escape_string(preg_replace('/[^a-zA-Z0-9_]/', '', $table));
-    $result = $conn->query("SHOW TABLES LIKE '$table_safe'");
-    return $result && $result->num_rows > 0;
+    $table = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
+    return $conn instanceof mysqli && schemaTableExists($conn, $table);
 }
 
 // Chatbot Logging - Stores AI assistant questions and answers for audit and analysis.
 function ensureChatbotInquirySchema($conn) {
-    if (!$conn) {
-        return false;
-    }
-
-    $sql = "CREATE TABLE IF NOT EXISTS chatbot_inquiries (
-        inquiry_id INT PRIMARY KEY AUTO_INCREMENT,
-        user_id INT NULL,
-        user_role VARCHAR(30) DEFAULT 'user',
-        question TEXT NOT NULL,
-        answer_preview TEXT,
-        mode VARCHAR(40) DEFAULT 'chat',
-        context_limited TINYINT(1) DEFAULT 1,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_chatbot_inquiries_created (created_at),
-        INDEX idx_chatbot_inquiries_user (user_id)
-    )";
-
-    return (bool) $conn->query($sql);
+    return $conn instanceof mysqli
+        && requireSchemaColumns($conn, 'chatbot_inquiries', [
+            'inquiry_id', 'user_id', 'user_role', 'question', 'answer_preview',
+            'mode', 'context_limited', 'created_at'
+        ], 'AI inquiry logging');
 }
 
 // Log Chatbot Inquiry Function - Documents this helper's role in the parish management workflow.
@@ -1074,35 +915,19 @@ function logChatbotInquiry($conn, $user_id, $role, $question, $answer, $mode = '
 
 // Chatbot Knowledge Base - Stores administrator-managed official AI answers.
 function ensureChatbotKnowledgeSchema($conn) {
-    if (!$conn) {
-        return false;
-    }
-
-    $sql = "CREATE TABLE IF NOT EXISTS chatbot_knowledge (
-        knowledge_id INT PRIMARY KEY AUTO_INCREMENT,
-        topic VARCHAR(120) NOT NULL,
-        keywords TEXT NULL,
-        answer TEXT NOT NULL,
-        steps TEXT NULL,
-        category VARCHAR(80) DEFAULT 'general',
-        source VARCHAR(255) NULL,
-        status ENUM('active','inactive') DEFAULT 'active',
-        updated_by INT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX idx_chatbot_knowledge_status (status),
-        INDEX idx_chatbot_knowledge_category (category),
-        FULLTEXT KEY ft_chatbot_knowledge (topic, keywords, answer)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-
-    $created = (bool) $conn->query($sql);
-    if ($created && !columnExists($conn, 'chatbot_knowledge', 'source')) {
-        $conn->query("ALTER TABLE chatbot_knowledge ADD COLUMN source VARCHAR(255) NULL AFTER category");
-    }
-    return $created;
+    return $conn instanceof mysqli
+        && requireSchemaColumns($conn, 'chatbot_knowledge', [
+            'knowledge_id', 'topic', 'keywords', 'answer', 'steps', 'category',
+            'source', 'status', 'updated_by', 'created_at', 'updated_at'
+        ], 'AI knowledge base');
 }
 
 function chatbotKnowledgeOfficialDefaults() {
+    // Retired in Phase 11. The governed chatbot_knowledge table is the only
+    // authoritative source; this compatibility function intentionally seeds nothing.
+    return [];
+    /* Legacy reference data below is unreachable and retained temporarily only
+       to avoid destabilizing older installations while migrations are applied.
     return [
         [
             'Baptism Requirements',
@@ -1216,20 +1041,21 @@ function chatbotKnowledgeOfficialDefaults() {
             '',
             'office'
         ]
-    ];
+    ]; */
 }
 
 function chatbotKnowledgeSeedDefaults($conn) {
-    if (!ensureChatbotKnowledgeSchema($conn)) {
+    // Seeding official policies from PHP is forbidden. Knowledge is managed by
+    // authorized reviewers through admin/chatbot-knowledge.php.
+    return ensureChatbotKnowledgeSchema($conn);
+
+    /* Retired destructive legacy seeder.
+    $version = '2026-07-12-official-specific-entries-v2';
+    if (!requireSchemaColumns($conn, 'chatbot_knowledge_meta', [
+        'meta_key', 'meta_value', 'updated_at'
+    ], 'AI knowledge metadata')) {
         return false;
     }
-
-    $version = '2026-07-12-official-specific-entries-v2';
-    $conn->query("CREATE TABLE IF NOT EXISTS chatbot_knowledge_meta (
-        meta_key VARCHAR(80) PRIMARY KEY,
-        meta_value VARCHAR(160) NOT NULL,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
     $current_version = '';
     $result = $conn->query("SELECT meta_value FROM chatbot_knowledge_meta WHERE meta_key = 'official_dataset_version' LIMIT 1");
@@ -1268,7 +1094,7 @@ function chatbotKnowledgeSeedDefaults($conn) {
         $conn->rollback();
         return false;
     }
-    return true;
+    return true; */
 }
 
 function chatbotKnowledgeStepsArray($steps) {
@@ -1285,103 +1111,29 @@ function chatbotKnowledgeStepsArray($steps) {
 
 // Request Management - Extends request records with detailed service and reservation fields.
 function ensureExpandedRequestTypeSchema($conn) {
-    if (!$conn) {
-        return false;
-    }
-
-    $result = $conn->query("SHOW TABLES LIKE 'requests'");
-    if (!$result || $result->num_rows === 0) {
-        return false;
-    }
-
-    return (bool) $conn->query("ALTER TABLE requests MODIFY COLUMN request_type VARCHAR(80) NOT NULL");
+    return $conn instanceof mysqli
+        && requireSchemaColumns($conn, 'requests', ['request_id', 'user_id', 'request_type'], 'requests');
 }
 
 // Request Documents - Prepares file metadata storage for uploaded parish requirements.
 function ensureRequestDocumentsSchema($conn) {
-    if (!$conn || !tableExists($conn, 'requests')) {
-        return false;
-    }
-
-    $sql = "CREATE TABLE IF NOT EXISTS request_documents (
-        document_id INT PRIMARY KEY AUTO_INCREMENT,
-        request_id INT NOT NULL,
-        uploaded_by INT NOT NULL,
-        document_type VARCHAR(60) DEFAULT 'requirement',
-        requirement_name VARCHAR(160) NULL,
-        file_path VARCHAR(255) NOT NULL,
-        original_name VARCHAR(255) NOT NULL,
-        mime_type VARCHAR(120) NOT NULL,
-        file_size INT UNSIGNED NOT NULL,
-        uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        deleted_at TIMESTAMP NULL DEFAULT NULL,
-        INDEX idx_request_documents_request (request_id),
-        INDEX idx_request_documents_uploader (uploaded_by)
-    )";
-
-    $created = (bool) $conn->query($sql);
-    if ($created && tableExists($conn, 'request_documents') && !columnExists($conn, 'request_documents', 'requirement_name')) {
-        $conn->query("ALTER TABLE request_documents ADD COLUMN requirement_name VARCHAR(160) NULL AFTER document_type");
-    }
-
-    return $created;
+    return $conn instanceof mysqli
+        && requireSchemaColumns($conn, 'request_documents', [
+            'document_id', 'request_id', 'uploaded_by', 'document_type',
+            'requirement_name', 'file_path', 'original_name', 'mime_type',
+            'file_size', 'uploaded_at', 'deleted_at'
+        ], 'request documents');
 }
 
 // Request Payments - Stores parishioner receipt submissions tied to the parent request.
 function ensureRequestPaymentsSchema($conn) {
-    if (!$conn || !tableExists($conn, 'requests')) {
-        return false;
-    }
-
-    ensureRequestDocumentsSchema($conn);
-
-    $sql = "CREATE TABLE IF NOT EXISTS request_payments (
-        payment_id INT PRIMARY KEY AUTO_INCREMENT,
-        request_id INT NOT NULL,
-        user_id INT NOT NULL,
-        receipt_document_id INT NULL,
-        amount DECIMAL(10,2) NOT NULL,
-        payment_method VARCHAR(60) NOT NULL,
-        reference_number VARCHAR(120) NULL,
-        notes TEXT NULL,
-        status ENUM('pending', 'verified', 'rejected') DEFAULT 'pending',
-        admin_remarks TEXT NULL,
-        verified_by INT NULL,
-        verified_at TIMESTAMP NULL DEFAULT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX idx_request_payments_request (request_id),
-        INDEX idx_request_payments_user (user_id),
-        INDEX idx_request_payments_status (status)
-    )";
-
-    return (bool) $conn->query($sql);
-}
-
-// Get Request Document Config Function - Documents this helper's role in the parish management workflow.
-function getRequestDocumentConfig() {
-    return [
-        'max_size' => 10 * 1024 * 1024,
-        'extensions' => ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt'],
-        'mime_types' => [
-            'image/jpeg',
-            'image/png',
-            'image/gif',
-            'application/pdf',
-            'application/msword',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'application/vnd.ms-excel',
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'application/vnd.ms-powerpoint',
-            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-            'text/plain'
-        ]
-    ];
-}
-
-// Is Request Image Document Function - Documents this helper's role in the parish management workflow.
-function isRequestImageDocument($mime_type) {
-    return in_array((string) $mime_type, ['image/jpeg', 'image/png', 'image/gif'], true);
+    return $conn instanceof mysqli
+        && ensureRequestDocumentsSchema($conn)
+        && requireSchemaColumns($conn, 'request_payments', [
+            'payment_id', 'request_id', 'user_id', 'receipt_document_id', 'amount',
+            'payment_method', 'reference_number', 'notes', 'status', 'admin_remarks',
+            'verified_by', 'verified_at', 'created_at', 'updated_at'
+        ], 'request payments');
 }
 
 // Request Documents - Validates, stores, and records uploaded supporting documents.
@@ -1663,38 +1415,16 @@ function getRequestPaymentSummary($conn, $request_id) {
 
 // Announcement Management - Extends notices with audience, schedule, and event metadata.
 function ensureExpandedAnnouncementTypeSchema($conn) {
-    if (!$conn) {
-        return false;
-    }
-
-    $result = $conn->query("SHOW TABLES LIKE 'announcements'");
-    if (!$result || $result->num_rows === 0) {
-        return false;
-    }
-
-    return (bool) $conn->query("ALTER TABLE announcements MODIFY COLUMN type VARCHAR(50) DEFAULT 'announcement'");
+    return $conn instanceof mysqli
+        && requireSchemaColumns($conn, 'announcements', ['announcement_id', 'type'], 'announcements');
 }
 
 // Announcement Attachments - Prepares secure file metadata storage for announcement uploads.
 function ensureAnnouncementAttachmentSchema($conn) {
-    if (!$conn || !tableExists($conn, 'announcements')) {
-        return false;
-    }
-
-    $columns = [
-        'attachment_path' => "ALTER TABLE announcements ADD COLUMN attachment_path VARCHAR(255) NULL AFTER image_path",
-        'attachment_original_name' => "ALTER TABLE announcements ADD COLUMN attachment_original_name VARCHAR(255) NULL AFTER attachment_path",
-        'attachment_mime_type' => "ALTER TABLE announcements ADD COLUMN attachment_mime_type VARCHAR(120) NULL AFTER attachment_original_name",
-        'attachment_size' => "ALTER TABLE announcements ADD COLUMN attachment_size INT UNSIGNED NULL AFTER attachment_mime_type"
-    ];
-
-    foreach ($columns as $column => $sql) {
-        if (!columnExists($conn, 'announcements', $column)) {
-            $conn->query($sql);
-        }
-    }
-
-    return true;
+    return $conn instanceof mysqli
+        && requireSchemaColumns($conn, 'announcements', [
+            'attachment_path', 'attachment_original_name', 'attachment_mime_type', 'attachment_size'
+        ], 'announcement attachments');
 }
 
 // Get Announcement Attachment Config Function - Documents this helper's role in the parish management workflow.
@@ -1737,43 +1467,18 @@ function formatFileSize($bytes) {
 
 // User Verification - Adds registration approval, identity review, and encrypted ID fields.
 function ensureUserVerificationSchema($conn) {
-    $conn->query("ALTER TABLE users MODIFY COLUMN status ENUM('active','inactive','pending_verification','rejected','archived') DEFAULT 'active'");
-
-    $columns = [
-        'first_name' => "ALTER TABLE users ADD COLUMN first_name VARCHAR(100) NULL AFTER fullname",
-        'surname' => "ALTER TABLE users ADD COLUMN surname VARCHAR(100) NULL AFTER first_name",
-        'middle_initial' => "ALTER TABLE users ADD COLUMN middle_initial VARCHAR(5) NULL AFTER surname",
-        'address' => "ALTER TABLE users ADD COLUMN address VARCHAR(255) NULL AFTER chapel_district",
-        'birthdate' => "ALTER TABLE users ADD COLUMN birthdate DATE NULL AFTER address",
-        'birth_place' => "ALTER TABLE users ADD COLUMN birth_place VARCHAR(150) NULL AFTER birthdate",
-        'sex' => "ALTER TABLE users ADD COLUMN sex VARCHAR(20) NULL AFTER birth_place",
-        'nationality' => "ALTER TABLE users ADD COLUMN nationality VARCHAR(80) NULL AFTER sex",
-        'id_number_hash' => "ALTER TABLE users ADD COLUMN id_number_hash CHAR(64) NULL AFTER birth_place",
-        'id_number_encrypted' => "ALTER TABLE users ADD COLUMN id_number_encrypted TEXT NULL AFTER id_number_hash",
-        'valid_id_path' => "ALTER TABLE users ADD COLUMN valid_id_path VARCHAR(255) NULL AFTER profile_picture",
-        'valid_id_original_name' => "ALTER TABLE users ADD COLUMN valid_id_original_name VARCHAR(255) NULL AFTER valid_id_path",
-        'valid_id_mime_type' => "ALTER TABLE users ADD COLUMN valid_id_mime_type VARCHAR(100) NULL AFTER valid_id_original_name",
-        'valid_id_back_path' => "ALTER TABLE users ADD COLUMN valid_id_back_path VARCHAR(255) NULL AFTER valid_id_mime_type",
-        'valid_id_back_mime_type' => "ALTER TABLE users ADD COLUMN valid_id_back_mime_type VARCHAR(100) NULL AFTER valid_id_back_path",
-        'valid_id_capture_method' => "ALTER TABLE users ADD COLUMN valid_id_capture_method VARCHAR(40) DEFAULT 'live_camera' AFTER valid_id_mime_type",
-        'face_image_path' => "ALTER TABLE users ADD COLUMN face_image_path VARCHAR(255) NULL AFTER valid_id_capture_method",
-        'face_image_mime_type' => "ALTER TABLE users ADD COLUMN face_image_mime_type VARCHAR(100) NULL AFTER face_image_path",
-        'face_verification_status' => "ALTER TABLE users ADD COLUMN face_verification_status VARCHAR(40) DEFAULT 'pending' AFTER face_image_mime_type",
-        'face_verified_at' => "ALTER TABLE users ADD COLUMN face_verified_at TIMESTAMP NULL DEFAULT NULL AFTER face_verification_status",
-        'rejection_reason' => "ALTER TABLE users ADD COLUMN rejection_reason TEXT NULL AFTER face_verified_at",
-        'verified_at' => "ALTER TABLE users ADD COLUMN verified_at TIMESTAMP NULL DEFAULT NULL AFTER rejection_reason",
-        'verified_by' => "ALTER TABLE users ADD COLUMN verified_by INT NULL AFTER verified_at"
-    ];
-
-    foreach ($columns as $column => $sql) {
-        if (!columnExists($conn, 'users', $column)) {
-            $conn->query($sql);
-        }
-    }
-
-    if (!indexExists($conn, 'users', 'idx_users_id_number_hash')) {
-        $conn->query("CREATE INDEX idx_users_id_number_hash ON users (id_number_hash)");
-    }
+    return $conn instanceof mysqli
+        && requireSchemaColumns($conn, 'users', [
+            'id', 'fullname', 'first_name', 'surname', 'middle_initial', 'phone_number',
+            'email', 'email_verified_at', 'email_verification_sent_at', 'phone_verified_at',
+            'verification_method', 'login_otp_enabled', 'chapel_district', 'address',
+            'birthdate', 'birth_place', 'sex', 'nationality', 'id_number_hash',
+            'id_number_encrypted', 'password', 'role', 'status', 'profile_picture',
+            'valid_id_path', 'valid_id_original_name', 'valid_id_mime_type',
+            'valid_id_back_path', 'valid_id_back_mime_type', 'valid_id_capture_method',
+            'face_image_path', 'face_image_mime_type', 'face_verification_status',
+            'face_verified_at', 'rejection_reason', 'verified_at', 'verified_by'
+        ], 'user verification');
 }
 
 // Index Exists Function - Documents this helper's role in the parish management workflow.
@@ -1786,13 +1491,36 @@ function indexExists($conn, $table, $index) {
 
 // Identity Protection - Derives the encryption key used for sensitive verification assets.
 function getVerificationEncryptionKey() {
+    $keys = getVerificationEncryptionKeys();
+    return $keys[0];
+}
+
+function getVerificationEncryptionKeys() {
+    tugonLoadEnvFile();
+
+    $keys = [];
     $configured = getenv('PARISH_VERIFICATION_KEY');
     if ($configured) {
-        return hash('sha256', $configured, true);
+        $keys[] = hash('sha256', $configured, true);
     }
 
-    $seed = (defined('DB_NAME') ? DB_NAME : 'parish') . '|' . __DIR__ . '|verification-documents';
-    return hash('sha256', $seed, true);
+    $encryption_key = getenv('ENCRYPTION_KEY');
+    if ($encryption_key) {
+        $keys[] = hash('sha256', $encryption_key, true);
+    }
+
+    $db_name = defined('DB_NAME') ? DB_NAME : 'parish';
+    $legacy_dirs = array_unique([
+        __DIR__,
+        '/var/www/html/includes',
+        'C:\\xampp\\htdocs\\ParishSystem\\includes',
+    ]);
+
+    foreach ($legacy_dirs as $legacy_dir) {
+        $keys[] = hash('sha256', $db_name . '|' . $legacy_dir . '|verification-documents', true);
+    }
+
+    return array_values(array_unique($keys));
 }
 
 // Encrypt Sensitive Value Function - Documents this helper's role in the parish management workflow.
@@ -1823,8 +1551,14 @@ function decryptSensitiveValue($encrypted_text) {
 
     $iv = substr($payload, 0, 16);
     $ciphertext = substr($payload, 16);
-    $plain = openssl_decrypt($ciphertext, 'AES-256-CBC', getVerificationEncryptionKey(), OPENSSL_RAW_DATA, $iv);
-    return $plain === false ? '' : $plain;
+    foreach (getVerificationEncryptionKeys() as $key) {
+        $plain = openssl_decrypt($ciphertext, 'AES-256-CBC', $key, OPENSSL_RAW_DATA, $iv);
+        if ($plain !== false) {
+            return $plain;
+        }
+    }
+
+    return '';
 }
 
 // Identity Protection - Encrypts uploaded files before they are stored on disk.
@@ -2119,17 +1853,8 @@ function getRecentNotifications($conn, $user_id, $limit = 5) {
 // Log audit trail for admin actions
 // Audit Log - Records user activities and system actions for accountability.
 function createAuditLog($conn, $user_id, $action, $table_name, $record_id, $old_value = null, $new_value = null) {
-    $user_id = !empty($user_id) ? intval($user_id) : 'NULL';
-    $action = $conn->real_escape_string($action);
-    $table_name = $conn->real_escape_string($table_name);
-    $old_value = $old_value ? $conn->real_escape_string(json_encode($old_value)) : 'NULL';
-    $new_value = $new_value ? $conn->real_escape_string(json_encode($new_value)) : 'NULL';
-    $ip = $_SERVER['REMOTE_ADDR'] ?? 'UNKNOWN';
-    $ip = $conn->real_escape_string($ip);
-    
-    $sql = "INSERT INTO audit_log (user_id, action, table_name, record_id, old_value, new_value, ip_address)
-            VALUES ($user_id, '$action', '$table_name', $record_id, '$old_value', '$new_value', '$ip')";
-    return $conn->query($sql);
+    require_once __DIR__ . '/audit.php';
+    return writeAuditLog($conn, $user_id, (string)$action, (string)$table_name, $record_id, $old_value, $new_value);
 }
 
 // Format date for display
@@ -2158,69 +1883,19 @@ function formatTime($time) {
 
 // Schedule Event Column Exists Function - Documents this helper's role in the parish management workflow.
 function scheduleEventColumnExists($conn, $column) {
-    $column = $conn->real_escape_string($column);
-    $result = $conn->query("SHOW COLUMNS FROM schedule_events LIKE '$column'");
-    return $result && $result->num_rows > 0;
+    return $conn instanceof mysqli && schemaColumnExists($conn, 'schedule_events', (string) $column);
 }
 
 // Calendar Schema - Creates and upgrades the shared parish schedule events table.
 function ensureScheduleEventsTable($conn) {
-    $sql = "CREATE TABLE IF NOT EXISTS schedule_events (
-        schedule_id INT PRIMARY KEY AUTO_INCREMENT,
-        title VARCHAR(200) NOT NULL,
-        description TEXT,
-        event_date DATE NOT NULL,
-        start_time TIME NOT NULL,
-        end_time TIME NULL,
-        location VARCHAR(150),
-        category VARCHAR(50) DEFAULT 'event',
-        priority VARCHAR(20) DEFAULT 'normal',
-        color_label VARCHAR(20) DEFAULT '#1a73e8',
-        recurrence_rule VARCHAR(100) DEFAULT 'none',
-        assigned_personnel VARCHAR(150),
-        visibility ENUM('public', 'private') DEFAULT 'public',
-        approval_status ENUM('pending', 'approved', 'rejected') DEFAULT 'approved',
-        status ENUM('active', 'upcoming', 'ongoing', 'finished', 'cancelled') DEFAULT 'upcoming',
-        reminder_minutes INT DEFAULT 30,
-        notify_email TINYINT(1) DEFAULT 0,
-        notify_sms TINYINT(1) DEFAULT 0,
-        created_by INT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT,
-        INDEX idx_schedule_date (event_date),
-        INDEX idx_schedule_status_date (status, event_date, start_time)
-    )";
-
-    if (!$conn->query($sql)) {
-        return false;
-    }
-
-    $columns = [
-        'category' => "ALTER TABLE schedule_events ADD COLUMN category VARCHAR(50) DEFAULT 'event' AFTER location",
-        'priority' => "ALTER TABLE schedule_events ADD COLUMN priority VARCHAR(20) DEFAULT 'normal' AFTER category",
-        'color_label' => "ALTER TABLE schedule_events ADD COLUMN color_label VARCHAR(20) DEFAULT '#1a73e8' AFTER priority",
-        'recurrence_rule' => "ALTER TABLE schedule_events ADD COLUMN recurrence_rule VARCHAR(100) DEFAULT 'none' AFTER color_label",
-        'assigned_personnel' => "ALTER TABLE schedule_events ADD COLUMN assigned_personnel VARCHAR(150) AFTER recurrence_rule",
-        'visibility' => "ALTER TABLE schedule_events ADD COLUMN visibility ENUM('public', 'private') DEFAULT 'public' AFTER assigned_personnel",
-        'approval_status' => "ALTER TABLE schedule_events ADD COLUMN approval_status ENUM('pending', 'approved', 'rejected') DEFAULT 'approved' AFTER visibility",
-        'reminder_minutes' => "ALTER TABLE schedule_events ADD COLUMN reminder_minutes INT DEFAULT 30 AFTER status",
-        'notify_email' => "ALTER TABLE schedule_events ADD COLUMN notify_email TINYINT(1) DEFAULT 0 AFTER reminder_minutes",
-        'notify_sms' => "ALTER TABLE schedule_events ADD COLUMN notify_sms TINYINT(1) DEFAULT 0 AFTER notify_email",
-        'source_type' => "ALTER TABLE schedule_events ADD COLUMN source_type VARCHAR(40) DEFAULT 'manual' AFTER notify_sms",
-        'source_id' => "ALTER TABLE schedule_events ADD COLUMN source_id INT NULL AFTER source_type"
-    ];
-
-    foreach ($columns as $column => $alterSql) {
-        if (!scheduleEventColumnExists($conn, $column) && !$conn->query($alterSql)) {
-            return false;
-        }
-    }
-
-    $conn->query("ALTER TABLE schedule_events MODIFY COLUMN status ENUM('active', 'upcoming', 'ongoing', 'finished', 'cancelled') DEFAULT 'upcoming'");
-    $conn->query("ALTER TABLE schedule_events ADD INDEX idx_schedule_source (source_type, source_id)");
-
-    return true;
+    return $conn instanceof mysqli
+        && requireSchemaColumns($conn, 'schedule_events', [
+            'schedule_id', 'title', 'description', 'event_date', 'start_time', 'end_time',
+            'location', 'category', 'priority', 'color_label', 'recurrence_rule',
+            'assigned_personnel', 'visibility', 'approval_status', 'status',
+            'reminder_minutes', 'notify_email', 'notify_sms', 'source_type', 'source_id',
+            'created_by', 'created_at', 'updated_at'
+        ], 'calendar');
 }
 
 // Reservation Calendar Sync - Converts approved reservations into calendar events.
@@ -2517,6 +2192,7 @@ function requestApprovalConflict($conn, $request_id) {
         'business_blessing',
         'office_blessing',
         'event_blessing',
+        'other_blessing',
         'church_reservation',
         'wedding_reservation',
         'burial_reservation',
@@ -2563,6 +2239,7 @@ function syncApprovedRequestToCalendar($conn, $request_id, $admin_user_id) {
         'business_blessing',
         'office_blessing',
         'event_blessing',
+        'other_blessing',
         'church_reservation',
         'wedding_reservation',
         'burial_reservation',
@@ -2613,7 +2290,7 @@ function syncApprovedRequestToCalendar($conn, $request_id, $admin_user_id) {
 
     $type_label = ucfirst(str_replace('_', ' ', $request['request_type']));
     $title = $type_label . ' - ' . $request['fullname'];
-    $blessing_request_types = ['house_blessing', 'car_blessing', 'vehicle_blessing', 'business_blessing', 'office_blessing', 'event_blessing'];
+    $blessing_request_types = ['house_blessing', 'car_blessing', 'vehicle_blessing', 'business_blessing', 'office_blessing', 'event_blessing', 'other_blessing'];
     $service_request_types = ['baptism_service', 'marriage_wedding_service', 'funeral_mass', 'anointing_of_the_sick', 'patronal_fiesta'];
     $category = in_array($request['request_type'], $blessing_request_types, true) ? 'blessing' : (in_array($request['request_type'], $service_request_types, true) ? 'sacramental' : 'reservation');
     if ($request['request_type'] === 'patronal_fiesta') {
@@ -2775,6 +2452,7 @@ function syncApprovedRequestCalendarBacklog($conn, $admin_user_id = 0, $limit = 
             'business_blessing',
             'office_blessing',
             'event_blessing',
+            'other_blessing',
             'church_reservation',
             'wedding_reservation',
             'burial_reservation',
@@ -2848,152 +2526,6 @@ function getPaginationData($page, $limit, $total) {
 function redirect($location) {
     header("Location: $location");
     exit;
-}
-
-// Check if user is logged in
-function isLoggedIn() {
-    return isset($_SESSION['user_id']) && !empty($_SESSION['user_id']);
-}
-
-function normalizeUserRole($role) {
-    $role = strtolower(trim((string) $role));
-    $aliases = [
-        'administrator' => 'admin',
-        'staff' => 'parish_staff',
-        'parish staff' => 'parish_staff',
-        'records clerk' => 'records_clerk',
-        'finance' => 'finance_staff',
-        'cashier' => 'finance_staff',
-        'district_coordinator' => 'coordinator',
-        'chapel_coordinator' => 'coordinator',
-        'member' => 'user',
-        'parishioner' => 'user',
-        'volunteer' => 'user',
-    ];
-
-    return $aliases[$role] ?? ($role !== '' ? $role : 'guest');
-}
-
-function rolePermissions($role) {
-    $role = normalizeUserRole($role);
-    $permissions = [
-        'admin' => ['*'],
-        'parish_staff' => [
-            'admin.access',
-            'dashboard.view',
-            'users.view',
-            'registrations.verify',
-            'requests.manage',
-            'records.manage',
-            'certificates.manage',
-            'announcements.manage',
-            'calendar.manage',
-            'reservations.manage',
-            'reports.view',
-            'ai.use',
-        ],
-        'records_clerk' => [
-            'admin.access',
-            'dashboard.view',
-            'records.manage',
-            'certificates.manage',
-            'requests.view',
-            'reports.view',
-        ],
-        'finance_staff' => [
-            'admin.access',
-            'dashboard.view',
-            'requests.view',
-            'payments.verify',
-            'reports.view',
-        ],
-        'coordinator' => [
-            'dashboard.view',
-            'members.view_district',
-            'announcements.view',
-            'calendar.view',
-            'reservations.view',
-            'ai.use',
-        ],
-        'user' => [
-            'profile.manage',
-            'requests.create',
-            'requests.view_own',
-            'documents.upload_own',
-            'payments.upload_own',
-            'announcements.view',
-            'calendar.view',
-            'notifications.view_own',
-            'ai.use',
-        ],
-        'guest' => [
-            'auth.register',
-            'auth.login',
-            'announcements.view_public',
-        ],
-    ];
-
-    return $permissions[$role] ?? $permissions['guest'];
-}
-
-function hasPermission($permission, $role = null) {
-    $role = normalizeUserRole($role ?? ($_SESSION['role'] ?? 'guest'));
-    $permissions = rolePermissions($role);
-    return in_array('*', $permissions, true) || in_array($permission, $permissions, true);
-}
-
-function hasAnyPermission($permissions, $role = null) {
-    foreach ((array) $permissions as $permission) {
-        if (hasPermission($permission, $role)) {
-            return true;
-        }
-    }
-    return false;
-}
-
-// Check user role - admin
-function isAdmin() {
-    return normalizeUserRole($_SESSION['role'] ?? '') === 'admin';
-}
-
-function isBackOfficeUser() {
-    return hasPermission('admin.access');
-}
-
-// Check user role - regular user
-function isUser() {
-    return normalizeUserRole($_SESSION['role'] ?? '') === 'user';
-}
-
-// Require login - redirect if not logged in
-// Access Control - Requires an authenticated session before continuing.
-function requireLogin() {
-    if (!isLoggedIn()) {
-        redirect('../auth/login.php');
-    }
-}
-
-// Require admin access
-// Access Control - Restricts the current page or action to administrator users.
-function requireAdmin() {
-    if (!isLoggedIn() || !hasPermission('admin.access')) {
-        redirect('../auth/login.php');
-    }
-}
-
-function requirePermission($permission, $redirect = null) {
-    if (!isLoggedIn()) {
-        redirect('../auth/login.php');
-    }
-
-    if (!hasPermission($permission)) {
-        http_response_code(403);
-        redirect($redirect ?: getUserDashboardURL());
-    }
-}
-
-function getUserDashboardURL() {
-    return hasPermission('admin.access') ? '../admin/dashboard.php' : '../users/dashboard.php';
 }
 
 // Get current user full name

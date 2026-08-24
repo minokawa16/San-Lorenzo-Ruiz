@@ -87,10 +87,10 @@ $is_primary_user_dashboard = $is_user_dashboard_page && (($_GET['view'] ?? '') !
         <span class="pill-badge"><?php echo $sidebar_unread; ?></span>
       <?php endif; ?>
     </a>
-    <a href="<?php echo BASE_URL; ?>users/ai-assistant.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'ai-assistant.php') ? 'active' : ''; ?>" data-tooltip="<?php echo e(t('nav.ai_assistant', 'AI Assistant')); ?>">
+    <?php if (hasPermission('ai.parishioner.use')): ?><a href="<?php echo BASE_URL; ?>users/ai-assistant.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'ai-assistant.php') ? 'active' : ''; ?>" data-tooltip="<?php echo e(t('nav.ai_assistant', 'AI Assistant')); ?>">
       <i class="fas fa-robot"></i>
       <span><?php echo e(t('nav.ai_assistant', 'AI Assistant')); ?></span>
-    </a>
+    </a><?php endif; ?>
 
     <div class="nav-section-label"><?php echo e(t('nav.account', 'Account')); ?></div>
     <a href="<?php echo BASE_URL; ?>auth/profile.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'profile.php') ? 'active' : ''; ?>" data-tooltip="<?php echo e(t('nav.profile_settings', 'Profile Settings')); ?>">
