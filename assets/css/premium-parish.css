@@ -577,8 +577,8 @@ body.user-area::before {
 
 .premium-admin-content {
     flex: 1;
-    margin-left: 248px;
-    width: calc(100% - 248px);
+    margin-left: 236px;
+    width: calc(100% - 236px);
     min-width: 0;
     padding: 12px clamp(12px, 1.8vw, 24px) 24px;
     transition: margin-left 0.24s ease;

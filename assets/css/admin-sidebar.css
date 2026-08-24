@@ -1,6 +1,6 @@
 /* Canonical TUGON administrator navigation. Keep all sidebar visuals here. */
 :root {
-    --admin-sidebar-width: 248px;
+    --admin-sidebar-width: 236px;
     --admin-sidebar-collapsed-width: 76px;
     --admin-sidebar-bg: #2e3a2d;
     --admin-sidebar-bg-deep: #263225;

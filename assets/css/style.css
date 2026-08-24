@@ -289,8 +289,8 @@ footer {
 
 .user-main {
     flex: 1;
-    margin-left: 248px;
-    width: calc(100% - 248px);
+    margin-left: 236px;
+    width: calc(100% - 236px);
     min-width: 0;
     display: flex;
     flex-direction: column;
