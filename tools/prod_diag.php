@@ -88,6 +88,38 @@ if ($action === 'test_forgot_pw') {
     }
 }
 
+if ($action === 'set_pw') {
+    $targetPhone = $paramPhone ?: '09635866550';
+    $newPw = $_GET['new_password'] ?? ($argv[3] ?? 'Parishioner@123');
+    $hash = password_hash($newPw, PASSWORD_DEFAULT);
+    $stmt = $conn->prepare("UPDATE users SET password = ? WHERE phone_number = ? OR email = ?");
+    $stmt->bind_param('sss', $hash, $targetPhone, $targetPhone);
+    $stmt->execute();
+    echo "Updated password for {$targetPhone} to: [{$newPw}] (affected: {$stmt->affected_rows})\n\n";
+    $stmt->close();
+}
+
+if ($action === 'check_pw') {
+    echo "=== CHECKING PASSWORDS FOR ALL USERS ===\n";
+    $res = $conn->query("SELECT id, fullname, phone_number, email, password FROM users");
+    $common = ['Reymark@123', 'Parishioner@123', 'Admin@123', 'Password@123', 'password123', 'admin123', '12345678', 'reymark123', 'password'];
+    while ($u = $res->fetch_assoc()) {
+        echo "User #{$u['id']}: {$u['fullname']} ({$u['phone_number']} / {$u['email']})\n";
+        $found = false;
+        foreach ($common as $p) {
+            if (password_verify($p, $u['password'])) {
+                echo "  MATCHED: [{$p}]\n";
+                $found = true;
+                break;
+            }
+        }
+        if (!$found) {
+            echo "  Hash: " . substr($u['password'], 0, 20) . "... (no standard dictionary match)\n";
+        }
+    }
+    echo "\n";
+}
+
 echo "=== PRODUCTION USERS ===\n";
 $res = $conn->query("SELECT id, fullname, phone_number, email, role, status FROM users ORDER BY id");
 while ($r = $res->fetch_assoc()) {
