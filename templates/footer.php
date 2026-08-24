@@ -1089,10 +1089,11 @@
                             <span>How can I help you today?</span>
                         </div>
                         <div class="ai-assistant-quick" aria-label="Suggested questions">
-                            <button type="button" data-ai-prompt="What are the certificate requirements?">Certificate requirements</button>
-                            <button type="button" data-ai-prompt="How can I check my request status?">Request status</button>
-                            <button type="button" data-ai-prompt="What is the Mass schedule?">Mass schedule</button>
-                            <button type="button" data-ai-prompt="Show me the latest parish announcements.">Announcements</button>
+                            <button type="button" data-ai-prompt="What are the baptism requirements?">Baptism</button>
+                            <button type="button" data-ai-prompt="How can I request a parish certificate?">Certificate Request</button>
+                            <button type="button" data-ai-prompt="What is the Sunday mass schedule?">Mass schedule</button>
+                            <button type="button" data-ai-prompt="How can I make a reservation?">Reservations</button>
+                            <button type="button" data-ai-prompt="What are the parish office hours?">Office Hours</button>
                         </div>
                     </div>
                 </div>
