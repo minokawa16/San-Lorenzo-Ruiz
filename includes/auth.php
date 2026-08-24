@@ -34,6 +34,10 @@ function requireAuth(): void {
 function requireParishioner(): void {
     requireAuthentication();
     if (!isUser()) {
+        if (isAdmin()) {
+            header('Location: ' . BASE_URL . 'admin/dashboard.php', true, 302);
+            exit;
+        }
         http_response_code(403);
         exit('Access denied.');
     }

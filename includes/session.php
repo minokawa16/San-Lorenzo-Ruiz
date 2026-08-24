@@ -46,17 +46,6 @@ if (!function_exists('ensureCentralSession')) {
     }
 }
 
-$sessionFingerprint = hash('sha256', (string) ($_SERVER['HTTP_USER_AGENT'] ?? 'unknown'));
-if (!empty($_SESSION['fully_authenticated'])) {
-    if (!empty($_SESSION['session_fingerprint']) && !hash_equals($_SESSION['session_fingerprint'], $sessionFingerprint)) {
-        $_SESSION = [];
-        session_destroy();
-        header('Location: ../auth/login.php?session=invalid');
-        exit;
-    }
-    $_SESSION['session_fingerprint'] = $sessionFingerprint;
-}
-
 // Session timeout check
 // Skip timeout check on login/auth pages to prevent redirect loops
 $current_file = basename((string) ($_SERVER['PHP_SELF'] ?? ''));
@@ -64,23 +53,24 @@ $auth_pages = ['login.php', 'register.php', 'logout.php', 'profile.php'];
 
 if (!in_array($current_file, $auth_pages)) {
     $timeout = defined('SESSION_TIMEOUT') ? SESSION_TIMEOUT : 30 * 60;
-    if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity'] > $timeout)) {
+    if (isset($_SESSION['last_activity']) && (time() - (int)$_SESSION['last_activity'] > $timeout)) {
         // Session expired
         session_unset();
         session_destroy();
-        header("Location: ../auth/login.php?session=expired");
+        $loginUrl = defined('BASE_URL') ? BASE_URL . 'auth/login.php?session=expired' : '../auth/login.php?session=expired';
+        header("Location: " . $loginUrl);
         exit();
     }
 }
 
+// Non-blocking session regeneration to prevent race conditions on mobile requests
 if (!empty($_SESSION['user_id']) && !empty($_SESSION['fully_authenticated'])) {
     $regenerate_interval = defined('SESSION_REGENERATE_INTERVAL') ? SESSION_REGENERATE_INTERVAL : 5 * 60;
-    if (!isset($_SESSION['session_regenerated_at']) || (time() - $_SESSION['session_regenerated_at']) > $regenerate_interval) {
-        session_regenerate_id(true);
+    if (!isset($_SESSION['session_regenerated_at']) || (time() - (int)$_SESSION['session_regenerated_at']) > $regenerate_interval) {
+        session_regenerate_id(false);
         $_SESSION['session_regenerated_at'] = time();
     }
 }
 
 // Update last activity timestamp
 $_SESSION['last_activity'] = time();
-?>

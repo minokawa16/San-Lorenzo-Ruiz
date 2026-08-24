@@ -42,6 +42,9 @@ function userRoleKeys($userId = null, $connection = null) {
     $connection = $connection instanceof mysqli ? $connection : permissionConnection();
     $userId = (int) ($userId ?? ($_SESSION['user_id'] ?? 0));
     if (!$connection || $userId <= 0) {
+        if (!empty($_SESSION['role'])) {
+            return [databaseRoleKey($_SESSION['role'])];
+        }
         return [];
     }
     if (isset($cache[$userId])) {
@@ -50,17 +53,31 @@ function userRoleKeys($userId = null, $connection = null) {
     $statement = $connection->prepare(
         'SELECT r.role_key FROM user_roles ur JOIN roles r ON r.role_id = ur.role_id WHERE ur.user_id = ? ORDER BY r.role_id'
     );
-    if (!$statement) {
-        return [];
-    }
-    $statement->bind_param('i', $userId);
-    $statement->execute();
-    $result = $statement->get_result();
     $roles = [];
-    while ($row = $result->fetch_assoc()) {
-        $roles[] = $row['role_key'];
+    if ($statement) {
+        $statement->bind_param('i', $userId);
+        $statement->execute();
+        $result = $statement->get_result();
+        while ($row = $result->fetch_assoc()) {
+            $roles[] = $row['role_key'];
+        }
+        $statement->close();
     }
-    $statement->close();
+    if (empty($roles)) {
+        $stmt = $connection->prepare('SELECT role FROM users WHERE id = ? LIMIT 1');
+        if ($stmt) {
+            $stmt->bind_param('i', $userId);
+            $stmt->execute();
+            $userRow = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            if ($userRow && !empty($userRow['role'])) {
+                $roles = [databaseRoleKey($userRow['role'])];
+            }
+        }
+    }
+    if (empty($roles) && !empty($_SESSION['role'])) {
+        $roles = [databaseRoleKey($_SESSION['role'])];
+    }
     return $cache[$userId] = $roles;
 }
 
@@ -143,5 +160,6 @@ function isBackOfficeUser() {
 }
 
 function isUser() {
-    return in_array('parishioner', userRoleKeys(), true);
+    $roles = userRoleKeys();
+    return in_array('parishioner', $roles, true) || in_array('user', $roles, true) || in_array('administrator', $roles, true);
 }
