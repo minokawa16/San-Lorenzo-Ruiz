@@ -146,6 +146,7 @@ $dashboard_unread_count = function_exists('getUnreadNotificationCount') ? getUnr
 $dashboard_profile_name = sanitize($_SESSION['fullname'] ?? 'Administrator');
 ?>
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -165,7 +166,48 @@ $dashboard_profile_name = sanitize($_SESSION['fullname'] ?? 'Administrator');
     ?>
     <link rel="stylesheet" href="../assets/css/premium-parish.css?v=<?php echo $premium_style_version; ?>">
     <link rel="stylesheet" href="../assets/css/parish-design-system.css?v=<?php echo $design_system_version; ?>">
+    <link rel="stylesheet" href="../assets/css/admin-sidebar.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/admin-sidebar.css') ? filemtime(__DIR__ . '/../assets/css/admin-sidebar.css') : time(); ?>">
     <link rel="stylesheet" href="../assets/css/theme.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/theme.css') ? filemtime(__DIR__ . '/../assets/css/theme.css') : time(); ?>">
+    <style id="critical-sidebar-colors">
+        .admin-sidebar,
+        .premium-admin-sidebar,
+        .user-sidebar {
+            background: linear-gradient(180deg, #2E3A2D, #263225) !important;
+            color: #FFFFFF !important;
+            border-right: 1px solid rgba(200, 155, 60, 0.3) !important;
+            box-shadow: 6px 0 20px rgba(20, 29, 20, 0.12) !important;
+        }
+        .admin-sidebar .sidebar-brand,
+        .premium-admin-sidebar .sidebar-brand,
+        .user-sidebar .sidebar-brand {
+            background: rgba(255, 255, 255, 0.035) !important;
+            border-bottom: 1px solid rgba(200, 155, 60, 0.38) !important;
+            color: #FFFFFF !important;
+        }
+        .admin-sidebar .brand-logo,
+        .admin-sidebar .pill-badge,
+        .premium-admin-sidebar .brand-logo,
+        .premium-admin-sidebar .pill-badge,
+        .user-sidebar .brand-logo,
+        .user-sidebar .pill-badge {
+            background: rgba(200, 155, 60, 0.1) !important;
+            color: #C89B3C !important;
+            border: 1px solid rgba(200, 155, 60, 0.55) !important;
+        }
+        .admin-sidebar .nav-link,
+        .premium-admin-sidebar .nav-link,
+        .user-sidebar .nav-link,
+        .admin-sidebar .nav-toggle,
+        .premium-admin-sidebar .nav-toggle,
+        .user-sidebar .nav-toggle {
+            color: rgba(255, 255, 255, 0.88) !important;
+        }
+        .admin-sidebar .nav-link.active,
+        .user-sidebar .nav-link.active {
+            background: rgba(200, 155, 60, 0.15) !important;
+            color: #FFFFFF !important;
+        }
+    </style>
 </head>
 <body class="premium-admin">
     <div class="premium-admin-shell">
@@ -174,6 +216,7 @@ $dashboard_profile_name = sanitize($_SESSION['fullname'] ?? 'Administrator');
 
         <!-- Main Content -->
         <div class="premium-admin-content">
+
             <header class="app-global-header premium-admin-topbar dashboard-topbar">
                 <div class="app-header-left dashboard-title-block">
                     <div>

@@ -219,9 +219,27 @@ $header_user_role = $is_admin_area ? 'Administrator' : 'Parishioner';
         .admin-sidebar,
         .premium-admin-sidebar,
         .user-sidebar {
-            background: linear-gradient(180deg, #2E3A2D, #384637) !important;
+            background: linear-gradient(180deg, #2E3A2D, #263225) !important;
             color: #FFFFFF !important;
-            border-color: rgba(255, 255, 255, 0.14) !important;
+            border-right: 1px solid rgba(200, 155, 60, 0.3) !important;
+            box-shadow: 6px 0 20px rgba(20, 29, 20, 0.12) !important;
+        }
+        .admin-sidebar .sidebar-brand,
+        .premium-admin-sidebar .sidebar-brand,
+        .user-sidebar .sidebar-brand {
+            background: rgba(255, 255, 255, 0.035) !important;
+            border-bottom: 1px solid rgba(200, 155, 60, 0.38) !important;
+            color: #FFFFFF !important;
+        }
+        .admin-sidebar .brand-logo,
+        .admin-sidebar .pill-badge,
+        .premium-admin-sidebar .brand-logo,
+        .premium-admin-sidebar .pill-badge,
+        .user-sidebar .brand-logo,
+        .user-sidebar .pill-badge {
+            background: rgba(200, 155, 60, 0.1) !important;
+            color: #C89B3C !important;
+            border: 1px solid rgba(200, 155, 60, 0.55) !important;
         }
         .admin-sidebar .nav-link,
         .premium-admin-sidebar .nav-link,
@@ -229,7 +247,12 @@ $header_user_role = $is_admin_area ? 'Administrator' : 'Parishioner';
         .admin-sidebar .nav-toggle,
         .premium-admin-sidebar .nav-toggle,
         .user-sidebar .nav-toggle {
-            color: rgba(255, 255, 255, 0.9) !important;
+            color: rgba(255, 255, 255, 0.88) !important;
+        }
+        .admin-sidebar .nav-link.active,
+        .user-sidebar .nav-link.active {
+            background: rgba(200, 155, 60, 0.15) !important;
+            color: #FFFFFF !important;
         }
     </style>
 </head>
