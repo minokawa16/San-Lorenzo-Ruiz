@@ -17,8 +17,8 @@
     --text-charcoal: #222222;
     --text-muted-brown: #6B7280;
     --border-warm: #E8E1D5;
-    --card-radius: 16px;
-    --shadow-soft: 0 4px 18px rgba(0, 0, 0, 0.05);
+    --card-radius: 12px;
+    --shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
     --font-heading: "Lora", Georgia, "Times New Roman", serif;
     --font-ui: "Inter", "Segoe UI", Arial, sans-serif;
     --tugon-admin-bg: #F8F6F1;
@@ -50,15 +50,15 @@ body.premium-admin,
 
 body {
     font-family: var(--font-ui) !important;
-    font-size: 1rem !important;
-    line-height: 1.6 !important;
+    font-size: 0.875rem !important;
+    line-height: 1.5 !important;
 }
 
 h1,
 .page-title,
 .pds-page-title {
-    font-size: clamp(1.75rem, 2.8vw, 2.25rem) !important;
-    line-height: 1.25 !important;
+    font-size: clamp(1.4rem, 2.2vw, 1.85rem) !important;
+    line-height: 1.2 !important;
     font-weight: 700 !important;
 }
 
@@ -66,8 +66,8 @@ h2,
 .section-title,
 .premium-panel-title,
 .pds-card-header {
-    font-size: clamp(1.25rem, 2vw, 1.5rem) !important;
-    line-height: 1.3 !important;
+    font-size: clamp(1.15rem, 1.6vw, 1.35rem) !important;
+    line-height: 1.25 !important;
     font-weight: 700 !important;
 }
 
@@ -76,8 +76,8 @@ h4,
 h5,
 h6,
 .card-title {
-    font-size: clamp(1.0625rem, 1.5vw, 1.25rem) !important;
-    line-height: 1.35 !important;
+    font-size: clamp(0.95rem, 1.2vw, 1.1rem) !important;
+    line-height: 1.3 !important;
     font-weight: 600 !important;
 }
 
@@ -89,8 +89,8 @@ li,
 .announcement-card p,
 .notification-card p,
 .text-muted {
-    font-size: 1rem !important;
-    line-height: 1.6 !important;
+    font-size: 0.875rem !important;
+    line-height: 1.5 !important;
 }
 
 .small,
@@ -101,8 +101,8 @@ small,
 .premium-kpi-note,
 .stat-note,
 .metric-note {
-    font-size: 0.875rem !important;
-    line-height: 1.5 !important;
+    font-size: 0.75rem !important;
+    line-height: 1.4 !important;
 }
 
 .admin-sidebar,
@@ -118,9 +118,10 @@ small,
 .user-sidebar .nav-link {
     color: rgba(255, 248, 235, 0.82) !important;
     border-radius: var(--card-radius) !important;
-    font-size: 0.9375rem !important;
+    font-size: 0.84rem !important;
     font-weight: 500 !important;
-    min-height: 44px !important;
+    min-height: 38px !important;
+    padding: 7px 12px !important;
 }
 
 .admin-sidebar .nav-link.active,
@@ -206,13 +207,13 @@ small,
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
-    gap: 16px;
-    padding: 22px 24px;
+    gap: 14px;
+    padding: 14px 18px;
 }
 
 .theme-hero-icon {
-    width: 48px;
-    height: 48px;
+    width: 38px;
+    height: 38px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -220,6 +221,7 @@ small,
     background: var(--accent-gold-soft);
     color: var(--text-charcoal);
     border: 1px solid rgba(200, 155, 60, 0.42);
+    font-size: 16px;
 }
 
 .theme-hero-copy h1,
@@ -228,7 +230,7 @@ small,
 }
 
 .theme-hero-copy p {
-    margin-top: 4px;
+    margin-top: 2px;
 }
 
 .theme-stat-card,
@@ -276,8 +278,8 @@ h6 {
 .stat-label,
 .metric-label {
     color: var(--text-muted-brown) !important;
-    font-size: 0.9375rem !important;
-    line-height: 1.4 !important;
+    font-size: 0.8125rem !important;
+    line-height: 1.35 !important;
     font-weight: 600 !important;
     letter-spacing: 0 !important;
     text-transform: none !important;
@@ -290,8 +292,8 @@ h6 {
 .registry-count,
 .kpi-value {
     color: var(--text-charcoal) !important;
-    font-size: clamp(1.875rem, 3vw, 2.25rem) !important;
-    line-height: 1.1 !important;
+    font-size: clamp(1.35rem, 2.2vw, 1.75rem) !important;
+    line-height: 1.15 !important;
     font-weight: 700 !important;
 }
 
@@ -309,9 +311,11 @@ h6 {
     color: var(--text-charcoal) !important;
     border: 1px solid rgba(200, 155, 60, 0.38) !important;
     border-radius: 999px !important;
-    font-size: 0.875rem !important;
-    line-height: 1.35 !important;
+    font-size: 0.75rem !important;
+    line-height: 1.25 !important;
     font-weight: 600 !important;
+    padding: 2px 8px !important;
+    min-height: 22px !important;
 }
 
 .badge.bg-success {
@@ -348,13 +352,13 @@ h6 {
     background: var(--accent-gold) !important;
     border-color: var(--accent-gold-deep) !important;
     color: var(--text-charcoal) !important;
-    border-radius: 999px !important;
+    border-radius: 8px !important;
     box-shadow: none !important;
-    font-size: 0.9375rem !important;
-    line-height: 1.35 !important;
+    font-size: 0.84rem !important;
+    line-height: 1.25 !important;
     font-weight: 600 !important;
-    min-height: 44px !important;
-    padding: 0.625rem 1rem !important;
+    min-height: 36px !important;
+    padding: 0.38rem 0.85rem !important;
 }
 
 .btn-primary:hover,
@@ -384,7 +388,24 @@ h6 {
     color: var(--text-charcoal) !important;
     background: var(--card-cream-light) !important;
     border-color: var(--border-warm) !important;
-    border-radius: 999px !important;
+    border-radius: 8px !important;
+    font-size: 0.84rem !important;
+    min-height: 36px !important;
+    padding: 0.38rem 0.85rem !important;
+}
+
+.btn-sm {
+    min-height: 28px !important;
+    padding: 0.22rem 0.62rem !important;
+    font-size: 0.75rem !important;
+    border-radius: 6px !important;
+}
+
+.btn-lg {
+    min-height: 42px !important;
+    padding: 0.5rem 1.1rem !important;
+    font-size: 0.875rem !important;
+    border-radius: 8px !important;
 }
 
 .form-control,
@@ -395,19 +416,21 @@ textarea {
     background-color: #FCFBF8 !important;
     color: var(--text-charcoal) !important;
     border-color: var(--border-warm) !important;
-    border-radius: var(--card-radius) !important;
-    font-size: 1rem !important;
-    line-height: 1.5 !important;
-    min-height: 44px !important;
+    border-radius: 8px !important;
+    font-size: 0.875rem !important;
+    line-height: 1.45 !important;
+    min-height: 38px !important;
+    padding: 0.38rem 0.75rem !important;
 }
 
 label,
 .form-label,
 .pds-form-label {
-    font-size: 0.9375rem !important;
-    line-height: 1.45 !important;
+    font-size: 0.8125rem !important;
+    line-height: 1.35 !important;
     font-weight: 600 !important;
     color: var(--text-charcoal) !important;
+    margin-bottom: 3px !important;
 }
 
 .form-control:focus,
@@ -416,7 +439,7 @@ input:focus,
 select:focus,
 textarea:focus {
     border-color: var(--accent-gold) !important;
-    box-shadow: 0 0 0 4px rgba(200, 155, 60, 0.18) !important;
+    box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.18) !important;
 }
 
 .table,
@@ -433,31 +456,35 @@ textarea:focus {
 .table th {
     color: var(--text-muted-brown) !important;
     text-transform: uppercase;
-    font-size: 0.875rem !important;
+    font-size: 0.75rem !important;
     letter-spacing: 0.04em;
     font-weight: 600 !important;
-    line-height: 1.4 !important;
+    line-height: 1.3 !important;
+    padding: 8px 12px !important;
 }
 
 .table td {
     color: var(--text-charcoal) !important;
-    font-size: 0.9375rem !important;
-    line-height: 1.5 !important;
+    font-size: 0.8125rem !important;
+    line-height: 1.45 !important;
+    padding: 8px 12px !important;
 }
 
 .admin-table th {
     color: var(--text-muted-brown) !important;
     text-transform: uppercase;
-    font-size: 0.875rem !important;
+    font-size: 0.75rem !important;
     letter-spacing: 0.04em;
     font-weight: 600 !important;
+    padding: 8px 12px !important;
 }
 
 .admin-table td {
     color: var(--text-charcoal) !important;
     border-bottom-color: var(--border-warm) !important;
-    font-size: 0.9375rem !important;
-    line-height: 1.5 !important;
+    font-size: 0.8125rem !important;
+    line-height: 1.45 !important;
+    padding: 8px 12px !important;
 }
 
 .admin-table tbody tr:hover,
@@ -471,6 +498,8 @@ textarea:focus {
     border: 1px solid var(--border-warm) !important;
     color: var(--text-charcoal) !important;
     border-radius: var(--card-radius) !important;
+    font-size: 0.84rem !important;
+    padding: 10px 14px !important;
 }
 
 .certificate-link {
@@ -498,10 +527,11 @@ textarea:focus {
 .status-badge,
 .pds-badge {
     border-radius: 999px !important;
-    font-size: 0.875rem !important;
-    line-height: 1.35 !important;
+    font-size: 0.72rem !important;
+    line-height: 1.25 !important;
     font-weight: 600 !important;
-    padding: 0.32rem 0.62rem !important;
+    padding: 2px 7px !important;
+    min-height: 22px !important;
 }
 
 .badge-pending,

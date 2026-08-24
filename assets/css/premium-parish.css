@@ -577,28 +577,28 @@ body.user-area::before {
 
 .premium-admin-content {
     flex: 1;
-    margin-left: 280px;
-    width: calc(100% - 280px);
+    margin-left: 248px;
+    width: calc(100% - 248px);
     min-width: 0;
-    padding: 18px clamp(16px, 2.4vw, 34px) 38px;
+    padding: 12px clamp(12px, 1.8vw, 24px) 24px;
     transition: margin-left 0.24s ease;
 }
 
 body.admin-sidebar-collapsed .premium-admin-content {
-    margin-left: 88px;
-    width: calc(100% - 88px);
+    margin-left: 76px;
+    width: calc(100% - 76px);
 }
 
 .premium-admin-topbar {
     position: sticky;
-    top: 16px;
+    top: 8px;
     z-index: 20;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 22px;
-    padding: 12px;
+    gap: 12px;
+    margin-bottom: 14px;
+    padding: 8px 12px;
     border-radius: 8px;
 }
 

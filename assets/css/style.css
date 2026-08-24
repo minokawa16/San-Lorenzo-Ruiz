@@ -289,8 +289,8 @@ footer {
 
 .user-main {
     flex: 1;
-    margin-left: 280px;
-    width: calc(100% - 280px);
+    margin-left: 248px;
+    width: calc(100% - 248px);
     min-width: 0;
     display: flex;
     flex-direction: column;
@@ -298,8 +298,8 @@ footer {
 }
 
 body.user-sidebar-collapsed .user-main {
-    margin-left: 88px;
-    width: calc(100% - 88px);
+    margin-left: 76px;
+    width: calc(100% - 76px);
 }
 
 .user-topbar {
@@ -309,12 +309,12 @@ body.user-sidebar-collapsed .user-main {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
-    padding: 14px 24px;
+    gap: 12px;
+    padding: 8px 16px;
     background: rgba(255,255,255,0.92);
     border-radius: 8px;
-    margin: 12px 20px;
-    box-shadow: 0 6px 20px rgba(50,60,80,0.06);
+    margin: 8px 14px;
+    box-shadow: 0 2px 10px rgba(50,60,80,0.04);
 }
 
 .topbar-left {
@@ -1036,16 +1036,16 @@ body.user-sidebar-collapsed .user-main {
 .ai-assistant-panel {
     position: absolute;
     right: 0;
-    bottom: 92px;
-    width: min(430px, calc(100vw - 32px));
-    max-height: min(680px, calc(100vh - 124px));
-    border: 1px solid rgba(255, 255, 255, 0.62);
-    border-radius: 16px;
-    background: linear-gradient(160deg, rgba(255,255,255,0.92), rgba(240,214,214,0.82));
-    box-shadow: 0 24px 60px rgba(22, 19, 20, 0.24);
+    bottom: 76px;
+    width: min(370px, calc(100vw - 24px));
+    max-height: min(540px, calc(100vh - 90px));
+    border: 1px solid rgba(200, 155, 60, 0.35);
+    border-radius: 12px;
+    background: #FCFBF8;
+    box-shadow: 0 12px 36px rgba(22, 19, 20, 0.16);
     overflow: hidden;
     opacity: 0;
-    transform: translateY(14px) scale(0.98);
+    transform: translateY(10px) scale(0.98);
     pointer-events: none;
     backdrop-filter: blur(14px) saturate(140%);
     transition: opacity 0.18s ease, transform 0.18s ease;
@@ -1060,21 +1060,23 @@ body.user-sidebar-collapsed .user-main {
 .ai-assistant-panel-header {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 15px 16px;
-    background: linear-gradient(135deg, rgba(22,19,20,0.94), rgba(162,167,228,0.94));
+    gap: 10px;
+    padding: 10px 14px;
+    background: #2E3A2D;
     color: #ffffff;
+    border-bottom: 1px solid rgba(200, 155, 60, 0.35);
 }
 
 .ai-assistant-panel-mark {
-    width: 38px;
-    height: 38px;
-    border-radius: 12px;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: rgba(255, 255, 255, 0.16);
-    color: #fff7ed;
+    background: rgba(200, 155, 60, 0.2);
+    color: #C89B3C;
+    font-size: 14px;
 }
 
 .ai-assistant-panel-header strong,
@@ -1083,41 +1085,46 @@ body.user-sidebar-collapsed .user-main {
 }
 
 .ai-assistant-panel-header strong {
-    font-size: 0.96rem;
+    font-size: 0.88rem;
+    font-weight: 700;
 }
 
 .ai-assistant-panel-header span {
     color: rgba(255,255,255,0.76);
-    font-size: 0.78rem;
+    font-size: 0.72rem;
 }
 
 .ai-assistant-close {
     margin-left: auto;
-    width: 34px;
-    height: 34px;
+    width: 28px;
+    height: 28px;
     border: 0;
     border-radius: 50%;
     color: #ffffff;
     background: rgba(255, 255, 255, 0.14);
+    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .ai-assistant-panel-body {
-    padding: 16px;
-    max-height: calc(min(680px, 100vh - 124px) - 68px);
+    padding: 12px;
+    max-height: calc(min(540px, 100vh - 90px) - 52px);
     overflow-y: auto;
     scrollbar-width: thin;
-    scrollbar-color: rgba(132, 164, 244, 0.65) transparent;
+    scrollbar-color: rgba(200, 155, 60, 0.65) transparent;
     display: flex;
     flex-direction: column;
-    min-height: 360px;
+    min-height: 260px;
 }
 
 .ai-assistant-panel-body p,
 .ai-guide-card li {
-    margin: 0 0 14px;
-    color: rgba(22, 19, 20, 0.72);
-    font-size: 0.88rem;
-    line-height: 1.5;
+    margin: 0 0 10px;
+    color: rgba(22, 19, 20, 0.82);
+    font-size: 0.84rem;
+    line-height: 1.45;
 }
 
 .ai-assistant-intro {
@@ -3291,9 +3298,9 @@ button,
 
     .ai-assistant-panel {
         right: 0;
-        bottom: 72px;
-        width: min(420px, calc(100vw - 24px));
-        max-height: min(620px, calc(100vh - 100px));
+        bottom: 68px;
+        width: min(360px, calc(100vw - 20px));
+        max-height: min(500px, calc(100vh - 90px));
     }
 
     .ai-assistant-panel-body {
