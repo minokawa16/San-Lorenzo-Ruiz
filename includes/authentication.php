@@ -40,61 +40,71 @@ function normalizeAuthenticationIdentifier(string $identifier): array {
 }
 
 function findUserByAuthenticationIdentifier(mysqli $conn, string $identifier): ?array {
-    $normalized = normalizeAuthenticationIdentifier($identifier);
-    if (!$normalized['valid']) {
+    $identifier = trim($identifier);
+    if ($identifier === '') {
         return null;
     }
-    $statement = $conn->prepare(
-        'SELECT u.* FROM user_auth_identifiers i JOIN users u ON u.id = i.user_id WHERE i.identifier_type = ? AND i.normalized_value = ? LIMIT 1'
-    );
-    if ($statement) {
-        $statement->bind_param('ss', $normalized['type'], $normalized['value']);
-        $statement->execute();
-        $user = $statement->get_result()->fetch_assoc() ?: null;
-        $statement->close();
-        if ($user) {
-            return $user;
+
+    $normalized = normalizeAuthenticationIdentifier($identifier);
+
+    // 1. First, search user_auth_identifiers table
+    if ($normalized['valid']) {
+        $statement = $conn->prepare(
+            'SELECT u.* FROM user_auth_identifiers i JOIN users u ON u.id = i.user_id WHERE i.identifier_type = ? AND i.normalized_value = ? LIMIT 1'
+        );
+        if ($statement) {
+            $statement->bind_param('ss', $normalized['type'], $normalized['value']);
+            $statement->execute();
+            $user = $statement->get_result()->fetch_assoc() ?: null;
+            $statement->close();
+            if ($user) {
+                return $user;
+            }
         }
     }
 
-    if ($normalized['type'] === 'email') {
-        $stmt = $conn->prepare('SELECT * FROM users WHERE email = ? LIMIT 1');
+    // 2. Direct search by email
+    if (isValidEmail($identifier)) {
+        $stmt = $conn->prepare('SELECT * FROM users WHERE LOWER(email) = LOWER(?) LIMIT 1');
         if ($stmt) {
-            $stmt->bind_param('s', $normalized['value']);
+            $stmt->bind_param('s', $identifier);
+            $stmt->execute();
+            $user = $stmt->get_result()->fetch_assoc() ?: null;
+            $stmt->close();
+            if ($user) {
+                if (function_exists('synchronizeAuthenticationIdentifier') && !empty($user['email'])) {
+                    synchronizeAuthenticationIdentifier($conn, (int)$user['id'], 'email', strtolower($user['email']), $user['email_verified_at'] ?? null);
+                }
+                return $user;
+            }
+        }
+    }
+
+    // 3. Direct search by phone number (robust matching on all Philippine mobile variations)
+    $cleanDigits = preg_replace('/[^\d]/', '', $identifier);
+    if (strlen($cleanDigits) >= 10) {
+        $last10 = substr($cleanDigits, -10);
+        $fmt09 = '0' . $last10;
+        $fmt63 = '63' . $last10;
+        $fmtPlus63 = '+63' . $last10;
+
+        $stmt = $conn->prepare('
+            SELECT * FROM users 
+            WHERE phone_number = ? OR phone_number = ? OR phone_number = ? OR phone_number = ?
+               OR REPLACE(REPLACE(REPLACE(phone_number, " ", ""), "-", ""), "+", "") LIKE ?
+            ORDER BY (status = "active") DESC, id ASC LIMIT 1
+        ');
+        if ($stmt) {
+            $likeLast10 = '%' . $last10;
+            $stmt->bind_param('sssss', $identifier, $fmt09, $fmt63, $fmtPlus63, $likeLast10);
             $stmt->execute();
             $user = $stmt->get_result()->fetch_assoc() ?: null;
             $stmt->close();
             if ($user) {
                 if (function_exists('synchronizeAuthenticationIdentifier')) {
-                    synchronizeAuthenticationIdentifier($conn, (int)$user['id'], 'email', $normalized['value'], $user['email_verified_at'] ?? null);
+                    synchronizeAuthenticationIdentifier($conn, (int)$user['id'], 'mobile', $fmt09, $user['phone_verified_at'] ?? null);
                 }
                 return $user;
-            }
-        }
-    } elseif ($normalized['type'] === 'mobile') {
-        $storagePhone = normalizePhilippineMobileForStorage($normalized['value']);
-        $smsPhone = normalizePhilippineMobileForSms($normalized['value']);
-        $rawPhone = (string) $normalized['value'];
-        $countStmt = $conn->prepare('SELECT COUNT(*) as cnt FROM users WHERE phone_number = ? OR phone_number = ? OR phone_number = ?');
-        if ($countStmt) {
-            $countStmt->bind_param('sss', $rawPhone, $storagePhone, $smsPhone);
-            $countStmt->execute();
-            $cnt = (int) (($countStmt->get_result()->fetch_assoc())['cnt'] ?? 0);
-            $countStmt->close();
-            if ($cnt === 1) {
-                $stmt = $conn->prepare('SELECT * FROM users WHERE phone_number = ? OR phone_number = ? OR phone_number = ? LIMIT 1');
-                if ($stmt) {
-                    $stmt->bind_param('sss', $rawPhone, $storagePhone, $smsPhone);
-                    $stmt->execute();
-                    $user = $stmt->get_result()->fetch_assoc() ?: null;
-                    $stmt->close();
-                    if ($user) {
-                        if (function_exists('synchronizeAuthenticationIdentifier')) {
-                            synchronizeAuthenticationIdentifier($conn, (int)$user['id'], 'mobile', $storagePhone, $user['phone_verified_at'] ?? null);
-                        }
-                        return $user;
-                    }
-                }
             }
         }
     }
