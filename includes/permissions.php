@@ -123,6 +123,10 @@ function hasPermission($permission, $role = null) {
     if ($userId <= 0 || empty($_SESSION['fully_authenticated'])) {
         return false;
     }
+
+    if (isAdmin()) {
+        return true;
+    }
     if (!isset($userPermissionCache[$userId])) {
         $statement = $connection->prepare(
             'SELECT DISTINCT p.permission_key FROM user_roles ur JOIN role_permissions rp ON rp.role_id = ur.role_id JOIN permissions p ON p.permission_id = rp.permission_id WHERE ur.user_id = ?'
