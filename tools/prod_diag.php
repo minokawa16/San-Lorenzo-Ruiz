@@ -37,15 +37,28 @@ if ($action === 'add_user') {
     $check->close();
     
     if (!$existing) {
-        $stmt = $conn->prepare("INSERT INTO users (fullname, email, phone_number, password, role, status, is_verified, created_at) VALUES (?, ?, ?, ?, 'parishioner', 'active', 1, NOW())");
+        $cols = [];
+        $cres = $conn->query("SHOW COLUMNS FROM users");
+        while ($c = $cres->fetch_assoc()) $cols[] = $c['Field'];
+        echo "Users columns: " . implode(', ', $cols) . "\n";
+        
         $pw = password_hash('Parishioner@123', PASSWORD_DEFAULT);
-        $stmt->bind_param('ssss', $name, $email, $phone, $pw);
-        $stmt->execute();
-        $newId = $conn->insert_id;
-        $stmt->close();
-        echo "Created User #{$newId} ({$name}, {$phone}, {$email})\n";
-        synchronizeAuthenticationIdentifier($conn, $newId, 'mobile', $phone);
-        synchronizeAuthenticationIdentifier($conn, $newId, 'email', $email);
+        $insertSql = "INSERT INTO users (fullname, email, phone_number, password, role, status) VALUES (?, ?, ?, ?, 'parishioner', 'active')";
+        $stmt = $conn->prepare($insertSql);
+        if (!$stmt) {
+            echo "Prepare failed: " . $conn->error . "\n";
+        } else {
+            $stmt->bind_param('ssss', $name, $email, $phone, $pw);
+            if (!$stmt->execute()) {
+                echo "Execute failed: " . $stmt->error . "\n";
+            } else {
+                $newId = $conn->insert_id;
+                echo "Created User #{$newId} ({$name}, {$phone}, {$email})\n";
+                synchronizeAuthenticationIdentifier($conn, $newId, 'mobile', $phone);
+                synchronizeAuthenticationIdentifier($conn, $newId, 'email', $email);
+            }
+            $stmt->close();
+        }
     } else {
         $stmt = $conn->prepare("UPDATE users SET status = 'active', phone_number = ? WHERE id = ?");
         $stmt->bind_param('si', $phone, $existing['id']);
