@@ -20,13 +20,12 @@ if (!function_exists('defineSecurityConstant')) {
 // ===================================================================
 
 // Password Security
-defineSecurityConstant('PASSWORD_MIN_LENGTH', max($isProduction ? 12 : 8, (int) (getenv('PASSWORD_MIN_LENGTH') ?: 0)));
+defineSecurityConstant('PASSWORD_MIN_LENGTH', max(8, (int) (getenv('PASSWORD_MIN_LENGTH') ?: 8)));
 defineSecurityConstant('PASSWORD_REQUIRE_UPPERCASE', true);
 defineSecurityConstant('PASSWORD_REQUIRE_NUMBERS', true);
 defineSecurityConstant('PASSWORD_REQUIRE_SPECIAL_CHARS', true);
 defineSecurityConstant('PASSWORD_HASH_ALGO', PASSWORD_BCRYPT);
 defineSecurityConstant('PASSWORD_HASH_COST', 12); // Higher = more secure but slower
-
 // Session Security
 defineSecurityConstant('SESSION_TIMEOUT', 30 * 60); // 30 minutes in seconds
 defineSecurityConstant('SESSION_REGENERATE_INTERVAL', 5 * 60); // Regenerate every 5 minutes
