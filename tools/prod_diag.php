@@ -127,6 +127,43 @@ if ($action === 'test_login') {
     echo "\n";
 }
 
+if ($action === 'check_ai') {
+    echo "=== PRODUCTION AI DATABASE AUDIT ===\n";
+    $tables = ['chatbot_knowledge', 'chatbot_knowledge_meta', 'chatbot_inquiries', 'ai_responses', 'ai_feedback', 'roles', 'permissions', 'role_permissions', 'user_roles'];
+    foreach ($tables as $t) {
+        $res = $conn->query("SHOW TABLES LIKE '$t'");
+        if ($res && $res->num_rows > 0) {
+            $countRes = $conn->query("SELECT COUNT(*) c FROM `$t`");
+            $c = $countRes ? $countRes->fetch_assoc()['c'] : 0;
+            echo "Table `$t`: EXISTS with {$c} rows\n";
+        } else {
+            echo "Table `$t`: MISSING\n";
+        }
+    }
+
+    echo "\n=== PRODUCTION CHATBOT KNOWLEDGE RECORDS ===\n";
+    $res = $conn->query("SELECT knowledge_id, topic, category, status, approval_status FROM chatbot_knowledge ORDER BY knowledge_id");
+    if ($res) {
+        while ($r = $res->fetch_assoc()) {
+            echo "#{$r['knowledge_id']} | [{$r['category']}] {$r['topic']} | Status: {$r['status']} | Approval: " . ($r['approval_status'] ?? 'N/A') . "\n";
+        }
+    } else {
+        echo "Query failed: " . $conn->error . "\n";
+    }
+
+    echo "\n=== TESTING AI ASSISTANT SERVICE ON PRODUCTION ===\n";
+    require_once __DIR__ . '/../services/AiAssistantService.php';
+    try {
+        $svc = new AiAssistantService($conn);
+        $testCaps = ['staff' => true, 'admin' => true, 'records' => true, 'reports' => true, 'feedback' => true];
+        $testResp = $svc->respond(1, $testCaps, 'What are the requirements for baptism?', 'chat');
+        echo "Test Query Result:\n";
+        print_r($testResp);
+    } catch (Throwable $e) {
+        echo "AI Assistant Service Error: " . $e->getMessage() . "\n" . $e->getTraceAsString() . "\n";
+    }
+}
+
 echo "=== PRODUCTION USERS ===\n";
 $res = $conn->query("SELECT id, fullname, phone_number, email, role, status FROM users ORDER BY id");
 while ($r = $res->fetch_assoc()) {
