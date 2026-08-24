@@ -16,16 +16,19 @@ echo "TEXTBEE_API_KEY: " . (defined('TEXTBEE_API_KEY') ? substr(TEXTBEE_API_KEY,
 echo "TEXTBEE_DEVICE_ID: " . (defined('TEXTBEE_DEVICE_ID') ? TEXTBEE_DEVICE_ID : 'UNDEFINED') . "\n";
 echo "TEXTBEE_BASE_URL: " . (defined('TEXTBEE_BASE_URL') ? TEXTBEE_BASE_URL : 'UNDEFINED') . "\n\n";
 
+$action = $_GET['action'] ?? ($argv[1] ?? '');
+$paramPhone = $_GET['phone'] ?? ($argv[2] ?? '');
+
 // Action: sync / activate
-if (isset($_GET['action']) && $_GET['action'] === 'activate_all') {
+if ($action === 'activate_all') {
     $conn->query("UPDATE users SET status = 'active' WHERE status != 'active'");
     echo "All users updated to 'active' status.\n\n";
 }
 
-if (isset($_GET['action']) && $_GET['action'] === 'add_user') {
-    $phone = $_GET['phone'] ?? '09631237247';
-    $name = $_GET['name'] ?? 'Prince Ondoy';
-    $email = $_GET['email'] ?? 'princeondoy0@gmail.com';
+if ($action === 'add_user') {
+    $phone = $paramPhone ?: '09631237247';
+    $name = $_GET['name'] ?? ($argv[3] ?? 'Prince Ondoy');
+    $email = $_GET['email'] ?? ($argv[4] ?? 'princeondoy0@gmail.com');
     
     $check = $conn->prepare("SELECT id FROM users WHERE phone_number = ? OR email = ?");
     $check->bind_param('ss', $phone, $email);
@@ -44,12 +47,17 @@ if (isset($_GET['action']) && $_GET['action'] === 'add_user') {
         synchronizeAuthenticationIdentifier($conn, $newId, 'mobile', $phone);
         synchronizeAuthenticationIdentifier($conn, $newId, 'email', $email);
     } else {
-        echo "User already exists with ID #{$existing['id']}\n";
+        $stmt = $conn->prepare("UPDATE users SET status = 'active', phone_number = ? WHERE id = ?");
+        $stmt->bind_param('si', $phone, $existing['id']);
+        $stmt->execute();
+        $stmt->close();
+        synchronizeAuthenticationIdentifier($conn, $existing['id'], 'mobile', $phone);
+        echo "User already exists with ID #{$existing['id']} - updated to active\n";
     }
 }
 
-if (isset($_GET['action']) && $_GET['action'] === 'test_sms') {
-    $targetPhone = $_GET['phone'] ?? '09635866550';
+if ($action === 'test_sms') {
+    $targetPhone = $paramPhone ?: '09635866550';
     echo "Sending direct SMS to {$targetPhone} from Railway...\n";
     $smsResult = sendTugonSms($conn, $targetPhone, "TUGON Railway Test: TextBee is connected! Time: " . date('H:i:s'), 1, 'test');
     echo "Result: " . json_encode($smsResult) . "\n\n";
