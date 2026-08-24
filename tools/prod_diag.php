@@ -36,11 +36,11 @@ if ($action === 'unlock_all') {
     $conn->query("UPDATE users SET password = '{$hash}', status = 'active' WHERE phone_number = '{$targetPhone}' OR email = '{$targetPhone}'");
     echo "User 09635866550 password set to Reymark@123.\n";
 
-    // Ensure 09631237247 has Parishioner@123 password and active status
-    $adminPhone = '09631237247';
-    $adminHash = password_hash('Parishioner@123', PASSWORD_DEFAULT);
-    $conn->query("UPDATE users SET password = '{$adminHash}', status = 'active' WHERE phone_number = '{$adminPhone}' OR email = '{$adminPhone}' OR email = 'princeondoy0@gmail.com'");
-    echo "Admin 09631237247 password set to Parishioner@123.\n";
+    // Ensure tugonparish@gmail.com has Parishioner@123 password and active status
+    $tugonEmail = 'tugonparish@gmail.com';
+    $tugonHash = password_hash('Parishioner@123', PASSWORD_DEFAULT);
+    $conn->query("UPDATE users SET password = '{$tugonHash}', status = 'active', role = 'admin' WHERE email = '{$tugonEmail}'");
+    echo "Admin tugonparish@gmail.com password set to Parishioner@123.\n";
 
     // Synchronize identifiers
     $res = $conn->query("SELECT id, phone_number, email FROM users");
