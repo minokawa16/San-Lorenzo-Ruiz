@@ -4,6 +4,7 @@ declare(strict_types=1);
 /** Build the shared CSS artifact while retaining readable development sources. */
 $root = dirname(__DIR__);
 $sources = [
+    'assets/css/admin-sidebar.css',
     'assets/css/style.css',
     'assets/css/premium-parish.css',
     'assets/css/parish-design-system.css',
