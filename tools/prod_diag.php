@@ -37,18 +37,17 @@ if ($action === 'add_user') {
     $check->close();
     
     if (!$existing) {
-        $cols = [];
-        $cres = $conn->query("SHOW COLUMNS FROM users");
-        while ($c = $cres->fetch_assoc()) $cols[] = $c['Field'];
-        echo "Users columns: " . implode(', ', $cols) . "\n";
+        $u2 = $conn->query("SELECT role FROM users LIMIT 1")->fetch_assoc();
+        $validRole = $u2['role'] ?? 'user';
+        echo "Detected valid role: [{$validRole}]\n";
         
         $pw = password_hash('Parishioner@123', PASSWORD_DEFAULT);
-        $insertSql = "INSERT INTO users (fullname, email, phone_number, password, role, status) VALUES (?, ?, ?, ?, 'user', 'active')";
+        $insertSql = "INSERT INTO users (fullname, email, phone_number, password, role, status) VALUES (?, ?, ?, ?, ?, 'active')";
         $stmt = $conn->prepare($insertSql);
         if (!$stmt) {
             echo "Prepare failed: " . $conn->error . "\n";
         } else {
-            $stmt->bind_param('ssss', $name, $email, $phone, $pw);
+            $stmt->bind_param('sssss', $name, $email, $phone, $pw, $validRole);
             if (!$stmt->execute()) {
                 echo "Execute failed: " . $stmt->error . "\n";
             } else {
