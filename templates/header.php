@@ -214,7 +214,7 @@ $header_user_role = $is_admin_area ? 'Administrator' : 'Parishioner';
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Generated from readable source files by tools/build-assets.php. -->
     <?php $core_bundle = __DIR__ . '/../assets/css/tugon-core.bundle.min.css'; ?>
-    <link rel="stylesheet" href="../assets/css/tugon-core.bundle.min.css?v=<?php echo filemtime($core_bundle); ?>">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>assets/css/tugon-core.bundle.min.css?v=<?php echo file_exists($core_bundle) ? filemtime($core_bundle) : time(); ?>">
     <style id="critical-sidebar-colors">
         .admin-sidebar,
         .premium-admin-sidebar,
