@@ -225,7 +225,7 @@ $page_title = 'Registration Verification';
                             <div class="id-preview-pair">
                                 <?php if ($id_src): ?>
                                     <button class="verification-id-preview" type="button" data-bs-toggle="modal" data-bs-target="#idPreviewModal" data-id-src="<?php echo e($id_src); ?>" data-id-name="<?php echo e($user['fullname']); ?>" data-preview-title="Front Valid ID">
-                                        <img src="<?php echo e($id_src); ?>" alt="Front valid ID uploaded by <?php echo e($user['fullname']); ?>">
+                                        <img src="<?php echo e($id_src); ?>" alt="Front valid ID uploaded by <?php echo e($user['fullname']); ?>" onerror="this.onerror=null; this.src='../assets/img/document-placeholder.svg';">
                                         <span><i class="fas fa-id-card"></i> Front ID</span>
                                     </button>
                                 <?php else: ?>
@@ -234,7 +234,7 @@ $page_title = 'Registration Verification';
 
                                 <?php if ($id_back_src): ?>
                                     <button class="verification-id-preview" type="button" data-bs-toggle="modal" data-bs-target="#idPreviewModal" data-id-src="<?php echo e($id_back_src); ?>" data-id-name="<?php echo e($user['fullname']); ?>" data-preview-title="Back Valid ID">
-                                        <img src="<?php echo e($id_back_src); ?>" alt="Back valid ID uploaded by <?php echo e($user['fullname']); ?>">
+                                        <img src="<?php echo e($id_back_src); ?>" alt="Back valid ID uploaded by <?php echo e($user['fullname']); ?>" onerror="this.onerror=null; this.src='../assets/img/document-placeholder.svg';">
                                         <span><i class="fas fa-address-card"></i> Back ID</span>
                                     </button>
                                 <?php else: ?>
@@ -244,10 +244,11 @@ $page_title = 'Registration Verification';
 
                             <?php if ($face_src): ?>
                                 <button class="verification-id-preview face-preview mt-3" type="button" data-bs-toggle="modal" data-bs-target="#idPreviewModal" data-id-src="<?php echo e($face_src); ?>" data-id-name="<?php echo e($user['fullname']); ?>" data-preview-title="Live Face Capture">
-                                    <img src="<?php echo e($face_src); ?>" alt="Live face captured for <?php echo e($user['fullname']); ?>">
+                                    <img src="<?php echo e($face_src); ?>" alt="Live face captured for <?php echo e($user['fullname']); ?>" onerror="this.onerror=null; this.src='../assets/img/document-placeholder.svg';">
                                     <span><i class="fas fa-user-check"></i> Live face capture</span>
                                 </button>
                             <?php endif; ?>
+
 
 
                             </div>

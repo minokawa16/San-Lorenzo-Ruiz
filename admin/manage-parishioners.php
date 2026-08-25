@@ -224,16 +224,49 @@ $breadcrumbs = [
                                                     </div>
 
                                                     <div class="col-lg-6">
-                                                        <h6 class="fw-bold border-bottom pb-2 mb-3">Account Information</h6>
+                                                        <h6 class="fw-bold border-bottom pb-2 mb-3">Account &amp; Verification Details</h6>
                                                         <dl class="row mb-0">
-                                                            <dt class="col-sm-4">Registration Date</dt><dd class="col-sm-8"><?php echo e(parishionerDateTimeValue($parishioner['created_at'] ?? '')); ?></dd>
-                                                            <dt class="col-sm-4">Verification Status</dt><dd class="col-sm-8"><?php echo e(getUserStatusLabel($parishioner['status'])); ?></dd>
-                                                            <dt class="col-sm-4">Verified By</dt><dd class="col-sm-8"><?php echo e(parishionerValue($parishioner['verified_by_name'] ?? '')); ?></dd>
-                                                            <dt class="col-sm-4">Date Verified</dt><dd class="col-sm-8"><?php echo e(parishionerDateTimeValue($parishioner['verified_at'] ?? '')); ?></dd>
-                                                            <dt class="col-sm-4">Email Verified</dt><dd class="col-sm-8"><?php echo e(parishionerDateTimeValue($parishioner['email_verified_at'] ?? '')); ?></dd>
-                                                            <dt class="col-sm-4">Phone Verified</dt><dd class="col-sm-8"><?php echo e(parishionerDateTimeValue($parishioner['phone_verified_at'] ?? '')); ?></dd>
-                                                            <dt class="col-sm-4">Face Status</dt><dd class="col-sm-8"><?php echo e(parishionerValue($parishioner['face_verification_status'] ?? '')); ?></dd>
-                                                            <dt class="col-sm-4">Rejection Reason</dt><dd class="col-sm-8"><?php echo e(parishionerValue($parishioner['rejection_reason'] ?? '')); ?></dd>
+                                                            <dt class="col-sm-4">Date Registered</dt>
+                                                            <dd class="col-sm-8"><?php echo e(parishionerDateTimeValue($parishioner['created_at'] ?? '')); ?></dd>
+
+                                                            <dt class="col-sm-4">Verification Status</dt>
+                                                            <dd class="col-sm-8">
+                                                                <span class="badge bg-<?php echo e(getUserStatusBadgeClass($parishioner['status'])); ?>"><?php echo e(getUserStatusLabel($parishioner['status'])); ?></span>
+                                                            </dd>
+
+                                                            <dt class="col-sm-4">Date Verified</dt>
+                                                            <dd class="col-sm-8">
+                                                                <?php 
+                                                                    if (in_array($parishioner['status'], ['active', 'approved'], true)) {
+                                                                        $v_time = !empty($parishioner['verified_at']) ? $parishioner['verified_at'] : ($parishioner['updated_at'] ?? $parishioner['created_at']);
+                                                                        echo '<span class="fw-semibold">' . e(date('M d, Y h:i A', strtotime($v_time))) . '</span>';
+                                                                    } elseif ($parishioner['status'] === 'pending_verification') {
+                                                                        echo '<span class="badge bg-warning text-dark"><i class="fas fa-clock"></i> Pending Verification</span>';
+                                                                    } elseif ($parishioner['status'] === 'rejected') {
+                                                                        echo '<span class="badge bg-danger"><i class="fas fa-times-circle"></i> Rejected</span>';
+                                                                    } else {
+                                                                        echo e(ucfirst(str_replace('_', ' ', (string) $parishioner['status'])));
+                                                                    }
+                                                                ?>
+                                                            </dd>
+
+                                                            <dt class="col-sm-4"><?php echo ($parishioner['verification_method'] ?? '') === 'mobile' ? 'Registered Mobile' : 'Registered Email'; ?></dt>
+                                                            <dd class="col-sm-8">
+                                                                <span class="fw-semibold"><?php echo e(($parishioner['verification_method'] ?? '') === 'mobile' ? ($parishioner['phone_number'] ?: $parishioner['email'] ?: 'Not provided') : ($parishioner['email'] ?: $parishioner['phone_number'] ?: 'Not provided')); ?></span>
+                                                                <?php if (in_array($parishioner['status'], ['active', 'approved'], true) || !empty($parishioner['email_verified_at']) || !empty($parishioner['phone_verified_at'])): ?>
+                                                                    <span class="badge bg-success ms-1"><i class="fas fa-check-circle"></i> Verified</span>
+                                                                <?php else: ?>
+                                                                    <span class="badge bg-warning text-dark ms-1"><i class="fas fa-clock"></i> Pending</span>
+                                                                <?php endif; ?>
+                                                            </dd>
+
+                                                            <dt class="col-sm-4">Face Status</dt>
+                                                            <dd class="col-sm-8"><?php echo e(parishionerValue($parishioner['face_verification_status'] ?? '')); ?></dd>
+
+                                                            <?php if (!empty($parishioner['rejection_reason'])): ?>
+                                                                <dt class="col-sm-4">Rejection Reason</dt>
+                                                                <dd class="col-sm-8 text-danger"><?php echo e($parishioner['rejection_reason']); ?></dd>
+                                                            <?php endif; ?>
                                                         </dl>
                                                     </div>
 
@@ -243,7 +276,7 @@ $breadcrumbs = [
                                                             <?php if ($front_id_url): ?>
                                                                 <div class="col-md-4">
                                                                     <a href="<?php echo e($front_id_url); ?>" target="_blank" class="d-block text-decoration-none">
-                                                                        <img src="<?php echo e($front_id_url); ?>" class="img-thumbnail mb-2" alt="Valid ID front" style="height: 160px; width: 100%; object-fit: cover;">
+                                                                        <img src="<?php echo e($front_id_url); ?>" class="img-thumbnail mb-2" alt="Valid ID front" style="height: 160px; width: 100%; object-fit: cover;" onerror="this.onerror=null; this.src='../assets/img/document-placeholder.svg';">
                                                                         <span class="btn btn-sm btn-outline-primary w-100">Open Valid ID Front</span>
                                                                     </a>
                                                                 </div>
@@ -251,7 +284,7 @@ $breadcrumbs = [
                                                             <?php if ($back_id_url): ?>
                                                                 <div class="col-md-4">
                                                                     <a href="<?php echo e($back_id_url); ?>" target="_blank" class="d-block text-decoration-none">
-                                                                        <img src="<?php echo e($back_id_url); ?>" class="img-thumbnail mb-2" alt="Valid ID back" style="height: 160px; width: 100%; object-fit: cover;">
+                                                                        <img src="<?php echo e($back_id_url); ?>" class="img-thumbnail mb-2" alt="Valid ID back" style="height: 160px; width: 100%; object-fit: cover;" onerror="this.onerror=null; this.src='../assets/img/document-placeholder.svg';">
                                                                         <span class="btn btn-sm btn-outline-primary w-100">Open Valid ID Back</span>
                                                                     </a>
                                                                 </div>
@@ -259,7 +292,7 @@ $breadcrumbs = [
                                                             <?php if ($face_url): ?>
                                                                 <div class="col-md-4">
                                                                     <a href="<?php echo e($face_url); ?>" target="_blank" class="d-block text-decoration-none">
-                                                                        <img src="<?php echo e($face_url); ?>" class="img-thumbnail mb-2" alt="Face verification image" style="height: 160px; width: 100%; object-fit: cover;">
+                                                                        <img src="<?php echo e($face_url); ?>" class="img-thumbnail mb-2" alt="Face verification image" style="height: 160px; width: 100%; object-fit: cover;" onerror="this.onerror=null; this.src='../assets/img/document-placeholder.svg';">
                                                                         <span class="btn btn-sm btn-outline-primary w-100">Open Face Image</span>
                                                                     </a>
                                                                 </div>

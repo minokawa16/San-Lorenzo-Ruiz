@@ -244,15 +244,52 @@ $breadcrumbs = [
                                         <div class="col-md-6">
                                             <h6 class="fw-bold border-bottom pb-2 mb-3">Account &amp; Verification Details</h6>
                                             <div class="row g-3">
-                                                <div class="col-sm-6"><div class="text-muted small">Date Registered / Joined</div><div class="fw-semibold"><?php echo e(userDetailDateTime($user['created_at'] ?? '')); ?></div></div>
+                                                <div class="col-sm-6">
+                                                    <div class="text-muted small">Date Registered / Joined</div>
+                                                    <div class="fw-semibold"><?php echo e(userDetailDateTime($user['created_at'] ?? '')); ?></div>
+                                                </div>
                                                 <div class="col-sm-6">
                                                     <div class="text-muted small">Verification Status</div>
                                                     <span class="badge bg-<?php echo e(getUserStatusBadgeClass($user['status'])); ?>"><?php echo e(getUserStatusLabel($user['status'])); ?></span>
                                                 </div>
-                                                <div class="col-sm-6"><div class="text-muted small">Verified By</div><div class="fw-semibold"><?php echo e(userDetailValue($user['verified_by_name'] ?? '')); ?></div></div>
-                                                <div class="col-sm-6"><div class="text-muted small">Date Verified</div><div class="fw-semibold"><?php echo e(userDetailDateTime($user['verified_at'] ?? '')); ?></div></div>
-                                                <div class="col-sm-6"><div class="text-muted small">Email Verified</div><div class="fw-semibold"><?php echo e(userDetailDateTime($user['email_verified_at'] ?? '')); ?></div></div>
-                                                <div class="col-sm-6"><div class="text-muted small">Phone Verified</div><div class="fw-semibold"><?php echo e(userDetailDateTime($user['phone_verified_at'] ?? '')); ?></div></div>
+                                                <div class="col-sm-6">
+                                                    <div class="text-muted small">Date Verified</div>
+                                                    <div>
+                                                        <?php 
+                                                            if (in_array($user['status'], ['active', 'approved'], true)) {
+                                                                $v_time = !empty($user['verified_at']) ? $user['verified_at'] : ($user['updated_at'] ?? $user['created_at']);
+                                                                echo '<span class="fw-semibold">' . e(date('M d, Y h:i A', strtotime($v_time))) . '</span>';
+                                                            } elseif ($user['status'] === 'pending_verification') {
+                                                                echo '<span class="badge bg-warning text-dark"><i class="fas fa-clock"></i> Pending Verification</span>';
+                                                            } elseif ($user['status'] === 'rejected') {
+                                                                echo '<span class="badge bg-danger"><i class="fas fa-times-circle"></i> Rejected</span>';
+                                                            } else {
+                                                                echo e(ucfirst(str_replace('_', ' ', (string) $user['status'])));
+                                                            }
+                                                        ?>
+                                                    </div>
+                                                </div>
+                                                <div class="col-sm-6">
+                                                    <div class="text-muted small"><?php echo ($user['verification_method'] ?? '') === 'mobile' ? 'Registered Mobile' : 'Registered Email'; ?></div>
+                                                    <div class="fw-semibold">
+                                                        <?php echo e(($user['verification_method'] ?? '') === 'mobile' ? ($user['phone_number'] ?: $user['email'] ?: 'Not provided') : ($user['email'] ?: $user['phone_number'] ?: 'Not provided')); ?>
+                                                        <?php if (in_array($user['status'], ['active', 'approved'], true) || !empty($user['email_verified_at']) || !empty($user['phone_verified_at'])): ?>
+                                                            <span class="badge bg-success ms-1"><i class="fas fa-check-circle"></i> Verified</span>
+                                                        <?php else: ?>
+                                                            <span class="badge bg-warning text-dark ms-1"><i class="fas fa-clock"></i> Pending</span>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                </div>
+                                                <div class="col-sm-6">
+                                                    <div class="text-muted small">Face Status</div>
+                                                    <div class="fw-semibold"><?php echo e(userDetailValue($user['face_verification_status'] ?? '')); ?></div>
+                                                </div>
+                                                <?php if (!empty($user['rejection_reason'])): ?>
+                                                    <div class="col-sm-6">
+                                                        <div class="text-muted small">Rejection Reason</div>
+                                                        <div class="text-danger fw-semibold"><?php echo e($user['rejection_reason']); ?></div>
+                                                    </div>
+                                                <?php endif; ?>
                                             </div>
                                         </div>
 
@@ -265,7 +302,7 @@ $breadcrumbs = [
                                                     <?php if ($front_id_url): ?>
                                                         <div class="col-md-4">
                                                             <a href="<?php echo e($front_id_url); ?>" target="_blank" class="d-block text-decoration-none">
-                                                                <img src="<?php echo e($front_id_url); ?>" class="img-thumbnail mb-2" alt="Valid ID front" style="height: 150px; width: 100%; object-fit: cover;">
+                                                                <img src="<?php echo e($front_id_url); ?>" class="img-thumbnail mb-2" alt="Valid ID front" style="height: 150px; width: 100%; object-fit: cover;" onerror="this.onerror=null; this.src='../assets/img/document-placeholder.svg';">
                                                                 <span class="btn btn-sm btn-outline-primary w-100">Open Valid ID Front</span>
                                                             </a>
                                                         </div>
@@ -273,7 +310,7 @@ $breadcrumbs = [
                                                     <?php if ($back_id_url): ?>
                                                         <div class="col-md-4">
                                                             <a href="<?php echo e($back_id_url); ?>" target="_blank" class="d-block text-decoration-none">
-                                                                <img src="<?php echo e($back_id_url); ?>" class="img-thumbnail mb-2" alt="Valid ID back" style="height: 150px; width: 100%; object-fit: cover;">
+                                                                <img src="<?php echo e($back_id_url); ?>" class="img-thumbnail mb-2" alt="Valid ID back" style="height: 150px; width: 100%; object-fit: cover;" onerror="this.onerror=null; this.src='../assets/img/document-placeholder.svg';">
                                                                 <span class="btn btn-sm btn-outline-primary w-100">Open Valid ID Back</span>
                                                             </a>
                                                         </div>
@@ -281,7 +318,7 @@ $breadcrumbs = [
                                                     <?php if ($face_url): ?>
                                                         <div class="col-md-4">
                                                             <a href="<?php echo e($face_url); ?>" target="_blank" class="d-block text-decoration-none">
-                                                                <img src="<?php echo e($face_url); ?>" class="img-thumbnail mb-2" alt="Face verification image" style="height: 150px; width: 100%; object-fit: cover;">
+                                                                <img src="<?php echo e($face_url); ?>" class="img-thumbnail mb-2" alt="Face verification image" style="height: 150px; width: 100%; object-fit: cover;" onerror="this.onerror=null; this.src='../assets/img/document-placeholder.svg';">
                                                                 <span class="btn btn-sm btn-outline-primary w-100">Open Face Image</span>
                                                             </a>
                                                         </div>
