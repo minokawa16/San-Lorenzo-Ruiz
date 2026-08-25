@@ -373,6 +373,17 @@ $has_logo = is_file($logo_file);
             box-shadow: 0 0 0 4px rgba(212, 169, 78, 0.18) !important;
         }
 
+        /* Hide native browser password reveal button in Edge/IE/WebKit */
+        input[type="password"]::-ms-reveal,
+        input[type="password"]::-ms-clear,
+        input::-ms-reveal,
+        input::-ms-clear {
+            display: none !important;
+            width: 0 !important;
+            height: 0 !important;
+            pointer-events: none !important;
+        }
+
         .auth-password-toggle {
             position: absolute !important;
             right: 8px !important;

@@ -877,6 +877,18 @@ $has_logo = is_file($logo_file);
             gap: 10px;
         }
 
+        /* Hide native browser password reveal button in Edge/IE/WebKit */
+        input[type="password"]::-ms-reveal,
+        input[type="password"]::-ms-clear,
+        input::-ms-reveal,
+        input::-ms-clear {
+            display: none !important;
+            width: 0 !important;
+            height: 0 !important;
+            pointer-events: none !important;
+        }
+
+
         .id-side-upload {
             position: relative;
             display: inline-flex;
@@ -2490,6 +2502,7 @@ $has_logo = is_file($logo_file);
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script defer src="<?php echo e(BASE_URL); ?>assets/js/face-verification.js?v=20260822-deploy"></script>
+    <script defer src="<?php echo e(BASE_URL); ?>assets/js/id-scanner.js?v=20260826"></script>
     <script>
         const registrationVerificationId = <?php echo json_encode($registration_verification_id); ?>;
         const csrfTokenName = <?php echo json_encode(csrfTokenName()); ?>;
@@ -2749,10 +2762,13 @@ $has_logo = is_file($logo_file);
             faceMatchStatusInput.value = type === 'success' ? 'matched' : (type === 'error' ? 'mismatch' : 'admin_review');
         }
 
-        function setIdOcrStatus(type, message) {
+        function setIdOcrStatus(type, message, aiEnhanced) {
             idOcrStatus.className = 'id-ocr-status ' + type;
             const icon = type === 'success' ? 'fa-circle-check' : (type === 'error' ? 'fa-circle-xmark' : 'fa-id-card-clip');
-            idOcrStatus.innerHTML = '<i class="fas ' + icon + '"></i><span>' + message + '</span>';
+            const aiBadge = aiEnhanced
+                ? ' <span style="display:inline-flex;align-items:center;gap:4px;background:linear-gradient(135deg,#D4A94E,#B07D2A);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:12px;letter-spacing:.4px;vertical-align:middle">✦ AI Enhanced</span>'
+                : '';
+            idOcrStatus.innerHTML = '<i class="fas ' + icon + '"></i><span>' + message + aiBadge + '</span>';
             idOcrStatusInput.value = type === 'success' ? 'verified' : (type === 'error' ? 'mismatch' : 'pending');
         }
 
@@ -3026,13 +3042,17 @@ $has_logo = is_file($logo_file);
 
                 const changedTotal = correctedCount + filledCount;
                 const readSummary = readLabels.length ? ' Read: ' + readLabels.join(', ') + '.' : '';
+                const isAiEnhanced = Boolean(data.ai_enhanced);
+                const idTypeLabel = data.id_type_detected ? ' (' + data.id_type_detected + ')' : '';
                 if (uncertainLabels.length) {
-                    setIdOcrStatus('warning', 'Some ID text needs your review: ' + uncertainLabels.join(', ') + '. Retake the ID closer and in bright, even light if a value is wrong.' + readSummary);
+                    setIdOcrStatus('warning', 'Some ID text needs your review: ' + uncertainLabels.join(', ') + '. Retake the ID closer and in bright, even light if a value is wrong.' + readSummary, isAiEnhanced);
                     return;
                 }
                 setIdOcrStatus('success', changedTotal > 0
-                    ? 'ID scanned successfully and filled the registration details.' + readSummary
-                    : 'ID scanned successfully. Typed details match the readable ID fields.' + readSummary);
+                    ? 'ID scanned successfully' + idTypeLabel + ' and filled the registration details.' + readSummary
+                    : 'ID scanned successfully' + idTypeLabel + '. Typed details match the readable ID fields.' + readSummary,
+                    isAiEnhanced
+                );
             } catch (error) {
                 const rawMessage = error && error.message ? error.message : '';
                 const message = rawMessage || 'The ID text could not be scanned.';
@@ -3380,21 +3400,53 @@ $has_logo = is_file($logo_file);
             }
         }
 
-        captureIdFrontBtn.addEventListener('click', () => {
+        captureIdFrontBtn.addEventListener('click', async () => {
             if (verificationMode !== 'id') return;
             try {
-                activeIdSide = 'front';
-                updateIdSide('front', captureFrame('id'));
+                // Try GCash-style scanner modal first; fall back to captureFrame on cancel
+                if (window.IDScanner) {
+                    setCameraStatus('Opening ID scanner…');
+                    try {
+                        const dataUrl = await window.IDScanner.openModal('front');
+                        updateIdSide('front', dataUrl);
+                    } catch (scanErr) {
+                        if (scanErr.message !== 'Scanner cancelled.') {
+                            // Fallback to legacy in-frame capture if scanner fails
+                            activeIdSide = 'front';
+                            updateIdSide('front', captureFrame('id'));
+                        } else {
+                            setCameraStatus('Scanner closed. Capture or upload the front side of the ID.');
+                        }
+                    }
+                } else {
+                    activeIdSide = 'front';
+                    updateIdSide('front', captureFrame('id'));
+                }
             } catch (error) {
                 setCameraStatus(error.message, true);
             }
         });
 
-        captureIdBackBtn.addEventListener('click', () => {
+        captureIdBackBtn.addEventListener('click', async () => {
             if (verificationMode !== 'id') return;
             try {
-                activeIdSide = 'back';
-                updateIdSide('back', captureFrame('id'));
+                if (window.IDScanner) {
+                    setCameraStatus('Opening ID scanner…');
+                    try {
+                        const dataUrl = await window.IDScanner.openModal('back');
+                        updateIdSide('back', dataUrl);
+                    } catch (scanErr) {
+                        if (scanErr.message !== 'Scanner cancelled.') {
+                            activeIdSide = 'back';
+                            updateIdSide('back', captureFrame('id'));
+                        } else {
+                            setCameraStatus('Scanner closed. Capture or upload the back side of the ID.');
+                        }
+                    }
+                } else {
+                    activeIdSide = 'back';
+                    updateIdSide('back', captureFrame('id'));
+                }
             } catch (error) {
                 setCameraStatus(error.message, true);
             }

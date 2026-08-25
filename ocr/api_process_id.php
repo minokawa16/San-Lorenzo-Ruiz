@@ -110,6 +110,7 @@ if (session_status() === PHP_SESSION_NONE) {
 require_once dirname(__DIR__) . '/config/security.php';
 require_once dirname(__DIR__) . '/includes/helpers.php';
 require_once __DIR__ . '/IDOCRProcessor.php';
+require_once __DIR__ . '/AIExtractor.php';
 
 // ---- basic guards ----
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -234,12 +235,57 @@ try {
         $idData['birth_place'] = inferBirthPlaceFromAddress($idData['address'] ?? null);
         $idData['field_confidence']['birth_place'] = 0.45;
     }
+
+    // ── AI Layer: pass raw OCR text through Gemini for noise correction ──
+    $aiEnhanced    = false;
+    $idTypeDetected = null;
+    $confidenceScore = null;
+    $rawOcrText = trim((string) ($idData['raw_text'] ?? ''));
+    if ($rawOcrText !== '') {
+        try {
+            $extractor = new AIExtractor();
+            $aiResult  = $extractor->parse($rawOcrText);
+            if ($aiResult !== null) {
+                $aiEnhanced     = true;
+                $idTypeDetected = $aiResult['id_type_detected'] ?? null;
+                $confidenceScore = $aiResult['confidence_score'] ?? null;
+                // Merge: AI result wins on non-null values (higher quality)
+                $aiFieldMap = [
+                    'first_name'    => 'first_name',
+                    'middle_name'   => 'middle_name',
+                    'last_name'     => 'last_name',
+                    'id_number'     => 'id_number',
+                    'date_of_birth' => 'date_of_birth',
+                    'address'       => 'address',
+                    'birth_place'   => 'birth_place',
+                ];
+                foreach ($aiFieldMap as $aiKey => $idKey) {
+                    $aiVal = $aiResult[$aiKey] ?? null;
+                    if ($aiVal !== null && $aiVal !== '') {
+                        $idData[$idKey] = $aiVal;
+                        // Boost confidence to 0.95 for AI-verified fields
+                        if (isset($idData['field_confidence'][$idKey])) {
+                            $idData['field_confidence'][$idKey] = 0.95;
+                        }
+                    }
+                }
+            }
+        } catch (Throwable $aiError) {
+            // AI failure is non-fatal — log and continue with regex result
+            error_log('[api_process_id] AIExtractor failed: ' . $aiError->getMessage());
+        }
+    }
+
     $comparison = $processor->compareAll($formData, $idData);
 
+    $publicIdData = array_diff_key($idData, ['raw_text' => true]);
     $responsePayload = [
-        'success'       => true,
-        'id_data'       => array_diff_key($idData, ['raw_text' => true]),
-        'comparison'    => $comparison,    // per-field status + final_value to use
+        'success'          => true,
+        'id_data'          => $publicIdData,
+        'comparison'       => $comparison,
+        'ai_enhanced'      => $aiEnhanced,
+        'id_type_detected' => $idTypeDetected,
+        'confidence_score' => $confidenceScore,
     ];
 } catch (Throwable $e) {
     $responseStatus = 500;

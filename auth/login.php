@@ -1236,6 +1236,17 @@ $action_notifications = function_exists('consumeActionNotifications') ? consumeA
             padding-right: 48px !important;
         }
 
+        /* Hide native browser password reveal button in Edge/IE/WebKit */
+        input[type="password"]::-ms-reveal,
+        input[type="password"]::-ms-clear,
+        input::-ms-reveal,
+        input::-ms-clear {
+            display: none !important;
+            width: 0 !important;
+            height: 0 !important;
+            pointer-events: none !important;
+        }
+
         .auth-password-toggle {
             position: absolute !important;
             right: 8px !important;
@@ -1288,89 +1299,86 @@ $action_notifications = function_exists('consumeActionNotifications') ? consumeA
                 <p>Sign in to access your Parish Management System account.</p>
             </div>
 
-                        <?php if ($error): ?>
-                            <div class="alert alert-danger alert-dismissible fade show auth-message" role="alert">
-                                <i class="fas fa-exclamation-circle"></i> <?php echo e($error); ?>
-                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            </div>
-                        <?php endif; ?>
+            <?php if ($error): ?>
+                <div class="alert alert-danger alert-dismissible fade show auth-message" role="alert">
+                    <i class="fas fa-exclamation-circle"></i> <?php echo e($error); ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            <?php endif; ?>
 
-                        <?php if ($notice): ?>
-                            <div class="alert alert-success alert-dismissible fade show auth-message" role="alert">
-                                <i class="fas fa-check-circle"></i> <?php echo e($notice); ?>
-                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            </div>
-                        <?php endif; ?>
+            <?php if ($notice): ?>
+                <div class="alert alert-success alert-dismissible fade show auth-message" role="alert">
+                    <i class="fas fa-check-circle"></i> <?php echo e($notice); ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            <?php endif; ?>
 
-                        <?php if ($status_error): ?>
-                            <div class="alert alert-danger alert-dismissible fade show auth-message" role="alert">
-                                <i class="fas fa-circle-exclamation"></i> <?php echo e($status_error); ?>
-                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            </div>
-                        <?php endif; ?>
+            <?php if ($status_error): ?>
+                <div class="alert alert-danger alert-dismissible fade show auth-message" role="alert">
+                    <i class="fas fa-circle-exclamation"></i> <?php echo e($status_error); ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            <?php endif; ?>
 
-                        <?php if ($status_notice): ?>
-                            <div class="alert alert-info alert-dismissible fade show auth-message" role="status">
-                                <i class="fas fa-circle-info"></i> <?php echo e($status_notice); ?>
-                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            </div>
-                        <?php endif; ?>
+            <?php if ($status_notice): ?>
+                <div class="alert alert-info alert-dismissible fade show auth-message" role="status">
+                    <i class="fas fa-circle-info"></i> <?php echo e($status_notice); ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            <?php endif; ?>
 
             <form method="POST" action="" class="auth-form">
-                            <?php echo csrfInput(); ?>
-                            <input type="hidden" name="form_action" value="login">
-                            <div class="auth-field">
-                                <label for="email" class="form-label">Email Address or Mobile Number</label>
-                                <div class="auth-input-wrap">
-                                    <i class="fas fa-envelope"></i>
-                                    <input type="text" class="form-control" id="email" name="email" value="<?php echo $identifier_input; ?>" autocomplete="username" placeholder="name@gmail.com or 09XXXXXXXXX" required autofocus>
-                                </div>
-                            </div>
+                <?php echo csrfInput(); ?>
+                <input type="hidden" name="form_action" value="login">
+                <div class="auth-field">
+                    <label for="email" class="form-label">Email Address or Mobile Number</label>
+                    <div class="auth-input-wrap">
+                        <i class="fas fa-envelope"></i>
+                        <input type="text" class="form-control" id="email" name="email" value="<?php echo $identifier_input; ?>" autocomplete="username" placeholder="name@gmail.com or 09XXXXXXXXX" required autofocus>
+                    </div>
+                </div>
 
-                            <div class="auth-field">
-                                <label for="password" class="form-label">Password</label>
-                                <div class="auth-input-wrap">
-                                    <i class="fas fa-lock"></i>
-                                    <input type="password" class="form-control" id="password" name="password" autocomplete="current-password" placeholder="Enter your password" required>
-                                    <button type="button" class="auth-password-toggle" data-toggle-password="password" aria-label="Show password">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                </div>
-                            </div>
+                <div class="auth-field">
+                    <label for="password" class="form-label">Password</label>
+                    <div class="auth-input-wrap">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" class="form-control" id="password" name="password" autocomplete="current-password" placeholder="Enter your password" required>
+                    </div>
+                </div>
 
-                            <div class="auth-options">
-                                <label class="auth-check" for="remember">
-                                    <input type="checkbox" id="remember" name="remember">
-                                    <span>Keep me signed in</span>
-                                </label>
-                                <a href="forgot-password.php" class="auth-link">Forgot Password?</a>
-                            </div>
+                <div class="auth-options">
+                    <label class="auth-check" for="remember">
+                        <input type="checkbox" id="remember" name="remember">
+                        <span>Keep me signed in</span>
+                    </label>
+                    <a href="forgot-password.php" class="auth-link">Forgot Password?</a>
+                </div>
 
-                            <button type="submit" class="auth-submit" name="login">
-                                <span class="desktop-auth-only">Access Dashboard</span><span class="mobile-auth-only">Sign In</span> <i class="fas fa-arrow-right"></i>
-                            </button>
-                        </form>
+                <button type="submit" class="auth-submit" name="login">
+                    <span class="desktop-auth-only">Access Dashboard</span><span class="mobile-auth-only">Sign In</span> <i class="fas fa-arrow-right"></i>
+                </button>
+            </form>
 
-                        <div class="auth-verification-actions">
-                            <p class="auth-status-prompt">Need to check an existing request?</p>
-                            <button type="button" class="auth-social-btn auth-status-btn" id="checkStatusToggle"><i class="fas fa-magnifying-glass"></i> Check Request Status <i class="fas fa-arrow-right"></i></button>
-                            <a href="../index.php" class="auth-home-link"><i class="fas fa-arrow-left"></i> Back to Homepage</a>
-                        </div>
+            <div class="auth-verification-actions">
+                <p class="auth-status-prompt">Need to check an existing request?</p>
+                <button type="button" class="auth-social-btn auth-status-btn" id="checkStatusToggle"><i class="fas fa-magnifying-glass"></i> Check Request Status <i class="fas fa-arrow-right"></i></button>
+                <a href="../index.php" class="auth-home-link"><i class="fas fa-arrow-left"></i> Back to Homepage</a>
+            </div>
 
-                        <form method="POST" action="" class="auth-form" id="checkStatusForm" style="<?php echo ($status_error || $status_notice) ? '' : 'display:none;'; ?> margin-top: 14px;">
-                            <?php echo csrfInput(); ?>
-                            <input type="hidden" name="form_action" value="check_status">
-                            <div class="auth-field">
-                                <label for="status_email" class="form-label">Check Registration Status</label>
-                                <div class="auth-input-wrap">
-                                    <i class="fas fa-envelope-circle-check"></i>
-                                    <input type="text" class="form-control" id="status_email" name="status_email" value="<?php echo $status_email_input; ?>" autocomplete="username" placeholder="Enter your registered email or mobile number">
-                                </div>
-                            </div>
-                            <button type="submit" class="auth-submit">
-                                <i class="fas fa-magnifying-glass"></i> Check Account
-                            </button>
-                        </form>
+            <form method="POST" action="" class="auth-form" id="checkStatusForm" style="<?php echo ($status_error || $status_notice) ? '' : 'display:none;'; ?> margin-top: 14px;">
+                <?php echo csrfInput(); ?>
+                <input type="hidden" name="form_action" value="check_status">
+                <div class="auth-field">
+                    <label for="status_email" class="form-label">Check Registration Status</label>
+                    <div class="auth-input-wrap">
+                        <i class="fas fa-envelope-circle-check"></i>
+                        <input type="text" class="form-control" id="status_email" name="status_email" value="<?php echo $status_email_input; ?>" autocomplete="username" placeholder="Enter your registered email or mobile number">
+                    </div>
+                </div>
+                <button type="submit" class="auth-submit">
+                    <i class="fas fa-magnifying-glass"></i> Check Account
+                </button>
+            </form>
 
                         <p class="auth-switch">
                             New Parishioner? <a href="register.php">Create an Account <i class="fas fa-arrow-right"></i></a>

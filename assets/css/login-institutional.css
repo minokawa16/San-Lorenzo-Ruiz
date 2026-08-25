@@ -702,3 +702,15 @@ body.auth-cinematic-page .auth-login-card > * {
         transition-duration: 0.01ms !important;
     }
 }
+
+/* Hide native browser password reveal button in Edge/IE/WebKit */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear,
+input::-ms-reveal,
+input::-ms-clear {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    pointer-events: none !important;
+}
+
