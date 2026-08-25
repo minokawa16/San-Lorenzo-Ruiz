@@ -1193,6 +1193,64 @@ $action_notifications = function_exists('consumeActionNotifications') ? consumeA
                 font-size: 34px !important;
             }
         }
+
+        /* --- GLOBAL INPUT & PREFIX ICON STANDARDIZATION --- */
+        .auth-input-wrap {
+            position: relative !important;
+            display: block !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            box-sizing: border-box !important;
+        }
+
+        .auth-input-wrap > i:first-child,
+        .auth-input-wrap i {
+            position: absolute !important;
+            left: 14px !important;
+            top: 50% !important;
+            transform: translateY(-50%) !important;
+            width: 20px !important;
+            height: 20px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            text-align: center !important;
+            pointer-events: none !important;
+            z-index: 5 !important;
+            font-size: 15px !important;
+            margin: 0 !important;
+        }
+
+        .auth-input-wrap .form-control {
+            display: block !important;
+            width: 100% !important;
+            min-height: 48px !important;
+            padding: 10px 16px 10px 44px !important; /* CRITICAL: 44px clears prefix icon completely */
+            box-sizing: border-box !important;
+            line-height: 1.5 !important;
+        }
+
+        .auth-input-wrap:has(.auth-password-toggle) .form-control,
+        .auth-input-wrap:has(button) .form-control {
+            padding-right: 48px !important;
+        }
+
+        .auth-password-toggle {
+            position: absolute !important;
+            right: 8px !important;
+            top: 50% !important;
+            transform: translateY(-50%) !important;
+            width: 36px !important;
+            height: 36px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            background: transparent !important;
+            border: none !important;
+            cursor: pointer !important;
+            z-index: 6 !important;
+        }
     </style>
     <link rel="stylesheet" href="../assets/css/login-institutional.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/login-institutional.css'); ?>">
     <link rel="stylesheet" href="../assets/css/auth-mobile.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/auth-mobile.css'); ?>">

@@ -1976,6 +1976,143 @@ $has_logo = is_file($logo_file);
         .auth-register-card .login-link a {
             color: var(--register-link) !important;
         }
+
+        /* --- GLOBAL INPUT & PREFIX ICON ALIGNMENT STANDARDIZATION --- */
+        .input-wrap,
+        .auth-register-card .input-wrap {
+            position: relative !important;
+            display: block !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            box-sizing: border-box !important;
+        }
+
+        .input-wrap .field-icon,
+        .input-wrap > i:first-child,
+        .auth-register-card .input-wrap .field-icon,
+        .auth-register-card .field-icon {
+            position: absolute !important;
+            left: 14px !important;
+            top: 50% !important;
+            transform: translateY(-50%) !important;
+            width: 20px !important;
+            height: 20px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            text-align: center !important;
+            pointer-events: none !important;
+            z-index: 5 !important;
+            font-size: 15px !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            background: transparent !important;
+        }
+
+        .register-card .form-control,
+        .register-card .form-select,
+        .auth-register-card .form-control,
+        .auth-register-card .form-select,
+        .auth-register-card #chapel_district,
+        .input-wrap .form-control,
+        .input-wrap .form-select {
+            display: block !important;
+            width: 100% !important;
+            min-height: 48px !important;
+            padding: 10px 16px 10px 44px !important; /* CRITICAL: Clears prefix icon cleanly */
+            box-sizing: border-box !important;
+            line-height: 1.5 !important;
+        }
+
+        .register-card .form-select,
+        .auth-register-card .form-select,
+        .auth-register-card #chapel_district,
+        .input-wrap .form-select {
+            padding-right: 40px !important;
+            background-position: right 14px center !important;
+        }
+
+        .input-wrap.password .form-control,
+        .auth-register-card .input-wrap.password .form-control {
+            padding-right: 48px !important;
+        }
+
+        .password-toggle,
+        .auth-register-card .password-toggle,
+        .input-wrap .password-toggle {
+            position: absolute !important;
+            right: 8px !important;
+            top: 50% !important;
+            transform: translateY(-50%) !important;
+            width: 36px !important;
+            height: 36px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            background: transparent !important;
+            border: none !important;
+            border-radius: 8px !important;
+            cursor: pointer !important;
+            z-index: 6 !important;
+        }
+
+        /* --- VERIFICATION METHOD RADIO SELECTORS --- */
+        .verification-options,
+        .auth-register-card .verification-options {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 12px !important;
+            width: 100% !important;
+        }
+
+        @media (max-width: 680px) {
+            .verification-options,
+            .auth-register-card .verification-options {
+                grid-template-columns: 1fr !important;
+            }
+        }
+
+        .verification-option,
+        .auth-register-card .verification-option {
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: center !important;
+            gap: 12px !important;
+            min-height: 52px !important;
+            padding: 10px 16px !important;
+            border-radius: 10px !important;
+            cursor: pointer !important;
+            box-sizing: border-box !important;
+        }
+
+        .verification-option input[type="radio"],
+        .auth-register-card .verification-option input[type="radio"] {
+            width: 18px !important;
+            height: 18px !important;
+            flex: 0 0 18px !important;
+            margin: 0 !important;
+            cursor: pointer !important;
+        }
+
+        .verification-option span,
+        .auth-register-card .verification-option span {
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 10px !important;
+            font-weight: 600 !important;
+            font-size: 0.92rem !important;
+            line-height: 1.3 !important;
+            min-width: 0 !important;
+            flex: 1 1 auto !important;
+        }
+
+        .verification-option span i,
+        .auth-register-card .verification-option span i {
+            font-size: 1.05rem !important;
+            flex: 0 0 auto !important;
+        }
     </style>
     <link rel="stylesheet" href="../assets/css/auth-mobile.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/auth-mobile.css'); ?>">
 </head>

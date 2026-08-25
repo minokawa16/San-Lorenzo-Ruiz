@@ -210,103 +210,6 @@ $has_logo = is_file($logo_file);
         .auth-eyebrow {
             background: rgba(8, 115, 154, 0.12) !important;
             border: 1px solid rgba(8, 115, 154, 0.24) !important;
-            color: var(--reset-text) !important;
-            font-size: 14px !important;
-            font-weight: 600 !important;
-        }
-
-        .auth-eyebrow i,
-        .auth-brand-mark i,
-        .auth-input-wrap i {
-            color: var(--reset-teal) !important;
-        }
-
-        .auth-card-header h1 {
-            color: var(--reset-text) !important;
-            font-family: "Inter", "Segoe UI", Arial, sans-serif !important;
-            font-size: clamp(28px, 4vw, 36px) !important;
-            font-weight: 700 !important;
-            line-height: 1.25 !important;
-            letter-spacing: 0 !important;
-        }
-
-        .auth-card-header p,
-        .auth-switch {
-            color: var(--reset-muted) !important;
-            font-size: 16px !important;
-            line-height: 1.6 !important;
-        }
-
-        .auth-form .form-label {
-            color: var(--reset-text) !important;
-            font-size: 15px !important;
-            font-weight: 600 !important;
-        }
-
-        .auth-input-wrap {
-            background: #FFFFFF !important;
-            border: 1px solid var(--reset-border) !important;
-            border-radius: 8px !important;
-            min-height: 48px !important;
-            box-shadow: none !important;
-        }
-
-        .auth-input-wrap .form-control {
-            color: var(--reset-text) !important;
-            -webkit-text-fill-color: var(--reset-text) !important;
-            font-size: 16px !important;
-            min-height: 48px !important;
-        }
-
-        .auth-input-wrap .form-control::placeholder {
-            color: #667575 !important;
-            -webkit-text-fill-color: #667575 !important;
-            opacity: 1 !important;
-        }
-
-        .auth-input-wrap:focus-within {
-            border-color: var(--reset-link) !important;
-            box-shadow: 0 0 0 4px rgba(20, 155, 181, 0.18) !important;
-        }
-
-        .auth-submit {
-            background: var(--reset-link) !important;
-            border: 1px solid var(--reset-link) !important;
-            color: #FFFFFF !important;
-            border-radius: 999px !important;
-            min-height: 48px !important;
-            font-size: 16px !important;
-            font-weight: 600 !important;
-            box-shadow: 0 12px 28px rgba(20, 155, 181, 0.22) !important;
-        }
-
-        .auth-submit *,
-        .auth-submit i {
-            color: #FFFFFF !important;
-        }
-
-        .auth-submit:hover,
-        .auth-submit:focus-visible {
-            background: var(--reset-ocean) !important;
-            border-color: var(--reset-ocean) !important;
-        }
-
-        .auth-switch a {
-            color: var(--reset-link) !important;
-            font-size: 15px !important;
-            font-weight: 600 !important;
-            text-decoration: none !important;
-        }
-
-        .auth-switch a:hover {
-            color: var(--reset-ocean) !important;
-            text-decoration: underline !important;
-        }
-
-        .auth-message {
-            background: #FFFFFF !important;
-            border: 1px solid var(--reset-border) !important;
-            color: var(--reset-text) !important;
             font-size: 15px !important;
             line-height: 1.5 !important;
         }
@@ -413,7 +316,85 @@ $has_logo = is_file($logo_file);
             border-color: var(--reset-border) !important;
             color: var(--reset-text) !important;
         }
+
+        /* --- GLOBAL INPUT & PREFIX ICON STANDARDIZATION --- */
+        .auth-input-wrap {
+            position: relative !important;
+            display: block !important;
+            width: 100% !important;
+            background: transparent !important;
+            border: none !important;
+            min-height: 48px !important;
+            box-shadow: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        .auth-input-wrap > i:first-child,
+        .auth-input-wrap i {
+            position: absolute !important;
+            left: 14px !important;
+            top: 50% !important;
+            transform: translateY(-50%) !important;
+            width: 20px !important;
+            height: 20px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            text-align: center !important;
+            pointer-events: none !important;
+            z-index: 5 !important;
+            font-size: 15px !important;
+            margin: 0 !important;
+        }
+
+        .auth-input-wrap .form-control {
+            display: block !important;
+            width: 100% !important;
+            min-height: 48px !important;
+            padding: 10px 16px 10px 44px !important;
+            border-radius: 8px !important;
+            border: 1px solid var(--reset-border) !important;
+            background: #FFFFFF !important;
+            color: var(--reset-text) !important;
+            -webkit-text-fill-color: var(--reset-text) !important;
+            font-size: 16px !important;
+            box-sizing: border-box !important;
+        }
+
+        .auth-input-wrap .form-control::placeholder {
+            color: #667575 !important;
+            -webkit-text-fill-color: #667575 !important;
+            opacity: 1 !important;
+        }
+
+        .auth-input-wrap:focus-within .form-control {
+            border-color: var(--reset-link) !important;
+            box-shadow: 0 0 0 4px rgba(212, 169, 78, 0.18) !important;
+        }
+
+        .auth-password-toggle {
+            position: absolute !important;
+            right: 8px !important;
+            top: 50% !important;
+            transform: translateY(-50%) !important;
+            width: 36px !important;
+            height: 36px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            background: transparent !important;
+            border: none !important;
+            cursor: pointer !important;
+            z-index: 6 !important;
+        }
+
+        .auth-input-wrap:has(.auth-password-toggle) .form-control,
+        .auth-input-wrap:has(button) .form-control {
+            padding-right: 48px !important;
+        }
     </style>
+
     <link rel="stylesheet" href="../assets/css/responsive-unified.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/responsive-unified.css'); ?>">
     <link rel="stylesheet" href="../assets/css/auth-mobile.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/auth-mobile.css'); ?>">
 </head>

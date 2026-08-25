@@ -913,3 +913,164 @@ body[data-theme="dark"].premium-admin {
 .tugon-live-region { position: fixed; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 @media (max-width: 576px) { .modal-dialog { margin: 0; min-height: 100%; max-width: none; } .modal-content { min-height: 100vh; border-radius: 0 !important; } .modal-footer { position: sticky; bottom: 0; background: inherit; } }
 @media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }
+
+/* =============================================================================
+   TUGON GLOBAL FORM INPUT & PREFIX ICON STANDARDIZATION
+   Guarantees 44px leading clearance for all prefix icons across all forms.
+   ============================================================================= */
+
+/* 1. Global Input Wrap Container */
+.input-wrap,
+.auth-input-wrap,
+.pds-input-icon-wrap,
+.form-icon-wrap,
+.has-icon-left,
+.input-group-with-icon {
+    position: relative !important;
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+}
+
+/* 2. Global Prefix / Leading Icon */
+.input-wrap .field-icon,
+.input-wrap > i:first-child,
+.auth-input-wrap > i:first-child,
+.auth-input-wrap .field-icon,
+.pds-input-icon-wrap > i:first-child,
+.form-icon-wrap > i:first-child,
+.has-icon-left > i:first-child,
+.input-group-with-icon > i:first-child {
+    position: absolute !important;
+    left: 14px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    width: 20px !important;
+    height: 20px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    pointer-events: none !important;
+    z-index: 5 !important;
+    font-size: 15px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    background: transparent !important;
+}
+
+/* 3. Global Input Fields Inside Wrappers */
+.input-wrap .form-control,
+.input-wrap .form-select,
+.input-wrap input,
+.input-wrap select,
+.auth-input-wrap .form-control,
+.auth-input-wrap .form-select,
+.auth-input-wrap input,
+.auth-input-wrap select,
+.pds-input-icon-wrap .form-control,
+.form-icon-wrap .form-control,
+.has-icon-left .form-control {
+    display: block !important;
+    width: 100% !important;
+    min-height: 48px !important;
+    padding-left: 44px !important; /* CRITICAL: 44px clears prefix icon completely */
+    padding-right: 16px !important;
+    box-sizing: border-box !important;
+    line-height: 1.5 !important;
+}
+
+/* 4. Global Select Dropdowns */
+.input-wrap .form-select,
+.input-wrap select,
+.auth-input-wrap .form-select,
+.auth-input-wrap select,
+.pds-input-icon-wrap .form-select {
+    padding-left: 44px !important;
+    padding-right: 40px !important;
+    background-position: right 14px center !important;
+}
+
+/* 5. Password Inputs with Right Eye Toggle Button */
+.input-wrap.password .form-control,
+.input-wrap.password input,
+.auth-input-wrap:has(button) .form-control,
+.auth-input-wrap:has(.auth-password-toggle) .form-control,
+.auth-input-wrap:has(.password-toggle) .form-control {
+    padding-right: 48px !important;
+}
+
+/* 6. Password Toggle Buttons */
+.password-toggle,
+.auth-password-toggle,
+.input-wrap .password-toggle,
+.auth-input-wrap .auth-password-toggle,
+.auth-input-wrap .password-toggle {
+    position: absolute !important;
+    right: 8px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    width: 36px !important;
+    height: 36px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 8px !important;
+    cursor: pointer !important;
+    z-index: 6 !important;
+}
+
+/* 7. Verification Method Radio Options */
+.verification-options {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+    width: 100% !important;
+}
+
+@media (max-width: 680px) {
+    .verification-options {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+.verification-option {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 12px !important;
+    min-height: 52px !important;
+    padding: 10px 16px !important;
+    border-radius: 10px !important;
+    cursor: pointer !important;
+    box-sizing: border-box !important;
+}
+
+.verification-option input[type="radio"] {
+    width: 18px !important;
+    height: 18px !important;
+    flex: 0 0 18px !important;
+    margin: 0 !important;
+    cursor: pointer !important;
+}
+
+.verification-option span {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    font-weight: 600 !important;
+    font-size: 0.92rem !important;
+    line-height: 1.3 !important;
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+}
+
+.verification-option span i {
+    font-size: 1.05rem !important;
+    flex: 0 0 auto !important;
+}
