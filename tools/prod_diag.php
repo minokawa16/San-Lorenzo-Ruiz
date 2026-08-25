@@ -19,10 +19,17 @@ echo "TEXTBEE_BASE_URL: " . (defined('TEXTBEE_BASE_URL') ? TEXTBEE_BASE_URL : 'U
 $action = $_GET['action'] ?? ($argv[1] ?? '');
 $paramPhone = $_GET['phone'] ?? ($argv[2] ?? '');
 
-// Action: sync / activate
-if ($action === 'activate_all') {
-    $conn->query("UPDATE users SET status = 'active' WHERE status != 'active'");
-    echo "All users updated to 'active' status.\n\n";
+if ($action === 'git_info') {
+    echo "=== CODE & DEPLOYMENT DIAGNOSTICS ===\n";
+    echo "ReportPdfGenerator exists: " . (file_exists(__DIR__ . '/../services/ReportPdfGenerator.php') ? 'YES' : 'NO') . "\n";
+    echo "audit-logs.php MD5: " . md5_file(__DIR__ . '/../admin/audit-logs.php') . "\n";
+    echo "reports.php MD5: " . md5_file(__DIR__ . '/../admin/reports.php') . "\n";
+    if (file_exists(__DIR__ . '/../services/ReportPdfGenerator.php')) {
+        echo "ReportPdfGenerator.php MD5: " . md5_file(__DIR__ . '/../services/ReportPdfGenerator.php') . "\n";
+    }
+    echo "Git HEAD: " . @file_get_contents(__DIR__ . '/../.git/HEAD') . "\n";
+    echo "Local Date: " . date('Y-m-d H:i:s') . "\n\n";
+    exit;
 }
 
 if ($action === 'run_migration') {
