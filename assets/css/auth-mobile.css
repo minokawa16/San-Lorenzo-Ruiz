@@ -380,8 +380,6 @@
     .auth-register-card .input-wrap.password .form-control {
         padding-right: 46px !important;
     }
-        background: transparent !important;
-    }
 
     body.auth-cinematic-page .auth-options {
         width: 100% !important;
