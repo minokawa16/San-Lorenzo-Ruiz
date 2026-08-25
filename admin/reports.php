@@ -13,6 +13,8 @@ $cleanText=static fn($v)=>preg_match('/^[a-z0-9_ -]{0,80}$/i',(string)$v)?trim((
 $filters=['from'=>$cleanDate($_GET['from']??''),'to'=>$cleanDate($_GET['to']??''),'status'=>$cleanText($_GET['status']??''),'type'=>$cleanText($_GET['type']??'')];
 $service=new ReportService($conn); $export=$_GET['export']??'';
 
+require_once '../services/ReportPdfGenerator.php';
+
 if(in_array($export,['csv','pdf'],true)){
     requirePermission('reports.export'); $data=$service->export($report,$filters,10000);
     writeAuditLog($conn,$_SESSION['user_id'],'EXPORT_REPORT','reports',null,null,['report'=>$report,'filters'=>$filters,'format'=>$export,'rows'=>count($data['rows'])],'reports','reports.export');
@@ -22,9 +24,8 @@ if(in_array($export,['csv','pdf'],true)){
         $out=fopen('php://output','w');fwrite($out,"\xEF\xBB\xBF");fputcsv($out,[$title]);fputcsv($out,['Filters',json_encode(array_filter($filters))]);
         fputcsv($out,array_values($data['columns']));foreach($data['rows'] as $row)fputcsv($out,array_map(static fn($k)=>$row[$k]??'',array_keys($data['columns'])));if($data['truncated'])fputcsv($out,['Showing first 10,000 records.']);fclose($out);exit;
     }
-    require_once '../vendor/autoload.php';$html='<h1>'.e($title).'</h1><p>Filters: '.e(json_encode(array_filter($filters))).'</p><table width="100%" border="1" cellspacing="0" cellpadding="4"><thead><tr>';
-    foreach($data['columns'] as $label)$html.='<th>'.e($label).'</th>';$html.='</tr></thead><tbody>';foreach($data['rows'] as $row){$html.='<tr>';foreach(array_keys($data['columns']) as $key)$html.='<td>'.e((string)($row[$key]??'')).'</td>';$html.='</tr>';}$html.='</tbody></table>';if($data['truncated'])$html.='<p>Showing first 10,000 records.</p>';
-    $pdf=new Dompdf\Dompdf(['isRemoteEnabled'=>false]);$pdf->loadHtml($html);$pdf->setPaper('A4','landscape');$pdf->render();$pdf->stream('tugon-'.$report.'-'.date('Ymd-His').'.pdf',['Attachment'=>true]);exit;
+    $generatedBy = !empty($_SESSION['fullname']) ? (string)$_SESSION['fullname'] : 'Parish Administrator';
+    ReportPdfGenerator::stream($report, $title, $filters, $data, $generatedBy, 'landscape');
 }
 
 $data=$service->run($report,$filters,max(1,(int)($_GET['page']??1)),50);
