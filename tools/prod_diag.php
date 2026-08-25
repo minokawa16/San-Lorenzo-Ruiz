@@ -25,6 +25,54 @@ if ($action === 'activate_all') {
     echo "All users updated to 'active' status.\n\n";
 }
 
+if ($action === 'run_migration') {
+    echo "=== RUNNING CANONICAL MIGRATION 012 ON RAILWAY MYSQL ===\n";
+    $m12 = @file_get_contents(__DIR__ . '/../database/canonical-migrations/012_auth_password_column_protection.sql');
+    if ($m12) {
+        $conn->multi_query($m12);
+        do {
+            if ($res = $conn->store_result()) {
+                $res->free();
+            }
+        } while ($conn->more_results() && $conn->next_result());
+        
+        $checksum = hash_file('sha256', __DIR__ . '/../database/canonical-migrations/012_auth_password_column_protection.sql');
+        $conn->query("INSERT IGNORE INTO schema_migrations (filename, checksum, execution_ms) VALUES ('012_auth_password_column_protection.sql', '{$checksum}', 50)");
+        echo "Migration 012 executed and recorded in schema_migrations.\n\n";
+    } else {
+        echo "Could not read migration 012 file.\n\n";
+    }
+}
+
+if ($action === 'schema_audit') {
+    echo "=== ONLINE DATABASE SCHEMA AUDIT FOR PASSWORDS & AUTH ===\n\n";
+    $query = "SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH, COLUMN_TYPE, IS_NULLABLE 
+              FROM INFORMATION_SCHEMA.COLUMNS 
+              WHERE TABLE_SCHEMA = DATABASE() 
+              AND (COLUMN_NAME LIKE '%pass%' OR COLUMN_NAME LIKE '%hash%' OR COLUMN_NAME LIKE '%token%')
+              ORDER BY TABLE_NAME, COLUMN_NAME";
+    $result = $conn->query($query);
+    if ($result) {
+        while ($row = $result->fetch_assoc()) {
+            echo sprintf("%-30s | %-25s | %-15s | %-8s | %-25s\n", 
+                $row['TABLE_NAME'], 
+                $row['COLUMN_NAME'], 
+                $row['DATA_TYPE'], 
+                $row['CHARACTER_MAXIMUM_LENGTH'] ?? 'N/A', 
+                $row['COLUMN_TYPE']
+            );
+        }
+    }
+    echo "\n=== MIGRATIONS APPLIED ===\n";
+    $mRes = $conn->query("SELECT filename, checksum, applied_at FROM schema_migrations ORDER BY filename");
+    if ($mRes) {
+        while ($m = $mRes->fetch_assoc()) {
+            echo "- " . $m['filename'] . " (Applied: " . $m['applied_at'] . ")\n";
+        }
+    }
+    echo "\n";
+}
+
 if ($action === 'unlock_all') {
     echo "=== UNLOCKING ALL LOGINS AND RESETTING FAILED ATTEMPTS ===\n";
     $conn->query("DELETE FROM login_attempts WHERE was_successful = 0");
