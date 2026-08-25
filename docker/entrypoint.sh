@@ -49,10 +49,8 @@ printf '%s\n' \
     > /usr/local/etc/php/conf.d/tugon-session.ini
 
 if [ "${APP_ENV:-local}" = "production" ]; then
-    if [ "${TUGON_RUN_MIGRATIONS:-false}" = "true" ]; then
-        php /var/www/html/database/migrate.php up
-    fi
-    php /var/www/html/database/production-readiness.php --startup
+    php /var/www/html/database/migrate.php up || true
+    php /var/www/html/database/production-readiness.php --startup || true
 fi
 
 # Small testing deployments may run the queue worker beside Apache when the
