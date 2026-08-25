@@ -377,18 +377,22 @@ final class ReportPdfGenerator
         <tr>
             <td class="letterhead-logo-left">
                 <?php if ($logoBase64): ?>
-                    <img src="<?php echo $logoBase64; ?>" alt="Parish Logo">
+                    <img src="<?php echo $logoBase64; ?>" alt="San Lorenzo Ruiz Mission Station">
+                <?php else: ?>
+                    <div style="width:64px;height:64px;background:#1e2d24;border-radius:50%;display:inline-block;"></div>
                 <?php endif; ?>
             </td>
             <td class="letterhead-center">
                 <div class="letterhead-diocese">Diocese of Cotabato</div>
                 <div class="letterhead-parish">SAN LORENZO RUIZ MISSION STATION</div>
                 <div class="letterhead-location">Poblacion, Aleosan, Cotabato, Philippines</div>
-                <div class="letterhead-contact">Official Information System &bull; Contact / Email: tugonparish@gmail.com</div>
+                <div class="letterhead-contact">Official Information System &bull; Email: tugonparish@gmail.com</div>
             </td>
             <td class="letterhead-logo-right">
                 <?php if ($crestBase64): ?>
-                    <img src="<?php echo $crestBase64; ?>" alt="Diocese Crest">
+                    <img src="<?php echo $crestBase64; ?>" alt="Archdiocese Crest">
+                <?php else: ?>
+                    <div style="width:60px;height:60px;background:#c89b3c;border-radius:50%;display:inline-block;"></div>
                 <?php endif; ?>
             </td>
         </tr>

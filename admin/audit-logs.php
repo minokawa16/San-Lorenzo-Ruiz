@@ -4,9 +4,21 @@ requireLogin();requirePermission('audit.view');$page_title='Audit Logs';
 $date=static fn($v)=>preg_match('/^\d{4}-\d{2}-\d{2}$/',(string)$v)?(string)$v:'';
 $filters=['q'=>trim(mb_strimwidth((string)($_GET['q']??''),0,100,'')),'from'=>$date($_GET['from']??''),'to'=>$date($_GET['to']??''),'component'=>preg_match('/^[a-z0-9._-]{0,80}$/i',(string)($_GET['component']??''))?(string)($_GET['component']??''):''];
 $service=new AuditLogService($conn);
-if(($_GET['export']??'')==='csv'){
- requirePermission('audit.export');$rows=$service->exportRows($filters);writeAuditLog($conn,$_SESSION['user_id'],'EXPORT_AUDIT_LOG','audit_log',null,null,['filters'=>$filters,'rows'=>count($rows)],'audit','audit.export');
- header('Content-Type: text/csv; charset=utf-8');header('Content-Disposition: attachment; filename="tugon-audit-'.date('Ymd-His').'.csv"');$out=fopen('php://output','w');fwrite($out,"\xEF\xBB\xBF");fputcsv($out,['Time','Actor','Action','Component','Event','Table','Record','Correlation ID','IP']);foreach($rows as $r)fputcsv($out,[$r['created_at'],$r['actor'],$r['action'],$r['component'],$r['event'],$r['table_name'],$r['record_id'],$r['correlation_id'],$r['ip_address']]);fclose($out);exit;
+$export=$_GET['export']??'';
+if(in_array($export,['csv','pdf'],true)){
+ requirePermission('audit.export');$rows=$service->exportRows($filters);writeAuditLog($conn,$_SESSION['user_id'],'EXPORT_AUDIT_LOG','audit_log',null,null,['filters'=>$filters,'rows'=>count($rows),'format'=>$export],'audit','audit.export');
+ if($export==='csv'){
+  header('Content-Type: text/csv; charset=utf-8');header('Content-Disposition: attachment; filename="tugon-audit-'.date('Ymd-His').'.csv"');$out=fopen('php://output','w');fwrite($out,"\xEF\xBB\xBF");fputcsv($out,['Time','Actor','Action','Component','Event','Table','Record','Correlation ID','IP']);foreach($rows as $r)fputcsv($out,[$r['created_at'],$r['actor'],$r['action'],$r['component'],$r['event'],$r['table_name'],$r['record_id'],$r['correlation_id'],$r['ip_address']]);fclose($out);exit;
+ }
+ // PDF export
+ require_once '../vendor/autoload.php';
+ require_once '../services/ReportPdfGenerator.php';
+ $pdfColumns=['created_at'=>'Time','actor'=>'Actor','action'=>'Action','component'=>'Component','event'=>'Event','table_name'=>'Table','record_id'=>'Record','ip_address'=>'IP'];
+ $pdfRows=array_map(static fn($r)=>array_intersect_key($r,array_flip(array_keys($pdfColumns))),$rows);
+ $pdfData=['columns'=>$pdfColumns,'rows'=>$pdfRows,'total'=>count($pdfRows),'truncated'=>count($pdfRows)>=10000];
+ $generatedBy=!empty($_SESSION['fullname'])?(string)$_SESSION['fullname']:'Parish Administrator';
+ $pdfFilters=['from'=>$filters['from'],'to'=>$filters['to'],'status'=>'','type'=>$filters['component']?:''];
+ ReportPdfGenerator::stream('audit_log','Audit Log Report',$pdfFilters,$pdfData,$generatedBy,'landscape');
 }
 $data=$service->page($filters,max(1,(int)($_GET['page']??1)),50);$base=array_filter($filters,static fn($v)=>$v!=='');include '../templates/header.php';
 ?>
@@ -19,7 +31,7 @@ $data=$service->page($filters,max(1,(int)($_GET['page']??1)),50);$base=array_fil
   <div class="col-sm-6 col-lg-2"><label class="form-label" for="auditComponent">Component</label><input id="auditComponent" class="form-control" name="component" value="<?php echo e($filters['component']); ?>" placeholder="All"></div>
   <div class="col-lg-2 d-grid"><button class="btn btn-primary" type="submit">Apply filters</button></div>
  </div></form>
- <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3"><div role="status"><strong><?php echo number_format($data['total']); ?></strong> matching events; page <?php echo $data['page']; ?> of <?php echo $data['pages']; ?>.</div><?php if(hasPermission('audit.export')): ?><a class="btn btn-outline-primary" href="?<?php echo e(http_build_query(array_merge($base,['export'=>'csv']))); ?>"><i class="fas fa-file-csv" aria-hidden="true"></i> Export filtered CSV</a><?php endif; ?></div>
+ <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3"><div role="status"><strong><?php echo number_format($data['total']); ?></strong> matching events; page <?php echo $data['page']; ?> of <?php echo $data['pages']; ?>.</div><?php if(hasPermission('audit.export')): ?><div class="d-flex gap-2"><a class="btn btn-outline-primary" href="?<?php echo e(http_build_query(array_merge($base,['export'=>'csv']))); ?>"><i class="fas fa-file-csv" aria-hidden="true"></i> Export CSV</a><a class="btn btn-outline-danger" href="?<?php echo e(http_build_query(array_merge($base,['export'=>'pdf']))); ?>"><i class="fas fa-file-pdf" aria-hidden="true"></i> Export PDF</a></div><?php endif; ?></div>
  <?php if($data['truncated']): ?><div class="alert alert-warning">Exports are limited to the first <?php echo number_format($data['limit']); ?> matching records.</div><?php endif; ?>
  <section class="card"><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Target</th><th>Change</th><th>Correlation</th></tr></thead><tbody>
  <?php if(!$data['rows']): ?><tr><td colspan="6" class="text-center py-5"><strong>No audit events found.</strong><div class="text-muted">Clear filters or select another date range.</div></td></tr><?php endif; ?>
