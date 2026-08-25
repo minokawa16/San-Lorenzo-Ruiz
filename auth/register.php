@@ -2058,6 +2058,22 @@ $has_logo = is_file($logo_file);
             z-index: 6 !important;
         }
 
+        /* --- FORM GRID & FIELD ALIGNMENT --- */
+        .form-grid,
+        .auth-register-card .form-grid {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 14px !important;
+            align-items: start !important;
+        }
+
+        @media (max-width: 680px) {
+            .form-grid,
+            .auth-register-card .form-grid {
+                grid-template-columns: 1fr !important;
+            }
+        }
+
         /* --- VERIFICATION METHOD RADIO SELECTORS --- */
         .verification-options,
         .auth-register-card .verification-options {
@@ -2308,7 +2324,7 @@ $has_logo = is_file($logo_file);
                         <div class="field-message" data-error-for="birth_place"></div>
                     </div>
 
-                    <div class="field-group">
+                    <div class="field-group full">
                         <label for="id_number" class="field-label">ID Number</label>
                         <div class="input-wrap">
                             <i class="fas fa-fingerprint field-icon"></i>
