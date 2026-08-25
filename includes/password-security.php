@@ -59,8 +59,12 @@ function updateAccountPassword(
 
         $newHash = password_hash($newPassword, PASSWORD_DEFAULT);
 
-        // Core Update: Save new password to database
-        $update = $conn->prepare('UPDATE users SET password = ?, status = "active" WHERE id = ?');
+        // Core Update: Save new password to database with timestamp and reset flags
+        $update = $conn->prepare('UPDATE users SET password = ?, status = "active", must_change_password = 0, password_changed_at = NOW() WHERE id = ?');
+        if (!$update) {
+            // Fallback in case optional columns are pending migration
+            $update = $conn->prepare('UPDATE users SET password = ?, status = "active" WHERE id = ?');
+        }
         if (!$update) {
             return ['ok' => false, 'error' => 'Database error updating password.'];
         }
@@ -71,17 +75,22 @@ function updateAccountPassword(
         }
         $update->close();
 
-        // Clear failed login attempts so user can log in immediately
+        // Clear failed login attempts and unlock account so user can log in immediately
         $conn->query("DELETE FROM login_attempts WHERE user_id = {$userId}");
+        @$conn->query("UPDATE users SET account_locked_until = NULL, failed_login_attempts = 0 WHERE id = {$userId}");
 
         // Synchronize auth identifiers
         if (function_exists('synchronizeAuthenticationIdentifier')) {
             if (!empty($user['email'])) {
                 synchronizeAuthenticationIdentifier($conn, $userId, 'email', strtolower($user['email']));
+                $emailHash = hash('sha256', 'email:' . strtolower($user['email']));
+                $conn->query("DELETE FROM login_attempts WHERE identifier_hash = '{$emailHash}'");
             }
             if (!empty($user['phone_number'])) {
                 $storagePhone = normalizePhilippineMobileForStorage($user['phone_number']);
                 synchronizeAuthenticationIdentifier($conn, $userId, 'mobile', $storagePhone);
+                $mobileHash = hash('sha256', 'mobile:' . $storagePhone);
+                $conn->query("DELETE FROM login_attempts WHERE identifier_hash = '{$mobileHash}'");
             }
         }
 
@@ -169,8 +178,12 @@ function resetPasswordUsingVerifiedTransaction(mysqli $conn, string $publicId, s
 
         $newHash = password_hash($newPassword, PASSWORD_DEFAULT);
 
-        // Core Update: Save new password to database
-        $update = $conn->prepare('UPDATE users SET password = ?, status = "active" WHERE id = ?');
+        // Core Update: Save new password to database with timestamp and reset flags
+        $update = $conn->prepare('UPDATE users SET password = ?, status = "active", must_change_password = 0, password_changed_at = NOW() WHERE id = ?');
+        if (!$update) {
+            // Fallback in case optional columns are pending migration
+            $update = $conn->prepare('UPDATE users SET password = ?, status = "active" WHERE id = ?');
+        }
         if (!$update) {
             return ['ok' => false, 'error' => 'Database query preparation failed for update.'];
         }
@@ -190,17 +203,22 @@ function resetPasswordUsingVerifiedTransaction(mysqli $conn, string $publicId, s
             $consume->close();
         }
 
-        // Clear failed login attempts so user can log in immediately
+        // Clear failed login attempts and unlock account so user can log in immediately
         $conn->query("DELETE FROM login_attempts WHERE user_id = {$userId}");
+        @$conn->query("UPDATE users SET account_locked_until = NULL, failed_login_attempts = 0 WHERE id = {$userId}");
 
         // Synchronize auth identifiers
         if (function_exists('synchronizeAuthenticationIdentifier')) {
             if (!empty($user['email'])) {
                 synchronizeAuthenticationIdentifier($conn, $userId, 'email', strtolower($user['email']));
+                $emailHash = hash('sha256', 'email:' . strtolower($user['email']));
+                $conn->query("DELETE FROM login_attempts WHERE identifier_hash = '{$emailHash}'");
             }
             if (!empty($user['phone_number'])) {
                 $storagePhone = normalizePhilippineMobileForStorage($user['phone_number']);
                 synchronizeAuthenticationIdentifier($conn, $userId, 'mobile', $storagePhone);
+                $mobileHash = hash('sha256', 'mobile:' . $storagePhone);
+                $conn->query("DELETE FROM login_attempts WHERE identifier_hash = '{$mobileHash}'");
             }
         }
 

@@ -22,6 +22,7 @@ $requiredFiles = [
     'healthz.php', 'database/migrate.php', 'database/run-notification-deliveries.php',
     'database/run-reservation-reminders.php', 'database/run-announcement-lifecycle.php',
     'database/canonical-migrations/011_ai_reports_audit_performance.sql',
+    'database/canonical-migrations/012_auth_password_column_protection.sql',
 ];
 foreach ($requiredFiles as $file) {
     is_file($root . '/' . $file) ? $pass("Required artifact present: {$file}") : $fail("Missing required artifact: {$file}");
@@ -88,10 +89,10 @@ if (!$staticOnly) {
             $fail('Production database connection failed');
         } else {
             $pass('Production database connection succeeded');
-            $migration = $db->query("SELECT filename FROM schema_migrations WHERE filename='011_ai_reports_audit_performance.sql' LIMIT 1");
+            $migration = $db->query("SELECT filename FROM schema_migrations WHERE filename='012_auth_password_column_protection.sql' LIMIT 1");
             $migration && $migration->num_rows === 1
-                ? $pass('Canonical migrations through 011 are applied')
-                : $fail('Canonical migration 011 is not applied');
+                ? $pass('Canonical migrations through 012 are applied')
+                : $fail('Canonical migration 012 is not applied');
             $admins = $db->query("SELECT email,must_change_password FROM users WHERE status='active' AND id IN (SELECT ur.user_id FROM user_roles ur JOIN roles r ON r.role_id=ur.role_id WHERE r.role_key='administrator')");
             if (!$admins || $admins->num_rows < 1) {
                 $fail('No active RBAC administrator exists');

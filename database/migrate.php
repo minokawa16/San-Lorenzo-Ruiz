@@ -165,8 +165,10 @@ try {
     foreach ($migrationFiles as $file) {
         $filename = basename($file);
         if (isset($applied[$filename])) {
-            $currentChecksum = hash_file('sha256', $file);
-            if (!hash_equals($applied[$filename]['checksum'], $currentChecksum)) {
+            $rawChecksum = hash_file('sha256', $file);
+            $normalizedChecksum = hash('sha256', str_replace("\r\n", "\n", (string) file_get_contents($file)));
+            $recordedChecksum = $applied[$filename]['checksum'];
+            if (!hash_equals($recordedChecksum, $rawChecksum) && !hash_equals($recordedChecksum, $normalizedChecksum)) {
                 throw new RuntimeException('Applied migration checksum changed: ' . $filename);
             }
         }

@@ -28,22 +28,41 @@ if ($action === 'activate_all') {
 if ($action === 'unlock_all') {
     echo "=== UNLOCKING ALL LOGINS AND RESETTING FAILED ATTEMPTS ===\n";
     $conn->query("DELETE FROM login_attempts WHERE was_successful = 0");
+    @$conn->query("UPDATE users SET account_locked_until = NULL, failed_login_attempts = 0 WHERE status = 'active'");
     echo "Deleted failed login attempts: " . $conn->affected_rows . "\n";
     
-    // Ensure 09635866550 has Reymark@123 password and active status
-    $targetPhone = '09635866550';
-    $hash = password_hash('Reymark@123', PASSWORD_DEFAULT);
-    $conn->query("UPDATE users SET password = '{$hash}', status = 'active' WHERE phone_number = '{$targetPhone}' OR email = '{$targetPhone}'");
-    echo "User 09635866550 password set to Reymark@123.\n";
+    $resetPasswords = !empty($_GET['reset_passwords']);
 
-    // Ensure tugonparish@gmail.com has Parishioner@123 password and active status
+    // Ensure 09635866550 has active status (only set fallback password if empty or explicitly requested)
+    $targetPhone = '09635866550';
+    $checkP = $conn->query("SELECT id, password FROM users WHERE phone_number = '{$targetPhone}' OR email = '{$targetPhone}' LIMIT 1");
+    if ($checkP && $pRow = $checkP->fetch_assoc()) {
+        if (empty($pRow['password']) || $resetPasswords) {
+            $hash = password_hash('Reymark@123', PASSWORD_DEFAULT);
+            $conn->query("UPDATE users SET password = '{$hash}', status = 'active' WHERE id = " . (int)$pRow['id']);
+            echo "User 09635866550 password set to Reymark@123.\n";
+        } else {
+            $conn->query("UPDATE users SET status = 'active' WHERE id = " . (int)$pRow['id']);
+            echo "User 09635866550 marked active (existing password preserved).\n";
+        }
+    }
+
+    // Ensure tugonparish@gmail.com has active status and admin role (only set fallback password if empty or explicitly requested)
     $tugonEmail = 'tugonparish@gmail.com';
-    $tugonHash = password_hash('Parishioner@123', PASSWORD_DEFAULT);
-    $conn->query("UPDATE users SET password = '{$tugonHash}', status = 'active', role = 'admin' WHERE email = '{$tugonEmail}'");
-    echo "Admin tugonparish@gmail.com password set to Parishioner@123.\n";
+    $checkA = $conn->query("SELECT id, password FROM users WHERE email = '{$tugonEmail}' LIMIT 1");
+    if ($checkA && $aRow = $checkA->fetch_assoc()) {
+        if (empty($aRow['password']) || $resetPasswords) {
+            $tugonHash = password_hash('Parishioner@123', PASSWORD_DEFAULT);
+            $conn->query("UPDATE users SET password = '{$tugonHash}', status = 'active', role = 'admin' WHERE id = " . (int)$aRow['id']);
+            echo "Admin tugonparish@gmail.com password set to Parishioner@123.\n";
+        } else {
+            $conn->query("UPDATE users SET status = 'active', role = 'admin' WHERE id = " . (int)$aRow['id']);
+            echo "Admin tugonparish@gmail.com marked active (existing password preserved).\n";
+        }
+    }
 
     // Synchronize identifiers
-    $res = $conn->query("SELECT id, phone_number, email FROM users");
+    $res = $conn->query("SELECT id, phone_number, email FROM users WHERE status = 'active'");
     while ($row = $res->fetch_assoc()) {
         if (!empty($row['phone_number'])) {
             synchronizeAuthenticationIdentifier($conn, (int)$row['id'], 'mobile', $row['phone_number']);
