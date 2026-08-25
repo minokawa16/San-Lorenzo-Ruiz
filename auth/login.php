@@ -61,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $status_email_input = htmlspecialchars($status_email);
         $status_notice = 'If the information matches a registration, its current status and any required next step will be available after secure identity verification. Contact the parish office if you need assistance.';
     } else {
-        $identifier = trim((string) ($_POST['email'] ?? ''));
+        $identifier = trim((string) ($_POST['email'] ?? ($_POST['identifier'] ?? ($_POST['phone_number'] ?? ''))));
         $password = (string) ($_POST['password'] ?? '');
         $identifier_input = htmlspecialchars($identifier);
 
