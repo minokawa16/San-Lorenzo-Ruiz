@@ -1156,13 +1156,18 @@
                 endpointError: <?php echo json_encode(t('chatbot.endpoint_error', 'Unable to reach the chatbot endpoint. Please try again.')); ?>
             };
             const assistantPositionKey = 'tugonAiFabPosition:v1:<?php echo intval($_SESSION['user_id'] ?? 0); ?>';
+            const desktopPanelPositionKey = 'tugonAiPanelDesktopPos:v1:<?php echo intval($_SESSION['user_id'] ?? 0); ?>';
             const assistantPhoneView = window.matchMedia('(max-width: 599px)');
+            const isDesktopView = window.matchMedia('(min-width: 1024px)');
             const assistantDragThreshold = 8;
             const assistantEdgeMargin = 10;
+            const panelHeader = panel.querySelector('.ai-assistant-panel-header');
             let assistantDragState = null;
             let assistantDragFrame = 0;
             let suppressNextAssistantClick = false;
             let assistantLongPressTimer = 0;
+            let desktopPanelDragState = null;
+            let desktopPanelDragFrame = 0;
             if (!widget || !trigger || !panel || !close) {
                 return;
             }
@@ -1261,6 +1266,115 @@
                     } catch (storageError) {
                         // Ignore storage restrictions and keep the default position.
                     }
+                }
+            }
+
+            // Desktop Panel Position Clamping & Persistence
+            function clampDesktopPanelPosition(left, top) {
+                const margin = 20;
+                const rect = panel.getBoundingClientRect();
+                const width = rect.width || 440;
+                const height = rect.height || 560;
+                const winWidth = window.innerWidth;
+                const winHeight = window.innerHeight;
+                const minLeft = margin;
+                const maxLeft = Math.max(minLeft, winWidth - width - margin);
+                const minTop = margin;
+                const maxTop = Math.max(minTop, winHeight - height - margin);
+                return {
+                    left: Math.min(Math.max(left, minLeft), maxLeft),
+                    top: Math.min(Math.max(top, minTop), maxTop)
+                };
+            }
+
+            function placeDesktopPanel(left, top, persist) {
+                if (!isDesktopView.matches) return;
+                const clamped = clampDesktopPanelPosition(left, top);
+                panel.style.setProperty('left', clamped.left + 'px', 'important');
+                panel.style.setProperty('top', clamped.top + 'px', 'important');
+                panel.style.setProperty('right', 'auto', 'important');
+                panel.style.setProperty('bottom', 'auto', 'important');
+                if (persist) {
+                    try {
+                        sessionStorage.setItem(desktopPanelPositionKey, JSON.stringify({left: clamped.left, top: clamped.top}));
+                    } catch (e) {}
+                }
+            }
+
+            function loadDesktopPanelPosition() {
+                if (!isDesktopView.matches) return;
+                try {
+                    const saved = JSON.parse(sessionStorage.getItem(desktopPanelPositionKey) || 'null');
+                    if (saved && Number.isFinite(saved.left) && Number.isFinite(saved.top)) {
+                        placeDesktopPanel(saved.left, saved.top, false);
+                    }
+                } catch (e) {}
+            }
+
+            function beginDesktopPanelDrag(event) {
+                if (!isDesktopView.matches || (event.button !== undefined && event.button !== 0)) return;
+                if (event.target.closest('button') || event.target.closest('a') || event.target.closest('input')) {
+                    return;
+                }
+                const rect = panel.getBoundingClientRect();
+                desktopPanelDragState = {
+                    startX: event.clientX,
+                    startY: event.clientY,
+                    initialLeft: rect.left,
+                    initialTop: rect.top,
+                    latestX: event.clientX,
+                    latestY: event.clientY,
+                    pointerId: event.pointerId
+                };
+                panel.classList.add('is-panel-dragging');
+                if (panelHeader && panelHeader.setPointerCapture && event.pointerId !== undefined) {
+                    try { panelHeader.setPointerCapture(event.pointerId); } catch (e) {}
+                }
+                event.preventDefault();
+            }
+
+            function moveDesktopPanelDrag(event) {
+                if (!desktopPanelDragState) return;
+                event.preventDefault();
+                desktopPanelDragState.latestX = event.clientX;
+                desktopPanelDragState.latestY = event.clientY;
+                if (!desktopPanelDragFrame) {
+                    desktopPanelDragFrame = window.requestAnimationFrame(function() {
+                        desktopPanelDragFrame = 0;
+                        if (!desktopPanelDragState) return;
+                        const deltaX = desktopPanelDragState.latestX - desktopPanelDragState.startX;
+                        const deltaY = desktopPanelDragState.latestY - desktopPanelDragState.startY;
+                        placeDesktopPanel(desktopPanelDragState.initialLeft + deltaX, desktopPanelDragState.initialTop + deltaY, false);
+                    });
+                }
+            }
+
+            function endDesktopPanelDrag(event) {
+                if (!desktopPanelDragState) return;
+                if (desktopPanelDragFrame) {
+                    window.cancelAnimationFrame(desktopPanelDragFrame);
+                    desktopPanelDragFrame = 0;
+                }
+                const deltaX = (event.clientX || desktopPanelDragState.latestX) - desktopPanelDragState.startX;
+                const deltaY = (event.clientY || desktopPanelDragState.latestY) - desktopPanelDragState.startY;
+                placeDesktopPanel(desktopPanelDragState.initialLeft + deltaX, desktopPanelDragState.initialTop + deltaY, true);
+                panel.classList.remove('is-panel-dragging');
+                if (panelHeader && panelHeader.releasePointerCapture && desktopPanelDragState.pointerId !== undefined) {
+                    try { panelHeader.releasePointerCapture(desktopPanelDragState.pointerId); } catch (e) {}
+                }
+                desktopPanelDragState = null;
+            }
+
+            if (panelHeader) {
+                if (window.PointerEvent) {
+                    panelHeader.addEventListener('pointerdown', beginDesktopPanelDrag);
+                    panelHeader.addEventListener('pointermove', moveDesktopPanelDrag);
+                    panelHeader.addEventListener('pointerup', endDesktopPanelDrag);
+                    panelHeader.addEventListener('pointercancel', endDesktopPanelDrag);
+                } else {
+                    panelHeader.addEventListener('mousedown', beginDesktopPanelDrag);
+                    document.addEventListener('mousemove', moveDesktopPanelDrag);
+                    document.addEventListener('mouseup', endDesktopPanelDrag);
                 }
             }
 
@@ -1394,13 +1508,17 @@
 
             window.requestAnimationFrame(loadAssistantPosition);
             window.addEventListener('resize', function() {
-                if (!assistantPhoneView.matches || !widget.style.left) return;
-                placeAssistant(parseFloat(widget.style.left), parseFloat(widget.style.top), true);
+                if (assistantPhoneView.matches && widget.style.left) {
+                    placeAssistant(parseFloat(widget.style.left), parseFloat(widget.style.top), true);
+                } else if (isDesktopView.matches && panel.style.left) {
+                    placeDesktopPanel(parseFloat(panel.style.left), parseFloat(panel.style.top), false);
+                }
             });
             if (window.visualViewport) {
                 window.visualViewport.addEventListener('resize', function() {
-                    if (!widget.style.left) return;
-                    placeAssistant(parseFloat(widget.style.left), parseFloat(widget.style.top), false);
+                    if (assistantPhoneView.matches && widget.style.left) {
+                        placeAssistant(parseFloat(widget.style.left), parseFloat(widget.style.top), false);
+                    }
                 });
             }
 
@@ -1410,6 +1528,9 @@
                 document.body.classList.toggle('ai-chat-open', isOpen && window.matchMedia('(max-width: 599px)').matches);
                 trigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
                 panel.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+                if (isOpen && isDesktopView.matches) {
+                    loadDesktopPanelPosition();
+                }
             }
 
             // Escape Html Function - Documents this helper's role in the parish management workflow.

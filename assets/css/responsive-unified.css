@@ -3494,36 +3494,38 @@ body.stable-detail-modals > .modal-backdrop {
         min-height: 110px !important;
     }
 
-    /* 5. TUGON AI Chatbot - Compact Desktop / Laptop Sizing */
+    /* 5. TUGON AI Chatbot - Compact Desktop / Laptop Sizing & Draggable Window */
     body.user-area .ai-assistant-widget {
         position: fixed !important;
-        bottom: 20px !important;
-        right: 20px !important;
-        z-index: 1040 !important;
+        bottom: 24px !important;
+        right: 24px !important;
+        z-index: 9999 !important;
         width: auto !important;
         height: auto !important;
         inset: auto !important;
+        pointer-events: auto !important;
     }
 
     body.user-area .ai-assistant-trigger {
-        width: 50px !important;
-        height: 50px !important;
+        width: 52px !important;
+        height: 52px !important;
         border-radius: 50% !important;
         background: linear-gradient(135deg, #2E3A2D, #263225) !important;
         color: #C89B3C !important;
         border: 2px solid #C89B3C !important;
-        box-shadow: 0 6px 20px rgba(46, 58, 45, 0.22) !important;
+        box-shadow: 0 8px 24px rgba(46, 58, 45, 0.28) !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        font-size: 1.2rem !important;
+        font-size: 1.25rem !important;
         cursor: pointer !important;
+        z-index: 9999 !important;
         transition: transform 0.2s ease, box-shadow 0.2s ease !important;
     }
 
     body.user-area .ai-assistant-trigger:hover {
-        transform: scale(1.06) !important;
-        box-shadow: 0 10px 24px rgba(200, 155, 60, 0.3) !important;
+        transform: scale(1.08) !important;
+        box-shadow: 0 12px 30px rgba(200, 155, 60, 0.38) !important;
     }
 
     body.user-area .ai-assistant-widget.is-open .ai-assistant-trigger {
@@ -3532,8 +3534,8 @@ body.stable-detail-modals > .modal-backdrop {
 
     body.user-area .ai-assistant-panel {
         position: fixed !important;
-        bottom: 20px !important;
-        right: 20px !important;
+        bottom: 24px !important;
+        right: 24px !important;
         width: 440px !important;
         max-width: calc(100vw - 40px) !important;
         height: 560px !important;
@@ -3541,11 +3543,11 @@ body.stable-detail-modals > .modal-backdrop {
         border-radius: 16px !important;
         border: 1px solid rgba(200, 155, 60, 0.4) !important;
         background: #FFFFFF !important;
-        box-shadow: 0 14px 40px rgba(22, 33, 24, 0.22), 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+        box-shadow: 0 16px 48px rgba(22, 33, 24, 0.24), 0 4px 14px rgba(0, 0, 0, 0.08) !important;
         display: flex !important;
         flex-direction: column !important;
         overflow: hidden !important;
-        z-index: 1050 !important;
+        z-index: 9999 !important;
         inset: auto !important;
         transform: translateY(12px) scale(0.98) !important;
         opacity: 0 !important;
@@ -3560,6 +3562,16 @@ body.stable-detail-modals > .modal-backdrop {
         transform: translateY(0) scale(1) !important;
     }
 
+    body.user-area .ai-assistant-panel.is-panel-dragging {
+        transition: none !important;
+        box-shadow: 0 24px 60px rgba(22, 33, 24, 0.32), 0 6px 20px rgba(0, 0, 0, 0.12) !important;
+        opacity: 0.98 !important;
+    }
+
+    body.user-area .ai-assistant-panel.is-panel-dragging .ai-assistant-panel-header {
+        cursor: grabbing !important;
+    }
+
     body.user-area .ai-assistant-panel.is-minimized {
         height: 52px !important;
         max-height: 52px !important;
@@ -3570,7 +3582,7 @@ body.stable-detail-modals > .modal-backdrop {
         display: none !important;
     }
 
-    /* Compact Header */
+    /* Draggable Header */
     body.user-area .ai-assistant-panel-header {
         min-height: 52px !important;
         height: 52px !important;
@@ -3582,6 +3594,10 @@ body.stable-detail-modals > .modal-backdrop {
         align-items: center !important;
         gap: 10px !important;
         flex: 0 0 52px !important;
+        cursor: grab !important;
+        user-select: none !important;
+        -webkit-user-select: none !important;
+        touch-action: none !important;
     }
 
     body.user-area .ai-assistant-mobile-back {
@@ -3599,6 +3615,7 @@ body.stable-detail-modals > .modal-backdrop {
         justify-content: center !important;
         font-size: 14px !important;
         flex-shrink: 0 !important;
+        pointer-events: none !important;
     }
 
     body.user-area .ai-assistant-panel-identity {
@@ -3607,6 +3624,7 @@ body.stable-detail-modals > .modal-backdrop {
         align-items: flex-start !important;
         line-height: 1.15 !important;
         flex: 1 1 auto !important;
+        pointer-events: none !important;
     }
 
     body.user-area .ai-assistant-panel-identity strong {
@@ -3636,6 +3654,7 @@ body.stable-detail-modals > .modal-backdrop {
         font-weight: 600 !important;
         white-space: nowrap !important;
         margin-right: 4px !important;
+        pointer-events: none !important;
     }
 
     body.user-area .ai-assistant-status span {
@@ -3659,6 +3678,7 @@ body.stable-detail-modals > .modal-backdrop {
         border: 0 !important;
         font-size: 11px !important;
         cursor: pointer !important;
+        pointer-events: auto !important;
         transition: background 0.15s ease, transform 0.15s ease !important;
     }
 
