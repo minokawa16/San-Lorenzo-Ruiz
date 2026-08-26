@@ -19,16 +19,24 @@ foreach ($types as $type => $label) {
     $layout = getCertificateLayout($conn, $type);
     $layouts[$type] = $layout;
 }
+$breadcrumbs = [
+    'Dashboard' => 'dashboard.php',
+    'Certificate Generator' => 'certificate-generator.php',
+    'Certificate Layouts' => null
+];
 ?>
 <?php include '../templates/header.php'; ?>
 
-<div class="container-fluid py-3">
-    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
-        <div>
-            <h1 class="mb-1"><i class="fas fa-pen-ruler"></i> Certificate Layouts</h1>
-            <p class="text-muted mb-0">Edit each certificate layout directly. One saved layout is maintained per certificate type.</p>
-        </div>
-    </div>
+<div class="container-fluid px-0">
+    <!-- Standardized Section Header -->
+    <?php
+    $page_header_title = 'Certificate Layouts';
+    $page_header_subtitle = 'Edit and manage official certificate layout templates and typography per sacrament.';
+    $page_header_icon = 'fa-pen-ruler';
+    $show_back_button = true;
+    $back_button_url = 'certificate-generator.php';
+    include '../includes/page_header.php';
+    ?>
 
     <?php foreach ($notifications as $notice): ?>
         <div class="alert alert-<?php echo $notice['type'] === 'error' ? 'danger' : e($notice['type']); ?> alert-dismissible fade show" role="alert">

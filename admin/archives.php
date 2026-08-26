@@ -254,23 +254,25 @@ if ($active_tab === 'requests') {
 
 $active_archive_count = $active_tab === 'requests' ? count($requests) : ($active_tab === 'announcements' ? count($announcements) : count($records));
 
+$page_title = 'Archives';
 $breadcrumbs = [
     'Dashboard' => 'dashboard.php',
     'Archives' => null
 ];
+
+include '../templates/header.php';
 ?>
-<?php include '../templates/header.php'; ?>
 
-<div class="container-fluid mt-4">
-    <?php include '../includes/breadcrumb.php'; ?>
-    <?php include '../includes/back_button.php'; ?>
-
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <h1 class="mb-2"><i class="fas fa-box-archive"></i> Archives</h1>
-            <p class="text-muted">View and restore archived requests, announcements, and sacramental records.</p>
-        </div>
-    </div>
+<div class="container-fluid px-0">
+    <!-- Standardized Section Header -->
+    <?php
+    $page_header_title = 'Archives';
+    $page_header_subtitle = 'View and restore archived requests, announcements, and sacramental records.';
+    $page_header_icon = 'fa-box-archive';
+    $show_back_button = true;
+    $back_button_url = BASE_URL . 'admin/dashboard.php';
+    include '../includes/page_header.php';
+    ?>
 
     <?php if ($error): ?>
         <div class="alert alert-danger alert-dismissible fade show">

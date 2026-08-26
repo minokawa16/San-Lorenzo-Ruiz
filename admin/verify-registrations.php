@@ -98,20 +98,24 @@ $pending_result = $conn->query("SELECT COUNT(*) AS count FROM users WHERE role =
 $pending_count = $pending_result ? intval($pending_result->fetch_assoc()['count'] ?? 0) : 0;
 
 $page_title = 'Registration Verification';
-?>
-<?php include '../templates/header.php'; ?>
+$breadcrumbs = [
+    'Dashboard' => 'dashboard.php',
+    'Registration Verification' => null
+];
 
-<div class="container-fluid mt-4 verification-page">
-    <div class="d-flex justify-content-between align-items-start gap-3 mb-4 flex-wrap">
-        <div>
-            <button type="button" class="btn btn-outline-secondary btn-sm mb-3" onclick="history.back()">
-                <i class="fas fa-arrow-left"></i> Go Back
-            </button>
-            <h1 class="mb-1"><i class="fas fa-user-shield"></i> Registration Verification</h1>
-            <p class="text-muted mb-0">Review uploaded IDs and approve verified Aleosan parishioners.</p>
-        </div>
-        <span class="badge bg-warning text-dark fs-6"><?php echo $pending_count; ?> pending</span>
-    </div>
+include '../templates/header.php';
+?>
+
+<div class="container-fluid px-0 verification-page">
+    <!-- Standardized Section Header -->
+    <?php
+    $page_header_title = 'Registration Verification';
+    $page_header_subtitle = 'Review uploaded IDs and approve verified Aleosan parishioners.';
+    $page_header_icon = 'fa-user-shield';
+    $show_back_button = true;
+    $back_button_url = BASE_URL . 'admin/dashboard.php';
+    include '../includes/page_header.php';
+    ?>
 
     <?php if ($error): ?>
         <div class="alert alert-danger alert-dismissible fade show">

@@ -475,6 +475,10 @@ $page_title = 'Calendar & Scheduling';
     <?php include '../includes/admin-sidebar.php'; ?>
 
     <main class="calendar-shell">
+        <a href="<?php echo BASE_URL; ?>admin/dashboard.php" class="parish-back-link mb-3">
+            <i class="fas fa-arrow-left"></i> Go Back
+        </a>
+
         <div class="calendar-topbar">
             <div class="calendar-title">
                 <div class="calendar-title-icon"><i class="fas fa-calendar-days"></i></div>

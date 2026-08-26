@@ -40,38 +40,26 @@ if (isset($_GET['view'])) {
     $stmt->close();
 }
 
-$page_title = 'Record Corrections - Parish Management';
-?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?php echo htmlspecialchars($page_title); ?></title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../assets/css/holy-theme.css">
-    <link rel="stylesheet" href="../assets/css/premium-parish.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/premium-parish.css') ? filemtime(__DIR__ . '/../assets/css/premium-parish.css') : time(); ?>">
-    <link rel="stylesheet" href="../assets/css/parish-design-system.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/parish-design-system.css') ? filemtime(__DIR__ . '/../assets/css/parish-design-system.css') : time(); ?>">
-    <link rel="stylesheet" href="../assets/css/admin-sidebar.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/admin-sidebar.css') ? filemtime(__DIR__ . '/../assets/css/admin-sidebar.css') : time(); ?>">
-    <link rel="stylesheet" href="../assets/css/theme.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/theme.css') ? filemtime(__DIR__ . '/../assets/css/theme.css') : time(); ?>">
-</head>
-<body class="premium-admin">
-    <div class="premium-admin-shell">
-        <?php include '../includes/admin-sidebar.php'; ?>
+$page_title = 'Record Corrections';
+$breadcrumbs = [
+    'Dashboard' => 'dashboard.php',
+    'Sacramental Records' => 'manage-records.php',
+    'Record Corrections' => null
+];
 
-        <div class="premium-admin-content pds-page-container">
-            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-                <div>
-                    <a href="manage-records.php" class="btn btn-primary-gold mb-2" style="font-size: 0.82rem;">
-                        <i class="fas fa-arrow-left"></i> Back to Sacramental Records
-                    </a>
-                    <h1 class="page-title" style="font-size: 1.5rem; font-weight: 700; color: #1c1b18; margin: 0;">
-                        <i class="fas fa-pen-to-square" style="color: #c89b3c;"></i> Record Correction Review
-                    </h1>
-                    <p class="text-muted mb-0" style="margin-top: 4px;">Official values change only after this review.</p>
-                </div>
-            </div>
+include '../templates/header.php';
+?>
+
+<div class="container-fluid px-0">
+    <!-- Standardized Section Header -->
+    <?php
+    $page_header_title = 'Record Correction Review';
+    $page_header_subtitle = 'Audit and approve requested changes to official sacramental registry records.';
+    $page_header_icon = 'fa-pen-to-square';
+    $show_back_button = true;
+    $back_button_url = 'manage-records.php';
+    include '../includes/page_header.php';
+    ?>
 
             <nav class="nav nav-pills mb-3">
                 <?php foreach (['pending', 'applied', 'rejected'] as $s): ?>
@@ -159,9 +147,5 @@ $page_title = 'Record Corrections - Parish Management';
                 </div>
             <?php endif; ?>
 
-        </div><!-- /.premium-admin-content -->
-    </div><!-- /.premium-admin-shell -->
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+</div>
+<?php include '../templates/footer.php'; ?>

@@ -22,8 +22,16 @@ if(in_array($export,['csv','pdf'],true)){
 }
 $data=$service->page($filters,max(1,(int)($_GET['page']??1)),50);$base=array_filter($filters,static fn($v)=>$v!=='');include '../templates/header.php';
 ?>
-<div class="container-fluid py-4 audit-page">
- <section class="pds-hero mb-3"><div><span class="pds-eyebrow"><i class="fas fa-shield-halved" aria-hidden="true"></i> Accountability</span><h1>Audit Logs</h1><p>Canonical, correlation-aware security and business-operation history.</p></div></section>
+<div class="container-fluid px-0 audit-page">
+  <!-- Standardized Section Header -->
+  <?php
+  $page_header_title = 'Audit Logs';
+  $page_header_subtitle = 'Canonical, correlation-aware security, transactions, and business-operation history.';
+  $page_header_icon = 'fa-clock-rotate-left';
+  $show_back_button = true;
+  $back_button_url = BASE_URL . 'admin/dashboard.php';
+  include '../includes/page_header.php';
+  ?>
  <form class="card card-body mb-3" method="get"><div class="row g-3 align-items-end">
   <div class="col-lg-4"><label class="form-label" for="auditQ">Search</label><input id="auditQ" class="form-control" type="search" name="q" value="<?php echo e($filters['q']); ?>" placeholder="Action, actor, table, correlation ID"></div>
   <div class="col-sm-6 col-lg-2"><label class="form-label" for="auditFrom">From</label><input id="auditFrom" class="form-control" type="date" name="from" value="<?php echo e($filters['from']); ?>"></div>

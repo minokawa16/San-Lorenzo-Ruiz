@@ -134,16 +134,19 @@ $simple_text_fields = [
     @media (max-width: 1100px) { .layout-editor-shell { grid-template-columns: 1fr; } }
 </style>
 
-<div class="container-fluid py-3">
-    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
-        <div>
-            <h1 class="mb-1"><i class="fas fa-pen-ruler"></i> Edit Certificate Layout</h1>
-            <p class="text-muted mb-0"><?php echo e(certificateTemplateTypeLabel($certificate_type)); ?></p>
-        </div>
-        <div class="d-flex gap-2 layout-editor-actions">
-            <a class="btn btn-outline-secondary" href="certificate-templates.php"><i class="fas fa-arrow-left"></i> Back</a>
-            <button class="btn btn-primary" id="topSaveLayoutBtn" type="button"><i class="fas fa-save"></i> Save Layout</button>
-        </div>
+<div class="container-fluid px-0">
+    <!-- Standardized Section Header -->
+    <?php
+    $page_header_title = 'Edit Certificate Layout';
+    $page_header_subtitle = certificateTemplateTypeLabel($certificate_type) . ' layout, typography, borders, and asset branding.';
+    $page_header_icon = 'fa-pen-ruler';
+    $show_back_button = true;
+    $back_button_url = 'certificate-templates.php';
+    include '../includes/page_header.php';
+    ?>
+
+    <div class="d-flex justify-content-end mb-3 layout-editor-actions">
+        <button class="btn btn-primary" id="topSaveLayoutBtn" type="button"><i class="fas fa-save"></i> Save Layout</button>
     </div>
 
     <?php foreach ($notifications as $notice): ?>

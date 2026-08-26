@@ -9,16 +9,13 @@
  * <?php $back_button_label = 'Back'; include '../includes/back_button.php'; ?>
  */
 
-// Pages can override this before including the component.
 if (!isset($back_button_label)) {
     $back_button_label = 'Go Back';
 }
 ?>
 
-<div class="mb-4 no-print">
-    <div class="d-flex gap-2 flex-wrap">
-        <button type="button" onclick="history.back()" class="pds-btn pds-btn-ghost-outline btn btn-outline-secondary" title="Go back to previous page">
-            <i class="fas fa-arrow-left"></i> <?php echo htmlspecialchars($back_button_label); ?>
-        </button>
-    </div>
+<div class="mb-3 no-print">
+    <button type="button" onclick="history.back()" class="parish-back-link" title="Go back to previous page">
+        <i class="fas fa-arrow-left"></i> <?php echo htmlspecialchars($back_button_label); ?>
+    </button>
 </div>

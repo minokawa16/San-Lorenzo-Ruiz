@@ -697,41 +697,38 @@ $dashboard_avatar_letter = strtoupper(substr($dashboard_profile_name ?: 'T', 0, 
         <main class="premium-admin-content main-content">
 
             <!-- 1. Refactored Header: Title, Search Pill, Profile Chip -->
-            <header class="dashboard-header-row">
-                <!-- Left: Serif Title & Subtitle -->
-                <div class="dashboard-header-title-block">
-                    <h1>Dashboard</h1>
-                    <p>Monitor parish activities, requests, records, and operations.</p>
+            <!-- 1. Top Header Layout -->
+            <header class="dashboard-header-row parish-top-nav-bar">
+                <!-- Left: Muted Green Icon + Serif Title & Subtitle -->
+                <div class="d-flex align-items-center gap-3 parish-nav-left">
+                    <div class="parish-nav-badge-icon" aria-hidden="true">
+                        <i class="fas fa-gauge-high"></i>
+                    </div>
+                    <div class="dashboard-header-title-block">
+                        <h1>Dashboard</h1>
+                        <p>Monitor parish activities, requests, records, and operations.</p>
+                    </div>
                 </div>
 
                 <!-- Center: Pill Search Input with Inline SVG & Ctrl K Badge -->
-                <div class="dashboard-header-search-wrap">
-                    <form class="dashboard-header-search-form" action="<?php echo BASE_URL; ?>admin/manage-users.php" method="GET">
-                        <span class="dashboard-search-icon" aria-hidden="true">
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="11" cy="11" r="8"></circle>
-                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                            </svg>
-                        </span>
-                        <input id="adminSmartSearch" class="dashboard-search-input" name="search" type="search" placeholder="Search parishioners, requests..." autocomplete="off">
+                <div class="dashboard-header-search-wrap parish-nav-center">
+                    <form class="dashboard-header-search-form parish-nav-search-form" action="<?php echo BASE_URL; ?>admin/manage-users.php" method="GET">
+                        <i class="fas fa-magnifying-glass search-icon" aria-hidden="true"></i>
+                        <input id="adminSmartSearch" class="dashboard-search-input parish-nav-search-input" name="search" type="search" placeholder="Search parishioners, requests..." autocomplete="off">
                         <kbd class="dashboard-search-kbd">Ctrl K</kbd>
                     </form>
                 </div>
 
                 <!-- Right: Profile Chip Button with Gold Avatar & Dropdown -->
-                <div class="dashboard-header-profile-wrap">
+                <div class="dashboard-header-profile-wrap parish-nav-right">
                     <div class="dropdown">
-                        <button class="profile-chip-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <span class="profile-chip-avatar"><?php echo htmlspecialchars($dashboard_avatar_letter); ?></span>
-                            <span class="profile-chip-meta">
-                                <span class="profile-chip-name"><?php echo htmlspecialchars($dashboard_profile_name); ?></span>
-                                <span class="profile-chip-role">Admin</span>
+                        <button class="profile-chip-btn parish-profile-pill-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <span class="profile-chip-avatar parish-profile-avatar"><?php echo htmlspecialchars($dashboard_avatar_letter); ?></span>
+                            <span class="profile-chip-meta parish-profile-meta">
+                                <span class="profile-chip-name parish-profile-name"><?php echo htmlspecialchars($dashboard_profile_name); ?></span>
+                                <span class="profile-chip-role parish-profile-role">Administrator</span>
                             </span>
-                            <span class="profile-chip-chevron" aria-hidden="true">
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                    <polyline points="6 9 12 15 18 9"></polyline>
-                                </svg>
-                            </span>
+                            <i class="fas fa-chevron-down ms-1" style="font-size: 10px; color: #9a9890;"></i>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end shadow-sm">
                             <li><a class="dropdown-item" href="../auth/profile.php"><i class="fas fa-user me-2 text-muted"></i> My Profile</a></li>

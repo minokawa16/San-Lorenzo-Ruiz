@@ -188,11 +188,16 @@ $breadcrumbs = [
     }
 </style>
 
-<div class="container-fluid mt-4 integration-page">
-    <div class="integration-hero">
-        <h1><i class="fas fa-plug-circle-check"></i> Integration Health Center</h1>
-        <p>This dashboard shows the localhost/offline readiness and online deployment needs for the seven revision areas. It gives you evidence for the panel today and a clean checklist for next week or next month when the system goes online.</p>
-    </div>
+<div class="container-fluid px-0 integration-page">
+    <!-- Standardized Section Header -->
+    <?php
+    $page_header_title = 'Integration Health Center';
+    $page_header_subtitle = 'Localhost offline readiness and live online deployment compliance monitoring.';
+    $page_header_icon = 'fa-plug-circle-check';
+    $show_back_button = true;
+    $back_button_url = BASE_URL . 'admin/dashboard.php';
+    include '../includes/page_header.php';
+    ?>
 
     <div class="readiness-grid">
         <div class="readiness-panel">

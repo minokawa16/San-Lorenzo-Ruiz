@@ -9,40 +9,27 @@ include '../includes/helpers.php';
 requireLogin();
 requirePermission('ai.staff.use');
 
-$page_title = 'AI Assistant - Admin';
-?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo e($page_title); ?></title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../assets/css/holy-theme.css">
-    <link rel="stylesheet" href="../assets/css/premium-parish.css">
-    <link rel="stylesheet" href="../assets/css/style.css">
-    <link rel="stylesheet" href="../assets/css/parish-design-system.css">
-    <link rel="stylesheet" href="../assets/css/theme.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/theme.css') ? filemtime(__DIR__ . '/../assets/css/theme.css') : time(); ?>">
-    <link rel="stylesheet" href="../assets/css/accessibility.css">
-</head>
-<body class="church-theme">
-    <a class="tugon-skip-link" href="#main-content">Skip to main content</a>
-    <div class="premium-admin-shell">
-        <?php include '../includes/admin-sidebar.php'; ?>
-        <main class="premium-admin-content" id="main-content" tabindex="-1">
-            <section class="premium-admin-hero">
-                <div>
-                    <span class="premium-pill landing-eyebrow"><i class="fas fa-robot"></i> AI-powered operations</span>
-                    <h1>AI Assistant for Parish Administration</h1>
-                    <p>Use automated inquiry responses, transaction guidance, smart search, and AI-assisted reporting from one administrative workspace.</p>
-                </div>
-                <div class="hero-orb" aria-hidden="true">
-                    <i class="fas fa-wand-magic-sparkles"></i>
-                </div>
-            </section>
+$page_title = 'AI Assistant';
+$breadcrumbs = [
+    'Dashboard' => 'dashboard.php',
+    'AI Assistant' => null
+];
 
-            <section class="ai-workspace admin-ai-workspace">
+include '../templates/header.php';
+?>
+
+<div class="container-fluid px-0">
+    <!-- Standardized Section Header -->
+    <?php
+    $page_header_title = 'AI Assistant';
+    $page_header_subtitle = 'Automated inquiry responses, transaction guidance, smart search, and AI-assisted analytics.';
+    $page_header_icon = 'fa-robot';
+    $show_back_button = true;
+    $back_button_url = BASE_URL . 'admin/dashboard.php';
+    include '../includes/page_header.php';
+    ?>
+
+    <section class="ai-workspace admin-ai-workspace">
                 <div class="premium-panel premium-glass ai-chat-panel">
                     <div class="premium-panel-header">
                         <h2 class="premium-panel-title"><i class="fas fa-comments"></i> Ask TUGON AI</h2>
@@ -329,5 +316,5 @@ $page_title = 'AI Assistant - Admin';
     });
     </script>
     <script src="../assets/js/accessibility.js"></script>
-</body>
-</html>
+</div>
+<?php include '../templates/footer.php'; ?>

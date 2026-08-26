@@ -93,15 +93,16 @@ $breadcrumbs = [
 ?>
 <?php include '../templates/header.php'; ?>
 
-<div class="container-fluid mt-4">
-    <?php include '../includes/breadcrumb.php'; ?>
-    <?php include '../includes/back_button.php'; ?>
-
-    <div class="row mb-4">
-        <div class="col-md-8">
-            <h1 class="mb-2"><i class="fas fa-people-roof"></i> Manage Parishioners</h1>
-        </div>
-    </div>
+<div class="container-fluid px-0">
+    <!-- Standardized Section Header -->
+    <?php 
+    $page_header_title = 'Manage Parishioners';
+    $page_header_subtitle = 'Review parishioner accounts, verification status, and personal registry entries.';
+    $page_header_icon = 'fa-people-roof';
+    $show_back_button = true;
+    $back_button_url = BASE_URL . 'admin/dashboard.php';
+    include '../includes/page_header.php'; 
+    ?>
 
     <?php if ($error): ?>
         <div class="alert alert-danger alert-dismissible fade show">

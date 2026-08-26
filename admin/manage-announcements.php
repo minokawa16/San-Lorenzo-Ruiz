@@ -549,24 +549,28 @@ $breadcrumbs = [
     .editor-toolbar { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; background: #f8fafc; border: 1px solid #dfe4ea; border-bottom: 0; border-radius: 8px 8px 0 0; }
     .editor-toolbar button { width: 34px; height: 34px; border: 1px solid #dfe4ea; background: #fff; border-radius: 7px; }
     .rich-editor { min-height: 190px; padding: 12px; border: 1px solid #dfe4ea; border-radius: 0 0 8px 8px; background: #fff; line-height: 1.6; outline: none; }
+    .empty-panel { padding: 44px 18px; text-align: center; color: #667085; }
+    .editor-toolbar { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; background: #f8fafc; border: 1px solid #dfe4ea; border-bottom: 0; border-radius: 8px 8px 0 0; }
+    .editor-toolbar button { width: 34px; height: 34px; border: 1px solid #dfe4ea; background: #fff; border-radius: 7px; }
+    .rich-editor { min-height: 190px; padding: 12px; border: 1px solid #dfe4ea; border-radius: 0 0 8px 8px; background: #fff; line-height: 1.6; outline: none; }
     .modal .form-label { font-weight: 800; color: #334155; }
     @media (max-width: 1180px) { .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .announcement-card { min-height: 200px; } }
     @media (max-width: 768px) { .announcement-shell { padding: 12px; } .stat-grid { grid-template-columns: 1fr; } .announcement-card { grid-template-columns: 1fr; min-height: 0; border-radius: 16px; } .announcement-icon-panel { min-height: 82px; flex-direction: row; justify-content: flex-start; padding: 16px 18px; border-radius: 15px 15px 0 0; } .announcement-icon-panel i { font-size: 24px; } .card-main { padding: 20px 18px; } .announcement-card-top { align-items: flex-start; } .announcement-card-tools > span { display: none; } .card-main h3 { font-size: 20px; } .card-main p { font-size: 14px; } .announcement-meta { display: grid; gap: 8px; } .announcement-card-footer { align-items: stretch; flex-direction: column; } .view-details-btn { width: 100%; } .announcement-full-content img { width: 100%; max-width: none; } .announcement-section-heading { align-items: start; } .feed-pagination { align-items: flex-start; flex-direction: column; } }
 </style>
 
-<div class="container-fluid mt-4">
-    <?php include '../includes/breadcrumb.php'; ?>
-    <?php include '../includes/back_button.php'; ?>
+<div class="container-fluid px-0">
+    <!-- Standardized Section Header -->
+    <?php
+    $page_header_title = 'Announcements';
+    $page_header_subtitle = 'Publish and manage parish notices, bulletins, and event updates.';
+    $page_header_icon = 'fa-bullhorn';
+    $show_back_button = true;
+    $back_button_url = BASE_URL . 'admin/dashboard.php';
+    include '../includes/page_header.php';
+    ?>
 
     <div class="announcement-admin-page">
         <div class="announcement-shell">
-            <section class="announcement-hero">
-                <div>
-                    <h1>Announcements</h1>
-                    <p>Publish parish notices and updates.</p>
-                </div>
-            </section>
-
             <?php if ($error): ?>
                 <div class="alert alert-danger alert-dismissible fade show"><?php echo e($error); ?><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
             <?php endif; ?>

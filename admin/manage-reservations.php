@@ -23,16 +23,42 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
     if ($reservation_id <= 0 || !in_array($status, $allowed_statuses, true)) {
         $error = 'Please choose a valid reservation status.';
     } else {
-        try{$result=(new ReservationService($conn))->changeStatus($reservation_id,$status,(int)$_SESSION['user_id'],$admin_notes);$success='Reservation updated successfully. '.$result['calendar']['message'];}catch(Throwable $e){$error=$e->getMessage();}
+        try {
+            $result = (new ReservationService($conn))->changeStatus($reservation_id, $status, (int)$_SESSION['user_id'], $admin_notes);
+            $success = 'Reservation updated successfully. ' . $result['calendar']['message'];
+        } catch (Throwable $e) {
+            $error = $e->getMessage();
+        }
     }
 } elseif (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '') === 'propose_schedule') {
     try {
-        $start=str_replace('T',' ',trim((string)($_POST['proposed_start_at']??''))).':00';
-        $duration=(int)($_POST['proposal_duration_minutes']??60);
-        $expires=trim((string)($_POST['expires_at']??''));$expires=$expires===''?null:str_replace('T',' ',$expires).':00';
-        (new ReservationService($conn))->proposeSchedule((int)($_POST['reservation_id']??0),['start_at'=>$start,'service_duration_minutes'=>$duration,'setup_duration_minutes'=>(int)($_POST['setup_duration_minutes']??0),'cleanup_duration_minutes'=>(int)($_POST['cleanup_duration_minutes']??0),'resource_ids'=>$_POST['resource_ids']??[]],(int)$_SESSION['user_id'],trim((string)($_POST['proposal_reason']??'')),$expires);
-        $success='Schedule proposal sent to the parishioner.';
-    } catch(Throwable $e){$error=$e->getMessage();if($e instanceof DomainException&&isset($start)){$suggestions=(new ResourceAvailabilityService($conn))->suggestAvailableSlots((array)($_POST['resource_ids']??[]),$start,$duration,(int)($_POST['setup_duration_minutes']??0),(int)($_POST['cleanup_duration_minutes']??0));if($suggestions)$error.=' Available alternatives: '.implode(', ',array_map(fn($slot)=>date('M j, Y g:i A',strtotime($slot['start_at'])),$suggestions)).'.';}}
+        $start = str_replace('T', ' ', trim((string)($_POST['proposed_start_at'] ?? ''))) . ':00';
+        $duration = (int)($_POST['proposal_duration_minutes'] ?? 60);
+        $expires = trim((string)($_POST['expires_at'] ?? ''));
+        $expires = $expires === '' ? null : str_replace('T', ' ', $expires) . ':00';
+        (new ReservationService($conn))->proposeSchedule(
+            (int)($_POST['reservation_id'] ?? 0),
+            [
+                'start_at' => $start,
+                'service_duration_minutes' => $duration,
+                'setup_duration_minutes' => (int)($_POST['setup_duration_minutes'] ?? 0),
+                'cleanup_duration_minutes' => (int)($_POST['cleanup_duration_minutes'] ?? 0),
+                'resource_ids' => $_POST['resource_ids'] ?? []
+            ],
+            (int)$_SESSION['user_id'],
+            trim((string)($_POST['proposal_reason'] ?? '')),
+            $expires
+        );
+        $success = 'Schedule proposal sent to the parishioner.';
+    } catch (Throwable $e) {
+        $error = $e->getMessage();
+        if ($e instanceof DomainException && isset($start)) {
+            $suggestions = (new ResourceAvailabilityService($conn))->suggestAvailableSlots((array)($_POST['resource_ids'] ?? []), $start, $duration, (int)($_POST['setup_duration_minutes'] ?? 0), (int)($_POST['cleanup_duration_minutes'] ?? 0));
+            if ($suggestions) {
+                $error .= ' Available alternatives: ' . implode(', ', array_map(fn($slot) => date('M j, Y g:i A', strtotime($slot['start_at'])), $suggestions)) . '.';
+            }
+        }
+    }
 }
 
 $status_filter = trim($_GET['status'] ?? '');
@@ -116,9 +142,13 @@ if ($result) {
         $types_list[] = $row['reservation_type'];
     }
 }
-$available_resources=[];$resource_result=$conn->query("SELECT resource_id,name,resource_type FROM resources WHERE status='available' AND deleted_at IS NULL ORDER BY resource_type,name");if($resource_result)$available_resources=$resource_result->fetch_all(MYSQLI_ASSOC);
 
-// Reservation Label Function - Documents this helper's role in the parish management workflow.
+$available_resources = [];
+$resource_result = $conn->query("SELECT resource_id, name, resource_type FROM resources WHERE status = 'available' AND deleted_at IS NULL ORDER BY resource_type, name");
+if ($resource_result) {
+    $available_resources = $resource_result->fetch_all(MYSQLI_ASSOC);
+}
+
 function reservationLabel($value) {
     return ucfirst(str_replace('_', ' ', (string) $value));
 }
@@ -128,24 +158,20 @@ $breadcrumbs = [
     'Dashboard' => 'dashboard.php',
     'Reservations' => null
 ];
+
+include '../templates/header.php';
 ?>
-<?php include '../templates/header.php'; ?>
 
-<div class="container-fluid mt-4">
-    <?php include '../includes/breadcrumb.php'; ?>
-    <?php include '../includes/back_button.php'; ?>
-
-    <section class="premium-admin-hero">
-        <div>
-            <span class="premium-pill"><i class="fas fa-calendar-check"></i> Reservation desk</span>
-            <h1>Manage Reservations</h1>
-            <p>Review parish reservations, update approval status, leave admin notes, and notify parishioners from one focused workspace.</p>
-            <a class="btn btn-outline-light" href="manage-resources.php"><i class="fas fa-building"></i> Manage resources & blackouts</a>
-        </div>
-        <div class="hero-orb" aria-hidden="true">
-            <i class="fas fa-calendar-check"></i>
-        </div>
-    </section>
+<div class="container-fluid px-0">
+    <!-- Standardized Section Header -->
+    <?php
+    $page_header_title = 'Manage Reservations';
+    $page_header_subtitle = 'Review parish reservations, update approval status, and manage parish resources.';
+    $page_header_icon = 'fa-calendar-check';
+    $show_back_button = true;
+    $back_button_url = BASE_URL . 'admin/dashboard.php';
+    include '../includes/page_header.php';
+    ?>
 
     <?php if ($error): ?>
         <div class="alert alert-danger alert-dismissible fade show">
@@ -276,61 +302,121 @@ $breadcrumbs = [
 
 <div class="modal fade" id="reservationModal" tabindex="-1">
     <div class="modal-dialog">
-        <form class="modal-content" method="POST" action="">
-            <?php echo csrfInput(); ?>
+        <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-calendar-check"></i> Update Reservation</h5>
+                <h5 class="modal-title">Update Reservation</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
+            <form method="POST" action="">
+                <?php echo csrfInput(); ?>
                 <input type="hidden" name="action" value="update_reservation">
-                <input type="hidden" name="reservation_id" id="modalReservationId">
-                <div class="mb-3">
-                    <label class="form-label" for="modalReservationStatus">Status</label>
-                    <select class="form-select" id="modalReservationStatus" name="status" required>
-                        <?php foreach ($allowed_statuses as $status_option): ?>
-                            <option value="<?php echo e($status_option); ?>"><?php echo e(reservationLabel($status_option)); ?></option>
-                        <?php endforeach; ?>
-                    </select>
+                <input type="hidden" name="reservation_id" id="modal_reservation_id" value="">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label" for="modal_status">Status</label>
+                        <select class="form-select" id="modal_status" name="status" required>
+                            <?php foreach ($allowed_statuses as $status_option): ?>
+                                <option value="<?php echo e($status_option); ?>"><?php echo e(reservationLabel($status_option)); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="modal_admin_notes">Admin Notes</label>
+                        <textarea class="form-control" id="modal_admin_notes" name="admin_notes" rows="4" placeholder="Add administrative notes, requirements, or instructions for the parishioner..."></textarea>
+                    </div>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label" for="modalReservationNotes">Admin Notes</label>
-                    <textarea class="form-control" id="modalReservationNotes" name="admin_notes" rows="4" placeholder="Optional note for the parishioner"></textarea>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="submit" class="btn btn-primary">Save Update</button>
-            </div>
-        </form>
+            </form>
+        </div>
     </div>
 </div>
 
-<div class="modal fade" id="proposalModal" tabindex="-1"><div class="modal-dialog"><form class="modal-content" method="POST">
-    <?php echo csrfInput(); ?><input type="hidden" name="action" value="propose_schedule"><input type="hidden" name="reservation_id" id="proposalReservationId">
-    <div class="modal-header"><h5 class="modal-title">Propose a new schedule</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-    <div class="modal-body">
-        <div class="mb-3"><label class="form-label">Start (Asia/Manila)</label><input class="form-control" type="datetime-local" name="proposed_start_at" required></div>
-        <div class="row"><div class="col"><label class="form-label">Service minutes</label><input class="form-control" type="number" name="proposal_duration_minutes" min="15" max="1440" value="60" required></div><div class="col"><label class="form-label">Setup</label><input class="form-control" type="number" name="setup_duration_minutes" min="0" max="1440" value="0"></div><div class="col"><label class="form-label">Cleanup</label><input class="form-control" type="number" name="cleanup_duration_minutes" min="0" max="1440" value="0"></div></div>
-        <div class="mb-3 mt-3"><label class="form-label">Resources</label><select class="form-select" name="resource_ids[]" multiple required><?php foreach($available_resources as $resource): ?><option value="<?php echo intval($resource['resource_id']); ?>"><?php echo e($resource['name']); ?></option><?php endforeach; ?></select></div>
-        <div class="mb-3"><label class="form-label">Reason</label><textarea class="form-control" name="proposal_reason" minlength="5" required></textarea></div>
-        <div><label class="form-label">Expires at (optional)</label><input class="form-control" type="datetime-local" name="expires_at"></div>
-    </div><div class="modal-footer"><button class="btn btn-primary" type="submit">Send proposal</button></div>
-</form></div></div>
+<div class="modal fade" id="proposalModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Propose Alternative Schedule</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="">
+                <?php echo csrfInput(); ?>
+                <input type="hidden" name="action" value="propose_schedule">
+                <input type="hidden" name="reservation_id" id="modal_proposal_reservation_id" value="">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label" for="proposed_start_at">Proposed Date &amp; Start Time</label>
+                        <input class="form-control" type="datetime-local" id="proposed_start_at" name="proposed_start_at" required>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-sm-4">
+                            <label class="form-label" for="proposal_duration_minutes">Service (mins)</label>
+                            <input class="form-control" type="number" id="proposal_duration_minutes" name="proposal_duration_minutes" value="60" min="15" step="15" required>
+                        </div>
+                        <div class="col-sm-4">
+                            <label class="form-label" for="setup_duration_minutes">Setup (mins)</label>
+                            <input class="form-control" type="number" id="setup_duration_minutes" name="setup_duration_minutes" value="0" min="0" step="15">
+                        </div>
+                        <div class="col-sm-4">
+                            <label class="form-label" for="cleanup_duration_minutes">Cleanup (mins)</label>
+                            <input class="form-control" type="number" id="cleanup_duration_minutes" name="cleanup_duration_minutes" value="0" min="0" step="15">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="proposal_reason">Reason for Proposal</label>
+                        <textarea class="form-control" id="proposal_reason" name="proposal_reason" rows="3" placeholder="Explain why the original slot was unavailable..." required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="expires_at">Proposal Expires At (Optional)</label>
+                        <input class="form-control" type="datetime-local" id="expires_at" name="expires_at">
+                    </div>
+                    <?php if (!empty($available_resources)): ?>
+                        <div class="mb-3">
+                            <label class="form-label">Attach Resources / Facilities</label>
+                            <div class="d-flex flex-wrap gap-2">
+                                <?php foreach ($available_resources as $resource): ?>
+                                    <label class="badge bg-light text-dark border p-2 d-inline-flex align-items-center gap-2">
+                                        <input type="checkbox" name="resource_ids[]" value="<?php echo intval($resource['resource_id']); ?>">
+                                        <span><?php echo e($resource['name']); ?> <small class="text-muted">(<?php echo e($resource['resource_type']); ?>)</small></span>
+                                    </label>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Send Proposal</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const modal = document.getElementById('reservationModal');
-    if (!modal) return;
-
-    modal.addEventListener('show.bs.modal', function(event) {
-        const button = event.relatedTarget;
-        document.getElementById('modalReservationId').value = button.getAttribute('data-reservation-id') || '';
-        document.getElementById('modalReservationStatus').value = button.getAttribute('data-reservation-status') || 'pending';
-        document.getElementById('modalReservationNotes').value = button.getAttribute('data-reservation-notes') || '';
-    });
-    const proposalModal=document.getElementById('proposalModal');
-    if(proposalModal)proposalModal.addEventListener('show.bs.modal',function(event){document.getElementById('proposalReservationId').value=event.relatedTarget.getAttribute('data-reservation-id')||'';});
+    var reservationModal = document.getElementById('reservationModal');
+    if (reservationModal) {
+        reservationModal.addEventListener('show.bs.modal', function(event) {
+            var button = event.relatedTarget;
+            var id = button.getAttribute('data-reservation-id');
+            var status = button.getAttribute('data-reservation-status');
+            var notes = button.getAttribute('data-reservation-notes');
+            document.getElementById('modal_reservation_id').value = id || '';
+            document.getElementById('modal_status').value = status || 'pending';
+            document.getElementById('modal_admin_notes').value = notes || '';
+        });
+    }
+    var proposalModal = document.getElementById('proposalModal');
+    if (proposalModal) {
+        proposalModal.addEventListener('show.bs.modal', function(event) {
+            var button = event.relatedTarget;
+            var id = button.getAttribute('data-reservation-id');
+            document.getElementById('modal_proposal_reservation_id').value = id || '';
+        });
+    }
 });
 </script>
 

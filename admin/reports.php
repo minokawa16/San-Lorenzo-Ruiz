@@ -33,8 +33,16 @@ $labels=['turnaround'=>'Request Turnaround','pending_overdue'=>'Pending & Overdu
 $queryBase=array_filter(array_merge(['report'=>$report],$filters),static fn($v)=>$v!=='');
 include '../templates/header.php';
 ?>
-<div class="container-fluid py-4 reports-page">
-  <section class="pds-hero mb-3"><div><span class="pds-eyebrow"><i class="fas fa-chart-line" aria-hidden="true"></i> Operational evidence</span><h1>Reports & Analytics</h1><p>Permission-protected, date-filtered operational reports calculated from workflow timestamps.</p></div></section>
+<div class="container-fluid px-0">
+  <!-- Standardized Section Header -->
+  <?php
+  $page_header_title = 'Reports & Analytics';
+  $page_header_subtitle = 'Permission-protected, date-filtered operational reports calculated from workflow timestamps.';
+  $page_header_icon = 'fa-chart-line';
+  $show_back_button = true;
+  $back_button_url = BASE_URL . 'admin/dashboard.php';
+  include '../includes/page_header.php';
+  ?>
   <nav class="d-flex flex-wrap gap-2 mb-3" aria-label="Report types">
     <?php foreach($labels as $key=>$label): ?><a class="btn <?php echo $report===$key?'btn-primary':'btn-outline-primary'; ?>" href="?report=<?php echo e($key); ?>"><?php echo e($label); ?></a><?php endforeach; ?>
   </nav>

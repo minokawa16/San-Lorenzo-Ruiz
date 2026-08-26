@@ -307,30 +307,35 @@ $header_user_role = $is_admin_area ? 'Administrator' : 'Parishioner';
         <?php include '../includes/admin-sidebar.php'; ?>
         <main class="premium-admin-content main-content" id="main-content" tabindex="-1">
             <?php if (empty($hide_global_header)): ?>
-            <header class="app-global-header admin-global-topbar flex items-center justify-between w-full py-3 mb-4 bg-transparent" style="background: transparent !important; border: none !important; box-shadow: none !important;">
-                <!-- Left Title & Subtitle -->
-                <div class="admin-global-title flex items-center gap-3">
-                    <h1 class="text-xl font-bold text-gray-900 m-0" style="font-family: 'Playfair Display', Georgia, serif; font-size: 1.45rem; font-weight: 700; color: #1e293b;"><?php echo e($admin_header_title); ?></h1>
-                    <span class="text-xs text-muted d-none d-sm-inline-block" style="font-size: 0.8rem; color: #6b6a63;"><?php echo e($admin_header_description); ?></span>
+            <header class="app-global-header admin-global-topbar parish-top-nav-bar flex items-center justify-between w-full py-2 mb-3 bg-transparent" style="background: transparent !important; border: none !important; box-shadow: none !important;">
+                <!-- Left Title & Subtitle with Light Muted Green Square Icon Container -->
+                <div class="admin-global-title parish-nav-left flex items-center gap-3">
+                    <div class="parish-nav-badge-icon" aria-hidden="true">
+                        <i class="fas <?php echo e($header_icon); ?>"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-gray-900 m-0" style="font-family: 'Playfair Display', Georgia, serif; font-size: 1.55rem; font-weight: 700; color: #1e293b; line-height: 1.15;"><?php echo e($admin_header_title); ?></h1>
+                        <p class="text-xs text-muted m-0 mt-1 d-none d-sm-block" style="font-size: 0.8rem; color: #64748b; font-weight: 500;"><?php echo e($admin_header_description); ?></p>
+                    </div>
                 </div>
 
-                <!-- Center Search Bar (No double borders) -->
-                <div class="app-header-center flex-1 max-w-md mx-6">
-                    <form class="app-header-search" action="<?php echo e($header_search_action); ?>" method="GET" style="background: transparent; border: none; box-shadow: none;">
-                        <i class="fas fa-magnifying-glass"></i>
-                        <input type="search" name="<?php echo e($header_search_name); ?>" placeholder="<?php echo e($header_search_placeholder); ?>" value="<?php echo e($header_search_value); ?>" autocomplete="off">
+                <!-- Center Search Bar (No double borders, rounded pill with Ctrl K) -->
+                <div class="app-header-center parish-nav-center flex-1 max-w-md mx-6">
+                    <form class="app-header-search parish-nav-search-form" action="<?php echo e($header_search_action); ?>" method="GET" style="background: transparent; border: none; box-shadow: none;">
+                        <i class="fas fa-magnifying-glass search-icon" aria-hidden="true"></i>
+                        <input class="parish-nav-search-input" type="search" name="<?php echo e($header_search_name); ?>" placeholder="<?php echo e($header_search_placeholder); ?>" value="<?php echo e($header_search_value); ?>" autocomplete="off">
                         <kbd>Ctrl K</kbd>
                     </form>
                 </div>
 
-                <!-- Right Admin Profile -->
-                <div class="admin-global-actions">
+                <!-- Right Admin Profile Widget -->
+                <div class="admin-global-actions parish-nav-right">
                     <div class="dropdown">
-                        <button class="profile-chip-btn admin-profile-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <span class="profile-chip-avatar profile-avatar"><?php echo strtoupper(substr($_SESSION['fullname'] ?? 'A', 0, 1)); ?></span>
-                            <span class="profile-chip-meta profile-meta">
-                                <span class="profile-chip-name profile-name"><?php echo $header_user_name; ?></span>
-                                <span class="profile-chip-role profile-role"><?php echo e($header_user_role); ?></span>
+                        <button class="profile-chip-btn admin-profile-btn parish-profile-pill-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <span class="profile-chip-avatar profile-avatar parish-profile-avatar"><?php echo strtoupper(substr($_SESSION['fullname'] ?? 'A', 0, 1)); ?></span>
+                            <span class="profile-chip-meta profile-meta parish-profile-meta">
+                                <span class="profile-chip-name profile-name parish-profile-name"><?php echo $header_user_name; ?></span>
+                                <span class="profile-chip-role profile-role parish-profile-role"><?php echo e($header_user_role); ?></span>
                             </span>
                             <i class="fas fa-chevron-down ms-1" style="font-size: 10px; color: #9a9890;"></i>
                         </button>

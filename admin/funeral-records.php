@@ -543,15 +543,15 @@ $page_title = 'Funeral Records - Parish Management';
 
         <!-- Main Content -->
         <div class="premium-admin-content pds-page-container">
-            <div style="margin-bottom: 30px;">
-                <a href="manage-records.php" class="btn btn-primary-gold" style="margin-bottom: 14px;">
-                    <i class="fas fa-arrow-left"></i> Back to Sacramental Records
-                </a>
-                <h1 class="page-title">
-                    <i class="fas fa-book-open"></i> Funeral Records
-                </h1>
-                <p style="color: #6c757d;">Manage funeral and burial registry entries</p>
-            </div>
+            <!-- Standardized Page Header -->
+            <?php
+            $page_header_title = 'Funeral Records';
+            $page_header_subtitle = 'Manage and digitize funeral and burial sacramental registry entries.';
+            $page_header_icon = 'fa-cross';
+            $show_back_button = true;
+            $back_button_url = 'manage-records.php';
+            include '../includes/page_header.php';
+            ?>
 
             <?php if (!empty($message)): ?>
                 <div class="alert alert-<?php echo htmlspecialchars($alert_type); ?>">

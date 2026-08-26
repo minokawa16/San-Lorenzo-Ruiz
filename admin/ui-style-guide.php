@@ -16,20 +16,16 @@ $breadcrumbs = [
 ?>
 <?php include '../templates/header.php'; ?>
 
-<div class="container-fluid mt-4">
-    <?php include '../includes/breadcrumb.php'; ?>
-    <?php include '../includes/back_button.php'; ?>
-
-    <div class="pds-page-header">
-        <div>
-            <h1><i class="fas fa-palette"></i> Parish UI Style Guide</h1>
-            <p>Illuminated manuscript tokens and reusable component classes for the parish management system.</p>
-        </div>
-        <a class="pds-btn pds-btn-primary-gold" href="dashboard.php">
-            <i class="fas fa-gauge"></i> Dashboard
-        </a>
-    </div>
-    <div class="pds-tracery-rule" aria-hidden="true"></div>
+<div class="container-fluid px-0">
+    <!-- Standardized Section Header -->
+    <?php
+    $page_header_title = 'Parish UI Style Guide';
+    $page_header_subtitle = 'Design system tokens, typography standards, and reusable component classes.';
+    $page_header_icon = 'fa-palette';
+    $show_back_button = true;
+    $back_button_url = 'dashboard.php';
+    include '../includes/page_header.php';
+    ?>
 
     <div class="row g-4">
         <div class="col-lg-6">

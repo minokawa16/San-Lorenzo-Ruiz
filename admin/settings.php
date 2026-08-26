@@ -1044,14 +1044,20 @@ $breadcrumbs = [
     }
 </style>
 
-<div class="container-fluid mt-4 recovery-center">
-    <?php include '../includes/breadcrumb.php'; ?>
-    <?php include '../includes/back_button.php'; ?>
+<div class="container-fluid px-0 recovery-center">
+    <?php
+    $page_header_title = 'Settings & System Maintenance';
+    $page_header_subtitle = 'Configure system preferences, security, SMS gateway, backups, and maintenance routines.';
+    $page_header_icon = 'fa-gear';
+    $show_back_button = true;
+    $back_button_url = BASE_URL . 'admin/dashboard.php';
+    include '../includes/page_header.php';
+    ?>
 
     <section class="recovery-hero mb-3">
         <div>
-            <h1><i class="fas fa-shield-halved"></i> Backup, Recovery & Maintenance Center</h1>
-            <p>Complete protection for sacramental records, user accounts, transactions, uploaded documents, system configuration, application files, logs, and recovery metadata.</p>
+            <h2 class="h5 m-0 font-weight-bold"><i class="fas fa-shield-halved"></i> Backup &amp; Recovery Hub</h2>
+            <p class="m-0 text-muted" style="font-size: 0.84rem;">Protection for sacramental records, user accounts, system configuration, uploaded files, and recovery logs.</p>
         </div>
         <div class="hero-actions">
             <form method="POST">

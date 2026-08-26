@@ -658,16 +658,15 @@ $page_title = 'Marriage Records - Parish Management';
 
         <!-- Main Content -->
         <div class="premium-admin-content pds-page-container">
-            <!-- Page Header -->
-            <div style="margin-bottom: 30px;">
-                <a href="manage-records.php" class="btn btn-primary-gold" style="margin-bottom: 14px;">
-                    <i class="fas fa-arrow-left"></i> Back to Sacramental Records
-                </a>
-                <h1 class="page-title">
-                    <i class="fas fa-ring"></i> Marriage Records
-                </h1>
-                <p style="color: #6c757d;">Manage and digitize marriage sacramental records</p>
-            </div>
+            <!-- Standardized Page Header -->
+            <?php
+            $page_header_title = 'Marriage Records';
+            $page_header_subtitle = 'Manage and digitize Holy Matrimony sacramental registry entries.';
+            $page_header_icon = 'fa-ring';
+            $show_back_button = true;
+            $back_button_url = 'manage-records.php';
+            include '../includes/page_header.php';
+            ?>
 
             <!-- Alert Messages -->
             <?php if (!empty($message)): ?>

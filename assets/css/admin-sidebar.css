@@ -748,4 +748,95 @@ html body .admin-profile-btn .profile-role {
     color: #0f172a !important;
 }
 
+/* ── Muted Green Square Icon Container on Top Navigation Header ── */
+.parish-nav-badge-icon {
+    width: 40px !important;
+    height: 40px !important;
+    border-radius: 10px !important;
+    background: #E8F0EA !important;
+    color: #0E3321 !important;
+    border: 1px solid rgba(20, 61, 40, 0.2) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.15rem !important;
+    flex-shrink: 0 !important;
+}
 
+/* ── Standardized Section Sub-Header & Back Button ── */
+.parish-section-header-component {
+    margin-bottom: 20px !important;
+}
+
+.parish-back-link {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    font-size: 0.82rem !important;
+    font-weight: 600 !important;
+    color: #8A6409 !important;
+    background: #FFFFFF !important;
+    border: 1px solid #C59B27 !important;
+    padding: 6px 14px !important;
+    border-radius: 8px !important;
+    text-decoration: none !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+    transition: all 0.15s ease !important;
+    margin-bottom: 14px !important;
+    cursor: pointer !important;
+    line-height: normal !important;
+}
+
+.parish-back-link:hover,
+.parish-back-link:focus {
+    background: #FAF4E6 !important;
+    color: #694b05 !important;
+    border-color: #A37E1C !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 2px 6px rgba(197, 155, 39, 0.18) !important;
+}
+
+.parish-section-title-wrap {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+}
+
+.parish-section-title {
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    font-family: 'Playfair Display', Georgia, serif !important;
+    font-size: 1.75rem !important;
+    font-weight: 700 !important;
+    color: #1E293B !important;
+    margin: 0 !important;
+}
+
+.parish-section-icon-badge {
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 50% !important;
+    background: #E8F0EA !important;
+    color: #143D28 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.1rem !important;
+    border: 1px solid rgba(20, 61, 40, 0.2) !important;
+    flex-shrink: 0 !important;
+}
+
+.parish-gold-underline {
+    width: 56px !important;
+    height: 3px !important;
+    background: linear-gradient(90deg, #C59B27, transparent) !important;
+    border-radius: 2px !important;
+    margin: 4px 0 6px 0 !important;
+}
+
+.parish-section-subtitle {
+    font-size: 0.85rem !important;
+    color: #64748B !important;
+    margin: 0 !important;
+}

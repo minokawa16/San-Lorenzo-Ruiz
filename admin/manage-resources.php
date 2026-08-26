@@ -18,9 +18,24 @@ if(($_SERVER['REQUEST_METHOD']??'GET')==='POST'){
 }
 $resources=$conn->query('SELECT * FROM resources WHERE deleted_at IS NULL ORDER BY resource_type,name')->fetch_all(MYSQLI_ASSOC);
 $blackouts=$conn->query('SELECT u.*,r.name resource_name FROM resource_unavailability u JOIN resources r ON r.resource_id=u.resource_id ORDER BY u.start_at DESC LIMIT 100')->fetch_all(MYSQLI_ASSOC);
-$page_title='Manage Resources';include '../templates/header.php';
+$page_title='Manage Resources';
+$breadcrumbs = [
+    'Dashboard' => 'dashboard.php',
+    'Reservations' => 'manage-reservations.php',
+    'Manage Resources' => null
+];
+include '../templates/header.php';
 ?>
-<div class="container mt-4"><h1>Reservation Resources</h1><p class="text-muted">Manage facilities, personnel, equipment, and blackout periods. Times use Asia/Manila.</p>
+<div class="container-fluid px-0">
+    <!-- Standardized Section Header -->
+    <?php
+    $page_header_title = 'Reservation Resources';
+    $page_header_subtitle = 'Manage parish facilities, personnel, equipment, and blackout scheduling.';
+    $page_header_icon = 'fa-warehouse';
+    $show_back_button = true;
+    $back_button_url = 'manage-reservations.php';
+    include '../includes/page_header.php';
+    ?>
 <?php if($error):?><div class="alert alert-danger"><?php echo e($error);?></div><?php endif;?><?php if($success):?><div class="alert alert-success"><?php echo e($success);?></div><?php endif;?>
 <div class="row g-4"><div class="col-lg-6"><div class="card"><div class="card-header">Add resource</div><div class="card-body"><form method="POST"><?php echo csrfInput();?><input type="hidden" name="action" value="save_resource"><div class="row g-2"><div class="col-md-6"><label class="form-label">Name</label><input class="form-control" name="name" maxlength="150" required></div><div class="col-md-6"><label class="form-label">Type</label><select class="form-select" name="resource_type"><?php foreach(['area','chapel','hall','priest','staff','equipment'] as$type):?><option><?php echo e($type);?></option><?php endforeach;?></select></div><div class="col-md-6"><label class="form-label">Location</label><input class="form-control" name="location"></div><div class="col-md-3"><label class="form-label">Capacity</label><input class="form-control" type="number" min="0" name="capacity"></div><div class="col-md-3"><label class="form-label">Status</label><select class="form-select" name="status"><option>available</option><option>unavailable</option><option>maintenance</option></select></div><div class="col-12"><label class="form-label">Description</label><textarea class="form-control" name="description" maxlength="500"></textarea></div></div><button class="btn btn-primary mt-3">Save resource</button></form></div></div></div>
 <div class="col-lg-6"><div class="card"><div class="card-header">Add blackout</div><div class="card-body"><form method="POST"><?php echo csrfInput();?><input type="hidden" name="action" value="add_blackout"><label class="form-label">Resource</label><select class="form-select mb-2" name="resource_id" required><?php foreach($resources as$r):?><option value="<?php echo(int)$r['resource_id'];?>"><?php echo e($r['name']);?></option><?php endforeach;?></select><div class="row"><div class="col"><label class="form-label">Start</label><input class="form-control" type="datetime-local" name="start_at" required></div><div class="col"><label class="form-label">End</label><input class="form-control" type="datetime-local" name="end_at" required></div></div><label class="form-label mt-2">Reason</label><input class="form-control" name="reason" minlength="5" required><label class="form-label mt-2">Recurrence (optional)</label><input class="form-control" name="recurrence_rule" placeholder="weekly:0 or annual:12-25"><button class="btn btn-primary mt-3">Save blackout</button></form></div></div></div></div>

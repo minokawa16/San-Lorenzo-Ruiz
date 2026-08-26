@@ -199,9 +199,16 @@ $breadcrumbs = [
 }
 </style>
 
-<div class="container-fluid mt-4">
-    <?php include '../includes/breadcrumb.php'; ?>
-    <?php include '../includes/back_button.php'; ?>
+<div class="container-fluid px-0">
+    <!-- Standardized Section Header -->
+    <?php
+    $page_header_title = 'Request Workflow';
+    $page_header_subtitle = 'Process document review, verify payment receipts, and release certificates for ' . e($request['reference_number']);
+    $page_header_icon = 'fa-route';
+    $show_back_button = true;
+    $back_button_url = 'manage-requests.php';
+    include '../includes/page_header.php';
+    ?>
 
     <?php if ($error): ?>
         <div class="alert alert-danger"><?php echo e($error); ?></div>

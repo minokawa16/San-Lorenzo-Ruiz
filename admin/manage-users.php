@@ -92,13 +92,11 @@ function userDetailDateTime($value) {
 $page_title = 'Manage Parishioners';
 $body_extra_class = 'stable-detail-modals';
 
-// Set breadcrumb data
 $breadcrumbs = [
     'Dashboard' => 'dashboard.php',
     'Manage Parishioners' => null
 ];
 
-$hide_global_header = true; // Use the dedicated custom pixel-perfect header for Manage Parishioners
 include '../templates/header.php'; 
 
 $admin_display_name = !empty($_SESSION['fullname']) ? $_SESSION['fullname'] : 'TUGON Parish Admin';
@@ -717,70 +715,15 @@ body.church-theme {
 </style>
 
 <div class="container-fluid px-0">
-
-
-    <!-- 2. Main Navigation Header (Seamless Transparent) -->
-    <header class="parish-top-nav-bar">
-        <!-- Left: Badge Icon + Title & Subtitle -->
-        <div class="parish-nav-left">
-            <div class="parish-nav-badge-icon" aria-hidden="true">
-                <i class="fas fa-users"></i>
-            </div>
-            <div>
-                <h1>Parishioners</h1>
-                <p>Manage parishioner accounts and verification.</p>
-            </div>
-        </div>
-
-        <!-- Center: Rounded Pill Search Input with Ctrl K Badge -->
-        <div class="parish-nav-center">
-            <form class="parish-nav-search-form" action="<?php echo BASE_URL; ?>admin/manage-users.php" method="GET">
-                <i class="fas fa-magnifying-glass search-icon" aria-hidden="true"></i>
-                <input id="globalParishionerSearch" class="parish-nav-search-input" type="search" name="search" placeholder="Search parishioners..." value="<?php echo sanitize($search); ?>" autocomplete="off">
-                <kbd>Ctrl K</kbd>
-            </form>
-        </div>
-
-        <!-- Right: User Profile Pill with Avatar Initial -->
-        <div class="parish-nav-right">
-            <div class="dropdown">
-                <button class="parish-profile-pill-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    <span class="parish-profile-avatar"><?php echo htmlspecialchars($admin_avatar_letter); ?></span>
-                    <span class="parish-profile-meta">
-                        <span class="parish-profile-name"><?php echo htmlspecialchars($admin_display_name); ?></span>
-                        <span class="parish-profile-role">Administrator</span>
-                    </span>
-                    <i class="fas fa-chevron-down ms-1" style="font-size: 10px; color: #94A3B8;"></i>
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-                    <li><a class="dropdown-item" href="../auth/profile.php"><i class="fas fa-user me-2 text-muted"></i> My Profile</a></li>
-                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>admin/settings.php"><i class="fas fa-gear me-2 text-muted"></i> Settings</a></li>
-                    <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item text-danger" href="../auth/logout.php"><i class="fas fa-arrow-right-from-bracket me-2"></i> Logout</a></li>
-                </ul>
-            </div>
-        </div>
-    </header>
-
-    <!-- 3. Page Title Section -->
-    <section class="parish-page-header-section">
-        <!-- Go Back Button with Gold Accent -->
-        <a href="<?php echo BASE_URL; ?>admin/dashboard.php" class="parish-back-link">
-            <i class="fas fa-arrow-left"></i> Go Back
-        </a>
-
-        <!-- Section Title & Gold Underline -->
-        <div class="parish-section-title-wrap">
-            <h2 class="parish-section-title">
-                <span class="parish-section-icon-badge">
-                    <i class="fas fa-people-roof"></i>
-                </span>
-                Manage Parishioners
-            </h2>
-            <div class="parish-gold-underline"></div>
-            <p class="parish-section-subtitle">Review parishioner accounts, verification status, and personal registry entries.</p>
-        </div>
-    </section>
+    <!-- Standardized Section Header -->
+    <?php
+    $page_header_title = 'Manage Parishioners';
+    $page_header_subtitle = 'Review parishioner accounts, verification status, and personal registry entries.';
+    $page_header_icon = 'fa-people-roof';
+    $show_back_button = true;
+    $back_button_url = BASE_URL . 'admin/dashboard.php';
+    include '../includes/page_header.php';
+    ?>
 
     <!-- System Alerts -->
     <?php if ($error): ?>

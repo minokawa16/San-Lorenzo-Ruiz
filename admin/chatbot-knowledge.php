@@ -158,47 +158,39 @@ if ($params) {
         $items[] = $row;
     }
 }
-?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo e($page_title); ?></title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../assets/css/holy-theme.css">
-    <link rel="stylesheet" href="../assets/css/premium-parish.css">
-    <link rel="stylesheet" href="../assets/css/style.css">
-    <link rel="stylesheet" href="../assets/css/parish-design-system.css">
-    <style>
-        .kb-grid { display: grid; grid-template-columns: minmax(320px, 420px) minmax(0, 1fr); gap: 18px; align-items: start; }
-        .kb-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; box-shadow: 0 14px 32px rgba(15,23,42,.08); }
-        .kb-card-header { padding: 16px 18px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; gap: 12px; align-items: center; }
-        .kb-card-body { padding: 18px; }
-        .kb-table td { vertical-align: top; }
-        .kb-answer { max-width: 420px; color: #475569; font-size: .9rem; }
-        .kb-keywords { color: #64748b; font-size: .78rem; }
-        @media (max-width: 992px) { .kb-grid { grid-template-columns: 1fr; } }
-    </style>
-    <link rel="stylesheet" href="../assets/css/theme.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/theme.css') ? filemtime(__DIR__ . '/../assets/css/theme.css') : time(); ?>">
-    <link rel="stylesheet" href="../assets/css/accessibility.css">
-</head>
-<body class="church-theme">
-    <a class="tugon-skip-link" href="#main-content">Skip to main content</a>
-    <div class="premium-admin-shell">
-        <?php include '../includes/admin-sidebar.php'; ?>
-        <main class="premium-admin-content" id="main-content" tabindex="-1">
-            <section class="premium-admin-hero">
-                <div>
-                    <span class="premium-pill landing-eyebrow"><i class="fas fa-robot"></i> TUGON AI</span>
-                    <h1>Chatbot Knowledge Base</h1>
-                    <p>Add official parish information that the offline AI assistant can retrieve before asking local Llama 3.2 to format the response.</p>
-                </div>
-            </section>
 
-            <?php if ($error): ?><div class="alert alert-danger"><?php echo e($error); ?></div><?php endif; ?>
-            <?php if ($success): ?><div class="alert alert-success"><?php echo e($success); ?></div><?php endif; ?>
+$breadcrumbs = [
+    'Dashboard' => 'dashboard.php',
+    'AI Assistant' => 'ai-assistant.php',
+    'Chatbot Knowledge Base' => null
+];
+
+include '../templates/header.php';
+?>
+
+<style>
+    .kb-grid { display: grid; grid-template-columns: minmax(320px, 420px) minmax(0, 1fr); gap: 18px; align-items: start; }
+    .kb-card { background: #fff; border: 1px solid rgba(28, 27, 24, 0.08); border-radius: 12px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03); }
+    .kb-card-header { padding: 14px 18px; border-bottom: 1px solid rgba(28, 27, 24, 0.08); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .kb-card-body { padding: 18px; }
+    .kb-answer { max-width: 420px; color: #475569; font-size: .9rem; }
+    .kb-keywords { color: #64748b; font-size: .78rem; }
+    @media (max-width: 992px) { .kb-grid { grid-template-columns: 1fr; } }
+</style>
+
+<div class="container-fluid px-0">
+    <!-- Standardized Section Header -->
+    <?php
+    $page_header_title = 'Chatbot Knowledge Base';
+    $page_header_subtitle = 'Add and manage official parish information used by TUGON AI Parish Assistant.';
+    $page_header_icon = 'fa-brain';
+    $show_back_button = true;
+    $back_button_url = 'ai-assistant.php';
+    include '../includes/page_header.php';
+    ?>
+
+    <?php if ($error): ?><div class="alert alert-danger alert-dismissible fade show"><?php echo e($error); ?><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div><?php endif; ?>
+    <?php if ($success): ?><div class="alert alert-success alert-dismissible fade show"><?php echo e($success); ?><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div><?php endif; ?>
 
             <section class="kb-grid">
                 <form class="kb-card" method="POST">
@@ -338,10 +330,5 @@ if ($params) {
                     </div>
                     <?php if($total_pages>1): ?><nav class="p-3" aria-label="Knowledge pages"><ul class="pagination mb-0"><?php for($p=max(1,$page-2);$p<=min($total_pages,$page+2);$p++): ?><li class="page-item <?php echo $p===$page?'active':''; ?>"><a class="page-link" href="?<?php echo e(http_build_query(array_filter(['q'=>$search,'page'=>$p]))); ?>"><?php echo $p; ?></a></li><?php endfor; ?></ul></nav><?php endif; ?>
                 </div>
-            </section>
-        </main>
-    </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="../assets/js/accessibility.js"></script>
-</body>
-</html>
+</div>
+<?php include '../templates/footer.php'; ?>

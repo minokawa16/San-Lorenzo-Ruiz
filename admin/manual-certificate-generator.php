@@ -190,57 +190,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 }
+$breadcrumbs = [
+    'Dashboard' => 'dashboard.php',
+    'Certificate Generator' => 'certificate-generator.php',
+    'Manual Generator' => null
+];
+
+include '../templates/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo e($page_title); ?> | San Lorenzo Ruiz Mission Station</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../assets/css/style.css">
-    <style>
-        body { background: #f3f5f8; }
-        .manual-shell { max-width: 1180px; margin: 0 auto; padding: 28px 16px 44px; }
-        .manual-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; margin-bottom: 20px; }
-        .manual-header h1 { margin: 0; font-size: 1.75rem; font-weight: 850; color: #172033; }
-        .manual-header p { margin: 6px 0 0; color: #64748b; max-width: 760px; }
-        .manual-panel { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 16px 36px rgba(15, 23, 42, .08); }
-        .manual-panel-header { padding: 18px 20px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; gap: 12px; align-items: center; }
-        .manual-panel-header strong { font-size: 1rem; color: #172033; }
-        .manual-body { padding: 20px; }
-        .manual-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-        .manual-field.full { grid-column: 1 / -1; }
-        .manual-field.is-hidden { display: none; }
-        .form-label span { color: #b42318; }
-        .manual-actions { display: flex; justify-content: flex-end; gap: 10px; padding: 18px 20px; border-top: 1px solid #e5e7eb; background: #fafafa; }
-        .manual-note { color: #475569; background: #eef6ff; border: 1px solid #bfdbfe; padding: 12px 14px; border-radius: 8px; margin-bottom: 18px; }
-        .loading-dot { display: none; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.45); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
-        .is-generating .loading-dot { display: inline-block; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @media (max-width: 760px) {
-            .manual-header { flex-direction: column; }
-            .manual-grid { grid-template-columns: 1fr; }
-            .manual-actions { flex-direction: column; }
-            .manual-actions .btn { width: 100%; }
-        }
-    </style>
-    <link rel="stylesheet" href="../assets/css/theme.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/theme.css') ? filemtime(__DIR__ . '/../assets/css/theme.css') : time(); ?>">
-    <link rel="stylesheet" href="../assets/css/responsive-unified.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/responsive-unified.css'); ?>">
-</head>
-<body class="premium-admin church-theme">
-    <div class="premium-admin-shell">
-        <?php include '../includes/admin-sidebar.php'; ?>
-        <main class="premium-admin-content" id="main-content" tabindex="-1">
-        <div class="manual-shell">
-        <div class="manual-header">
-            <div>
-                <h1><i class="fas fa-file-signature"></i> Manual Certificate Generator</h1>
-                <p>Create a print-ready church certificate from temporary manual input. This page does not search parish records and does not save the entered certificate data.</p>
-            </div>
-            <a href="certificate-generator.php" class="btn btn-outline-secondary"><i class="fas fa-arrow-left"></i> Back to Generator</a>
-        </div>
+
+<style>
+    .manual-shell { max-width: 1180px; margin: 0 auto; }
+    .manual-panel { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 4px 16px rgba(15, 23, 42, .05); }
+    .manual-panel-header { padding: 18px 20px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+    .manual-panel-header strong { font-size: 1rem; color: #172033; }
+    .manual-body { padding: 20px; }
+    .manual-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .manual-field.full { grid-column: 1 / -1; }
+    .manual-field.is-hidden { display: none; }
+    .form-label span { color: #b42318; }
+    .manual-actions { display: flex; justify-content: flex-end; gap: 10px; padding: 18px 20px; border-top: 1px solid #e5e7eb; background: #fafafa; }
+    .manual-note { color: #475569; background: #eef6ff; border: 1px solid #bfdbfe; padding: 12px 14px; border-radius: 8px; margin-bottom: 18px; }
+    .loading-dot { display: none; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.45); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
+    .is-generating .loading-dot { display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (max-width: 760px) {
+        .manual-grid { grid-template-columns: 1fr; }
+        .manual-actions { flex-direction: column; }
+        .manual-actions .btn { width: 100%; }
+    }
+</style>
+
+<div class="container-fluid px-0">
+    <!-- Standardized Section Header -->
+    <?php
+    $page_header_title = 'Manual Certificate Generator';
+    $page_header_subtitle = 'Create official certificate previews and documents from temporary manual entry without modifying registry books.';
+    $page_header_icon = 'fa-pen-to-square';
+    $show_back_button = true;
+    $back_button_url = 'certificate-generator.php';
+    include '../includes/page_header.php';
+    ?>
+
+    <div class="manual-shell">
 
         <?php if ($error): ?>
             <div class="alert alert-danger"><i class="fas fa-circle-exclamation"></i> <?php echo e($error); ?></div>
@@ -330,11 +322,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         typeSelect.addEventListener('change', updateManualFields);
-        form.addEventListener('submit', () => {
-            generateButton.classList.add('is-generating');
-            generateButton.disabled = true;
-        });
         updateManualFields();
     </script>
-</body>
-</html>
+    </div><!-- /.manual-shell -->
+</div>
+<?php include '../templates/footer.php'; ?>

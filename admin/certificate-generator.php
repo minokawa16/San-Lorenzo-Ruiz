@@ -89,27 +89,34 @@ $marriage_count = $conn->query("SELECT COUNT(*) as count FROM marriage_records W
 $funeral_count = $conn->query("SELECT COUNT(*) as count FROM funeral_records WHERE status='active'")->fetch_assoc()['count'];
 
 $page_title = 'Certificate Generator';
+$breadcrumbs = [
+    'Dashboard' => 'dashboard.php',
+    'Certificate Generator' => null
+];
+
+include '../templates/header.php';
 ?>
-<?php include '../templates/header.php'; ?>
 
-<div class="container-fluid mt-4">
-    <?php include '../includes/back_button.php'; ?>
+<div class="container-fluid px-0">
+    <!-- Standardized Section Header -->
+    <?php
+    $page_header_title = 'Certificate Generator';
+    $page_header_subtitle = 'Prepare, preview, and release official parish certificates from records or manual entry.';
+    $page_header_icon = 'fa-award';
+    $show_back_button = true;
+    $back_button_url = BASE_URL . 'admin/dashboard.php';
+    include '../includes/page_header.php';
+    ?>
 
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <h1 class="mb-2"><i class="fas fa-file-pdf"></i> Certificate Generator</h1>
-            <p class="text-muted">Generate and print certificates from parish records or temporary manual entry</p>
-            <a href="manual-certificate-generator.php" class="btn btn-primary mt-2">
-                <i class="fas fa-pen-to-square"></i> Manual Certificate Generator
-            </a>
-        </div>
-
+    <div class="mb-4">
+        <a href="manual-certificate-generator.php" class="btn btn-primary">
+            <i class="fas fa-pen-to-square"></i> Manual Certificate Generator
+        </a>
     </div>
 
     <div class="row">
         <!-- Baptism -->
         <div class="col-md-6 col-lg-4 mb-4">
-            <div class="card h-100 shadow-sm border-0">
                 <div class="card-body text-center">
                     <div style="font-size: 2.5rem; color: #1a3a52; margin-bottom: 10px;">
                         <i class="fas fa-water"></i>

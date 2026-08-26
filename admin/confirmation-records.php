@@ -636,16 +636,15 @@ $page_title = 'Confirmation Records - Parish Management';
 
         <!-- Main Content -->
         <div class="premium-admin-content pds-page-container">
-            <!-- Page Header -->
-            <div style="margin-bottom: 30px;">
-                <a href="manage-records.php" class="btn btn-primary-gold" style="margin-bottom: 14px;">
-                    <i class="fas fa-arrow-left"></i> Back to Sacramental Records
-                </a>
-                <h1 class="page-title">
-                    <i class="fas fa-cross"></i> Confirmation Records
-                </h1>
-                <p style="color: #6c757d;">Manage and digitize confirmation sacramental records</p>
-            </div>
+            <!-- Standardized Page Header -->
+            <?php
+            $page_header_title = 'Confirmation Records';
+            $page_header_subtitle = 'Manage and digitize confirmation sacramental registry entries.';
+            $page_header_icon = 'fa-dove';
+            $show_back_button = true;
+            $back_button_url = 'manage-records.php';
+            include '../includes/page_header.php';
+            ?>
 
             <!-- Alert Messages -->
             <?php if (!empty($message)): ?>
