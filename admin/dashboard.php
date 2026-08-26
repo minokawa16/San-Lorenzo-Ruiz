@@ -710,14 +710,6 @@ $dashboard_avatar_letter = strtoupper(substr($dashboard_profile_name ?: 'T', 0, 
                     </div>
                 </div>
 
-                <!-- Center: Pill Search Input with Ctrl K Badge -->
-                <div class="dashboard-header-search-wrap parish-nav-center">
-                    <form class="dashboard-header-search-form parish-nav-search-form" action="<?php echo BASE_URL; ?>admin/manage-users.php" method="GET">
-                        <input id="adminSmartSearch" class="dashboard-search-input parish-nav-search-input" name="search" type="search" placeholder="Search parishioners, requests..." autocomplete="off">
-                        <kbd class="dashboard-search-kbd">Ctrl K</kbd>
-                    </form>
-                </div>
-
                 <!-- Right: Profile Chip Button with Gold Avatar & Dropdown -->
                 <div class="dashboard-header-profile-wrap parish-nav-right">
                     <div class="dropdown">
@@ -936,20 +928,5 @@ $dashboard_avatar_letter = strtoupper(substr($dashboard_profile_name ?: 'T', 0, 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="../assets/js/components.js"></script>
     <script src="../assets/js/main.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Global Ctrl+K shortcut listener to focus the search bar
-            window.addEventListener('keydown', function(e) {
-                if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
-                    e.preventDefault();
-                    const searchInput = document.getElementById('adminSmartSearch');
-                    if (searchInput) {
-                        searchInput.focus();
-                        searchInput.select();
-                    }
-                }
-            });
-        });
-    </script>
 </body>
 </html>

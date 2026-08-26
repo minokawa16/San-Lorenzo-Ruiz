@@ -114,31 +114,6 @@ $admin_header_icons = [
     'profile.php' => 'fa-user-gear',
     'change-password.php' => 'fa-lock',
 ];
-$admin_search_placeholders = [
-    'dashboard.php' => 'Search parishioners, requests, records...',
-    'manage-announcements.php' => 'Search announcements...',
-    'post-announcement.php' => 'Search announcements...',
-    'manage-records.php' => 'Search sacramental records...',
-    'baptism-records.php' => 'Search sacramental records...',
-    'confirmation-records.php' => 'Search sacramental records...',
-    'communion-records.php' => 'Search sacramental records...',
-    'marriage-records.php' => 'Search sacramental records...',
-    'funeral-records.php' => 'Search sacramental records...',
-    'certificate-generator.php' => 'Search certificates...',
-    'certificate-templates.php' => 'Search certificates...',
-    'certificate-layout-editor.php' => 'Search certificates...',
-    'manage-calendar.php' => 'Search schedules and events...',
-    'manage-users.php' => 'Search parishioners...',
-    'manage-parishioners.php' => 'Search parishioners...',
-    'settings.php' => 'Search settings...',
-    'audit-logs.php' => 'Search audit logs...',
-    'reports.php' => 'Search reports...',
-    'archives.php' => 'Search archives...',
-    'ai-assistant.php' => 'Search AI assistant knowledge...',
-    'chatbot-knowledge.php' => 'Search knowledge base...',
-    'profile.php' => 'Search profile settings...',
-    'change-password.php' => 'Search account settings...',
-];
 $user_page_titles = [
     'index.php' => ['Dashboard', 'Track your requests, schedules, announcements, and parish updates.'],
     'dashboard.php' => ['Dashboard', 'Track your requests, schedules, announcements, and parish updates.'],
@@ -170,27 +145,7 @@ $user_header_icons = [
     'profile.php' => 'fa-user-gear',
     'change-password.php' => 'fa-lock',
 ];
-$user_search_placeholders = [
-    'index.php' => 'Search requests, certificates, schedules...',
-    'dashboard.php' => 'Search requests, certificates, schedules...',
-    'request-certificate.php' => 'Search certificates...',
-    'my-requests.php' => 'Search your requests...',
-    'view-request.php' => 'Search request details...',
-    'announcements.php' => 'Search announcements...',
-    'notifications.php' => 'Search notifications...',
-    'view-schedule.php' => 'Search schedules and events...',
-    'make-reservation.php' => 'Search reservations...',
-    'request-blessing.php' => 'Search blessing requests...',
-    'request-service.php' => 'Search sacramental services...',
-    'ai-assistant.php' => 'Search AI assistant...',
-    'profile.php' => 'Search profile settings...',
-    'change-password.php' => 'Search account settings...',
-];
 $header_icon = $is_admin_area ? ($admin_header_icons[$current_page] ?? 'fa-table-cells-large') : ($user_header_icons[$current_page] ?? 'fa-table-cells-large');
-$header_search_placeholder = $is_admin_area ? ($admin_search_placeholders[$current_page] ?? 'Search parishioners, requests, records...') : ($user_search_placeholders[$current_page] ?? 'Search parish services...');
-$header_search_action = $is_admin_area ? BASE_URL . 'admin/manage-users.php' : BASE_URL . 'users/my-requests.php';
-$header_search_name = $is_admin_area ? 'search' : 'q';
-$header_search_value = $_GET[$header_search_name] ?? ($_GET['q'] ?? ($_GET['search'] ?? ''));
 
 if ($is_admin_area) {
     $header_user_name = 'Admin';
@@ -277,13 +232,6 @@ if ($is_admin_area) {
                         <small>Welcome back, <?php echo e($header_user_first_name); ?></small>
                     </div>
                 </div>
-                <div class="app-header-center">
-                    <form class="premium-search topbar-search app-header-search" action="<?php echo e($header_search_action); ?>" method="GET">
-                        <i class="fas fa-magnifying-glass"></i>
-                        <input type="search" name="<?php echo e($header_search_name); ?>" placeholder="<?php echo e($header_search_placeholder); ?>" value="<?php echo e($header_search_value); ?>">
-                        <kbd>Ctrl K</kbd>
-                    </form>
-                </div>
                 <div class="app-header-right admin-global-actions user-global-actions">
                     <div class="dropdown">
                         <button class="profile-btn user-profile-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -321,14 +269,6 @@ if ($is_admin_area) {
                         <h1 class="text-xl font-bold text-gray-900 m-0" style="font-family: 'Playfair Display', Georgia, serif; font-size: 2.25rem; font-weight: 700; color: #1e293b; line-height: 1.15; letter-spacing: -0.3px;"><?php echo e($admin_header_title); ?></h1>
                         <p class="text-xs text-muted m-0 d-none d-sm-block" style="font-size: 0.86rem; color: #6b6a63; font-weight: 500; margin-top: 4px;"><?php echo e($admin_header_description); ?></p>
                     </div>
-                </div>
-
-                <!-- Center Search Bar (No double borders, rounded pill with Ctrl K) -->
-                <div class="dashboard-header-search-wrap parish-nav-center app-header-center flex-1 max-w-md mx-6">
-                    <form class="dashboard-header-search-form parish-nav-search-form app-header-search" action="<?php echo e($header_search_action); ?>" method="GET" style="background: transparent; border: none; box-shadow: none;">
-                        <input class="dashboard-search-input parish-nav-search-input" type="search" name="<?php echo e($header_search_name); ?>" placeholder="<?php echo e($header_search_placeholder); ?>" value="<?php echo e($header_search_value); ?>" autocomplete="off">
-                        <kbd class="dashboard-search-kbd">Ctrl K</kbd>
-                    </form>
                 </div>
 
                 <!-- Right Admin Profile Widget -->
