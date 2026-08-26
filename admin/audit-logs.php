@@ -17,8 +17,8 @@ if(in_array($export,['csv','pdf'],true)){
  $pdfRows=array_map(static fn($r)=>array_intersect_key($r,array_flip(array_keys($pdfColumns))),$rows);
  $pdfData=['columns'=>$pdfColumns,'rows'=>$pdfRows,'total'=>count($pdfRows),'truncated'=>count($pdfRows)>=10000];
  $generatedBy=!empty($_SESSION['fullname'])?(string)$_SESSION['fullname']:'Parish Administrator';
- $pdfFilters=['from'=>$filters['from'],'to'=>$filters['to'],'status'=>'','type'=>$filters['component']?:''];
- ReportPdfGenerator::stream('audit_log','Audit Log Report',$pdfFilters,$pdfData,$generatedBy,'landscape');
+ $pdfFilters=['from'=>$filters['from'],'to'=>$filters['to'],'status'=>'','type'=>$filters['component']?:'','q'=>$filters['q']];
+ ReportPdfGenerator::stream('audit_log','Audit Log Report',$pdfFilters,$pdfData,$generatedBy,'landscape','Security, Transactions & System Activity Logs');
 }
 $data=$service->page($filters,max(1,(int)($_GET['page']??1)),50);$base=array_filter($filters,static fn($v)=>$v!=='');include '../templates/header.php';
 ?>

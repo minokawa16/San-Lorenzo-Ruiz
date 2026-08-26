@@ -15,21 +15,23 @@ $service=new ReportService($conn); $export=$_GET['export']??'';
 
 require_once '../services/ReportPdfGenerator.php';
 
+$labels=['turnaround'=>'Request Turnaround','pending_overdue'=>'Pending & Overdue','rejections'=>'Rejections & Resubmissions','reservations'=>'Reservation Utilization','certificates'=>'Certificate Lifecycle','notifications'=>'Notification Delivery'];
+
 if(in_array($export,['csv','pdf'],true)){
     requirePermission('reports.export'); $data=$service->export($report,$filters,10000);
     writeAuditLog($conn,$_SESSION['user_id'],'EXPORT_REPORT','reports',null,null,['report'=>$report,'filters'=>$filters,'format'=>$export,'rows'=>count($data['rows'])],'reports','reports.export');
     $title=ucwords(str_replace('_',' ',$report)).' Report';
+    $subtitle=$labels[$report]??'';
     if($export==='csv'){
         header('Content-Type: text/csv; charset=utf-8');header('Content-Disposition: attachment; filename="tugon-'.$report.'-'.date('Ymd-His').'.csv"');
         $out=fopen('php://output','w');fwrite($out,"\xEF\xBB\xBF");fputcsv($out,[$title]);fputcsv($out,['Filters',json_encode(array_filter($filters))]);
         fputcsv($out,array_values($data['columns']));foreach($data['rows'] as $row)fputcsv($out,array_map(static fn($k)=>$row[$k]??'',array_keys($data['columns'])));if($data['truncated'])fputcsv($out,['Showing first 10,000 records.']);fclose($out);exit;
     }
     $generatedBy = !empty($_SESSION['fullname']) ? (string)$_SESSION['fullname'] : 'Parish Administrator';
-    ReportPdfGenerator::stream($report, $title, $filters, $data, $generatedBy, 'landscape');
+    ReportPdfGenerator::stream($report, $title, $filters, $data, $generatedBy, 'landscape', $subtitle);
 }
 
 $data=$service->run($report,$filters,max(1,(int)($_GET['page']??1)),50);
-$labels=['turnaround'=>'Request Turnaround','pending_overdue'=>'Pending & Overdue','rejections'=>'Rejections & Resubmissions','reservations'=>'Reservation Utilization','certificates'=>'Certificate Lifecycle','notifications'=>'Notification Delivery'];
 $queryBase=array_filter(array_merge(['report'=>$report],$filters),static fn($v)=>$v!=='');
 include '../templates/header.php';
 ?>

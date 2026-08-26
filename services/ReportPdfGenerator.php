@@ -3,8 +3,8 @@
  * ReportPdfGenerator
  * ------------------
  * Institutional PDF Report Generator for San Lorenzo Ruiz Mission Station.
- * Produces standardized, formal parish reports with letterhead, metadata grid,
- * normalized table data, and multi-page footer.
+ * Produces standardized, formal parish reports with the canonical Archdiocese of Cotabato
+ * letterhead, gold cross divider, normalized table data, and multi-page footer.
  */
 
 declare(strict_types=1);
@@ -12,17 +12,36 @@ declare(strict_types=1);
 use Dompdf\Dompdf;
 use Dompdf\Options;
 
+/**
+ * Standalone / reusable helper function to generate standardized Parish Report Header HTML.
+ *
+ * @param string            $reportTitle e.g. 'Turnaround Report'
+ * @param string|null       $subtitle    e.g. 'Request Turnaround'
+ * @param array|string|null $filters     Active filters array or formatted string
+ * @param array             $meta        Optional metadata (e.g. ['generated_by' => '...', 'date' => '...'])
+ * @return string HTML string for the parish report header
+ */
+function generateParishReportHeader(
+    string $reportTitle,
+    ?string $subtitle = null,
+    array|string|null $filters = null,
+    array $meta = []
+): string {
+    return ReportPdfGenerator::generateParishReportHeader($reportTitle, $subtitle, $filters, $meta);
+}
+
 final class ReportPdfGenerator
 {
     /**
      * Generate and stream/download a PDF report.
      *
-     * @param string $reportKey   e.g. 'pending_overdue', 'turnaround'
-     * @param string $title       e.g. 'Pending & Overdue Report'
-     * @param array  $filters     e.g. ['from' => '2026-08-01', 'to' => '...', 'status' => '...', 'type' => '...']
-     * @param array  $data        e.g. ['columns' => [...], 'rows' => [...], 'total' => 12, 'truncated' => false]
-     * @param string $generatedBy Name of admin/staff generating report
-     * @param string $orientation 'landscape' or 'portrait' (default 'landscape')
+     * @param string      $reportKey   e.g. 'turnaround', 'pending_overdue', 'audit_log'
+     * @param string      $title       e.g. 'Turnaround Report'
+     * @param array       $filters     e.g. ['from' => '2026-08-01', 'to' => '...', 'status' => '...', 'type' => '...']
+     * @param array       $data        e.g. ['columns' => [...], 'rows' => [...], 'total' => 12, 'truncated' => false]
+     * @param string      $generatedBy Name of admin/staff generating report
+     * @param string      $orientation 'landscape' or 'portrait' (default 'landscape')
+     * @param string|null $subtitle    e.g. 'Request Turnaround'
      */
     public static function stream(
         string $reportKey,
@@ -30,9 +49,10 @@ final class ReportPdfGenerator
         array $filters,
         array $data,
         string $generatedBy = 'Administrator',
-        string $orientation = 'landscape'
+        string $orientation = 'landscape',
+        ?string $subtitle = null
     ): void {
-        $html = self::buildHtml($reportKey, $title, $filters, $data, $generatedBy);
+        $html = self::buildHtml($reportKey, $title, $filters, $data, $generatedBy, $subtitle);
 
         $options = new Options();
         $options->set('isRemoteEnabled', true);
@@ -80,6 +100,95 @@ final class ReportPdfGenerator
     }
 
     /**
+     * Reusable component to render the canonical Parish Report Header HTML.
+     *
+     * Produces:
+     *                 ARCHDIOCESE OF COTABATO
+     *              SAN LORENZO RUIZ MISSION STATION
+     *                    Aleosan, North Cotabato
+     * --------------------------------------------------
+     *                     [REPORT TITLE]
+     *                   [REPORT SUBTITLE]
+     *                     Filters: [...]
+     */
+    public static function generateParishReportHeader(
+        string $reportTitle,
+        ?string $subtitle = null,
+        array|string|null $filters = null,
+        array $meta = []
+    ): string {
+        $logoBase64 = self::getLogoBase64();
+
+        // Format active filters string
+        $filtersFormatted = '[]';
+        if (is_array($filters)) {
+            $active = [];
+            if (!empty($filters['from']) || !empty($filters['to'])) {
+                $fromStr = !empty($filters['from']) ? date('M d, Y', strtotime($filters['from'])) : 'Beginning';
+                $toStr = !empty($filters['to']) ? date('M d, Y', strtotime($filters['to'])) : 'Present';
+                $active[] = "Date: $fromStr to $toStr";
+            }
+            if (!empty($filters['status'])) {
+                $active[] = 'Status: ' . self::humanize((string)$filters['status']);
+            }
+            if (!empty($filters['type'])) {
+                $active[] = 'Type: ' . self::humanize((string)$filters['type']);
+            }
+            if (!empty($filters['q'])) {
+                $active[] = 'Search: "' . htmlspecialchars((string)$filters['q'], ENT_QUOTES, 'UTF-8') . '"';
+            }
+            if (!empty($filters['component'])) {
+                $active[] = 'Component: ' . self::humanize((string)$filters['component']);
+            }
+            if (!empty($active)) {
+                $filtersFormatted = '[' . implode(' | ', $active) . ']';
+            }
+        } elseif (is_string($filters) && $filters !== '') {
+            $filtersFormatted = $filters;
+        }
+
+        ob_start();
+        ?>
+        <table class="parish-letterhead" cellpadding="0" cellspacing="0">
+            <tr>
+                <td class="letterhead-logo-cell">
+                    <?php if ($logoBase64): ?>
+                        <img src="<?php echo $logoBase64; ?>" alt="San Lorenzo Ruiz Mission Station" class="parish-logo-img">
+                    <?php else: ?>
+                        <div class="parish-logo-placeholder"></div>
+                    <?php endif; ?>
+                </td>
+                <td class="letterhead-text-cell">
+                    <div class="diocese-name">ARCHDIOCESE OF COTABATO</div>
+                    <div class="parish-name">SAN LORENZO RUIZ MISSION STATION</div>
+                    <div class="parish-location">Aleosan, North Cotabato</div>
+                </td>
+                <td class="letterhead-balance-cell">
+                    <!-- Symmetrical spacer cell for true document center alignment -->
+                </td>
+            </tr>
+        </table>
+
+        <table class="gold-cross-divider" cellpadding="0" cellspacing="0">
+            <tr>
+                <td class="divider-line"></td>
+                <td class="divider-cross">&#8224;</td>
+                <td class="divider-line"></td>
+            </tr>
+        </table>
+
+        <div class="report-header-section">
+            <div class="report-title"><?php echo htmlspecialchars($reportTitle, ENT_QUOTES, 'UTF-8'); ?></div>
+            <?php if (!empty($subtitle) && strcasecmp(trim($subtitle), trim($reportTitle)) !== 0): ?>
+                <div class="report-subtitle"><?php echo htmlspecialchars($subtitle, ENT_QUOTES, 'UTF-8'); ?></div>
+            <?php endif; ?>
+            <div class="report-filters">Filters: <?php echo htmlspecialchars($filtersFormatted, ENT_QUOTES, 'UTF-8'); ?></div>
+        </div>
+        <?php
+        return (string) ob_get_clean();
+    }
+
+    /**
      * Build the complete standalone HTML string for Dompdf.
      */
     public static function buildHtml(
@@ -87,46 +196,15 @@ final class ReportPdfGenerator
         string $title,
         array $filters,
         array $data,
-        string $generatedBy
+        string $generatedBy = 'Administrator',
+        ?string $subtitle = null
     ): string {
-        $logoBase64 = self::getLogoBase64();
-        $crestBase64 = self::getCrestBase64();
-
-        $reportId = 'RPT-' . date('Y') . '-' . strtoupper(substr(md5($reportKey . microtime()), 0, 6));
-        $dateGenerated = date('F d, Y h:i A');
-
-        // Scope description
-        $scopeParts = [];
-        if (!empty($filters['from']) && !empty($filters['to'])) {
-            $scopeParts[] = date('M d, Y', strtotime($filters['from'])) . ' to ' . date('M d, Y', strtotime($filters['to']));
-        } elseif (!empty($filters['from'])) {
-            $scopeParts[] = 'From ' . date('M d, Y', strtotime($filters['from']));
-        } elseif (!empty($filters['to'])) {
-            $scopeParts[] = 'Up to ' . date('M d, Y', strtotime($filters['to']));
-        } else {
-            $scopeParts[] = 'All Records (Complete Overview)';
-        }
-        $reportScope = implode(', ', $scopeParts);
-
-        // Filter summary string
-        $activeFilters = [];
-        if (!empty($filters['from']) || !empty($filters['to'])) {
-            $activeFilters[] = 'Date: ' . (!empty($filters['from']) ? $filters['from'] : 'Any') . ' to ' . (!empty($filters['to']) ? $filters['to'] : 'Present');
-        }
-        if (!empty($filters['status'])) {
-            $activeFilters[] = 'Status: ' . self::humanize($filters['status']);
-        }
-        if (!empty($filters['type'])) {
-            $activeFilters[] = 'Type: ' . self::humanize($filters['type']);
-        }
-        $filtersAppliedHtml = !empty($activeFilters)
-            ? htmlspecialchars(implode('  |  ', $activeFilters), ENT_QUOTES, 'UTF-8')
-            : '<span style="color: #64748b; font-style: italic;">None (Complete Overview)</span>';
-
         $columns = $data['columns'] ?? [];
         $rows = $data['rows'] ?? [];
         $totalRecords = (int) ($data['total'] ?? count($rows));
         $truncated = !empty($data['truncated']);
+
+        $headerHtml = self::generateParishReportHeader($title, $subtitle, $filters);
 
         ob_start();
 ?>
@@ -137,7 +215,7 @@ final class ReportPdfGenerator
 <title><?php echo htmlspecialchars($title, ENT_QUOTES, 'UTF-8'); ?></title>
 <style>
     @page {
-        margin: 12mm 12mm 15mm 12mm;
+        margin: 20mm 15mm 18mm 15mm;
     }
     *, *::before, *::after {
         box-sizing: border-box;
@@ -152,176 +230,164 @@ final class ReportPdfGenerator
         padding: 0;
     }
 
-    /* ── Header / Letterhead ─────────────────────────────────────── */
-    .letterhead {
+    /* ── Formal Parish Letterhead ────────────────────────────────── */
+    .parish-letterhead {
         width: 100%;
         border-collapse: collapse;
-        margin-bottom: 6px;
+        margin-bottom: 2px;
     }
-    .letterhead td {
+    .parish-letterhead td {
         vertical-align: middle;
         padding: 0;
     }
-    .letterhead-logo-left {
-        width: 70px;
+    .letterhead-logo-cell {
+        width: 85px;
         text-align: left;
     }
-    .letterhead-logo-left img {
-        height: 60px;
+    .parish-logo-img {
+        height: 72px;
         width: auto;
+        display: block;
     }
-    .letterhead-logo-right {
-        width: 70px;
-        text-align: right;
+    .parish-logo-placeholder {
+        width: 68px;
+        height: 68px;
+        border-radius: 50%;
+        background: #1e2d24;
+        display: block;
     }
-    .letterhead-logo-right img {
-        height: 56px;
-        width: auto;
-    }
-    .letterhead-center {
+    .letterhead-text-cell {
         text-align: center;
         padding: 0 10px;
     }
-    .letterhead-diocese {
-        font-size: 9pt;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 1.4px;
-        color: #64748b;
-        margin-bottom: 2px;
+    .letterhead-balance-cell {
+        width: 85px; /* Symmetrical balance matching logo width */
     }
-    .letterhead-parish {
-        font-size: 13.5pt;
+    .diocese-name {
+        font-family: 'Times New Roman', 'Georgia', serif;
+        font-size: 11pt;
         font-weight: bold;
-        letter-spacing: 0.5px;
-        color: #1e2d24;
-        margin-bottom: 2px;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: #1e293b;
+        margin-bottom: 3px;
+        line-height: 1.2;
     }
-    .letterhead-location {
-        font-size: 8.5pt;
+    .parish-name {
+        font-family: 'Times New Roman', 'Georgia', serif;
+        font-size: 16pt;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        color: #0f172a;
+        margin-bottom: 3px;
+        line-height: 1.2;
+    }
+    .parish-location {
+        font-family: 'Times New Roman', 'Georgia', serif;
+        font-size: 10pt;
         color: #334155;
-        margin-bottom: 2px;
-    }
-    .letterhead-contact {
-        font-size: 7.5pt;
-        font-style: italic;
-        color: #64748b;
+        line-height: 1.2;
     }
 
-    /* ── Dividing Accent Rules ───────────────────────────────────── */
-    .divider-rule {
-        width: 100%;
-        height: 2px;
-        background: #c89b3c; /* Parish Gold */
-        margin-top: 8px;
-        margin-bottom: 1px;
-    }
-    .divider-subrule {
-        width: 100%;
-        height: 0.75px;
-        background: #1e2d24; /* Dark Slate */
-        margin-bottom: 10px;
-    }
-
-    /* ── Report Title Banner ─────────────────────────────────────── */
-    .report-title-banner {
-        background: #f8fafc;
-        border-left: 4px solid #c89b3c;
-        border-top: 1px solid #e2e8f0;
-        border-right: 1px solid #e2e8f0;
-        border-bottom: 1px solid #e2e8f0;
-        padding: 6px 10px;
-        margin-bottom: 8px;
-    }
-    .report-title-banner h1 {
-        font-size: 12.5pt;
-        font-weight: bold;
-        color: #1e2d24;
-        text-transform: uppercase;
-        letter-spacing: 0.6px;
-        margin: 0;
-        padding: 0;
-    }
-
-    /* ── Metadata 2-Column Grid ──────────────────────────────────── */
-    .meta-box {
+    /* ── Gold Divider with Centered Latin Cross ───────────────────── */
+    .gold-cross-divider {
         width: 100%;
         border-collapse: collapse;
-        background: #fdfdfd;
-        border: 1px solid #e2e8f0;
-        border-radius: 4px;
+        margin-top: 6px;
         margin-bottom: 12px;
     }
-    .meta-box td {
-        padding: 6px 10px;
-        vertical-align: top;
-        font-size: 8pt;
+    .gold-cross-divider td {
+        padding: 0;
+        vertical-align: middle;
     }
-    .meta-left {
-        width: 50%;
-        border-right: 1px solid #e2e8f0;
+    .divider-line {
+        border-bottom: 1.5px solid #c89b3c;
+        width: 48%;
     }
-    .meta-right {
-        width: 50%;
-    }
-    .meta-row {
-        margin-bottom: 3px;
-    }
-    .meta-row:last-child {
-        margin-bottom: 0;
-    }
-    .meta-label {
-        font-weight: 600;
-        color: #475569;
-        display: inline-block;
-        min-width: 95px;
-    }
-    .meta-value {
-        color: #0f172a;
-        font-weight: 500;
+    .divider-cross {
+        width: 4%;
+        text-align: center;
+        color: #c89b3c;
+        font-size: 14pt;
+        font-weight: bold;
+        line-height: 1;
+        padding: 0 4px;
+        font-family: 'Times New Roman', serif;
     }
 
-    /* ── Data Table ──────────────────────────────────────────────── */
-    .data-table {
+    /* ── Report Title & Filters ──────────────────────────────────── */
+    .report-header-section {
+        margin-bottom: 12px;
+    }
+    .report-title {
+        font-family: 'Times New Roman', 'Georgia', serif;
+        font-size: 15pt;
+        font-weight: bold;
+        color: #0f172a;
+        margin-bottom: 2px;
+        line-height: 1.2;
+    }
+    .report-subtitle {
+        font-size: 10pt;
+        color: #475569;
+        font-weight: 500;
+        margin-bottom: 4px;
+    }
+    .report-filters {
+        font-size: 8.5pt;
+        color: #334155;
+        margin-top: 3px;
+        margin-bottom: 2px;
+    }
+
+    /* ── Data Table with Multi-Page Header Repeating ─────────────── */
+    table.data-table {
         width: 100%;
         border-collapse: collapse;
         font-size: 8pt;
-        margin-top: 4px;
+        margin-top: 6px;
+        page-break-inside: auto;
     }
-    .data-table thead tr {
-        background-color: #1e2d24; /* Forest Green / Dark Slate */
+    table.data-table thead {
+        display: table-header-group;
     }
-    .data-table thead th {
-        color: #ffffff;
+    table.data-table tfoot {
+        display: table-footer-group;
+    }
+    table.data-table tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
+    table.data-table thead th {
+        background-color: #ffffff;
+        color: #0f172a;
         font-weight: bold;
-        text-transform: uppercase;
-        font-size: 7.5pt;
-        letter-spacing: 0.4px;
-        padding: 6px 7px;
-        text-align: left;
-        border: 1px solid #1e2d24;
+        font-size: 8pt;
+        letter-spacing: 0.2px;
+        padding: 6px 8px;
+        text-align: center;
+        border: 1px solid #94a3b8;
         vertical-align: middle;
     }
-    .data-table tbody tr {
-        page-break-inside: avoid;
+    table.data-table tbody tr:nth-child(even) {
+        background-color: #fafbfc;
     }
-    .data-table tbody tr:nth-child(even) {
-        background-color: #f8fafc;
-    }
-    .data-table tbody tr:nth-child(odd) {
+    table.data-table tbody tr:nth-child(odd) {
         background-color: #ffffff;
     }
-    .data-table tbody td {
-        padding: 5.5px 7px;
-        border: 1px solid #e2e8f0;
+    table.data-table tbody td {
+        padding: 5.5px 8px;
+        border: 1px solid #cbd5e1;
         vertical-align: middle;
         color: #1e293b;
+        text-align: left;
     }
 
     /* ── Value & Badge Styling ───────────────────────────────────── */
     .badge {
         display: inline-block;
-        padding: 2px 6px;
+        padding: 1.5px 5px;
         border-radius: 3px;
         font-size: 7pt;
         font-weight: bold;
@@ -372,75 +438,10 @@ final class ReportPdfGenerator
 </head>
 <body>
 
-    <!-- 1. Formal Institutional Letterhead -->
-    <table class="letterhead">
-        <tr>
-            <td class="letterhead-logo-left">
-                <?php if ($logoBase64): ?>
-                    <img src="<?php echo $logoBase64; ?>" alt="San Lorenzo Ruiz Mission Station">
-                <?php else: ?>
-                    <div style="width:64px;height:64px;background:#1e2d24;border-radius:50%;display:inline-block;"></div>
-                <?php endif; ?>
-            </td>
-            <td class="letterhead-center">
-                <div class="letterhead-diocese">Diocese of Cotabato</div>
-                <div class="letterhead-parish">SAN LORENZO RUIZ MISSION STATION</div>
-                <div class="letterhead-location">Poblacion, Aleosan, Cotabato, Philippines</div>
-                <div class="letterhead-contact">Official Information System &bull; Email: tugonparish@gmail.com</div>
-            </td>
-            <td class="letterhead-logo-right">
-                <?php if ($crestBase64): ?>
-                    <img src="<?php echo $crestBase64; ?>" alt="Archdiocese Crest">
-                <?php else: ?>
-                    <div style="width:60px;height:60px;background:#c89b3c;border-radius:50%;display:inline-block;"></div>
-                <?php endif; ?>
-            </td>
-        </tr>
-    </table>
+    <!-- Standardized Parish Header Component -->
+    <?php echo $headerHtml; ?>
 
-    <div class="divider-rule"></div>
-    <div class="divider-subrule"></div>
-
-    <!-- 2. Report Title -->
-    <div class="report-title-banner">
-        <h1><?php echo htmlspecialchars($title, ENT_QUOTES, 'UTF-8'); ?></h1>
-    </div>
-
-    <!-- 3. Metadata 2-Column Grid -->
-    <table class="meta-box">
-        <tr>
-            <td class="meta-left">
-                <div class="meta-row">
-                    <span class="meta-label">Generated By:</span>
-                    <span class="meta-value"><?php echo htmlspecialchars($generatedBy, ENT_QUOTES, 'UTF-8'); ?></span>
-                </div>
-                <div class="meta-row">
-                    <span class="meta-label">Report Scope:</span>
-                    <span class="meta-value"><?php echo htmlspecialchars($reportScope, ENT_QUOTES, 'UTF-8'); ?></span>
-                </div>
-                <div class="meta-row">
-                    <span class="meta-label">Total Records:</span>
-                    <span class="meta-value"><?php echo number_format($totalRecords); ?> <?php echo $totalRecords === 1 ? 'record' : 'records'; ?></span>
-                </div>
-            </td>
-            <td class="meta-right">
-                <div class="meta-row">
-                    <span class="meta-label">Date Generated:</span>
-                    <span class="meta-value"><?php echo htmlspecialchars($dateGenerated, ENT_QUOTES, 'UTF-8'); ?></span>
-                </div>
-                <div class="meta-row">
-                    <span class="meta-label">Report ID:</span>
-                    <span class="meta-value"><strong><?php echo htmlspecialchars($reportId, ENT_QUOTES, 'UTF-8'); ?></strong></span>
-                </div>
-                <div class="meta-row">
-                    <span class="meta-label">Filters Applied:</span>
-                    <span class="meta-value"><?php echo $filtersAppliedHtml; ?></span>
-                </div>
-            </td>
-        </tr>
-    </table>
-
-    <!-- 4. Normalized Data Table -->
+    <!-- Data Table -->
     <table class="data-table">
         <thead>
             <tr>
@@ -500,26 +501,21 @@ final class ReportPdfGenerator
         if (
             str_contains($key, 'date') ||
             str_contains($key, '_at') ||
-            in_array($key, ['submitted', 'completed', 'issued', 'released', 'revoked', 'updated', 'sent', 'processing_started'], true)
+            in_array($key, ['submitted', 'completed', 'issued', 'released', 'revoked', 'updated', 'sent', 'processing_started', 'report_date'], true)
         ) {
             // Full timestamp: 2026-08-25 00:15:12
             if (preg_match('/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}(?::\d{2})?$/', $str)) {
-                return htmlspecialchars(date('M d, Y h:i A', strtotime($str)), ENT_QUOTES, 'UTF-8');
+                return htmlspecialchars($str, ENT_QUOTES, 'UTF-8');
             }
             // Date only: 2026-08-25
             if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $str)) {
-                return htmlspecialchars(date('M d, Y', strtotime($str)), ENT_QUOTES, 'UTF-8');
+                return htmlspecialchars($str, ENT_QUOTES, 'UTF-8');
             }
         }
 
-        // 3. Request type / Certificate type / Notification type
+        // 3. Request type / Certificate type / Notification type / Channel
         if (in_array($key, ['request_type', 'certificate_type', 'notification_type', 'reservation_type', 'channel'], true)) {
-            return htmlspecialchars(self::humanize($str), ENT_QUOTES, 'UTF-8');
-        }
-
-        // 4. Fallback snake_case humanization if string looks like an identifier
-        if (preg_match('/^[a-z]+(?:_[a-z0-9]+)+$/', $str)) {
-            return htmlspecialchars(self::humanize($str), ENT_QUOTES, 'UTF-8');
+            return htmlspecialchars($str, ENT_QUOTES, 'UTF-8');
         }
 
         return htmlspecialchars($str, ENT_QUOTES, 'UTF-8');
@@ -541,8 +537,7 @@ final class ReportPdfGenerator
             $badgeClass = 'badge-danger';
         }
 
-        $label = self::humanize($val);
-        return '<span class="badge ' . $badgeClass . '">' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</span>';
+        return htmlspecialchars($val, ENT_QUOTES, 'UTF-8');
     }
 
     /**
@@ -564,25 +559,6 @@ final class ReportPdfGenerator
             'san-lorenzo-logo.jpg',
             'san-lorenzo-logo-final.jfif',
             'san-lorenzo-logo.png',
-        ];
-
-        foreach ($candidates as $filename) {
-            $data = self::getAssetBase64($filename);
-            if ($data !== null) {
-                return $data;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Get Diocese Crest as base64 (prioritizes JPEG for zero-dependency Dompdf rendering).
-     */
-    private static function getCrestBase64(): ?string
-    {
-        $candidates = [
-            'archdiocese-crest.jpg',
-            'archdiocese-crest.jfif',
         ];
 
         foreach ($candidates as $filename) {
