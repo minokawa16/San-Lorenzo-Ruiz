@@ -39,7 +39,7 @@ $kpis = array(
 
 ensureScheduleEventsTable($conn);
 
-// Ensure Dashboard Archive Column Function - Documents this helper's role in the parish management workflow.
+// Ensure Dashboard Archive Column Function
 function ensureDashboardArchiveColumn($conn, $table) {
     return columnExists($conn, $table, 'deleted_at');
 }
@@ -140,173 +140,241 @@ if ($stmt) {
     }
     $stmt->close();
 }
-$page_title = 'Admin Dashboard - Parish Management';
+
+$page_title = 'Admin Dashboard - Parish Management';
 $dashboard_unread_count = function_exists('getUnreadNotificationCount') ? getUnreadNotificationCount($conn, $_SESSION['user_id'] ?? 0) : 0;
-$dashboard_profile_name = sanitize($_SESSION['fullname'] ?? 'Administrator');
+$dashboard_profile_name = sanitize($_SESSION['fullname'] ?? 'TUGON Parish Admin');
+$dashboard_avatar_letter = strtoupper(substr($dashboard_profile_name ?: 'T', 0, 1));
 ?>
-
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($page_title); ?></title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../assets/css/holy-theme.css">
-    <?php
-    $premium_style_version = file_exists(__DIR__ . '/../assets/css/premium-parish.css')
-        ? filemtime(__DIR__ . '/../assets/css/premium-parish.css')
-        : time();
-    $design_system_version = file_exists(__DIR__ . '/../assets/css/parish-design-system.css')
-        ? filemtime(__DIR__ . '/../assets/css/parish-design-system.css')
-        : time();
-    ?>
-    <link rel="stylesheet" href="../assets/css/premium-parish.css?v=<?php echo $premium_style_version; ?>">
-    <link rel="stylesheet" href="../assets/css/parish-design-system.css?v=<?php echo $design_system_version; ?>">
     <link rel="stylesheet" href="../assets/css/admin-sidebar.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/admin-sidebar.css') ? filemtime(__DIR__ . '/../assets/css/admin-sidebar.css') : time(); ?>">
-    <link rel="stylesheet" href="../assets/css/theme.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/theme.css') ? filemtime(__DIR__ . '/../assets/css/theme.css') : time(); ?>">
-    <style id="compact-admin-dashboard-styles">
-        /* ── Compact Enterprise Dashboard Styles ─────────────────── */
+    <style id="dashboard-custom-theme">
+        /* ── Core Theme Palette & Layout ────────────────────────── */
+        :root {
+            --bg-cream: #F1EFE8;
+            --border-warm: #d8d6cc;
+            --text-primary: #1e293b;
+            --text-secondary: #6b6a63;
+            --text-muted: #9a9890;
+            --avatar-bg: #F0D9A8;
+            --avatar-text: #8a5a12;
+            --card-bg: #ffffff;
+            --brand-green: #1E2D24;
+            --brand-gold: #c89b3c;
+        }
+
         body.premium-admin {
-            background-color: #f8fafc;
-            color: #0f172a;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-cream);
+            color: var(--text-primary);
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        .premium-admin-shell {
+            display: flex;
+            min-height: 100vh;
         }
 
         .premium-admin-content {
-            padding: 16px 20px 28px !important;
+            flex: 1;
+            padding: 20px 24px 36px !important;
             max-width: 1600px;
             margin: 0 auto;
+            min-width: 0;
         }
 
-        /* ── Topbar Streamlining ──────────────────────────────────── */
-        .dashboard-topbar {
+        /* ── 1. Refactored Header / Topbar ───────────────────────── */
+        .dashboard-header-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 14px;
-            padding: 10px 16px;
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            margin-bottom: 14px;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+            gap: 24px;
+            flex-wrap: nowrap;
+            padding: 4px 0 20px 0;
+            margin-bottom: 12px;
         }
 
-        .dashboard-title-block h1 {
-            font-size: 1.15rem !important;
+        .dashboard-header-title-block {
+            flex-shrink: 0;
+        }
+
+        .dashboard-header-title-block h1 {
+            font-family: 'Playfair Display', Georgia, 'Times New Roman', serif !important;
+            font-size: 2.25rem !important;
             font-weight: 700 !important;
-            color: #0f172a;
+            color: #1e293b !important;
+            line-height: 1.15 !important;
             margin: 0 !important;
-            line-height: 1.25;
-            letter-spacing: -0.2px;
+            letter-spacing: -0.3px;
         }
 
-        .dashboard-title-block p {
-            font-size: 0.76rem !important;
-            color: #64748b;
-            margin: 2px 0 0 0 !important;
+        .dashboard-header-title-block p {
+            font-size: 0.86rem !important;
+            color: var(--text-secondary) !important;
+            margin: 4px 0 0 0 !important;
+            font-weight: 500;
         }
 
-        .app-header-search {
+        /* ── Center: Search Input Pill ────────────────────────────── */
+        .dashboard-header-search-wrap {
+            flex: 1;
+            max-width: 360px;
+            min-width: 180px;
+            position: relative;
+        }
+
+        .dashboard-header-search-form {
             position: relative;
             width: 100%;
-            max-width: 380px;
+            display: flex;
+            align-items: center;
         }
 
-        .app-header-search input {
-            height: 34px !important;
-            font-size: 0.78rem !important;
-            border-radius: 6px !important;
-            padding-left: 32px !important;
-            padding-right: 56px !important;
-            background: #f8fafc !important;
-            border: 1px solid #e2e8f0 !important;
-            color: #0f172a !important;
-        }
-
-        .app-header-search input:focus {
-            background: #ffffff !important;
-            border-color: #c89b3c !important;
-            box-shadow: 0 0 0 2px rgba(200, 155, 60, 0.15) !important;
-        }
-
-        .app-header-search i {
+        .dashboard-search-icon {
             position: absolute;
-            left: 10px;
+            left: 14px;
             top: 50%;
             transform: translateY(-50%);
-            font-size: 12px;
-            color: #94a3b8;
+            width: 16px;
+            height: 16px;
+            color: var(--text-muted);
             pointer-events: none;
-        }
-
-        .app-header-search kbd {
-            position: absolute;
-            right: 8px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 10px;
-            padding: 2px 5px;
-            border-radius: 4px;
-            background: #e2e8f0;
-            color: #475569;
-            border: 1px solid #cbd5e1;
-        }
-
-        .admin-profile-btn {
-            height: 34px !important;
-            padding: 3px 10px !important;
-            border-radius: 6px !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            gap: 8px !important;
-            background: #f8fafc !important;
-            border: 1px solid #e2e8f0 !important;
-            color: #0f172a !important;
-            font-size: 0.8rem !important;
-            cursor: pointer;
-        }
-
-        .admin-profile-btn:hover {
-            background: #f1f5f9 !important;
-            border-color: #cbd5e1 !important;
-        }
-
-        .admin-profile-btn .profile-avatar {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            background: #1e2d24;
-            color: #ffffff;
-            font-size: 11px;
-            font-weight: 700;
-            display: inline-flex;
+            display: flex;
             align-items: center;
             justify-content: center;
         }
 
-        .admin-profile-btn .profile-name {
-            font-weight: 600;
-            font-size: 0.78rem;
-            color: #0f172a;
+        .dashboard-search-input {
+            width: 100%;
+            height: 42px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-warm);
+            border-radius: 999px;
+            padding: 0 68px 0 38px;
+            font-size: 0.82rem;
+            color: var(--text-primary);
+            font-weight: 500;
+            outline: none;
+            transition: all 0.15s ease;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
         }
 
-        .admin-profile-btn .profile-role {
-            font-size: 0.68rem;
-            color: #64748b;
+        .dashboard-search-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .dashboard-search-input:focus {
+            border-color: var(--brand-gold);
+            background: #ffffff;
+            box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.15);
+        }
+
+        .dashboard-search-kbd {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 11px;
+            color: var(--text-muted);
+            background: transparent;
+            border: 1px solid var(--border-warm);
+            border-radius: 6px;
+            padding: 2px 7px;
+            font-family: inherit;
+            pointer-events: none;
+            line-height: 1.2;
+        }
+
+        /* ── Right: Profile Chip ──────────────────────────────────── */
+        .dashboard-header-profile-wrap {
+            flex-shrink: 0;
+        }
+
+        .profile-chip-btn {
+            height: 44px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-warm);
+            border-radius: 999px;
+            padding: 4px 14px 4px 5px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            text-decoration: none;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+            transition: all 0.15s ease;
+        }
+
+        .profile-chip-btn:hover,
+        .profile-chip-btn:focus {
+            background: #faf8f5;
+            border-color: #c4c1b5;
+        }
+
+        .profile-chip-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background-color: var(--avatar-bg);
+            color: var(--avatar-text);
+            font-weight: 700;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .profile-chip-meta {
+            display: flex;
+            flex-direction: column;
+            text-align: left;
+            line-height: 1.15;
+        }
+
+        .profile-chip-name {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            white-space: nowrap;
+        }
+
+        .profile-chip-role {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .profile-chip-chevron {
+            width: 12px;
+            height: 12px;
+            color: var(--text-muted);
             margin-left: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        /* ── Quick Action Toolbar ─────────────────────────────────── */
+        /* ── 2. Quick Actions Toolbar ─────────────────────────────── */
         .dashboard-quick-actions {
             display: flex;
             align-items: center;
             gap: 8px;
-            margin-bottom: 14px;
+            margin-bottom: 16px;
             flex-wrap: wrap;
         }
 
@@ -325,9 +393,9 @@ $dashboard_profile_name = sanitize($_SESSION['fullname'] ?? 'Administrator');
         }
 
         .action-btn-compact.primary {
-            background: #1e2d24;
+            background: var(--brand-green);
             color: #ffffff;
-            border: 1px solid #1e2d24;
+            border: 1px solid var(--brand-green);
         }
         .action-btn-compact.primary:hover {
             background: #142018;
@@ -337,9 +405,9 @@ $dashboard_profile_name = sanitize($_SESSION['fullname'] ?? 'Administrator');
         }
 
         .action-btn-compact.gold {
-            background: #c89b3c;
+            background: var(--brand-gold);
             color: #ffffff;
-            border: 1px solid #c89b3c;
+            border: 1px solid var(--brand-gold);
         }
         .action-btn-compact.gold:hover {
             background: #b58930;
@@ -351,16 +419,16 @@ $dashboard_profile_name = sanitize($_SESSION['fullname'] ?? 'Administrator');
         .action-btn-compact.secondary {
             background: #ffffff;
             color: #334155;
-            border: 1px solid #e2e8f0;
+            border: 1px solid var(--border-warm);
         }
         .action-btn-compact.secondary:hover {
-            background: #f8fafc;
-            border-color: #cbd5e1;
+            background: #faf8f5;
+            border-color: #c4c1b5;
             color: #0f172a;
             transform: translateY(-1px);
         }
 
-        /* ── Compact 4-Column Stat Cards Grid ─────────────────────── */
+        /* ── 3. High Density 4-Column Stat Cards ──────────────────── */
         .dashboard-stats-grid {
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -368,21 +436,9 @@ $dashboard_profile_name = sanitize($_SESSION['fullname'] ?? 'Administrator');
             margin-bottom: 16px;
         }
 
-        @media (max-width: 1100px) {
-            .dashboard-stats-grid {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
-        }
-
-        @media (max-width: 580px) {
-            .dashboard-stats-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
         .stat-card-compact {
             background: #ffffff;
-            border: 1px solid #e2e8f0;
+            border: 1px solid var(--border-warm);
             border-radius: 8px;
             padding: 12px 14px;
             text-decoration: none;
@@ -391,21 +447,15 @@ $dashboard_profile_name = sanitize($_SESSION['fullname'] ?? 'Administrator');
             flex-direction: column;
             justify-content: space-between;
             min-height: 94px;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
             transition: all 0.15s ease;
-            position: relative;
-            overflow: hidden;
         }
 
         .stat-card-compact:hover {
             transform: translateY(-2px);
-            border-color: #cbd5e1;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
+            border-color: #c4c1b5;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
             color: inherit;
-        }
-
-        .stat-card-compact::after {
-            display: none !important; /* Remove legacy oversized blurry watermarks */
         }
 
         .stat-card-header {
@@ -421,7 +471,7 @@ $dashboard_profile_name = sanitize($_SESSION['fullname'] ?? 'Administrator');
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            color: #64748b;
+            color: var(--text-secondary);
             margin: 0;
             line-height: 1.2;
         }
@@ -453,7 +503,7 @@ $dashboard_profile_name = sanitize($_SESSION['fullname'] ?? 'Administrator');
             color: #0f172a;
             line-height: 1.15;
             margin: 2px 0 4px 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
         }
 
         .stat-card-footer {
@@ -462,7 +512,7 @@ $dashboard_profile_name = sanitize($_SESSION['fullname'] ?? 'Administrator');
             gap: 4px;
             font-size: 0.68rem;
             font-weight: 500;
-            color: #64748b;
+            color: var(--text-secondary);
         }
 
         .trend-pill {
@@ -482,7 +532,7 @@ $dashboard_profile_name = sanitize($_SESSION['fullname'] ?? 'Administrator');
         .trend-pill.danger { background: #fee2e2; color: #991b1b; }
         .trend-pill.neutral { background: #f1f5f9; color: #475569; }
 
-        /* ── Tables & Activity Panels ─────────────────────────────── */
+        /* ── 4. Tables & Activity Panels ──────────────────────────── */
         .dashboard-content-grid {
             display: grid;
             grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.75fr);
@@ -490,18 +540,12 @@ $dashboard_profile_name = sanitize($_SESSION['fullname'] ?? 'Administrator');
             align-items: start;
         }
 
-        @media (max-width: 960px) {
-            .dashboard-content-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
         .premium-panel {
             background: #ffffff;
-            border: 1px solid #e2e8f0;
+            border: 1px solid var(--border-warm);
             border-radius: 8px;
             padding: 14px 16px;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
         }
 
         .premium-panel-header {
@@ -524,7 +568,7 @@ $dashboard_profile_name = sanitize($_SESSION['fullname'] ?? 'Administrator');
         .dashboard-view-link {
             font-size: 0.72rem;
             font-weight: 600;
-            color: #c89b3c;
+            color: var(--brand-gold);
             text-decoration: none;
         }
         .dashboard-view-link:hover {
@@ -542,10 +586,10 @@ $dashboard_profile_name = sanitize($_SESSION['fullname'] ?? 'Administrator');
             text-transform: uppercase;
             font-weight: 700;
             letter-spacing: 0.4px;
-            color: #64748b;
+            color: var(--text-secondary);
             padding: 6px 8px;
-            border-bottom: 1px solid #e2e8f0;
-            background: #f8fafc;
+            border-bottom: 1px solid var(--border-warm);
+            background: #faf8f5;
         }
 
         .dashboard-recent-table td {
@@ -567,7 +611,7 @@ $dashboard_profile_name = sanitize($_SESSION['fullname'] ?? 'Administrator');
             gap: 10px;
             padding: 8px 10px;
             border-radius: 6px;
-            background: #f8fafc;
+            background: #faf8f5;
             border: 1px solid #f1f5f9;
             text-decoration: none;
             color: #334155;
@@ -576,7 +620,7 @@ $dashboard_profile_name = sanitize($_SESSION['fullname'] ?? 'Administrator');
         }
 
         .dashboard-activity-item:hover {
-            background: #f1f5f9;
+            background: #f1efe8;
             color: #0f172a;
         }
 
@@ -586,7 +630,7 @@ $dashboard_profile_name = sanitize($_SESSION['fullname'] ?? 'Administrator');
 
         .dashboard-activity-item small {
             display: block;
-            color: #94a3b8;
+            color: var(--text-muted);
             font-size: 0.68rem;
             margin-top: 2px;
         }
@@ -609,39 +653,38 @@ $dashboard_profile_name = sanitize($_SESSION['fullname'] ?? 'Administrator');
         .dashboard-activity-icon.pending { background: #fef3c7; color: #92400e; }
         .dashboard-activity-icon.rejected { background: #fee2e2; color: #991b1b; }
 
-        /* Dark mode compatibility */
-        body[data-theme="dark"] .dashboard-topbar,
-        body[data-theme="dark"] .stat-card-compact,
-        body[data-theme="dark"] .premium-panel {
-            background: #1e293b !important;
-            border-color: #334155 !important;
+        /* ── Responsiveness ───────────────────────────────────────── */
+        @media (max-width: 1100px) {
+            .dashboard-stats-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
         }
-        body[data-theme="dark"] .dashboard-title-block h1,
-        body[data-theme="dark"] .stat-card-value,
-        body[data-theme="dark"] .premium-panel-title {
-            color: #f8fafc !important;
+
+        @media (max-width: 960px) {
+            .dashboard-content-grid {
+                grid-template-columns: 1fr;
+            }
         }
-        body[data-theme="dark"] .stat-card-compact:hover {
-            border-color: #475569 !important;
-            background: #243248 !important;
+
+        @media (max-width: 768px) {
+            .dashboard-header-row {
+                flex-wrap: wrap;
+                gap: 12px;
+            }
+            .dashboard-header-search-wrap {
+                order: 3;
+                max-width: 100%;
+                width: 100%;
+            }
         }
-        body[data-theme="dark"] .dashboard-recent-table th {
-            background: #0f172a !important;
-            border-color: #334155 !important;
-        }
-        body[data-theme="dark"] .dashboard-recent-table td {
-            border-color: #334155 !important;
-            color: #cbd5e1 !important;
-        }
-        body[data-theme="dark"] .action-btn-compact.secondary {
-            background: #1e293b !important;
-            border-color: #334155 !important;
-            color: #cbd5e1 !important;
-        }
-        body[data-theme="dark"] .dashboard-activity-item {
-            background: #0f172a !important;
-            border-color: #334155 !important;
-            color: #cbd5e1 !important;
+
+        @media (max-width: 580px) {
+            .dashboard-stats-grid {
+                grid-template-columns: 1fr;
+            }
+            .dashboard-header-title-block h1 {
+                font-size: 1.75rem !important;
+            }
         }
     </style>
 </head>
@@ -653,30 +696,46 @@ $dashboard_profile_name = sanitize($_SESSION['fullname'] ?? 'Administrator');
         <!-- Main Content -->
         <div class="premium-admin-content">
 
-            <!-- Topbar / Header -->
-            <header class="dashboard-topbar">
-                <div class="dashboard-title-block">
+            <!-- 1. Refactored Header: Title, Search Pill, Profile Chip -->
+            <header class="dashboard-header-row">
+                <!-- Left: Serif Title & Subtitle -->
+                <div class="dashboard-header-title-block">
                     <h1>Dashboard</h1>
                     <p>Monitor parish activities, requests, records, and operations.</p>
                 </div>
-                <div class="app-header-center d-none d-md-block">
-                    <form class="app-header-search" action="<?php echo BASE_URL; ?>admin/manage-users.php" method="GET">
-                        <i class="fas fa-magnifying-glass"></i>
-                        <input id="adminSmartSearch" name="search" type="search" placeholder="Search parishioners, requests, records...">
-                        <kbd>Ctrl K</kbd>
+
+                <!-- Center: Pill Search Input with Inline SVG & Ctrl K Badge -->
+                <div class="dashboard-header-search-wrap">
+                    <form class="dashboard-header-search-form" action="<?php echo BASE_URL; ?>admin/manage-users.php" method="GET">
+                        <span class="dashboard-search-icon" aria-hidden="true">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            </svg>
+                        </span>
+                        <input id="adminSmartSearch" class="dashboard-search-input" name="search" type="search" placeholder="Search parishioners, requests..." autocomplete="off">
+                        <kbd class="dashboard-search-kbd">Ctrl K</kbd>
                     </form>
                 </div>
-                <div class="dashboard-header-tools">
+
+                <!-- Right: Profile Chip Button with Gold Avatar & Dropdown -->
+                <div class="dashboard-header-profile-wrap">
                     <div class="dropdown">
-                        <button class="admin-profile-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <span class="profile-avatar"><?php echo strtoupper(substr($_SESSION['fullname'] ?? 'A', 0, 1)); ?></span>
-                            <span class="profile-name"><?php echo $dashboard_profile_name; ?></span>
-                            <span class="profile-role d-none d-sm-inline">Admin</span>
-                            <i class="fas fa-chevron-down ms-1" style="font-size: 10px; color: #94a3b8;"></i>
+                        <button class="profile-chip-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <span class="profile-chip-avatar"><?php echo htmlspecialchars($dashboard_avatar_letter); ?></span>
+                            <span class="profile-chip-meta">
+                                <span class="profile-chip-name"><?php echo htmlspecialchars($dashboard_profile_name); ?></span>
+                                <span class="profile-chip-role">Admin</span>
+                            </span>
+                            <span class="profile-chip-chevron" aria-hidden="true">
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="6 9 12 15 18 9"></polyline>
+                                </svg>
+                            </span>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-                            <li><a class="dropdown-item" href="../auth/profile.php"><i class="fas fa-user me-2"></i> My Profile</a></li>
-                            <li><a class="dropdown-item" href="settings.php"><i class="fas fa-gear me-2"></i> Settings</a></li>
+                            <li><a class="dropdown-item" href="../auth/profile.php"><i class="fas fa-user me-2 text-muted"></i> My Profile</a></li>
+                            <li><a class="dropdown-item" href="settings.php"><i class="fas fa-gear me-2 text-muted"></i> Settings</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item text-danger" href="../auth/logout.php"><i class="fas fa-arrow-right-from-bracket me-2"></i> Logout</a></li>
                         </ul>
@@ -684,7 +743,7 @@ $dashboard_profile_name = sanitize($_SESSION['fullname'] ?? 'Administrator');
                 </div>
             </header>
 
-            <!-- Quick Action Toolbar -->
+            <!-- 2. Quick Action Toolbar -->
             <nav class="dashboard-quick-actions" aria-label="Quick dashboard actions">
                 <a class="action-btn-compact primary" href="manage-requests.php">
                     <i class="fas fa-circle-plus"></i> New Request
@@ -700,7 +759,7 @@ $dashboard_profile_name = sanitize($_SESSION['fullname'] ?? 'Administrator');
                 </a>
             </nav>
 
-            <!-- Compact 4-Column Stat Cards Grid (8 Key Metrics) -->
+            <!-- 3. Compact 4-Column Stat Cards Grid (8 Key Metrics) -->
             <div class="dashboard-stats-grid">
                 <!-- 1. Total Parishioners -->
                 <a href="manage-users.php" class="stat-card-compact" aria-label="View total parishioners">
@@ -803,7 +862,7 @@ $dashboard_profile_name = sanitize($_SESSION['fullname'] ?? 'Administrator');
                 </a>
             </div>
 
-            <!-- Operational Tables & Activity Section -->
+            <!-- 4. Operational Tables & Activity Section -->
             <section class="dashboard-content-grid">
                 <!-- Recent Requests Table -->
                 <div class="premium-panel">
@@ -877,22 +936,23 @@ $dashboard_profile_name = sanitize($_SESSION['fullname'] ?? 'Administrator');
         </div>
     </div>
 
+    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="../assets/js/components.js"></script>
     <script src="../assets/js/main.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const themeToggle = document.getElementById('adminThemeToggle');
-            if (localStorage.getItem('parishTheme') === 'dark') {
-                document.body.dataset.theme = 'dark';
-            }
-            if (themeToggle) {
-                themeToggle.addEventListener('click', function() {
-                    const isDark = document.body.dataset.theme === 'dark';
-                    document.body.dataset.theme = isDark ? 'light' : 'dark';
-                    localStorage.setItem('parishTheme', isDark ? 'light' : 'dark');
-                });
-            }
+            // Global Ctrl+K shortcut listener to focus the search bar
+            window.addEventListener('keydown', function(e) {
+                if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+                    e.preventDefault();
+                    const searchInput = document.getElementById('adminSmartSearch');
+                    if (searchInput) {
+                        searchInput.focus();
+                        searchInput.select();
+                    }
+                }
+            });
         });
     </script>
 </body>
