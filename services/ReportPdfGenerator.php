@@ -9,6 +9,11 @@
 
 declare(strict_types=1);
 
+$vendorAutoload = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
+if (is_file($vendorAutoload)) {
+    require_once $vendorAutoload;
+}
+
 use Dompdf\Dompdf;
 use Dompdf\Options;
 

@@ -13,6 +13,7 @@ $cleanText=static fn($v)=>preg_match('/^[a-z0-9_ -]{0,80}$/i',(string)$v)?trim((
 $filters=['from'=>$cleanDate($_GET['from']??''),'to'=>$cleanDate($_GET['to']??''),'status'=>$cleanText($_GET['status']??''),'type'=>$cleanText($_GET['type']??'')];
 $service=new ReportService($conn); $export=$_GET['export']??'';
 
+require_once '../vendor/autoload.php';
 require_once '../services/ReportPdfGenerator.php';
 
 $labels=['turnaround'=>'Request Turnaround','pending_overdue'=>'Pending & Overdue','rejections'=>'Rejections & Resubmissions','reservations'=>'Reservation Utilization','certificates'=>'Certificate Lifecycle','notifications'=>'Notification Delivery'];
