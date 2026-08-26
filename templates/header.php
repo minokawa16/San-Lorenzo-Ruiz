@@ -194,14 +194,10 @@ if ($is_admin_area) {
         .admin-sidebar .brand-logo,
         .admin-sidebar .pill-badge,
         .premium-admin-sidebar .brand-logo,
+        .premium-admin-sidebar .pill-badge,
         .user-sidebar .brand-logo,
         .user-sidebar .pill-badge {
-            background: #C89B3C !important;
-            color: #1A241A !important;
-        }
-        .admin-sidebar .nav-section-label,
-        .premium-admin-sidebar .nav-section-label,
-        .user-sidebar .nav-section-label {
+            background: rgba(200, 155, 60, 0.1) !important;
             color: #C89B3C !important;
             border: 1px solid rgba(200, 155, 60, 0.55) !important;
         }
