@@ -332,7 +332,7 @@ if ($is_admin_area) {
                 <div class="admin-global-actions parish-nav-right">
                     <div class="dropdown">
                         <button class="profile-chip-btn admin-profile-btn parish-profile-pill-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <span class="profile-chip-avatar profile-avatar parish-profile-avatar"><?php echo strtoupper(substr($_SESSION['fullname'] ?? 'A', 0, 1)); ?></span>
+                            <span class="profile-chip-avatar profile-avatar parish-profile-avatar"><?php echo $header_avatar_initial; ?></span>
                             <span class="profile-chip-meta profile-meta parish-profile-meta">
                                 <span class="profile-chip-name profile-name parish-profile-name"><?php echo $header_user_name; ?></span>
                                 <span class="profile-chip-role profile-role parish-profile-role"><?php echo e($header_user_role); ?></span>
