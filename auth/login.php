@@ -198,9 +198,20 @@ $action_notifications = function_exists('consumeActionNotifications') ? consumeA
         }
 
         .auth-side-logo {
-            background: #FFFFFF !important;
-            border: 7px solid rgba(255, 255, 255, 0.88) !important;
-            box-shadow: 0 18px 38px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(238, 220, 197, 0.5) !important;
+            width: 174px !important;
+            height: 174px !important;
+            flex: 0 0 174px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            border-radius: 50% !important;
+            background: #fff8eb !important;
+            border: 3px solid #c39b2a !important;
+            box-shadow:
+                0 0 0 6px rgba(20, 16, 13, 0.92),
+                0 0 0 8px rgba(246, 217, 139, 0.72),
+                0 22px 48px rgba(0, 0, 0, 0.34) !important;
+            overflow: hidden !important;
         }
 
         .auth-side-brand strong {
@@ -521,9 +532,16 @@ $action_notifications = function_exists('consumeActionNotifications') ? consumeA
         }
 
         .auth-side-logo {
-            background: var(--login-cream) !important;
-            border: 7px solid rgba(246, 223, 159, 0.92) !important;
-            box-shadow: 0 18px 38px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(212, 169, 78, 0.48) !important;
+            width: 174px !important;
+            height: 174px !important;
+            flex: 0 0 174px !important;
+            border-radius: 50% !important;
+            background: #fff8eb !important;
+            border: 3px solid #c39b2a !important;
+            box-shadow:
+                0 0 0 6px rgba(20, 16, 13, 0.92),
+                0 0 0 8px rgba(246, 217, 139, 0.72),
+                0 22px 48px rgba(0, 0, 0, 0.34) !important;
         }
 
         .auth-side-brand small {
@@ -737,23 +755,29 @@ $action_notifications = function_exists('consumeActionNotifications') ? consumeA
         }
 
         .auth-side-logo {
-            width: 88px !important;
-            height: 88px !important;
-            flex: 0 0 88px !important;
+            width: 174px !important;
+            height: 174px !important;
+            flex: 0 0 174px !important;
             display: inline-flex !important;
             align-items: center !important;
             justify-content: center !important;
             overflow: hidden !important;
-            border-radius: 24px !important;
-            background: var(--tugon-auth-white) !important;
-            border: 1px solid rgba(232, 214, 167, 0.72) !important;
-            box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28), 0 0 40px rgba(200, 155, 60, 0.24) !important;
+            border-radius: 50% !important;
+            background: #fff8eb !important;
+            border: 3px solid #c39b2a !important;
+            box-shadow:
+                0 0 0 6px rgba(20, 16, 13, 0.92),
+                0 0 0 8px rgba(246, 217, 139, 0.72),
+                0 22px 48px rgba(0, 0, 0, 0.34) !important;
         }
 
         .auth-side-logo img {
-            width: 76px !important;
-            height: 76px !important;
-            object-fit: contain !important;
+            width: 100% !important;
+            height: 100% !important;
+            display: block !important;
+            object-fit: cover !important;
+            border-radius: 50% !important;
+            clip-path: circle(50% at 50% 50%) !important;
         }
 
         .auth-side-brand strong {
@@ -1163,15 +1187,22 @@ $action_notifications = function_exists('consumeActionNotifications') ? consumeA
             }
 
             .auth-side-logo {
-                width: 70px !important;
-                height: 70px !important;
-                flex-basis: 70px !important;
-                border-radius: 20px !important;
+                width: 120px !important;
+                height: 120px !important;
+                flex: 0 0 120px !important;
+                border-radius: 50% !important;
+                border: 3px solid #c39b2a !important;
+                box-shadow:
+                    0 0 0 4px rgba(20, 16, 13, 0.92),
+                    0 0 0 6px rgba(246, 217, 139, 0.72),
+                    0 12px 28px rgba(0, 0, 0, 0.28) !important;
             }
 
             .auth-side-logo img {
-                width: 60px !important;
-                height: 60px !important;
+                width: 100% !important;
+                height: 100% !important;
+                border-radius: 50% !important;
+                clip-path: circle(50% at 50% 50%) !important;
             }
 
             .auth-login-side blockquote {
