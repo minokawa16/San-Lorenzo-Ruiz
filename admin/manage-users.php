@@ -690,10 +690,7 @@ $admin_avatar_letter = strtoupper(substr($admin_display_name, 0, 1));
                                         <div class="row g-3">
                                             <div class="col-sm-6"><div class="text-muted small">Full Name</div><div class="fw-semibold"><?php echo e(userDetailValue($user['fullname'])); ?></div></div>
                                             <div class="col-sm-6"><div class="text-muted small">Birthdate</div><div class="fw-semibold"><?php echo e(userDetailDate($user['birthdate'] ?? '')); ?></div></div>
-                                            <div class="col-sm-6"><div class="text-muted small">Birthplace</div><div class="fw-semibold"><?php echo e(userDetailValue($user['birth_place'] ?? '')); ?></div></div>
-                                            <div class="col-sm-6"><div class="text-muted small">Civil Status</div><div class="fw-semibold"><?php echo e(userDetailValue($user['civil_status'] ?? '')); ?></div></div>
-                                            <div class="col-sm-6"><div class="text-muted small">Gender/Sex</div><div class="fw-semibold"><?php echo e(userDetailValue($user['sex'] ?? $user['gender'] ?? '')); ?></div></div>
-                                            <div class="col-sm-6"><div class="text-muted small">Nationality</div><div class="fw-semibold"><?php echo e(userDetailValue($user['nationality'] ?? '')); ?></div></div>
+                                            <div class="col-12"><div class="text-muted small">Birthplace</div><div class="fw-semibold"><?php echo e(userDetailValue($user['birth_place'] ?? '')); ?></div></div>
                                         </div>
                                     </div>
 
@@ -707,25 +704,18 @@ $admin_avatar_letter = strtoupper(substr($admin_display_name, 0, 1));
                                         </div>
                                     </div>
 
-                                    <div class="col-md-6">
-                                        <h6 class="fw-bold border-bottom pb-2 mb-3 text-success">Sacramental Information</h6>
-                                        <div class="row g-3">
-                                            <div class="col-12"><div class="text-muted small">Registration Sacramental Fields</div><div class="fw-semibold">Not collected during account registration.</div></div>
-                                        </div>
-                                    </div>
-
-                                    <div class="col-md-6">
+                                    <div class="col-12">
                                         <h6 class="fw-bold border-bottom pb-2 mb-3 text-success">Account &amp; Verification Details</h6>
                                         <div class="row g-3">
-                                            <div class="col-sm-6">
+                                            <div class="col-sm-6 col-md-3">
                                                 <div class="text-muted small">Date Registered / Joined</div>
                                                 <div class="fw-semibold"><?php echo e(userDetailDateTime($user['created_at'] ?? '')); ?></div>
                                             </div>
-                                            <div class="col-sm-6">
+                                            <div class="col-sm-6 col-md-3">
                                                 <div class="text-muted small">Verification Status</div>
                                                 <span class="badge bg-<?php echo e(getUserStatusBadgeClass($user['status'])); ?>"><?php echo e(getUserStatusLabel($user['status'])); ?></span>
                                             </div>
-                                            <div class="col-sm-6">
+                                            <div class="col-sm-6 col-md-3">
                                                 <div class="text-muted small">Date Verified</div>
                                                 <div>
                                                     <?php 
@@ -742,7 +732,7 @@ $admin_avatar_letter = strtoupper(substr($admin_display_name, 0, 1));
                                                     ?>
                                                 </div>
                                             </div>
-                                            <div class="col-sm-6">
+                                            <div class="col-sm-6 col-md-3">
                                                 <div class="text-muted small"><?php echo ($user['verification_method'] ?? '') === 'mobile' ? 'Registered Mobile' : 'Registered Email'; ?></div>
                                                 <div class="fw-semibold">
                                                     <?php echo e(($user['verification_method'] ?? '') === 'mobile' ? ($user['phone_number'] ?: $user['email'] ?: 'Not provided') : ($user['email'] ?: $user['phone_number'] ?: 'Not provided')); ?>
@@ -753,12 +743,12 @@ $admin_avatar_letter = strtoupper(substr($admin_display_name, 0, 1));
                                                     <?php endif; ?>
                                                 </div>
                                             </div>
-                                            <div class="col-sm-6">
+                                            <div class="col-sm-6 col-md-3">
                                                 <div class="text-muted small">Face Status</div>
                                                 <div class="fw-semibold"><?php echo e(userDetailValue($user['face_verification_status'] ?? '')); ?></div>
                                             </div>
                                             <?php if (!empty($user['rejection_reason'])): ?>
-                                                <div class="col-sm-6">
+                                                <div class="col-sm-6 col-md-3">
                                                     <div class="text-muted small">Rejection Reason</div>
                                                     <div class="text-danger fw-semibold"><?php echo e($user['rejection_reason']); ?></div>
                                                 </div>

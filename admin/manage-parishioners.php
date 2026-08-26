@@ -204,8 +204,6 @@ $breadcrumbs = [
                                                             <dt class="col-sm-4">Middle Initial</dt><dd class="col-sm-8"><?php echo e(parishionerValue($parishioner['middle_initial'] ?? '')); ?></dd>
                                                             <dt class="col-sm-4">Birthdate</dt><dd class="col-sm-8"><?php echo e(parishionerDateValue($parishioner['birthdate'] ?? '')); ?></dd>
                                                             <dt class="col-sm-4">Birthplace</dt><dd class="col-sm-8"><?php echo e(parishionerValue($parishioner['birth_place'] ?? '')); ?></dd>
-                                                            <dt class="col-sm-4">Gender/Sex</dt><dd class="col-sm-8"><?php echo e(parishionerValue($parishioner['sex'] ?? '')); ?></dd>
-                                                            <dt class="col-sm-4">Nationality</dt><dd class="col-sm-8"><?php echo e(parishionerValue($parishioner['nationality'] ?? '')); ?></dd>
                                                         </dl>
                                                     </div>
 
@@ -219,56 +217,56 @@ $breadcrumbs = [
                                                         </dl>
                                                     </div>
 
-                                                    <div class="col-lg-6">
-                                                        <h6 class="fw-bold border-bottom pb-2 mb-3">Sacramental Information</h6>
-                                                        <p class="text-muted mb-0">No sacramental fields are collected directly during account registration in the current users table.</p>
-                                                    </div>
-
-                                                    <div class="col-lg-6">
+                                                    <div class="col-12">
                                                         <h6 class="fw-bold border-bottom pb-2 mb-3">Account &amp; Verification Details</h6>
-                                                        <dl class="row mb-0">
-                                                            <dt class="col-sm-4">Date Registered</dt>
-                                                            <dd class="col-sm-8"><?php echo e(parishionerDateTimeValue($parishioner['created_at'] ?? '')); ?></dd>
-
-                                                            <dt class="col-sm-4">Verification Status</dt>
-                                                            <dd class="col-sm-8">
+                                                        <div class="row g-3">
+                                                            <div class="col-sm-6 col-md-3">
+                                                                <div class="text-muted small">Date Registered / Joined</div>
+                                                                <div class="fw-semibold"><?php echo e(parishionerDateTimeValue($parishioner['created_at'] ?? '')); ?></div>
+                                                            </div>
+                                                            <div class="col-sm-6 col-md-3">
+                                                                <div class="text-muted small">Verification Status</div>
                                                                 <span class="badge bg-<?php echo e(getUserStatusBadgeClass($parishioner['status'])); ?>"><?php echo e(getUserStatusLabel($parishioner['status'])); ?></span>
-                                                            </dd>
-
-                                                            <dt class="col-sm-4">Date Verified</dt>
-                                                            <dd class="col-sm-8">
-                                                                <?php 
-                                                                    if (in_array($parishioner['status'], ['active', 'approved'], true)) {
-                                                                        $v_time = !empty($parishioner['verified_at']) ? $parishioner['verified_at'] : ($parishioner['updated_at'] ?? $parishioner['created_at']);
-                                                                        echo '<span class="fw-semibold">' . e(date('M d, Y h:i A', strtotime($v_time))) . '</span>';
-                                                                    } elseif ($parishioner['status'] === 'pending_verification') {
-                                                                        echo '<span class="badge bg-warning text-dark"><i class="fas fa-clock"></i> Pending Verification</span>';
-                                                                    } elseif ($parishioner['status'] === 'rejected') {
-                                                                        echo '<span class="badge bg-danger"><i class="fas fa-times-circle"></i> Rejected</span>';
-                                                                    } else {
-                                                                        echo e(ucfirst(str_replace('_', ' ', (string) $parishioner['status'])));
-                                                                    }
-                                                                ?>
-                                                            </dd>
-
-                                                            <dt class="col-sm-4"><?php echo ($parishioner['verification_method'] ?? '') === 'mobile' ? 'Registered Mobile' : 'Registered Email'; ?></dt>
-                                                            <dd class="col-sm-8">
-                                                                <span class="fw-semibold"><?php echo e(($parishioner['verification_method'] ?? '') === 'mobile' ? ($parishioner['phone_number'] ?: $parishioner['email'] ?: 'Not provided') : ($parishioner['email'] ?: $parishioner['phone_number'] ?: 'Not provided')); ?></span>
-                                                                <?php if (in_array($parishioner['status'], ['active', 'approved'], true) || !empty($parishioner['email_verified_at']) || !empty($parishioner['phone_verified_at'])): ?>
-                                                                    <span class="badge bg-success ms-1"><i class="fas fa-check-circle"></i> Verified</span>
-                                                                <?php else: ?>
-                                                                    <span class="badge bg-warning text-dark ms-1"><i class="fas fa-clock"></i> Pending</span>
-                                                                <?php endif; ?>
-                                                            </dd>
-
-                                                            <dt class="col-sm-4">Face Status</dt>
-                                                            <dd class="col-sm-8"><?php echo e(parishionerValue($parishioner['face_verification_status'] ?? '')); ?></dd>
-
+                                                            </div>
+                                                            <div class="col-sm-6 col-md-3">
+                                                                <div class="text-muted small">Date Verified</div>
+                                                                <div>
+                                                                    <?php 
+                                                                        if (in_array($parishioner['status'], ['active', 'approved'], true)) {
+                                                                            $v_time = !empty($parishioner['verified_at']) ? $parishioner['verified_at'] : ($parishioner['updated_at'] ?? $parishioner['created_at']);
+                                                                            echo '<span class="fw-semibold">' . e(date('M d, Y h:i A', strtotime($v_time))) . '</span>';
+                                                                        } elseif ($parishioner['status'] === 'pending_verification') {
+                                                                            echo '<span class="badge bg-warning text-dark"><i class="fas fa-clock"></i> Pending Verification</span>';
+                                                                        } elseif ($parishioner['status'] === 'rejected') {
+                                                                            echo '<span class="badge bg-danger"><i class="fas fa-times-circle"></i> Rejected</span>';
+                                                                        } else {
+                                                                            echo e(ucfirst(str_replace('_', ' ', (string) $parishioner['status'])));
+                                                                        }
+                                                                    ?>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-sm-6 col-md-3">
+                                                                <div class="text-muted small"><?php echo ($parishioner['verification_method'] ?? '') === 'mobile' ? 'Registered Mobile' : 'Registered Email'; ?></div>
+                                                                <div class="fw-semibold">
+                                                                    <?php echo e(($parishioner['verification_method'] ?? '') === 'mobile' ? ($parishioner['phone_number'] ?: $parishioner['email'] ?: 'Not provided') : ($parishioner['email'] ?: $parishioner['phone_number'] ?: 'Not provided')); ?>
+                                                                    <?php if (in_array($parishioner['status'], ['active', 'approved'], true) || !empty($parishioner['email_verified_at']) || !empty($parishioner['phone_verified_at'])): ?>
+                                                                        <span class="badge bg-success ms-1"><i class="fas fa-check-circle"></i> Verified</span>
+                                                                    <?php else: ?>
+                                                                        <span class="badge bg-warning text-dark ms-1"><i class="fas fa-clock"></i> Pending</span>
+                                                                    <?php endif; ?>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-sm-6 col-md-3">
+                                                                <div class="text-muted small">Face Status</div>
+                                                                <div class="fw-semibold"><?php echo e(parishionerValue($parishioner['face_verification_status'] ?? '')); ?></div>
+                                                            </div>
                                                             <?php if (!empty($parishioner['rejection_reason'])): ?>
-                                                                <dt class="col-sm-4">Rejection Reason</dt>
-                                                                <dd class="col-sm-8 text-danger"><?php echo e($parishioner['rejection_reason']); ?></dd>
+                                                                <div class="col-sm-6 col-md-3">
+                                                                    <div class="text-muted small">Rejection Reason</div>
+                                                                    <div class="text-danger fw-semibold"><?php echo e($parishioner['rejection_reason']); ?></div>
+                                                                </div>
                                                             <?php endif; ?>
-                                                        </dl>
+                                                        </div>
                                                     </div>
 
                                                     <div class="col-12">
