@@ -1465,6 +1465,167 @@ function formatFileSize($bytes) {
     return $bytes . ' B';
 }
 
+/**
+ * 5W1H Announcement Content Builder
+ * Formats structured announcement data into formal parish announcement content.
+ */
+function build5W1HAnnouncementContent(array $data): string {
+    $parts = [];
+
+    $what = trim($data['what'] ?? '');
+    if ($what !== '') {
+        $parts[] = "📌 WHAT\n" . $what;
+    }
+
+    $when = trim($data['when_text'] ?? '');
+    $date = trim($data['event_date'] ?? '');
+    $time = trim($data['event_time'] ?? '');
+    $all_day = !empty($data['is_all_day']);
+
+    if ($when === '' && $date !== '') {
+        $formatted_date = date('F j, Y', strtotime($date));
+        if ($all_day) {
+            $when = $formatted_date . ' (All-day event)';
+        } elseif ($time !== '') {
+            $formatted_time = date('g:i A', strtotime($time));
+            $when = $formatted_date . ' — ' . $formatted_time;
+        } else {
+            $when = $formatted_date;
+        }
+    }
+    if ($when !== '') {
+        $parts[] = "📅 WHEN\n" . $when;
+    }
+
+    $where = trim($data['where'] ?? ($data['location'] ?? ''));
+    if ($where !== '') {
+        $parts[] = "📍 WHERE\n" . $where;
+    }
+
+    $who = trim($data['who'] ?? ($data['target_audience'] ?? ''));
+    if ($who !== '') {
+        $parts[] = "👥 WHO\n" . $who;
+    }
+
+    $why = trim($data['why'] ?? ($data['purpose'] ?? ''));
+    if ($why !== '') {
+        $parts[] = "✦ WHY\n" . $why;
+    }
+
+    $how = trim($data['how'] ?? ($data['instructions'] ?? ''));
+    if ($how !== '') {
+        $parts[] = "ℹ HOW\n" . $how;
+    }
+
+    $additional = trim($data['additional_details'] ?? ($data['additional_information'] ?? ''));
+    if ($additional !== '') {
+        $parts[] = "📝 ADDITIONAL INFORMATION\n" . $additional;
+    }
+
+    return implode("\n\n", $parts);
+}
+
+/**
+ * 5W1H Announcement Parser
+ * Extracts structured 5W1H components from announcement text or gracefully falls back to legacy content.
+ */
+function parse5W1HAnnouncement(string $content): array {
+    $result = [
+        'what' => '',
+        'when' => '',
+        'where' => '',
+        'who' => '',
+        'why' => '',
+        'how' => '',
+        'additional_details' => '',
+        'is_structured' => false
+    ];
+
+    $content = trim($content);
+    if ($content === '') {
+        return $result;
+    }
+
+    $marker_pattern = '/(?:^|\r?\n)(?:(?:📌|📅|📍|👥|✦|ℹ|📝)\s*)?(WHAT(?: IS THE ANNOUNCEMENT ABOUT\??)?|WHEN\??|WHERE\??|WHO(?: SHOULD ATTEND\??)?|WHY(?: IS THIS IMPORTANT\??)?|HOW(?:\s*\/\s*INSTRUCTIONS)?|ADDITIONAL (?:INFORMATION|DETAILS))\s*[\r\n]+/i';
+
+    $parts = preg_split($marker_pattern, $content, -1, PREG_SPLIT_DELIM_CAPTURE);
+    if (count($parts) > 1) {
+        $matched = 0;
+        for ($i = 1; $i < count($parts); $i += 2) {
+            $header = strtoupper(trim($parts[$i]));
+            $body = trim($parts[$i + 1] ?? '');
+
+            if (str_contains($header, 'WHAT')) {
+                $result['what'] = $body;
+                $matched++;
+            } elseif (str_contains($header, 'WHEN')) {
+                $result['when'] = $body;
+                $matched++;
+            } elseif (str_contains($header, 'WHERE')) {
+                $result['where'] = $body;
+                $matched++;
+            } elseif (str_contains($header, 'WHO')) {
+                $result['who'] = $body;
+                $matched++;
+            } elseif (str_contains($header, 'WHY')) {
+                $result['why'] = $body;
+                $matched++;
+            } elseif (str_contains($header, 'HOW')) {
+                $result['how'] = $body;
+                $matched++;
+            } elseif (str_contains($header, 'ADDITIONAL')) {
+                $result['additional_details'] = $body;
+                $matched++;
+            }
+        }
+        if ($matched >= 2) {
+            $result['is_structured'] = true;
+            return $result;
+        }
+    }
+
+    // Fallback: legacy content into 'what'
+    $result['what'] = $content;
+    return $result;
+}
+
+/**
+ * Render Structured Announcement HTML
+ * Formats 5W1H announcement items with structured badges and scannable cards.
+ */
+function renderStructuredAnnouncementHtml(string $content, array $options = []): string {
+    $parsed = parse5W1HAnnouncement($content);
+    if (!$parsed['is_structured']) {
+        return '<div class="announcement-legacy-body">' . nl2br(htmlspecialchars($content, ENT_QUOTES, 'UTF-8')) . '</div>';
+    }
+
+    $sections = [
+        'what' => ['icon' => 'fa-bullhorn', 'badge' => 'WHAT', 'class' => 'section-what', 'color' => '#1e3a8a', 'bg' => '#eff6ff', 'border' => '#bfdbfe'],
+        'when' => ['icon' => 'fa-calendar-day', 'badge' => 'WHEN', 'class' => 'section-when', 'color' => '#854d0e', 'bg' => '#fefce8', 'border' => '#fef08a'],
+        'where' => ['icon' => 'fa-location-dot', 'badge' => 'WHERE', 'class' => 'section-where', 'color' => '#991b1b', 'bg' => '#fef2f2', 'border' => '#fecaca'],
+        'who' => ['icon' => 'fa-users', 'badge' => 'WHO', 'class' => 'section-who', 'color' => '#166534', 'bg' => '#f0fdf4', 'border' => '#bbf7d0'],
+        'why' => ['icon' => 'fa-circle-question', 'badge' => 'WHY', 'class' => 'section-why', 'color' => '#5b21b6', 'bg' => '#f5f3ff', 'border' => '#ddd6fe'],
+        'how' => ['icon' => 'fa-list-check', 'badge' => 'HOW / INSTRUCTIONS', 'class' => 'section-how', 'color' => '#0e7490', 'bg' => '#ecfeff', 'border' => '#a5f3fc'],
+        'additional_details' => ['icon' => 'fa-circle-info', 'badge' => 'ADDITIONAL INFORMATION', 'class' => 'section-additional', 'color' => '#334155', 'bg' => '#f8fafc', 'border' => '#e2e8f0']
+    ];
+
+    $html = '<div class="announcement-5w1h-container" style="display: grid; gap: 12px; margin-top: 8px;">';
+    foreach ($sections as $key => $meta) {
+        $val = trim($parsed[$key] ?? '');
+        if ($val === '') continue;
+
+        $html .= '<div class="announcement-5w1h-item ' . $meta['class'] . '" style="border: 1px solid ' . $meta['border'] . '; border-radius: 8px; padding: 12px 14px; background: #ffffff;">';
+        $html .= '<div class="announcement-5w1h-badge" style="display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 6px; font-size: 11.5px; font-weight: 700; color: ' . $meta['color'] . '; background: ' . $meta['bg'] . '; margin-bottom: 6px;">';
+        $html .= '<i class="fas ' . $meta['icon'] . '"></i> ' . $meta['badge'];
+        $html .= '</div>';
+        $html .= '<div class="announcement-5w1h-content" style="color: #334155; font-size: 13.5px; line-height: 1.6;">' . nl2br(htmlspecialchars($val, ENT_QUOTES, 'UTF-8')) . '</div>';
+        $html .= '</div>';
+    }
+    $html .= '</div>';
+
+    return $html;
+}
+
 // User Verification - Adds registration approval, identity review, and encrypted ID fields.
 function ensureUserVerificationSchema($conn) {
     return $conn instanceof mysqli

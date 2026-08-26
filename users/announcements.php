@@ -672,7 +672,7 @@ function announcementCountdown($event_date) {
                             <span><i class="fas fa-hourglass-half"></i> <?php echo e(announcementCountdown($announcement['event_date'])); ?></span>
                         <?php endif; ?>
                     </div>
-                    <div class="modal-announcement-content"><?php echo e($announcement['content']); ?></div>
+                    <div class="modal-announcement-content"><?php echo renderStructuredAnnouncementHtml($announcement['content']); ?></div>
                 </div>
                 <div class="modal-footer">
                     <?php if (!empty($announcement['attachment_path'])): ?>
