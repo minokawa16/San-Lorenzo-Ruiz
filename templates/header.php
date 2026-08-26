@@ -303,39 +303,37 @@ $header_user_role = $is_admin_area ? 'Administrator' : 'Parishioner';
             </header>
             <main class="user-content" id="main-content" tabindex="-1">
     <?php elseif ($is_admin_area): ?>
-    <div class="premium-admin-shell">
+    <div class="app-layout premium-admin-shell">
         <?php include '../includes/admin-sidebar.php'; ?>
-        <main class="premium-admin-content" id="main-content" tabindex="-1">
+        <main class="premium-admin-content main-content" id="main-content" tabindex="-1">
             <?php if (empty($hide_global_header)): ?>
-            <header class="app-global-header admin-global-topbar premium-glass">
-                <div class="app-header-left admin-global-title">
-                    <div>
-                        <h1><?php echo e($admin_header_title); ?></h1>
-                        <p><?php echo e($admin_header_description); ?></p>
-                    </div>
+            <header class="app-global-header admin-global-topbar">
+                <div class="admin-global-title">
+                    <h1><?php echo e($admin_header_title); ?></h1>
+                    <p><?php echo e($admin_header_description); ?></p>
                 </div>
                 <div class="app-header-center">
-                    <form class="premium-search app-header-search" action="<?php echo e($header_search_action); ?>" method="GET">
+                    <form class="app-header-search" action="<?php echo e($header_search_action); ?>" method="GET">
                         <i class="fas fa-magnifying-glass"></i>
-                        <input type="search" name="<?php echo e($header_search_name); ?>" placeholder="<?php echo e($header_search_placeholder); ?>" value="<?php echo e($header_search_value); ?>">
+                        <input type="search" name="<?php echo e($header_search_name); ?>" placeholder="<?php echo e($header_search_placeholder); ?>" value="<?php echo e($header_search_value); ?>" autocomplete="off">
                         <kbd>Ctrl K</kbd>
                     </form>
                 </div>
-                <div class="app-header-right admin-global-actions">
+                <div class="admin-global-actions">
                     <div class="dropdown">
-                        <button class="profile-btn admin-profile-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <span class="profile-avatar"><?php echo strtoupper(substr($_SESSION['fullname'] ?? 'A', 0, 1)); ?></span>
-                            <span class="profile-meta">
-                                <span class="profile-name"><?php echo $header_user_name; ?></span>
-                                <span class="profile-role"><?php echo e($header_user_role); ?></span>
+                        <button class="profile-chip-btn admin-profile-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <span class="profile-chip-avatar profile-avatar"><?php echo strtoupper(substr($_SESSION['fullname'] ?? 'A', 0, 1)); ?></span>
+                            <span class="profile-chip-meta profile-meta">
+                                <span class="profile-chip-name profile-name"><?php echo $header_user_name; ?></span>
+                                <span class="profile-chip-role profile-role"><?php echo e($header_user_role); ?></span>
                             </span>
-                            <i class="fas fa-chevron-down"></i>
+                            <i class="fas fa-chevron-down ms-1" style="font-size: 10px; color: #9a9890;"></i>
                         </button>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="../auth/profile.php"><i class="fas fa-user"></i> My Profile</a></li>
-                            <li><a class="dropdown-item" href="../auth/profile.php"><i class="fas fa-gear"></i> Settings</a></li>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                            <li><a class="dropdown-item" href="../auth/profile.php"><i class="fas fa-user me-2 text-muted"></i> My Profile</a></li>
+                            <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>admin/settings.php"><i class="fas fa-gear me-2 text-muted"></i> Settings</a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="../auth/logout.php"><i class="fas fa-arrow-right-from-bracket"></i> <?php echo e(t('nav.logout', 'Logout')); ?></a></li>
+                            <li><a class="dropdown-item text-danger" href="../auth/logout.php"><i class="fas fa-arrow-right-from-bracket me-2"></i> <?php echo e(t('nav.logout', 'Logout')); ?></a></li>
                         </ul>
                     </div>
                 </div>

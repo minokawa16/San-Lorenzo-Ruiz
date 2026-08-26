@@ -121,10 +121,10 @@ $breadcrumbs = [
         <div class="card-body">
             <form method="GET" class="mb-3">
                 <input type="hidden" name="scope" value="<?php echo e($scope); ?>">
-                <div class="input-group">
-                    <input type="text" class="form-control" name="search" placeholder="Search by name, email, or address..." value="<?php echo e($search); ?>">
-                    <button class="btn btn-outline-primary" type="submit">
-                        <i class="fas fa-search"></i> Search
+                <div class="table-search-control-bar d-flex align-items-center gap-3">
+                    <input type="text" class="form-control parish-table-search-input" name="search" placeholder="Search by name, email, or address..." value="<?php echo e($search); ?>" style="height: 40px; border-radius: 8px; border: 1px solid #d8d6cc; background: #ffffff;">
+                    <button class="btn btn-outline-primary search-action-btn" type="submit" style="height: 40px; border-radius: 8px; font-weight: 600; padding: 0 20px; white-space: nowrap;">
+                        <i class="fas fa-search me-1"></i> Search
                     </button>
                 </div>
             </form>

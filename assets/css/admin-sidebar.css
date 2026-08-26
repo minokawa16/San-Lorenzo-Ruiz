@@ -1,12 +1,15 @@
-/* Canonical TUGON administrator & user navigation stylesheet. */
 :root {
     --admin-sidebar-width: 240px;
-    --admin-sidebar-collapsed-width: 64px;
+    --admin-sidebar-collapsed-width: 74px;
     --admin-sidebar-bg: #2e3a2d;
     --admin-sidebar-bg-deep: #263225;
     --admin-sidebar-gold: #c89b3c;
     --admin-sidebar-text: #ffffff;
     --admin-sidebar-muted: #d8d8d8;
+    --bg-cream: #FAF8F5;
+    --border-warm: #d8d6cc;
+    --avatar-gold: #F0D9A8;
+    --avatar-text: #8a5a12;
 }
 
 /* Flex Container for Shell Layout */
@@ -20,7 +23,13 @@ html body .user-shell {
     min-height: 100vh !important;
     width: 100% !important;
     position: relative !important;
+    background-color: var(--bg-cream) !important;
     overflow-x: hidden !important;
+}
+
+html body.premium-admin,
+html body.church-theme {
+    background-color: var(--bg-cream) !important;
 }
 
 /* Base Sidebar Shell - Flex Sibling on Desktop */
@@ -45,9 +54,9 @@ html body .user-shell > .user-sidebar {
     border-right: 1px solid rgba(200, 155, 60, 0.3) !important;
     border-radius: 0 !important;
     box-shadow: 6px 0 20px rgba(20, 29, 20, 0.12) !important;
-    overflow-x: hidden !important;
+    overflow-x: visible !important;
     overflow-y: auto !important;
-    transition: width 0.24s cubic-bezier(0.4, 0, 0.2, 1), min-width 0.24s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1), min-width 0.28s cubic-bezier(0.4, 0, 0.2, 1) !important;
     scrollbar-width: thin;
     scrollbar-color: rgba(200, 155, 60, 0.72) rgba(255, 255, 255, 0.05);
 }
@@ -210,6 +219,7 @@ html body .user-sidebar .sidebar-nav .nav-toggle {
     width: 100% !important;
     cursor: pointer;
     white-space: nowrap !important;
+    position: relative !important;
 }
 
 html body .admin-sidebar .sidebar-nav .nav-link i,
@@ -381,9 +391,10 @@ html body.user-area .user-main {
     width: 100% !important;
     margin-left: 0 !important;
     position: relative !important;
+    background-color: var(--bg-cream) !important;
 }
 
-/* ── Desktop Collapsed Sidebar (~64px Icon-Only State) ───── */
+/* ── Desktop Collapsed Sidebar (~74px Icon-Only State) ───── */
 @media (min-width: 1024px) {
     html body .admin-sidebar.collapsed,
     html body.admin-sidebar-collapsed .admin-sidebar,
@@ -440,8 +451,8 @@ html body.user-area .user-main {
     html body.user-sidebar-collapsed .user-sidebar .sidebar-nav .nav-link {
         justify-content: center !important;
         padding: 9px 0 !important;
-        width: 44px !important;
-        min-width: 44px !important;
+        width: 48px !important;
+        min-width: 48px !important;
         border-radius: 8px !important;
         margin: 2px auto !important;
     }
@@ -450,8 +461,49 @@ html body.user-area .user-main {
     html body.admin-sidebar-collapsed .admin-sidebar .sidebar-nav .nav-link i,
     html body .user-sidebar.collapsed .sidebar-nav .nav-link i,
     html body.user-sidebar-collapsed .user-sidebar .sidebar-nav .nav-link i {
-        font-size: 1rem !important;
+        font-size: 1.1rem !important;
         margin: 0 !important;
+    }
+
+    /* Floating Tooltips on Hover in Collapsed Mode */
+    html body .admin-sidebar.collapsed .sidebar-nav .nav-link[data-tooltip]:hover::after,
+    html body.admin-sidebar-collapsed .admin-sidebar .sidebar-nav .nav-link[data-tooltip]:hover::after,
+    html body .user-sidebar.collapsed .sidebar-nav .nav-link[data-tooltip]:hover::after,
+    html body.user-sidebar-collapsed .user-sidebar .sidebar-nav .nav-link[data-tooltip]:hover::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        left: calc(100% + 12px);
+        top: 50%;
+        transform: translateY(-50%);
+        padding: 5px 10px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #ffffff;
+        background: #0f172a;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 6px;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+        white-space: nowrap;
+        z-index: 1050;
+        pointer-events: none;
+        opacity: 1;
+        visibility: visible;
+    }
+
+    html body .admin-sidebar.collapsed .sidebar-nav .nav-link[data-tooltip]:hover::before,
+    html body.admin-sidebar-collapsed .admin-sidebar .sidebar-nav .nav-link[data-tooltip]:hover::before,
+    html body .user-sidebar.collapsed .sidebar-nav .nav-link[data-tooltip]:hover::before,
+    html body.user-sidebar-collapsed .user-sidebar .sidebar-nav .nav-link[data-tooltip]:hover::before {
+        content: "";
+        position: absolute;
+        left: calc(100% + 6px);
+        top: 50%;
+        transform: translateY(-50%);
+        border-width: 5px 6px 5px 0;
+        border-style: solid;
+        border-color: transparent #0f172a transparent transparent;
+        z-index: 1050;
+        pointer-events: none;
     }
 }
 
@@ -481,4 +533,190 @@ html body.user-area .user-main {
         display: inline-flex !important;
     }
 }
+
+/* ── Global Unified Header Card Styling ───────────────────── */
+html body .admin-global-topbar,
+html body .app-global-header.admin-global-topbar {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 20px !important;
+    background: #ffffff !important;
+    border: 1px solid var(--border-warm) !important;
+    border-radius: 14px !important;
+    padding: 10px 20px !important;
+    margin-bottom: 20px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+    flex-wrap: nowrap !important;
+}
+
+html body .admin-global-title h1 {
+    font-family: 'Playfair Display', Georgia, serif !important;
+    font-size: 1.35rem !important;
+    font-weight: 700 !important;
+    color: #1e293b !important;
+    margin: 0 !important;
+    line-height: 1.2 !important;
+}
+
+html body .admin-global-title p {
+    font-size: 0.78rem !important;
+    color: #6b6a63 !important;
+    margin: 2px 0 0 0 !important;
+    font-weight: 500 !important;
+}
+
+html body .app-header-search {
+    position: relative !important;
+    width: 100% !important;
+    max-width: 360px !important;
+}
+
+html body .app-header-search input {
+    height: 38px !important;
+    font-size: 0.8rem !important;
+    border-radius: 999px !important;
+    padding-left: 36px !important;
+    padding-right: 64px !important;
+    background: #ffffff !important;
+    border: 1px solid var(--border-warm) !important;
+    color: #0f172a !important;
+}
+
+html body .app-header-search input:focus {
+    border-color: var(--admin-sidebar-gold) !important;
+    box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.15) !important;
+}
+
+html body .app-header-search i {
+    position: absolute !important;
+    left: 14px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    color: #9a9890 !important;
+    font-size: 13px !important;
+    pointer-events: none !important;
+}
+
+html body .app-header-search kbd {
+    position: absolute !important;
+    right: 12px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    font-size: 11px !important;
+    color: #9a9890 !important;
+    background: transparent !important;
+    border: 1px solid var(--border-warm) !important;
+    border-radius: 6px !important;
+    padding: 2px 6px !important;
+}
+
+html body .admin-profile-btn {
+    height: 42px !important;
+    background: #ffffff !important;
+    border: 1px solid var(--border-warm) !important;
+    border-radius: 999px !important;
+    padding: 4px 14px 4px 5px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    color: #1e293b !important;
+    cursor: pointer !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+}
+
+html body .admin-profile-btn:hover {
+    background: #faf8f5 !important;
+    border-color: #c4c1b5 !important;
+}
+
+html body .admin-profile-btn .profile-avatar {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 50% !important;
+    background: var(--avatar-gold) !important;
+    color: var(--avatar-text) !important;
+    font-weight: 700 !important;
+    font-size: 14px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+html body .admin-profile-btn .profile-meta {
+    display: flex !important;
+    flex-direction: column !important;
+    text-align: left !important;
+    line-height: 1.15 !important;
+}
+
+html body .admin-profile-btn .profile-name {
+    font-size: 0.8rem !important;
+    font-weight: 700 !important;
+    color: #1e293b !important;
+    white-space: nowrap !important;
+}
+
+html body .admin-profile-btn .profile-role {
+    font-size: 0.68rem !important;
+    color: #9a9890 !important;
+    font-weight: 500 !important;
+}
+
+/* ── Table Search Box & Button Spacing Fix ────────────────── */
+.table-search-control-bar,
+.table-search-box {
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important; /* Explicit 12px / gap-3 spacing */
+    width: 100% !important;
+    margin-bottom: 14px !important;
+}
+
+.table-search-control-bar input,
+.table-search-box input,
+.parish-table-search-input {
+    height: 40px !important;
+    border-radius: 8px !important;
+    border: 1px solid var(--border-warm) !important;
+    background: #ffffff !important;
+    padding: 0 14px !important;
+    font-size: 0.84rem !important;
+    flex: 1 1 auto !important;
+}
+
+.table-search-control-bar input:focus,
+.table-search-box input:focus,
+.parish-table-search-input:focus {
+    border-color: var(--admin-sidebar-gold) !important;
+    box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.15) !important;
+}
+
+.table-search-control-bar button,
+.table-search-box button,
+.search-action-btn {
+    height: 40px !important;
+    border-radius: 8px !important;
+    font-size: 0.82rem !important;
+    font-weight: 600 !important;
+    padding: 0 18px !important;
+    white-space: nowrap !important;
+    border: 1px solid var(--border-warm) !important;
+    background: #ffffff !important;
+    color: #334155 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+}
+
+.table-search-control-bar button:hover,
+.table-search-box button:hover,
+.search-action-btn:hover {
+    background: #faf8f5 !important;
+    border-color: #c4c1b5 !important;
+    color: #0f172a !important;
+}
+
 
