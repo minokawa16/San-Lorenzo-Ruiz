@@ -263,18 +263,15 @@ if ($req_stmt) {
     $req_stmt->close();
 }
 
-$page_title = 'Confirmation Records - Parish Management';
-?>
+$page_title = 'Confirmation Records';
+$breadcrumbs = [
+    'Dashboard' => 'dashboard.php',
+    'Sacramental Records' => 'manage-records.php',
+    'Confirmation Records' => null
+];
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo htmlspecialchars($page_title); ?></title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../assets/css/holy-theme.css">
+include '../templates/header.php';
+?>
     <style>
         :root {
             --primary-navy: #1a1f3a;
@@ -623,19 +620,7 @@ $page_title = 'Confirmation Records - Parish Management';
             animation: fadeInUp 0.6s ease-out;
         }
     </style>
-    <link rel="stylesheet" href="../assets/css/holy-theme.css">
-    <link rel="stylesheet" href="../assets/css/premium-parish.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/premium-parish.css') ? filemtime(__DIR__ . '/../assets/css/premium-parish.css') : time(); ?>">
-    <link rel="stylesheet" href="../assets/css/parish-design-system.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/parish-design-system.css') ? filemtime(__DIR__ . '/../assets/css/parish-design-system.css') : time(); ?>">
-    <link rel="stylesheet" href="../assets/css/admin-sidebar.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/admin-sidebar.css') ? filemtime(__DIR__ . '/../assets/css/admin-sidebar.css') : time(); ?>">
-    <link rel="stylesheet" href="../assets/css/theme.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/theme.css') ? filemtime(__DIR__ . '/../assets/css/theme.css') : time(); ?>">
-</head>
-<body class="premium-admin">
-    <div class="premium-admin-shell">
-        <!-- Include Admin Sidebar -->
-        <?php include '../includes/admin-sidebar.php'; ?>
-
-        <!-- Main Content -->
-        <div class="premium-admin-content pds-page-container">
+    <div class="container-fluid px-0">
             <!-- Standardized Page Header -->
             <?php
             $page_header_title = 'Confirmation Records';
@@ -1024,5 +1009,5 @@ $page_title = 'Confirmation Records - Parish Management';
             }
         });
     </script>
-</body>
-</html>
+</div>
+<?php include '../templates/footer.php'; ?>

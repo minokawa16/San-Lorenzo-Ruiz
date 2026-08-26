@@ -11,40 +11,53 @@ include '../includes/helpers.php';
 requireAdmin();
 requirePermission('records.view');
 
+function getSafeRecordCount($conn, $table) {
+    if (!$conn) return 0;
+    $res = @$conn->query("SELECT COUNT(*) AS c FROM `$table` WHERE status = 'active'");
+    if ($res && ($row = $res->fetch_assoc())) {
+        return (int)($row['c'] ?? 0);
+    }
+    $res = @$conn->query("SELECT COUNT(*) AS c FROM `$table`");
+    if ($res && ($row = $res->fetch_assoc())) {
+        return (int)($row['c'] ?? 0);
+    }
+    return 0;
+}
+
 $registries = [
     [
         'title' => 'Baptism Records',
         'icon' => 'fa-water',
         'href' => 'baptism-records.php',
-        'count' => (int) ($conn->query("SELECT COUNT(*) AS c FROM baptism_records WHERE status = 'active'")->fetch_assoc()['c'] ?? 0),
+        'count' => getSafeRecordCount($conn, 'baptism_records'),
         'description' => 'Official baptismal registry entries, certificates, and sacramental books.'
     ],
     [
         'title' => 'First Communion Records',
         'icon' => 'fa-wheat-awn',
         'href' => 'communion-records.php',
-        'count' => (int) ($conn->query("SELECT COUNT(*) AS c FROM communion_records WHERE status = 'active'")->fetch_assoc()['c'] ?? 0),
+        'count' => getSafeRecordCount($conn, 'communion_records'),
         'description' => 'First Holy Communion registry entries and parish documentation.'
     ],
     [
         'title' => 'Confirmation Records',
         'icon' => 'fa-dove',
         'href' => 'confirmation-records.php',
-        'count' => (int) ($conn->query("SELECT COUNT(*) AS c FROM confirmation_records WHERE status = 'active'")->fetch_assoc()['c'] ?? 0),
+        'count' => getSafeRecordCount($conn, 'confirmation_records'),
         'description' => 'Sacrament of Confirmation records, sponsors, and ministers.'
     ],
     [
         'title' => 'Marriage Records',
         'icon' => 'fa-ring',
         'href' => 'marriage-records.php',
-        'count' => (int) ($conn->query("SELECT COUNT(*) AS c FROM marriage_records WHERE status = 'active'")->fetch_assoc()['c'] ?? 0),
+        'count' => getSafeRecordCount($conn, 'marriage_records'),
         'description' => 'Matrimony records, marriage contracts, and solemnization registries.'
     ],
     [
         'title' => 'Funeral Records',
         'icon' => 'fa-cross',
         'href' => 'funeral-records.php',
-        'count' => (int) ($conn->query("SELECT COUNT(*) AS c FROM funeral_records WHERE status = 'active'")->fetch_assoc()['c'] ?? 0),
+        'count' => getSafeRecordCount($conn, 'funeral_records'),
         'description' => 'Funeral blessing and burial records registered in the parish.'
     ]
 ];
