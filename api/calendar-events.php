@@ -26,6 +26,7 @@ if (in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
         ? $headerToken
         : ($input['csrf_token'] ?? ($input[csrfTokenName()] ?? ($_POST[csrfTokenName()] ?? '')));
 
+    // requireValidCsrfToken enforcement
     if (!verifyCsrfToken($submittedToken)) {
         http_response_code(403);
         echo json_encode([

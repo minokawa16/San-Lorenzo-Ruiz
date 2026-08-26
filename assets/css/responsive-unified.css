@@ -3193,3 +3193,387 @@ body.stable-detail-modals > .modal-backdrop {
         max-height: calc(100dvh - 1rem) !important;
     }
 }
+
+/* ==========================================================================
+   TUGON PARISH SYSTEM - PARISHIONER DESKTOP / LAPTOP UI/UX ENHANCEMENT
+   Target Breakpoints: 1024px, 1280px, 1366px, 1440px, 1920px+
+   Strictly scoped to desktop to preserve 100% of mobile phone views.
+   ========================================================================== */
+@media (min-width: 1024px) {
+    /* 1. Header Layout & Far-Right Profile Positioning */
+    body.user-area .user-topbar,
+    body.user-area .user-global-topbar.app-global-header {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        width: 100% !important;
+        padding: 14px 24px !important;
+        margin: 0 0 22px 0 !important;
+        background: #FFFFFF !important;
+        border: 1px solid #E8E1D5 !important;
+        border-radius: 14px !important;
+        box-shadow: 0 4px 18px rgba(46, 58, 45, 0.04) !important;
+    }
+
+    body.user-area .user-global-title {
+        display: flex !important;
+        align-items: center !important;
+        gap: 16px !important;
+        flex: 0 1 auto !important;
+        margin: 0 !important;
+    }
+
+    body.user-area .user-global-title h1 {
+        font-family: "Playfair Display", Georgia, serif !important;
+        font-size: 1.65rem !important;
+        font-weight: 700 !important;
+        color: #1F2937 !important;
+        margin: 0 !important;
+        line-height: 1.2 !important;
+    }
+
+    body.user-area .user-global-title p {
+        font-family: "Inter", "Segoe UI", sans-serif !important;
+        font-size: 0.88rem !important;
+        color: #6B7280 !important;
+        margin: 3px 0 0 0 !important;
+    }
+
+    body.user-area .user-global-actions {
+        margin-left: auto !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+        flex: 0 0 auto !important;
+        gap: 12px !important;
+    }
+
+    body.user-area .user-profile-btn,
+    body.user-area .parish-profile-pill-btn {
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+        padding: 6px 14px 6px 8px !important;
+        border: 1px solid #E8E1D5 !important;
+        border-radius: 12px !important;
+        background: #FAF7F2 !important;
+        color: #1F2937 !important;
+        cursor: pointer !important;
+        transition: all 0.2s ease !important;
+    }
+
+    body.user-area .user-profile-btn:hover,
+    body.user-area .parish-profile-pill-btn:hover {
+        border-color: #C89B3C !important;
+        background: #FFFFFF !important;
+        box-shadow: 0 4px 14px rgba(200, 155, 60, 0.16) !important;
+    }
+
+    body.user-area .parish-profile-avatar,
+    body.user-area .user-profile-btn .profile-avatar {
+        width: 36px !important;
+        height: 36px !important;
+        border-radius: 50% !important;
+        background: linear-gradient(135deg, #2E3A2D, #263225) !important;
+        color: #C89B3C !important;
+        font-weight: 700 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 14px !important;
+        border: 1px solid rgba(200, 155, 60, 0.4) !important;
+        flex-shrink: 0 !important;
+    }
+
+    body.user-area .parish-profile-meta,
+    body.user-area .user-profile-btn .profile-meta {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        text-align: left !important;
+        line-height: 1.2 !important;
+    }
+
+    body.user-area .parish-profile-name,
+    body.user-area .user-profile-btn .profile-name {
+        font-size: 0.88rem !important;
+        font-weight: 700 !important;
+        color: #1F2937 !important;
+        max-width: 180px !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+    }
+
+    body.user-area .parish-profile-role,
+    body.user-area .user-profile-btn .profile-role {
+        font-size: 0.72rem !important;
+        color: #8A733B !important;
+        font-weight: 600 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.5px !important;
+    }
+
+    body.user-area .user-global-actions .dropdown-menu {
+        right: 0 !important;
+        left: auto !important;
+        border: 1px solid #E8E1D5 !important;
+        border-radius: 12px !important;
+        box-shadow: 0 12px 36px rgba(30, 41, 30, 0.12) !important;
+        padding: 8px !important;
+        min-width: 220px !important;
+        background: #FFFFFF !important;
+    }
+
+    body.user-area .user-global-actions .dropdown-item {
+        border-radius: 8px !important;
+        padding: 9px 12px !important;
+        font-size: 0.88rem !important;
+        font-weight: 600 !important;
+        color: #2C2C2C !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+        transition: background 0.15s ease, color 0.15s ease !important;
+    }
+
+    body.user-area .user-global-actions .dropdown-item:hover {
+        background: #FAF7F2 !important;
+        color: #A97F24 !important;
+    }
+
+    /* 2. Desktop Sidebar Hierarchy */
+    body.user-area .user-sidebar {
+        width: 260px !important;
+        background: linear-gradient(180deg, #2E3A2D, #263225) !important;
+        border-right: 1px solid rgba(200, 155, 60, 0.3) !important;
+        box-shadow: 6px 0 20px rgba(20, 29, 20, 0.12) !important;
+    }
+
+    body.user-area .user-main {
+        margin-left: 260px !important;
+        width: calc(100% - 260px) !important;
+        padding: 24px 32px 48px 32px !important;
+        background: #FDFBF7 !important;
+    }
+
+    body.user-area .user-sidebar .nav-section-label {
+        font-size: 0.72rem !important;
+        font-weight: 800 !important;
+        letter-spacing: 1px !important;
+        text-transform: uppercase !important;
+        color: #C89B3C !important;
+        padding: 14px 20px 6px 20px !important;
+        opacity: 0.9 !important;
+    }
+
+    body.user-area .user-sidebar .nav-link {
+        font-size: 0.92rem !important;
+        font-weight: 600 !important;
+        padding: 11px 20px !important;
+        color: rgba(255, 255, 255, 0.88) !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 12px !important;
+        border-left: 3px solid transparent !important;
+        transition: all 0.2s ease !important;
+    }
+
+    body.user-area .user-sidebar .nav-link:hover {
+        background: rgba(255, 255, 255, 0.07) !important;
+        color: #FFFFFF !important;
+    }
+
+    body.user-area .user-sidebar .nav-link.active {
+        background: rgba(200, 155, 60, 0.16) !important;
+        border-left-color: #C89B3C !important;
+        color: #FFFFFF !important;
+        font-weight: 700 !important;
+    }
+
+    body.user-area .user-sidebar .nav-link.active i {
+        color: #C89B3C !important;
+    }
+
+    /* 3. Parishioner Desktop Dashboard */
+    body.user-area .client-welcome-panel {
+        background: #FFFFFF !important;
+        border: 1px solid #E8E1D5 !important;
+        border-left: 5px solid #C89B3C !important;
+        border-radius: 14px !important;
+        padding: 24px 28px !important;
+        box-shadow: 0 4px 18px rgba(46, 58, 45, 0.04) !important;
+        margin-bottom: 22px !important;
+    }
+
+    body.user-area .client-welcome-panel h1 {
+        font-family: "Playfair Display", Georgia, serif !important;
+        font-size: 1.85rem !important;
+        font-weight: 700 !important;
+        color: #1F2937 !important;
+        margin-bottom: 8px !important;
+    }
+
+    body.user-area .client-welcome-name {
+        color: #C89B3C !important;
+        margin-left: 8px !important;
+    }
+
+    body.user-area .client-verse {
+        font-family: "Playfair Display", Georgia, serif !important;
+        font-style: italic !important;
+        color: #4B5563 !important;
+        font-size: 0.95rem !important;
+        line-height: 1.5 !important;
+        margin: 0 !important;
+    }
+
+    body.user-area .client-verse span {
+        font-family: "Inter", "Segoe UI", sans-serif !important;
+        font-style: normal !important;
+        font-size: 0.8rem !important;
+        font-weight: 700 !important;
+        color: #8A733B !important;
+        margin-left: 8px !important;
+    }
+
+    /* 3 Equal Summary Cards */
+    body.user-area .dashboard-mobile-summary-grid {
+        display: grid !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: 18px !important;
+        margin-bottom: 24px !important;
+    }
+
+    body.user-area .dashboard-mobile-summary-grid a {
+        background: #FFFFFF !important;
+        border: 1px solid #E8E1D5 !important;
+        border-radius: 14px !important;
+        padding: 20px 22px !important;
+        min-height: 140px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
+        box-shadow: 0 4px 14px rgba(46, 58, 45, 0.04) !important;
+        transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
+        text-decoration: none !important;
+    }
+
+    body.user-area .dashboard-mobile-summary-grid a:hover {
+        transform: translateY(-3px) !important;
+        border-color: #C89B3C !important;
+        box-shadow: 0 10px 26px rgba(200, 155, 60, 0.14) !important;
+    }
+
+    body.user-area .dashboard-mobile-summary-grid strong {
+        font-family: "Playfair Display", Georgia, serif !important;
+        font-size: 2.2rem !important;
+        font-weight: 700 !important;
+        color: #1F2937 !important;
+        line-height: 1 !important;
+    }
+
+    body.user-area .dashboard-mobile-summary-grid span {
+        font-size: 0.88rem !important;
+        font-weight: 700 !important;
+        color: #4B5563 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.5px !important;
+    }
+
+    /* Two-Column Grid */
+    body.user-area .client-dashboard-grid {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.85fr) !important;
+        gap: 22px !important;
+        align-items: start !important;
+    }
+
+    body.user-area .client-panel {
+        background: #FFFFFF !important;
+        border: 1px solid #E8E1D5 !important;
+        border-radius: 14px !important;
+        padding: 22px !important;
+        box-shadow: 0 4px 18px rgba(46, 58, 45, 0.04) !important;
+        margin-bottom: 20px !important;
+    }
+
+    body.user-area .client-section-title {
+        font-family: "Playfair Display", Georgia, serif !important;
+        font-size: 1.25rem !important;
+        font-weight: 700 !important;
+        color: #1F2937 !important;
+    }
+
+    body.user-area .client-link-btn {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 5px 12px !important;
+        border: 1px solid #E8E1D5 !important;
+        border-radius: 8px !important;
+        background: #FAF7F2 !important;
+        color: #8A733B !important;
+        font-size: 0.82rem !important;
+        font-weight: 650 !important;
+        text-decoration: none !important;
+        transition: all 0.18s ease !important;
+    }
+
+    body.user-area .client-link-btn:hover {
+        background: #FFFFFF !important;
+        border-color: #C89B3C !important;
+        color: #A97F24 !important;
+        box-shadow: 0 2px 8px rgba(200, 155, 60, 0.15) !important;
+    }
+
+    /* 4. Desktop Full-Width Calendar & Schedules */
+    body.user-area .calendar-panel.full-width-calendar {
+        background: #FFFFFF !important;
+        border: 1px solid #E8E1D5 !important;
+        border-radius: 14px !important;
+        padding: 20px !important;
+        min-height: 780px !important;
+        position: relative !important;
+        box-shadow: 0 4px 18px rgba(46, 58, 45, 0.04) !important;
+        width: 100% !important;
+    }
+
+    body.user-area .calendar-panel.full-width-calendar .fc {
+        width: 100% !important;
+    }
+
+    body.user-area .calendar-panel.full-width-calendar .fc .fc-daygrid-day-frame {
+        min-height: 110px !important;
+    }
+
+    /* 5. Desktop Floating AI Assistant Widget */
+    body.user-area .ai-assistant-widget {
+        position: fixed !important;
+        bottom: 26px !important;
+        right: 28px !important;
+        z-index: 1040 !important;
+    }
+
+    body.user-area .ai-assistant-trigger {
+        width: 54px !important;
+        height: 54px !important;
+        border-radius: 50% !important;
+        background: linear-gradient(135deg, #2E3A2D, #263225) !important;
+        color: #C89B3C !important;
+        border: 2px solid #C89B3C !important;
+        box-shadow: 0 8px 24px rgba(46, 58, 45, 0.24) !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 1.3rem !important;
+        cursor: pointer !important;
+        transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+    }
+
+    body.user-area .ai-assistant-trigger:hover {
+        transform: scale(1.08) !important;
+        box-shadow: 0 12px 30px rgba(200, 155, 60, 0.35) !important;
+    }
+}
+

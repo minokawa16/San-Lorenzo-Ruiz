@@ -41,7 +41,7 @@ $is_primary_user_dashboard = $is_user_dashboard_page && (($_GET['view'] ?? '') !
   <nav class="sidebar-nav">
     <div class="nav-section-label"><?php echo e(t('nav.main_menu', 'Main Menu')); ?></div>
     <a href="<?php echo BASE_URL; ?>users/index.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'index.php' && strpos($_SERVER['PHP_SELF'], '/users/') !== false) ? 'active' : ''; ?>" data-tooltip="<?php echo e(t('nav.dashboard', 'Dashboard')); ?>">
-      <i class="fas fa-grid-2"></i>
+      <i class="fas fa-table-cells-large"></i>
       <span><?php echo e(t('nav.dashboard', 'Dashboard')); ?></span>
     </a>
     <div class="nav-item nav-collapsible">

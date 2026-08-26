@@ -154,6 +154,7 @@ if ($is_admin_area) {
 } else {
     $header_user_name = sanitize($_SESSION['fullname'] ?? 'Parishioner');
     $header_avatar_initial = strtoupper(substr($header_user_name ?: 'P', 0, 1));
+    $header_user_first_name = trim(explode(' ', $header_user_name)[0] ?? $header_user_name);
     $header_user_role = 'Parishioner';
 }
 ?>
@@ -193,10 +194,14 @@ if ($is_admin_area) {
         .admin-sidebar .brand-logo,
         .admin-sidebar .pill-badge,
         .premium-admin-sidebar .brand-logo,
-        .premium-admin-sidebar .pill-badge,
         .user-sidebar .brand-logo,
         .user-sidebar .pill-badge {
-            background: rgba(200, 155, 60, 0.1) !important;
+            background: #C89B3C !important;
+            color: #1A241A !important;
+        }
+        .admin-sidebar .nav-section-label,
+        .premium-admin-sidebar .nav-section-label,
+        .user-sidebar .nav-section-label {
             color: #C89B3C !important;
             border: 1px solid rgba(200, 155, 60, 0.55) !important;
         }
@@ -223,7 +228,7 @@ if ($is_admin_area) {
         <div class="user-main">
             <header class="app-global-header user-topbar user-global-topbar premium-glass">
                 <div class="app-header-left admin-global-title user-global-title">
-                    <div>
+                    <div class="user-header-text">
                         <h1><?php echo e($user_header_title); ?></h1>
                         <p><?php echo e($user_header_description); ?></p>
                     </div>
@@ -234,21 +239,24 @@ if ($is_admin_area) {
                 </div>
                 <div class="app-header-right admin-global-actions user-global-actions">
                     <div class="dropdown">
-                        <button class="profile-btn user-profile-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <span class="profile-avatar">
-                                <?php echo strtoupper(substr($_SESSION['fullname'] ?? 'U', 0, 1)); ?>
+                        <button class="profile-btn user-profile-btn parish-profile-pill-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" id="userProfileDropdown">
+                            <span class="profile-avatar parish-profile-avatar">
+                                <?php echo $header_avatar_initial; ?>
                             </span>
-                            <span class="profile-meta">
-                                <span class="profile-name"><?php echo $header_user_name; ?></span>
-                                <span class="profile-role"><?php echo e($header_user_role); ?></span>
+                            <span class="profile-meta parish-profile-meta">
+                                <span class="profile-name parish-profile-name"><?php echo $header_user_name; ?></span>
+                                <span class="profile-role parish-profile-role"><?php echo e($header_user_role); ?></span>
                             </span>
-                            <i class="fas fa-chevron-down"></i>
+                            <i class="fas fa-chevron-down ms-1" style="font-size: 10px; color: #9A733B;"></i>
                         </button>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="../auth/profile.php"><i class="fas fa-user"></i> My Profile</a></li>
-                            <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>users/ai-assistant.php"><i class="fas fa-circle-question"></i> Help</a></li>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="userProfileDropdown">
+                            <li><a class="dropdown-item" href="../auth/profile.php"><i class="fas fa-user-gear me-2 text-muted"></i> Profile Settings</a></li>
+                            <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>users/notifications.php"><i class="fas fa-bell me-2 text-muted"></i> Notifications<?php if ($unread_notification_count > 0): ?> <span class="badge bg-danger ms-auto"><?php echo $unread_notification_count; ?></span><?php endif; ?></a></li>
+                            <?php if (hasPermission('ai.parishioner.use')): ?>
+                            <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>users/ai-assistant.php"><i class="fas fa-robot me-2 text-muted"></i> AI Assistant</a></li>
+                            <?php endif; ?>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item user-header-logout" href="../auth/logout.php"><i class="fas fa-power-off"></i> <?php echo e(t('nav.logout', 'Log Out')); ?></a></li>
+                            <li><a class="dropdown-item text-danger user-header-logout" href="../auth/logout.php"><i class="fas fa-power-off me-2"></i> <?php echo e(t('nav.logout', 'Log Out')); ?></a></li>
                         </ul>
                     </div>
                 </div>

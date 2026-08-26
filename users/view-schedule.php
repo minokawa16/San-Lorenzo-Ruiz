@@ -51,7 +51,7 @@ if ($stmt) {
         align-items: center;
         justify-content: space-between;
         gap: 16px;
-        margin-bottom: 18px;
+        margin-bottom: 20px;
     }
 
     .calendar-user-title {
@@ -63,153 +63,180 @@ if ($stmt) {
     .calendar-user-icon {
         width: 52px;
         height: 52px;
-        border-radius: 8px;
+        border-radius: 12px;
         display: grid;
         place-items: center;
-        color: #fff;
-        background: linear-gradient(135deg, #1a73e8, #34a853);
-        box-shadow: 0 14px 30px rgba(26, 115, 232, 0.24);
+        color: #C89B3C;
+        background: linear-gradient(135deg, #2E3A2D, #1F291F);
+        border: 1px solid rgba(200, 155, 60, 0.35);
+        box-shadow: 0 8px 20px rgba(46, 58, 45, 0.15);
+        font-size: 1.35rem;
     }
 
     .calendar-user-title h1 {
         margin: 0;
-        font-weight: 900;
-        font-size: clamp(1.4rem, 2.2vw, 2rem);
-        letter-spacing: 0;
+        font-family: "Playfair Display", Georgia, serif;
+        font-weight: 700;
+        font-size: clamp(1.5rem, 2.2vw, 2.1rem);
+        color: #1F2937;
+        line-height: 1.15;
     }
 
     .calendar-user-title p {
-        margin: 3px 0 0;
-        color: var(--text-muted, #64748b);
+        margin: 4px 0 0;
+        color: #6B7280;
+        font-size: 0.9rem;
     }
 
     .calendar-user-actions {
         display: flex;
-        gap: 8px;
+        gap: 10px;
         flex-wrap: wrap;
         justify-content: flex-end;
     }
 
-    .calendar-user-grid {
-        display: grid;
-        grid-template-columns: 300px minmax(0, 1fr);
-        gap: 18px;
-        align-items: start;
+    .btn-parish-gold {
+        background: #C89B3C !important;
+        border-color: #A97F24 !important;
+        color: #FFFFFF !important;
+        font-weight: 650 !important;
+        padding: 8px 18px !important;
+        border-radius: 10px !important;
+        box-shadow: 0 4px 12px rgba(200, 155, 60, 0.22) !important;
+        transition: all 0.2s ease !important;
     }
 
-    .calendar-panel,
-    .calendar-side-panel {
-        background: var(--surface-color, #fff);
-        border: 1px solid #eef2f7;
-        border-radius: 8px;
-        box-shadow: var(--shadow-soft, 0 8px 24px rgba(16,24,40,0.08));
+    .btn-parish-gold:hover {
+        background: #A97F24 !important;
+        border-color: #8C6819 !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 6px 16px rgba(200, 155, 60, 0.3) !important;
     }
 
-    .calendar-panel {
-        padding: 12px;
-        min-height: 740px;
-        position: relative;
+    /* Top Filter Toolbar Card */
+    .calendar-toolbar-card {
+        background: #FFFFFF;
+        border: 1px solid #E8E1D5;
+        border-radius: 12px;
+        padding: 14px 18px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(46, 58, 45, 0.04);
     }
 
-    .calendar-side-panel {
-        padding: 18px;
-        position: sticky;
-        top: 96px;
-        max-height: calc(100vh - 118px);
-        overflow: auto;
-    }
-
-    .calendar-side-section {
-        display: grid;
-        gap: 10px;
-        margin-bottom: 18px;
-    }
-
-    .calendar-side-section h2,
-    .upcoming-header h2 {
-        margin: 0;
-        font-size: 1rem;
-        font-weight: 900;
-    }
-
-    .calendar-side-section .form-control,
-    .calendar-side-section .form-select,
-    .mini-month {
-        width: 100%;
-        border-radius: 8px;
-        min-height: 42px;
-    }
-
-    .mini-month {
-        border: 1px solid #e5e7eb;
-        padding: 8px 10px;
-        color: #172033;
-        background: #fff;
-    }
-
-    .calendar-legend {
-        display: grid;
-        gap: 8px;
-    }
-
-    .legend-item {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        color: var(--text-muted, #64748b);
-        font-size: 0.88rem;
-    }
-
-    .legend-dot {
-        width: 11px;
-        height: 11px;
-        border-radius: 999px;
-        flex: 0 0 11px;
-    }
-
-    .upcoming-header {
+    .calendar-toolbar-row {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 10px;
+        gap: 14px;
+        flex-wrap: wrap;
     }
 
-    .event-stack {
-        display: grid;
+    .calendar-toolbar-search {
+        position: relative;
+        flex: 1 1 280px;
+        max-width: 420px;
+    }
+
+    .calendar-toolbar-search i {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #9A733B;
+        font-size: 14px;
+        pointer-events: none;
+    }
+
+    .calendar-toolbar-search input {
+        padding-left: 36px;
+        border: 1px solid #E8E1D5;
+        border-radius: 9px;
+        height: 42px;
+        background: #FAF7F2;
+        font-size: 0.9rem;
+    }
+
+    .calendar-toolbar-search input:focus {
+        background: #FFFFFF;
+        border-color: #C89B3C;
+        box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.15);
+    }
+
+    .calendar-toolbar-controls {
+        display: flex;
+        align-items: center;
         gap: 10px;
+        flex-wrap: wrap;
     }
 
-    .event-card {
-        border: 1px solid #eef2f7;
-        border-left: 5px solid var(--event-color, #1a73e8);
-        border-radius: 8px;
-        padding: 12px;
-        background: rgba(248, 250, 252, 0.82);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    .calendar-toolbar-controls .form-select,
+    .calendar-toolbar-controls .mini-month {
+        height: 42px;
+        min-width: 150px;
+        border: 1px solid #E8E1D5;
+        border-radius: 9px;
+        background: #FAF7F2;
+        color: #1F2937;
+        font-size: 0.88rem;
+        font-weight: 550;
     }
 
-    .event-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 12px 24px rgba(15, 23, 42, 0.1);
+    .calendar-toolbar-controls .form-select:focus,
+    .calendar-toolbar-controls .mini-month:focus {
+        background: #FFFFFF;
+        border-color: #C89B3C;
+        box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.15);
     }
 
-    .event-card strong {
-        display: block;
-        font-size: 0.95rem;
-        margin-bottom: 4px;
+    /* Category Legend Pills */
+    .calendar-legend-bar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px dashed #E8E1D5;
     }
 
-    .event-card span,
-    .event-card small {
-        color: var(--text-muted, #64748b);
+    .legend-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 10px;
+        border-radius: 20px;
+        background: #FAF7F2;
+        border: 1px solid #E8E1D5;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #4B5563;
+    }
+
+    .legend-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    /* Full-Width Calendar Panel */
+    .calendar-panel.full-width-calendar {
+        background: #FFFFFF;
+        border: 1px solid #E8E1D5;
+        border-radius: 14px;
+        padding: 20px;
+        min-height: 780px;
+        position: relative;
+        box-shadow: 0 4px 18px rgba(46, 58, 45, 0.04);
+        width: 100%;
     }
 
     .calendar-loading {
         position: absolute;
-        inset: 12px;
+        inset: 16px;
         display: none;
-        border-radius: 8px;
-        background: linear-gradient(90deg, rgba(255,255,255,0.4), rgba(255,255,255,0.92), rgba(255,255,255,0.4));
+        border-radius: 10px;
+        background: linear-gradient(90deg, rgba(255,255,255,0.4), rgba(250,247,242,0.92), rgba(255,255,255,0.4));
         background-size: 220% 100%;
         animation: shimmer 1.2s linear infinite;
         z-index: 10;
@@ -224,60 +251,110 @@ if ($stmt) {
         to { background-position: -220% 0; }
     }
 
+    /* FullCalendar Styling Overrides */
     .fc {
-        color: #172033;
+        font-family: "Inter", "Segoe UI", Arial, sans-serif;
+        color: #1F2937;
+        width: 100% !important;
+    }
+
+    .fc .fc-toolbar.fc-header-toolbar {
+        margin-bottom: 18px;
+        flex-wrap: wrap;
+        gap: 12px;
     }
 
     .fc .fc-toolbar-title {
-        font-size: 1.18rem;
-        font-weight: 900;
-        letter-spacing: 0;
+        font-family: "Playfair Display", Georgia, serif;
+        font-size: 1.55rem;
+        font-weight: 700;
+        color: #1F2937;
+        letter-spacing: -0.2px;
     }
 
     .fc .fc-button-primary {
-        background: #fff;
-        border: 1px solid #e5e7eb;
-        color: #172033;
-        border-radius: 999px;
-        font-weight: 800;
-        box-shadow: none;
+        background: #FFFFFF;
+        border: 1px solid #E8E1D5;
+        color: #2E3A2D;
+        border-radius: 8px;
+        padding: 6px 14px;
+        font-size: 0.88rem;
+        font-weight: 600;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        transition: all 0.18s ease;
     }
 
-    .fc .fc-button-primary:hover,
-    .fc .fc-button-primary:not(:disabled).fc-button-active {
-        background: #1a73e8;
-        border-color: #1a73e8;
-        color: #fff;
+    .fc .fc-button-primary:hover {
+        background: #FAF7F2;
+        border-color: #C89B3C;
+        color: #A97F24;
+    }
+
+    .fc .fc-button-primary:not(:disabled).fc-button-active,
+    .fc .fc-button-primary:not(:disabled):active {
+        background: #C89B3C !important;
+        border-color: #A97F24 !important;
+        color: #FFFFFF !important;
+        box-shadow: 0 2px 8px rgba(200, 155, 60, 0.28) !important;
     }
 
     .fc-theme-standard td,
     .fc-theme-standard th,
     .fc-theme-standard .fc-scrollgrid {
-        border-color: #e5e7eb;
+        border-color: #E8E1D5;
+    }
+
+    .fc-col-header-cell {
+        background: #FAF7F2;
+        padding: 10px 0;
+        font-size: 0.88rem;
+        font-weight: 700;
+        color: #2E3A2D;
+    }
+
+    .fc-col-header-cell-cushion {
+        color: #2E3A2D !important;
+        text-decoration: none !important;
     }
 
     .fc .fc-daygrid-day-frame {
-        min-height: 118px;
+        min-height: 110px;
         padding: 6px;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+    }
+
+    .fc-daygrid-day-top {
+        flex-direction: row;
+        margin-bottom: 4px;
+    }
+
+    .fc-daygrid-day-number {
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: #374151;
+        padding: 3px 6px;
+        text-decoration: none !important;
     }
 
     .fc .fc-day-today {
-        background: rgba(247, 223, 158, 0.26) !important;
+        background: rgba(200, 155, 60, 0.08) !important;
+    }
+
+    .fc .fc-day-today .fc-daygrid-day-number {
+        background: #C89B3C !important;
+        color: #FFFFFF !important;
+        border-radius: 6px;
     }
 
     .fc-event {
         border: 0;
-        border-radius: 8px;
-        padding: 3px 7px;
-        background: rgba(255, 255, 255, 0.96) !important;
-        border: 1px solid rgba(23, 32, 51, 0.12) !important;
-        color: #172033 !important;
-        box-shadow: 0 5px 14px rgba(15, 23, 42, 0.12);
+        border-radius: 6px;
+        padding: 2px 4px;
+        background: transparent !important;
+        box-shadow: none;
         cursor: pointer;
-    }
-
-    .fc-h-event .fc-event-main {
-        color: #172033 !important;
     }
 
     .user-calendar-event {
@@ -285,23 +362,36 @@ if ($stmt) {
         align-items: center;
         gap: 6px;
         min-width: 0;
-        color: #172033;
+        padding: 3px 6px;
+        border-radius: 6px;
+        background: #FFFFFF;
+        border: 1px solid rgba(46, 58, 45, 0.14);
+        box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+        color: #1F2937;
         font-size: 0.78rem;
-        font-weight: 800;
+        font-weight: 650;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    }
+
+    .user-calendar-event:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 3px 8px rgba(0,0,0,0.08);
+        border-color: #C89B3C;
     }
 
     .user-calendar-dot {
         width: 8px;
         height: 8px;
-        border-radius: 999px;
+        border-radius: 50%;
         flex: 0 0 8px;
-        background: var(--event-dot, #1a73e8);
-        box-shadow: 0 0 0 2px rgba(255,255,255,0.9);
+        background: var(--event-dot, #C89B3C);
     }
 
     .user-calendar-time {
         flex: 0 0 auto;
-        opacity: 0.9;
+        font-weight: 700;
+        color: #6B7280;
+        font-size: 0.72rem;
     }
 
     .user-calendar-title {
@@ -309,54 +399,116 @@ if ($stmt) {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        color: #1F2937;
     }
 
-    body[data-theme="dark"] .calendar-panel,
-    body[data-theme="dark"] .calendar-side-panel {
-        background: #111827;
-        border-color: #263244;
+    /* Upcoming Section Below Calendar */
+    .calendar-upcoming-section {
+        background: #FFFFFF;
+        border: 1px solid #E8E1D5;
+        border-radius: 14px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(46, 58, 45, 0.04);
     }
 
-    body[data-theme="dark"] .event-card {
-        background: #172033;
-        border-color: #263244;
+    .upcoming-section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
     }
 
-    body[data-theme="dark"] .fc,
-    body[data-theme="dark"] .fc .fc-toolbar-title {
-        color: #e5eefb;
+    .upcoming-section-header h2 {
+        margin: 0;
+        font-family: "Playfair Display", Georgia, serif;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #1F2937;
     }
 
-    body[data-theme="dark"] .fc .fc-button-primary,
-    body[data-theme="dark"] .mini-month {
-        background: #172033;
-        color: #e5eefb;
-        border-color: #263244;
+    .bg-parish-gold {
+        background: #C89B3C !important;
+        color: #FFFFFF !important;
+        font-weight: 600;
+        font-size: 0.8rem;
+        padding: 5px 10px;
+        border-radius: 8px;
     }
 
-    body[data-theme="dark"] .fc-event {
-        background: rgba(24, 32, 48, 0.96) !important;
-        border-color: rgba(255,255,255,0.14) !important;
-        color: #e5eefb !important;
+    .upcoming-events-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 14px;
     }
 
-    body[data-theme="dark"] .fc-h-event .fc-event-main,
-    body[data-theme="dark"] .user-calendar-event {
-        color: #e5eefb !important;
+    .event-card {
+        border: 1px solid #E8E1D5;
+        border-left: 4px solid var(--event-color, #C89B3C);
+        border-radius: 10px;
+        padding: 14px;
+        background: #FAF7F2;
+        cursor: pointer;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
     }
 
-    @media (max-width: 1100px) {
-        .calendar-user-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .calendar-side-panel {
-            position: static;
-            max-height: none;
-        }
+    .event-card:hover {
+        transform: translateY(-2px);
+        background: #FFFFFF;
+        border-color: #C89B3C;
+        box-shadow: 0 6px 16px rgba(46, 58, 45, 0.08);
     }
 
-    @media (max-width: 700px) {
+    .event-card-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    .event-card-title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #1F2937;
+        line-height: 1.3;
+    }
+
+    .event-category-badge {
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: #8A733B;
+        background: rgba(200, 155, 60, 0.14);
+        padding: 2px 7px;
+        border-radius: 6px;
+        white-space: nowrap;
+    }
+
+    .event-card-body {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        font-size: 0.84rem;
+        color: #6B7280;
+    }
+
+    .event-card-body span,
+    .event-card-body small {
+        display: flex;
+        align-items: center;
+    }
+
+    .client-empty {
+        padding: 24px;
+        text-align: center;
+        color: #6B7280;
+        border: 1px dashed #E8E1D5;
+        border-radius: 10px;
+        background: #FAF7F2;
+    }
+
+    @media (max-width: 767px) {
         .calendar-user-hero {
             align-items: flex-start;
             flex-direction: column;
@@ -367,9 +519,18 @@ if ($stmt) {
             justify-content: flex-start;
         }
 
-        .calendar-panel {
-            min-height: 620px;
-            border-radius: 8px;
+        .calendar-toolbar-controls {
+            width: 100%;
+        }
+
+        .calendar-toolbar-controls .form-select,
+        .calendar-toolbar-controls .mini-month {
+            width: 100%;
+        }
+
+        .calendar-panel.full-width-calendar {
+            min-height: 560px;
+            padding: 12px;
         }
 
         .fc .fc-toolbar {
@@ -390,87 +551,95 @@ if ($stmt) {
             </div>
         </div>
         <div class="calendar-user-actions">
-            <a href="request-service.php" class="btn btn-primary"><i class="fas fa-church"></i> Request Sacramental Service</a>
+            <a href="request-service.php" class="btn btn-parish-gold"><i class="fas fa-church"></i> Request Sacramental Service</a>
         </div>
     </div>
 
-    <div class="calendar-user-grid">
-        <aside class="calendar-side-panel">
-            <section class="calendar-side-section">
-                <h2><i class="fas fa-filter"></i> Find Schedules</h2>
-                <input class="mini-month" type="month" id="miniMonth" value="<?php echo date('Y-m'); ?>">
-                <input type="search" class="form-control" id="calendarSearch" placeholder="Search parish calendar">
+    <!-- Desktop Filter Toolbar (Full-Width Top Bar) -->
+    <div class="calendar-toolbar-card">
+        <div class="calendar-toolbar-row">
+            <div class="calendar-toolbar-search">
+                <i class="fas fa-magnifying-glass"></i>
+                <input type="search" class="form-control" id="calendarSearch" placeholder="Search parish schedules...">
+            </div>
+            <div class="calendar-toolbar-controls">
+                <input class="form-control mini-month" type="month" id="miniMonth" value="<?php echo date('Y-m'); ?>" title="Jump to month">
                 <select class="form-select" id="categoryFilter">
-                    <option value="all">All categories</option>
+                    <option value="all">All Categories</option>
                     <option value="event">Events</option>
                     <option value="mass">Mass / Public Schedule</option>
                     <option value="monthly_mass">Monthly Mass</option>
                     <option value="sacramental">Sacramental Services</option>
                     <option value="patronal_fiesta">Patronal Fiesta</option>
                     <option value="blessing">Blessings</option>
-                    <option value="reservation">Approved bookings</option>
+                    <option value="reservation">Approved Bookings</option>
                     <option value="announcement">Announcements</option>
                     <option value="meeting">Meetings</option>
                 </select>
                 <select class="form-select" id="statusFilter">
-                    <option value="all">All statuses</option>
+                    <option value="all">All Statuses</option>
                     <option value="upcoming">Upcoming</option>
                     <option value="ongoing">Ongoing</option>
                     <option value="finished">Finished</option>
                 </select>
-            </section>
-
-            <section class="calendar-side-section">
-                <h2><i class="fas fa-circle-info"></i> Legend</h2>
-                <div class="calendar-legend">
-                    <div class="legend-item"><span class="legend-dot" style="background:#1a73e8"></span> Parish Event</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#34a853"></span> Mass / Public Schedule</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#0f9d58"></span> Monthly Mass</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#a142f4"></span> Sacramental Services</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#c026d3"></span> Patronal Fiesta</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#d7ad43"></span> Blessing</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#fbbc04"></span> Announcement</div>
-                </div>
-            </section>
-
-            <section class="calendar-side-section mb-0">
-                <div class="upcoming-header">
-                    <h2><i class="fas fa-clock"></i> Upcoming</h2>
-                    <span class="badge bg-primary"><?php echo count($upcoming_events); ?></span>
-                </div>
-                <div class="event-stack">
-                    <?php if (!empty($upcoming_events)): ?>
-                        <?php foreach ($upcoming_events as $event): ?>
-                            <button type="button" class="event-card text-start" style="--event-color: <?php echo e($event['color_label'] ?: '#1a73e8'); ?>"
-                                    data-title="<?php echo e($event['title']); ?>"
-                                    data-date="<?php echo e(formatDate($event['event_date'])); ?>"
-                                    data-time="<?php echo e(formatTime($event['start_time'])); ?><?php echo !empty($event['end_time']) ? ' - ' . e(formatTime($event['end_time'])) : ''; ?>"
-                                    data-location="<?php echo e($event['location'] ?: 'Parish'); ?>"
-                                    data-category="<?php echo e(ucfirst(str_replace('_', ' ', $event['category']))); ?>"
-                                    data-description="<?php echo e($event['description']); ?>">
-                                <strong><?php echo e($event['title']); ?></strong>
-                                <span><?php echo e(formatDate($event['event_date'])); ?> at <?php echo e(formatTime($event['start_time'])); ?></span><br>
-                                <small><?php echo e(ucfirst(str_replace('_', ' ', $event['category']))); ?> &bull; <?php echo e($event['location'] ?: 'Parish'); ?></small>
-                            </button>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <div class="text-center text-muted py-4">
-                            <i class="fas fa-calendar-plus fa-2x mb-2"></i>
-                            <p class="mb-0">No upcoming public schedules yet.</p>
-                        </div>
-                    <?php endif; ?>
-                </div>
-            </section>
-        </aside>
-
-        <section class="calendar-panel">
-            <div class="calendar-loading" id="calendarLoading"></div>
-            <div id="userCalendar"></div>
-            <div class="text-muted small mt-3" id="calendarLiveStatus">
-                <i class="fas fa-rotate"></i> Live calendar updates every 10 seconds.
             </div>
-        </section>
+        </div>
+        <!-- Compact Category Legend Pills -->
+        <div class="calendar-legend-bar">
+            <span class="legend-badge"><span class="legend-dot" style="background:#C89B3C"></span> Mass / Public Schedule</span>
+            <span class="legend-badge"><span class="legend-dot" style="background:#2E3A2D"></span> Parish Event</span>
+            <span class="legend-badge"><span class="legend-dot" style="background:#0F766E"></span> Monthly Mass</span>
+            <span class="legend-badge"><span class="legend-dot" style="background:#7C3AED"></span> Sacramental Services</span>
+            <span class="legend-badge"><span class="legend-dot" style="background:#C026D3"></span> Patronal Fiesta</span>
+            <span class="legend-badge"><span class="legend-dot" style="background:#D97706"></span> Blessing</span>
+            <span class="legend-badge"><span class="legend-dot" style="background:#2563EB"></span> Announcement</span>
+        </div>
     </div>
+
+    <!-- Main Full-Width Calendar Panel -->
+    <section class="calendar-panel full-width-calendar">
+        <div class="calendar-loading" id="calendarLoading"></div>
+        <div id="userCalendar"></div>
+        <div class="text-muted small mt-3 d-flex justify-content-between align-items-center flex-wrap gap-2" id="calendarLiveStatus">
+            <span><i class="fas fa-rotate"></i> Live calendar updates every 10 seconds.</span>
+            <span><i class="fas fa-circle-check text-success"></i> Synchronized with parish schedule registry</span>
+        </div>
+    </section>
+
+    <!-- Upcoming Public Schedules Section Below Calendar -->
+    <section class="calendar-upcoming-section mt-4">
+        <div class="upcoming-section-header">
+            <h2><i class="fas fa-clock"></i> Upcoming Public Schedules</h2>
+            <span class="badge bg-parish-gold"><?php echo count($upcoming_events); ?> Schedules</span>
+        </div>
+        <div class="upcoming-events-grid">
+            <?php if (!empty($upcoming_events)): ?>
+                <?php foreach ($upcoming_events as $event): ?>
+                    <button type="button" class="event-card text-start" style="--event-color: <?php echo e($event['color_label'] ?: '#C89B3C'); ?>"
+                            data-title="<?php echo e($event['title']); ?>"
+                            data-date="<?php echo e(formatDate($event['event_date'])); ?>"
+                            data-time="<?php echo e(formatTime($event['start_time'])); ?><?php echo !empty($event['end_time']) ? ' - ' . e(formatTime($event['end_time'])) : ''; ?>"
+                            data-location="<?php echo e($event['location'] ?: 'San Lorenzo Ruiz Parish'); ?>"
+                            data-category="<?php echo e(ucfirst(str_replace('_', ' ', $event['category']))); ?>"
+                            data-description="<?php echo e($event['description']); ?>">
+                        <div class="event-card-header">
+                            <strong class="event-card-title"><?php echo e($event['title']); ?></strong>
+                            <span class="event-category-badge"><?php echo e(ucfirst(str_replace('_', ' ', $event['category']))); ?></span>
+                        </div>
+                        <div class="event-card-body">
+                            <span class="event-time"><i class="fas fa-calendar-day me-1"></i> <?php echo e(formatDate($event['event_date'])); ?> at <?php echo e(formatTime($event['start_time'])); ?></span>
+                            <small class="event-location"><i class="fas fa-location-dot me-1"></i> <?php echo e($event['location'] ?: 'San Lorenzo Ruiz Parish'); ?></small>
+                        </div>
+                    </button>
+                <?php endforeach; ?>
+            <?php else: ?>
+                <div class="text-center text-muted py-4 w-100 client-empty">
+                    <i class="fas fa-calendar-plus fa-2x mb-2"></i>
+                    <p class="mb-0">No upcoming public schedules published yet.</p>
+                </div>
+            <?php endif; ?>
+        </div>
+    </section>
 </div>
 
 <div class="modal fade" id="eventDetailsModal" tabindex="-1" aria-hidden="true">
@@ -482,8 +651,8 @@ if ($stmt) {
             </div>
             <div class="modal-body" id="detailsBody"></div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-outline-primary" id="remindBtn"><i class="fas fa-bell"></i> Remind Me</button>
-                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Done</button>
+                <button type="button" class="btn btn-outline-secondary" id="remindBtn"><i class="fas fa-bell"></i> Remind Me</button>
+                <button type="button" class="btn btn-parish-gold" data-bs-dismiss="modal">Done</button>
             </div>
         </div>
     </div>
@@ -498,7 +667,6 @@ let detailsModal;
 let selectedReminder = null;
 let searchTimer;
 
-// Filters Function - Documents this helper's role in the parish management workflow.
 function filters() {
     const params = new URLSearchParams();
     const q = document.getElementById('calendarSearch').value.trim();
@@ -510,24 +678,22 @@ function filters() {
     return params;
 }
 
-// Event Label Function - Documents this helper's role in the parish management workflow.
 function eventLabel(value) {
     return String(value || 'Schedule').replace(/_/g, ' ').replace(/\b\w/g, function(char) {
         return char.toUpperCase();
     });
 }
 
-// Show Details Function - Documents this helper's role in the parish management workflow.
 function showDetails(data) {
     selectedReminder = data;
     document.getElementById('detailsTitle').textContent = data.title;
     document.getElementById('detailsBody').innerHTML = `
         <div class="d-grid gap-2">
             <div><strong>When:</strong> ${data.when}</div>
-            <div><strong>Location:</strong> ${data.location || 'Parish'}</div>
-            <div><strong>Category:</strong> ${data.category || 'Schedule'}</div>
-            <div><strong>Status:</strong> ${data.status || 'Upcoming'}</div>
-            <p class="mb-0">${data.description || ''}</p>
+            <div><strong>Location:</strong> ${data.location || 'San Lorenzo Ruiz Parish'}</div>
+            <div><strong>Category:</strong> <span class="badge bg-secondary">${data.category || 'Schedule'}</span></div>
+            <div><strong>Status:</strong> <span class="badge bg-success">${data.status || 'Upcoming'}</span></div>
+            ${data.description ? `<div class="mt-2 p-2 bg-light rounded"><strong>Description:</strong><p class="mb-0 mt-1">${data.description}</p></div>` : ''}
         </div>`;
     detailsModal.show();
 }
@@ -539,7 +705,7 @@ document.addEventListener('DOMContentLoaded', function() {
         initialView: 'dayGridMonth',
         height: 'auto',
         nowIndicator: true,
-        dayMaxEvents: isMobileCalendar ? 2 : 5,
+        dayMaxEvents: isMobileCalendar ? 2 : 6,
         eventTimeFormat: {
             hour: 'numeric',
             minute: '2-digit',
@@ -550,7 +716,7 @@ document.addEventListener('DOMContentLoaded', function() {
             center: 'title',
             right: 'next'
         } : {
-            left: 'prev,next',
+            left: 'prev,next today',
             center: 'title',
             right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
         },
@@ -560,6 +726,7 @@ document.addEventListener('DOMContentLoaded', function() {
             right: 'dayGridMonth,listWeek'
         } : false,
         buttonText: {
+            today: 'Today',
             month: 'Month',
             week: 'Week',
             day: 'Day',
@@ -567,7 +734,7 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         eventContent: function(arg) {
             const timeText = arg.timeText ? `<span class="user-calendar-time">${arg.timeText}</span>` : '';
-            const color = arg.event.backgroundColor || arg.event.borderColor || '#1a73e8';
+            const color = arg.event.backgroundColor || arg.event.borderColor || '#C89B3C';
             return {
                 html: `<span class="user-calendar-event"><span class="user-calendar-dot" style="--event-dot:${color}"></span>${timeText}<span class="user-calendar-title">${arg.event.title}</span></span>`
             };
@@ -585,23 +752,29 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
                 .then(events => {
                     successCallback(Array.isArray(events) ? events : []);
-                    document.getElementById('calendarLiveStatus').innerHTML = '<i class="fas fa-check-circle"></i> Updated ' + new Date().toLocaleTimeString();
+                    const liveStatus = document.getElementById('calendarLiveStatus');
+                    if (liveStatus) {
+                        liveStatus.firstElementChild.innerHTML = '<i class="fas fa-check-circle text-success"></i> Updated ' + new Date().toLocaleTimeString();
+                    }
                 })
                 .catch(error => {
-                    document.getElementById('calendarLiveStatus').innerHTML = '<i class="fas fa-triangle-exclamation"></i> Unable to load calendar. Please refresh.';
+                    const liveStatus = document.getElementById('calendarLiveStatus');
+                    if (liveStatus) {
+                        liveStatus.firstElementChild.innerHTML = '<i class="fas fa-triangle-exclamation text-danger"></i> Unable to load calendar. Please refresh.';
+                    }
                     failureCallback(error);
                 });
         },
         loading: function(isLoading) {
-            loading.classList.toggle('active', isLoading);
+            if (loading) loading.classList.toggle('active', isLoading);
         },
         eventClick: function(info) {
-            const props = info.event.extendedProps;
+            const props = info.event.extendedProps || {};
             const when = info.event.start.toLocaleString() + (info.event.end ? ' - ' + info.event.end.toLocaleTimeString() : '');
             showDetails({
                 title: info.event.title,
                 when,
-                location: props.location || 'Parish',
+                location: props.location || 'San Lorenzo Ruiz Parish',
                 category: eventLabel(props.category || 'Schedule'),
                 status: eventLabel(props.status || 'upcoming'),
                 description: props.description || '',
@@ -610,20 +783,32 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     calendar.render();
-    setInterval(() => calendar.refetchEvents(), 10000);
+    setInterval(() => calendar.refetchEvents(), 15000);
     window.addEventListener('focus', () => calendar.refetchEvents());
 });
 
 document.getElementById('miniMonth').addEventListener('change', function() {
-    calendar.gotoDate(this.value + '-01');
+    if (this.value && calendar) {
+        calendar.gotoDate(this.value + '-01');
+    }
 });
 ['categoryFilter', 'statusFilter'].forEach(id => {
-    document.getElementById(id).addEventListener('change', () => calendar.refetchEvents());
+    const el = document.getElementById(id);
+    if (el) {
+        el.addEventListener('change', () => {
+            if (calendar) calendar.refetchEvents();
+        });
+    }
 });
-document.getElementById('calendarSearch').addEventListener('input', function() {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => calendar.refetchEvents(), 280);
-});
+const searchInput = document.getElementById('calendarSearch');
+if (searchInput) {
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => {
+            if (calendar) calendar.refetchEvents();
+        }, 280);
+    });
+}
 
 document.querySelectorAll('.event-card').forEach(card => {
     card.addEventListener('click', function() {
@@ -639,21 +824,22 @@ document.querySelectorAll('.event-card').forEach(card => {
     });
 });
 
-document.getElementById('remindBtn').addEventListener('click', function() {
-    if (!selectedReminder) {
-        return;
-    }
+const remindBtn = document.getElementById('remindBtn');
+if (remindBtn) {
+    remindBtn.addEventListener('click', function() {
+        if (!selectedReminder) return;
 
-    const reminders = JSON.parse(localStorage.getItem('parishCalendarReminders') || '[]');
-    reminders.push({
-        title: selectedReminder.title,
-        when: selectedReminder.when,
-        savedAt: new Date().toISOString()
+        const reminders = JSON.parse(localStorage.getItem('parishCalendarReminders') || '[]');
+        reminders.push({
+            title: selectedReminder.title,
+            when: selectedReminder.when,
+            savedAt: new Date().toISOString()
+        });
+        localStorage.setItem('parishCalendarReminders', JSON.stringify(reminders.slice(-25)));
+        this.innerHTML = '<i class="fas fa-check"></i> Reminder Saved';
+        setTimeout(() => this.innerHTML = '<i class="fas fa-bell"></i> Remind Me', 1800);
     });
-    localStorage.setItem('parishCalendarReminders', JSON.stringify(reminders.slice(-25)));
-    this.innerHTML = '<i class="fas fa-check"></i> Reminder Saved';
-    setTimeout(() => this.innerHTML = '<i class="fas fa-bell"></i> Remind Me', 1800);
-});
+}
 </script>
 
 <?php include '../templates/footer.php'; ?>
