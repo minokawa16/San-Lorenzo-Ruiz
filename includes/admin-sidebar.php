@@ -135,60 +135,69 @@
 </aside>
 
 <script>
-// Sidebar Toggle for Mobile
+// Sidebar Toggle Mechanics (Desktop Collapse & Mobile Drawer)
 document.addEventListener('DOMContentLoaded', function() {
-  const sidebarToggles = Array.from(document.querySelectorAll('[data-admin-sidebar-toggle]'));
-  const sidebar = document.querySelector('.admin-sidebar');
+  const sidebar = document.getElementById('adminSidebar') || document.querySelector('.admin-sidebar');
+  const sidebarToggles = Array.from(document.querySelectorAll('#adminSidebarToggle, [data-admin-sidebar-toggle], .sidebar-toggle, .responsive-nav-toggle'));
 
-  if (localStorage.getItem('adminSidebarCollapsed') === 'true') {
+  // Restore saved desktop collapsed state
+  if (localStorage.getItem('adminSidebarCollapsed') === 'true' && window.innerWidth >= 1024) {
+    if (sidebar) sidebar.classList.add('collapsed');
     document.body.classList.add('admin-sidebar-collapsed');
   }
 
-  sidebarToggles.forEach(function(sidebarToggle) {
-    sidebarToggle.addEventListener('click', function() {
-      if (window.innerWidth <= 1023) {
-        sidebar.classList.toggle('open');
-        document.body.classList.toggle('sidebar-open', sidebar.classList.contains('open'));
-        sidebarToggles.forEach(function(button) {
-          button.setAttribute('aria-expanded', sidebar.classList.contains('open') ? 'true' : 'false');
+  sidebarToggles.forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!sidebar) return;
+
+      if (window.innerWidth < 1024) {
+        // Mobile / Tablet Drawer Toggle
+        const isOpen = sidebar.classList.toggle('open');
+        document.body.classList.toggle('sidebar-open', isOpen);
+        sidebarToggles.forEach(function(t) {
+          t.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
         });
       } else {
-        document.body.classList.toggle('admin-sidebar-collapsed');
-        localStorage.setItem(
-          'adminSidebarCollapsed',
-          document.body.classList.contains('admin-sidebar-collapsed')
-        );
+        // Desktop Collapse Toggle
+        const isCollapsed = sidebar.classList.toggle('collapsed');
+        document.body.classList.toggle('admin-sidebar-collapsed', isCollapsed);
+        localStorage.setItem('adminSidebarCollapsed', isCollapsed ? 'true' : 'false');
       }
     });
   });
 
+  // Close mobile drawer on outside click
   document.addEventListener('click', function(event) {
-    if (!sidebar || window.innerWidth > 1023 || !sidebar.classList.contains('open')) {
+    if (!sidebar || window.innerWidth >= 1024 || !sidebar.classList.contains('open')) {
       return;
     }
-    const clickedToggle = sidebarToggles.some(function(toggle) { return toggle.contains(event.target); });
+    const clickedToggle = sidebarToggles.some(function(t) { return t.contains(event.target); });
     if (!sidebar.contains(event.target) && !clickedToggle) {
       sidebar.classList.remove('open');
       document.body.classList.remove('sidebar-open');
-      sidebarToggles.forEach(function(button) { button.setAttribute('aria-expanded', 'false'); });
+      sidebarToggles.forEach(function(t) { t.setAttribute('aria-expanded', 'false'); });
     }
   });
 
+  // Close mobile drawer on nav item click
   sidebar.querySelectorAll('a.nav-link').forEach(function(link) {
     link.addEventListener('click', function() {
-      if (window.innerWidth <= 1023) {
+      if (window.innerWidth < 1024) {
         sidebar.classList.remove('open');
         document.body.classList.remove('sidebar-open');
-        sidebarToggles.forEach(function(button) { button.setAttribute('aria-expanded', 'false'); });
+        sidebarToggles.forEach(function(t) { t.setAttribute('aria-expanded', 'false'); });
       }
     });
   });
 
+  // Close mobile drawer on Escape key
   document.addEventListener('keydown', function(event) {
-    if (event.key === 'Escape' && sidebar) {
+    if (event.key === 'Escape' && sidebar && sidebar.classList.contains('open')) {
       sidebar.classList.remove('open');
       document.body.classList.remove('sidebar-open');
-      sidebarToggles.forEach(function(button) { button.setAttribute('aria-expanded', 'false'); });
+      sidebarToggles.forEach(function(t) { t.setAttribute('aria-expanded', 'false'); });
     }
   });
 });

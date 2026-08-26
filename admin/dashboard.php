@@ -689,12 +689,12 @@ $dashboard_avatar_letter = strtoupper(substr($dashboard_profile_name ?: 'T', 0, 
     </style>
 </head>
 <body class="premium-admin">
-    <div class="premium-admin-shell">
+    <div class="app-layout premium-admin-shell">
         <!-- Include Admin Sidebar -->
         <?php include '../includes/admin-sidebar.php'; ?>
 
-        <!-- Main Content -->
-        <div class="premium-admin-content">
+        <!-- Main Content (Flex Sibling with min-width: 0) -->
+        <main class="premium-admin-content main-content">
 
             <!-- 1. Refactored Header: Title, Search Pill, Profile Chip -->
             <header class="dashboard-header-row">
@@ -933,7 +933,7 @@ $dashboard_avatar_letter = strtoupper(substr($dashboard_profile_name ?: 'T', 0, 
                 </aside>
             </section>
 
-        </div>
+        </main>
     </div>
 
     <!-- Bootstrap JS -->

@@ -1,7 +1,7 @@
 /* Canonical TUGON administrator & user navigation stylesheet. */
 :root {
-    --admin-sidebar-width: 236px;
-    --admin-sidebar-collapsed-width: 76px;
+    --admin-sidebar-width: 240px;
+    --admin-sidebar-collapsed-width: 64px;
     --admin-sidebar-bg: #2e3a2d;
     --admin-sidebar-bg-deep: #263225;
     --admin-sidebar-gold: #c89b3c;
@@ -9,7 +9,21 @@
     --admin-sidebar-muted: #d8d8d8;
 }
 
-/* Base Sidebar Shell for Admin and Parishioner */
+/* Flex Container for Shell Layout */
+html body .app-layout,
+html body .premium-admin-shell,
+html body.premium-admin .premium-admin-shell,
+html body.church-theme .premium-admin-shell,
+html body .admin-layout,
+html body .user-shell {
+    display: flex !important;
+    min-height: 100vh !important;
+    width: 100% !important;
+    position: relative !important;
+    overflow-x: hidden !important;
+}
+
+/* Base Sidebar Shell - Flex Sibling on Desktop */
 html body .admin-sidebar,
 html body .user-sidebar,
 html body.user-area .user-sidebar,
@@ -17,11 +31,14 @@ html body.premium-admin .premium-admin-shell > .admin-sidebar,
 html body.church-theme .premium-admin-shell > .admin-sidebar,
 html body .admin-layout > .admin-sidebar,
 html body .user-shell > .user-sidebar {
-    position: fixed !important;
-    inset: 0 auto 0 0 !important;
-    z-index: 900 !important;
+    position: sticky !important;
+    top: 0 !important;
+    left: 0 !important;
+    z-index: 100 !important;
     width: var(--admin-sidebar-width) !important;
+    min-width: var(--admin-sidebar-width) !important;
     height: 100vh !important;
+    flex-shrink: 0 !important;
     color: var(--admin-sidebar-text) !important;
     background: linear-gradient(180deg, var(--admin-sidebar-bg), var(--admin-sidebar-bg-deep)) !important;
     border: 0 !important;
@@ -30,6 +47,7 @@ html body .user-shell > .user-sidebar {
     box-shadow: 6px 0 20px rgba(20, 29, 20, 0.12) !important;
     overflow-x: hidden !important;
     overflow-y: auto !important;
+    transition: width 0.24s cubic-bezier(0.4, 0, 0.2, 1), min-width 0.24s cubic-bezier(0.4, 0, 0.2, 1) !important;
     scrollbar-width: thin;
     scrollbar-color: rgba(200, 155, 60, 0.72) rgba(255, 255, 255, 0.05);
 }
@@ -64,6 +82,7 @@ html body.church-theme .premium-admin-shell > .admin-sidebar .sidebar-brand {
     color: var(--admin-sidebar-text) !important;
     background: rgba(255, 255, 255, 0.035) !important;
     border-bottom: 1px solid rgba(200, 155, 60, 0.38) !important;
+    transition: padding 0.2s ease !important;
 }
 
 html body .admin-sidebar .sidebar-brand .brand-logo,
@@ -89,6 +108,7 @@ html body .user-sidebar .sidebar-brand .brand-text {
     flex-direction: column !important;
     gap: 0px !important;
     min-width: 0 !important;
+    transition: opacity 0.2s ease, visibility 0.2s ease !important;
 }
 
 html body .admin-sidebar .sidebar-brand .brand-title,
@@ -158,6 +178,8 @@ html body .user-sidebar .sidebar-nav .nav-section-label {
     line-height: 1.2 !important;
     letter-spacing: 1px !important;
     text-transform: uppercase !important;
+    white-space: nowrap !important;
+    transition: opacity 0.2s ease !important;
 }
 
 html body .admin-sidebar .sidebar-nav .nav-section-label:first-child,
@@ -187,6 +209,7 @@ html body .user-sidebar .sidebar-nav .nav-toggle {
     text-decoration: none !important;
     width: 100% !important;
     cursor: pointer;
+    white-space: nowrap !important;
 }
 
 html body .admin-sidebar .sidebar-nav .nav-link i,
@@ -233,7 +256,7 @@ html body.user-area .user-sidebar .sidebar-nav .nav-link.active i {
     color: var(--admin-sidebar-gold) !important;
 }
 
-/* Collapsible Submenus (e.g. My Requests) */
+/* Collapsible Submenus */
 html body .nav-collapsible {
     display: flex !important;
     flex-direction: column !important;
@@ -348,96 +371,102 @@ html body .user-sidebar .sidebar-nav .pill-badge {
     font-weight: 800 !important;
 }
 
-/* Topbar Layout */
-html body.user-area .user-topbar,
-html body .app-global-header.user-topbar {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    gap: 14px !important;
-    min-height: 52px !important;
-    padding: 6px 14px !important;
-    border-radius: 10px !important;
-    border: 1px solid #e8e1d5 !important;
-    background: #ffffff !important;
-    margin-bottom: 16px !important;
+/* ── Main Content Wrapper (Flex Sibling) ─────────────────── */
+html body .premium-admin-content,
+html body .admin-content,
+html body .main-content,
+html body.user-area .user-main {
+    flex: 1 1 0% !important;
+    min-width: 0 !important; /* CRITICAL: Prevents overflow clipping */
+    width: 100% !important;
+    margin-left: 0 !important;
+    position: relative !important;
 }
 
-/* Responsive Floating Nav Toggle (Mobile + Tablet) */
-html body .responsive-nav-toggle {
-    position: fixed;
-    top: 10px;
-    left: 10px;
-    z-index: 1050;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    width: 38px;
-    height: 38px;
-    border: 1px solid rgba(200, 155, 60, 0.35);
-    border-radius: 8px;
-    background: rgba(38, 50, 37, 0.95);
-    color: var(--admin-sidebar-gold);
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
-    backdrop-filter: blur(8px);
-    cursor: pointer;
-}
-
+/* ── Desktop Collapsed Sidebar (~64px Icon-Only State) ───── */
 @media (min-width: 1024px) {
-    html body.user-area .user-main {
-        margin-left: var(--admin-sidebar-width) !important;
-        width: calc(100% - var(--admin-sidebar-width)) !important;
-        min-width: 0 !important;
-        padding: 12px clamp(12px, 1.8vw, 24px) 24px !important;
-        transition: margin-left 0.24s ease !important;
-    }
-
+    html body .admin-sidebar.collapsed,
     html body.admin-sidebar-collapsed .admin-sidebar,
+    html body .user-sidebar.collapsed,
     html body.user-sidebar-collapsed .user-sidebar {
         width: var(--admin-sidebar-collapsed-width) !important;
+        min-width: var(--admin-sidebar-collapsed-width) !important;
     }
 
-    html body.admin-sidebar-collapsed .admin-sidebar .brand-text,
-    html body.admin-sidebar-collapsed .admin-sidebar .nav-link span,
-    html body.admin-sidebar-collapsed .admin-sidebar .nav-section-label,
-    html body.admin-sidebar-collapsed .admin-sidebar .pill-badge,
+    html body .admin-sidebar.collapsed .sidebar-brand,
+    html body.admin-sidebar-collapsed .admin-sidebar .sidebar-brand,
+    html body .user-sidebar.collapsed .sidebar-brand,
+    html body.user-sidebar-collapsed .user-sidebar .sidebar-brand {
+        padding: 8px 6px !important;
+        justify-content: center !important;
+    }
+
+    html body .admin-sidebar.collapsed .sidebar-brand .brand-text,
+    html body.admin-sidebar-collapsed .admin-sidebar .sidebar-brand .brand-text,
+    html body .user-sidebar.collapsed .sidebar-brand .brand-text,
+    html body.user-sidebar-collapsed .user-sidebar .sidebar-brand .brand-text,
+    html body .admin-sidebar.collapsed .sidebar-nav .nav-section-label,
+    html body.admin-sidebar-collapsed .admin-sidebar .sidebar-nav .nav-section-label,
+    html body .admin-sidebar.collapsed .sidebar-nav .nav-link span,
+    html body.admin-sidebar-collapsed .admin-sidebar .sidebar-nav .nav-link span,
+    html body .admin-sidebar.collapsed .sidebar-nav .pill-badge,
+    html body.admin-sidebar-collapsed .admin-sidebar .sidebar-nav .pill-badge,
+    html body .admin-sidebar.collapsed .sidebar-footer,
     html body.admin-sidebar-collapsed .admin-sidebar .sidebar-footer,
-    html body.user-sidebar-collapsed .user-sidebar .brand-text,
-    html body.user-sidebar-collapsed .user-sidebar .nav-link span,
-    html body.user-sidebar-collapsed .user-sidebar .nav-section-label,
-    html body.user-sidebar-collapsed .user-sidebar .pill-badge,
+    html body .user-sidebar.collapsed .sidebar-nav .nav-section-label,
+    html body.user-sidebar-collapsed .user-sidebar .sidebar-nav .nav-section-label,
+    html body .user-sidebar.collapsed .sidebar-nav .nav-link span,
+    html body.user-sidebar-collapsed .user-sidebar .sidebar-nav .nav-link span,
+    html body .user-sidebar.collapsed .sidebar-nav .pill-badge,
+    html body.user-sidebar-collapsed .user-sidebar .sidebar-nav .pill-badge,
+    html body .user-sidebar.collapsed .sidebar-footer,
     html body.user-sidebar-collapsed .user-sidebar .sidebar-footer {
         display: none !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
     }
 
-    html body.user-sidebar-collapsed .user-main {
-        margin-left: var(--admin-sidebar-collapsed-width) !important;
-        width: calc(100% - var(--admin-sidebar-collapsed-width)) !important;
+    html body .admin-sidebar.collapsed .sidebar-nav,
+    html body.admin-sidebar-collapsed .admin-sidebar .sidebar-nav,
+    html body .user-sidebar.collapsed .sidebar-nav,
+    html body.user-sidebar-collapsed .user-sidebar .sidebar-nav {
+        padding: 6px 4px 60px !important;
+        align-items: center !important;
+    }
+
+    html body .admin-sidebar.collapsed .sidebar-nav .nav-link,
+    html body.admin-sidebar-collapsed .admin-sidebar .sidebar-nav .nav-link,
+    html body .user-sidebar.collapsed .sidebar-nav .nav-link,
+    html body.user-sidebar-collapsed .user-sidebar .sidebar-nav .nav-link {
+        justify-content: center !important;
+        padding: 9px 0 !important;
+        width: 44px !important;
+        min-width: 44px !important;
+        border-radius: 8px !important;
+        margin: 2px auto !important;
+    }
+
+    html body .admin-sidebar.collapsed .sidebar-nav .nav-link i,
+    html body.admin-sidebar-collapsed .admin-sidebar .sidebar-nav .nav-link i,
+    html body .user-sidebar.collapsed .sidebar-nav .nav-link i,
+    html body.user-sidebar-collapsed .user-sidebar .sidebar-nav .nav-link i {
+        font-size: 1rem !important;
+        margin: 0 !important;
     }
 }
 
+/* ── Mobile & Tablet Overlay Sidebar (<= 1023px) ─────────── */
 @media (max-width: 1023px) {
-    html body.user-area .user-main,
-    html body.user-sidebar-collapsed .user-main,
-    html body.premium-admin .premium-admin-content,
-    html body.premium-admin .admin-content,
-    html body.admin-sidebar-collapsed .premium-admin-content,
-    html body.admin-sidebar-collapsed .admin-content {
-        margin-left: 0 !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
-        padding: 10px clamp(10px, 3vw, 16px) 24px !important;
-    }
-
     html body .admin-sidebar,
     html body .user-sidebar,
     html body.user-area .user-sidebar,
     html body.premium-admin .admin-sidebar {
-        display: block !important;
+        position: fixed !important;
+        inset: 0 auto 0 0 !important;
         width: min(var(--admin-sidebar-width), calc(100vw - 40px)) !important;
+        min-width: unset !important;
         transform: translateX(-105%) !important;
-        transition: transform 220ms ease !important;
+        transition: transform 240ms ease !important;
         z-index: 1060 !important;
     }
 
@@ -452,3 +481,4 @@ html body .responsive-nav-toggle {
         display: inline-flex !important;
     }
 }
+
