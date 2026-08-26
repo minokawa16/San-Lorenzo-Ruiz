@@ -14844,7 +14844,7 @@ padding: calc(16px + env(safe-area-inset-top)) 22px 34px !important;
 border: 0 !important;
 background:
 radial-gradient(circle at 88% 10%, rgba(201, 151, 63, 0.34), rgba(201, 151, 63, 0) 38%),
-linear-gradient(135deg, #2A241C 0%, #453A29 100%) !important;
+linear-gradient(135deg, #2E3A2D 0%, #263225 100%) !important;
 box-shadow: none !important;
 overflow: visible !important;
 }
@@ -15538,7 +15538,7 @@ overflow: hidden !important;
 padding: calc(12px + env(safe-area-inset-top)) 16px 34px !important;
 background:
 radial-gradient(circle at 88% 8%, rgba(201, 151, 63, 0.34), rgba(201, 151, 63, 0) 38%),
-linear-gradient(135deg, #2A241C 0%, #453A29 100%) !important;
+linear-gradient(135deg, #2E3A2D 0%, #263225 100%) !important;
 }
 body.user-area.app-page-profile .profile-mobile-hero-top {
 position: relative !important;

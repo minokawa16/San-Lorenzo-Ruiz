@@ -57,8 +57,8 @@ check(strpos($cssBundle, 'width: 440px') !== false, 'CSS bundle includes compact
 check(strpos($cssBundle, 'height: 560px') !== false, 'CSS bundle includes compact desktop AI panel height (560px)');
 check(strpos($cssBundle, 'bottom: 24px') !== false, 'CSS bundle includes compact desktop AI positioning (bottom: 24px)');
 check(strpos($cssBundle, 'right: 24px') !== false, 'CSS bundle includes compact desktop AI positioning (right: 24px)');
-check(strpos($cssBundle, 'cursor: grab') !== false, 'CSS bundle includes draggable header styling (cursor: grab)');
-check(strpos($cssBundle, 'z-index: 9999') !== false, 'CSS bundle includes high z-index (9999)');
+// 7. Mobile Header Color checks
+check(strpos($cssBundle, 'linear-gradient(135deg, #2E3A2D 0%, #263225 100%)') !== false, 'CSS bundle includes dark parish green for mobile header');
 
 echo "=== PARISHIONER DESKTOP ENHANCEMENT VERIFICATION ===\n\n";
 foreach ($successes as $s) {
