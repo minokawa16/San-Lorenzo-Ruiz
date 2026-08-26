@@ -52,6 +52,12 @@ check(strpos($cssBundle, '@media (min-width: 1024px)') !== false, 'CSS bundle in
 check(strpos($cssBundle, 'parish-profile-pill-btn') !== false, 'CSS bundle includes parish-profile-pill-btn styles');
 check(strpos($cssBundle, '.calendar-panel.full-width-calendar') !== false, 'CSS bundle includes full-width calendar styles');
 
+// 6. Compact Desktop AI Chatbot checks
+check(strpos($cssBundle, 'width: 440px') !== false, 'CSS bundle includes compact desktop AI panel width (440px)');
+check(strpos($cssBundle, 'height: 560px') !== false, 'CSS bundle includes compact desktop AI panel height (560px)');
+check(strpos($cssBundle, 'bottom: 20px') !== false, 'CSS bundle includes compact desktop AI positioning (bottom: 20px)');
+check(strpos($cssBundle, 'right: 20px') !== false, 'CSS bundle includes compact desktop AI positioning (right: 20px)');
+
 echo "=== PARISHIONER DESKTOP ENHANCEMENT VERIFICATION ===\n\n";
 foreach ($successes as $s) {
     echo "$s\n";
