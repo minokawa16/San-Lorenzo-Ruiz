@@ -418,40 +418,112 @@ include '../templates/header.php';
             color: #181204;
         }
 
+        /* ── Standardized Record Modal Overlay & Viewport Containment ── */
         .modal {
             display: none;
             position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.4);
+            inset: 0;
+            z-index: 1050;
+            background-color: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            padding: 20px 16px;
+            overflow: hidden;
+            align-items: center;
+            justify-content: center;
         }
 
         .modal.show {
-            display: block;
+            display: flex !important;
         }
 
         .modal-content {
-            background-color: white;
-            margin: 5% auto;
-            padding: 30px;
-            border: 1px solid #ccc;
-            border-radius: 12px;
-            width: 90%;
-            max-width: 980px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            background: #ffffff;
+            border-radius: 14px;
+            border: 1px solid rgba(212, 175, 55, 0.35);
+            box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(0, 0, 0, 0.05);
+            width: min(980px, 95vw);
+            max-height: 90vh;
+            height: 90vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            margin: auto;
+            position: relative;
+            padding: 0 !important;
         }
 
+        .modal-content.modal-archive-dialog {
+            width: min(440px, 92vw) !important;
+            height: auto !important;
+            max-height: 85vh;
+        }
+
+        /* ── Flex Form Structure ── */
+        .record-modal-form {
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+            min-height: 0;
+            height: 100%;
+            overflow: hidden;
+            margin: 0;
+        }
+
+        /* ── Sticky / Fixed Header ── */
         .modal-header {
-            font-size: 1.5rem;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 24px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            margin-bottom: 0;
+        }
+
+        .modal-header .modal-title-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .modal-header h4, .modal-header .modal-title-text {
+            font-size: 1.25rem;
             font-weight: 700;
             color: var(--primary-navy);
-            margin-bottom: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            margin: 0;
+        }
+
+        .modal-header-icon {
+            color: var(--primary-gold);
+            font-size: 1.2rem;
+        }
+
+        .modal-close-btn {
+            background: transparent;
+            border: none;
+            font-size: 1.6rem;
+            line-height: 1;
+            color: #64748b;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .modal-close-btn:hover {
+            color: #0f172a;
+            background: #e2e8f0;
+        }
+
+        /* ── Internal Scrollable Body ── */
+        .modal-body {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            padding: 24px;
+            overscroll-behavior: contain;
         }
 
         .form-group {
@@ -494,20 +566,30 @@ include '../templates/header.php';
             box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
         }
 
+        /* ── Sticky / Fixed Footer ── */
         .modal-footer {
+            flex-shrink: 0;
             display: flex;
-            gap: 10px;
+            align-items: center;
             justify-content: flex-end;
-            margin-top: 20px;
+            gap: 12px;
+            padding: 14px 24px;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            margin-top: 0;
         }
 
         .modal-footer button {
-            padding: 10px 20px;
+            padding: 10px 22px;
             border: none;
             border-radius: 6px;
             cursor: pointer;
             font-weight: 600;
             transition: all 0.3s;
+        }
+
+        body.modal-open {
+            overflow: hidden !important;
         }
 
         .btn-save {
@@ -737,114 +819,116 @@ include '../templates/header.php';
                         <?php endfor; ?>
                     </div>
                 <?php endif; ?>
-            </div>
-        </div>
-    </div>
-
-    <!-- Add/Edit Modal -->
+              <!-- Add/Edit Modal -->
     <div id="recordModal" class="modal">
         <div class="modal-content">
-            <div class="modal-header">
-                <span id="modalTitle">Add First Communion Record</span>
-                <span onclick="closeModal()" style="cursor: pointer; font-size: 1.5rem; color: #999;">&times;</span>
-            </div>
-            <form id="recordForm" method="POST" action="">
+            <form id="recordForm" method="POST" action="" class="record-modal-form">
                 <?php echo csrfInput(); ?>
                 <input type="hidden" id="actionInput" name="action" value="add">
                 <input type="hidden" id="recordIdInput" name="record_id" value="">
 
-                <div class="modal-form-grid">
-                    <div class="form-group">
-                        <label>No.</label>
-                        <input type="text" id="registryNo" name="registry_no" placeholder="Record number">
+                <div class="modal-header">
+                    <div class="modal-title-wrap">
+                        <i class="fas fa-wheat-awn modal-header-icon"></i>
+                        <h4 id="modalTitle" class="modal-title-text">Add First Communion Record</h4>
                     </div>
-                    <div class="form-group"><label>Book / Page / Entry</label><div style="display:flex;gap:6px"><input id="bookNo" name="book_no" placeholder="Book"><input id="pageNo" name="page_no" placeholder="Page"><input id="entryNo" name="entry_no" placeholder="Entry"></div></div>
+                    <button type="button" class="modal-close-btn" onclick="closeModal()" aria-label="Close modal">&times;</button>
+                </div>
 
-                    <div class="form-group">
-                        <label>Communion Date *</label>
-                        <input type="date" id="communionDate" name="communion_date" required>
-                    </div>
+                <div class="modal-body">
+                    <div class="modal-form-grid">
+                        <div class="form-group">
+                            <label>No.</label>
+                            <input type="text" id="registryNo" name="registry_no" placeholder="Record number">
+                        </div>
+                        <div class="form-group"><label>Book / Page / Entry</label><div style="display:flex;gap:6px"><input id="bookNo" name="book_no" placeholder="Book"><input id="pageNo" name="page_no" placeholder="Page"><input id="entryNo" name="entry_no" placeholder="Entry"></div></div>
 
-                    <div class="form-group full-width">
-                        <label>Name of Communicant *</label>
-                        <input type="text" id="fullName" name="fullname" required>
-                    </div>
+                        <div class="form-group">
+                            <label>Communion Date *</label>
+                            <input type="date" id="communionDate" name="communion_date" required>
+                        </div>
 
-                    <div class="form-group">
-                        <label>Domicile</label>
-                        <input type="text" id="domicile" name="domicile" placeholder="Residence / address">
-                    </div>
+                        <div class="form-group full-width">
+                            <label>Name of Communicant *</label>
+                            <input type="text" id="fullName" name="fullname" required>
+                        </div>
 
-                    <div class="form-group">
-                        <label>Parents *</label>
-                        <input type="text" id="parents" name="parents" placeholder="Names of parents" required>
-                    </div>
+                        <div class="form-group">
+                            <label>Domicile</label>
+                            <input type="text" id="domicile" name="domicile" placeholder="Residence / address">
+                        </div>
 
-                    <div class="form-group">
-                        <label>Minister *</label>
-                        <input type="text" id="ministerName" name="priest" placeholder="Priest / minister name" required>
-                    </div>
+                        <div class="form-group">
+                            <label>Parents *</label>
+                            <input type="text" id="parents" name="parents" placeholder="Names of parents" required>
+                        </div>
 
-                    <div class="form-group">
-                        <label>Folio</label>
-                        <input type="text" id="folio" name="folio">
-                    </div>
+                        <div class="form-group">
+                            <label>Minister *</label>
+                            <input type="text" id="ministerName" name="priest" placeholder="Priest / minister name" required>
+                        </div>
 
-                    <div class="form-group">
-                        <label>Baptismal Date</label>
-                        <input type="date" id="baptismalDate" name="baptismal_date">
-                    </div>
+                        <div class="form-group">
+                            <label>Folio</label>
+                            <input type="text" id="folio" name="folio">
+                        </div>
 
-                    <div class="form-group">
-                        <label>Baptismal Place</label>
-                        <input type="text" id="baptismalPlace" name="baptismal_place">
-                    </div>
+                        <div class="form-group">
+                            <label>Baptismal Date</label>
+                            <input type="date" id="baptismalDate" name="baptismal_date">
+                        </div>
 
-                    <div class="form-group">
-                        <label>Birth Date *</label>
-                        <input type="date" id="birthDate" name="birth_date" required max="<?php echo date('Y-m-d'); ?>">
-                    </div>
+                        <div class="form-group">
+                            <label>Baptismal Place</label>
+                            <input type="text" id="baptismalPlace" name="baptismal_place">
+                        </div>
 
-                    <div class="form-group">
-                        <label>Sponsor</label>
-                        <input type="text" id="sponsor" name="sponsor">
-                    </div>
+                        <div class="form-group">
+                            <label>Birth Date *</label>
+                            <input type="date" id="birthDate" name="birth_date" required max="<?php echo date('Y-m-d'); ?>">
+                        </div>
 
-                    <div class="form-group">
-                        <label>Status</label>
-                        <select id="recordStatus" name="status">
-                            <option value="active">Active</option>
-                            <option value="archived">Archived</option>
-                        </select>
-                    </div>
+                        <div class="form-group">
+                            <label>Sponsor</label>
+                            <input type="text" id="sponsor" name="sponsor">
+                        </div>
 
-                    <div class="form-group">
-                        <label>Link to Request</label>
-                        <select id="requestId" name="request_id">
-                            <option value="">-- No Request --</option>
-                            <?php foreach ($requests_list as $req): ?>
-                                <option value="<?php echo $req['request_id']; ?>">
-                                    <?php echo htmlspecialchars($req['reference_number']); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
+                        <div class="form-group">
+                            <label>Status</label>
+                            <select id="recordStatus" name="status">
+                                <option value="active">Active</option>
+                                <option value="archived">Archived</option>
+                            </select>
+                        </div>
 
-                    <div class="form-group full-width">
-                        <label>Remarks</label>
-                        <textarea id="remarks" name="remarks" placeholder="Notes or remarks"></textarea>
-                    </div>
+                        <div class="form-group">
+                            <label>Link to Request</label>
+                            <select id="requestId" name="request_id">
+                                <option value="">-- No Request --</option>
+                                <?php foreach ($requests_list as $req): ?>
+                                    <option value="<?php echo $req['request_id']; ?>">
+                                        <?php echo htmlspecialchars($req['reference_number']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
 
-                    <div class="form-group">
-                        <label>Parish Priest</label>
-                        <input type="text" id="parishPriest" name="parish_priest" placeholder="Name printed above Parish Priest">
-                    </div>
+                        <div class="form-group full-width">
+                            <label>Remarks</label>
+                            <textarea id="remarks" name="remarks" placeholder="Notes or remarks"></textarea>
+                        </div>
 
-                    <div class="form-group">
-                        <label>Parish Secretary</label>
-                        <input type="text" id="parishSecretary" name="parish_secretary" placeholder="Name printed above Parish Secretary">
+                        <div class="form-group">
+                            <label>Parish Priest</label>
+                            <input type="text" id="parishPriest" name="parish_priest" placeholder="Name printed above Parish Priest">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Parish Secretary</label>
+                            <input type="text" id="parishSecretary" name="parish_secretary" placeholder="Name printed above Parish Secretary">
+                        </div>
+                        <div class="form-group full-width"><label>Correction reason (required when editing)</label><textarea name="correction_reason" minlength="5"></textarea></div>
                     </div>
-                    <div class="form-group full-width"><label>Correction reason (required when editing)</label><textarea name="correction_reason" minlength="5"></textarea></div>
                 </div>
 
                 <div class="modal-footer">
@@ -857,20 +941,25 @@ include '../templates/header.php';
 
     <!-- Archive Confirmation Modal -->
     <div id="deleteModal" class="modal">
-        <div class="modal-content" style="max-width: 400px;">
-            <div class="modal-header">
-                <span>Confirm Archive</span>
-                <span onclick="closeDeleteModal()" style="cursor: pointer; font-size: 1.5rem; color: #999;">&times;</span>
-            </div>
-            <p style="margin-bottom: 20px; color: #666;">Archive this first communion record? It will be hidden from active records but kept in Archives.</p>
-            <form id="deleteForm" method="POST" action="">
+        <div class="modal-content modal-archive-dialog">
+            <form id="deleteForm" method="POST" action="" class="record-modal-form">
                 <?php echo csrfInput(); ?>
                 <input type="hidden" name="action" value="archive">
                 <input type="hidden" id="deleteRecordId" name="record_id" value="">
-                <div class="form-group"><label>Archive reason *</label><textarea name="archive_reason" required minlength="5"></textarea></div>
+                <div class="modal-header">
+                    <div class="modal-title-wrap">
+                        <i class="fas fa-archive modal-header-icon"></i>
+                        <h4 class="modal-title-text">Confirm Archive</h4>
+                    </div>
+                    <button type="button" class="modal-close-btn" onclick="closeDeleteModal()" aria-label="Close modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p style="margin-bottom: 16px; color: #475569; font-size: 0.95rem;">Archive this first communion record? It will be hidden from active records but kept in Archives.</p>
+                    <div class="form-group mb-0"><label>Archive reason *</label><textarea name="archive_reason" required minlength="5" placeholder="Reason for archiving this record..."></textarea></div>
+                </div>
                 <div class="modal-footer">
                     <button type="button" class="btn-cancel" onclick="closeDeleteModal()">Cancel</button>
-                    <button type="submit" class="btn-delete" style="padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; background: #d7ad43; color: #181204;">Archive</button>
+                    <button type="submit" class="btn-delete" style="padding: 10px 22px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; background: #d7ad43; color: #181204;">Archive</button>
                 </div>
             </form>
         </div>
@@ -883,8 +972,13 @@ include '../templates/header.php';
             document.getElementById('recordForm').reset();
             document.getElementById('actionInput').value = 'add';
             document.getElementById('recordIdInput').value = '';
+            document.getElementById('registryNo').value = '';
+            document.getElementById('bookNo').value = '';
+            document.getElementById('pageNo').value = '';
+            document.getElementById('entryNo').value = '';
             document.getElementById('modalTitle').textContent = 'Add First Communion Record';
             document.getElementById('recordModal').classList.add('show');
+            document.body.classList.add('modal-open');
         }
 
         function openEditModal(record) {
@@ -899,7 +993,7 @@ include '../templates/header.php';
             document.getElementById('domicile').value = record.domicile || '';
             document.getElementById('parents').value = record.parents || '';
             document.getElementById('sponsor').value = record.sponsor || '';
-            document.getElementById('ministerName').value = record.minister || '';
+            document.getElementById('ministerName').value = record.priest || '';
             document.getElementById('folio').value = record.folio || '';
             document.getElementById('baptismalDate').value = record.baptismal_date || '';
             document.getElementById('baptismalPlace').value = record.baptismal_place || '';
@@ -911,19 +1005,23 @@ include '../templates/header.php';
             document.getElementById('actionInput').value = 'edit';
             document.getElementById('modalTitle').textContent = 'Edit First Communion Record';
             document.getElementById('recordModal').classList.add('show');
+            document.body.classList.add('modal-open');
         }
 
         function closeModal() {
             document.getElementById('recordModal').classList.remove('show');
+            document.body.classList.remove('modal-open');
         }
 
         function confirmArchive(id) {
             document.getElementById('deleteRecordId').value = id;
             document.getElementById('deleteModal').classList.add('show');
+            document.body.classList.add('modal-open');
         }
 
         function closeDeleteModal() {
             document.getElementById('deleteModal').classList.remove('show');
+            document.body.classList.remove('modal-open');
         }
 
         function performSearch() {
@@ -941,12 +1039,20 @@ include '../templates/header.php';
             const modal = document.getElementById('recordModal');
             const deleteModal = document.getElementById('deleteModal');
             if (event.target === modal) {
-                modal.classList.remove('show');
+                closeModal();
             }
             if (event.target === deleteModal) {
-                deleteModal.classList.remove('show');
+                closeDeleteModal();
             }
-        }
+        };
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeModal();
+                closeDeleteModal();
+            }
+        });
 
         // Allow Enter key in search to perform search
         document.getElementById('searchInput').addEventListener('keypress', function(e) {
