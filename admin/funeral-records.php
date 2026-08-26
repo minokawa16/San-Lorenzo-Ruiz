@@ -216,20 +216,7 @@ include '../templates/header.php';
             --primary-gold: #d4af37;
         }
 
-        body {
-            background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%);
-            font-family: 'Inter', sans-serif;
-        }
 
-        .admin-content {
-            margin-left: 280px;
-            padding: 20px 24px;
-            transition: margin-left 0.3s;
-        }
-
-        body.admin-sidebar-collapsed .admin-content {
-            margin-left: 88px;
-        }
 
         .page-title {
             font-size: 2rem;

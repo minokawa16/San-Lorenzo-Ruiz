@@ -207,7 +207,10 @@ if ($is_admin_area) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo isset($page_title) ? $page_title . ' | ' : ''; ?>San Lorenzo Ruiz Mission Station</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -308,28 +311,28 @@ if ($is_admin_area) {
         <?php include '../includes/admin-sidebar.php'; ?>
         <main class="premium-admin-content main-content" id="main-content" tabindex="-1">
             <?php if (empty($hide_global_header)): ?>
-            <header class="app-global-header admin-global-topbar parish-top-nav-bar flex items-center justify-between w-full py-2 mb-3 bg-transparent" style="background: transparent !important; border: none !important; box-shadow: none !important;">
+            <header class="dashboard-header-row parish-top-nav-bar app-global-header admin-global-topbar flex items-center justify-between w-full py-2 mb-3 bg-transparent" style="background: transparent !important; border: none !important; box-shadow: none !important;">
                 <!-- Left Title & Subtitle with Light Muted Green Square Icon Container -->
-                <div class="admin-global-title parish-nav-left flex items-center gap-3">
+                <div class="d-flex align-items-center gap-3 parish-nav-left admin-global-title">
                     <div class="parish-nav-badge-icon" aria-hidden="true">
                         <i class="fas <?php echo e($header_icon); ?>"></i>
                     </div>
-                    <div>
-                        <h1 class="text-xl font-bold text-gray-900 m-0" style="font-family: 'Playfair Display', Georgia, serif; font-size: 1.55rem; font-weight: 700; color: #1e293b; line-height: 1.15;"><?php echo e($admin_header_title); ?></h1>
-                        <p class="text-xs text-muted m-0 mt-1 d-none d-sm-block" style="font-size: 0.8rem; color: #64748b; font-weight: 500;"><?php echo e($admin_header_description); ?></p>
+                    <div class="dashboard-header-title-block">
+                        <h1 class="text-xl font-bold text-gray-900 m-0" style="font-family: 'Playfair Display', Georgia, serif; font-size: 2.25rem; font-weight: 700; color: #1e293b; line-height: 1.15; letter-spacing: -0.3px;"><?php echo e($admin_header_title); ?></h1>
+                        <p class="text-xs text-muted m-0 d-none d-sm-block" style="font-size: 0.86rem; color: #6b6a63; font-weight: 500; margin-top: 4px;"><?php echo e($admin_header_description); ?></p>
                     </div>
                 </div>
 
                 <!-- Center Search Bar (No double borders, rounded pill with Ctrl K) -->
-                <div class="app-header-center parish-nav-center flex-1 max-w-md mx-6">
-                    <form class="app-header-search parish-nav-search-form" action="<?php echo e($header_search_action); ?>" method="GET" style="background: transparent; border: none; box-shadow: none;">
-                        <input class="parish-nav-search-input" type="search" name="<?php echo e($header_search_name); ?>" placeholder="<?php echo e($header_search_placeholder); ?>" value="<?php echo e($header_search_value); ?>" autocomplete="off">
-                        <kbd>Ctrl K</kbd>
+                <div class="dashboard-header-search-wrap parish-nav-center app-header-center flex-1 max-w-md mx-6">
+                    <form class="dashboard-header-search-form parish-nav-search-form app-header-search" action="<?php echo e($header_search_action); ?>" method="GET" style="background: transparent; border: none; box-shadow: none;">
+                        <input class="dashboard-search-input parish-nav-search-input" type="search" name="<?php echo e($header_search_name); ?>" placeholder="<?php echo e($header_search_placeholder); ?>" value="<?php echo e($header_search_value); ?>" autocomplete="off">
+                        <kbd class="dashboard-search-kbd">Ctrl K</kbd>
                     </form>
                 </div>
 
                 <!-- Right Admin Profile Widget -->
-                <div class="admin-global-actions parish-nav-right">
+                <div class="dashboard-header-profile-wrap parish-nav-right admin-global-actions">
                     <div class="dropdown">
                         <button class="profile-chip-btn admin-profile-btn parish-profile-pill-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <span class="profile-chip-avatar profile-avatar parish-profile-avatar"><?php echo $header_avatar_initial; ?></span>
