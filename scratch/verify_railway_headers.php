@@ -29,7 +29,7 @@ curl_setopt_array($ch, [
     CURLOPT_POST => true,
     CURLOPT_POSTFIELDS => http_build_query([
         '_csrf_token' => $csrf,
-        'email' => 'tugonparish@gmail.com',
+        'identifier' => 'tugonparish@gmail.com',
         'password' => 'Parishioner@123',
         'form_action' => 'login'
     ]),

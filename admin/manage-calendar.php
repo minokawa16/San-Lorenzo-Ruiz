@@ -31,20 +31,26 @@ include '../templates/header.php';
 
     .calendar-shell {
         width: 100%;
+        max-width: 100%;
         margin: 0;
         padding: 0;
+        box-sizing: border-box;
     }
 
+    /* 12-Column Responsive CSS Grid */
     .calendar-grid {
         display: grid;
-        grid-template-columns: 290px minmax(0, 1fr);
-        gap: 18px;
+        grid-template-columns: repeat(12, minmax(0, 1fr));
+        gap: 24px;
         align-items: start;
+        width: 100%;
         margin-bottom: 24px;
+        box-sizing: border-box;
     }
 
-    /* Sidebar Filter & Smart Reminders Card */
+    /* Left Sidebar Filter Card (col-span-3 on XL, col-span-4 on LG) */
     .calendar-sidebar {
+        grid-column: span 3 / span 3;
         background: #ffffff;
         border: 1px solid var(--calendar-border);
         border-radius: 12px;
@@ -52,6 +58,11 @@ include '../templates/header.php';
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
         position: sticky;
         top: 10px;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        min-width: 0;
+        word-break: break-word;
     }
 
     .mini-month,
@@ -64,6 +75,8 @@ include '../templates/header.php';
         color: var(--calendar-text);
         background: #ffffff;
         width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
         margin-bottom: 12px;
         outline: none;
         transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -78,6 +91,9 @@ include '../templates/header.php';
 
     .search-box {
         position: relative;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
         margin-bottom: 12px;
     }
 
@@ -92,7 +108,7 @@ include '../templates/header.php';
     }
 
     .search-box input {
-        padding-left: 32px;
+        padding-left: 34px;
         margin-bottom: 0;
     }
 
@@ -103,6 +119,8 @@ include '../templates/header.php';
         margin: 14px 0 16px;
         padding-top: 14px;
         border-top: 1px solid #f0eee6;
+        width: 100%;
+        box-sizing: border-box;
     }
 
     .legend-item {
@@ -112,6 +130,8 @@ include '../templates/header.php';
         font-size: 0.8rem;
         font-weight: 500;
         color: var(--calendar-muted);
+        word-break: break-word;
+        overflow-wrap: break-word;
     }
 
     .legend-dot {
@@ -127,6 +147,10 @@ include '../templates/header.php';
         border-radius: 10px;
         padding: 14px;
         margin-top: 12px;
+        width: 100%;
+        box-sizing: border-box;
+        word-break: break-word;
+        overflow-wrap: break-word;
     }
 
     .smart-card strong {
@@ -143,25 +167,37 @@ include '../templates/header.php';
         display: block;
     }
 
-    /* Main Calendar Panel */
+    /* Right Main Calendar Panel (col-span-9 on XL, col-span-8 on LG) */
     .calendar-main {
+        grid-column: span 9 / span 9;
         background: #ffffff;
         border: 1px solid var(--calendar-border);
         border-radius: 12px;
         padding: 22px;
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
         min-width: 0;
+        overflow: hidden;
         position: relative;
     }
 
     #calendar {
-        min-height: 720px;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+        overflow: hidden;
     }
 
-    /* FullCalendar UI Overrides */
+    /* FullCalendar Responsive & Layout Overrides */
     .fc {
         font-family: inherit;
         color: var(--calendar-text);
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
     }
 
     .fc .fc-toolbar.fc-header-toolbar {
@@ -171,6 +207,7 @@ include '../templates/header.php';
         gap: 12px;
         margin-bottom: 20px;
         flex-wrap: wrap;
+        width: 100%;
     }
 
     .fc .fc-toolbar-chunk:first-child {
@@ -242,7 +279,7 @@ include '../templates/header.php';
         cursor: not-allowed;
     }
 
-    /* View Switcher Pill Buttons (Month, Week, Day, Agenda) */
+    /* View Switcher Buttons (Month, Week, Day, Agenda) */
     .fc .fc-dayGridMonth-button,
     .fc .fc-timeGridWeek-button,
     .fc .fc-timeGridDay-button,
@@ -277,7 +314,7 @@ include '../templates/header.php';
         box-shadow: 0 2px 6px rgba(200, 155, 60, 0.25) !important;
     }
 
-    /* Day Number & Column Headers - Remove browser underlines */
+    /* Day Number & Column Headers */
     .fc a,
     .fc .fc-daygrid-day-number,
     .fc .fc-col-header-cell-cushion,
@@ -285,6 +322,18 @@ include '../templates/header.php';
         text-decoration: none !important;
         font-weight: 600 !important;
         color: #1e293b !important;
+    }
+
+    /* 7-Column Header Grid Alignment */
+    .fc-scrollgrid,
+    .fc-col-header,
+    .fc-daygrid-body,
+    .fc-scrollgrid-sync-table,
+    .fc-daygrid-body table,
+    .fc-col-header table {
+        width: 100% !important;
+        table-layout: fixed !important;
+        box-sizing: border-box !important;
     }
 
     .fc .fc-col-header-cell {
@@ -296,6 +345,7 @@ include '../templates/header.php';
         font-size: 0.75rem !important;
         letter-spacing: 0.05em !important;
         border-color: #e5e0d5 !important;
+        text-align: center !important;
     }
 
     .fc-theme-standard td,
@@ -306,8 +356,9 @@ include '../templates/header.php';
 
     .fc .fc-daygrid-day-frame {
         padding: 6px !important;
-        min-height: 100px !important;
+        min-height: 95px !important;
         transition: background-color 0.12s ease !important;
+        box-sizing: border-box !important;
     }
 
     .fc .fc-daygrid-day:hover {
@@ -439,12 +490,26 @@ include '../templates/header.php';
         border-color: #1e293b;
     }
 
+    /* Responsive Breakpoints */
+    @media (max-width: 1200px) {
+        .calendar-sidebar {
+            grid-column: span 4 / span 4;
+        }
+        .calendar-main {
+            grid-column: span 8 / span 8;
+        }
+    }
+
     @media (max-width: 991px) {
         .calendar-grid {
             grid-template-columns: 1fr;
+            gap: 18px;
         }
-        .calendar-sidebar {
+        .calendar-sidebar,
+        .calendar-main {
+            grid-column: span 1 / span 1;
             position: static;
+            width: 100%;
         }
     }
 </style>
@@ -739,201 +804,6 @@ function resetForm(date = new Date()) {
     document.getElementById('event_date').value = toDateInput(date);
     document.getElementById('start_time').value = '08:00';
     document.getElementById('end_time').value = '09:00';
-                            <option value="reservation">Reservation</option>
-                            <option value="announcement">Announcement</option>
-                        </select>
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label" for="description">Description</label>
-                        <textarea class="form-control" id="description" rows="3"></textarea>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label" for="event_date">Date</label>
-                        <input type="date" class="form-control" id="event_date" required>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label" for="start_time">Start time</label>
-                        <input type="time" class="form-control" id="start_time" required>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label" for="end_time">End time</label>
-                        <input type="time" class="form-control" id="end_time">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label" for="location">Location</label>
-                        <input type="text" class="form-control" id="location" maxlength="150">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label" for="assigned_personnel">Assigned personnel / ministry</label>
-                        <input type="text" class="form-control" id="assigned_personnel" maxlength="150">
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label" for="priority">Priority</label>
-                        <select class="form-select" id="priority">
-                            <option value="low">Low</option>
-                            <option value="normal" selected>Normal</option>
-                            <option value="high">High</option>
-                            <option value="urgent">Urgent</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label" for="recurrence_rule">Recurring</label>
-                        <select class="form-select" id="recurrence_rule">
-                            <option value="none">Does not repeat</option>
-                            <option value="daily">Daily</option>
-                            <option value="weekly">Weekly</option>
-                            <option value="monthly">Monthly</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label" for="status">Status</label>
-                        <select class="form-select" id="status">
-                            <option value="upcoming">Upcoming</option>
-                            <option value="ongoing">Ongoing</option>
-                            <option value="finished">Finished</option>
-                            <option value="cancelled">Cancelled</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label" for="visibility">Visibility</label>
-                        <select class="form-select" id="visibility">
-                            <option value="public">Public</option>
-                            <option value="private">Private</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label" for="approval_status">Approval</label>
-                        <select class="form-select" id="approval_status">
-                            <option value="approved">Approved</option>
-                            <option value="pending">Pending</option>
-                            <option value="rejected">Rejected</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label" for="reminder_minutes">Reminder</label>
-                        <select class="form-select" id="reminder_minutes">
-                            <option value="0">No reminder</option>
-                            <option value="15">15 minutes before</option>
-                            <option value="30" selected>30 minutes before</option>
-                            <option value="60">1 hour before</option>
-                            <option value="1440">1 day before</option>
-                        </select>
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label">Color label</label>
-                        <input type="hidden" id="color_label" value="#1a73e8">
-                        <div class="color-row" id="colorRow">
-                            <button type="button" class="color-swatch active" data-color="#1a73e8" style="background:#1a73e8" aria-label="Blue"></button>
-                            <button type="button" class="color-swatch" data-color="#34a853" style="background:#34a853" aria-label="Green"></button>
-                            <button type="button" class="color-swatch" data-color="#a142f4" style="background:#a142f4" aria-label="Purple"></button>
-                            <button type="button" class="color-swatch" data-color="#fbbc04" style="background:#fbbc04" aria-label="Yellow"></button>
-                            <button type="button" class="color-swatch" data-color="#ea4335" style="background:#ea4335" aria-label="Red"></button>
-                            <button type="button" class="color-swatch" data-color="#00acc1" style="background:#00acc1" aria-label="Cyan"></button>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="notify_email">
-                            <label class="form-check-label" for="notify_email">Notify users in portal / email-ready</label>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="notify_sms">
-                            <label class="form-check-label" for="notify_sms">SMS-ready reminder flag</label>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-danger me-auto d-none" id="deleteEventBtn"><i class="fas fa-trash"></i> Delete</button>
-                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
-                <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Save</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<div class="modal fade" id="detailsModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="detailsTitle">Schedule Details</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body" id="detailsBody"></div>
-        </div>
-    </div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="../assets/js/main.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
-<script>
-const apiUrl = '../api/calendar-events.php';
-const modal = new bootstrap.Modal(document.getElementById('eventModal'));
-const detailsModal = new bootstrap.Modal(document.getElementById('detailsModal'));
-const form = document.getElementById('eventForm');
-const loading = document.getElementById('calendarLoading');
-let calendar;
-let searchTimer;
-
-const defaultColors = {
-    event: '#1a73e8',
-    mass: '#34a853',
-    monthly_mass: '#0f9d58',
-    sacramental: '#a142f4',
-    patronal_fiesta: '#c026d3',
-    meeting: '#00acc1',
-    task: '#fbbc04',
-    blessing: '#d7ad43',
-    reservation: '#188038',
-    announcement: '#fbbc04'
-};
-
-// Toast Function - Documents this helper's role in the parish management workflow.
-function toast(message, type = 'success') {
-    if (window.ParishNotify && typeof window.ParishNotify.show === 'function') {
-        window.ParishNotify.show({message, type});
-        return;
-    }
-    const el = document.createElement('div');
-    el.className = `alert alert-${type === 'error' ? 'danger' : type} shadow-sm`;
-    el.textContent = message;
-    document.getElementById('toastStack').appendChild(el);
-    setTimeout(() => el.remove(), 4200);
-}
-
-// To Date Input Function - Documents this helper's role in the parish management workflow.
-function toDateInput(date) {
-    return date.toISOString().slice(0, 10);
-}
-
-// To Time Input Function - Documents this helper's role in the parish management workflow.
-function toTimeInput(date) {
-    return date ? date.toTimeString().slice(0, 5) : '';
-}
-
-// Event Filters Function - Documents this helper's role in the parish management workflow.
-function eventFilters() {
-    const params = new URLSearchParams();
-    const q = document.getElementById('calendarSearch').value.trim();
-    const category = document.getElementById('categoryFilter').value;
-    const status = document.getElementById('statusFilter').value;
-    if (q) params.set('q', q);
-    if (category !== 'all') params.set('category', category);
-    if (status !== 'all') params.set('status', status);
-    return params;
-}
-
-// Reset Form Function - Documents this helper's role in the parish management workflow.
-function resetForm(date = new Date()) {
-    form.reset();
-    document.getElementById('eventModalTitle').textContent = 'Add Schedule';
-    document.getElementById('schedule_id').value = '';
-    document.getElementById('event_date').value = toDateInput(date);
-    document.getElementById('start_time').value = '08:00';
-    document.getElementById('end_time').value = '09:00';
     document.getElementById('color_label').value = '#1a73e8';
     document.getElementById('deleteEventBtn').classList.add('d-none');
     setActiveColor('#1a73e8');
@@ -1028,8 +898,11 @@ function showDetails(event) {
 
 document.addEventListener('DOMContentLoaded', function() {
     calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
-        initialView: window.innerWidth < 700 ? 'listWeek' : 'dayGridMonth',
+        initialView: window.innerWidth < 768 ? 'listWeek' : 'dayGridMonth',
         height: 'auto',
+        contentHeight: 'auto',
+        expandRows: true,
+        handleWindowResize: true,
         nowIndicator: true,
         selectable: true,
         editable: true,
