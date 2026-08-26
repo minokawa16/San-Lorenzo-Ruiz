@@ -575,11 +575,6 @@ include '../templates/header.php';
                     <div class="legend-item"><span class="legend-dot" style="background:#fbbc04"></span> Announcement</div>
                     <div class="legend-item"><span class="legend-dot" style="background:#d7ad43"></span> Blessing</div>
                 </div>
-
-                <div class="smart-card">
-                    <strong><i class="fas fa-bell"></i> Smart reminders</strong>
-                    <span>Calendar entries can create in-app reminders for parishioners when public notifications are enabled. Email and SMS flags are stored for future gateway integration.</span>
-                </div>
             </aside>
 
             <section class="calendar-main">
@@ -598,6 +593,7 @@ include '../templates/header.php';
 <div class="modal fade" id="eventModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <form class="modal-content" id="eventForm">
+            <?php echo csrfInput(); ?>
             <div class="modal-header">
                 <h5 class="modal-title" id="eventModalTitle">Add Schedule</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -751,6 +747,7 @@ include '../templates/header.php';
 <script src="../assets/js/main.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
 <script>
+const CSRF_TOKEN = '<?php echo e(generateCsrfToken()); ?>';
 const apiUrl = '../api/calendar-events.php';
 const modal = new bootstrap.Modal(document.getElementById('eventModal'));
 const detailsModal = new bootstrap.Modal(document.getElementById('detailsModal'));
@@ -758,6 +755,8 @@ const form = document.getElementById('eventForm');
 const loading = document.getElementById('calendarLoading');
 let calendar;
 let searchTimer;
+let isSubmitting = false;
+let isDeleting = false;
 
 const defaultColors = {
     event: '#1a73e8',
@@ -778,21 +777,49 @@ function toast(message, type = 'success') {
         window.ParishNotify.show({message, type});
         return;
     }
+    const stack = document.getElementById('toastStack');
+    if (!stack) return;
     const el = document.createElement('div');
-    el.className = `alert alert-${type === 'error' ? 'danger' : type} shadow-sm`;
-    el.textContent = message;
-    document.getElementById('toastStack').appendChild(el);
-    setTimeout(() => el.remove(), 4200);
+    el.className = `alert alert-${type === 'error' ? 'danger' : type} shadow-sm alert-dismissible fade show`;
+    el.innerHTML = `${message} <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+    stack.appendChild(el);
+    setTimeout(() => {
+        if (el.parentNode) el.remove();
+    }, 4500);
 }
 
-// To Date Input Function - Documents this helper's role in the parish management workflow.
+// Convert date to YYYY-MM-DD local representation
 function toDateInput(date) {
-    return date.toISOString().slice(0, 10);
+    if (!date) return '';
+    if (typeof date === 'string') {
+        const match = date.match(/^\d{4}-\d{2}-\d{2}/);
+        if (match) return match[0];
+        const parsed = new Date(date);
+        if (!isNaN(parsed.getTime())) {
+            date = parsed;
+        } else {
+            return date.slice(0, 10);
+        }
+    }
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 }
 
-// To Time Input Function - Documents this helper's role in the parish management workflow.
+// Convert date to HH:MM local representation
 function toTimeInput(date) {
-    return date ? date.toTimeString().slice(0, 5) : '';
+    if (!date) return '';
+    if (typeof date === 'string') {
+        if (date.includes('T')) {
+            const timePart = date.split('T')[1];
+            return timePart ? timePart.slice(0, 5) : '';
+        }
+        return date.slice(0, 5);
+    }
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
 }
 
 // Event Filters Function - Documents this helper's role in the parish management workflow.
@@ -873,18 +900,29 @@ function formPayload() {
         status: document.getElementById('status').value,
         reminder_minutes: document.getElementById('reminder_minutes').value,
         notify_email: document.getElementById('notify_email').checked ? 1 : 0,
-        notify_sms: document.getElementById('notify_sms').checked ? 1 : 0
+        notify_sms: document.getElementById('notify_sms').checked ? 1 : 0,
+        csrf_token: CSRF_TOKEN
     };
 }
 
 async function saveEvent(payload) {
     const isEdit = Boolean(payload.schedule_id);
+    payload.csrf_token = CSRF_TOKEN;
     const response = await fetch(apiUrl, {
         method: isEdit ? 'PUT' : 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': CSRF_TOKEN,
+            'X-Requested-With': 'XMLHttpRequest'
+        },
         body: JSON.stringify(payload)
     });
-    const data = await response.json();
+    let data;
+    try {
+        data = await response.json();
+    } catch (e) {
+        throw new Error('Server returned an unexpected response. Please try again.');
+    }
     if (!response.ok || !data.success) {
         throw new Error(data.message || 'Unable to save schedule.');
     }
@@ -970,7 +1008,8 @@ async function updateDraggedEvent(info) {
         event_id: info.event.id,
         event_date: toDateInput(info.event.start),
         start_time: toTimeInput(info.event.start),
-        end_time: toTimeInput(info.event.end)
+        end_time: toTimeInput(info.event.end),
+        csrf_token: CSRF_TOKEN
     };
 
     try {
@@ -984,27 +1023,79 @@ async function updateDraggedEvent(info) {
 
 form.addEventListener('submit', async function(e) {
     e.preventDefault();
+    if (isSubmitting) return;
+
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalHtml = submitBtn ? submitBtn.innerHTML : '<i class="fas fa-check"></i> Save';
+
+    const payload = formPayload();
+
+    if (!payload.title) {
+        toast('Please enter a schedule title.', 'error');
+        document.getElementById('title').focus();
+        return;
+    }
+    if (!payload.event_date) {
+        toast('Please select a schedule date.', 'error');
+        document.getElementById('event_date').focus();
+        return;
+    }
+    if (!payload.start_time) {
+        toast('Please enter a start time.', 'error');
+        document.getElementById('start_time').focus();
+        return;
+    }
+    if (payload.end_time && payload.end_time <= payload.start_time) {
+        toast('End time must be later than start time.', 'error');
+        document.getElementById('end_time').focus();
+        return;
+    }
+
+    isSubmitting = true;
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Saving...';
+    }
+
     try {
-        const data = await saveEvent(formPayload());
+        const data = await saveEvent(payload);
         modal.hide();
         calendar.refetchEvents();
-        toast(data.message || 'Schedule saved.');
+        toast(data.message || 'Schedule saved successfully.');
     } catch (error) {
-        toast(error.message, 'error');
+        toast(error.message || 'Unable to save schedule.', 'error');
+    } finally {
+        isSubmitting = false;
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalHtml;
+        }
     }
 });
 
 document.getElementById('deleteEventBtn').addEventListener('click', async function() {
     const id = document.getElementById('schedule_id').value;
-    if (!id || !confirm('Delete this schedule?')) {
+    if (!id || isDeleting || !confirm('Are you sure you want to delete this schedule?')) {
         return;
+    }
+
+    const deleteBtn = document.getElementById('deleteEventBtn');
+    const originalDeleteHtml = deleteBtn ? deleteBtn.innerHTML : '<i class="fas fa-trash"></i> Delete';
+    isDeleting = true;
+    if (deleteBtn) {
+        deleteBtn.disabled = true;
+        deleteBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Deleting...';
     }
 
     try {
         const response = await fetch(apiUrl, {
             method: 'DELETE',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({schedule_id: id})
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': CSRF_TOKEN,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({schedule_id: id, csrf_token: CSRF_TOKEN})
         });
         const data = await response.json();
         if (!response.ok || !data.success) {
@@ -1012,9 +1103,15 @@ document.getElementById('deleteEventBtn').addEventListener('click', async functi
         }
         modal.hide();
         calendar.refetchEvents();
-        toast('Schedule deleted.');
+        toast(data.message || 'Schedule deleted successfully.');
     } catch (error) {
-        toast(error.message, 'error');
+        toast(error.message || 'Unable to delete schedule.', 'error');
+    } finally {
+        isDeleting = false;
+        if (deleteBtn) {
+            deleteBtn.disabled = false;
+            deleteBtn.innerHTML = originalDeleteHtml;
+        }
     }
 });
 

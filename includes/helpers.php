@@ -2034,12 +2034,206 @@ function formatDateTime($date) {
     return date('M d, Y g:i A', strtotime($date));
 }
 
+
 // Format Time Function - Documents this helper's role in the parish management workflow.
 function formatTime($time) {
     if (empty($time)) {
         return '';
     }
     return date('g:i A', strtotime($time));
+}
+
+// Calendar Validation - Cleans and normalizes strings, dates, times, colors, and end-time defaults.
+if (!function_exists('cleanCalendarValue')) {
+    function cleanCalendarValue($value, $max = 255) {
+        return substr(trim((string) $value), 0, $max);
+    }
+}
+
+// Normalize and parse dates into MySQL YYYY-MM-DD format.
+if (!function_exists('normalizeCalendarDate')) {
+    function normalizeCalendarDate($date) {
+        $date = trim((string) $date);
+        if ($date === '') {
+            return null;
+        }
+
+        // Already YYYY-MM-DD
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            $parts = explode('-', $date);
+            if (checkdate((int)$parts[1], (int)$parts[2], (int)$parts[0])) {
+                return $date;
+            }
+        }
+
+        // DD/MM/YYYY or DD-MM-YYYY
+        if (preg_match('/^(\d{1,2})[\/\.-](\d{1,2})[\/\.-](\d{4})$/', $date, $m)) {
+            $d = (int)$m[1];
+            $mo = (int)$m[2];
+            $y = (int)$m[3];
+            if ($mo <= 12 && $d <= 31 && checkdate($mo, $d, $y)) {
+                return sprintf('%04d-%02d-%02d', $y, $mo, $d);
+            } elseif ($d <= 12 && $mo <= 31 && checkdate($d, $mo, $y)) {
+                return sprintf('%04d-%02d-%02d', $y, $d, $mo);
+            }
+        }
+
+        // Parse via strtotime
+        $ts = strtotime($date);
+        if ($ts !== false && $ts > 0) {
+            return date('Y-m-d', $ts);
+        }
+
+        return null;
+    }
+}
+
+if (!function_exists('validCalendarDate')) {
+    function validCalendarDate($date) {
+        return normalizeCalendarDate($date) !== null;
+    }
+}
+
+// Normalize and parse times into MySQL HH:MM:SS format.
+if (!function_exists('normalizeCalendarTime')) {
+    function normalizeCalendarTime($time) {
+        $time = trim((string) $time);
+        if ($time === '') {
+            return null;
+        }
+
+        // Match 24hr HH:MM or HH:MM:SS
+        if (preg_match('/^([01]?\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/', $time, $m)) {
+            return sprintf('%02d:%02d:00', (int)$m[1], (int)$m[2]);
+        }
+
+        // Match 12hr HH:MM am/pm
+        if (preg_match('/^([01]?\d):([0-5]\d)\s*(am|pm)$/i', $time, $m)) {
+            $h = (int)$m[1];
+            $min = (int)$m[2];
+            $ampm = strtolower($m[3]);
+            if ($ampm === 'pm' && $h < 12) $h += 12;
+            if ($ampm === 'am' && $h === 12) $h = 0;
+            return sprintf('%02d:%02d:00', $h, $min);
+        }
+
+        $ts = strtotime($time);
+        if ($ts !== false) {
+            return date('H:i:s', $ts);
+        }
+
+        return null;
+    }
+}
+
+if (!function_exists('validCalendarTime')) {
+    function validCalendarTime($time) {
+        return normalizeCalendarTime($time) !== null;
+    }
+}
+
+// Normalize category codes and user-facing labels
+if (!function_exists('normalizeCalendarCategory')) {
+    function normalizeCalendarCategory($cat) {
+        $c = strtolower(trim((string)$cat));
+        $map = [
+            'event' => 'event',
+            'parish event' => 'event',
+            'events' => 'event',
+            'mass' => 'mass',
+            'mass schedule' => 'mass',
+            'mass / public schedule' => 'mass',
+            'monthly mass' => 'monthly_mass',
+            'monthly_mass' => 'monthly_mass',
+            'monthly schedule' => 'monthly_mass',
+            'sacramental' => 'sacramental',
+            'sacramental services' => 'sacramental',
+            'patronal fiesta' => 'patronal_fiesta',
+            'patronal_fiesta' => 'patronal_fiesta',
+            'patronal fiesta schedule' => 'patronal_fiesta',
+            'meeting' => 'meeting',
+            'meetings' => 'meeting',
+            'task' => 'task',
+            'tasks' => 'task',
+            'blessing' => 'blessing',
+            'blessings' => 'blessing',
+            'child blessing' => 'blessing',
+            'reservation' => 'reservation',
+            'reservations' => 'reservation',
+            'announcement' => 'announcement',
+            'announcements' => 'announcement'
+        ];
+        return $map[$c] ?? (preg_replace('/[^a-z0-9_]/', '_', $c) ?: 'event');
+    }
+}
+
+// Normalize Calendar Color Function
+if (!function_exists('normalizeCalendarColor')) {
+    function normalizeCalendarColor($color) {
+        $color = trim((string) $color);
+        return preg_match('/^#[0-9a-fA-F]{6}$/', $color) ? $color : '#1a73e8';
+    }
+}
+
+// Schedule End Time Function
+if (!function_exists('scheduleEndTime')) {
+    function scheduleEndTime($start, $end) {
+        $start_norm = normalizeCalendarTime($start);
+        $end_norm = normalizeCalendarTime($end);
+        if (!empty($end_norm)) {
+            return $end_norm;
+        }
+        if (!empty($start_norm)) {
+            return date('H:i:s', strtotime($start_norm . ' +1 hour'));
+        }
+        return '09:00:00';
+    }
+}
+
+// Schedule Conflict Detection - Checks venue/location overlap
+if (!function_exists('hasScheduleConflict')) {
+    function hasScheduleConflict($conn, $date, $start, $end, $location = '', $exclude_id = 0) {
+        $date_norm = normalizeCalendarDate($date);
+        $start_norm = normalizeCalendarTime($start);
+        $effective_end = scheduleEndTime($start, $end);
+        $exclude_id = intval($exclude_id);
+        $items = [];
+
+        $sql = "SELECT schedule_id, title, start_time, end_time, location FROM schedule_events
+                WHERE event_date = ? AND status != 'cancelled' AND schedule_id != ?";
+        $stmt = $conn->prepare($sql);
+        if (!$stmt) {
+            return ['conflict' => false];
+        }
+
+        $stmt->bind_param('si', $date_norm, $exclude_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        while ($result && $row = $result->fetch_assoc()) {
+            $items[] = $row;
+        }
+        $stmt->close();
+
+        $trimmed_loc = strtolower(trim((string)$location));
+
+        foreach ($items as $item) {
+            $item_start = normalizeCalendarTime($item['start_time']);
+            $item_end = scheduleEndTime($item['start_time'], $item['end_time']);
+            $item_loc = strtolower(trim((string)$item['location']));
+
+            if ($start_norm < $item_end && $effective_end > $item_start) {
+                // If both specify a location and locations are identical
+                if ($trimmed_loc !== '' && $item_loc !== '' && $trimmed_loc === $item_loc) {
+                    return [
+                        'conflict' => true,
+                        'message' => 'Venue conflict: "' . $item['title'] . '" is already scheduled at ' . $item['location'] . ' (' . formatTime($item_start) . ' - ' . formatTime($item_end) . ').'
+                    ];
+                }
+            }
+        }
+
+        return ['conflict' => false];
+    }
 }
 
 // Schedule Event Column Exists Function - Documents this helper's role in the parish management workflow.

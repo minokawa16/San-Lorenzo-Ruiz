@@ -2,25 +2,16 @@
 /**
  * Calendar Events API - Returns parish schedule events and manages calendar updates for authenticated users.
  */
-header('Content-Type: application/json');
+header('Content-Type: application/json; charset=utf-8');
 
 include '../includes/session.php';
 include '../database/config.php';
 include '../includes/helpers.php';
 
 requireLogin();
-if (in_array(($_SERVER['REQUEST_METHOD'] ?? 'GET'), ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
-    requireValidCsrfToken();
-}
-
-if (!ensureScheduleEventsTable($conn)) {
-    http_response_code(500);
-    echo json_encode(actionResponse(false, 'Unable to prepare calendar table.'));
-    exit;
-}
 
 $is_admin = isAdmin();
-$method = $_SERVER['REQUEST_METHOD'];
+$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $input = [];
 
 if (in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
@@ -29,6 +20,26 @@ if (in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
     if (!is_array($input)) {
         $input = $_POST;
     }
+
+    $headerToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+    $submittedToken = is_string($headerToken) && $headerToken !== ''
+        ? $headerToken
+        : ($input['csrf_token'] ?? ($input[csrfTokenName()] ?? ($_POST[csrfTokenName()] ?? '')));
+
+    if (!verifyCsrfToken($submittedToken)) {
+        http_response_code(403);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Your security session has expired. Please refresh the page and try again.'
+        ]);
+        exit;
+    }
+}
+
+if (!ensureScheduleEventsTable($conn)) {
+    http_response_code(500);
+    echo json_encode(actionResponse(false, 'Unable to prepare calendar table.'));
+    exit;
 }
 
 // API Response Helper - Sends JSON payloads with the expected HTTP status code.
@@ -46,66 +57,153 @@ function jsonResponse($payload, $status = 200) {
     exit;
 }
 
-// Calendar Validation - Cleans and normalizes dates, times, colors, and end-time defaults.
+// Calendar Validation - Cleans and normalizes strings, dates, times, colors, and end-time defaults.
 function cleanCalendarValue($value, $max = 255) {
     return substr(trim((string) $value), 0, $max);
 }
 
-// Valid Calendar Date Function - Documents this helper's role in the parish management workflow.
-function validCalendarDate($date) {
-    $dt = DateTime::createFromFormat('Y-m-d', (string) $date);
-    return $dt && $dt->format('Y-m-d') === $date;
-}
-
-// Valid Calendar Time Function - Documents this helper's role in the parish management workflow.
-function validCalendarTime($time) {
-    $dt = DateTime::createFromFormat('H:i', (string) $time);
-    if ($dt && $dt->format('H:i') === $time) {
-        return true;
-    }
-
-    $dt = DateTime::createFromFormat('H:i:s', (string) $time);
-    return $dt && $dt->format('H:i:s') === $time;
-}
-
-// Normalize Calendar Time Function - Documents this helper's role in the parish management workflow.
-function normalizeCalendarTime($time) {
-    if ($time === null || $time === '') {
+// Normalize and parse dates into MySQL YYYY-MM-DD format.
+function normalizeCalendarDate($date) {
+    $date = trim((string) $date);
+    if ($date === '') {
         return null;
     }
 
-    return substr((string) $time, 0, 5);
+    // Already YYYY-MM-DD
+    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+        $parts = explode('-', $date);
+        if (checkdate((int)$parts[1], (int)$parts[2], (int)$parts[0])) {
+            return $date;
+        }
+    }
+
+    // DD/MM/YYYY or DD-MM-YYYY
+    if (preg_match('/^(\d{1,2})[\/\.-](\d{1,2})[\/\.-](\d{4})$/', $date, $m)) {
+        $d = (int)$m[1];
+        $mo = (int)$m[2];
+        $y = (int)$m[3];
+        if ($mo <= 12 && $d <= 31 && checkdate($mo, $d, $y)) {
+            return sprintf('%04d-%02d-%02d', $y, $mo, $d);
+        } elseif ($d <= 12 && $mo <= 31 && checkdate($d, $mo, $y)) {
+            return sprintf('%04d-%02d-%02d', $y, $d, $mo);
+        }
+    }
+
+    // Parse via strtotime
+    $ts = strtotime($date);
+    if ($ts !== false && $ts > 0) {
+        return date('Y-m-d', $ts);
+    }
+
+    return null;
 }
 
-// Normalize Calendar Color Function - Documents this helper's role in the parish management workflow.
+function validCalendarDate($date) {
+    return normalizeCalendarDate($date) !== null;
+}
+
+// Normalize and parse times into MySQL HH:MM:SS format.
+function normalizeCalendarTime($time) {
+    $time = trim((string) $time);
+    if ($time === '') {
+        return null;
+    }
+
+    // Match 24hr HH:MM or HH:MM:SS
+    if (preg_match('/^([01]?\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/', $time, $m)) {
+        return sprintf('%02d:%02d:00', (int)$m[1], (int)$m[2]);
+    }
+
+    // Match 12hr HH:MM am/pm
+    if (preg_match('/^([01]?\d):([0-5]\d)\s*(am|pm)$/i', $time, $m)) {
+        $h = (int)$m[1];
+        $min = (int)$m[2];
+        $ampm = strtolower($m[3]);
+        if ($ampm === 'pm' && $h < 12) $h += 12;
+        if ($ampm === 'am' && $h === 12) $h = 0;
+        return sprintf('%02d:%02d:00', $h, $min);
+    }
+
+    $ts = strtotime($time);
+    if ($ts !== false) {
+        return date('H:i:s', $ts);
+    }
+
+    return null;
+}
+
+function validCalendarTime($time) {
+    return normalizeCalendarTime($time) !== null;
+}
+
+// Normalize category codes and user-facing labels
+function normalizeCalendarCategory($cat) {
+    $c = strtolower(trim((string)$cat));
+    $map = [
+        'event' => 'event',
+        'parish event' => 'event',
+        'events' => 'event',
+        'mass' => 'mass',
+        'mass schedule' => 'mass',
+        'mass / public schedule' => 'mass',
+        'monthly mass' => 'monthly_mass',
+        'monthly_mass' => 'monthly_mass',
+        'monthly schedule' => 'monthly_mass',
+        'sacramental' => 'sacramental',
+        'sacramental services' => 'sacramental',
+        'patronal fiesta' => 'patronal_fiesta',
+        'patronal_fiesta' => 'patronal_fiesta',
+        'patronal fiesta schedule' => 'patronal_fiesta',
+        'meeting' => 'meeting',
+        'meetings' => 'meeting',
+        'task' => 'task',
+        'tasks' => 'task',
+        'blessing' => 'blessing',
+        'blessings' => 'blessing',
+        'child blessing' => 'blessing',
+        'reservation' => 'reservation',
+        'reservations' => 'reservation',
+        'announcement' => 'announcement',
+        'announcements' => 'announcement'
+    ];
+    return $map[$c] ?? (preg_replace('/[^a-z0-9_]/', '_', $c) ?: 'event');
+}
+
+// Normalize Calendar Color Function
 function normalizeCalendarColor($color) {
     $color = trim((string) $color);
     return preg_match('/^#[0-9a-fA-F]{6}$/', $color) ? $color : '#1a73e8';
 }
 
-// Schedule End Time Function - Documents this helper's role in the parish management workflow.
+// Schedule End Time Function
 function scheduleEndTime($start, $end) {
-    if (!empty($end)) {
-        return substr((string) $end, 0, 5);
+    $start_norm = normalizeCalendarTime($start);
+    $end_norm = normalizeCalendarTime($end);
+    if (!empty($end_norm)) {
+        return $end_norm;
     }
-
-    return date('H:i', strtotime(substr((string) $start, 0, 5) . ' +1 hour'));
+    if (!empty($start_norm)) {
+        return date('H:i:s', strtotime($start_norm . ' +1 hour'));
+    }
+    return '09:00:00';
 }
 
-// Schedule Conflict Detection - Prevents overlapping parish events on the same date and time.
-function hasScheduleConflict($conn, $date, $start, $end, $exclude_id = 0) {
+// Schedule Conflict Detection - Checks venue/location overlap
+function hasScheduleConflict($conn, $date, $start, $end, $location = '', $exclude_id = 0) {
+    $date_norm = normalizeCalendarDate($date);
+    $start_norm = normalizeCalendarTime($start);
     $effective_end = scheduleEndTime($start, $end);
     $exclude_id = intval($exclude_id);
     $items = [];
 
-    $sql = "SELECT schedule_id, title, start_time, end_time FROM schedule_events
+    $sql = "SELECT schedule_id, title, start_time, end_time, location FROM schedule_events
             WHERE event_date = ? AND status != 'cancelled' AND schedule_id != ?";
     $stmt = $conn->prepare($sql);
     if (!$stmt) {
         return ['conflict' => false];
     }
 
-    $stmt->bind_param('si', $date, $exclude_id);
+    $stmt->bind_param('si', $date_norm, $exclude_id);
     $stmt->execute();
     $result = $stmt->get_result();
     while ($result && $row = $result->fetch_assoc()) {
@@ -113,14 +211,21 @@ function hasScheduleConflict($conn, $date, $start, $end, $exclude_id = 0) {
     }
     $stmt->close();
 
+    $trimmed_loc = strtolower(trim((string)$location));
+
     foreach ($items as $item) {
-        $item_start = substr((string) $item['start_time'], 0, 5);
+        $item_start = normalizeCalendarTime($item['start_time']);
         $item_end = scheduleEndTime($item['start_time'], $item['end_time']);
-        if ($start < $item_end && $effective_end > $item_start) {
-            return [
-                'conflict' => true,
-                'message' => 'Schedule overlaps with "' . $item['title'] . '" at ' . formatTime($item_start) . '.'
-            ];
+        $item_loc = strtolower(trim((string)$item['location']));
+
+        if ($start_norm < $item_end && $effective_end > $item_start) {
+            // If both specify a location and locations are identical
+            if ($trimmed_loc !== '' && $item_loc !== '' && $trimmed_loc === $item_loc) {
+                return [
+                    'conflict' => true,
+                    'message' => 'Venue conflict: "' . $item['title'] . '" is already scheduled at ' . $item['location'] . ' (' . formatTime($item_start) . ' - ' . formatTime($item_end) . ').'
+                ];
+            }
         }
     }
 
@@ -225,12 +330,13 @@ if ($method === 'GET') {
     $status = cleanCalendarValue($_GET['status'] ?? 'all', 50);
     $events = [];
 
-    if (!validCalendarDate(substr($start, 0, 10)) || !validCalendarDate(substr($end, 0, 10))) {
+    $range_start = normalizeCalendarDate(substr($start, 0, 10));
+    $range_end = normalizeCalendarDate(substr($end, 0, 10));
+
+    if (!$range_start || !$range_end) {
         jsonResponse(['success' => false, 'message' => 'Invalid date range.'], 422);
     }
 
-    $range_start = substr($start, 0, 10);
-    $range_end = substr($end, 0, 10);
     $where = ["(event_date BETWEEN ? AND ? OR (recurrence_rule != 'none' AND event_date <= ?))"];
     $types = 'sss';
     $params = [$range_start, $range_end, $range_end];
@@ -263,6 +369,7 @@ if ($method === 'GET') {
     $sql = "SELECT * FROM schedule_events WHERE " . implode(' AND ', $where) . " ORDER BY event_date ASC, start_time ASC LIMIT 1200";
     $stmt = $conn->prepare($sql);
     if (!$stmt) {
+        error_log("Calendar GET prepare error: " . $conn->error);
         jsonResponse(['success' => false, 'message' => 'Unable to load events.'], 500);
     }
 
@@ -410,11 +517,11 @@ if (!$is_admin) {
 if ($method === 'POST') {
     $title = cleanCalendarValue($input['title'] ?? '', 200);
     $description = cleanCalendarValue($input['description'] ?? '', 5000);
-    $event_date = cleanCalendarValue($input['event_date'] ?? '', 10);
+    $event_date = normalizeCalendarDate($input['event_date'] ?? '');
     $start_time = normalizeCalendarTime($input['start_time'] ?? '');
     $end_time = normalizeCalendarTime($input['end_time'] ?? null);
     $location = cleanCalendarValue($input['location'] ?? '', 150);
-    $category = cleanCalendarValue($input['category'] ?? 'event', 50);
+    $category = normalizeCalendarCategory($input['category'] ?? 'event');
     $priority = cleanCalendarValue($input['priority'] ?? 'normal', 20);
     $color_label = normalizeCalendarColor($input['color_label'] ?? '#1a73e8');
     $recurrence_rule = cleanCalendarValue($input['recurrence_rule'] ?? 'none', 100);
@@ -427,15 +534,20 @@ if ($method === 'POST') {
     $notify_sms = !empty($input['notify_sms']) ? 1 : 0;
     $created_by = intval($_SESSION['user_id']);
 
-    if ($title === '' || !validCalendarDate($event_date) || !$start_time || !validCalendarTime($start_time)) {
-        jsonResponse(['success' => false, 'message' => 'Title, date, and start time are required.'], 422);
+    if ($title === '') {
+        jsonResponse(['success' => false, 'message' => 'Please enter a schedule title.'], 422);
     }
-
-    if ($end_time && (!validCalendarTime($end_time) || $end_time <= $start_time)) {
+    if (!$event_date) {
+        jsonResponse(['success' => false, 'message' => 'Please select a valid schedule date.'], 422);
+    }
+    if (!$start_time) {
+        jsonResponse(['success' => false, 'message' => 'Please enter a valid start time.'], 422);
+    }
+    if ($end_time && $end_time <= $start_time) {
         jsonResponse(['success' => false, 'message' => 'End time must be later than start time.'], 422);
     }
 
-    $conflict = hasScheduleConflict($conn, $event_date, $start_time, $end_time);
+    $conflict = hasScheduleConflict($conn, $event_date, $start_time, $end_time, $location);
     if ($conflict['conflict']) {
         jsonResponse(['success' => false, 'message' => $conflict['message'], 'conflict' => true], 409);
     }
@@ -447,7 +559,8 @@ if ($method === 'POST') {
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     $stmt = $conn->prepare($sql);
     if (!$stmt) {
-        jsonResponse(['success' => false, 'message' => 'Unable to save schedule.'], 500);
+        error_log("Calendar INSERT prepare error: " . $conn->error);
+        jsonResponse(['success' => false, 'message' => 'Unable to save schedule. Database preparation failed.'], 500);
     }
 
     $stmt->bind_param(
@@ -473,7 +586,8 @@ if ($method === 'POST') {
     );
 
     if (!$stmt->execute()) {
-        jsonResponse(['success' => false, 'message' => 'Unable to save schedule.'], 500);
+        error_log("Calendar INSERT execute error: " . $stmt->error);
+        jsonResponse(['success' => false, 'message' => 'Unable to save schedule. ' . $stmt->error], 500);
     }
 
     $schedule_id = $stmt->insert_id;
@@ -484,7 +598,7 @@ if ($method === 'POST') {
         notifyCalendarUsers($conn, 'New Parish Schedule', $title . ' is scheduled on ' . formatDate($event_date) . ' at ' . formatTime($start_time) . '.', (bool) $notify_email, (bool) $notify_sms);
     }
 
-    jsonResponse(['success' => true, 'message' => 'Schedule saved.', 'id' => $schedule_id]);
+    jsonResponse(['success' => true, 'message' => 'Schedule saved successfully.', 'id' => $schedule_id, 'schedule_id' => $schedule_id]);
 }
 
 // PUT/PATCH Route - Updates an existing schedule event while preserving conflict checks.
@@ -514,11 +628,11 @@ if (in_array($method, ['PUT', 'PATCH'], true)) {
 
     $title = cleanCalendarValue($input['title'] ?? $current['title'], 200);
     $description = cleanCalendarValue($input['description'] ?? $current['description'], 5000);
-    $event_date = cleanCalendarValue($input['event_date'] ?? $current['event_date'], 10);
+    $event_date = normalizeCalendarDate($input['event_date'] ?? $current['event_date']);
     $start_time = normalizeCalendarTime($input['start_time'] ?? $current['start_time']);
     $end_time = normalizeCalendarTime(array_key_exists('end_time', $input) ? $input['end_time'] : $current['end_time']);
     $location = cleanCalendarValue($input['location'] ?? $current['location'], 150);
-    $category = cleanCalendarValue($input['category'] ?? $current['category'], 50);
+    $category = normalizeCalendarCategory($input['category'] ?? $current['category']);
     $priority = cleanCalendarValue($input['priority'] ?? $current['priority'], 20);
     $color_label = normalizeCalendarColor($input['color_label'] ?? $current['color_label']);
     $recurrence_rule = cleanCalendarValue($input['recurrence_rule'] ?? $current['recurrence_rule'], 100);
@@ -530,16 +644,21 @@ if (in_array($method, ['PUT', 'PATCH'], true)) {
     $notify_email = !empty($input['notify_email']) ? 1 : 0;
     $notify_sms = !empty($input['notify_sms']) ? 1 : 0;
 
-    if ($title === '' || !validCalendarDate($event_date) || !$start_time || !validCalendarTime($start_time)) {
-        jsonResponse(['success' => false, 'message' => 'Title, date, and start time are required.'], 422);
+    if ($title === '') {
+        jsonResponse(['success' => false, 'message' => 'Please enter a schedule title.'], 422);
     }
-
-    if ($end_time && (!validCalendarTime($end_time) || $end_time <= $start_time)) {
+    if (!$event_date) {
+        jsonResponse(['success' => false, 'message' => 'Please select a valid schedule date.'], 422);
+    }
+    if (!$start_time) {
+        jsonResponse(['success' => false, 'message' => 'Please enter a valid start time.'], 422);
+    }
+    if ($end_time && $end_time <= $start_time) {
         jsonResponse(['success' => false, 'message' => 'End time must be later than start time.'], 422);
     }
 
     if ($status !== 'cancelled') {
-        $conflict = hasScheduleConflict($conn, $event_date, $start_time, $end_time, $id);
+        $conflict = hasScheduleConflict($conn, $event_date, $start_time, $end_time, $location, $id);
         if ($conflict['conflict']) {
             jsonResponse(['success' => false, 'message' => $conflict['message'], 'conflict' => true], 409);
         }
@@ -552,7 +671,8 @@ if (in_array($method, ['PUT', 'PATCH'], true)) {
             WHERE schedule_id = ?";
     $stmt = $conn->prepare($sql);
     if (!$stmt) {
-        jsonResponse(['success' => false, 'message' => 'Unable to update schedule.'], 500);
+        error_log("Calendar UPDATE prepare error: " . $conn->error);
+        jsonResponse(['success' => false, 'message' => 'Unable to update schedule. Database preparation failed.'], 500);
     }
 
     $stmt->bind_param(
@@ -578,12 +698,13 @@ if (in_array($method, ['PUT', 'PATCH'], true)) {
     );
 
     if (!$stmt->execute()) {
-        jsonResponse(['success' => false, 'message' => 'Unable to update schedule.'], 500);
+        error_log("Calendar UPDATE execute error: " . $stmt->error);
+        jsonResponse(['success' => false, 'message' => 'Unable to update schedule. ' . $stmt->error], 500);
     }
 
     $stmt->close();
     createAuditLog($conn, $_SESSION['user_id'], 'UPDATE_SCHEDULE_EVENT', 'schedule_events', $id, $current);
-    jsonResponse(['success' => true, 'message' => 'Schedule updated.']);
+    jsonResponse(['success' => true, 'message' => 'Schedule updated successfully.']);
 }
 
 // DELETE Route - Cancels schedule events or removes draft entries from the calendar.
@@ -595,18 +716,19 @@ if ($method === 'DELETE') {
 
     $stmt = $conn->prepare("DELETE FROM schedule_events WHERE schedule_id = ?");
     if (!$stmt) {
+        error_log("Calendar DELETE prepare error: " . $conn->error);
         jsonResponse(['success' => false, 'message' => 'Unable to delete schedule.'], 500);
     }
 
     $stmt->bind_param('i', $id);
     if (!$stmt->execute()) {
-        jsonResponse(['success' => false, 'message' => 'Unable to delete schedule.'], 500);
+        error_log("Calendar DELETE execute error: " . $stmt->error);
+        jsonResponse(['success' => false, 'message' => 'Unable to delete schedule. ' . $stmt->error], 500);
     }
 
     $stmt->close();
     createAuditLog($conn, $_SESSION['user_id'], 'DELETE_SCHEDULE_EVENT', 'schedule_events', $id);
-    jsonResponse(['success' => true, 'message' => 'Schedule deleted.']);
+    jsonResponse(['success' => true, 'message' => 'Schedule deleted successfully.']);
 }
 
 jsonResponse(['success' => false, 'message' => 'Unsupported calendar action.'], 405);
-?>
