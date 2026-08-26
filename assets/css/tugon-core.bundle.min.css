@@ -12,6 +12,12 @@
 --avatar-gold: #F0D9A8;
 --avatar-text: #8a5a12;
 }
+html, body {
+height: 100%;
+margin: 0;
+padding: 0;
+overflow-x: hidden;
+}
 html body .app-layout,
 html body .premium-admin-shell,
 html body.premium-admin .premium-admin-shell,
@@ -19,11 +25,12 @@ html body.church-theme .premium-admin-shell,
 html body .admin-layout,
 html body .user-shell {
 display: flex !important;
-min-height: 100vh !important;
+height: 100vh !important;
+max-height: 100vh !important;
 width: 100% !important;
 position: relative !important;
 background-color: var(--bg-cream) !important;
-overflow-x: hidden !important;
+overflow: hidden !important;
 }
 html body.premium-admin,
 html body.church-theme {
@@ -50,11 +57,31 @@ border: 0 !important;
 border-right: 1px solid rgba(200, 155, 60, 0.3) !important;
 border-radius: 0 !important;
 box-shadow: 6px 0 20px rgba(20, 29, 20, 0.12) !important;
-overflow-x: visible !important;
+overflow-x: hidden !important;
 overflow-y: auto !important;
 transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1), min-width 0.28s cubic-bezier(0.4, 0, 0.2, 1) !important;
 scrollbar-width: thin;
 scrollbar-color: rgba(200, 155, 60, 0.72) rgba(255, 255, 255, 0.05);
+}
+html body .premium-admin-content,
+html body .main-content,
+html body.premium-admin .premium-admin-shell > .premium-admin-content,
+html body .user-content,
+html body .user-main {
+flex: 1 1 auto !important;
+min-width: 0 !important;
+width: calc(100% - var(--admin-sidebar-width)) !important;
+height: 100vh !important;
+max-height: 100vh !important;
+overflow-y: auto !important;
+overflow-x: hidden !important;
+padding: 20px 24px 40px !important;
+box-sizing: border-box !important;
+background-color: var(--bg-cream) !important;
+}
+html body.admin-sidebar-collapsed .premium-admin-content,
+html body.admin-sidebar-collapsed .main-content {
+width: calc(100% - var(--admin-sidebar-collapsed-width)) !important;
 }
 html body .admin-sidebar::-webkit-scrollbar,
 html body .user-sidebar::-webkit-scrollbar {

@@ -163,11 +163,6 @@ $user_header_icons = [
     'dashboard.php' => 'fa-gauge-high',
     'request-certificate.php' => 'fa-certificate',
     'request-blessing.php' => 'fa-hands-praying',
-    'request-service.php' => 'fa-church',
-    'my-requests.php' => 'fa-list-check',
-    'view-request.php' => 'fa-file-lines',
-    'make-reservation.php' => 'fa-calendar-plus',
-    'my-reservations.php' => 'fa-calendar-check',
     'announcements.php' => 'fa-bullhorn',
     'notifications.php' => 'fa-bell',
     'view-schedule.php' => 'fa-calendar-days',
@@ -196,10 +191,16 @@ $header_search_placeholder = $is_admin_area ? ($admin_search_placeholders[$curre
 $header_search_action = $is_admin_area ? BASE_URL . 'admin/manage-users.php' : BASE_URL . 'users/my-requests.php';
 $header_search_name = $is_admin_area ? 'search' : 'q';
 $header_search_value = $_GET[$header_search_name] ?? ($_GET['q'] ?? ($_GET['search'] ?? ''));
-$header_user_name = sanitize($_SESSION['fullname'] ?? ($is_admin_area ? 'Administrator' : 'Parishioner'));
-$header_user_first_name_parts = preg_split('/\s+/', trim((string) ($_SESSION['fullname'] ?? 'Parishioner')));
-$header_user_first_name = sanitize($header_user_first_name_parts[0] ?? 'Parishioner');
-$header_user_role = $is_admin_area ? 'Administrator' : 'Parishioner';
+
+if ($is_admin_area) {
+    $header_user_name = 'Admin';
+    $header_avatar_initial = 'A';
+    $header_user_role = 'Administrator';
+} else {
+    $header_user_name = sanitize($_SESSION['fullname'] ?? 'Parishioner');
+    $header_avatar_initial = strtoupper(substr($header_user_name ?: 'P', 0, 1));
+    $header_user_role = 'Parishioner';
+}
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo $current_language === 'fil' ? 'fil' : 'en'; ?>">

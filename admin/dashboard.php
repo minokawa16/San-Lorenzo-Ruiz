@@ -722,9 +722,9 @@ $dashboard_avatar_letter = strtoupper(substr($dashboard_profile_name ?: 'T', 0, 
                 <div class="dashboard-header-profile-wrap parish-nav-right">
                     <div class="dropdown">
                         <button class="profile-chip-btn parish-profile-pill-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <span class="profile-chip-avatar parish-profile-avatar"><?php echo htmlspecialchars($dashboard_avatar_letter); ?></span>
+                            <span class="profile-chip-avatar parish-profile-avatar">A</span>
                             <span class="profile-chip-meta parish-profile-meta">
-                                <span class="profile-chip-name parish-profile-name"><?php echo htmlspecialchars($dashboard_profile_name); ?></span>
+                                <span class="profile-chip-name parish-profile-name">Admin</span>
                                 <span class="profile-chip-role parish-profile-role">Administrator</span>
                             </span>
                             <i class="fas fa-chevron-down ms-1" style="font-size: 10px; color: #9a9890;"></i>
