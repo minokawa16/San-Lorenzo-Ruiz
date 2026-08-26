@@ -747,20 +747,26 @@ $action_notifications = function_exists('consumeActionNotifications') ? consumeA
             position: relative !important;
             z-index: 2 !important;
             display: flex !important;
+            flex-direction: column !important;
             align-items: center !important;
-            gap: 18px !important;
+            justify-content: center !important;
+            text-align: center !important;
+            gap: 20px !important;
+            width: 100% !important;
+            margin: 0 auto !important;
             color: var(--tugon-auth-white) !important;
             text-decoration: none !important;
             animation: authLogoFade 520ms ease both !important;
         }
 
         .auth-side-logo {
-            width: 174px !important;
-            height: 174px !important;
-            flex: 0 0 174px !important;
+            width: 180px !important;
+            height: 180px !important;
+            flex: 0 0 180px !important;
             display: inline-flex !important;
             align-items: center !important;
             justify-content: center !important;
+            margin: 0 auto !important;
             overflow: hidden !important;
             border-radius: 50% !important;
             background: #fff8eb !important;
@@ -787,6 +793,8 @@ $action_notifications = function_exists('consumeActionNotifications') ? consumeA
             font-size: clamp(2rem, 3.2vw, 2.65rem) !important;
             line-height: 1.05 !important;
             letter-spacing: 0 !important;
+            text-align: center !important;
+            width: 100% !important;
         }
 
         .auth-side-brand small {
@@ -797,28 +805,33 @@ $action_notifications = function_exists('consumeActionNotifications') ? consumeA
             font-weight: 800 !important;
             letter-spacing: 0.13em !important;
             text-transform: uppercase !important;
+            text-align: center !important;
+            justify-content: center !important;
+            width: 100% !important;
         }
 
         .auth-login-side blockquote {
             position: relative !important;
             z-index: 2 !important;
-            max-width: 430px !important;
-            margin: 40px 0 14px !important;
+            max-width: 400px !important;
+            margin: 36px auto 14px !important;
             color: var(--tugon-auth-white) !important;
             font-family: "Playfair Display", Georgia, serif !important;
-            font-size: clamp(1.75rem, 3vw, 2.45rem) !important;
+            font-size: clamp(1.4rem, 2.2vw, 1.85rem) !important;
             font-weight: 700 !important;
-            line-height: 1.16 !important;
+            line-height: 1.25 !important;
+            text-align: center !important;
         }
 
         .auth-login-side p {
             position: relative !important;
             z-index: 2 !important;
-            max-width: 430px !important;
-            margin: 0 !important;
-            color: rgba(255, 255, 255, 0.82) !important;
-            font-size: 16px !important;
-            line-height: 1.7 !important;
+            max-width: 380px !important;
+            margin: 0 auto !important;
+            color: rgba(255, 255, 255, 0.86) !important;
+            font-size: 0.94rem !important;
+            line-height: 1.65 !important;
+            text-align: center !important;
         }
 
         .auth-copy-list {

@@ -1,4 +1,4 @@
-<?php
+ <?php
 /**
  * ADMIN DASHBOARD
  * Parish Management System - Admin Control Panel
