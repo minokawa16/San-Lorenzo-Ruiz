@@ -592,11 +592,11 @@ html body .admin-global-title {
 
 html body .admin-global-title h1 {
     font-family: 'Playfair Display', Georgia, serif !important;
-    font-size: 1.4rem !important;
+    font-size: 1.55rem !important;
     font-weight: 700 !important;
     color: #1e293b !important;
     margin: 0 !important;
-    line-height: 1.2 !important;
+    line-height: 1.15 !important;
 }
 
 html body .admin-global-title p,
@@ -626,7 +626,7 @@ html body form.app-header-search input,
 html body .parish-nav-search-input,
 html body .dashboard-search-input {
     width: 100% !important;
-    height: 38px !important;
+    height: 42px !important;
     font-size: 0.82rem !important;
     border-radius: 999px !important;
     padding-left: 18px !important;
@@ -672,7 +672,7 @@ html body form.app-header-search kbd {
 }
 
 html body .admin-profile-btn {
-    height: 42px !important;
+    height: 44px !important;
     background: #ffffff !important;
     border: 1px solid var(--border-warm) !important;
     border-radius: 999px !important;
@@ -691,8 +691,8 @@ html body .admin-profile-btn:hover {
 }
 
 html body .admin-profile-btn .profile-avatar {
-    width: 32px !important;
-    height: 32px !important;
+    width: 34px !important;
+    height: 34px !important;
     border-radius: 50% !important;
     background: var(--avatar-gold) !important;
     color: var(--avatar-text) !important;
