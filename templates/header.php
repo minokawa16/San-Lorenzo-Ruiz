@@ -307,18 +307,23 @@ $header_user_role = $is_admin_area ? 'Administrator' : 'Parishioner';
         <?php include '../includes/admin-sidebar.php'; ?>
         <main class="premium-admin-content main-content" id="main-content" tabindex="-1">
             <?php if (empty($hide_global_header)): ?>
-            <header class="app-global-header admin-global-topbar">
-                <div class="admin-global-title">
-                    <h1><?php echo e($admin_header_title); ?></h1>
-                    <p><?php echo e($admin_header_description); ?></p>
+            <header class="app-global-header admin-global-topbar flex items-center justify-between w-full py-3 mb-4 bg-transparent" style="background: transparent !important; border: none !important; box-shadow: none !important;">
+                <!-- Left Title & Subtitle -->
+                <div class="admin-global-title flex items-center gap-3">
+                    <h1 class="text-xl font-bold text-gray-900 m-0" style="font-family: 'Playfair Display', Georgia, serif; font-size: 1.45rem; font-weight: 700; color: #1e293b;"><?php echo e($admin_header_title); ?></h1>
+                    <span class="text-xs text-muted d-none d-sm-inline-block" style="font-size: 0.8rem; color: #6b6a63;"><?php echo e($admin_header_description); ?></span>
                 </div>
-                <div class="app-header-center">
-                    <form class="app-header-search" action="<?php echo e($header_search_action); ?>" method="GET">
+
+                <!-- Center Search Bar (No double borders) -->
+                <div class="app-header-center flex-1 max-w-md mx-6">
+                    <form class="app-header-search" action="<?php echo e($header_search_action); ?>" method="GET" style="background: transparent; border: none; box-shadow: none;">
                         <i class="fas fa-magnifying-glass"></i>
                         <input type="search" name="<?php echo e($header_search_name); ?>" placeholder="<?php echo e($header_search_placeholder); ?>" value="<?php echo e($header_search_value); ?>" autocomplete="off">
                         <kbd>Ctrl K</kbd>
                     </form>
                 </div>
+
+                <!-- Right Admin Profile -->
                 <div class="admin-global-actions">
                     <div class="dropdown">
                         <button class="profile-chip-btn admin-profile-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
