@@ -94,26 +94,12 @@
     </a>
     <?php endif; ?>
 
-    <?php if (hasAnyPermission(['announcements.manage', 'ai.staff.use', 'ai.admin.use', 'ai.manage.knowledge'])): ?>
-    <div class="nav-section-label">Communication &amp; AI</div>
     <?php if (hasPermission('announcements.manage')): ?>
+    <div class="nav-section-label"><?php echo e(t('nav.communication', 'Communication')); ?></div>
     <a href="<?php echo BASE_URL; ?>admin/manage-announcements.php" class="nav-link <?php echo in_array(basename($_SERVER['PHP_SELF']), ['manage-announcements.php', 'post-announcement.php'], true) ? 'active' : ''; ?>" data-tooltip="<?php echo e(t('nav.announcements', 'Announcements')); ?>">
       <i class="fas fa-bullhorn"></i>
       <span><?php echo e(t('nav.announcements', 'Announcements')); ?></span>
     </a>
-    <?php endif; ?>
-    <?php if (hasAnyPermission(['ai.staff.use', 'ai.admin.use'])): ?>
-    <a href="<?php echo BASE_URL; ?>admin/ai-assistant.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'ai-assistant.php') ? 'active' : ''; ?>" data-tooltip="AI Assistant">
-      <i class="fas fa-robot"></i>
-      <span>AI Assistant</span>
-    </a>
-    <?php endif; ?>
-    <?php if (hasPermission('ai.manage.knowledge') || hasPermission('system.settings')): ?>
-    <a href="<?php echo BASE_URL; ?>admin/chatbot-knowledge.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'chatbot-knowledge.php') ? 'active' : ''; ?>" data-tooltip="Chatbot Knowledge">
-      <i class="fas fa-brain"></i>
-      <span>Chatbot Knowledge</span>
-    </a>
-    <?php endif; ?>
     <?php endif; ?>
 
     <?php if (hasAnyPermission(['reports.view', 'audit.view'])): ?>
