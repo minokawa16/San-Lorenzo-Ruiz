@@ -134,33 +134,6 @@ body.church-theme {
     color: var(--text-charcoal-dark);
 }
 
-/* ── 1. Topmost Thin Motto Bar ───────────────────────────────── */
-.parish-motto-bar {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 6px 16px;
-    background: rgba(197, 155, 39, 0.08);
-    border-bottom: 1px solid rgba(197, 155, 39, 0.2);
-    font-size: 0.76rem;
-    font-weight: 600;
-    color: var(--brand-gold-dark);
-    letter-spacing: 0.3px;
-    margin: -20px -24px 16px -24px;
-}
-
-.parish-motto-bar .motto-cross {
-    display: inline-flex;
-    align-items: center;
-    color: var(--brand-gold-warm);
-}
-
-.parish-motto-bar em {
-    font-style: italic;
-    font-family: 'Playfair Display', Georgia, serif;
-    letter-spacing: 0.4px;
-}
 
 /* ── 2. Top Navigation Header (Seamless Transparent) ────────── */
 .parish-top-nav-bar {
@@ -745,15 +718,6 @@ body.church-theme {
 
 <div class="container-fluid px-0">
 
-    <!-- 1. Topmost Thin Motto Bar -->
-    <div class="parish-motto-bar">
-        <span class="motto-cross" aria-hidden="true">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M11 2h2v6h6v2h-6v12h-2V10H5V8h6V2z"/>
-            </svg>
-        </span>
-        <em>Faith in Service, Excellence in Management</em>
-    </div>
 
     <!-- 2. Main Navigation Header (Seamless Transparent) -->
     <header class="parish-top-nav-bar">
