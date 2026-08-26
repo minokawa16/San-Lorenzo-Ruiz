@@ -322,7 +322,6 @@ $header_user_role = $is_admin_area ? 'Administrator' : 'Parishioner';
                 <!-- Center Search Bar (No double borders, rounded pill with Ctrl K) -->
                 <div class="app-header-center parish-nav-center flex-1 max-w-md mx-6">
                     <form class="app-header-search parish-nav-search-form" action="<?php echo e($header_search_action); ?>" method="GET" style="background: transparent; border: none; box-shadow: none;">
-                        <i class="fas fa-magnifying-glass search-icon" aria-hidden="true"></i>
                         <input class="parish-nav-search-input" type="search" name="<?php echo e($header_search_name); ?>" placeholder="<?php echo e($header_search_placeholder); ?>" value="<?php echo e($header_search_value); ?>" autocomplete="off">
                         <kbd>Ctrl K</kbd>
                     </form>

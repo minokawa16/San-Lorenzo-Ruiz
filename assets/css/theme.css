@@ -5,8 +5,8 @@
 @import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Inter:wght@400;500;600;700&family=Lora:wght@500;600&family=Playfair+Display:wght@600;700&display=swap");
 
 :root {
-    --bg-cream: #F8F6F1;
-    --bg-cream-soft: #FCFBF8;
+    --bg-cream: #F1EFE8;
+    --bg-cream-soft: #F6F4EE;
     --card-cream: #FFFFFF;
     --card-cream-light: #FFFFFF;
     --accent-gold: #C89B3C;
@@ -14,24 +14,24 @@
     --accent-gold-soft: rgba(200, 155, 60, 0.12);
     --sidebar-dark: #2E3A2D;
     --sidebar-dark-soft: #384637;
-    --text-charcoal: #222222;
-    --text-muted-brown: #6B7280;
-    --border-warm: #E8E1D5;
+    --text-charcoal: #1E293B;
+    --text-muted-brown: #64748B;
+    --border-warm: #d8d6cc;
     --card-radius: 12px;
     --shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
-    --font-heading: "Lora", Georgia, "Times New Roman", serif;
-    --font-ui: "Inter", "Segoe UI", Arial, sans-serif;
-    --tugon-admin-bg: #F8F6F1;
-    --tugon-admin-bg-deep: #FCFBF8;
+    --font-heading: "Playfair Display", Georgia, "Times New Roman", serif;
+    --font-ui: "Plus Jakarta Sans", "Inter", "Segoe UI", Arial, sans-serif;
+    --tugon-admin-bg: #F1EFE8;
+    --tugon-admin-bg-deep: #F6F4EE;
     --tugon-admin-surface: #FFFFFF;
     --tugon-admin-ocean: #2E3A2D;
     --tugon-admin-link: #A77F2A;
     --tugon-admin-teal: #C89B3C;
     --tugon-admin-aqua: rgba(200, 155, 60, 0.12);
-    --tugon-admin-stone: #E8E1D5;
-    --tugon-admin-border: #E8E1D5;
-    --tugon-admin-text: #222222;
-    --tugon-admin-muted: #6B7280;
+    --tugon-admin-stone: #d8d6cc;
+    --tugon-admin-border: #d8d6cc;
+    --tugon-admin-text: #1E293B;
+    --tugon-admin-muted: #64748B;
 }
 
 html,

@@ -591,13 +591,15 @@ html body form.app-header-search {
 }
 
 html body .app-header-search input,
-html body form.app-header-search input {
+html body form.app-header-search input,
+html body .parish-nav-search-input,
+html body .dashboard-search-input {
     width: 100% !important;
     height: 38px !important;
     font-size: 0.82rem !important;
     border-radius: 999px !important;
-    padding-left: 36px !important;
-    padding-right: 64px !important;
+    padding-left: 18px !important;
+    padding-right: 68px !important;
     background: #ffffff !important;
     border: 1px solid var(--border-warm) !important;
     color: #0f172a !important;
@@ -607,22 +609,20 @@ html body form.app-header-search input {
 }
 
 html body .app-header-search input:focus,
-html body form.app-header-search input:focus {
+html body form.app-header-search input:focus,
+html body .parish-nav-search-input:focus,
+html body .dashboard-search-input:focus {
     border-color: var(--admin-sidebar-gold) !important;
     box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.15) !important;
     outline: none !important;
 }
 
 html body .app-header-search i,
-html body form.app-header-search i {
-    position: absolute !important;
-    left: 14px !important;
-    top: 50% !important;
-    transform: translateY(-50%) !important;
-    color: #9a9890 !important;
-    font-size: 13px !important;
-    pointer-events: none !important;
-    z-index: 2 !important;
+html body form.app-header-search i,
+html body .parish-nav-search-form i,
+html body .dashboard-header-search-form i,
+html body .search-icon {
+    display: none !important;
 }
 
 html body .app-header-search kbd,

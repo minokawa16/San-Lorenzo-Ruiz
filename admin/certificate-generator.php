@@ -97,167 +97,221 @@ $breadcrumbs = [
 include '../templates/header.php';
 ?>
 
+<style>
+    .pds-cert-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+    .pds-cert-card {
+        background: #ffffff;
+        border: 1px solid var(--border-warm, #d8d6cc);
+        border-radius: 12px;
+        padding: 22px 18px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    }
+    .pds-cert-card:hover {
+        transform: translateY(-2px);
+        border-color: #c4c1b5;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+    }
+    .pds-cert-icon-wrap {
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.35rem;
+        margin-bottom: 12px;
+    }
+    .pds-cert-title {
+        font-family: 'Playfair Display', Georgia, serif;
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin: 0 0 6px 0;
+    }
+    .pds-cert-count {
+        font-size: 0.8rem;
+        color: #64748b;
+        margin-bottom: 14px;
+    }
+    .pds-cert-count strong {
+        color: #1e293b;
+    }
+    .btn-primary-gold {
+        background: #c89b3c !important;
+        color: #1e293b !important;
+        font-weight: 600 !important;
+        border: none !important;
+        border-radius: 6px !important;
+        padding: 6px 16px !important;
+        font-size: 0.82rem !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        transition: all 0.15s ease !important;
+    }
+    .btn-primary-gold:hover {
+        background: #b58930 !important;
+        color: #141d24 !important;
+        transform: translateY(-1px) !important;
+    }
+    .pds-info-card {
+        background: #ffffff;
+        border: 1px solid var(--border-warm, #d8d6cc);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+    }
+</style>
+
 <div class="container-fluid px-0">
     <!-- Standardized Section Header -->
-    <?php
-    $page_header_title = 'Certificate Generator';
-    $page_header_subtitle = 'Prepare, preview, and release official parish certificates from records or manual entry.';
-    $page_header_icon = 'fa-award';
-    $show_back_button = true;
-    $back_button_url = BASE_URL . 'admin/dashboard.php';
-    include '../includes/page_header.php';
-    ?>
-
-    <div class="mb-4">
-        <a href="manual-certificate-generator.php" class="btn btn-primary">
-            <i class="fas fa-pen-to-square"></i> Manual Certificate Generator
-        </a>
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+        <?php
+        $page_header_title = 'Generate Certificates';
+        $page_header_subtitle = 'Prepare, preview, and release official parish certificates from records or manual entry.';
+        $page_header_icon = 'fa-certificate';
+        $show_back_button = true;
+        $back_button_url = BASE_URL . 'admin/dashboard.php';
+        include '../includes/page_header.php';
+        ?>
+        <div class="mb-3">
+            <a href="manual-certificate-generator.php" class="btn btn-primary-gold">
+                <i class="fas fa-pen-to-square"></i> Manual Certificate Generator
+            </a>
+        </div>
     </div>
 
-    <div class="row">
+    <!-- Sacramental Certificates Grid -->
+    <h5 class="mb-3" style="font-family: 'Playfair Display', Georgia, serif; font-size: 1.15rem; font-weight: 700; color: #1e293b;">
+        <i class="fas fa-scroll me-2 text-warning"></i> Official Sacramental Certificates
+    </h5>
+    <div class="pds-cert-grid">
         <!-- Baptism -->
-        <div class="col-md-6 col-lg-4 mb-4">
-                <div class="card-body text-center">
-                    <div style="font-size: 2.5rem; color: #1a3a52; margin-bottom: 10px;">
-                        <i class="fas fa-water"></i>
-                    </div>
-                    <h5 class="card-title">Baptism Certificates</h5>
-                    <p class="text-muted"><strong><?php echo $baptism_count; ?></strong> Records</p>
-                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#generateModal" data-cert-type="baptism">
-                        <i class="fas fa-file-pdf"></i> Generate
-                    </button>
-                </div>
+        <div class="pds-cert-card">
+            <div class="pds-cert-icon-wrap" style="background: #e0f2fe; color: #0284c7;">
+                <i class="fas fa-water"></i>
             </div>
+            <h6 class="pds-cert-title">Baptism Certificates</h6>
+            <div class="pds-cert-count"><strong><?php echo (int)$baptism_count; ?></strong> Active Records</div>
+            <button class="btn-primary-gold" data-bs-toggle="modal" data-bs-target="#generateModal" data-cert-type="baptism">
+                <i class="fas fa-file-pdf"></i> Generate
+            </button>
         </div>
 
         <!-- First Communion -->
-        <div class="col-md-6 col-lg-4 mb-4">
-            <div class="card h-100 shadow-sm border-0">
-                <div class="card-body text-center">
-                    <div style="font-size: 2.5rem; color: #28a745; margin-bottom: 10px;">
-                        <i class="fas fa-bread-slice"></i>
-                    </div>
-                    <h5 class="card-title">First Communion Certificate</h5>
-                    <p class="text-muted"><strong><?php echo $communion_count; ?></strong> Records</p>
-                    <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#generateModal" data-cert-type="communion">
-                        <i class="fas fa-file-pdf"></i> Generate
-                    </button>
-                </div>
+        <div class="pds-cert-card">
+            <div class="pds-cert-icon-wrap" style="background: #fef3c7; color: #b45309;">
+                <i class="fas fa-wheat-awn"></i>
             </div>
+            <h6 class="pds-cert-title">First Communion Certificate</h6>
+            <div class="pds-cert-count"><strong><?php echo (int)$communion_count; ?></strong> Active Records</div>
+            <button class="btn-primary-gold" data-bs-toggle="modal" data-bs-target="#generateModal" data-cert-type="communion">
+                <i class="fas fa-file-pdf"></i> Generate
+            </button>
         </div>
 
         <!-- Confirmation -->
-        <div class="col-md-6 col-lg-4 mb-4">
-            <div class="card h-100 shadow-sm border-0">
-                <div class="card-body text-center">
-                    <div style="font-size: 2.5rem; color: #17a2b8; margin-bottom: 10px;">
-                        <i class="fas fa-dove"></i>
-                    </div>
-                    <h5 class="card-title">Confirmation Certificates</h5>
-                    <p class="text-muted"><strong><?php echo $confirmation_count; ?></strong> Records</p>
-                    <button class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#generateModal" data-cert-type="confirmation">
-                        <i class="fas fa-file-pdf"></i> Generate
-                    </button>
-                </div>
+        <div class="pds-cert-card">
+            <div class="pds-cert-icon-wrap" style="background: #e0e7ff; color: #4338ca;">
+                <i class="fas fa-dove"></i>
             </div>
+            <h6 class="pds-cert-title">Confirmation Certificates</h6>
+            <div class="pds-cert-count"><strong><?php echo (int)$confirmation_count; ?></strong> Active Records</div>
+            <button class="btn-primary-gold" data-bs-toggle="modal" data-bs-target="#generateModal" data-cert-type="confirmation">
+                <i class="fas fa-file-pdf"></i> Generate
+            </button>
         </div>
-
     </div>
 
-    <div class="row">
+    <!-- Sacramental Certifications Grid -->
+    <h5 class="mb-3 mt-4" style="font-family: 'Playfair Display', Georgia, serif; font-size: 1.15rem; font-weight: 700; color: #1e293b;">
+        <i class="fas fa-file-signature me-2 text-warning"></i> Sacramental Certifications
+    </h5>
+    <div class="pds-cert-grid">
         <!-- Baptismal Certification -->
-        <div class="col-md-6 col-lg-4 mb-4">
-            <div class="card h-100 shadow-sm border-0">
-                <div class="card-body text-center">
-                    <div style="font-size: 2.5rem; color: #1a3a52; margin-bottom: 10px;">
-                        <i class="fas fa-file-signature"></i>
-                    </div>
-                    <h5 class="card-title">Baptismal Certification</h5>
-                    <p class="text-muted"><strong><?php echo $baptism_count; ?></strong> Baptism Records</p>
-                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#generateModal" data-cert-type="baptism_certification" data-record-type="baptism">
-                        <i class="fas fa-file-pdf"></i> Generate
-                    </button>
-                </div>
+        <div class="pds-cert-card">
+            <div class="pds-cert-icon-wrap" style="background: #e0f2fe; color: #0284c7;">
+                <i class="fas fa-file-signature"></i>
             </div>
+            <h6 class="pds-cert-title">Baptismal Certification</h6>
+            <div class="pds-cert-count"><strong><?php echo (int)$baptism_count; ?></strong> Baptism Records</div>
+            <button class="btn-primary-gold" data-bs-toggle="modal" data-bs-target="#generateModal" data-cert-type="baptism_certification" data-record-type="baptism">
+                <i class="fas fa-file-pdf"></i> Generate
+            </button>
         </div>
 
         <!-- Confirmation Certification -->
-        <div class="col-md-6 col-lg-4 mb-4">
-            <div class="card h-100 shadow-sm border-0">
-                <div class="card-body text-center">
-                    <div style="font-size: 2.5rem; color: #17a2b8; margin-bottom: 10px;">
-                        <i class="fas fa-file-circle-check"></i>
-                    </div>
-                    <h5 class="card-title">Confirmation Certification</h5>
-                    <p class="text-muted"><strong><?php echo $confirmation_count; ?></strong> Confirmation Records</p>
-                    <button class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#generateModal" data-cert-type="confirmation_certification" data-record-type="confirmation">
-                        <i class="fas fa-file-pdf"></i> Generate
-                    </button>
-                </div>
+        <div class="pds-cert-card">
+            <div class="pds-cert-icon-wrap" style="background: #e0e7ff; color: #4338ca;">
+                <i class="fas fa-file-circle-check"></i>
             </div>
+            <h6 class="pds-cert-title">Confirmation Certification</h6>
+            <div class="pds-cert-count"><strong><?php echo (int)$confirmation_count; ?></strong> Confirmation Records</div>
+            <button class="btn-primary-gold" data-bs-toggle="modal" data-bs-target="#generateModal" data-cert-type="confirmation_certification" data-record-type="confirmation">
+                <i class="fas fa-file-pdf"></i> Generate
+            </button>
         </div>
 
         <!-- First Communion Certification -->
-        <div class="col-md-6 col-lg-4 mb-4">
-            <div class="card h-100 shadow-sm border-0">
-                <div class="card-body text-center">
-                    <div style="font-size: 2.5rem; color: #28a745; margin-bottom: 10px;">
-                        <i class="fas fa-file-lines"></i>
-                    </div>
-                    <h5 class="card-title">First Communion Certification</h5>
-                    <p class="text-muted"><strong><?php echo $communion_count; ?></strong> First Communion Records</p>
-                    <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#generateModal" data-cert-type="first_communion_certification" data-record-type="communion">
-                        <i class="fas fa-file-pdf"></i> Generate
-                    </button>
-                </div>
+        <div class="pds-cert-card">
+            <div class="pds-cert-icon-wrap" style="background: #fef3c7; color: #b45309;">
+                <i class="fas fa-file-lines"></i>
             </div>
+            <h6 class="pds-cert-title">First Communion Certification</h6>
+            <div class="pds-cert-count"><strong><?php echo (int)$communion_count; ?></strong> Communion Records</div>
+            <button class="btn-primary-gold" data-bs-toggle="modal" data-bs-target="#generateModal" data-cert-type="first_communion_certification" data-record-type="communion">
+                <i class="fas fa-file-pdf"></i> Generate
+            </button>
         </div>
 
         <!-- Marriage Certification -->
-        <div class="col-md-6 col-lg-4 mb-4">
-            <div class="card h-100 shadow-sm border-0">
-                <div class="card-body text-center">
-                    <div style="font-size: 2.5rem; color: #8b5a2b; margin-bottom: 10px;">
-                        <i class="fas fa-file-contract"></i>
-                    </div>
-                    <h5 class="card-title">Marriage Certification</h5>
-                    <p class="text-muted"><strong><?php echo $marriage_count; ?></strong> Marriage Records</p>
-                    <button class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#generateModal" data-cert-type="marriage_certification" data-record-type="marriage">
-                        <i class="fas fa-file-pdf"></i> Generate
-                    </button>
-                </div>
+        <div class="pds-cert-card">
+            <div class="pds-cert-icon-wrap" style="background: #fef2f2; color: #dc2626;">
+                <i class="fas fa-ring"></i>
             </div>
+            <h6 class="pds-cert-title">Marriage Certification</h6>
+            <div class="pds-cert-count"><strong><?php echo (int)$marriage_count; ?></strong> Marriage Records</div>
+            <button class="btn-primary-gold" data-bs-toggle="modal" data-bs-target="#generateModal" data-cert-type="marriage_certification" data-record-type="marriage">
+                <i class="fas fa-file-pdf"></i> Generate
+            </button>
         </div>
 
         <!-- Funeral Certification -->
-        <div class="col-md-6 col-lg-4 mb-4">
-            <div class="card h-100 shadow-sm border-0">
-                <div class="card-body text-center">
-                    <div style="font-size: 2.5rem; color: #6c757d; margin-bottom: 10px;">
-                        <i class="fas fa-cross"></i>
-                    </div>
-                    <h5 class="card-title">Funeral Certification</h5>
-                    <p class="text-muted"><strong><?php echo $funeral_count; ?></strong> Funeral Records</p>
-                    <button class="btn btn-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#generateModal" data-cert-type="funeral_certification" data-record-type="funeral">
-                        <i class="fas fa-file-pdf"></i> Generate
-                    </button>
-                </div>
+        <div class="pds-cert-card">
+            <div class="pds-cert-icon-wrap" style="background: #f1f5f9; color: #475569;">
+                <i class="fas fa-cross"></i>
             </div>
+            <h6 class="pds-cert-title">Funeral Certification</h6>
+            <div class="pds-cert-count"><strong><?php echo (int)$funeral_count; ?></strong> Funeral Records</div>
+            <button class="btn-primary-gold" data-bs-toggle="modal" data-bs-target="#generateModal" data-cert-type="funeral_certification" data-record-type="funeral">
+                <i class="fas fa-file-pdf"></i> Generate
+            </button>
         </div>
     </div>
 
     <!-- Info Card -->
-    <div class="card mt-4">
-        <div class="card-body">
-            <h5><i class="fas fa-info-circle"></i> How to Generate Certificates</h5>
-            <ol>
-                <li>First encode or update the parishioner's record in Sacramental Records</li>
-                <li>Click on the certificate type card</li>
-                <li>Select an existing manual record from the list</li>
-                <li>Click "Generate Certificate"</li>
-                <li>Review and print or export as PDF</li>
-            </ol>
-        </div>
+    <div class="pds-info-card mt-2">
+        <h6 style="font-family: 'Playfair Display', Georgia, serif; font-weight: 700; color: #1e293b; margin-bottom: 10px;">
+            <i class="fas fa-circle-info text-warning me-2"></i> How to Generate Certificates
+        </h6>
+        <ol class="mb-0 text-muted" style="font-size: 0.84rem; padding-left: 1.2rem; line-height: 1.6;">
+            <li>First encode or verify the parishioner's sacramental record in Sacramental Records.</li>
+            <li>Click on the certificate or certification type card above.</li>
+            <li>Select an existing manual record from the list modal.</li>
+            <li>Click "Generate Certificate" to preview and format the document.</li>
+            <li>Review and print or export directly as official PDF.</li>
+        </ol>
     </div>
 </div>
 
@@ -273,17 +327,16 @@ include '../templates/header.php';
                 <?php echo csrfInput(); ?>
                 <div class="modal-body">
                     <input type="hidden" name="cert_type" id="cert_type">
-                    
                     <div class="mb-3">
-                        <label for="record_id" class="form-label">Select Record</label>
+                        <label for="record_id" class="form-label" style="font-weight: 600; color: #1e293b;">Select Record</label>
                         <select class="form-select" id="record_id" name="record_id" required>
                             <option value="">-- Loading records --</option>
                         </select>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn-primary-gold">
                         <i class="fas fa-file-pdf"></i> Generate Certificate
                     </button>
                 </div>

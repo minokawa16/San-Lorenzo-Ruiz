@@ -11,18 +11,15 @@ requirePermission('calendar.manage');
 ensureScheduleEventsTable($conn);
 
 $page_title = 'Calendar & Scheduling';
+$breadcrumbs = [
+    'Dashboard' => 'dashboard.php',
+    'Schedule Calendar' => null
+];
+
+include '../templates/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo e($page_title); ?> | Parish Management System</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css">
-    <link rel="stylesheet" href="../assets/css/style.css">
-    <style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css">
+<style>
         :root {
             --calendar-primary: #1a73e8;
             --calendar-ink: #172033;
@@ -55,13 +52,13 @@ $page_title = 'Calendar & Scheduling';
 
         .calendar-shell {
             width: 100%;
-            margin-left: 260px;
-            padding: 18px;
-            transition: margin-left 0.25s ease;
+            margin-left: 0 !important;
+            padding: 0 !important;
+            transition: all 0.25s ease;
         }
 
         body.admin-sidebar-collapsed .calendar-shell {
-            margin-left: 88px;
+            margin-left: 0 !important;
         }
 
         .calendar-topbar {
@@ -467,27 +464,16 @@ $page_title = 'Calendar & Scheduling';
             }
         }
     </style>
-    <link rel="stylesheet" href="../assets/css/theme.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/theme.css') ? filemtime(__DIR__ . '/../assets/css/theme.css') : time(); ?>">
-</head>
-<body>
-<div class="parish-toast-container" id="parishToastContainer" aria-live="polite" aria-atomic="true"></div>
-<div class="admin-layout">
-    <?php include '../includes/admin-sidebar.php'; ?>
-
-    <main class="calendar-shell">
-        <a href="<?php echo BASE_URL; ?>admin/dashboard.php" class="parish-back-link mb-3">
-            <i class="fas fa-arrow-left"></i> Go Back
-        </a>
-
-        <div class="calendar-topbar">
-            <div class="calendar-title">
-                <div class="calendar-title-icon"><i class="fas fa-calendar-days"></i></div>
-                <div>
-                    <h1>Calendar & Scheduling</h1>
-                    <span>Manage parish events, tasks, reservations, meetings, and sacramental schedules.</span>
-                </div>
-            </div>
-        </div>
+    <div class="parish-toast-container" id="parishToastContainer" aria-live="polite" aria-atomic="true"></div>
+    <div class="calendar-shell">
+        <?php
+        $page_header_title = 'Calendar & Scheduling';
+        $page_header_subtitle = 'Manage parish events, tasks, reservations, meetings, and sacramental schedules.';
+        $page_header_icon = 'fa-calendar-days';
+        $show_back_button = true;
+        $back_button_url = BASE_URL . 'admin/dashboard.php';
+        include '../includes/page_header.php';
+        ?>
 
         <div class="calendar-grid">
             <aside class="calendar-sidebar">
@@ -996,5 +982,5 @@ document.querySelectorAll('.color-swatch').forEach(btn => {
     btn.addEventListener('click', () => setActiveColor(btn.dataset.color));
 });
 </script>
-</body>
-</html>
+</div>
+<?php include '../templates/footer.php'; ?>

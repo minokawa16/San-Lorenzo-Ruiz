@@ -264,7 +264,7 @@ $dashboard_avatar_letter = strtoupper(substr($dashboard_profile_name ?: 'T', 0, 
             background: var(--card-bg);
             border: 1px solid var(--border-warm);
             border-radius: 999px;
-            padding: 0 68px 0 38px;
+            padding: 0 68px 0 18px;
             font-size: 0.82rem;
             color: var(--text-primary);
             font-weight: 500;
@@ -710,10 +710,9 @@ $dashboard_avatar_letter = strtoupper(substr($dashboard_profile_name ?: 'T', 0, 
                     </div>
                 </div>
 
-                <!-- Center: Pill Search Input with Inline SVG & Ctrl K Badge -->
+                <!-- Center: Pill Search Input with Ctrl K Badge -->
                 <div class="dashboard-header-search-wrap parish-nav-center">
                     <form class="dashboard-header-search-form parish-nav-search-form" action="<?php echo BASE_URL; ?>admin/manage-users.php" method="GET">
-                        <i class="fas fa-magnifying-glass search-icon" aria-hidden="true"></i>
                         <input id="adminSmartSearch" class="dashboard-search-input parish-nav-search-input" name="search" type="search" placeholder="Search parishioners, requests..." autocomplete="off">
                         <kbd class="dashboard-search-kbd">Ctrl K</kbd>
                     </form>
