@@ -889,6 +889,49 @@ $has_logo = is_file($logo_file);
         }
 
 
+        .password-toggle {
+            position: absolute !important;
+            right: 8px !important;
+            top: 50% !important;
+            transform: translateY(-50%) !important;
+            width: 38px !important;
+            height: 38px !important;
+            border: none !important;
+            border-radius: 8px !important;
+            background: transparent !important;
+            color: #77736b !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            cursor: pointer !important;
+            z-index: 6 !important;
+            transition: color 0.18s ease, background 0.18s ease !important;
+        }
+
+        .password-toggle:hover {
+            color: #a97f24 !important;
+            background: rgba(200, 155, 60, 0.12) !important;
+        }
+
+        .password-toggle:focus-visible {
+            outline: 2px solid #c89b3c !important;
+            outline-offset: 2px !important;
+        }
+
+        .password-toggle i {
+            position: static !important;
+            width: auto !important;
+            height: auto !important;
+            color: inherit !important;
+            transform: none !important;
+            pointer-events: none !important;
+            font-size: 15px !important;
+        }
+
+        .input-wrap.password .form-control {
+            padding-right: 48px !important;
+        }
+
         .id-side-upload {
             position: relative;
             display: inline-flex;
@@ -2058,16 +2101,44 @@ $has_logo = is_file($logo_file);
             right: 8px !important;
             top: 50% !important;
             transform: translateY(-50%) !important;
-            width: 36px !important;
-            height: 36px !important;
-            display: flex !important;
+            width: 38px !important;
+            height: 38px !important;
+            display: inline-flex !important;
             align-items: center !important;
             justify-content: center !important;
             background: transparent !important;
             border: none !important;
             border-radius: 8px !important;
+            color: #77736b !important;
             cursor: pointer !important;
             z-index: 6 !important;
+            transition: color 0.18s ease, background 0.18s ease !important;
+        }
+
+        .password-toggle:hover,
+        .auth-register-card .password-toggle:hover,
+        .input-wrap .password-toggle:hover {
+            color: #a97f24 !important;
+            background: rgba(200, 155, 60, 0.12) !important;
+        }
+
+        .password-toggle:focus-visible,
+        .auth-register-card .password-toggle:focus-visible,
+        .input-wrap .password-toggle:focus-visible {
+            outline: 2px solid #c89b3c !important;
+            outline-offset: 2px !important;
+        }
+
+        .password-toggle i,
+        .auth-register-card .password-toggle i,
+        .input-wrap .password-toggle i {
+            position: static !important;
+            width: auto !important;
+            height: auto !important;
+            color: inherit !important;
+            transform: none !important;
+            pointer-events: none !important;
+            font-size: 15px !important;
         }
 
         /* --- FORM GRID & FIELD ALIGNMENT --- */
@@ -2351,8 +2422,8 @@ $has_logo = is_file($logo_file);
                         <div class="input-wrap password">
                             <i class="fas fa-lock field-icon"></i>
                             <input type="password" class="form-control" id="password" name="password" autocomplete="new-password" minlength="<?php echo (int) PASSWORD_MIN_LENGTH; ?>" required>
-                            <button type="button" class="password-toggle" data-toggle-password="password" aria-label="Show password">
-                                <i class="fas fa-eye"></i>
+                            <button type="button" class="password-toggle" data-toggle-password="password" aria-label="Show password" title="Show password">
+                                <i class="fas fa-eye" aria-hidden="true"></i>
                             </button>
                         </div>
                         <div class="form-hint"><?php echo e(passwordRequirementsMessage()); ?></div>
@@ -2368,8 +2439,8 @@ $has_logo = is_file($logo_file);
                         <div class="input-wrap password">
                             <i class="fas fa-key field-icon"></i>
                             <input type="password" class="form-control" id="confirm_password" name="confirm_password" autocomplete="new-password" minlength="<?php echo (int) PASSWORD_MIN_LENGTH; ?>" required>
-                            <button type="button" class="password-toggle" data-toggle-password="confirm_password" aria-label="Show confirm password">
-                                <i class="fas fa-eye"></i>
+                            <button type="button" class="password-toggle" data-toggle-password="confirm_password" aria-label="Show confirm password" title="Show confirm password">
+                                <i class="fas fa-eye" aria-hidden="true"></i>
                             </button>
                         </div>
                         <div class="field-message" data-error-for="confirm_password"></div>
@@ -3481,14 +3552,23 @@ $has_logo = is_file($logo_file);
         backIdUpload.addEventListener('change', () => handleIdUpload('back', backIdUpload));
 
         document.querySelectorAll('[data-toggle-password]').forEach((toggle) => {
-            toggle.addEventListener('click', () => {
-                const target = document.getElementById(toggle.dataset.togglePassword);
+            toggle.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const targetId = toggle.dataset.togglePassword || toggle.getAttribute('data-toggle-password');
+                const target = document.getElementById(targetId);
+                if (!target) return;
                 const icon = toggle.querySelector('i');
-                const shouldShow = target.type === 'password';
-                target.type = shouldShow ? 'text' : 'password';
-                icon.classList.toggle('fa-eye', !shouldShow);
-                icon.classList.toggle('fa-eye-slash', shouldShow);
-                toggle.setAttribute('aria-label', shouldShow ? 'Hide password' : 'Show password');
+                const isPassword = target.type === 'password';
+                target.type = isPassword ? 'text' : 'password';
+                if (icon) {
+                    icon.classList.remove(isPassword ? 'fa-eye' : 'fa-eye-slash');
+                    icon.classList.add(isPassword ? 'fa-eye-slash' : 'fa-eye');
+                }
+                const fieldName = targetId === 'confirm_password' ? 'confirm password' : 'password';
+                const newLabel = isPassword ? `Hide ${fieldName}` : `Show ${fieldName}`;
+                toggle.setAttribute('aria-label', newLabel);
+                toggle.setAttribute('title', newLabel);
             });
         });
 

@@ -474,6 +474,9 @@ $has_logo = is_file($logo_file);
                         <div class="auth-input-wrap">
                             <i class="fas fa-lock"></i>
                             <input class="form-control" id="password" name="password" type="password" autocomplete="new-password" minlength="<?php echo (int) PASSWORD_MIN_LENGTH; ?>" required autofocus>
+                            <button type="button" class="password-toggle auth-password-toggle" data-toggle-password="password" aria-label="Show password" title="Show password">
+                                <i class="fas fa-eye" aria-hidden="true"></i>
+                            </button>
                         </div>
                     </div>
                     <div class="auth-field">
@@ -481,6 +484,9 @@ $has_logo = is_file($logo_file);
                         <div class="auth-input-wrap">
                             <i class="fas fa-lock"></i>
                             <input class="form-control" id="confirm_password" name="confirm_password" type="password" autocomplete="new-password" minlength="<?php echo (int) PASSWORD_MIN_LENGTH; ?>" required>
+                            <button type="button" class="password-toggle auth-password-toggle" data-toggle-password="confirm_password" aria-label="Show confirm password" title="Show confirm password">
+                                <i class="fas fa-eye" aria-hidden="true"></i>
+                            </button>
                         </div>
                     </div>
                     <button class="auth-submit" type="submit"><i class="fas fa-key"></i> Change Password</button>
@@ -505,5 +511,28 @@ $has_logo = is_file($logo_file);
             <p class="auth-switch">Remembered your password? <a href="login.php">Back to Login</a></p>
         </section>
     </main>
+
+    <script>
+        document.querySelectorAll('[data-toggle-password]').forEach((toggle) => {
+            toggle.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const targetId = toggle.dataset.togglePassword || toggle.getAttribute('data-toggle-password');
+                const target = document.getElementById(targetId);
+                if (!target) return;
+                const icon = toggle.querySelector('i');
+                const isPassword = target.type === 'password';
+                target.type = isPassword ? 'text' : 'password';
+                if (icon) {
+                    icon.classList.remove(isPassword ? 'fa-eye' : 'fa-eye-slash');
+                    icon.classList.add(isPassword ? 'fa-eye-slash' : 'fa-eye');
+                }
+                const fieldName = targetId === 'confirm_password' ? 'confirm password' : 'password';
+                const newLabel = isPassword ? `Hide ${fieldName}` : `Show ${fieldName}`;
+                toggle.setAttribute('aria-label', newLabel);
+                toggle.setAttribute('title', newLabel);
+            });
+        });
+    </script>
 </body>
 </html>

@@ -1276,6 +1276,7 @@ $action_notifications = function_exists('consumeActionNotifications') ? consumeA
         }
 
         .auth-input-wrap:has(.auth-password-toggle) .form-control,
+        .auth-input-wrap:has(.password-toggle) .form-control,
         .auth-input-wrap:has(button) .form-control {
             padding-right: 48px !important;
         }
@@ -1291,20 +1292,47 @@ $action_notifications = function_exists('consumeActionNotifications') ? consumeA
             pointer-events: none !important;
         }
 
-        .auth-password-toggle {
+        .auth-password-toggle,
+        .password-toggle {
             position: absolute !important;
             right: 8px !important;
             top: 50% !important;
             transform: translateY(-50%) !important;
-            width: 36px !important;
-            height: 36px !important;
-            display: flex !important;
+            width: 38px !important;
+            height: 38px !important;
+            display: inline-flex !important;
             align-items: center !important;
             justify-content: center !important;
             background: transparent !important;
             border: none !important;
+            border-radius: 8px !important;
+            color: #77736b !important;
             cursor: pointer !important;
             z-index: 6 !important;
+            transition: color 0.18s ease, background 0.18s ease !important;
+        }
+
+        .auth-password-toggle:hover,
+        .password-toggle:hover {
+            color: #a97f24 !important;
+            background: rgba(200, 155, 60, 0.12) !important;
+        }
+
+        .auth-password-toggle:focus-visible,
+        .password-toggle:focus-visible {
+            outline: 2px solid #c89b3c !important;
+            outline-offset: 2px !important;
+        }
+
+        .auth-password-toggle i,
+        .password-toggle i {
+            position: static !important;
+            width: auto !important;
+            height: auto !important;
+            color: inherit !important;
+            transform: none !important;
+            pointer-events: none !important;
+            font-size: 15px !important;
         }
     </style>
     <link rel="stylesheet" href="../assets/css/login-institutional.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/login-institutional.css'); ?>">
@@ -1387,6 +1415,9 @@ $action_notifications = function_exists('consumeActionNotifications') ? consumeA
                     <div class="auth-input-wrap">
                         <i class="fas fa-lock"></i>
                         <input type="password" class="form-control" id="password" name="password" autocomplete="current-password" placeholder="Enter your password" required>
+                        <button type="button" class="password-toggle auth-password-toggle" data-toggle-password="password" aria-label="Show password" title="Show password">
+                            <i class="fas fa-eye" aria-hidden="true"></i>
+                        </button>
                     </div>
                 </div>
 
@@ -1429,22 +1460,29 @@ $action_notifications = function_exists('consumeActionNotifications') ? consumeA
                         </p>
 
                         <p class="auth-security-note"><i class="fas fa-lock" aria-hidden="true"></i> Your information is securely protected.</p>
-
-                        
         </section>
     </main>
 
     <script>
         window.parishInitialNotifications = <?php echo json_encode($action_notifications, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+
         document.querySelectorAll('[data-toggle-password]').forEach((toggle) => {
-            toggle.addEventListener('click', () => {
-                const target = document.getElementById(toggle.dataset.togglePassword);
+            toggle.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const targetId = toggle.dataset.togglePassword || toggle.getAttribute('data-toggle-password');
+                const target = document.getElementById(targetId);
+                if (!target) return;
                 const icon = toggle.querySelector('i');
-                const shouldShow = target.type === 'password';
-                target.type = shouldShow ? 'text' : 'password';
-                icon.classList.toggle('fa-eye', !shouldShow);
-                icon.classList.toggle('fa-eye-slash', shouldShow);
-                toggle.setAttribute('aria-label', shouldShow ? 'Hide password' : 'Show password');
+                const isPassword = target.type === 'password';
+                target.type = isPassword ? 'text' : 'password';
+                if (icon) {
+                    icon.classList.remove(isPassword ? 'fa-eye' : 'fa-eye-slash');
+                    icon.classList.add(isPassword ? 'fa-eye-slash' : 'fa-eye');
+                }
+                const newLabel = isPassword ? 'Hide password' : 'Show password';
+                toggle.setAttribute('aria-label', newLabel);
+                toggle.setAttribute('title', newLabel);
             });
         });
 
