@@ -644,7 +644,7 @@ $admin_avatar_letter = strtoupper(substr($admin_display_name, 0, 1));
                                 </td>
                                 <td data-label="ACTIONS" style="text-align: right;">
                                     <div class="parish-action-btns">
-                                        <button type="button" class="parish-btn-action" data-stable-modal-open="#<?php echo e($view_modal_id); ?>" title="View Parishioner Details">
+                                        <button type="button" class="parish-btn-action" data-bs-toggle="modal" data-bs-target="#<?php echo e($view_modal_id); ?>" data-stable-modal-open="#<?php echo e($view_modal_id); ?>" title="View Parishioner Details">
                                             <i class="fas fa-eye"></i> View
                                         </button>
                                         <?php if ($user['status'] !== 'archived'): ?>
@@ -681,7 +681,7 @@ $admin_avatar_letter = strtoupper(substr($admin_display_name, 0, 1));
                                 <h5 class="modal-title fw-bold text-dark">
                                     <i class="fas fa-user-circle me-2 text-success"></i><?php echo e($user['fullname']); ?>
                                 </h5>
-                                <button type="button" class="btn-close" data-stable-modal-close aria-label="Close parishioner details"></button>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" data-stable-modal-close aria-label="Close parishioner details"></button>
                             </div>
                             <div class="modal-body p-4">
                                 <div class="row g-4">
@@ -795,7 +795,7 @@ $admin_avatar_letter = strtoupper(substr($admin_display_name, 0, 1));
                                 </div>
                             </div>
                             <div class="modal-footer bg-light">
-                                <button type="button" class="btn btn-secondary px-4" data-stable-modal-close>Close</button>
+                                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal" data-stable-modal-close>Close</button>
                             </div>
                         </div>
                     </div>
@@ -849,4 +849,5 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+<script src="../assets/js/main.js"></script>
 <?php include '../templates/footer.php'; ?>
