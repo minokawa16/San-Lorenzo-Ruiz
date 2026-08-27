@@ -1037,6 +1037,7 @@
     </style>
     <script>
         window.parishInitialNotifications = <?php echo json_encode($action_notifications, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+    </script>
     <style id="tugon-ai-floating-head-styles">
         .ai-assistant-widget {
             position: fixed !important;
