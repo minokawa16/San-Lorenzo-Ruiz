@@ -3544,18 +3544,23 @@ body.stable-detail-modals > .modal-backdrop {
     }
 
     /* 5. TUGON AI Chatbot - Desktop / Laptop Floating Launcher & Draggable Window */
-    body.user-area .ai-assistant-widget {
+    body.user-area .ai-assistant-widget,
+    body.premium-admin .ai-assistant-widget,
+    .ai-assistant-widget {
         position: fixed !important;
         bottom: 24px !important;
         right: 24px !important;
-        z-index: 9999 !important;
+        left: auto !important;
+        top: auto !important;
+        z-index: 99999 !important;
         width: auto !important;
         height: auto !important;
-        inset: auto !important;
         pointer-events: auto !important;
     }
 
-    body.user-area .ai-assistant-trigger {
+    body.user-area .ai-assistant-trigger,
+    body.premium-admin .ai-assistant-trigger,
+    .ai-assistant-trigger {
         position: relative !important;
         width: 60px !important;
         height: 60px !important;
@@ -3571,16 +3576,20 @@ body.stable-detail-modals > .modal-backdrop {
         justify-content: center !important;
         font-size: 1.4rem !important;
         cursor: pointer !important;
-        z-index: 9999 !important;
+        z-index: 99999 !important;
         transition: transform 0.2s ease, box-shadow 0.2s ease !important;
     }
 
-    body.user-area .ai-assistant-trigger:hover {
+    body.user-area .ai-assistant-trigger:hover,
+    body.premium-admin .ai-assistant-trigger:hover,
+    .ai-assistant-trigger:hover {
         transform: scale(1.08) translateY(-2px) !important;
         box-shadow: 0 14px 34px rgba(200, 155, 60, 0.45) !important;
     }
 
-    body.user-area .ai-assistant-chathead-label {
+    body.user-area .ai-assistant-chathead-label,
+    body.premium-admin .ai-assistant-chathead-label,
+    .ai-assistant-chathead-label {
         position: absolute !important;
         bottom: -8px !important;
         left: 50% !important;
@@ -3598,17 +3607,23 @@ body.stable-detail-modals > .modal-backdrop {
         pointer-events: none !important;
     }
 
-    body.user-area .ai-assistant-widget.is-open .ai-assistant-trigger {
+    body.user-area .ai-assistant-widget.is-open .ai-assistant-trigger,
+    body.premium-admin .ai-assistant-widget.is-open .ai-assistant-trigger,
+    .ai-assistant-widget.is-open .ai-assistant-trigger {
         display: none !important;
     }
 
-    body.user-area .ai-assistant-panel {
+    body.user-area .ai-assistant-panel,
+    body.premium-admin .ai-assistant-panel,
+    .ai-assistant-panel {
         position: fixed !important;
         bottom: 24px !important;
         right: 24px !important;
+        left: auto !important;
+        top: auto !important;
         width: 390px !important;
         max-width: calc(100vw - 32px) !important;
-        height: 540px !important;
+        height: 560px !important;
         max-height: calc(100vh - 48px) !important;
         border-radius: 18px !important;
         border: 1.5px solid rgba(200, 155, 60, 0.45) !important;
@@ -3617,15 +3632,16 @@ body.stable-detail-modals > .modal-backdrop {
         display: flex !important;
         flex-direction: column !important;
         overflow: hidden !important;
-        z-index: 9999 !important;
-        inset: auto !important;
+        z-index: 99999 !important;
         transform: translateY(12px) scale(0.96) !important;
         opacity: 0 !important;
         pointer-events: none !important;
         transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease !important;
     }
 
-    body.user-area .ai-assistant-widget.is-open .ai-assistant-panel {
+    body.user-area .ai-assistant-widget.is-open .ai-assistant-panel,
+    body.premium-admin .ai-assistant-widget.is-open .ai-assistant-panel,
+    .ai-assistant-widget.is-open .ai-assistant-panel {
         display: flex !important;
         opacity: 1 !important;
         pointer-events: auto !important;

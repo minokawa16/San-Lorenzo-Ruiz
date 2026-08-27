@@ -1370,6 +1370,11 @@
                 noAnswer: <?php echo json_encode(t('chatbot.no_answer', 'I could not find a Tugon answer for that question.')); ?>,
                 endpointError: <?php echo json_encode(t('chatbot.endpoint_error', 'Unable to reach the chatbot endpoint. Please try again.')); ?>
             };
+
+            if (!widget || !trigger || !panel || !close) {
+                return;
+            }
+
             const assistantPositionKey = 'tugonAiFabPosition:v1:<?php echo intval($_SESSION['user_id'] ?? 0); ?>';
             const desktopPanelPositionKey = 'tugonAiPanelDesktopPos:v1:<?php echo intval($_SESSION['user_id'] ?? 0); ?>';
             const assistantPhoneView = window.matchMedia('(max-width: 599px)');
@@ -1383,9 +1388,6 @@
             let assistantLongPressTimer = 0;
             let desktopPanelDragState = null;
             let desktopPanelDragFrame = 0;
-            if (!widget || !trigger || !panel || !close) {
-                return;
-            }
 
             function assistantViewport() {
                 const viewport = window.visualViewport;
