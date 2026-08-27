@@ -86,7 +86,8 @@ $is_primary_user_dashboard = $is_user_dashboard_page && (($_GET['view'] ?? '') !
       <?php if ($sidebar_unread > 0): ?>
         <span class="pill-badge"><?php echo $sidebar_unread; ?></span>
       <?php endif; ?>
-    <a href="<?php echo BASE_URL; ?>users/ai-assistant.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'ai-assistant.php') ? 'active' : ''; ?>" data-tooltip="<?php echo e(t('nav.ai_assistant', 'AI Assistant')); ?>" id="sidebarAiAssistantLink" data-open-ai-chat="true">
+    </a>
+    <a href="<?php echo BASE_URL; ?>users/ai-assistant.php" class="nav-link nav-item-ai <?php echo (basename($_SERVER['PHP_SELF']) == 'ai-assistant.php') ? 'active' : ''; ?>" data-tooltip="<?php echo e(t('nav.ai_assistant', 'AI Assistant')); ?>" id="sidebarAiAssistantLink" data-open-ai-chat="true" role="button" tabindex="0">
       <i class="fas fa-robot"></i>
       <span><?php echo e(t('nav.ai_assistant', 'AI Assistant')); ?></span>
     </a>

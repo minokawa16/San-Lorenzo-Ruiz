@@ -278,9 +278,40 @@ html body.premium-admin .admin-sidebar .sidebar-nav .nav-link.active i,
 html body .user-sidebar .sidebar-nav .nav-link.active i,
 html body.user-area .user-sidebar .sidebar-nav .nav-link.active i,
 html body .user-sidebar .sidebar-nav .nav-link#sidebarAiAssistantLink i,
+html body .admin-sidebar .sidebar-nav .nav-link#adminSidebarAiAssistantLink i,
 html body .admin-sidebar .sidebar-nav .nav-link[href*="ai-assistant.php"] i,
 html body .user-sidebar .sidebar-nav .nav-link[href*="ai-assistant.php"] i {
 color: var(--admin-sidebar-gold) !important;
+}
+html body .admin-sidebar .sidebar-nav .nav-link.nav-item-ai,
+html body .user-sidebar .sidebar-nav .nav-link.nav-item-ai,
+html body .user-sidebar .sidebar-nav .nav-link#sidebarAiAssistantLink,
+html body .admin-sidebar .sidebar-nav .nav-link#adminSidebarAiAssistantLink {
+cursor: pointer !important;
+transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.15s ease !important;
+}
+html body .admin-sidebar .sidebar-nav .nav-link.nav-item-ai:hover,
+html body .user-sidebar .sidebar-nav .nav-link.nav-item-ai:hover,
+html body .user-sidebar .sidebar-nav .nav-link#sidebarAiAssistantLink:hover,
+html body .admin-sidebar .sidebar-nav .nav-link#adminSidebarAiAssistantLink:hover {
+background: rgba(200, 155, 60, 0.18) !important;
+border-color: rgba(200, 155, 60, 0.38) !important;
+color: #FFFFFF !important;
+transform: translateX(3px);
+}
+html body .admin-sidebar .sidebar-nav .nav-link.nav-item-ai:hover i,
+html body .user-sidebar .sidebar-nav .nav-link.nav-item-ai:hover i,
+html body .user-sidebar .sidebar-nav .nav-link#sidebarAiAssistantLink:hover i,
+html body .admin-sidebar .sidebar-nav .nav-link#adminSidebarAiAssistantLink:hover i {
+color: #d4af37 !important;
+transform: scale(1.12);
+transition: transform 0.18s ease, color 0.18s ease;
+}
+html body .admin-sidebar .sidebar-nav .nav-link.nav-item-ai:active,
+html body .user-sidebar .sidebar-nav .nav-link.nav-item-ai:active,
+html body .user-sidebar .sidebar-nav .nav-link#sidebarAiAssistantLink:active,
+html body .admin-sidebar .sidebar-nav .nav-link#adminSidebarAiAssistantLink:active {
+transform: scale(0.97);
 }
 html body .nav-collapsible {
 display: flex !important;

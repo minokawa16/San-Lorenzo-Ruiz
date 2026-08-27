@@ -2048,6 +2048,26 @@
             }
 
             document.addEventListener('click', function(event) {
+                const aiOpener = event.target.closest('[data-open-ai-chat], #sidebarAiAssistantLink, #adminSidebarAiAssistantLink, .nav-item-ai');
+                if (aiOpener) {
+                    if (widget && !window.location.pathname.endsWith('ai-assistant.php')) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        // If mobile sidebar was open, close it
+                        const openSidebar = document.querySelector('.user-sidebar.open, .admin-sidebar.open');
+                        if (openSidebar) {
+                            openSidebar.classList.remove('open');
+                            document.body.classList.remove('sidebar-open');
+                        }
+                        setAssistantOpen(true);
+                        checkAssistantHealth(false);
+                        if (liveInput) {
+                            setTimeout(function() { liveInput.focus(); }, 120);
+                        }
+                        return;
+                    }
+                }
+
                 const quickPrompt = event.target.closest('[data-ai-prompt]');
                 if (quickPrompt) {
                     const prompt = quickPrompt.getAttribute('data-ai-prompt');
