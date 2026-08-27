@@ -336,7 +336,9 @@ html body .nav-submenu .sublink.active {
 background: rgba(200, 155, 60, 0.12) !important;
 color: var(--admin-sidebar-gold) !important;
 }
-html body .user-sidebar .sidebar-footer,
+html body .user-sidebar .sidebar-footer {
+display: none !important;
+}
 html body .admin-sidebar .sidebar-footer {
 position: absolute !important;
 bottom: 0 !important;

@@ -377,7 +377,10 @@ html body .nav-submenu .sublink.active {
 }
 
 /* Sidebar Footer */
-html body .user-sidebar .sidebar-footer,
+html body .user-sidebar .sidebar-footer {
+    display: none !important;
+}
+
 html body .admin-sidebar .sidebar-footer {
     position: absolute !important;
     bottom: 0 !important;

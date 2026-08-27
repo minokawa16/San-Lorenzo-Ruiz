@@ -102,13 +102,6 @@ $is_primary_user_dashboard = $is_user_dashboard_page && (($_GET['view'] ?? '') !
       <span><?php echo e(t('nav.logout', 'Logout')); ?></span>
     </a>
   </nav>
-
-  <div class="sidebar-footer">
-    <div class="profile-mini">
-      <span class="profile-dot"></span>
-      <span><?php echo substr($_SESSION['fullname'], 0, 15); ?></span>
-    </div>
-  </div>
 </aside>
 
 <script>
