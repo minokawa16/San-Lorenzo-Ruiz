@@ -1053,6 +1053,7 @@
             margin: 0 !important;
             padding: 0 !important;
             inset: auto 24px 24px auto !important;
+            font-family: "Plus Jakarta Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
         }
         .ai-assistant-trigger {
             position: relative !important;
@@ -1068,16 +1069,16 @@
             display: inline-flex !important;
             align-items: center !important;
             justify-content: center !important;
-            font-size: 1.4rem !important;
+            font-size: 1.45rem !important;
             cursor: pointer !important;
             visibility: visible !important;
             opacity: 1 !important;
             pointer-events: auto !important;
-            transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+            transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease !important;
             text-decoration: none !important;
         }
         .ai-assistant-trigger:hover {
-            transform: scale(1.08) translateY(-2px) !important;
+            transform: scale(1.05) translateY(-2px) !important;
             box-shadow: 0 14px 34px rgba(200, 155, 60, 0.5) !important;
             color: #FFFFFF !important;
         }
@@ -1086,17 +1087,27 @@
             align-items: center !important;
             justify-content: center !important;
             color: #FFFFFF !important;
+            position: relative !important;
         }
         .ai-assistant-icon .fa-robot {
-            font-size: 1.5rem !important;
+            font-size: 1.55rem !important;
             color: #FFFFFF !important;
         }
-        .ai-assistant-icon .fa-wand-magic-sparkles {
+        .ai-assistant-online-indicator {
             position: absolute !important;
-            top: -4px !important;
-            right: -4px !important;
-            font-size: 0.85rem !important;
-            color: #C89B3C !important;
+            top: 2px !important;
+            right: 2px !important;
+            width: 13px !important;
+            height: 13px !important;
+            border-radius: 50% !important;
+            background: #10B981 !important;
+            border: 2px solid #1E271D !important;
+            box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.4) !important;
+            animation: aiPulseOnline 2s infinite !important;
+        }
+        @keyframes aiPulseOnline {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.8; }
         }
         .ai-assistant-chathead-label {
             position: absolute !important;
@@ -1122,9 +1133,9 @@
             position: fixed !important;
             bottom: 24px !important;
             right: 24px !important;
-            width: 390px !important;
+            width: 400px !important;
             max-width: calc(100vw - 32px) !important;
-            height: 540px !important;
+            height: 560px !important;
             max-height: calc(100vh - 48px) !important;
             border-radius: 18px !important;
             border: 1.5px solid rgba(200, 155, 60, 0.45) !important;
@@ -1134,16 +1145,106 @@
             flex-direction: column !important;
             overflow: hidden !important;
             z-index: 99999 !important;
-            transform: translateY(12px) scale(0.96) !important;
+            transform: translateY(16px) scale(0.95) !important;
             opacity: 0 !important;
             pointer-events: none !important;
-            transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease !important;
+            transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease !important;
         }
         .ai-assistant-widget.is-open .ai-assistant-panel {
             display: flex !important;
             opacity: 1 !important;
             pointer-events: auto !important;
             transform: translateY(0) scale(1) !important;
+        }
+        .ai-assistant-panel-header {
+            background: linear-gradient(135deg, #2E3A2D 0%, #1E271D 100%) !important;
+            color: #FFFFFF !important;
+            border-bottom: 1.5px solid #C89B3C !important;
+            padding: 12px 16px !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 10px !important;
+        }
+        .ai-assistant-panel-mark {
+            width: 34px !important;
+            height: 34px !important;
+            border-radius: 10px !important;
+            background: rgba(200, 155, 60, 0.2) !important;
+            border: 1.5px solid #C89B3C !important;
+            color: #C89B3C !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-size: 1.1rem !important;
+        }
+        .ai-assistant-panel-identity {
+            display: flex !important;
+            flex-direction: column !important;
+            flex: 1 1 auto !important;
+            min-width: 0 !important;
+        }
+        .ai-assistant-panel-identity strong {
+            font-size: 0.92rem !important;
+            color: #FFFFFF !important;
+            font-weight: 700 !important;
+            line-height: 1.2 !important;
+        }
+        .ai-assistant-panel-identity span {
+            font-size: 0.72rem !important;
+            color: #C89B3C !important;
+            font-weight: 600 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 4px !important;
+        }
+        .ai-assistant-status-dot {
+            width: 6px !important;
+            height: 6px !important;
+            border-radius: 50% !important;
+            background: #10B981 !important;
+            box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3) !important;
+        }
+        .ai-assistant-tool,
+        .ai-assistant-close {
+            background: transparent !important;
+            border: 0 !important;
+            color: rgba(255, 255, 255, 0.75) !important;
+            width: 28px !important;
+            height: 28px !important;
+            border-radius: 6px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            cursor: pointer !important;
+            font-size: 0.95rem !important;
+            transition: all 0.18s ease !important;
+        }
+        .ai-assistant-tool:hover,
+        .ai-assistant-close:hover {
+            color: #FFFFFF !important;
+            background: rgba(255, 255, 255, 0.15) !important;
+        }
+        .ai-assistant-quick button {
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            padding: 6px 12px !important;
+            background: #FFFFFF !important;
+            border: 1px solid #E8E1D5 !important;
+            border-radius: 20px !important;
+            color: #2E3A2D !important;
+            font-size: 0.8rem !important;
+            font-weight: 600 !important;
+            cursor: pointer !important;
+            transition: all 0.18s ease !important;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+        }
+        .ai-assistant-quick button:hover {
+            background: #FAF7F2 !important;
+            border-color: #C89B3C !important;
+            color: #A97F24 !important;
+            transform: translateY(-1px) !important;
+            box-shadow: 0 3px 8px rgba(200, 155, 60, 0.18) !important;
         }
         @media (max-width: 599px) {
             .ai-assistant-widget {
@@ -1164,11 +1265,10 @@
 
     <?php if (isLoggedIn()): ?>
     <div class="ai-assistant-widget" id="aiAssistantWidget">
-        <button class="ai-assistant-trigger" type="button" id="aiAssistantTrigger" aria-label="Open TUGON AI" aria-expanded="false" title="Ask TUGON AI for help">
-            <span class="ai-assistant-glow" aria-hidden="true"></span>
+        <button class="ai-assistant-trigger" type="button" id="aiAssistantTrigger" aria-label="Open TUGON AI" aria-expanded="false" title="Need help? Chat with TUGON AI">
+            <span class="ai-assistant-online-indicator" aria-hidden="true"></span>
             <span class="ai-assistant-icon" aria-hidden="true">
                 <i class="fas fa-robot"></i>
-                <i class="fas fa-wand-magic-sparkles"></i>
             </span>
             <span class="ai-assistant-chathead-label">TUGON AI</span>
         </button>
@@ -1181,17 +1281,16 @@
                     <i class="fas fa-robot"></i>
                 </div>
                 <div class="ai-assistant-panel-identity">
-                    <strong>TUGON AI</strong>
-                    <span>Parish Assistant</span>
+                    <strong>TUGON AI Assistant</strong>
+                    <span><span class="ai-assistant-status-dot" aria-hidden="true"></span> Online &amp; Ready</span>
                 </div>
-                <div class="ai-assistant-status" id="aiAssistantStatus"><span></span> Online</div>
                 <button class="ai-assistant-tool" type="button" id="aiAssistantClear" aria-label="Clear conversation" title="Clear conversation">
                     <i class="fas fa-trash-can"></i>
                 </button>
                 <button class="ai-assistant-tool" type="button" id="aiAssistantMinimize" aria-label="Minimize chat" title="Minimize chat">
                     <i class="fas fa-minus"></i>
                 </button>
-                <button class="ai-assistant-close" type="button" id="aiAssistantClose" aria-label="<?php echo e(t('chatbot.close_label', 'Close AI assistant')); ?>">
+                <button class="ai-assistant-close" type="button" id="aiAssistantClose" aria-label="<?php echo e(t('chatbot.close_label', 'Close AI assistant')); ?>" title="Close chat">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -1203,25 +1302,24 @@
                         </div>
                         <div class="ai-assistant-greeting-bubble">
                             <strong>Hello! I'm TUGON AI.</strong>
-                            <span>I can help you with parish services, requests, reservations, certificates, schedules, announcements, and your transactions.</span>
+                            <span>Need help? Ask me about certificate requirements, request status, Mass schedules, GCash verification, and parish services.</span>
                         </div>
-                        <div class="ai-assistant-quick-heading">Quick Help:</div>
+                        <div class="ai-assistant-quick-heading">Quick Questions:</div>
                         <div class="ai-assistant-quick" aria-label="Suggested questions">
-                            <button type="button" data-ai-prompt="How do I request a certificate?"><i class="fas fa-file-lines"></i> Request a Certificate</button>
-                            <button type="button" data-ai-prompt="How do I request a blessing?"><i class="fas fa-hands-praying"></i> Request a Blessing</button>
-                            <button type="button" data-ai-prompt="How do I make a parish reservation?"><i class="fas fa-calendar-plus"></i> Parish Reservation</button>
-                            <button type="button" data-ai-prompt="What is the status of my request?"><i class="fas fa-list-check"></i> Check My Requests</button>
-                            <button type="button" data-ai-prompt="Where can I see parish announcements?"><i class="fas fa-bullhorn"></i> Parish Announcements</button>
+                            <button type="button" data-ai-prompt="How do I request a certificate?"><i class="fas fa-file-lines"></i> Request Certificate</button>
+                            <button type="button" data-ai-prompt="What is the status of my request?"><i class="fas fa-list-check"></i> Track My Request</button>
                             <button type="button" data-ai-prompt="Where can I see the parish schedule?"><i class="fas fa-calendar-days"></i> Parish Schedule</button>
+                            <button type="button" data-ai-prompt="How do I request a blessing?"><i class="fas fa-hands-praying"></i> Request Blessing</button>
+                            <button type="button" data-ai-prompt="Where can I see parish announcements?"><i class="fas fa-bullhorn"></i> Announcements</button>
                         </div>
                     </div>
                 </div>
                 <form class="ai-assistant-live-form" id="aiAssistantLiveForm">
                     <label class="ai-assistant-search" for="aiAssistantLiveInput">
                         <i class="fas fa-message" aria-hidden="true"></i>
-                        <textarea id="aiAssistantLiveInput" rows="1" maxlength="2000" data-no-autocomplete="true" placeholder="Ask TUGON AI about parish services..."></textarea>
+                        <textarea id="aiAssistantLiveInput" rows="1" maxlength="2000" data-no-autocomplete="true" placeholder="Type your message..."></textarea>
                     </label>
-                    <button type="submit" aria-label="<?php echo e(t('chatbot.send', 'Send')); ?>"><i class="fas fa-paper-plane" aria-hidden="true"></i><span class="ai-assistant-send-label"><?php echo e(t('chatbot.send', 'Send')); ?></span></button>
+                    <button type="submit" aria-label="<?php echo e(t('chatbot.send', 'Send')); ?>" title="Send message"><i class="fas fa-paper-plane" aria-hidden="true"></i><span class="ai-assistant-send-label"><?php echo e(t('chatbot.send', 'Send')); ?></span></button>
                 </form>
             </div>
         </section>
