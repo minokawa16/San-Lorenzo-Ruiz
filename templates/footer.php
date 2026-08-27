@@ -446,8 +446,7 @@
         body.user-area .floating-language,
         body.user-area .language-switcher a.active,
         body.user-area .icon-btn,
-        body.user-area .profile-avatar,
-        body.user-area .ai-assistant-trigger {
+        body.user-area .profile-avatar {
             background: rgba(200, 155, 60, 0.12) !important;
             border-color: var(--tugon-border) !important;
             color: var(--tugon-text) !important;
@@ -1048,7 +1047,7 @@
         window.parishInitialNotifications = <?php echo json_encode($action_notifications, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     </script>
 
-    <?php if (isLoggedIn() && isUser()): ?>
+    <?php if (isLoggedIn() && (isUser() || !isAdmin() || !empty($is_user_area))): ?>
     <div class="ai-assistant-widget" id="aiAssistantWidget">
         <button class="ai-assistant-trigger" type="button" id="aiAssistantTrigger" aria-label="<?php echo e(t('chatbot.trigger_label', 'AI Parish Assistant')); ?>" aria-expanded="false" aria-grabbed="false" title="Tap to open. Drag to move. Long press to reset position.">
             <span class="ai-assistant-glow" aria-hidden="true"></span>
@@ -1129,7 +1128,7 @@
     <!-- Custom JS -->
     <?php $main_script_version = file_exists(__DIR__ . '/../assets/js/main.js') ? filemtime(__DIR__ . '/../assets/js/main.js') : time(); ?>
     <script src="../assets/js/main.js?v=<?php echo $main_script_version; ?>"></script>
-    <?php if (isLoggedIn() && isUser()): ?>
+    <?php if (isLoggedIn() && (isUser() || !isAdmin() || !empty($is_user_area))): ?>
     <script>
         (function() {
             const widget = document.getElementById('aiAssistantWidget');
