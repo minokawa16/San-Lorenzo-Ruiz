@@ -55,7 +55,7 @@ check(strpos($cssBundle, '.calendar-panel.full-width-calendar') !== false, 'CSS 
 // 6. Compact Desktop AI Chatbot checks
 check(strpos($cssBundle, 'width: 440px') !== false, 'CSS bundle includes compact desktop AI panel width (440px)');
 check(strpos($cssBundle, 'height: 560px') !== false, 'CSS bundle includes compact desktop AI panel height (560px)');
-check(strpos($cssBundle, 'bottom: 80px') !== false, 'CSS bundle includes compact desktop AI positioning (bottom: 80px)');
+check(strpos($cssBundle, 'bottom: 24px') !== false, 'CSS bundle includes compact desktop AI positioning (bottom: 24px)');
 check(strpos($cssBundle, 'right: 24px') !== false, 'CSS bundle includes compact desktop AI positioning (right: 24px)');
 // 7. Mobile Header Color checks
 check(strpos($cssBundle, 'linear-gradient(135deg, #2E3A2D 0%, #263225 100%)') !== false, 'CSS bundle includes dark parish green for mobile header');

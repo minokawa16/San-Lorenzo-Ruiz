@@ -448,12 +448,7 @@ body.user-sidebar-collapsed .user-main {
 }
 
 .user-footer {
-    margin-top: auto;
-    padding: 18px 28px;
-    display: flex;
-    justify-content: space-between;
-    color: #64748b;
-    font-size: 0.85rem;
+    display: none !important;
 }
 
 /* =============================

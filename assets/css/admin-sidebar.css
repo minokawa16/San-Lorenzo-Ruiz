@@ -75,7 +75,6 @@ html body .user-shell > .user-sidebar {
 html body .premium-admin-content,
 html body .main-content,
 html body.premium-admin .premium-admin-shell > .premium-admin-content,
-html body .user-content,
 html body .user-main {
     flex: 1 1 auto !important;
     min-width: 0 !important;
@@ -90,8 +89,20 @@ html body .user-main {
 }
 
 html body.admin-sidebar-collapsed .premium-admin-content,
-html body.admin-sidebar-collapsed .main-content {
+html body.admin-sidebar-collapsed .main-content,
+html body.user-sidebar-collapsed .user-main {
     width: calc(100% - var(--admin-sidebar-collapsed-width)) !important;
+}
+
+html body .user-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    background: transparent !important;
 }
 
 html body .admin-sidebar::-webkit-scrollbar,

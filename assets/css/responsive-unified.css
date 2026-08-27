@@ -3546,7 +3546,7 @@ body.stable-detail-modals > .modal-backdrop {
     /* 5. TUGON AI Chatbot - Desktop / Laptop Floating Launcher & Draggable Window */
     body.user-area .ai-assistant-widget {
         position: fixed !important;
-        bottom: 80px !important;
+        bottom: 24px !important;
         right: 24px !important;
         z-index: 9999 !important;
         width: auto !important;
@@ -3585,7 +3585,7 @@ body.stable-detail-modals > .modal-backdrop {
 
     body.user-area .ai-assistant-panel {
         position: fixed !important;
-        bottom: 80px !important;
+        bottom: 24px !important;
         right: 24px !important;
         width: 440px !important;
         max-width: calc(100vw - 40px) !important;

@@ -1540,23 +1540,6 @@ if ($stmt) {
                     <span class="submit-label"><i class="fas fa-paper-plane"></i> Submit Certificate Request</span>
                     <span class="submit-loading"><i class="fas fa-spinner fa-spin"></i> Submitting Request</span>
                 </button>
-                <div class="file-preview" id="filePreview">
-                    <div id="fileList">
-                        <span id="fileName">Selected files</span>
-                        <div class="text-muted small" id="fileSize">Ready to upload</div>
-                    </div>
-                    <div class="upload-progress" aria-hidden="true"><span></span></div>
-                </div>
-            </section>
-
-            <div class="form-actions">
-                <div class="privacy-copy">
-                    <i class="fas fa-lock"></i> Secure parish request submission. Please ensure all details are accurate before submitting.
-                </div>
-                <button type="submit" class="submit-request-btn" id="submitRequestBtn">
-                    <span class="submit-label"><i class="fas fa-paper-plane"></i> Submit Certificate Request</span>
-                    <span class="submit-loading"><i class="fas fa-spinner fa-spin"></i> Submitting Request</span>
-                </button>
             </div>
         </form>
     </div>

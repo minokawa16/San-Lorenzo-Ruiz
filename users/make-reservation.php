@@ -84,7 +84,7 @@ $page_title = 'Make Reservation';
                         </div>
                     <?php endif; ?>
 
-                    <form method="POST" action="">
+                    <form method="POST" action="" id="reservationForm">
                         <?php echo csrfInput(); ?>
                         <input type="hidden" name="idempotency_key" value="<?php echo e($idempotency_key); ?>">
                         <div class="mb-3">
@@ -112,11 +112,11 @@ $page_title = 'Make Reservation';
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="event_date" class="form-label">Event Date</label>
-                                <input type="date" class="form-control" id="event_date" name="event_date" required>
+                                <input type="date" class="form-control form-control-lg" id="event_date" name="event_date" min="<?php echo date('Y-m-d', strtotime('+1 day')); ?>" required>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="event_time" class="form-label">Event Time</label>
-                                <input type="time" class="form-control" id="event_time" name="event_time" required>
+                                <input type="time" class="form-control form-control-lg" id="event_time" name="event_time" required>
                             </div>
                         </div>
 
@@ -138,7 +138,7 @@ $page_title = 'Make Reservation';
 
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                             <a href="dashboard.php" class="btn btn-outline-secondary">Cancel</a>
-                            <button type="submit" class="btn btn-primary">Submit Reservation</button>
+                            <button type="submit" class="btn btn-primary" id="submitReservationBtn">Submit Reservation</button>
                         </div>
                     </form>
                 </div>
@@ -184,5 +184,20 @@ $page_title = 'Make Reservation';
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('reservationForm');
+    const submitBtn = document.getElementById('submitReservationBtn');
+    if (form && submitBtn) {
+        form.addEventListener('submit', function(e) {
+            if (form.checkValidity()) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Submitting...';
+            }
+        });
+    }
+});
+</script>
 
 <?php include '../templates/footer.php'; ?>

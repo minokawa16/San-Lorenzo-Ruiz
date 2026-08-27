@@ -5,10 +5,6 @@
 ?>
     <?php if (isset($is_user_area) && $is_user_area): ?>
             </main>
-            <footer class="user-footer">
-                <span>&copy; 2026 San Lorenzo Ruiz Mission Station</span>
-                <span><?php echo e(t('footer.tagline', 'Serving with faith and care')); ?></span>
-            </footer>
         </div>
     </div>
     <?php elseif (isset($is_admin_area) && $is_admin_area): ?>
@@ -483,11 +479,7 @@
         }
 
         body.user-area .user-footer {
-            background: #FFFFFF !important;
-            border-top: 1px solid var(--tugon-border) !important;
-            color: var(--tugon-muted) !important;
-            font-size: 14px !important;
-            line-height: 1.5 !important;
+            display: none !important;
         }
 
         body.user-area :focus-visible {

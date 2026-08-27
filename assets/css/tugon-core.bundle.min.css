@@ -68,7 +68,6 @@ scrollbar-color: rgba(200, 155, 60, 0.72) rgba(255, 255, 255, 0.05);
 html body .premium-admin-content,
 html body .main-content,
 html body.premium-admin .premium-admin-shell > .premium-admin-content,
-html body .user-content,
 html body .user-main {
 flex: 1 1 auto !important;
 min-width: 0 !important;
@@ -82,8 +81,19 @@ box-sizing: border-box !important;
 background-color: var(--bg-cream) !important;
 }
 html body.admin-sidebar-collapsed .premium-admin-content,
-html body.admin-sidebar-collapsed .main-content {
+html body.admin-sidebar-collapsed .main-content,
+html body.user-sidebar-collapsed .user-main {
 width: calc(100% - var(--admin-sidebar-collapsed-width)) !important;
+}
+html body .user-content {
+width: 100% !important;
+max-width: 100% !important;
+height: auto !important;
+min-height: 0 !important;
+overflow: visible !important;
+padding: 0 !important;
+box-sizing: border-box !important;
+background: transparent !important;
 }
 html body .admin-sidebar::-webkit-scrollbar,
 html body .user-sidebar::-webkit-scrollbar {
@@ -1208,12 +1218,7 @@ max-width: 1280px;
 margin: 0 auto;
 }
 .user-footer {
-margin-top: auto;
-padding: 18px 28px;
-display: flex;
-justify-content: space-between;
-color: #64748b;
-font-size: 0.85rem;
+display: none !important;
 }
 .dashboard-hero {
 background: linear-gradient(120deg, rgba(162,167,228,0.95) 0%, rgba(132,164,244,0.9) 60%, rgba(232,171,156,0.85) 140%);
@@ -9495,7 +9500,7 @@ min-height: 110px !important;
 }
 body.user-area .ai-assistant-widget {
 position: fixed !important;
-bottom: 80px !important;
+bottom: 24px !important;
 right: 24px !important;
 z-index: 9999 !important;
 width: auto !important;
@@ -9530,7 +9535,7 @@ display: none !important;
 }
 body.user-area .ai-assistant-panel {
 position: fixed !important;
-bottom: 80px !important;
+bottom: 24px !important;
 right: 24px !important;
 width: 440px !important;
 max-width: calc(100vw - 40px) !important;
