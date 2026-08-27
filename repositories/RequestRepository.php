@@ -17,9 +17,13 @@ final class RequestRepository
         $params = [$userId];
 
         if ($status !== '') {
-            $where[] = 'status = ?';
-            $types .= 's';
-            $params[] = $status;
+            if ($status === 'pending') {
+                $where[] = "(status = 'pending' OR status = 'submitted' OR status = 'requirements_review')";
+            } else {
+                $where[] = 'status = ?';
+                $types .= 's';
+                $params[] = $status;
+            }
         }
         if ($search !== '') {
             $where[] = '(reference_number LIKE ? OR request_type LIKE ? OR status LIKE ? OR description LIKE ?)';

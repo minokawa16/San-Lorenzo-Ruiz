@@ -74,7 +74,7 @@ function certificateLabel($value, $labels = []) {
 
     if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     requireValidCsrfToken();
-    $request_type = $_POST['request_type'] ?? '';
+    $request_type = trim((string) ($_POST['request_type'] ?? $_POST['certificate_mobile_type'] ?? ''));
     $purpose = trim((string) ($_POST['purpose'] ?? ''));
     $purpose_other = trim((string) ($_POST['purpose_other'] ?? ''));
 
@@ -96,21 +96,25 @@ function certificateLabel($value, $labels = []) {
         ];
         $description = implode("\n", $description_parts);
         try {
-            $requestResult = (new RequestService($conn))->create(['request_type' => $request_type, 'description' => $description], $user_id, (string) ($_POST['idempotency_key'] ?? ''));
+            $idempotency_key = trim((string) ($_POST['idempotency_key'] ?? ''));
+            if (empty($idempotency_key) || !preg_match('/^[a-f0-9]{64}$/', $idempotency_key)) {
+                $idempotency_key = bin2hex(random_bytes(32));
+            }
+            $requestResult = (new RequestService($conn))->create(['request_type' => $request_type, 'description' => $description], $user_id, $idempotency_key);
             $request_id = (int) $requestResult['request_id'];
             $reference_number = $requestResult['reference_number'];
-                $documents = saveMultipleRequirementDocuments($conn, $request_id, $user_id, $_FILES['requirement_files'] ?? null);
-                if (!$documents['ok'] && empty($documents['saved'])) {
-                    $error = $documents['error'] . ' Your request was saved, but the files were not attached. Reference: ' . $reference_number;
-                } else {
-                    createAuditLog($conn, $user_id, 'CREATE_REQUEST', 'requests', $request_id);
-                    $doc_count = intval($documents['saved'] ?? 0);
-                    $file_text = $doc_count === 1 ? 'file' : 'files';
-                    createNotification($conn, $user_id, 'Certificate Request Created', 'Your certificate request has been submitted with reference: ' . $reference_number . ' (' . $doc_count . ' ' . $file_text . ' attached)');
-                    $success = 'Certificate request submitted successfully! Reference: ' . $reference_number . ' (' . $doc_count . ' file' . ($doc_count === 1 ? '' : 's') . ' attached)';
-                }
+            $documents = saveMultipleRequirementDocuments($conn, $request_id, $user_id, $_FILES['requirement_files'] ?? null);
+            if (!$documents['ok'] && empty($documents['saved'])) {
+                $error = $documents['error'] . ' Your request was saved, but the files were not attached. Reference: ' . $reference_number;
+            } else {
+                createAuditLog($conn, $user_id, 'CREATE_REQUEST', 'requests', $request_id);
+                $doc_count = intval($documents['saved'] ?? 0);
+                $file_text = $doc_count === 1 ? 'file' : 'files';
+                createNotification($conn, $user_id, 'Certificate Request Created', 'Your certificate request has been submitted with reference: ' . $reference_number . ' (' . $doc_count . ' ' . $file_text . ' attached)');
+                $success = 'Certificate request submitted successfully! Reference: ' . $reference_number . ' (' . $doc_count . ' file' . ($doc_count === 1 ? '' : 's') . ' attached)';
+            }
         } catch (Throwable $exception) {
-            $error = $exception->getMessage();
+            $error = 'Unable to save your certificate request: ' . $exception->getMessage();
         }
     }
 }
@@ -1393,7 +1397,6 @@ if ($stmt) {
                     <strong><?php echo intval($count); ?></strong>
                 </div>
                 <span><?php echo e(certificateLabel($status_name)); ?></span>
-                <small><?php echo e($status_info['description']); ?></small>
             </a>
         <?php endforeach; ?>
     </section>
@@ -1408,8 +1411,8 @@ if ($stmt) {
         </div>
 
         <form method="POST" action="" enctype="multipart/form-data" id="certificateRequestForm">
-                        <?php echo csrfInput(); ?>
-                        <input type="hidden" name="idempotency_key" value="<?php echo e($request_idempotency_key); ?>">
+            <?php echo csrfInput(); ?>
+            <input type="hidden" name="idempotency_key" value="<?php echo e($request_idempotency_key); ?>">
             <section class="form-step">
                 <div class="step-heading">
                     <span class="step-number">1</span>
@@ -1422,7 +1425,7 @@ if ($stmt) {
                 <div class="certificate-option-grid" role="radiogroup" aria-label="Certificate type">
                     <?php foreach ($certificate_meta as $value => $meta): ?>
                         <label class="certificate-option">
-                            <input type="radio" name="request_type" value="<?php echo e($value); ?>" required>
+                            <input type="radio" name="request_type" value="<?php echo e($value); ?>" <?php echo (($_POST['request_type'] ?? '') === $value) ? 'checked' : ''; ?>>
                             <span>
                                 <i class="fas <?php echo e($meta['icon']); ?>"></i>
                                 <strong><?php echo e($meta['title']); ?></strong>
@@ -1434,10 +1437,10 @@ if ($stmt) {
 
                 <div class="certificate-mobile-type-field">
                     <label for="certificateMobileSelect" class="form-label">Document type</label>
-                    <select class="form-select request-form-control" id="certificateMobileSelect" required>
+                    <select class="form-select request-form-control" id="certificateMobileSelect" name="certificate_mobile_type">
                         <option value="">Select a certificate</option>
                         <?php foreach ($certificate_types as $value => $label): ?>
-                            <option value="<?php echo e($value); ?>"><?php echo e($label); ?></option>
+                            <option value="<?php echo e($value); ?>" <?php echo (($_POST['request_type'] ?? $_POST['certificate_mobile_type'] ?? '') === $value) ? 'selected' : ''; ?>><?php echo e($label); ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
@@ -1537,6 +1540,23 @@ if ($stmt) {
                     <span class="submit-label"><i class="fas fa-paper-plane"></i> Submit Certificate Request</span>
                     <span class="submit-loading"><i class="fas fa-spinner fa-spin"></i> Submitting Request</span>
                 </button>
+                <div class="file-preview" id="filePreview">
+                    <div id="fileList">
+                        <span id="fileName">Selected files</span>
+                        <div class="text-muted small" id="fileSize">Ready to upload</div>
+                    </div>
+                    <div class="upload-progress" aria-hidden="true"><span></span></div>
+                </div>
+            </section>
+
+            <div class="form-actions">
+                <div class="privacy-copy">
+                    <i class="fas fa-lock"></i> Secure parish request submission. Please ensure all details are accurate before submitting.
+                </div>
+                <button type="submit" class="submit-request-btn" id="submitRequestBtn">
+                    <span class="submit-label"><i class="fas fa-paper-plane"></i> Submit Certificate Request</span>
+                    <span class="submit-loading"><i class="fas fa-spinner fa-spin"></i> Submitting Request</span>
+                </button>
             </div>
         </form>
     </div>
@@ -1559,6 +1579,7 @@ if ($stmt) {
         const fileSize = document.getElementById('fileSize');
         const form = document.getElementById('certificateRequestForm');
         const submitBtn = document.getElementById('submitRequestBtn');
+        const certificateLabels = <?php echo json_encode($certificate_types); ?>;
 
         function updatePurposeField() {
             if (!purposeSelect || !purposeOtherField || !purposeOtherInput) return;
@@ -1573,33 +1594,50 @@ if ($stmt) {
             purposeSelect.addEventListener('change', updatePurposeField);
             updatePurposeField();
         }
-        const certificateLabels = <?php echo json_encode($certificate_types); ?>;
+
+        function setCertificateType(value) {
+            if (!value) return;
+            radios.forEach(function(radio) {
+                radio.checked = (radio.value === value);
+            });
+            if (mobileSelect) {
+                mobileSelect.value = value;
+            }
+            if (select && certificateLabels[value]) {
+                select.value = certificateLabels[value];
+            }
+        }
 
         if (select) {
-            // Sync Search Selection Function - Documents this helper's role in the parish management workflow.
             function syncSearchSelection() {
                 const option = Array.from(document.querySelectorAll('#certificateTypeOptions option')).find(function(item) {
                     return item.value.toLowerCase() === select.value.toLowerCase();
                 });
                 const value = option ? option.dataset.value : '';
-                const match = value ? document.querySelector('input[name="request_type"][value="' + value.replace(/"/g, '\\"') + '"]') : null;
-                if (match) {
-                    match.checked = true;
-                    match.focus();
+                if (value) {
+                    setCertificateType(value);
                 }
             }
-
             select.addEventListener('change', syncSearchSelection);
             select.addEventListener('input', syncSearchSelection);
+        }
 
-            radios.forEach(function(radio) {
-                radio.addEventListener('change', function() {
-                    select.value = certificateLabels[radio.value] || '';
-                });
+        radios.forEach(function(radio) {
+            radio.addEventListener('change', function() {
+                if (radio.checked) {
+                    setCertificateType(radio.value);
+                }
+            });
+        });
+
+        if (mobileSelect) {
+            mobileSelect.addEventListener('change', function() {
+                if (mobileSelect.value) {
+                    setCertificateType(mobileSelect.value);
+                }
             });
         }
 
-        // Render Requirement File Function
         function renderFiles(files) {
             if (!files || files.length === 0 || !filePreview) {
                 return;
@@ -1616,7 +1654,6 @@ if ($stmt) {
             fileName.textContent = file_names.length === 1 ? 'PSA / Birth Certificate copy selected' : file_names.length + ' files selected';
             fileSize.textContent = (total_size / 1024 / 1024).toFixed(2) + ' MB total';
             
-            // Show file list as tooltip-like info
             if (file_names.length > 1) {
                 fileSize.textContent += ' • ' + file_names.join(', ');
             }
@@ -1651,10 +1688,56 @@ if ($stmt) {
             });
         }
 
-        if (form && submitBtn) {
-            form.addEventListener('submit', function() {
-                submitBtn.classList.add('is-loading');
-                submitBtn.disabled = true;
+        if (form) {
+            form.addEventListener('submit', function(event) {
+                const checkedRadio = document.querySelector('input[name="request_type"]:checked');
+                const mobileVal = mobileSelect ? mobileSelect.value : '';
+                const selectedType = (checkedRadio ? checkedRadio.value : '') || mobileVal;
+                
+                if (!selectedType) {
+                    event.preventDefault();
+                    alert('Please select a certificate type.');
+                    const firstOptionGrid = document.querySelector('.certificate-option-grid');
+                    if (firstOptionGrid && window.getComputedStyle(firstOptionGrid).display !== 'none') {
+                        const firstRadio = firstOptionGrid.querySelector('input[type="radio"]');
+                        if (firstRadio) firstRadio.focus();
+                    } else if (mobileSelect) {
+                        mobileSelect.focus();
+                    }
+                    return false;
+                }
+
+                if (mobileVal && (!checkedRadio || checkedRadio.value !== mobileVal)) {
+                    setCertificateType(mobileVal);
+                }
+
+                if (purposeSelect && !purposeSelect.value) {
+                    event.preventDefault();
+                    alert('Please select the purpose of your certificate request.');
+                    purposeSelect.focus();
+                    return false;
+                }
+
+                if (purposeSelect && purposeSelect.value === 'others' && purposeOtherInput && !purposeOtherInput.value.trim()) {
+                    event.preventDefault();
+                    alert('Please specify the purpose of your certificate request.');
+                    purposeOtherInput.focus();
+                    return false;
+                }
+
+                if (fileInput && (!fileInput.files || fileInput.files.length === 0)) {
+                    event.preventDefault();
+                    alert('Please upload a copy of the PSA / Birth Certificate before submitting.');
+                    fileInput.focus();
+                    return false;
+                }
+
+                if (submitBtn) {
+                    submitBtn.classList.add('is-loading');
+                    window.setTimeout(function() {
+                        submitBtn.disabled = true;
+                    }, 10);
+                }
             });
         }
     })();
@@ -1693,22 +1776,6 @@ if ($stmt) {
                     heading.removeAttribute('aria-expanded');
                     delete step.dataset.mobileAccordionReady;
                 }
-            });
-        }
-
-        if (mobileSelect) {
-            mobileSelect.addEventListener('change', function() {
-                const value = mobileSelect.value;
-                const match = value ? document.querySelector('input[name="request_type"][value="' + value.replace(/"/g, '\\"') + '"]') : null;
-                if (match) {
-                    match.checked = true;
-                }
-            });
-
-            radios.forEach(function(radio) {
-                radio.addEventListener('change', function() {
-                    mobileSelect.value = radio.value;
-                });
             });
         }
 
