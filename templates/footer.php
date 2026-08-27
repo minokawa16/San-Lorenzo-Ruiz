@@ -1788,10 +1788,6 @@
                 liveAnswer.scrollTop = liveAnswer.scrollHeight;
                 return item;
             }
-                liveAnswer.appendChild(item);
-                liveAnswer.scrollTop = liveAnswer.scrollHeight;
-                return item;
-            }
 
             function refreshAssistantCsrfToken() {
                 return fetch('<?php echo BASE_URL; ?>api/csrf-token.php', {
@@ -1955,9 +1951,11 @@
 
             document.addEventListener('click', function(event) {
                 const quickPrompt = event.target.closest('[data-ai-prompt]');
-                if (quickPrompt && widget.contains(quickPrompt)) {
+                if (quickPrompt) {
                     const prompt = quickPrompt.getAttribute('data-ai-prompt');
                     if (prompt) {
+                        setAssistantOpen(true);
+                        checkAssistantHealth(false);
                         askLiveAssistant(prompt);
                     }
                     return;

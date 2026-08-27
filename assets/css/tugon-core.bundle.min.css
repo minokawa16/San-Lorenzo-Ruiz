@@ -276,7 +276,10 @@ box-shadow: inset 3px 0 0 var(--admin-sidebar-gold) !important;
 html body .admin-sidebar .sidebar-nav .nav-link.active i,
 html body.premium-admin .admin-sidebar .sidebar-nav .nav-link.active i,
 html body .user-sidebar .sidebar-nav .nav-link.active i,
-html body.user-area .user-sidebar .sidebar-nav .nav-link.active i {
+html body.user-area .user-sidebar .sidebar-nav .nav-link.active i,
+html body .user-sidebar .sidebar-nav .nav-link#sidebarAiAssistantLink i,
+html body .admin-sidebar .sidebar-nav .nav-link[href*="ai-assistant.php"] i,
+html body .user-sidebar .sidebar-nav .nav-link[href*="ai-assistant.php"] i {
 color: var(--admin-sidebar-gold) !important;
 }
 html body .nav-collapsible {

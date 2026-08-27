@@ -98,7 +98,7 @@ $mobile_nav_items = [
 // The phone dashboard intentionally exposes the eight most-used destinations.
 // AI, profile, and logout remain available from their existing navigation entry points.
 if (!empty($dashboard_mobile_quick_access)) {
-    $mobile_nav_items = array_slice($mobile_nav_items, 0, 8);
+    $mobile_nav_items = array_slice($mobile_nav_items, 0, 9);
 }
 ?>
 
