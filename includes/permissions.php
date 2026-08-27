@@ -142,6 +142,18 @@ function hasPermission($permission, $role = null) {
             $userPermissionCache[$userId][$row['permission_key']] = true;
         }
         $statement->close();
+
+        // Resilient fallback for default parishioner permissions
+        if (empty($userPermissionCache[$userId])) {
+            $roles = userRoleKeys($userId, $connection);
+            if (in_array('parishioner', $roles, true) || in_array('user', $roles, true)) {
+                $userPermissionCache[$userId]['ai.parishioner.use'] = true;
+                $userPermissionCache[$userId]['requests.create'] = true;
+                $userPermissionCache[$userId]['requests.view_own'] = true;
+                $userPermissionCache[$userId]['reservations.create'] = true;
+                $userPermissionCache[$userId]['announcements.view'] = true;
+            }
+        }
     }
     return isset($userPermissionCache[$userId][$permission]);
 }
