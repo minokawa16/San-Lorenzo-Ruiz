@@ -1037,9 +1037,131 @@
     </style>
     <script>
         window.parishInitialNotifications = <?php echo json_encode($action_notifications, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
-    </script>
+    <style id="tugon-ai-floating-head-styles">
+        .ai-assistant-widget {
+            position: fixed !important;
+            bottom: 24px !important;
+            right: 24px !important;
+            z-index: 99999 !important;
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            pointer-events: auto !important;
+            width: auto !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            inset: auto 24px 24px auto !important;
+        }
+        .ai-assistant-trigger {
+            position: relative !important;
+            width: 60px !important;
+            height: 60px !important;
+            min-width: 60px !important;
+            min-height: 60px !important;
+            border-radius: 50% !important;
+            background: linear-gradient(135deg, #2E3A2D 0%, #1E271D 100%) !important;
+            color: #FFFFFF !important;
+            border: 2.5px solid #C89B3C !important;
+            box-shadow: 0 10px 28px rgba(22, 33, 24, 0.45), 0 2px 8px rgba(200, 155, 60, 0.35) !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-size: 1.4rem !important;
+            cursor: pointer !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            pointer-events: auto !important;
+            transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+            text-decoration: none !important;
+        }
+        .ai-assistant-trigger:hover {
+            transform: scale(1.08) translateY(-2px) !important;
+            box-shadow: 0 14px 34px rgba(200, 155, 60, 0.5) !important;
+            color: #FFFFFF !important;
+        }
+        .ai-assistant-icon {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            color: #FFFFFF !important;
+        }
+        .ai-assistant-icon .fa-robot {
+            font-size: 1.5rem !important;
+            color: #FFFFFF !important;
+        }
+        .ai-assistant-icon .fa-wand-magic-sparkles {
+            position: absolute !important;
+            top: -4px !important;
+            right: -4px !important;
+            font-size: 0.85rem !important;
+            color: #C89B3C !important;
+        }
+        .ai-assistant-chathead-label {
+            position: absolute !important;
+            bottom: -8px !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            background: #2E3A2D !important;
+            color: #FFFFFF !important;
+            border: 1px solid #C89B3C !important;
+            padding: 2px 8px !important;
+            border-radius: 999px !important;
+            font-size: 0.68rem !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.4px !important;
+            white-space: nowrap !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+            pointer-events: none !important;
+        }
+        .ai-assistant-widget.is-open .ai-assistant-trigger {
+            display: none !important;
+        }
+        .ai-assistant-panel {
+            position: fixed !important;
+            bottom: 24px !important;
+            right: 24px !important;
+            width: 390px !important;
+            max-width: calc(100vw - 32px) !important;
+            height: 540px !important;
+            max-height: calc(100vh - 48px) !important;
+            border-radius: 18px !important;
+            border: 1.5px solid rgba(200, 155, 60, 0.45) !important;
+            background: #FCFBF8 !important;
+            box-shadow: 0 20px 60px rgba(15, 23, 42, 0.28), 0 4px 16px rgba(0, 0, 0, 0.08) !important;
+            display: flex !important;
+            flex-direction: column !important;
+            overflow: hidden !important;
+            z-index: 99999 !important;
+            transform: translateY(12px) scale(0.96) !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease !important;
+        }
+        .ai-assistant-widget.is-open .ai-assistant-panel {
+            display: flex !important;
+            opacity: 1 !important;
+            pointer-events: auto !important;
+            transform: translateY(0) scale(1) !important;
+        }
+        @media (max-width: 599px) {
+            .ai-assistant-widget {
+                bottom: calc(16px + env(safe-area-inset-bottom)) !important;
+                right: 16px !important;
+                inset: auto 16px calc(16px + env(safe-area-inset-bottom)) auto !important;
+            }
+            .ai-assistant-widget.is-open .ai-assistant-panel {
+                inset: 0 !important;
+                width: 100vw !important;
+                height: 100dvh !important;
+                max-width: none !important;
+                max-height: none !important;
+                border-radius: 0 !important;
+            }
+        }
+    </style>
 
-    <?php if (isLoggedIn() && (isUser() || !isAdmin() || !empty($is_user_area))): ?>
+    <?php if (isLoggedIn()): ?>
     <div class="ai-assistant-widget" id="aiAssistantWidget">
         <button class="ai-assistant-trigger" type="button" id="aiAssistantTrigger" aria-label="Open TUGON AI" aria-expanded="false" title="Ask TUGON AI for help">
             <span class="ai-assistant-glow" aria-hidden="true"></span>
@@ -1080,7 +1202,7 @@
                         </div>
                         <div class="ai-assistant-greeting-bubble">
                             <strong>Hello! I'm TUGON AI.</strong>
-                            <span>I can help you with parish services, requests, reservations, certificates, and other transactions in the TUGON system. How can I help you?</span>
+                            <span>I can help you with parish services, requests, reservations, certificates, schedules, announcements, and your transactions.</span>
                         </div>
                         <div class="ai-assistant-quick-heading">Quick Help:</div>
                         <div class="ai-assistant-quick" aria-label="Suggested questions">
@@ -1123,9 +1245,7 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Custom JS -->
-    <?php $main_script_version = file_exists(__DIR__ . '/../assets/js/main.js') ? filemtime(__DIR__ . '/../assets/js/main.js') : time(); ?>
-    <script src="../assets/js/main.js?v=<?php echo $main_script_version; ?>"></script>
-    <?php if (isLoggedIn() && (isUser() || !isAdmin() || !empty($is_user_area))): ?>
+    <?php if (isLoggedIn()): ?>
     <script>
         (function() {
             const widget = document.getElementById('aiAssistantWidget');
@@ -1772,6 +1892,19 @@
                 if (widget.classList.contains('is-open')) {
                     checkAssistantHealth(false);
                 }
+            });
+
+            document.querySelectorAll('[data-open-ai-chat], a[href*="ai-assistant.php"]').forEach(function(link) {
+                link.addEventListener('click', function(e) {
+                    if (window.location.pathname.indexOf('ai-assistant.php') === -1) {
+                        e.preventDefault();
+                        setAssistantOpen(true);
+                        checkAssistantHealth(false);
+                        if (liveInput) {
+                            liveInput.focus();
+                        }
+                    }
+                });
             });
 
             close.addEventListener('click', function() {

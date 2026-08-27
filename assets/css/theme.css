@@ -5445,10 +5445,6 @@ nav[aria-label="breadcrumb"] .breadcrumb-item.active {
     body.user-area.sidebar-open::after {
         display: none !important;
     }
-
-    body.user-area .ai-assistant-widget {
-        display: none !important;
-    }
 }
 
 @media (max-width: 480px) {
