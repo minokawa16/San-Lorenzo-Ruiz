@@ -510,35 +510,56 @@ $body_extra_class = 'user-ai-chat-page';
         }
     }
 
-    @media (max-width: 680px) {
+    @media (max-width: 767px) {
         .tugon-ai-page {
-            padding: 10px;
+            padding: 0;
+            min-height: 100dvh;
+            height: 100dvh;
+        }
+
+        .tugon-ai-shell,
+        .tugon-ai-card {
+            height: 100dvh;
+            border-radius: 0;
+            border: 0;
         }
 
         .tugon-ai-header {
-            align-items: flex-start;
-            flex-direction: column;
-        }
-
-        .tugon-ai-status {
-            justify-content: flex-start;
+            padding: max(8px, env(safe-area-inset-top)) 14px 8px;
         }
 
         .tugon-ai-main {
-            grid-template-rows: auto minmax(360px, 56vh) auto;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
         }
 
         .tugon-ai-side {
-            grid-template-columns: 1fr;
+            display: none;
         }
 
         .tugon-ai-form {
-            grid-template-columns: 1fr auto;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px max(10px, env(safe-area-inset-bottom)) 12px;
+            border-radius: 0;
+            border-left: 0;
+            border-right: 0;
+            border-bottom: 0;
         }
 
         .ai-send-btn {
-            grid-column: 1 / -1;
-            width: 100%;
+            width: 38px;
+            height: 38px;
+            min-width: 38px;
+            min-height: 38px;
+            padding: 0;
+            border-radius: 50%;
+        }
+
+        .ai-send-btn span {
+            display: none;
         }
     }
 </style>
@@ -892,11 +913,25 @@ document.addEventListener('DOMContentLoaded', function() {
     conversationHistory.push({role: 'assistant', content: 'Welcome to TUGON AI Parish Assistant. How may I assist you today?'});
     input.focus();
 
+    function resetInputHeight() {
+        input.style.height = 'auto';
+    }
+
+    input.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+    });
+
+    input.addEventListener('focus', function() {
+        setTimeout(scrollLatest, 300);
+    });
+
     form.addEventListener('submit', function(event) {
         event.preventDefault();
         const message = input.value.trim();
         if (!message) return;
         input.value = '';
+        resetInputHeight();
         askAssistant(message, 'chat');
         input.focus();
     });
