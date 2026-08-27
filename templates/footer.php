@@ -1041,26 +1041,27 @@
 
     <?php if (isLoggedIn() && (isUser() || !isAdmin() || !empty($is_user_area))): ?>
     <div class="ai-assistant-widget" id="aiAssistantWidget">
-        <button class="ai-assistant-trigger" type="button" id="aiAssistantTrigger" aria-label="<?php echo e(t('chatbot.trigger_label', 'AI Parish Assistant')); ?>" aria-expanded="false" aria-grabbed="false" title="Tap to open. Drag to move. Long press to reset position.">
+        <button class="ai-assistant-trigger" type="button" id="aiAssistantTrigger" aria-label="Open TUGON AI" aria-expanded="false" title="Ask TUGON AI for help">
             <span class="ai-assistant-glow" aria-hidden="true"></span>
             <span class="ai-assistant-icon" aria-hidden="true">
-                <i class="fas fa-church"></i>
+                <i class="fas fa-robot"></i>
                 <i class="fas fa-wand-magic-sparkles"></i>
             </span>
+            <span class="ai-assistant-chathead-label">TUGON AI</span>
         </button>
-        <section class="ai-assistant-panel" id="aiAssistantPanel" aria-hidden="true">
+        <section class="ai-assistant-panel" id="aiAssistantPanel" aria-hidden="true" role="dialog" aria-label="TUGON AI Parish Assistant">
             <div class="ai-assistant-panel-header">
                 <button class="ai-assistant-mobile-back" type="button" id="aiAssistantMobileBack" aria-label="Back to previous screen">
                     <i class="fas fa-chevron-left" aria-hidden="true"></i>
                 </button>
                 <div class="ai-assistant-panel-mark" aria-hidden="true">
-                    <i class="fas fa-church"></i>
+                    <i class="fas fa-robot"></i>
                 </div>
                 <div class="ai-assistant-panel-identity">
                     <strong>TUGON AI</strong>
                     <span>Parish Assistant</span>
                 </div>
-                <div class="ai-assistant-status" id="aiAssistantStatus"><span></span> Checking...</div>
+                <div class="ai-assistant-status" id="aiAssistantStatus"><span></span> Online</div>
                 <button class="ai-assistant-tool" type="button" id="aiAssistantClear" aria-label="Clear conversation" title="Clear conversation">
                     <i class="fas fa-trash-can"></i>
                 </button>
@@ -1074,24 +1075,28 @@
             <div class="ai-assistant-panel-body">
                 <div class="ai-assistant-live-answer" id="aiAssistantLiveAnswer">
                     <div class="ai-assistant-empty-state" id="aiAssistantEmptyState">
-                        <i class="fas fa-church"></i>
-                        <div class="ai-assistant-greeting-bubble">
-                            <strong>Hello! I'm TUGON AI, your parish information assistant.</strong>
-                            <span>How can I help you today?</span>
+                        <div class="ai-assistant-welcome-icon" aria-hidden="true">
+                            <i class="fas fa-robot"></i>
                         </div>
+                        <div class="ai-assistant-greeting-bubble">
+                            <strong>Hello! I'm TUGON AI.</strong>
+                            <span>I can help you with parish services, requests, reservations, certificates, and other transactions in the TUGON system. How can I help you?</span>
+                        </div>
+                        <div class="ai-assistant-quick-heading">Quick Help:</div>
                         <div class="ai-assistant-quick" aria-label="Suggested questions">
-                            <button type="button" data-ai-prompt="What are the baptism requirements?">Baptism</button>
-                            <button type="button" data-ai-prompt="How can I request a parish certificate?">Certificate Request</button>
-                            <button type="button" data-ai-prompt="What is the Sunday mass schedule?">Mass schedule</button>
-                            <button type="button" data-ai-prompt="How can I make a reservation?">Reservations</button>
-                            <button type="button" data-ai-prompt="What are the parish office hours?">Office Hours</button>
+                            <button type="button" data-ai-prompt="How do I request a certificate?"><i class="fas fa-file-lines"></i> Request a Certificate</button>
+                            <button type="button" data-ai-prompt="How do I request a blessing?"><i class="fas fa-hands-praying"></i> Request a Blessing</button>
+                            <button type="button" data-ai-prompt="How do I make a parish reservation?"><i class="fas fa-calendar-plus"></i> Parish Reservation</button>
+                            <button type="button" data-ai-prompt="What is the status of my request?"><i class="fas fa-list-check"></i> Check My Requests</button>
+                            <button type="button" data-ai-prompt="Where can I see parish announcements?"><i class="fas fa-bullhorn"></i> Parish Announcements</button>
+                            <button type="button" data-ai-prompt="Where can I see the parish schedule?"><i class="fas fa-calendar-days"></i> Parish Schedule</button>
                         </div>
                     </div>
                 </div>
                 <form class="ai-assistant-live-form" id="aiAssistantLiveForm">
                     <label class="ai-assistant-search" for="aiAssistantLiveInput">
                         <i class="fas fa-message" aria-hidden="true"></i>
-                        <textarea id="aiAssistantLiveInput" rows="1" maxlength="2000" data-no-autocomplete="true" placeholder="<?php echo e(t('chatbot.placeholder', 'Type your message here...')); ?>"></textarea>
+                        <textarea id="aiAssistantLiveInput" rows="1" maxlength="2000" data-no-autocomplete="true" placeholder="Ask TUGON AI about parish services..."></textarea>
                     </label>
                     <button type="submit" aria-label="<?php echo e(t('chatbot.send', 'Send')); ?>"><i class="fas fa-paper-plane" aria-hidden="true"></i><span class="ai-assistant-send-label"><?php echo e(t('chatbot.send', 'Send')); ?></span></button>
                 </form>
@@ -1572,25 +1577,51 @@
             }
 
             function thinkingDelayFor(message) {
-                return Math.min(1800, Math.max(950, String(message || '').length * 9));
+                return Math.min(1200, Math.max(600, String(message || '').length * 6));
             }
 
-            function typeAssistantText(target, text, done) {
-                const value = String(text || '');
-                let index = 0;
-                const speed = Math.max(12, Math.min(26, Math.floor(1200 / Math.max(value.length, 1))));
-                target.textContent = '';
-                function tick() {
-                    target.textContent = value.slice(0, index);
-                    liveAnswer.scrollTop = liveAnswer.scrollHeight;
-                    index += 1;
-                    if (index <= value.length) {
-                        window.setTimeout(tick, speed);
-                    } else if (typeof done === 'function') {
-                        done();
+            function formatAssistantMarkdown(text) {
+                if (!text) return '';
+                const raw = String(text);
+                let html = escapeHtml(raw);
+                html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function(match, label, url) {
+                    const cleanUrl = url.trim();
+                    return '<a href="' + cleanUrl + '" class="ai-action-btn"><i class="fas fa-arrow-up-right-from-square"></i> ' + label + '</a>';
+                });
+                const rawLines = html.split('\n');
+                let result = [];
+                let inList = false;
+                for (let i = 0; i < rawLines.length; i++) {
+                    const line = rawLines[i].trim();
+                    if (/^(?:•|-|\*)\s+(.+)$/.test(line)) {
+                        const content = line.replace(/^(?:•|-|\*)\s+/, '');
+                        if (!inList) {
+                            result.push('<ul class="ai-assistant-bullet-list">');
+                            inList = true;
+                        }
+                        result.push('<li>' + content + '</li>');
+                    } else if (/^\d+\.\s+(.+)$/.test(line)) {
+                        const content = line.replace(/^\d+\.\s+/, '');
+                        if (!inList) {
+                            result.push('<ol class="ai-assistant-ordered-list">');
+                            inList = true;
+                        }
+                        result.push('<li>' + content + '</li>');
+                    } else {
+                        if (inList) {
+                            result.push('</ul>');
+                            inList = false;
+                        }
+                        if (line.length > 0) {
+                            result.push('<p>' + line + '</p>');
+                        }
                     }
                 }
-                tick();
+                if (inList) {
+                    result.push('</ul>');
+                }
+                return result.join('');
             }
 
             // Append Chat Message Function - Documents this helper's role in the parish management workflow.
@@ -1603,27 +1634,21 @@
                 const item = document.createElement('div');
                 item.className = 'ai-assistant-chat-message ' + type;
                 const stepList = Array.isArray(steps) && steps.length
-                    ? '<ol class="ai-assistant-numbered-list" hidden>' + steps.map(function(step) { return '<li>' + escapeHtml(step) + '</li>'; }).join('') + '</ol>'
+                    ? '<ol class="ai-assistant-numbered-list">' + steps.map(function(step) { return '<li>' + escapeHtml(step) + '</li>'; }).join('') + '</ol>'
                     : '';
-                const suggestions = '';
-                const copyButton = type === 'assistant' ? '<button type="button" class="ai-assistant-copy">Copy</button>' : '';
-                item.innerHTML = '<strong>' + escapeHtml(title) + '</strong><p><span class="ai-assistant-stream-text">' + (stream ? '' : escapeHtml(message)) + '</span></p>' + stepList + suggestions + '<div class="ai-assistant-message-meta"><span>' + currentTime() + '</span>' + copyButton + '</div>';
+                const copyButton = type === 'assistant' ? '<button type="button" class="ai-assistant-copy" aria-label="Copy response text"><i class="fas fa-copy"></i> Copy</button>' : '';
+
+                if (type === 'user') {
+                    item.innerHTML = '<div class="ai-msg-bubble user-bubble"><p>' + escapeHtml(message) + '</p></div><div class="ai-assistant-message-meta"><span>' + currentTime() + '</span></div>';
+                } else {
+                    const formatted = formatAssistantMarkdown(message);
+                    item.innerHTML = '<div class="ai-msg-header"><span class="ai-avatar-badge" aria-hidden="true"><i class="fas fa-robot"></i></span><strong>' + escapeHtml(title) + '</strong></div><div class="ai-msg-bubble assistant-bubble">' + formatted + '</div>' + stepList + '<div class="ai-assistant-message-meta"><span>' + currentTime() + '</span>' + copyButton + '</div>';
+                }
+
                 liveAnswer.appendChild(item);
                 liveAnswer.scrollTop = liveAnswer.scrollHeight;
-                if (stream && type === 'assistant') {
-                    typeAssistantText(item.querySelector('.ai-assistant-stream-text'), message, function() {
-                        const numberedList = item.querySelector('.ai-assistant-numbered-list');
-                        if (numberedList) {
-                            numberedList.hidden = false;
-                        }
-                        const suggestionBlock = item.querySelector('.ai-assistant-stream-suggestions');
-                        if (suggestionBlock) {
-                            suggestionBlock.hidden = false;
-                        }
-                        if (liveInput) {
-                            liveInput.focus();
-                        }
-                    });
+                if (liveInput) {
+                    liveInput.focus();
                 }
                 return item;
             }
@@ -1637,7 +1662,11 @@
                 removeEmptyState();
                 const item = document.createElement('div');
                 item.className = 'ai-assistant-chat-message assistant loading';
-                item.innerHTML = '<strong>' + escapeHtml(chatLabels.title) + '</strong><div class="ai-assistant-typing-line"><span>Thinking</span><div class="ai-typing-dots" aria-label="' + escapeHtml(chatLabels.typing) + '"><span></span><span></span><span></span></div></div>';
+                item.innerHTML = '<div class="ai-msg-header"><span class="ai-avatar-badge" aria-hidden="true"><i class="fas fa-robot"></i></span><strong>' + escapeHtml(chatLabels.title) + '</strong></div><div class="ai-msg-bubble assistant-bubble ai-typing-bubble"><div class="ai-typing-dots" aria-label="' + escapeHtml(chatLabels.typing) + '"><span></span><span></span><span></span></div></div>';
+                liveAnswer.appendChild(item);
+                liveAnswer.scrollTop = liveAnswer.scrollHeight;
+                return item;
+            }
                 liveAnswer.appendChild(item);
                 liveAnswer.scrollTop = liveAnswer.scrollHeight;
                 return item;
@@ -1755,16 +1784,14 @@
                 });
             }
 
-            if (clear && liveAnswer) {
                 clear.addEventListener('click', function() {
                     liveAnswer.hidden = false;
-                    liveAnswer.innerHTML = '<div class="ai-assistant-empty-state" id="aiAssistantEmptyState"><i class="fas fa-church"></i><div class="ai-assistant-greeting-bubble"><strong>Conversation cleared</strong><span>What can I help you with?</span></div><div class="ai-assistant-quick" aria-label="Suggested questions"><button type="button" data-ai-prompt="What are the certificate requirements?">Certificate requirements</button><button type="button" data-ai-prompt="How can I check my request status?">Request status</button><button type="button" data-ai-prompt="What is the Mass schedule?">Mass schedule</button><button type="button" data-ai-prompt="Show me the latest parish announcements.">Announcements</button></div></div>';
+                    liveAnswer.innerHTML = '<div class="ai-assistant-empty-state" id="aiAssistantEmptyState"><div class="ai-assistant-welcome-icon" aria-hidden="true"><i class="fas fa-robot"></i></div><div class="ai-assistant-greeting-bubble"><strong>Conversation cleared.</strong><span>How can I help you today?</span></div><div class="ai-assistant-quick-heading">Quick Help:</div><div class="ai-assistant-quick" aria-label="Suggested questions"><button type="button" data-ai-prompt="How do I request a certificate?"><i class="fas fa-file-lines"></i> Request a Certificate</button><button type="button" data-ai-prompt="How do I request a blessing?"><i class="fas fa-hands-praying"></i> Request a Blessing</button><button type="button" data-ai-prompt="How do I make a parish reservation?"><i class="fas fa-calendar-plus"></i> Parish Reservation</button><button type="button" data-ai-prompt="What is the status of my request?"><i class="fas fa-list-check"></i> Check My Requests</button><button type="button" data-ai-prompt="Where can I see parish announcements?"><i class="fas fa-bullhorn"></i> Parish Announcements</button><button type="button" data-ai-prompt="Where can I see the parish schedule?"><i class="fas fa-calendar-days"></i> Parish Schedule</button></div></div>';
                     conversationHistory.length = 0;
                     if (liveInput) {
                         liveInput.focus();
                     }
                 });
-            }
 
             if (minimize) {
                 minimize.addEventListener('click', function() {

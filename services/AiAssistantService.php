@@ -92,13 +92,19 @@ final class AiAssistantService
             return $this->persist($userId, $audience, 'analytics', $language, $message, $answer, [], $searchResults, $analytics, $correlation, 'authorized-analytics');
         }
 
-        // 8. Smart Proactive Follow-ups for Incomplete Requests
+        // 8. Grounded System Guidance & Personalized User Transaction Inquiries
+        $systemResponse = $this->resolveSystemOrUserTransactionQuery($userId, $contextualQuery, $language);
+        if ($systemResponse !== null) {
+            return $this->persist($userId, $audience, $mode, $language, $message, $systemResponse['answer'], $systemResponse['sources'] ?? [], $searchResults, null, $correlation, 'system-transaction-grounded', $systemResponse['prompts'] ?? []);
+        }
+
+        // 9. Smart Proactive Follow-ups for Incomplete Requests
         $proactiveResponse = $this->checkIncompleteRequest($contextualQuery, $language);
         if ($proactiveResponse !== null) {
             return $this->persist($userId, $audience, $mode, $language, $message, $proactiveResponse['answer'], $proactiveResponse['sources'] ?? [], $searchResults, null, $correlation, 'proactive-guidance', $proactiveResponse['prompts'] ?? []);
         }
 
-        // 9. RAG Knowledge Base Retrieval
+        // 10. RAG Knowledge Base Retrieval
         $sources = $this->knowledge($contextualQuery);
         if (!$sources) {
             $answer = ($language === 'fil' || $language === 'taglish') ? self::UNKNOWN_FIL : self::UNKNOWN_EN;
@@ -207,6 +213,192 @@ final class AiAssistantService
         }
 
         return $query;
+    }
+
+    /**
+     * Resolve direct parish system guidance and personalized user transaction lookups.
+     */
+    private function resolveSystemOrUserTransactionQuery(int $userId, string $query, string $language): ?array
+    {
+        $normalized = mb_strtolower(trim($query));
+        $isFil = ($language === 'fil' || $language === 'taglish');
+
+        // A. User's Own Request Status Inquiry
+        if (preg_match('/\b(?:status of (?:my|the) (?:request|certificate|blessing)|check (?:my|the) requests?|my requests?(?: status)?|kumusta (?:ang |yung )?request|anong status ng request|follow[- ]?up (?:sa )?request|check certificate status)\b/iu', $normalized)) {
+            $stmt = $this->db->prepare("SELECT request_id, reference_number, request_type, status, date_requested FROM requests WHERE user_id=? AND deleted_at IS NULL ORDER BY date_requested DESC LIMIT 5");
+            if ($stmt) {
+                $stmt->bind_param('i', $userId);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                $requests = [];
+                while ($row = $result->fetch_assoc()) {
+                    $requests[] = $row;
+                }
+                $stmt->close();
+
+                if (!empty($requests)) {
+                    $lines = [];
+                    foreach ($requests as $r) {
+                        $ref = $r['reference_number'] ?: ('REQ-' . $r['request_id']);
+                        $type = ucwords(str_replace('_', ' ', $r['request_type']));
+                        $status = ucfirst($r['status']);
+                        $date = date('M d, Y', strtotime($r['date_requested']));
+                        $lines[] = "• **{$ref}** — {$type}\n  Status: **{$status}** (Requested on {$date})";
+                    }
+                    $listStr = implode("\n\n", $lines);
+                    $answer = $isFil
+                        ? "Narito po ang kasalukuyang status ng inyong mga isinumiteng kahilingan:\n\n{$listStr}\n\nMaaari ninyong buksan ang inyong kahilingan upang makita ang buong detalye, admin notes, o mag-upload ng GCash payment receipt:\n[View My Requests](../users/my-requests.php)"
+                        : "Here is the current status of your submitted request(s):\n\n{$listStr}\n\nYou can track details, read admin notes, or upload your GCash payment receipt anytime:\n[View My Requests](../users/my-requests.php)";
+                } else {
+                    $answer = $isFil
+                        ? "Wala pa po kayong aktibong request sa kasalukuyan. Kung nais ninyong kumuha ng sertipiko o humiling ng basbas, maaari po kayong magsumite dito:\n\n[Request Certificate](../users/request-certificate.php) [Request Blessing](../users/request-blessing.php)"
+                        : "You currently have no submitted requests in the system. If you need a parish certificate or blessing, you can submit one below:\n\n[Request Certificate](../users/request-certificate.php) [Request Blessing](../users/request-blessing.php)";
+                }
+                return [
+                    'answer' => $answer,
+                    'prompts' => ['Request Certificate', 'Request Blessing', 'Parish Schedule']
+                ];
+            }
+        }
+
+        // B. User's Own Reservation Status Inquiry
+        if (preg_match('/\b(?:status of (?:my|the) reservation|check (?:my|the) reservations?|my reservations?(?: status)?|kumusta (?:ang |yung )?reservation|anong status ng reservation|check reservation)\b/iu', $normalized)) {
+            $stmt = $this->db->prepare("SELECT reservation_id, reservation_type, event_date, event_time, status FROM reservations WHERE user_id=? ORDER BY event_date DESC LIMIT 5");
+            if ($stmt) {
+                $stmt->bind_param('i', $userId);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                $reservations = [];
+                while ($row = $result->fetch_assoc()) {
+                    $reservations[] = $row;
+                }
+                $stmt->close();
+
+                if (!empty($reservations)) {
+                    $lines = [];
+                    foreach ($reservations as $res) {
+                        $type = ucwords(str_replace('_', ' ', $res['reservation_type']));
+                        $date = date('M d, Y', strtotime($res['event_date']));
+                        $time = substr((string)$res['event_time'], 0, 5);
+                        $status = ucfirst($res['status']);
+                        $lines[] = "• **{$type}** on **{$date}** ({$time})\n  Status: **{$status}**";
+                    }
+                    $listStr = implode("\n\n", $lines);
+                    $answer = $isFil
+                        ? "Narito po ang tala ng inyong mga reservation sa parokya:\n\n{$listStr}\n\n[Make Reservation](../users/make-reservation.php)"
+                        : "Here is the status of your parish reservation(s):\n\n{$listStr}\n\n[Make Reservation](../users/make-reservation.php)";
+                } else {
+                    $answer = $isFil
+                        ? "Wala pa po kayong aktibong reservation sa ating pasilidad o kaganapan. Kung nais ninyong magpa-reserve, i-click lamang po ang link sa ibaba:\n\n[Make Reservation](../users/make-reservation.php)"
+                        : "You currently have no reservation bookings on file. If you would like to book a parish facility or schedule, click the link below:\n\n[Make Reservation](../users/make-reservation.php)";
+                }
+                return [
+                    'answer' => $answer,
+                    'prompts' => ['Make Reservation', 'Parish Schedule', 'Contact Parish Staff']
+                ];
+            }
+        }
+
+        // C. How to Request a Certificate
+        if (preg_match('/\b(?:how (?:do|can) i (?:request|get|apply for|submit) (?:a )?(?:parish )?certificate|how to (?:get|request) (?:a )?certificate|paano (?:kumuha|mag-?request|humingi) ng (?:sertipiko|certificate)|how to request (?:baptism|confirmation|marriage) certificate)\b/iu', $normalized)) {
+            $answer = $isFil
+                ? "Narito po ang mga hakbang para sa paghiling ng **Sertipiko ng Parokya** (Binyag, Kumpil, o Kasal):\n\n1. Pumunta sa **Certificate Request** page.\n2. Piliin ang uri ng sertipiko (Baptismal, Confirmation, Marriage, o Good Moral).\n3. Ilagay ang mga kinakailangang personal na detalye at layunin.\n4. Mag-upload ng malinaw na kopya ng **PSA / Birth Certificate** (PDF, JPG, o PNG, hanggang 10MB).\n5. I-click ang **Submit Certificate Request** at itabi ang inyong Reference Number.\n\n[Open Certificate Requests](../users/request-certificate.php)"
+                : "Here is the step-by-step guide to request an official **Parish Certificate** (Baptism, Confirmation, Marriage, or Good Moral):\n\n1. Open the **Certificate Request** page.\n2. Select your desired certificate type.\n3. Fill in the required personal details and purpose of request.\n4. Upload a clear copy of your **PSA / Birth Certificate** (PDF, JPG, or PNG, up to 10MB).\n5. Click **Submit Certificate Request** and save your assigned Reference Number.\n\n[Open Certificate Requests](../users/request-certificate.php)";
+            return [
+                'answer' => $answer,
+                'prompts' => ['What does Pending mean?', 'When can I claim my certificate?', 'Check My Requests']
+            ];
+        }
+
+        // D. How to Request a Blessing
+        if (preg_match('/\b(?:how (?:do|can) i (?:request|apply for|submit) (?:a )?blessing|how to request (?:a )?blessing|paano (?:magpa-?bless|mag-?request ng blessing|humingi ng basbas)|house blessing|vehicle blessing|pabasbas ng (?:bahay|sasakyan))\b/iu', $normalized)) {
+            $answer = $isFil
+                ? "Maaari po kayong mag-request ng **Pagbabasbas (Blessing)** para sa inyong tahanan, sasakyan, negosyo, o mga banal na imahen:\n\n1. Buksan ang **Request Blessing** page.\n2. Piliin ang uri ng blessing (House, Vehicle, Business, o Religious Items).\n3. Itakda ang nais na petsa, oras, at kumpletong lokasyon o address.\n4. Isumite ang inyong kahilingan para sa kumpirmasyon ng opisina ng parokya.\n\n[Open Blessing Requests](../users/request-blessing.php)"
+                : "You can request an official **Parish Blessing** for your home, vehicle, business, or religious items:\n\n1. Open the **Request Blessing** page.\n2. Select the blessing category (House, Vehicle, Business, or Religious Articles).\n3. Specify your preferred date, time, and complete location address.\n4. Submit your request for parish review and clergy assignment.\n\n[Open Blessing Requests](../users/request-blessing.php)";
+            return [
+                'answer' => $answer,
+                'prompts' => ['Request Blessing', 'Parish Schedule', 'Check My Requests']
+            ];
+        }
+
+        // E. How to Make a Parish Reservation
+        if (preg_match('/\b(?:how (?:do|can) i (?:make|book|apply for) (?:a )?(?:parish )?reservation|how to (?:make|book) (?:a )?reservation|paano (?:mag-?reserve|mag-?book ng (?:simbahan|venue|hall|schedule)))\b/iu', $normalized)) {
+            $answer = $isFil
+                ? "Narito po ang proseso para sa **Parish Facility & Venue Reservation**:\n\n1. Buksan ang **Make Reservation** form.\n2. Piliin ang uri ng reserbasyon (Kasal, Binyag, Church Venue, atbp.).\n3. Piliin ang pasilidad/resource, petsa, at oras ng inyong kaganapan.\n4. Ilagay ang tagal (service, setup, cleanup) at karagdagang detalye.\n5. Isumite upang ma-review ng staff ng parokya ang schedule.\n\n[Make Reservation](../users/make-reservation.php)"
+                : "Here is the guide to book a **Parish Reservation** for church venues and sacramental events:\n\n1. Open the **Make Reservation** page.\n2. Choose the reservation type (Wedding, Baptism, Venue Reservation, etc.).\n3. Select the resource/facility, target date, and start time.\n4. Enter the estimated duration (service, setup, cleanup) and event details.\n5. Submit for official review and schedule validation.\n\n[Make Reservation](../users/make-reservation.php)";
+            return [
+                'answer' => $answer,
+                'prompts' => ['Make Reservation', 'Parish Schedule', 'Contact Parish Staff']
+            ];
+        }
+
+        // F. Status Meaning Inquiries
+        if (preg_match('/\b(?:what does (?:pending|approved|rejected|cancelled|ready for pickup) mean|ano (?:ang )?ibig sabihin ng (?:pending|approved|rejected|cancelled))\b/iu', $normalized)) {
+            $answer = $isFil
+                ? "Narito po ang kahulugan ng mga status sa TUGON System:\n\n• **Pending**: Natanggap na ang inyong kahilingan at kasalukuyang sinusuri ng parish staff.\n• **Approved**: Naaprubahan na ng tanggapan ng parokya. Sinisimulan na ang paggawa o nakareserba na ang inyong schedule.\n• **Ready for Pickup**: Handa na pong kunin ang inyong opisyal na dokumento sa opisina ng parokya.\n• **Rejected / Cancelled**: Hindi naaprubahan dahil sa kakulangan ng requirements o conflict sa schedule. Pakitingnan ang admin notes sa inyong request details.\n\n[View My Requests](../users/my-requests.php)"
+                : "Here is what each request status means in the TUGON System:\n\n• **Pending**: Your request has been received and is in queue awaiting review by parish staff.\n• **Approved**: Your request has been verified and approved by the parish office. Document preparation or schedule booking is confirmed.\n• **Ready for Pickup**: Your physical certificate is printed, signed, stamped, and ready to be claimed at the parish office.\n• **Rejected / Cancelled**: The request could not be processed (e.g. missing requirements or date conflict). Please check admin notes on your request details page.\n\n[View My Requests](../users/my-requests.php)";
+            return [
+                'answer' => $answer,
+                'prompts' => ['When can I claim my certificate?', 'Check My Requests', 'Request Certificate']
+            ];
+        }
+
+        // G. When/How to Claim Certificate
+        if (preg_match('/\b(?:when (?:can|do) i claim|how (?:do|can) i claim|where (?:do|can) i claim|paano i-?claim|saan kukunin|kailan makukuha).*(?:certificate|sertipiko)?\b/iu', $normalized)) {
+            $answer = $isFil
+                ? "Kapag ang inyong request ay minarkahang **Approved** o **Ready for Pickup**, makatatanggap po kayo ng notification. Maaari ninyong kunin ang inyong opisyal na sertipiko sa tanggapan ng parokya sa pamamagitan ng pagdadala ng:\n\n1. Inyong **Reference Number**\n2. Isang (1) **Valid Government o Student ID**\n3. Resibo o patunay ng bayad (kung kinakailangan)\n\n[View My Requests](../users/my-requests.php)"
+                : "Once your certificate request is marked as **Approved** or **Ready for Pickup**, you will receive a notification. You can claim your physical certificate at the parish office by presenting:\n\n1. Your request **Reference Number**\n2. One (1) **Valid Government or Student ID**\n3. Official receipt / payment confirmation (if applicable)\n\n[View My Requests](../users/my-requests.php)";
+            return [
+                'answer' => $answer,
+                'prompts' => ['Check My Requests', 'What does Pending mean?', 'Parish Office Hours']
+            ];
+        }
+
+        // H. Announcements
+        if (preg_match('/\b(?:where can i (?:see|view|find|check) (?:parish )?announcements|what are the (?:latest )?announcements|parish announcements|mga anunsyo|balita sa parokya)\b/iu', $normalized)) {
+            $answer = $isFil
+                ? "Maaari ninyong basahin ang mga pinakabagong balita, anunsyo para sa kapistahan, paalala sa misa, at mga aktibidad ng komunidad sa **Announcements** page:\n\n[View Announcements](../users/announcements.php)"
+                : "You can view the latest parish news, mass advisories, feast day schedules, and community announcements on the **Announcements** page:\n\n[View Announcements](../users/announcements.php)";
+            return [
+                'answer' => $answer,
+                'prompts' => ['View Announcements', 'Parish Schedule', 'Mass Schedule']
+            ];
+        }
+
+        // I. Schedules and Events
+        if (preg_match('/\b(?:where can i (?:see|view|find|check) (?:the )?(?:parish )?schedule|parish schedule|mass schedule|mass times?|parish calendar|oras ng misa|iskedyul ng misa)\b/iu', $normalized)) {
+            $answer = $isFil
+                ? "Maaari ninyong tingnan ang kumpletong iskedyul ng mga Misa (Linggo at Araw-araw), mga kaganapan, at banal na pagdiriwang sa ating **Parish Calendar**:\n\n[View Schedule](../users/view-schedule.php)"
+                : "You can view the comprehensive parish schedule, regular Sunday and weekday Mass times, feast day celebrations, and sacramental calendar here:\n\n[View Schedule](../users/view-schedule.php)";
+            return [
+                'answer' => $answer,
+                'prompts' => ['View Schedule', 'Request Certificate', 'Make Reservation']
+            ];
+        }
+
+        // J. Payments and GCash
+        if (preg_match('/\b(?:how (?:do|can) i pay|payment (?:info|information|status|details)|gcash (?:payment|receipt)|paano magbayad|bayad sa certificate)\b/iu', $normalized)) {
+            $answer = $isFil
+                ? "Para sa pagbabayad at pag-upload ng resibo:\n\n1. Buksan ang **Track Requests** (`my-requests.php`).\n2. Piliin ang inyong request upang makita ang detalye.\n3. Makikita roon ang opisyal na GCash account number ng parokya.\n4. I-upload ang screenshot ng inyong GCash transaction receipt upang ma-verify ng parish staff.\n\n[View My Requests](../users/my-requests.php)"
+                : "To manage payments and upload transaction receipts:\n\n1. Open **Track Requests** (`my-requests.php`).\n2. Click on your request to view its details.\n3. View the official parish GCash details listed on the payment card.\n4. Upload your GCash transaction confirmation screenshot for staff verification.\n\n[View My Requests](../users/my-requests.php)";
+            return [
+                'answer' => $answer,
+                'prompts' => ['Check My Requests', 'When can I claim my certificate?', 'Contact Parish Staff']
+            ];
+        }
+
+        // K. Account Profile Updates
+        if (preg_match('/\b(?:how (?:do|can) i (?:update|change|edit) (?:my )?(?:profile|account|password|email)|paano palitan ang (?:profile|password))\b/iu', $normalized)) {
+            $answer = $isFil
+                ? "Maaari ninyong i-update ang inyong pangalan, mobile number, address, at palitan ang inyong password sa **Profile Settings**:\n\n[Profile Settings](../auth/profile.php)"
+                : "You can update your personal contact details, residential address, and change your password in **Profile Settings**:\n\n[Profile Settings](../auth/profile.php)";
+            return [
+                'answer' => $answer,
+                'prompts' => ['Profile Settings', 'Check My Requests', 'Parish Schedule']
+            ];
+        }
+
+        return null;
     }
 
     /**

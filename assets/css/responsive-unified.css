@@ -3556,10 +3556,11 @@ body.stable-detail-modals > .modal-backdrop {
     }
 
     body.user-area .ai-assistant-trigger {
-        width: 58px !important;
-        height: 58px !important;
-        min-width: 58px !important;
-        min-height: 58px !important;
+        position: relative !important;
+        width: 60px !important;
+        height: 60px !important;
+        min-width: 60px !important;
+        min-height: 60px !important;
         border-radius: 50% !important;
         background: linear-gradient(135deg, #2E3A2D, #1E271D) !important;
         color: #C89B3C !important;
@@ -3568,7 +3569,7 @@ body.stable-detail-modals > .modal-backdrop {
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        font-size: 1.35rem !important;
+        font-size: 1.4rem !important;
         cursor: pointer !important;
         z-index: 9999 !important;
         transition: transform 0.2s ease, box-shadow 0.2s ease !important;
@@ -3579,6 +3580,24 @@ body.stable-detail-modals > .modal-backdrop {
         box-shadow: 0 14px 34px rgba(200, 155, 60, 0.45) !important;
     }
 
+    body.user-area .ai-assistant-chathead-label {
+        position: absolute !important;
+        bottom: -8px !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        background: #2E3A2D !important;
+        color: #FFFFFF !important;
+        border: 1px solid #C89B3C !important;
+        padding: 2px 8px !important;
+        border-radius: 999px !important;
+        font-size: 0.68rem !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.4px !important;
+        white-space: nowrap !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+        pointer-events: none !important;
+    }
+
     body.user-area .ai-assistant-widget.is-open .ai-assistant-trigger {
         display: none !important;
     }
@@ -3587,23 +3606,23 @@ body.stable-detail-modals > .modal-backdrop {
         position: fixed !important;
         bottom: 24px !important;
         right: 24px !important;
-        width: 440px !important;
-        max-width: calc(100vw - 40px) !important;
-        height: 560px !important;
-        max-height: calc(100vh - 100px) !important;
-        border-radius: 16px !important;
-        border: 1.5px solid rgba(200, 155, 60, 0.5) !important;
-        background: #FFFFFF !important;
-        box-shadow: 0 20px 60px rgba(15, 23, 42, 0.28), 0 4px 16px rgba(0, 0, 0, 0.1) !important;
+        width: 390px !important;
+        max-width: calc(100vw - 32px) !important;
+        height: 540px !important;
+        max-height: calc(100vh - 48px) !important;
+        border-radius: 18px !important;
+        border: 1.5px solid rgba(200, 155, 60, 0.45) !important;
+        background: #FCFBF8 !important;
+        box-shadow: 0 20px 60px rgba(15, 23, 42, 0.28), 0 4px 16px rgba(0, 0, 0, 0.08) !important;
         display: flex !important;
         flex-direction: column !important;
         overflow: hidden !important;
         z-index: 9999 !important;
         inset: auto !important;
-        transform: translateY(12px) scale(0.98) !important;
+        transform: translateY(12px) scale(0.96) !important;
         opacity: 0 !important;
         pointer-events: none !important;
-        transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease !important;
+        transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease !important;
     }
 
     body.user-area .ai-assistant-widget.is-open .ai-assistant-panel {
@@ -3764,23 +3783,103 @@ body.stable-detail-modals > .modal-backdrop {
         background: transparent !important;
     }
 
+    /* Empty State & Quick Help */
+    body.user-area .ai-assistant-empty-state {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        text-align: center !important;
+        padding: 16px 8px !important;
+        gap: 10px !important;
+    }
+
+    body.user-area .ai-assistant-welcome-icon {
+        width: 44px !important;
+        height: 44px !important;
+        border-radius: 50% !important;
+        background: linear-gradient(135deg, #2E3A2D, #1E271D) !important;
+        border: 2px solid #C89B3C !important;
+        color: #C89B3C !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 1.25rem !important;
+        box-shadow: 0 4px 12px rgba(22, 33, 24, 0.25) !important;
+    }
+
+    body.user-area .ai-assistant-greeting-bubble {
+        background: #FFFFFF !important;
+        border: 1px solid #EAE3D6 !important;
+        border-radius: 14px !important;
+        padding: 12px 14px !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 4px !important;
+        text-align: left !important;
+        width: 100% !important;
+    }
+
+    body.user-area .ai-assistant-greeting-bubble strong {
+        font-size: 0.92rem !important;
+        color: #1F2937 !important;
+        font-weight: 700 !important;
+    }
+
+    body.user-area .ai-assistant-greeting-bubble span {
+        font-size: 0.82rem !important;
+        color: #4B5563 !important;
+        line-height: 1.45 !important;
+    }
+
+    body.user-area .ai-assistant-quick-heading {
+        font-size: 0.76rem !important;
+        font-weight: 700 !important;
+        color: #6B7280 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.5px !important;
+        align-self: flex-start !important;
+        margin-top: 4px !important;
+    }
+
+    body.user-area .ai-assistant-quick {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+        width: 100% !important;
+    }
+
+    body.user-area .ai-assistant-quick button {
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        padding: 6px 12px !important;
+        border-radius: 999px !important;
+        border: 1px solid rgba(200, 155, 60, 0.4) !important;
+        background: #FFFFFF !important;
+        color: #2E3A2D !important;
+        font-size: 0.78rem !important;
+        font-weight: 600 !important;
+        cursor: pointer !important;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04) !important;
+        transition: all 0.16s ease !important;
+    }
+
+    body.user-area .ai-assistant-quick button:hover {
+        background: #2E3A2D !important;
+        color: #FFFFFF !important;
+        border-color: #2E3A2D !important;
+        transform: translateY(-1px) !important;
+    }
+
     body.user-area .ai-assistant-chat-message {
-        padding: 10px 14px !important;
+        padding: 8px 12px !important;
         border-radius: 12px !important;
         font-size: 0.88rem !important;
         line-height: 1.45 !important;
-        max-width: 90% !important;
-    }
-
-    body.user-area .ai-assistant-chat-message strong {
-        font-size: 0.78rem !important;
-        margin-bottom: 3px !important;
-    }
-
-    body.user-area .ai-assistant-chat-message p {
-        font-size: 0.88rem !important;
-        line-height: 1.45 !important;
-        margin: 0 !important;
+        max-width: 92% !important;
+        display: flex !important;
+        flex-direction: column !important;
     }
 
     body.user-area .ai-assistant-chat-message.assistant {
@@ -3788,6 +3887,7 @@ body.stable-detail-modals > .modal-backdrop {
         border: 1px solid #EAE3D6 !important;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03) !important;
         color: #1F2937 !important;
+        align-self: flex-start !important;
     }
 
     body.user-area .ai-assistant-chat-message.user {
@@ -3796,8 +3896,60 @@ body.stable-detail-modals > .modal-backdrop {
         align-self: flex-end !important;
     }
 
-    body.user-area .ai-assistant-chat-message.user strong {
-        color: #E8D9BA !important;
+    body.user-area .ai-msg-header {
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        margin-bottom: 4px !important;
+    }
+
+    body.user-area .ai-avatar-badge {
+        width: 18px !important;
+        height: 18px !important;
+        border-radius: 50% !important;
+        background: #2E3A2D !important;
+        color: #C89B3C !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 9px !important;
+        flex-shrink: 0 !important;
+    }
+
+    body.user-area .ai-msg-bubble {
+        font-size: 0.86rem !important;
+        line-height: 1.5 !important;
+    }
+
+    body.user-area .ai-action-btn {
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        margin: 6px 4px 4px 0 !important;
+        padding: 5px 12px !important;
+        background: #2E3A2D !important;
+        color: #FFFFFF !important;
+        border: 1px solid #C89B3C !important;
+        border-radius: 8px !important;
+        font-size: 0.78rem !important;
+        font-weight: 600 !important;
+        text-decoration: none !important;
+        transition: background 0.18s ease, transform 0.15s ease !important;
+    }
+
+    body.user-area .ai-action-btn:hover {
+        background: #3D4D3C !important;
+        color: #FFFFFF !important;
+        transform: translateY(-1px) !important;
+    }
+
+    body.user-area .ai-assistant-bullet-list,
+    body.user-area .ai-assistant-ordered-list {
+        margin: 6px 0 6px 18px !important;
+        padding: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 3px !important;
     }
 
     /* Input Form Area */
@@ -3832,6 +3984,7 @@ body.stable-detail-modals > .modal-backdrop {
         background: transparent !important;
         resize: none !important;
         color: #1F2937 !important;
+        width: 100% !important;
     }
 
     body.user-area .ai-assistant-live-form button[type="submit"],
