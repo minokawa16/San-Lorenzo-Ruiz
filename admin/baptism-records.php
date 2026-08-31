@@ -248,7 +248,7 @@ if ($count_stmt) {
     $count_stmt->close();
 }
 
-$total_pages = ceil($total_records / $per_page);
+$total_pages = max(1, (int)ceil($total_records / $per_page));
 $offset = ($page - 1) * $per_page;
 
 // Get records
@@ -275,6 +275,25 @@ if ($req_stmt) {
     $req_stmt->close();
 }
 
+// Stats for formal metrics banner
+$stat_total = 0;
+$stat_active = 0;
+$stat_archived = 0;
+$stat_books = 0;
+
+$stat_res = $conn->query("SELECT 
+    COUNT(*) as total,
+    SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active,
+    SUM(CASE WHEN status = 'archived' THEN 1 ELSE 0 END) as archived,
+    COUNT(DISTINCT NULLIF(TRIM(book_no), '')) as books
+FROM baptism_records");
+if ($stat_res && $stat_row = $stat_res->fetch_assoc()) {
+    $stat_total = (int)($stat_row['total'] ?? 0);
+    $stat_active = (int)($stat_row['active'] ?? 0);
+    $stat_archived = (int)($stat_row['archived'] ?? 0);
+    $stat_books = (int)($stat_row['books'] ?? 0);
+}
+
 $page_title = 'Baptism Records';
 $breadcrumbs = [
     'Dashboard' => 'dashboard.php',
@@ -286,179 +305,565 @@ include '../templates/header.php';
 ?>
     <style>
         :root {
-            --primary-navy: #1a1f3a;
-            --primary-royal-blue: #004085;
-            --primary-gold: #d4af37;
-            --status-success: #28a745;
-            --status-warning: #ffc107;
-            --status-danger: #dc3545;
+            --parish-navy: #152238;
+            --parish-navy-light: #1E2E4A;
+            --parish-gold: #C89B3C;
+            --parish-gold-light: #F4EBD7;
+            --parish-gold-dark: #8C6427;
+            --parish-cream: #FAF8F5;
+            --parish-border: #E5E7EB;
+            --parish-border-gold: #E8DCBF;
+            --parish-ink: #0F172A;
+            --parish-muted: #64748B;
+            --parish-success: #15803D;
+            --parish-success-bg: #ECFDF5;
+            --parish-warning: #B45309;
+            --parish-warning-bg: #FFFBEB;
+            --parish-danger: #B91C1C;
+            --parish-danger-bg: #FEF2F2;
         }
 
-
-
-        .page-title {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--primary-navy);
-            margin-bottom: 10px;
+        .baptism-registry-shell {
+            width: 100%;
+            margin-bottom: 30px;
         }
 
-        .card-section {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 18px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-            border-top: 4px solid var(--primary-gold);
-        }
-
-        .section-title {
-            font-size: 1.35rem;
-            font-weight: 600;
-            color: var(--primary-navy);
+        /* ── Formal Stats Ribbon ────────────────────────── */
+        .registry-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 14px;
             margin-bottom: 20px;
+        }
+
+        .registry-stat-card {
+            background: #FFFFFF;
+            border: 1px solid var(--parish-border);
+            border-radius: 12px;
+            padding: 16px 18px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 14px;
+            box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
         }
 
-        .section-title i {
-            color: var(--primary-gold);
+        .registry-stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.07);
         }
 
-        .btn-primary-gold {
-            background: var(--primary-gold);
-            color: var(--primary-navy);
-            border: none;
+        .registry-stat-icon {
+            width: 44px;
+            height: 44px;
+            min-width: 44px;
+            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            background: var(--parish-gold-light);
+            color: var(--parish-gold-dark);
+        }
+
+        .registry-stat-icon.icon-active {
+            background: #DCFCE7;
+            color: #166534;
+        }
+
+        .registry-stat-icon.icon-archived {
+            background: #F1F5F9;
+            color: #475569;
+        }
+
+        .registry-stat-icon.icon-books {
+            background: #E0F2FE;
+            color: #0369A1;
+        }
+
+        .registry-stat-content strong {
+            display: block;
+            font-size: 1.45rem;
+            font-weight: 800;
+            color: var(--parish-navy);
+            line-height: 1.1;
+        }
+
+        .registry-stat-content span {
+            font-size: 0.78rem;
             font-weight: 600;
-            transition: all 0.3s ease;
+            color: var(--parish-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
         }
 
-        .btn-primary-gold:hover {
-            background: #e8c547;
-            color: var(--primary-navy);
-        }
-
-        .search-bar {
-            display: flex;
-            gap: 10px;
+        /* ── Formal Search & Filter Card ─────────────────── */
+        .registry-control-card {
+            background: #FFFFFF;
+            border: 1px solid var(--parish-border);
+            border-radius: 12px;
+            padding: 16px 20px;
             margin-bottom: 20px;
+            box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
         }
 
-        .search-bar input, .search-bar select {
-            flex: 1;
-            padding: 10px 15px;
-            border: 1px solid #dee2e6;
+        .registry-control-flex {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 14px;
+        }
+
+        .registry-filter-form {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            flex: 1 1 500px;
+        }
+
+        .search-input-wrap {
+            position: relative;
+            flex: 1 1 320px;
+            min-width: 240px;
+        }
+
+        .search-input-wrap i {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #94A3B8;
+            font-size: 0.9rem;
+            pointer-events: none;
+        }
+
+        .search-input-wrap input {
+            width: 100%;
+            height: 42px;
+            padding: 8px 14px 8px 38px;
+            border: 1px solid var(--parish-border);
             border-radius: 8px;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
+            color: var(--parish-ink);
+            background: #FAF8F5;
+            transition: all 0.2s ease;
         }
 
-        .records-table {
+        .search-input-wrap input:focus {
+            background: #FFFFFF;
+            border-color: var(--parish-gold);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.15);
+        }
+
+        .status-select-wrap {
+            min-width: 150px;
+        }
+
+        .status-select-wrap select {
+            height: 42px;
+            padding: 8px 14px;
+            border: 1px solid var(--parish-border);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--parish-navy);
+            background: #FAF8F5;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .status-select-wrap select:focus {
+            background: #FFFFFF;
+            border-color: var(--parish-gold);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.15);
+        }
+
+        .btn-formal-search {
+            height: 42px;
+            padding: 0 18px;
+            border: 1px solid var(--parish-navy);
+            border-radius: 8px;
+            background: var(--parish-navy);
+            color: #FFFFFF;
+            font-size: 0.88rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-formal-search:hover {
+            background: var(--parish-navy-light);
+            border-color: var(--parish-navy-light);
+            color: #FFFFFF;
+            box-shadow: 0 2px 6px rgba(21, 34, 56, 0.2);
+        }
+
+        .btn-formal-reset {
+            height: 42px;
+            padding: 0 14px;
+            border: 1px solid var(--parish-border);
+            border-radius: 8px;
+            background: #FFFFFF;
+            color: #64748B;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-formal-reset:hover {
+            background: #F1F5F9;
+            color: #1E293B;
+        }
+
+        .btn-formal-add {
+            height: 42px;
+            padding: 0 20px;
+            border: 1px solid #A97F24;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #D4AF37, #B9863A);
+            color: #FFFFFF;
+            font-size: 0.88rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(185, 134, 58, 0.28);
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .btn-formal-add:hover {
+            background: linear-gradient(135deg, #DEB842, #C89445);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(185, 134, 58, 0.38);
+            color: #FFFFFF;
+        }
+
+        /* ── Formal Registry Table Card ─────────────────── */
+        .registry-table-card {
+            background: #FFFFFF;
+            border: 1px solid var(--parish-border);
+            border-radius: 12px;
+            box-shadow: 0 1px 6px rgba(15, 23, 42, 0.05);
+            overflow: hidden;
+        }
+
+        .registry-table-header {
+            padding: 16px 22px;
+            background: #FFFFFF;
+            border-bottom: 1px solid var(--parish-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .registry-table-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .registry-table-title-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: var(--parish-gold-light);
+            color: var(--parish-gold-dark);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+        }
+
+        .registry-table-title h2 {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--parish-navy);
+            margin: 0;
+        }
+
+        .registry-table-count-badge {
+            background: var(--parish-gold-light);
+            color: var(--parish-gold-dark);
+            border: 1px solid var(--parish-border-gold);
+            font-size: 0.8rem;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 20px;
+        }
+
+        .registry-table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .formal-records-table {
             width: 100%;
             border-collapse: collapse;
+            font-size: 0.86rem;
+            min-width: 1100px;
         }
 
-        .records-table thead {
-            background: #f8f9fa;
-            border-bottom: 2px solid #dee2e6;
+        .formal-records-table thead {
+            background: #F8FAFC;
+            border-bottom: 2px solid #E2E8F0;
         }
 
-        .records-table th {
-            padding: 12px;
-            font-weight: 600;
-            color: var(--primary-navy);
+        .formal-records-table th {
+            padding: 12px 14px;
+            color: #475569;
+            font-size: 0.76rem;
+            font-weight: 750;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
             text-align: left;
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            white-space: nowrap;
+            vertical-align: middle;
+            border-bottom: 2px solid #E2E8F0;
         }
 
-        .records-table td {
-            padding: 12px;
-            border-bottom: 1px solid #dee2e6;
-            color: #6c757d;
+        .formal-records-table tbody tr {
+            border-bottom: 1px solid #F1F5F9;
+            transition: background 0.15s ease;
+        }
+
+        .formal-records-table tbody tr:hover {
+            background: #FDFBF7;
+        }
+
+        .formal-records-table td {
+            padding: 14px;
             vertical-align: top;
+            color: #334155;
+            line-height: 1.45;
         }
 
-        .records-table .text-strong {
-            color: var(--primary-navy);
-            font-weight: 700;
+        /* ── Table Cell Elements ────────────────────────── */
+        .book-page-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: #FAF6ED;
+            color: #785215;
+            border: 1px solid #EADBBA;
+            border-radius: 6px;
+            padding: 3px 8px;
+            font-size: 0.78rem;
+            font-weight: 750;
+            white-space: nowrap;
         }
 
-        .record-muted {
+        .person-baptized-name {
+            font-family: inherit;
+            font-size: 0.95rem;
+            font-weight: 800;
+            color: var(--parish-navy);
             display: block;
-            color: #8792a2;
-            font-size: 0.82rem;
-            margin-top: 4px;
+            margin-bottom: 2px;
+            letter-spacing: -0.01em;
         }
 
-        .records-table tbody tr:hover {
-            background: #f8f9fa;
-        }
-
-        .status-badge {
+        .entry-no-pill {
             display: inline-block;
-            padding: 6px 12px;
+            background: #F1F5F9;
+            color: #64748B;
+            border-radius: 4px;
+            padding: 1px 6px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            margin-top: 3px;
+        }
+
+        .date-baptized-badge {
+            font-weight: 700;
+            color: #1E293B;
+            white-space: nowrap;
+        }
+
+        .date-baptized-year {
+            display: block;
+            font-size: 0.78rem;
+            color: #64748B;
+            font-weight: 600;
+        }
+
+        .meta-subtitle {
+            display: block;
+            font-size: 0.78rem;
+            color: #64748B;
+            margin-top: 3px;
+            line-height: 1.35;
+        }
+
+        .meta-subtitle i {
+            width: 12px;
+            text-align: center;
+            color: #94A3B8;
+            margin-right: 3px;
+        }
+
+        .birth-status-tag {
+            display: inline-block;
+            background: #F0FDF4;
+            color: #166534;
+            border: 1px solid #BBF7D0;
+            border-radius: 4px;
+            padding: 1px 6px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            margin-top: 3px;
+            text-transform: capitalize;
+        }
+
+        .official-role {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+
+        .badge-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
             border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            white-space: nowrap;
+        }
+
+        .badge-status-active {
+            background: var(--parish-success-bg);
+            color: var(--parish-success);
+            border: 1px solid #A7F3D0;
+        }
+
+        .badge-status-archived {
+            background: #F1F5F9;
+            color: #64748B;
+            border: 1px solid #CBD5E1;
+        }
+
+        /* ── Action Buttons ─────────────────────────────── */
+        .record-actions-wrap {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .btn-reg-action {
+            height: 32px;
+            padding: 0 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.15s ease;
+            text-decoration: none;
+        }
+
+        .btn-reg-edit {
+            background: #EFF6FF;
+            color: #1D4ED8;
+            border-color: #BFDBFE;
+        }
+
+        .btn-reg-edit:hover {
+            background: #1D4ED8;
+            color: #FFFFFF;
+            border-color: #1D4ED8;
+        }
+
+        .btn-reg-archive {
+            background: #FFF7ED;
+            color: #C2410C;
+            border-color: #FED7AA;
+        }
+
+        .btn-reg-archive:hover {
+            background: #C2410C;
+            color: #FFFFFF;
+            border-color: #C2410C;
+        }
+
+        /* ── Pagination ─────────────────────────────────── */
+        .registry-pagination-wrap {
+            padding: 16px 22px;
+            background: #FFFFFF;
+            border-top: 1px solid var(--parish-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .pagination-summary-text {
+            font-size: 0.85rem;
+            color: var(--parish-muted);
+            font-weight: 600;
+        }
+
+        .pagination-links {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .pagination-link {
+            min-width: 36px;
+            height: 36px;
+            padding: 0 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--parish-border);
+            border-radius: 6px;
             font-size: 0.85rem;
             font-weight: 600;
-            text-transform: uppercase;
-        }
-
-        .badge-active {
-            background: #e8f5e9;
-            color: #388e3c;
-        }
-
-        .badge-archived {
-            background: #f5f5f5;
-            color: #9e9e9e;
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 5px;
-        }
-
-        .action-btn {
-            padding: 6px 12px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.85rem;
-            transition: all 0.2s;
+            color: var(--parish-navy);
             text-decoration: none;
-            display: inline-block;
+            background: #FFFFFF;
+            transition: all 0.15s ease;
         }
 
-        .btn-edit {
-            background: #e3f2fd;
-            color: #1976d2;
+        .pagination-link:hover {
+            background: #F8FAFC;
+            border-color: var(--parish-gold);
+            color: var(--parish-gold-dark);
         }
 
-        .btn-edit:hover {
-            background: #1976d2;
-            color: white;
-        }
-
-        .btn-view {
-            background: #ecfdf3;
-            color: #027a48;
-        }
-
-        .btn-view:hover {
-            background: #12b76a;
-            color: white;
-        }
-
-        .btn-delete {
-            background: #fff7d5;
-            color: #80611b;
-        }
-
-        .btn-delete:hover {
-            background: #d7ad43;
-            color: #181204;
+        .pagination-link.active {
+            background: var(--parish-gold);
+            border-color: var(--parish-gold);
+            color: #FFFFFF;
+            font-weight: 750;
         }
 
         /* ── Standardized Record Modal Overlay & Viewport Containment ── */
@@ -483,9 +888,9 @@ include '../templates/header.php';
         .modal-content {
             background: #ffffff;
             border-radius: 14px;
-            border: 1px solid rgba(212, 175, 55, 0.35);
+            border: 1px solid rgba(200, 155, 60, 0.4);
             box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(0, 0, 0, 0.05);
-            width: min(980px, 95vw);
+            width: min(960px, 95vw);
             max-height: 90vh;
             height: 90vh;
             display: flex;
@@ -497,12 +902,11 @@ include '../templates/header.php';
         }
 
         .modal-content.modal-archive-dialog {
-            width: min(440px, 92vw) !important;
+            width: min(450px, 92vw) !important;
             height: auto !important;
             max-height: 85vh;
         }
 
-        /* ── Flex Form Structure ── */
         .record-modal-form {
             display: flex;
             flex-direction: column;
@@ -513,34 +917,41 @@ include '../templates/header.php';
             margin: 0;
         }
 
-        /* ── Sticky / Fixed Header ── */
         .modal-header {
             flex-shrink: 0;
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 16px 24px;
-            background: #f8fafc;
-            border-bottom: 1px solid #e2e8f0;
+            background: linear-gradient(180deg, #FFFFFF, #FAF8F5);
+            border-bottom: 1px solid #E2E8F0;
             margin-bottom: 0;
         }
 
         .modal-header .modal-title-wrap {
             display: flex;
             align-items: center;
-            gap: 10px;
-        }
-
-        .modal-header h4, .modal-header .modal-title-text {
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: var(--primary-navy);
-            margin: 0;
+            gap: 12px;
         }
 
         .modal-header-icon {
-            color: var(--primary-gold);
-            font-size: 1.2rem;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: var(--parish-gold-light);
+            color: var(--parish-gold-dark);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.15rem;
+        }
+
+        .modal-header h4, .modal-header .modal-title-text {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--parish-navy);
+            margin: 0;
         }
 
         .modal-close-btn {
@@ -548,7 +959,7 @@ include '../templates/header.php';
             border: none;
             font-size: 1.6rem;
             line-height: 1;
-            color: #64748b;
+            color: #64748B;
             cursor: pointer;
             padding: 4px 8px;
             border-radius: 6px;
@@ -556,60 +967,99 @@ include '../templates/header.php';
         }
 
         .modal-close-btn:hover {
-            color: #0f172a;
-            background: #e2e8f0;
+            color: #0F172A;
+            background: #E2E8F0;
         }
 
-        /* ── Internal Scrollable Body ── */
         .modal-body {
             flex: 1 1 auto;
             min-height: 0;
             overflow-y: auto;
             padding: 24px;
             overscroll-behavior: contain;
+            background: #FFFFFF;
         }
 
-        .form-group {
-            margin-bottom: 15px;
+        .modal-section-divider {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 20px 0 14px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #E2E8F0;
         }
 
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 600;
-            color: var(--primary-navy);
+        .modal-section-divider:first-child {
+            margin-top: 0;
+        }
+
+        .modal-section-divider i {
+            color: var(--parish-gold-dark);
+            font-size: 0.95rem;
+        }
+
+        .modal-section-divider h5 {
+            font-size: 0.9rem;
+            font-weight: 750;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--parish-navy);
+            margin: 0;
         }
 
         .form-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 15px 18px;
+            gap: 14px 18px;
+        }
+
+        .form-group {
+            margin-bottom: 0;
         }
 
         .form-group.full-width {
             grid-column: 1 / -1;
         }
 
-        .form-group input, .form-group select, .form-group textarea {
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.84rem;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        .form-group label .required-mark {
+            color: #DC2626;
+            margin-left: 2px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
             width: 100%;
-            padding: 10px;
-            border: 1px solid #dee2e6;
-            border-radius: 6px;
-            font-size: 0.95rem;
+            padding: 9px 12px;
+            border: 1px solid #CBD5E1;
+            border-radius: 7px;
+            font-size: 0.9rem;
+            color: #0F172A;
+            background: #FFFFFF;
+            transition: all 0.2s ease;
         }
 
         .form-group textarea {
-            min-height: 84px;
+            min-height: 74px;
             resize: vertical;
         }
 
-        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
             outline: none;
-            border-color: var(--primary-gold);
-            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
+            border-color: var(--parish-gold);
+            box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.18);
         }
 
-        /* ── Sticky / Fixed Footer ── */
         .modal-footer {
             flex-shrink: 0;
             display: flex;
@@ -617,281 +1067,401 @@ include '../templates/header.php';
             justify-content: flex-end;
             gap: 12px;
             padding: 14px 24px;
-            background: #f8fafc;
-            border-top: 1px solid #e2e8f0;
+            background: #FAF8F5;
+            border-top: 1px solid #E2E8F0;
             margin-top: 0;
         }
 
-        .modal-footer button {
-            padding: 10px 22px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
+        .btn-modal-cancel {
+            padding: 9px 20px;
+            border: 1px solid #CBD5E1;
+            border-radius: 7px;
+            background: #FFFFFF;
+            color: #475569;
+            font-size: 0.88rem;
             font-weight: 600;
-            transition: all 0.3s;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-modal-cancel:hover {
+            background: #F1F5F9;
+            color: #0F172A;
+        }
+
+        .btn-modal-save {
+            padding: 9px 22px;
+            border: 1px solid #A97F24;
+            border-radius: 7px;
+            background: linear-gradient(135deg, #D4AF37, #B9863A);
+            color: #FFFFFF;
+            font-size: 0.88rem;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(185, 134, 58, 0.25);
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-modal-save:hover {
+            background: linear-gradient(135deg, #DEB842, #C89445);
+            box-shadow: 0 4px 12px rgba(185, 134, 58, 0.35);
+            color: #FFFFFF;
+        }
+
+        .btn-modal-archive-confirm {
+            padding: 9px 22px;
+            border: 1px solid #B91C1C;
+            border-radius: 7px;
+            background: #DC2626;
+            color: #FFFFFF;
+            font-size: 0.88rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-modal-archive-confirm:hover {
+            background: #B91C1C;
         }
 
         body.modal-open {
             overflow: hidden !important;
         }
 
-        .btn-save {
-            background: var(--primary-royal-blue);
-            color: white;
+        /* ── Empty State ────────────────────────────────── */
+        .registry-empty-state {
+            text-align: center;
+            padding: 48px 20px;
         }
 
-        .btn-save:hover {
-            background: var(--primary-navy);
+        .registry-empty-icon {
+            width: 68px;
+            height: 68px;
+            border-radius: 50%;
+            background: var(--parish-gold-light);
+            color: var(--parish-gold-dark);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            margin-bottom: 16px;
         }
 
-        .btn-cancel {
-            background: #e0e0e0;
-            color: #666;
+        .registry-empty-state h3 {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--parish-navy);
+            margin-bottom: 6px;
         }
 
-        .btn-cancel:hover {
-            background: #d0d0d0;
-        }
-
-        .alert {
-            padding: 15px;
-            margin-bottom: 20px;
-            border-radius: 8px;
-            border-left: 4px solid;
-        }
-
-        .alert-success {
-            background: #e8f5e9;
-            color: #2e7d32;
-            border-color: #4caf50;
-        }
-
-        .alert-danger {
-            background: #ffebee;
-            color: #c62828;
-            border-color: #f44336;
-        }
-
-        .alert-warning {
-            background: #fff3e0;
-            color: #e65100;
-            border-color: #ff9800;
+        .registry-empty-state p {
+            color: var(--parish-muted);
+            font-size: 0.9rem;
+            margin-bottom: 18px;
         }
 
         @media (max-width: 768px) {
-            .admin-content {
-                margin-left: 70px;
-                padding: 20px 15px;
+            .registry-stats-grid {
+                grid-template-columns: repeat(2, 1fr);
             }
-
-            .page-title {
-                font-size: 1.5rem;
-            }
-
-            .search-bar {
+            .registry-control-flex {
                 flex-direction: column;
+                align-items: stretch;
             }
-
-            .records-table {
-                font-size: 0.85rem;
-            }
-
-            .records-table th,
-            .records-table td {
-                padding: 10px;
-            }
-
-            .action-buttons {
+            .registry-filter-form {
                 flex-direction: column;
+                align-items: stretch;
             }
-
             .form-grid {
                 grid-template-columns: 1fr;
             }
         }
-
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-}
-
-        .card-section {
-            animation: fadeInUp 0.6s ease-out;
-        }
     </style>
-    <div class="container-fluid px-0">
-            <!-- Standardized Page Header -->
-            <?php
-            $page_header_title = 'Baptism Records';
-            $page_header_subtitle = 'Manage and digitize baptism sacramental registry entries.';
-            $page_header_icon = 'fa-water';
-            $show_back_button = true;
-            $back_button_url = 'manage-records.php';
-            include '../includes/page_header.php';
-            ?>
 
-            <!-- Alert Messages -->
-            <?php if (!empty($message)): ?>
-                <div class="alert alert-<?php echo htmlspecialchars($alert_type); ?>">
-                    <?php echo htmlspecialchars($message); ?>
+    <div class="container-fluid px-0 baptism-registry-shell">
+        <!-- Standardized Page Header -->
+        <?php
+        $page_header_title = 'Baptism Records';
+        $page_header_subtitle = 'Official sacramental registry entries, certificates, and archival books.';
+        $page_header_icon = 'fa-water';
+        $show_back_button = true;
+        $back_button_url = 'manage-records.php';
+        include '../includes/page_header.php';
+        ?>
+
+        <!-- Alert Messages -->
+        <?php if (!empty($message)): ?>
+            <div class="alert alert-<?php echo htmlspecialchars($alert_type); ?> alert-dismissible fade show" role="alert" style="border-radius: 10px; border-left: 4px solid;">
+                <?php echo htmlspecialchars($message); ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        <?php endif; ?>
+
+        <!-- Formal Stats Ribbon -->
+        <div class="registry-stats-grid">
+            <div class="registry-stat-card">
+                <div class="registry-stat-icon"><i class="fas fa-water"></i></div>
+                <div class="registry-stat-content">
+                    <strong><?php echo number_format($stat_total); ?></strong>
+                    <span>Total Baptism Records</span>
                 </div>
-            <?php endif; ?>
+            </div>
+            <div class="registry-stat-card">
+                <div class="registry-stat-icon icon-active"><i class="fas fa-circle-check"></i></div>
+                <div class="registry-stat-content">
+                    <strong><?php echo number_format($stat_active); ?></strong>
+                    <span>Active Records</span>
+                </div>
+            </div>
+            <div class="registry-stat-card">
+                <div class="registry-stat-icon icon-archived"><i class="fas fa-box-archive"></i></div>
+                <div class="registry-stat-content">
+                    <strong><?php echo number_format($stat_archived); ?></strong>
+                    <span>Archived Records</span>
+                </div>
+            </div>
+            <div class="registry-stat-card">
+                <div class="registry-stat-icon icon-books"><i class="fas fa-book-bible"></i></div>
+                <div class="registry-stat-content">
+                    <strong><?php echo number_format($stat_books); ?></strong>
+                    <span>Registry Books</span>
+                </div>
+            </div>
+        </div>
 
-            <!-- Search & Filter -->
-            <div class="card-section">
-                <div class="search-bar">
-                    <input type="text" id="searchInput" placeholder="Search by book no., page no., name, parents, sponsors, place, minister, priest, or secretary..." value="<?php echo htmlspecialchars($search); ?>">
-                    <select id="statusFilter" onchange="applyFilter()">
-                        <option value="">All Status</option>
-                        <option value="active" <?php echo $status_filter === 'active' ? 'selected' : ''; ?>>Active</option>
-                        <option value="archived" <?php echo $status_filter === 'archived' ? 'selected' : ''; ?>>Archived</option>
-                    </select>
-                    <button onclick="performSearch()" class="btn btn-primary-gold">
-                        <i class="fas fa-search"></i> Search
+        <!-- Formal Search & Control Bar -->
+        <div class="registry-control-card">
+            <div class="registry-control-flex">
+                <div class="registry-filter-form">
+                    <div class="search-input-wrap">
+                        <i class="fas fa-magnifying-glass"></i>
+                        <input type="text" id="searchInput" placeholder="Search by name, book, page, parents, sponsors, minister..." value="<?php echo htmlspecialchars($search); ?>">
+                    </div>
+                    <div class="status-select-wrap">
+                        <select id="statusFilter" onchange="applyFilter()" aria-label="Filter records by status">
+                            <option value="">All Statuses</option>
+                            <option value="active" <?php echo $status_filter === 'active' ? 'selected' : ''; ?>>Active Only</option>
+                            <option value="archived" <?php echo $status_filter === 'archived' ? 'selected' : ''; ?>>Archived Only</option>
+                        </select>
+                    </div>
+                    <button type="button" onclick="performSearch()" class="btn-formal-search">
+                        <i class="fas fa-filter"></i> Filter
                     </button>
-                    <button onclick="openAddModal()" class="btn btn-primary-gold">
-                        <i class="fas fa-plus"></i> Add Record
+                    <?php if (!empty($search) || !empty($status_filter)): ?>
+                        <a href="baptism-records.php" class="btn-formal-reset" title="Clear all filters">
+                            <i class="fas fa-rotate-left"></i> Reset
+                        </a>
+                    <?php endif; ?>
+                </div>
+                <div>
+                    <button type="button" onclick="openAddModal()" class="btn-formal-add">
+                        <i class="fas fa-plus-circle"></i> Add Baptism Record
                     </button>
                 </div>
             </div>
+        </div>
 
-            <!-- Records Table -->
-            <div class="card-section">
-                <div class="section-title">
-                    <i class="fas fa-table"></i> Baptism Records (<?php echo $total_records; ?> total)
+        <!-- Official Sacramental Records Table Card -->
+        <div class="registry-table-card">
+            <div class="registry-table-header">
+                <div class="registry-table-title">
+                    <span class="registry-table-title-icon"><i class="fas fa-book-journal-whills"></i></span>
+                    <h2>Baptismal Registry Archive</h2>
                 </div>
-                <div style="overflow-x: auto;">
-                    <table class="records-table">
-                        <thead>
-                            <tr>
-                                <th>Book No.</th>
-                                <th>Page No.</th>
-                                <th>Year</th>
-                                <th>Date Baptized</th>
-                                <th>Personal Baptized</th>
-                                <th>Birth</th>
-                                <th>Parents</th>
-                                <th>Sponsors</th>
-                                <th>Minister</th>
-                                <th>Officials</th>
-                                <th>Remarks</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php if (count($records) > 0): ?>
-                                <?php foreach ($records as $record): ?>
-                                    <?php
-                                        $record_payload = [
-                                            'id' => $record['baptism_id'],
-                                            'registry_no' => $record['registry_no'] ?? '',
-                                            'book_no' => $record['book_no'] ?? '',
-                                            'page_no' => $record['page_no'] ?? '',
-                                            'entry_no' => $record['entry_no'] ?? '',
-                                            'fullname' => $record['fullname'] ?? '',
-                                            'birth_date' => $record['birth_date'] ?? '',
-                                            'birth_place' => $record['birth_place'] ?? '',
-                                            'birth_status' => $record['birth_status'] ?? '',
-                                            'parents' => $record['parents'] ?? '',
-                                            'parent_address' => $record['parent_address'] ?? '',
-                                            'baptism_date' => $record['baptism_date'] ?? '',
-                                            'godparents' => $record['godparents'] ?? '',
-                                            'parish_address' => $record['parish_address'] ?? '',
-                                            'priest' => $record['priest'] ?? '',
-                                            'remarks' => $record['remarks'] ?? '',
-                                            'parish_priest' => $record['parish_priest'] ?? '',
-                                            'parish_secretary' => $record['parish_secretary'] ?? '',
-                                            'status' => $record['status'] ?? 'active',
-                                            'request_id' => $record['request_id'] ?? '',
-                                            'entry_no' => $record['entry_no'] ?? ''
-                                        ];
-                                    ?>
-                                    <tr>
-                                        <td><?php echo htmlspecialchars($record['book_no'] ?: 'N/A'); ?></td>
-                                        <td><?php echo htmlspecialchars($record['page_no'] ?: 'N/A'); ?></td>
-                                        <td><?php echo !empty($record['baptism_date']) ? date('Y', strtotime($record['baptism_date'])) : 'N/A'; ?></td>
-                                        <td><?php echo format_baptism_record_date($record['baptism_date'], 'F d'); ?></td>
-                                        <td><span class="text-strong"><?php echo htmlspecialchars($record['fullname']); ?></span></td>
-                                        <td>
-                                            <?php echo format_baptism_record_date($record['birth_date'] ?? ''); ?>
-                                            <?php if (!empty($record['birth_place'])): ?>
-                                                <span class="record-muted"><?php echo htmlspecialchars($record['birth_place']); ?></span>
-                                            <?php endif; ?>
-                                            <?php if (!empty($record['birth_status'])): ?>
-                                                <span class="record-muted"><?php echo htmlspecialchars($record['birth_status']); ?></span>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td>
-                                            <?php echo htmlspecialchars($record['parents'] ?? 'N/A'); ?>
-                                            <?php if (!empty($record['parent_address'])): ?>
-                                                <span class="record-muted"><?php echo htmlspecialchars($record['parent_address']); ?></span>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td>
-                                            <?php echo htmlspecialchars($record['godparents'] ?? 'N/A'); ?>
-                                            <?php if (!empty($record['parish_address'])): ?>
-                                                <span class="record-muted"><?php echo htmlspecialchars($record['parish_address']); ?></span>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td><?php echo htmlspecialchars($record['priest'] ?? 'N/A'); ?></td>
-                                        <td>
-                                            <strong>Parish Priest:</strong> <?php echo htmlspecialchars($record['parish_priest'] ?: 'N/A'); ?><br>
-                                            <span class="record-muted"><strong>Secretary:</strong> <?php echo htmlspecialchars($record['parish_secretary'] ?: 'N/A'); ?></span>
-                                        </td>
-                                        <td><?php echo htmlspecialchars($record['remarks'] ?? ''); ?></td>
-                                        <td>
-                                            <span class="status-badge badge-<?php echo strtolower($record['status']); ?>">
-                                                <?php echo ucfirst($record['status']); ?>
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <div class="action-buttons">
-                                                <button class="action-btn btn-edit" onclick="openEditModal(<?php echo js_value($record_payload); ?>)">
-                                                    <i class="fas fa-edit"></i> Edit
-                                                </button>
-                                                <button class="action-btn btn-delete" onclick="confirmArchive(<?php echo $record['baptism_id']; ?>)">
-                                                    <i class="fas fa-archive"></i> Archive
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            <?php else: ?>
+                <div>
+                    <span class="registry-table-count-badge">
+                        <i class="fas fa-list-check me-1"></i> <?php echo number_format($total_records); ?> Total Record<?php echo $total_records === 1 ? '' : 's'; ?>
+                    </span>
+                </div>
+            </div>
+
+            <div class="registry-table-responsive">
+                <table class="formal-records-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 110px;">Book / Page</th>
+                            <th style="width: 120px;">Date Baptized</th>
+                            <th style="width: 180px;">Person Baptized</th>
+                            <th style="width: 170px;">Birth Details</th>
+                            <th style="width: 180px;">Parents</th>
+                            <th style="width: 170px;">Sponsors</th>
+                            <th style="width: 150px;">Minister</th>
+                            <th style="width: 160px;">Parish Officials</th>
+                            <th style="width: 120px;">Remarks</th>
+                            <th style="width: 90px; text-align: center;">Status</th>
+                            <th style="width: 130px; text-align: center;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (count($records) > 0): ?>
+                            <?php foreach ($records as $record): ?>
+                                <?php
+                                    $record_payload = [
+                                        'id' => $record['baptism_id'],
+                                        'registry_no' => $record['registry_no'] ?? '',
+                                        'book_no' => $record['book_no'] ?? '',
+                                        'page_no' => $record['page_no'] ?? '',
+                                        'entry_no' => $record['entry_no'] ?? '',
+                                        'fullname' => $record['fullname'] ?? '',
+                                        'birth_date' => $record['birth_date'] ?? '',
+                                        'birth_place' => $record['birth_place'] ?? '',
+                                        'birth_status' => $record['birth_status'] ?? '',
+                                        'parents' => $record['parents'] ?? '',
+                                        'parent_address' => $record['parent_address'] ?? '',
+                                        'baptism_date' => $record['baptism_date'] ?? '',
+                                        'godparents' => $record['godparents'] ?? '',
+                                        'parish_address' => $record['parish_address'] ?? '',
+                                        'priest' => $record['priest'] ?? '',
+                                        'remarks' => $record['remarks'] ?? '',
+                                        'parish_priest' => $record['parish_priest'] ?? '',
+                                        'parish_secretary' => $record['parish_secretary'] ?? '',
+                                        'status' => $record['status'] ?? 'active',
+                                        'request_id' => $record['request_id'] ?? ''
+                                    ];
+                                    $is_archived = strtolower($record['status'] ?? '') === 'archived';
+                                ?>
                                 <tr>
-                                    <td colspan="13" style="text-align: center; padding: 30px; color: #6c757d;">
-                                        <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 10px;"></i><br>
-                                        No baptism records found.
+                                    <td>
+                                        <span class="book-page-badge">
+                                            <i class="fas fa-bookmark me-1" style="font-size: 0.68rem;"></i>
+                                            Bk. <?php echo htmlspecialchars($record['book_no'] ?: '-'); ?> · Pg. <?php echo htmlspecialchars($record['page_no'] ?: '-'); ?>
+                                        </span>
+                                        <?php if (!empty($record['entry_no'])): ?>
+                                            <span class="entry-no-pill">Entry #<?php echo htmlspecialchars($record['entry_no']); ?></span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <span class="date-baptized-badge"><?php echo format_baptism_record_date($record['baptism_date'], 'M d, Y'); ?></span>
+                                        <?php if (!empty($record['baptism_date'])): ?>
+                                            <span class="date-baptized-year"><?php echo date('l', strtotime($record['baptism_date'])); ?></span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <strong class="person-baptized-name"><?php echo htmlspecialchars($record['fullname']); ?></strong>
+                                        <?php if (!empty($record['registry_no'])): ?>
+                                            <span class="meta-subtitle"><i class="fas fa-hashtag"></i> Reg: <?php echo htmlspecialchars($record['registry_no']); ?></span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <div><i class="fas fa-cake-candles me-1 text-muted"></i> <strong><?php echo format_baptism_record_date($record['birth_date'] ?? ''); ?></strong></div>
+                                        <?php if (!empty($record['birth_place'])): ?>
+                                            <span class="meta-subtitle"><i class="fas fa-location-dot"></i> <?php echo htmlspecialchars($record['birth_place']); ?></span>
+                                        <?php endif; ?>
+                                        <?php if (!empty($record['birth_status'])): ?>
+                                            <span class="birth-status-tag"><?php echo htmlspecialchars($record['birth_status']); ?></span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <div style="font-weight: 600; color: #1E293B;"><?php echo htmlspecialchars($record['parents'] ?? 'N/A'); ?></div>
+                                        <?php if (!empty($record['parent_address'])): ?>
+                                            <span class="meta-subtitle"><i class="fas fa-house"></i> <?php echo htmlspecialchars($record['parent_address']); ?></span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <div style="font-weight: 600; color: #1E293B;"><?php echo htmlspecialchars($record['godparents'] ?? 'N/A'); ?></div>
+                                        <?php if (!empty($record['parish_address'])): ?>
+                                            <span class="meta-subtitle"><i class="fas fa-church"></i> <?php echo htmlspecialchars($record['parish_address']); ?></span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <div style="font-weight: 600; color: #1E293B;"><i class="fas fa-cross me-1 text-muted" style="font-size: 0.75rem;"></i> <?php echo htmlspecialchars($record['priest'] ?? 'N/A'); ?></div>
+                                    </td>
+                                    <td>
+                                        <div><span class="official-role">Pastor:</span> <?php echo htmlspecialchars($record['parish_priest'] ?: 'N/A'); ?></div>
+                                        <span class="meta-subtitle"><span class="official-role">Secretary:</span> <?php echo htmlspecialchars($record['parish_secretary'] ?: 'N/A'); ?></span>
+                                    </td>
+                                    <td>
+                                        <span style="font-size: 0.8rem; color: #64748B;"><?php echo htmlspecialchars($record['remarks'] ?: '-'); ?></span>
+                                    </td>
+                                    <td style="text-align: center;">
+                                        <span class="badge-status <?php echo $is_archived ? 'badge-status-archived' : 'badge-status-active'; ?>">
+                                            <i class="fas <?php echo $is_archived ? 'fa-box-archive' : 'fa-circle-check'; ?>"></i>
+                                            <?php echo $is_archived ? 'Archived' : 'Active'; ?>
+                                        </span>
+                                    </td>
+                                    <td style="text-align: center;">
+                                        <div class="record-actions-wrap justify-content-center">
+                                            <button type="button" class="btn-reg-action btn-reg-edit" onclick="openEditModal(<?php echo js_value($record_payload); ?>)" title="Edit this record">
+                                                <i class="fas fa-pen-to-square"></i> Edit
+                                            </button>
+                                            <button type="button" class="btn-reg-action btn-reg-archive" onclick="confirmArchive(<?php echo (int)$record['baptism_id']; ?>)" title="Archive this record">
+                                                <i class="fas fa-box-archive"></i> Archive
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Pagination -->
-                <?php if ($total_pages > 1): ?>
-                    <div style="margin-top: 20px; text-align: center;">
-                        <?php for ($i = 1; $i <= $total_pages; $i++): ?>
-                            <a href="?page=<?php echo $i; ?>&search=<?php echo urlencode($search); ?>&status=<?php echo urlencode($status_filter); ?>" 
-                               style="padding: 8px 12px; margin: 0 3px; border-radius: 6px; text-decoration: none; background: <?php echo $i === $page ? 'var(--primary-gold)' : '#e0e0e0'; ?>; color: <?php echo $i === $page ? 'var(--primary-navy)' : '#666'; ?>; font-weight: 600;">
-                                <?php echo $i; ?>
-                            </a>
-                        <?php endfor; ?>
-                    </div>
-                <?php endif; ?>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <tr>
+                                <td colspan="11">
+                                    <div class="registry-empty-state">
+                                        <div class="registry-empty-icon"><i class="fas fa-book-open"></i></div>
+                                        <h3>No Baptism Records Found</h3>
+                                        <p>There are no baptismal registry entries matching your filter criteria.</p>
+                                        <button type="button" onclick="openAddModal()" class="btn-formal-add">
+                                            <i class="fas fa-plus-circle"></i> Add New Record
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
             </div>
+
+            <!-- Formal Pagination -->
+            <?php if ($total_pages > 1 || $total_records > 0): ?>
+                <div class="registry-pagination-wrap">
+                    <div class="pagination-summary-text">
+                        Showing <?php echo $total_records > 0 ? ($offset + 1) : 0; ?> to <?php echo min($offset + $per_page, $total_records); ?> of <?php echo number_format($total_records); ?> registry entries
+                    </div>
+                    <?php if ($total_pages > 1): ?>
+                        <div class="pagination-links">
+                            <?php if ($page > 1): ?>
+                                <a href="?page=<?php echo ($page - 1); ?>&search=<?php echo urlencode($search); ?>&status=<?php echo urlencode($status_filter); ?>" class="pagination-link" title="Previous Page">
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            <?php endif; ?>
+
+                            <?php
+                            $start_page = max(1, $page - 2);
+                            $end_page = min($total_pages, $page + 2);
+                            if ($start_page > 1) {
+                                echo '<a href="?page=1&search=' . urlencode($search) . '&status=' . urlencode($status_filter) . '" class="pagination-link">1</a>';
+                                if ($start_page > 2) echo '<span class="px-1 text-muted">...</span>';
+                            }
+                            for ($i = $start_page; $i <= $end_page; $i++): ?>
+                                <a href="?page=<?php echo $i; ?>&search=<?php echo urlencode($search); ?>&status=<?php echo urlencode($status_filter); ?>" class="pagination-link <?php echo $i === $page ? 'active' : ''; ?>">
+                                    <?php echo $i; ?>
+                                </a>
+                            <?php endfor;
+                            if ($end_page < $total_pages) {
+                                if ($end_page < $total_pages - 1) echo '<span class="px-1 text-muted">...</span>';
+                                echo '<a href="?page=' . $total_pages . '&search=' . urlencode($search) . '&status=' . urlencode($status_filter) . '" class="pagination-link">' . $total_pages . '</a>';
+                            }
+                            ?>
+
+                            <?php if ($page < $total_pages): ?>
+                                <a href="?page=<?php echo ($page + 1); ?>&search=<?php echo urlencode($search); ?>&status=<?php echo urlencode($status_filter); ?>" class="pagination-link" title="Next Page">
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
 
-    <!-- Add/Edit Modal -->
-    <div id="recordModal" class="modal">
+    <!-- Formal Add/Edit Record Modal -->
+    <div id="recordModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
         <div class="modal-content">
             <form id="recordForm" method="POST" action="" class="record-modal-form">
                 <?php echo csrfInput(); ?>
@@ -900,129 +1470,165 @@ include '../templates/header.php';
 
                 <div class="modal-header">
                     <div class="modal-title-wrap">
-                        <i class="fas fa-water modal-header-icon"></i>
+                        <span class="modal-header-icon"><i class="fas fa-water"></i></span>
                         <h4 id="modalTitle" class="modal-title-text">Add Baptism Record</h4>
                     </div>
-                    <button type="button" class="modal-close-btn" onclick="closeModal()" aria-label="Close modal">&times;</button>
+                    <button type="button" class="modal-close-btn" onclick="closeModal()" aria-label="Close dialog">&times;</button>
                 </div>
 
                 <div class="modal-body">
+                    <!-- Section 1: Book & Registry Coordinates -->
+                    <div class="modal-section-divider">
+                        <i class="fas fa-book-bookmark"></i>
+                        <h5>1. Registry Book Coordinates</h5>
+                    </div>
                     <div class="form-grid">
                         <input type="hidden" id="registryNo" name="registry_no">
-
-                        <div class="form-group"><label>Registry Number</label><input type="text" id="registryNoVisible" name="registry_no_display" oninput="document.getElementById('registryNo').value=this.value" placeholder="Or use Book + Page + Entry"></div>
-
                         <div class="form-group">
-                            <label>Book Number</label>
-                            <input type="text" id="bookNo" name="book_no" placeholder="Book No.">
+                            <label for="registryNoVisible">Registry Number</label>
+                            <input type="text" id="registryNoVisible" name="registry_no_display" oninput="document.getElementById('registryNo').value=this.value" placeholder="e.g. REG-2025-001 or use Bk+Pg+Entry">
                         </div>
-
                         <div class="form-group">
-                            <label>Page Number</label>
-                            <input type="text" id="pageNo" name="page_no" placeholder="Page No.">
+                            <label for="bookNo">Book Number</label>
+                            <input type="text" id="bookNo" name="book_no" placeholder="Book No. (e.g. 1)">
                         </div>
-
-                        <div class="form-group"><label>Entry Number</label><input type="text" id="entryNo" name="entry_no" placeholder="Entry No."></div>
-
                         <div class="form-group">
-                            <label>Date Baptized *</label>
+                            <label for="pageNo">Page Number</label>
+                            <input type="text" id="pageNo" name="page_no" placeholder="Page No. (e.g. 24)">
+                        </div>
+                        <div class="form-group">
+                            <label for="entryNo">Entry Number</label>
+                            <input type="text" id="entryNo" name="entry_no" placeholder="Entry No. (e.g. 102)">
+                        </div>
+                    </div>
+
+                    <!-- Section 2: Person Baptized & Sacramental Dates -->
+                    <div class="modal-section-divider">
+                        <i class="fas fa-user-check"></i>
+                        <h5>2. Person Baptized & Sacramental Dates</h5>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group full-width">
+                            <label for="fullName">Person Baptized (Full Name) <span class="required-mark">*</span></label>
+                            <input type="text" id="fullName" name="fullname" required placeholder="First Name, Middle Name, Last Name, Suffix">
+                        </div>
+                        <div class="form-group">
+                            <label for="baptismDate">Date of Baptism <span class="required-mark">*</span></label>
                             <input type="date" id="baptismDate" name="baptism_date" required>
                         </div>
-
-                        <div class="form-group full-width">
-                            <label>Personal Baptized Name and Surname *</label>
-                            <input type="text" id="fullName" name="fullname" required>
-                        </div>
-
                         <div class="form-group">
-                            <label>Birth Date *</label>
+                            <label for="birthDate">Date of Birth <span class="required-mark">*</span></label>
                             <input type="date" id="birthDate" name="birth_date" required max="<?php echo date('Y-m-d'); ?>">
                         </div>
-
                         <div class="form-group">
-                            <label>Status of Birth</label>
-                            <input type="text" id="birthStatus" name="birth_status" placeholder="Legitimate, illegitimate, adopted, etc.">
+                            <label for="birthPlace">Place of Birth <span class="required-mark">*</span></label>
+                            <input type="text" id="birthPlace" name="birth_place" required placeholder="City / Municipality, Province">
                         </div>
-
-                        <div class="form-group full-width">
-                            <label>Place of Birth *</label>
-                            <input type="text" id="birthPlace" name="birth_place" required>
-                        </div>
-
-                        <div class="form-group full-width">
-                            <label>Parents Name and Surname *</label>
-                            <input type="text" id="parentsName" name="parents" required>
-                        </div>
-
-                        <div class="form-group full-width">
-                            <label>Parents Address</label>
-                            <input type="text" id="parentAddress" name="parent_address">
-                        </div>
-
-                        <div class="form-group full-width">
-                            <label>Sponsors Name and Surname *</label>
-                            <input type="text" id="godparents" name="godparents" required>
-                        </div>
-
-                        <div class="form-group full-width">
-                            <label>Parish Address</label>
-                            <input type="text" id="parishAddress" name="parish_address">
-                        </div>
-
-                        <div class="form-group full-width">
-                            <label>Minister Name and Surname *</label>
-                            <input type="text" id="priestName" name="priest" required>
-                        </div>
-
-                        <div class="form-group full-width">
-                            <label>Remarks</label>
-                            <textarea id="remarks" name="remarks"></textarea>
-                        </div>
-
                         <div class="form-group">
-                            <label>Parish Priest</label>
+                            <label for="birthStatus">Status of Birth</label>
+                            <input type="text" id="birthStatus" name="birth_status" placeholder="Legitimate, Illegitimate, etc.">
+                        </div>
+                    </div>
+
+                    <!-- Section 3: Parents & Residence -->
+                    <div class="modal-section-divider">
+                        <i class="fas fa-people-roof"></i>
+                        <h5>3. Parents & Residence</h5>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group full-width">
+                            <label for="parentsName">Parents (Father & Mother Full Names) <span class="required-mark">*</span></label>
+                            <input type="text" id="parentsName" name="parents" required placeholder="Father's Full Name & Mother's Maiden Name">
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="parentAddress">Parents Residence / Address</label>
+                            <input type="text" id="parentAddress" name="parent_address" placeholder="Barangay, Municipality / City, Province">
+                        </div>
+                    </div>
+
+                    <!-- Section 4: Sponsors & Parish Details -->
+                    <div class="modal-section-divider">
+                        <i class="fas fa-hands-holding-child"></i>
+                        <h5>4. Sponsors & Parish Details</h5>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group full-width">
+                            <label for="godparents">Sponsors / Godparents (Full Names) <span class="required-mark">*</span></label>
+                            <input type="text" id="godparents" name="godparents" required placeholder="Names of Godfathers & Godmothers (separated by commas)">
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="parishAddress">Parish / Chapel Address</label>
+                            <input type="text" id="parishAddress" name="parish_address" placeholder="San Lorenzo Ruiz Mission Station or local chapel">
+                        </div>
+                    </div>
+
+                    <!-- Section 5: Ministers & Administration -->
+                    <div class="modal-section-divider">
+                        <i class="fas fa-church"></i>
+                        <h5>5. Ministers & Administration</h5>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group full-width">
+                            <label for="priestName">Officiating Minister / Priest <span class="required-mark">*</span></label>
+                            <input type="text" id="priestName" name="priest" required placeholder="Rev. Fr. Name">
+                        </div>
+                        <div class="form-group">
+                            <label for="parishPriest">Parish Priest</label>
                             <input type="text" id="parishPriest" name="parish_priest" placeholder="Name printed above Parish Priest">
                         </div>
-
                         <div class="form-group">
-                            <label>Parish Secretary</label>
+                            <label for="parishSecretary">Parish Secretary</label>
                             <input type="text" id="parishSecretary" name="parish_secretary" placeholder="Name printed above Parish Secretary">
                         </div>
+                    </div>
 
+                    <!-- Section 6: Annotations & Status -->
+                    <div class="modal-section-divider">
+                        <i class="fas fa-file-pen"></i>
+                        <h5>6. Annotations & System Status</h5>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group full-width">
+                            <label for="remarks">Remarks / Marginal Annotations</label>
+                            <textarea id="remarks" name="remarks" placeholder="Optional notes, marriage annotation, confirmation note, etc."></textarea>
+                        </div>
                         <div class="form-group">
-                            <label>Status</label>
+                            <label for="recordStatus">Record Status</label>
                             <select id="recordStatus" name="status">
                                 <option value="active">Active</option>
                                 <option value="archived">Archived</option>
                             </select>
                         </div>
-
-                        <div class="form-group full-width"><label>Correction reason (required when editing)</label><textarea name="correction_reason" minlength="5"></textarea></div>
-
                         <div class="form-group">
-                            <label>Link to Request</label>
+                            <label for="requestId">Link to Online Request</label>
                             <select id="requestId" name="request_id">
-                                <option value="">-- No Request --</option>
+                                <option value="">-- No Request Linked --</option>
                                 <?php foreach ($requests_list as $req): ?>
-                                    <option value="<?php echo $req['request_id']; ?>">
+                                    <option value="<?php echo (int)$req['request_id']; ?>">
                                         <?php echo htmlspecialchars($req['reference_number']); ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
+                        <div class="form-group full-width" id="correctionReasonGroup" style="display: none;">
+                            <label for="correctionReason">Correction Reason <span class="required-mark">* (required when updating official record)</span></label>
+                            <textarea id="correctionReason" name="correction_reason" minlength="5" placeholder="Specify what data is being corrected and rationale..."></textarea>
+                        </div>
                     </div>
                 </div>
 
                 <div class="modal-footer">
-                    <button type="button" class="btn-cancel" onclick="closeModal()">Cancel</button>
-                    <button type="submit" class="btn-save">Save Record</button>
+                    <button type="button" class="btn-modal-cancel" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn-modal-save">
+                        <i class="fas fa-floppy-disk"></i> Save Record
+                    </button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Archive Confirmation Modal -->
-    <div id="deleteModal" class="modal">
+    <!-- Formal Archive Confirmation Modal -->
+    <div id="deleteModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="archiveTitle">
         <div class="modal-content modal-archive-dialog">
             <form id="deleteForm" method="POST" action="" class="record-modal-form">
                 <?php echo csrfInput(); ?>
@@ -1030,18 +1636,25 @@ include '../templates/header.php';
                 <input type="hidden" id="deleteRecordId" name="record_id" value="">
                 <div class="modal-header">
                     <div class="modal-title-wrap">
-                        <i class="fas fa-archive modal-header-icon"></i>
-                        <h4 class="modal-title-text">Confirm Archive</h4>
+                        <span class="modal-header-icon" style="background: #FEE2E2; color: #DC2626;"><i class="fas fa-box-archive"></i></span>
+                        <h4 id="archiveTitle" class="modal-title-text">Confirm Archive</h4>
                     </div>
-                    <button type="button" class="modal-close-btn" onclick="closeDeleteModal()" aria-label="Close modal">&times;</button>
+                    <button type="button" class="modal-close-btn" onclick="closeDeleteModal()" aria-label="Close dialog">&times;</button>
                 </div>
                 <div class="modal-body">
-                    <p style="margin-bottom: 16px; color: #475569; font-size: 0.95rem;">Archive this baptism record? It will be hidden from active records but kept in Archives.</p>
-                    <div class="form-group mb-0"><label>Archive reason *</label><textarea name="archive_reason" required minlength="5" placeholder="Reason for archiving this record..."></textarea></div>
+                    <p style="margin-bottom: 16px; color: #475569; font-size: 0.92rem; line-height: 1.5;">
+                        Archive this baptism record? It will be safely archived and hidden from the active registry list.
+                    </p>
+                    <div class="form-group mb-0">
+                        <label for="archiveReason" style="font-weight: 700; color: #334155; font-size: 0.85rem; margin-bottom: 6px; display: block;">Archive Reason <span style="color: #DC2626;">*</span></label>
+                        <textarea id="archiveReason" name="archive_reason" required minlength="5" placeholder="State the reason for archiving this baptismal record..." style="width: 100%; padding: 10px; border: 1px solid #CBD5E1; border-radius: 7px; min-height: 80px;"></textarea>
+                    </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn-cancel" onclick="closeDeleteModal()">Cancel</button>
-                    <button type="submit" class="btn-delete" style="padding: 10px 22px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; background: #d7ad43; color: #181204;">Archive</button>
+                    <button type="button" class="btn-modal-cancel" onclick="closeDeleteModal()">Cancel</button>
+                    <button type="submit" class="btn-modal-archive-confirm">
+                        <i class="fas fa-box-archive"></i> Archive Record
+                    </button>
                 </div>
             </form>
         </div>
@@ -1050,7 +1663,7 @@ include '../templates/header.php';
     <script src="../assets/js/components.js"></script>
     <script src="../assets/js/main.js"></script>
     <script>
-        // Open Add Modal Function - Documents this helper's role in the parish management workflow.
+        // Open Add Modal Function
         function openAddModal() {
             document.getElementById('recordForm').reset();
             document.getElementById('actionInput').value = 'add';
@@ -1061,11 +1674,17 @@ include '../templates/header.php';
             document.getElementById('bookNo').value = '';
             document.getElementById('pageNo').value = '';
             document.getElementById('modalTitle').textContent = 'Add Baptism Record';
+            const reasonGroup = document.getElementById('correctionReasonGroup');
+            if (reasonGroup) {
+                reasonGroup.style.display = 'none';
+                const reasonInput = document.getElementById('correctionReason');
+                if (reasonInput) reasonInput.removeAttribute('required');
+            }
             document.getElementById('recordModal').classList.add('show');
             document.body.classList.add('modal-open');
         }
 
-        // Open Edit Modal Function - Documents this helper's role in the parish management workflow.
+        // Open Edit Modal Function
         function openEditModal(record) {
             document.getElementById('recordIdInput').value = record.id || '';
             document.getElementById('registryNo').value = record.registry_no || '';
@@ -1090,37 +1709,43 @@ include '../templates/header.php';
             document.getElementById('requestId').value = record.request_id || '';
             document.getElementById('actionInput').value = 'edit';
             document.getElementById('modalTitle').textContent = 'Edit Baptism Record';
+            const reasonGroup = document.getElementById('correctionReasonGroup');
+            if (reasonGroup) {
+                reasonGroup.style.display = 'block';
+                const reasonInput = document.getElementById('correctionReason');
+                if (reasonInput) reasonInput.setAttribute('required', 'required');
+            }
             document.getElementById('recordModal').classList.add('show');
             document.body.classList.add('modal-open');
         }
 
-        // Close Modal Function - Documents this helper's role in the parish management workflow.
+        // Close Modal Function
         function closeModal() {
             document.getElementById('recordModal').classList.remove('show');
             document.body.classList.remove('modal-open');
         }
 
-        // Confirm Archive Function - Documents this helper's role in the parish management workflow.
+        // Confirm Archive Function
         function confirmArchive(id) {
             document.getElementById('deleteRecordId').value = id;
             document.getElementById('deleteModal').classList.add('show');
             document.body.classList.add('modal-open');
         }
 
-        // Close Delete Modal Function - Documents this helper's role in the parish management workflow.
+        // Close Delete Modal Function
         function closeDeleteModal() {
             document.getElementById('deleteModal').classList.remove('show');
             document.body.classList.remove('modal-open');
         }
 
-        // Perform Search Function - Documents this helper's role in the parish management workflow.
+        // Perform Search Function
         function performSearch() {
-            const search = document.getElementById('searchInput').value;
+            const search = document.getElementById('searchInput').value.trim();
             const status = document.getElementById('statusFilter').value;
             window.location.href = `?search=${encodeURIComponent(search)}&status=${encodeURIComponent(status)}&page=1`;
         }
 
-        // Apply Filter Function - Documents this helper's role in the parish management workflow.
+        // Apply Filter Function
         function applyFilter() {
             performSearch();
         }

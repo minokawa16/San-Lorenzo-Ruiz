@@ -732,7 +732,12 @@ if ($stmt) {
 
     /* Phone certificate service: open directly on the working request form. */
     @media (max-width: 599px) {
+        body.certificate-mobile-page .user-content > .no-print,
+        body.certificate-mobile-page .user-content > .mb-3.no-print,
         body.certificate-mobile-page .user-content > .mb-4.no-print,
+        body.certificate-mobile-page .parish-back-link,
+        body.certificate-mobile-page .parish-back-button-wrap,
+        body.certificate-mobile-page .parish-section-header-component,
         body.certificate-mobile-page .certificate-hero,
         body.certificate-mobile-page .certificate-status-grid,
         body.certificate-mobile-page .success-reference a {

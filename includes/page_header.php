@@ -11,7 +11,7 @@ $show_back = !empty($show_back_button) && $show_back_button === true;
 $back_url = $back_button_url ?? '';
 ?>
 <?php if ($show_back): ?>
-<div class="parish-section-header-component no-print" style="margin-bottom: 14px;">
+<div class="parish-section-header-component parish-back-button-wrap no-print" style="margin-bottom: 14px;">
     <?php if (!empty($back_url)): ?>
         <a href="<?php echo e($back_url); ?>" class="parish-back-link" title="Go back to previous page">
             <i class="fas fa-arrow-left"></i> Go Back

@@ -918,6 +918,14 @@ html body .admin-profile-btn .profile-role {
     box-shadow: 0 2px 6px rgba(197, 155, 39, 0.18) !important;
 }
 
+@media (max-width: 991px) {
+    body.user-area .parish-back-link,
+    body.user-area .parish-back-button-wrap,
+    body.user-area .parish-section-header-component {
+        display: none !important;
+    }
+}
+
 .parish-section-title-wrap {
     display: flex !important;
     flex-direction: column !important;

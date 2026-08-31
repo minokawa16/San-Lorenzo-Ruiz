@@ -255,6 +255,11 @@
         box-shadow: none !important;
     }
 
+    body.user-area .parish-back-link,
+    body.user-area .parish-back-button-wrap,
+    body.user-area .parish-section-header-component,
+    body.user-area .user-content > .no-print,
+    body.user-area .user-content > .mb-3.no-print,
     body.user-area .user-content > .mb-4.no-print,
     body.user-area .pds-breadcrumb {
         display: none !important;
