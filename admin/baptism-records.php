@@ -618,7 +618,7 @@ include '../templates/header.php';
             width: 100%;
             border-collapse: collapse;
             font-size: 0.86rem;
-            min-width: 1100px;
+            min-width: 1300px;
         }
 
         .formal-records-table thead {
@@ -650,7 +650,7 @@ include '../templates/header.php';
 
         .formal-records-table td {
             padding: 14px;
-            vertical-align: top;
+            vertical-align: middle;
             color: #334155;
             line-height: 1.45;
         }
@@ -697,13 +697,6 @@ include '../templates/header.php';
             white-space: nowrap;
         }
 
-        .date-baptized-year {
-            display: block;
-            font-size: 0.78rem;
-            color: #64748B;
-            font-weight: 600;
-        }
-
         .meta-subtitle {
             display: block;
             font-size: 0.78rem;
@@ -717,27 +710,6 @@ include '../templates/header.php';
             text-align: center;
             color: #94A3B8;
             margin-right: 3px;
-        }
-
-        .birth-status-tag {
-            display: inline-block;
-            background: #F0FDF4;
-            color: #166534;
-            border: 1px solid #BBF7D0;
-            border-radius: 4px;
-            padding: 1px 6px;
-            font-size: 0.72rem;
-            font-weight: 600;
-            margin-top: 3px;
-            text-transform: capitalize;
-        }
-
-        .official-role {
-            font-size: 0.75rem;
-            font-weight: 700;
-            color: #475569;
-            text-transform: uppercase;
-            letter-spacing: 0.02em;
         }
 
         .badge-status {
@@ -1286,16 +1258,19 @@ include '../templates/header.php';
                 <table class="formal-records-table">
                     <thead>
                         <tr>
-                            <th style="width: 110px;">Book / Page</th>
-                            <th style="width: 120px;">Date Baptized</th>
-                            <th style="width: 180px;">Person Baptized</th>
-                            <th style="width: 170px;">Birth Details</th>
-                            <th style="width: 180px;">Parents</th>
-                            <th style="width: 170px;">Sponsors</th>
-                            <th style="width: 150px;">Minister</th>
-                            <th style="width: 160px;">Parish Officials</th>
-                            <th style="width: 120px;">Remarks</th>
-                            <th style="width: 90px; text-align: center;">Status</th>
+                            <th style="width: 90px;">Book No.</th>
+                            <th style="width: 80px;">Page No.</th>
+                            <th style="width: 70px;">Year</th>
+                            <th style="width: 110px;">Date Baptized</th>
+                            <th style="width: 170px;">Person Baptized</th>
+                            <th style="width: 110px;">Birth</th>
+                            <th style="width: 160px;">Parents</th>
+                            <th style="width: 150px;">Sponsors</th>
+                            <th style="width: 140px;">Minister</th>
+                            <th style="width: 150px;">Parish Priest</th>
+                            <th style="width: 140px;">Secretary</th>
+                            <th style="width: 110px;">Remarks</th>
+                            <th style="width: 85px; text-align: center;">Status</th>
                             <th style="width: 130px; text-align: center;">Actions</th>
                         </tr>
                     </thead>
@@ -1330,18 +1305,24 @@ include '../templates/header.php';
                                 <tr>
                                     <td>
                                         <span class="book-page-badge">
-                                            <i class="fas fa-bookmark me-1" style="font-size: 0.68rem;"></i>
-                                            Bk. <?php echo htmlspecialchars($record['book_no'] ?: '-'); ?> · Pg. <?php echo htmlspecialchars($record['page_no'] ?: '-'); ?>
+                                            Bk. <?php echo htmlspecialchars($record['book_no'] ?: '-'); ?>
                                         </span>
                                         <?php if (!empty($record['entry_no'])): ?>
                                             <span class="entry-no-pill">Entry #<?php echo htmlspecialchars($record['entry_no']); ?></span>
                                         <?php endif; ?>
                                     </td>
                                     <td>
+                                        <span class="book-page-badge">
+                                            Pg. <?php echo htmlspecialchars($record['page_no'] ?: '-'); ?>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span style="font-weight: 700; color: #1E293B;">
+                                            <?php echo !empty($record['baptism_date']) ? date('Y', strtotime($record['baptism_date'])) : '-'; ?>
+                                        </span>
+                                    </td>
+                                    <td>
                                         <span class="date-baptized-badge"><?php echo format_baptism_record_date($record['baptism_date'], 'M d, Y'); ?></span>
-                                        <?php if (!empty($record['baptism_date'])): ?>
-                                            <span class="date-baptized-year"><?php echo date('l', strtotime($record['baptism_date'])); ?></span>
-                                        <?php endif; ?>
                                     </td>
                                     <td>
                                         <strong class="person-baptized-name"><?php echo htmlspecialchars($record['fullname']); ?></strong>
@@ -1350,35 +1331,27 @@ include '../templates/header.php';
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <div><i class="fas fa-cake-candles me-1 text-muted"></i> <strong><?php echo format_baptism_record_date($record['birth_date'] ?? ''); ?></strong></div>
-                                        <?php if (!empty($record['birth_place'])): ?>
-                                            <span class="meta-subtitle"><i class="fas fa-location-dot"></i> <?php echo htmlspecialchars($record['birth_place']); ?></span>
-                                        <?php endif; ?>
-                                        <?php if (!empty($record['birth_status'])): ?>
-                                            <span class="birth-status-tag"><?php echo htmlspecialchars($record['birth_status']); ?></span>
-                                        <?php endif; ?>
+                                        <span style="font-weight: 600; color: #1E293B;">
+                                            <?php echo format_baptism_record_date($record['birth_date'] ?? '', 'M d, Y'); ?>
+                                        </span>
                                     </td>
                                     <td>
                                         <div style="font-weight: 600; color: #1E293B;"><?php echo htmlspecialchars($record['parents'] ?? 'N/A'); ?></div>
-                                        <?php if (!empty($record['parent_address'])): ?>
-                                            <span class="meta-subtitle"><i class="fas fa-house"></i> <?php echo htmlspecialchars($record['parent_address']); ?></span>
-                                        <?php endif; ?>
                                     </td>
                                     <td>
                                         <div style="font-weight: 600; color: #1E293B;"><?php echo htmlspecialchars($record['godparents'] ?? 'N/A'); ?></div>
-                                        <?php if (!empty($record['parish_address'])): ?>
-                                            <span class="meta-subtitle"><i class="fas fa-church"></i> <?php echo htmlspecialchars($record['parish_address']); ?></span>
-                                        <?php endif; ?>
                                     </td>
                                     <td>
-                                        <div style="font-weight: 600; color: #1E293B;"><i class="fas fa-cross me-1 text-muted" style="font-size: 0.75rem;"></i> <?php echo htmlspecialchars($record['priest'] ?? 'N/A'); ?></div>
+                                        <div style="font-weight: 600; color: #1E293B;"><?php echo htmlspecialchars($record['priest'] ?? 'N/A'); ?></div>
                                     </td>
                                     <td>
-                                        <div><span class="official-role">Pastor:</span> <?php echo htmlspecialchars($record['parish_priest'] ?: 'N/A'); ?></div>
-                                        <span class="meta-subtitle"><span class="official-role">Secretary:</span> <?php echo htmlspecialchars($record['parish_secretary'] ?: 'N/A'); ?></span>
+                                        <div style="font-weight: 600; color: #1E293B;"><?php echo htmlspecialchars($record['parish_priest'] ?: 'N/A'); ?></div>
                                     </td>
                                     <td>
-                                        <span style="font-size: 0.8rem; color: #64748B;"><?php echo htmlspecialchars($record['remarks'] ?: '-'); ?></span>
+                                        <div style="font-weight: 600; color: #1E293B;"><?php echo htmlspecialchars($record['parish_secretary'] ?: 'N/A'); ?></div>
+                                    </td>
+                                    <td>
+                                        <span style="font-size: 0.82rem; color: #64748B;"><?php echo htmlspecialchars($record['remarks'] ?: '-'); ?></span>
                                     </td>
                                     <td style="text-align: center;">
                                         <span class="badge-status <?php echo $is_archived ? 'badge-status-archived' : 'badge-status-active'; ?>">
@@ -1400,7 +1373,7 @@ include '../templates/header.php';
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="11">
+                                <td colspan="14">
                                     <div class="registry-empty-state">
                                         <div class="registry-empty-icon"><i class="fas fa-book-open"></i></div>
                                         <h3>No Baptism Records Found</h3>
