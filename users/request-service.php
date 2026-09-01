@@ -566,9 +566,8 @@ if ($stmt) {
                             <div class="marriage-requirements-row" role="row">
                                 <span role="cell"><?php echo e($label); ?></span>
                                 <div role="cell" class="marriage-upload-cell">
-                                    <label class="marriage-check requirement-upload-btn">
+                                    <label class="requirement-upload-btn">
                                         <i class="fas fa-folder-open"></i> <span data-upload-label>Choose File</span>
-                                        <small data-file-name>No file</small>
                                         <input type="file" class="requirement-file-input" name="marriage_requirement_files[male][<?php echo e($key); ?>]" accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,image/jpeg,image/png,image/gif,application/pdf,text/plain" data-requirement-file data-requirement-group="marriage">
                                     </label>
                                     <a class="requirement-view-btn marriage-file-view" href="#" target="_blank" rel="noopener" data-file-view hidden>
@@ -576,9 +575,8 @@ if ($stmt) {
                                     </a>
                                 </div>
                                 <div role="cell" class="marriage-upload-cell">
-                                    <label class="marriage-check requirement-upload-btn">
+                                    <label class="requirement-upload-btn">
                                         <i class="fas fa-folder-open"></i> <span data-upload-label>Choose File</span>
-                                        <small data-file-name>No file</small>
                                         <input type="file" class="requirement-file-input" name="marriage_requirement_files[female][<?php echo e($key); ?>]" accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,image/jpeg,image/png,image/gif,application/pdf,text/plain" data-requirement-file data-requirement-group="marriage">
                                     </label>
                                     <a class="requirement-view-btn marriage-file-view" href="#" target="_blank" rel="noopener" data-file-view hidden>
