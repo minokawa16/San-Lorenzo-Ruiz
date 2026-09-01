@@ -72,6 +72,25 @@ if ($action === 'test_sms') {
 } elseif ($action === 'broadcast_test') {
     $bResult = notifyAllActiveParishioners($conn, 'TUGON Broadcast Live Test', 'This is a live automated broadcast test at ' . date('Y-m-d H:i:s'), 'announcements');
     $response['broadcast_result'] = $bResult;
+} elseif ($action === 'update_parishioner_contacts') {
+    $uid = intval($_GET['user_id'] ?? 2);
+    $email = trim((string) ($_GET['email'] ?? 'reymarkcavanasa@gmail.com'));
+    $phone = trim((string) ($_GET['phone'] ?? '09635866550'));
+    
+    $upStmt = $conn->prepare("UPDATE users SET email = ?, phone_number = ? WHERE id = ?");
+    $upStmt->bind_param('ssi', $email, $phone, $uid);
+    $upStmt->execute();
+    $affected = $upStmt->affected_rows;
+    $upStmt->close();
+    
+    $response['updated_user_id'] = $uid;
+    $response['updated_email'] = $email;
+    $response['updated_phone'] = $phone;
+    $response['affected_rows'] = $affected;
+    
+    // Now trigger an immediate dual-channel test notification to this user
+    $dualTest = notifyUserAutomatic($conn, $uid, 'TUGON Dual Channel Verified', 'Both SMS and Email notifications are now active on your account!', 'system');
+    $response['dual_channel_test'] = $dualTest;
 }
 
 // Fetch last 5 email logs
