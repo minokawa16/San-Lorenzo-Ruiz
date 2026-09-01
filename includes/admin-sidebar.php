@@ -132,16 +132,6 @@
       <span><?php echo e(t('nav.logout', 'Logout')); ?></span>
     </a>
   </nav>
-
-  <div class="sidebar-watermark" aria-hidden="true">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M12 3v5"/>
-      <path d="M10 5h4"/>
-      <path d="m5 10 7-4 7 4"/>
-      <path d="M6 10v10h12V10"/>
-      <path d="M10 20v-5a2 2 0 0 1 4 0v5"/>
-    </svg>
-  </div>
 </aside>
 
 <script>

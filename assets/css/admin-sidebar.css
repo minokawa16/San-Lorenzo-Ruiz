@@ -415,42 +415,6 @@ html body .nav-submenu .sublink.active {
     color: var(--admin-sidebar-gold) !important;
 }
 
-/* Sidebar Bottom Church Watermark with Crisp Contrast & Warm Gold Finish */
-.sidebar-watermark {
-    position: absolute !important;
-    bottom: 16px !important;
-    left: 18px !important;
-    width: 72px !important;
-    height: 72px !important;
-    pointer-events: none !important;
-    opacity: 0.85 !important;
-    z-index: 1 !important;
-    transition: opacity 0.25s ease, transform 0.25s ease, width 0.25s ease, height 0.25s ease !important;
-}
-
-.sidebar-watermark svg {
-    width: 100% !important;
-    height: 100% !important;
-    stroke: #d4af37 !important;
-    fill: rgba(212, 175, 55, 0.12) !important;
-    stroke-width: 1.6 !important;
-    stroke-linecap: round !important;
-    stroke-linejoin: round !important;
-    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.45)) !important;
-}
-
-/* On Collapsed Sidebar */
-html body .admin-sidebar.collapsed .sidebar-watermark,
-html body.admin-sidebar-collapsed .admin-sidebar .sidebar-watermark,
-html body .user-sidebar.collapsed .sidebar-watermark,
-html body.user-sidebar-collapsed .user-sidebar .sidebar-watermark {
-    width: 40px !important;
-    height: 40px !important;
-    left: 16px !important;
-    bottom: 12px !important;
-    opacity: 0.75 !important;
-}
-
 /* Sidebar Footer */
 html body .user-sidebar .sidebar-footer {
     display: none !important;

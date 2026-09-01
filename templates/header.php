@@ -214,24 +214,6 @@ if ($is_admin_area) {
             background: rgba(200, 155, 60, 0.15) !important;
             color: #FFFFFF !important;
         }
-        .sidebar-watermark {
-            position: absolute !important;
-            bottom: 16px !important;
-            left: 18px !important;
-            width: 72px !important;
-            height: 72px !important;
-            pointer-events: none !important;
-            opacity: 0.85 !important;
-            z-index: 1 !important;
-        }
-        .sidebar-watermark svg {
-            width: 100% !important;
-            height: 100% !important;
-            stroke: #d4af37 !important;
-            fill: rgba(212, 175, 55, 0.12) !important;
-            stroke-width: 1.6 !important;
-            filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.45)) !important;
-        }
     </style>
 </head>
 <body class="<?php echo $is_user_area ? 'user-area' : ($is_admin_area ? 'premium-admin' : ''); ?> church-theme app-page-<?php echo e(preg_replace('/[^a-z0-9-]+/', '-', strtolower(pathinfo($current_page, PATHINFO_FILENAME)))); ?><?php echo !empty($body_extra_class) ? ' ' . e($body_extra_class) : ''; ?>">
