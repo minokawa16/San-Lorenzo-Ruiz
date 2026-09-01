@@ -52,11 +52,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $released_count = requestDocumentCount($conn, $request_id, 'released_certificate') + requestDocumentCount($conn, $request_id, 'admin_file');
         $current_payment_summary = getRequestPaymentSummary($conn, $request_id);
 
+        $request_type = strtolower(trim((string)($request['request_type'] ?? '')));
+        $zero_requirement_services = ['patronal_fiesta', 'anointing_of_the_sick', 'mass_offering', 'mass_intention', 'blessing_service', 'general_blessing'];
+        $requires_supporting_docs = !in_array($request_type, $zero_requirement_services, true);
+
         if (!in_array($status, $allowed_statuses, true)) {
             $error = 'Invalid request status.';
-        } elseif (in_array($status, ['approved', 'processing', 'completed'], true) && $requirement_count <= 0) {
+        } elseif (in_array($status, ['approved', 'processing', 'completed'], true) && $requires_supporting_docs && $requirement_count <= 0) {
             $error = 'This request cannot move forward until at least one supporting requirement is attached.';
-        } elseif ($status === 'completed' && $released_count <= 0) {
+        } elseif ($status === 'completed' && $released_count <= 0 && $requires_supporting_docs) {
             $error = 'Upload a released certificate or parish office file before marking this request completed.';
         } elseif ($status === 'completed' && intval($current_payment_summary['total']) > 0 && intval($current_payment_summary['verified']) <= 0) {
             $error = 'A submitted payment receipt must be verified before marking this request completed.';
