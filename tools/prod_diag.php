@@ -177,7 +177,69 @@ if ($action === 'test_sms') {
     $targetPhone = $paramPhone ?: '09635866550';
     echo "Sending direct SMS to {$targetPhone} from Railway...\n";
     $smsResult = sendTugonSms($conn, $targetPhone, "TUGON Railway Test: TextBee is connected! Time: " . date('H:i:s'), 1, 'test');
-    echo "Result: " . json_encode($smsResult) . "\n\n";
+    echo "Result: " . json_encode($smsResult, JSON_PRETTY_PRINT) . "\n\n";
+}
+
+if ($action === 'test_email') {
+    $targetEmail = $_GET['email'] ?? ($argv[2] ?? 'reymarkcavanasa@gmail.com');
+    echo "Sending test Email to {$targetEmail} from Railway...\n";
+    $mailConfig = tugonMailConfig();
+    echo "Mail Config: " . json_encode([
+        'enabled' => $mailConfig['enabled'] ?? false,
+        'mailer' => $mailConfig['mailer'] ?? 'smtp',
+        'smtp_host' => $mailConfig['smtp_host'] ?? '',
+        'smtp_port' => $mailConfig['smtp_port'] ?? '',
+        'smtp_username' => $mailConfig['smtp_username'] ?? '',
+        'from_email' => $mailConfig['from_email'] ?? '',
+        'from_name' => $mailConfig['from_name'] ?? '',
+        'encryption' => $mailConfig['smtp_encryption'] ?? ''
+    ], JSON_PRETTY_PRINT) . "\n";
+    
+    $emailResult = sendTugonEmail(
+        $conn,
+        $targetEmail,
+        'TUGON Live Email Test (' . date('H:i:s') . ')',
+        tugonEmailTemplate('Live Test Notification', '<p>This is a live test notification verifying that the TUGON Gmail/SMTP delivery engine is operational.</p>', 'Visit Portal', 'https://san-lorenzo-ruiz.vercel.app/'),
+        'This is a live test notification from TUGON.',
+        1,
+        'test'
+    );
+    echo "Result: " . json_encode($emailResult, JSON_PRETTY_PRINT) . "\n\n";
+}
+
+if ($action === 'test_notifications') {
+    echo "=== COMPREHENSIVE LIVE NOTIFICATION PIPELINE DIAGNOSTIC ===\n\n";
+    
+    echo "--- 1. ACTIVE USERS & RECIPIENTS ---\n";
+    $uRes = $conn->query("SELECT id, fullname, email, phone_number, role, status FROM users WHERE role IN ('user', 'parishioner') AND status = 'active'");
+    if ($uRes) {
+        while ($u = $uRes->fetch_assoc()) {
+            echo "Parishioner #{$u['id']}: {$u['fullname']} | Email: [{$u['email']}] (Valid: " . (isValidEmail($u['email']) ? 'YES' : 'NO') . ") | Phone: [{$u['phone_number']}] (Valid: " . (isValidPhilippineMobile($u['phone_number']) ? 'YES' : 'NO') . ")\n";
+        }
+    } else {
+        echo "No active parishioners found.\n";
+    }
+    
+    echo "\n--- 2. SENDING LIVE BROADCAST TO ALL ACTIVE PARISHIONERS ---\n";
+    $bResult = notifyAllActiveParishioners($conn, 'Parish System Broadcast Test', 'Live notification test dispatched at ' . date('Y-m-d H:i:s'), 'system');
+    echo "Broadcast Result: " . json_encode($bResult, JSON_PRETTY_PRINT) . "\n";
+
+    echo "\n--- 3. RECENT EMAIL NOTIFICATION LOGS (Last 10) ---\n";
+    $mLogs = $conn->query("SELECT log_id, user_id, email, subject, notification_type, delivery_status, error_message, created_at, sent_at FROM notification_logs ORDER BY log_id DESC LIMIT 10");
+    if ($mLogs) {
+        while ($ml = $mLogs->fetch_assoc()) {
+            echo "#{$ml['log_id']} | User: {$ml['user_id']} | To: {$ml['email']} | Status: {$ml['delivery_status']} | Err: [{$ml['error_message']}] | Subj: {$ml['subject']} | Time: {$ml['created_at']}\n";
+        }
+    }
+
+    echo "\n--- 4. RECENT SMS NOTIFICATION LOGS (Last 10) ---\n";
+    $sLogs = $conn->query("SELECT log_id, user_id, phone_number, notification_type, delivery_status, error_message, created_at, sent_at FROM sms_notification_logs ORDER BY log_id DESC LIMIT 10");
+    if ($sLogs) {
+        while ($sl = $sLogs->fetch_assoc()) {
+            echo "#{$sl['log_id']} | User: {$sl['user_id']} | Phone: {$sl['phone_number']} | Status: {$sl['delivery_status']} | Err: [{$sl['error_message']}] | Time: {$sl['created_at']}\n";
+        }
+    }
+    echo "\n";
 }
 
 if ($action === 'test_forgot_pw') {
