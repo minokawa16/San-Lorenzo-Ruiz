@@ -38,6 +38,11 @@ ensureRequestPaymentsSchema($conn);
 $error = '';
 $success = '';
 
+$csrf_err = csrfFailureMessage();
+if ($csrf_err && empty($error)) {
+    $error = $csrf_err;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '') === 'respond_schedule_proposal') {
     requireValidCsrfToken();
     try {
@@ -62,7 +67,16 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
 
         if ($payment['ok']) {
             createNotification($conn, $user_id, 'Payment Receipt Submitted', 'Your receipt was submitted for request ' . $request['reference_number'] . '.');
-            $success = 'Payment receipt submitted for admin verification.';
+            
+            // Notify administrators and staff
+            $admin_stmt = $conn->query("SELECT id FROM users WHERE role IN ('admin', 'staff') AND status = 'active'");
+            if ($admin_stmt) {
+                while ($admin_row = $admin_stmt->fetch_assoc()) {
+                    createNotification($conn, (int)$admin_row['id'], 'Payment Receipt Submitted', 'Parishioner ' . ($request['user_name'] ?? 'A parishioner') . ' submitted a GCash receipt for request ' . $request['reference_number'] . '.');
+                }
+            }
+            
+            $success = 'Payment receipt submitted successfully for admin verification.';
         } else {
             $error = $payment['error'];
         }
@@ -484,32 +498,34 @@ $page_title = 'View Request';
                                         </ul>
                                     </div>
                                 </div>
-                                <form method="POST" enctype="multipart/form-data" class="row g-3 payment-receipt-form">
+                                <form method="POST" action="view-request.php?id=<?php echo intval($request_id); ?>" enctype="multipart/form-data" class="row g-3 payment-receipt-form">
+                                    <?php echo csrfInput(); ?>
                                     <input type="hidden" name="action" value="submit_payment">
                                     <input type="hidden" name="payment_method" value="gcash">
                                     <div class="col-md-4">
-                                        <label class="form-label" for="amount">Amount</label>
+                                        <label class="form-label fw-bold" for="amount">Amount (PHP) <span class="text-danger">*</span></label>
                                         <input type="number" class="form-control" id="amount" name="amount" min="1" step="0.01" inputmode="decimal" placeholder="e.g. 150.00" required>
                                     </div>
                                     <div class="col-md-4">
-                                        <label class="form-label" for="payment_method">Method</label>
-                                        <input type="text" class="form-control payment-method-display" id="payment_method" value="GCash" readonly aria-readonly="true">
+                                        <label class="form-label fw-bold" for="payment_method">Method</label>
+                                        <input type="text" class="form-control payment-method-display bg-light" id="payment_method" value="GCash" readonly aria-readonly="true">
                                     </div>
                                     <div class="col-md-4">
-                                        <label class="form-label" for="reference_number">Reference Number</label>
+                                        <label class="form-label fw-bold" for="reference_number">Reference Number <span class="text-muted small fw-normal">(Optional)</span></label>
                                         <input type="text" class="form-control" id="reference_number" name="reference_number" placeholder="GCash reference number">
                                     </div>
                                     <div class="col-12">
-                                        <label class="form-label" for="receipt_file">Receipt / Proof of Payment</label>
+                                        <label class="form-label fw-bold" for="receipt_file">Receipt / Proof of Payment <span class="text-danger">*</span></label>
                                         <input type="file" class="form-control" id="receipt_file" name="receipt_file" accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt,image/jpeg,image/png,image/gif,application/pdf,text/plain" required>
+                                        <div class="form-text">Upload a screenshot or photo of your GCash transaction receipt (JPG, PNG, PDF up to 10MB).</div>
                                     </div>
                                     <div class="col-12">
-                                        <label class="form-label" for="notes">Notes</label>
-                                        <textarea class="form-control" id="notes" name="notes" rows="2" placeholder="Optional notes"></textarea>
+                                        <label class="form-label fw-bold" for="notes">Notes <span class="text-muted small fw-normal">(Optional)</span></label>
+                                        <textarea class="form-control" id="notes" name="notes" rows="2" placeholder="Optional notes about this payment"></textarea>
                                     </div>
                                     <div class="col-12">
                                         <button type="submit" class="btn btn-primary payment-submit-button">
-                                            <i class="fas fa-upload"></i> Submit Receipt
+                                            <i class="fas fa-upload me-1"></i> Submit Receipt
                                         </button>
                                     </div>
                                 </form>

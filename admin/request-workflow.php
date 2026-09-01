@@ -279,54 +279,108 @@ $breadcrumbs = [
 
             <div class="card mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="fas fa-receipt"></i> Payment Receipts</h5>
-                    <span class="badge bg-success">Verified PHP <?php echo number_format($payment_summary['verified_amount'], 2); ?></span>
+                    <h5 class="mb-0"><i class="fas fa-receipt me-2"></i> Payment Receipts</h5>
+                    <span class="badge bg-success">Verified: PHP <?php echo number_format($payment_summary['verified_amount'], 2); ?></span>
                 </div>
                 <div class="card-body">
-                    <?php if (empty($payments)): ?>
+                    <?php if (empty($payments) && empty($documents_by_type['payment_receipt'])): ?>
                         <div class="text-muted">No payment receipts submitted.</div>
                     <?php else: ?>
                         <?php foreach ($payments as $payment): ?>
-                            <div class="border rounded p-3 mb-3">
-                                <div class="d-flex justify-content-between gap-3">
+                            <?php
+                            $badge_map = [
+                                'pending' => ['class' => 'warning text-dark', 'icon' => 'fa-clock', 'label' => 'Pending Verification'],
+                                'verified' => ['class' => 'success', 'icon' => 'fa-circle-check', 'label' => 'Verified'],
+                                'rejected' => ['class' => 'danger', 'icon' => 'fa-circle-xmark', 'label' => 'Rejected']
+                            ];
+                            $curr_badge = $badge_map[$payment['status']] ?? ['class' => 'secondary', 'icon' => 'fa-info-circle', 'label' => ucfirst($payment['status'])];
+                            ?>
+                            <div class="border rounded p-3 mb-3 bg-light shadow-sm">
+                                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2 pb-2 border-bottom">
                                     <div>
-                                        <strong>PHP <?php echo number_format(floatval($payment['amount']), 2); ?></strong>
-                                        <div class="small text-muted">
-                                            <?php echo e(ucfirst($payment['payment_method'])); ?>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="fs-5 fw-bold text-dark">PHP <?php echo number_format(floatval($payment['amount']), 2); ?></span>
+                                            <span class="badge bg-primary text-uppercase font-monospace"><?php echo e($payment['payment_method']); ?></span>
+                                        </div>
+                                        <div class="small text-muted mt-1">
                                             <?php if (!empty($payment['reference_number'])): ?>
-                                                | Ref: <?php echo e($payment['reference_number']); ?>
+                                                <span class="me-2"><i class="fas fa-hashtag me-1"></i>Ref: <strong><?php echo e($payment['reference_number']); ?></strong></span>
+                                            <?php endif; ?>
+                                            <?php if (!empty($payment['created_at'])): ?>
+                                                <span><i class="fas fa-calendar-alt me-1"></i>Submitted: <?php echo formatDate($payment['created_at']); ?></span>
                                             <?php endif; ?>
                                         </div>
-                                        <?php if (!empty($payment['receipt_document_id'])): ?>
-                                            <a href="../request-document.php?id=<?php echo intval($payment['receipt_document_id']); ?>" target="_blank">View receipt</a>
-                                        <?php endif; ?>
                                     </div>
-                                    <?php
-                                    $badge = ['pending' => 'warning', 'verified' => 'success', 'rejected' => 'danger'][$payment['status']] ?? 'secondary';
-                                    ?>
-                                    <span class="badge bg-<?php echo e($badge); ?> align-self-start"><?php echo e(ucfirst($payment['status'])); ?></span>
+                                    <span class="badge bg-<?php echo e($curr_badge['class']); ?> px-2 py-1">
+                                        <i class="fas <?php echo e($curr_badge['icon']); ?> me-1"></i><?php echo e($curr_badge['label']); ?>
+                                    </span>
                                 </div>
-                                <form method="POST" class="row g-2 mt-3">
+
+                                <?php if (!empty($payment['notes'])): ?>
+                                    <div class="small p-2 bg-white rounded border mb-2 text-secondary">
+                                        <i class="fas fa-comment-dots me-1 text-muted"></i><strong>Parishioner Note:</strong> <?php echo e($payment['notes']); ?>
+                                    </div>
+                                <?php endif; ?>
+
+                                <?php if (!empty($payment['receipt_document_id'])): ?>
+                                    <div class="mb-3">
+                                        <a class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-2" href="../request-document.php?id=<?php echo intval($payment['receipt_document_id']); ?>" target="_blank" rel="noopener">
+                                            <i class="fas fa-file-invoice"></i>
+                                            <span>View Receipt (<?php echo e($payment['original_name'] ?: 'Receipt File'); ?><?php echo !empty($payment['file_size']) ? ' • ' . formatFileSize($payment['file_size']) : ''; ?>)</span>
+                                            <i class="fas fa-arrow-up-right-from-square small"></i>
+                                        </a>
+                                    </div>
+                                <?php endif; ?>
+
+                                <form method="POST" class="row g-2 align-items-center pt-2 border-top">
                                     <?php echo csrfInput(); ?>
                                     <input type="hidden" name="action" value="verify_payment">
                                     <input type="hidden" name="request_id" value="<?php echo intval($request_id); ?>">
                                     <input type="hidden" name="payment_id" value="<?php echo intval($payment['payment_id']); ?>">
                                     <div class="col-md-3">
-                                        <select class="form-select" name="payment_status" required>
+                                        <label class="form-label small text-muted mb-1 d-block">Status</label>
+                                        <select class="form-select form-select-sm" name="payment_status" required>
                                             <option value="pending" <?php echo $payment['status'] === 'pending' ? 'selected' : ''; ?>>Pending</option>
                                             <option value="verified" <?php echo $payment['status'] === 'verified' ? 'selected' : ''; ?>>Verified</option>
                                             <option value="rejected" <?php echo $payment['status'] === 'rejected' ? 'selected' : ''; ?>>Rejected</option>
                                         </select>
                                     </div>
-                                    <div class="col-md-7">
-                                        <input type="text" class="form-control" name="admin_remarks" value="<?php echo e($payment['admin_remarks'] ?? ''); ?>" placeholder="Admin remarks">
+                                    <div class="col-md-6">
+                                        <label class="form-label small text-muted mb-1 d-block">Admin Remarks</label>
+                                        <input type="text" class="form-control form-control-sm" name="admin_remarks" value="<?php echo e($payment['admin_remarks'] ?? ''); ?>" placeholder="Admin remarks">
                                     </div>
-                                    <div class="col-md-2">
-                                        <button type="submit" class="btn btn-primary w-100">Save</button>
+                                    <div class="col-md-3 d-flex align-items-end">
+                                        <button type="submit" class="btn btn-sm btn-primary w-100 mt-auto">
+                                            <i class="fas fa-check-double me-1"></i> Update Status
+                                        </button>
                                     </div>
                                 </form>
                             </div>
                         <?php endforeach; ?>
+
+                        <?php
+                        $linked_doc_ids = array_filter(array_column($payments, 'receipt_document_id'));
+                        $orphan_receipts = array_filter($documents_by_type['payment_receipt'] ?? [], function($doc) use ($linked_doc_ids) {
+                            return !in_array((int)$doc['document_id'], $linked_doc_ids, true);
+                        });
+                        ?>
+                        <?php if (!empty($orphan_receipts)): ?>
+                            <h6 class="text-muted mt-3 mb-2 small fw-bold text-uppercase">Other Uploaded Receipt Attachments</h6>
+                            <div class="list-group">
+                                <?php foreach ($orphan_receipts as $doc): ?>
+                                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <i class="fas fa-paperclip text-muted me-2"></i>
+                                            <strong><?php echo e($doc['original_name']); ?></strong>
+                                            <small class="text-muted ms-2">(<?php echo formatFileSize($doc['file_size']); ?> • <?php echo formatDate($doc['uploaded_at']); ?>)</small>
+                                        </div>
+                                        <a class="btn btn-sm btn-outline-primary" href="../request-document.php?id=<?php echo intval($doc['document_id']); ?>" target="_blank" rel="noopener">
+                                            <i class="fas fa-eye me-1"></i> View
+                                        </a>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
                     <?php endif; ?>
                 </div>
             </div>
