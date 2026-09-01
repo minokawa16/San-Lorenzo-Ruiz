@@ -437,6 +437,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                             createAuditLog($conn, $_SESSION['user_id'], 'ADD_ANNOUNCEMENT', 'announcements', $new_id);
                             if ($publish_mode === 'now') {
                                 $queued = queueAnnouncementNotifications($conn, $new_id, $title, true, true, true);
+                                processAnnouncementDeliveryQueue($conn, $new_id, 50);
                                 $queued_announcement_id = $new_id;
                             }
                             $success = $publish_mode === 'now' ? 'Announcement published successfully.' : ($publish_mode === 'draft' ? 'Announcement saved as draft.' : 'Announcement scheduled successfully.');
@@ -468,6 +469,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                         try {
                             $announcement_service->configure($announcement_id, $publish_mode, $scheduled_value, $expires_value, $audience_type, $audience_values, (int)$_SESSION['user_id']);
                             createAuditLog($conn, $_SESSION['user_id'], 'EDIT_ANNOUNCEMENT', 'announcements', $announcement_id);
+                            if ($publish_mode === 'now' || $status === 'active') {
+                                $queued = queueAnnouncementNotifications($conn, $announcement_id, $title, true, true, true);
+                                processAnnouncementDeliveryQueue($conn, $announcement_id, 50);
+                                $queued_announcement_id = $announcement_id;
+                            }
                             $success = 'Announcement updated successfully.';
                         } catch (Throwable $e) {
                             $error = 'Announcement updated, but configuration error occurred: ' . $e->getMessage();

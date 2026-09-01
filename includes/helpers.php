@@ -663,18 +663,24 @@ function sendTugonSms($conn, $phone_number, $message, $user_id = null, $type = '
     return ['ok' => $ok, 'error' => $error, 'sent_at' => $sent_at];
 }
 
-// Tugon Email Template Function - Documents this helper's role in the parish management workflow.
+// Tugon Email Template Function - Delivers mobile-responsive HTML templates for all parish updates.
 function tugonEmailTemplate($title, $body, $button_label = '', $button_url = '') {
     $button = '';
     if ($button_label !== '' && $button_url !== '') {
-        $button = '<p style="margin:24px 0;"><a href="' . e($button_url) . '" style="background:#d7ad43;color:#171205;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700;">' . e($button_label) . '</a></p>';
+        $button = '<div style="margin: 24px 0;"><a href="' . e($button_url) . '" style="display: inline-block; background: #c89b3c; color: #1c1917; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 14.5px; box-shadow: 0 2px 6px rgba(200, 155, 60, 0.3);">' . e($button_label) . '</a></div>';
     }
-    return '<div style="font-family:Arial,sans-serif;background:#f7f9fc;padding:24px;color:#172033;">'
-        . '<div style="max-width:620px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;padding:24px;">'
-        . '<h2 style="margin:0 0 10px;">' . e($title) . '</h2>'
-        . '<div style="line-height:1.6;color:#334155;">' . $body . '</div>'
+    return '<div style="font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;background:#f4f6f8;padding:20px 12px;color:#1e293b;margin:0;">'
+        . '<div style="max-width:600px;width:100%;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;padding:28px 24px;box-sizing:border-box;box-shadow:0 4px 12px rgba(0,0,0,0.04);">'
+        . '<div style="margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid #2e3a2d;">'
+        . '<span style="font-size:16px;font-weight:800;color:#2e3a2d;letter-spacing:-0.3px;text-transform:uppercase;">San Lorenzo Ruiz Mission Station</span>'
+        . '</div>'
+        . '<h2 style="margin:0 0 16px;color:#0f172a;font-size:19px;font-weight:700;line-height:1.3;">' . e($title) . '</h2>'
+        . '<div style="line-height:1.65;color:#334155;font-size:15px;">' . $body . '</div>'
         . $button
-        . '<p style="border-top:1px solid #e5e7eb;margin-top:24px;padding-top:14px;color:#64748b;font-size:13px;">San Lorenzo Ruiz Mission Station | TUGON Parish System</p>'
+        . '<div style="border-top:1px solid #e2e8f0;margin-top:28px;padding-top:16px;color:#64748b;font-size:12px;line-height:1.5;">'
+        . '<strong>San Lorenzo Ruiz Mission Station</strong><br>'
+        . 'Official TUGON Parish System &bull; Automatic Parishioner Notification'
+        . '</div>'
         . '</div></div>';
 }
 

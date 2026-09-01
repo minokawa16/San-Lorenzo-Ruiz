@@ -45,7 +45,8 @@ function sendSMS($phone, $message)
     curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-    curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 4);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 8);
 
     $response = curl_exec($ch);
 

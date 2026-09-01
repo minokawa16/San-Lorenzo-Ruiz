@@ -105,7 +105,27 @@ final class SacramentalRecordService
         try {
             $stmt = $this->db->prepare($sql); $this->bind($stmt, $values); $stmt->execute(); $id = (int)$stmt->insert_id; $stmt->close();
             $this->audit($actorId, 'CREATE_SACRAMENTAL_RECORD', $cfg['table'], $id, null, $data);
-            if ($manageTransaction) $this->db->commit(); return $id;
+            if ($manageTransaction) $this->db->commit();
+            if (!empty($data['request_id']) && function_exists('notifyUserAutomatic')) {
+                try {
+                    $req_stmt = $this->db->prepare("SELECT user_id, request_type FROM requests WHERE request_id = ? LIMIT 1");
+                    if ($req_stmt) {
+                        $r_id = (int)$data['request_id'];
+                        $req_stmt->bind_param('i', $r_id);
+                        $req_stmt->execute();
+                        $req_user = $req_stmt->get_result()->fetch_assoc();
+                        $req_stmt->close();
+                        if ($req_user && !empty($req_user['user_id'])) {
+                            $r_title = 'Official ' . ucfirst($type) . ' Record Created';
+                            $r_msg = 'Your ' . ucfirst($type) . ' sacramental record has been officially registered and verified in the parish book registry.';
+                            notifyUserAutomatic($this->db, (int)$req_user['user_id'], $r_title, $r_msg, 'records');
+                        }
+                    }
+                } catch (Throwable $notifErr) {
+                    error_log('Sacramental record notification error: ' . $notifErr->getMessage());
+                }
+            }
+            return $id;
         } catch (Throwable $e) { if ($manageTransaction) $this->db->rollback(); if ((int)$this->db->errno === 1062) throw new DomainException('That registry number or book/page/entry combination already exists.'); throw $e; }
     }
 
