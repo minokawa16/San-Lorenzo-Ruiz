@@ -16,12 +16,31 @@ $error = '';
 $success = '';
 $validation_result = null;
 $project_root = dirname(__DIR__);
-$backup_dir = trim((string)(getenv('BACKUP_DISK_PATH') ?: ''));
-if ($backup_dir === '') {
-    $backup_dir = $project_root . DIRECTORY_SEPARATOR . 'backups';
-} else {
-    $backup_dir = rtrim($backup_dir, '/\\');
+
+function resolveBackupDirectory() {
+    $configured = trim((string)(getenv('BACKUP_DISK_PATH') ?: ''));
+    if ($configured !== '' && ensureBackupDirectory($configured)) {
+        return rtrim($configured, '/\\');
+    }
+
+    $project_root = dirname(__DIR__);
+    $candidates = [
+        $project_root . DIRECTORY_SEPARATOR . 'backups',
+        '/var/www/tugon-data/backups',
+        sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'tugon_backups',
+        '/tmp/tugon_backups'
+    ];
+
+    foreach ($candidates as $candidate) {
+        if (ensureBackupDirectory($candidate)) {
+            return $candidate;
+        }
+    }
+
+    return $project_root . DIRECTORY_SEPARATOR . 'backups';
 }
+
+$backup_dir = resolveBackupDirectory();
 
 // Recovery Schema - Creates logs and settings tables used by backup and maintenance tools.
 function ensureRecoverySchema($conn) {
@@ -98,11 +117,24 @@ function isDirectoryReallyWritable($dir) {
 
 // Backup Storage - Ensures backup folders are writable and protected from direct browsing.
 function ensureBackupDirectory($backup_dir) {
+    if (empty($backup_dir)) {
+        return false;
+    }
+
+    if (is_link($backup_dir)) {
+        $target = @readlink($backup_dir);
+        if ($target && !is_dir($target)) {
+            @mkdir($target, 0777, true);
+        }
+    }
+
     if (!is_dir($backup_dir)) {
-        if (!@mkdir($backup_dir, 0775, true) && !is_dir($backup_dir)) {
+        if (!@mkdir($backup_dir, 0777, true) && !is_dir($backup_dir)) {
             return false;
         }
     }
+
+    @chmod($backup_dir, 0777);
 
     $index_file = $backup_dir . DIRECTORY_SEPARATOR . 'index.php';
     if (!file_exists($index_file)) {
@@ -305,16 +337,32 @@ function createFullBackup($conn, $backup_dir, $project_root, $backup_type = 'com
 
 // Backup Listing - Reads available recovery packages and database dumps for the admin UI.
 function getBackupFiles($backup_dir) {
-    if (!is_dir($backup_dir)) {
-        return [];
+    $search_dirs = array_unique(array_filter([
+        $backup_dir,
+        dirname(__DIR__) . DIRECTORY_SEPARATOR . 'backups',
+        '/var/www/tugon-data/backups',
+        sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'tugon_backups',
+        '/tmp/tugon_backups'
+    ]));
+
+    $files = [];
+    foreach ($search_dirs as $dir) {
+        if (is_dir($dir)) {
+            $matched = glob($dir . DIRECTORY_SEPARATOR . '*.{sql,zip}', GLOB_BRACE) ?: [];
+            foreach ($matched as $f) {
+                if (is_file($f)) {
+                    $files[basename($f)] = $f;
+                }
+            }
+        }
     }
 
-    $files = glob($backup_dir . DIRECTORY_SEPARATOR . '*.{sql,zip}', GLOB_BRACE) ?: [];
-    usort($files, function ($a, $b) {
+    $file_list = array_values($files);
+    usort($file_list, function ($a, $b) {
         return filemtime($b) <=> filemtime($a);
     });
 
-    return $files;
+    return $file_list;
 }
 
 // Validate Backup Package Function - Documents this helper's role in the parish management workflow.

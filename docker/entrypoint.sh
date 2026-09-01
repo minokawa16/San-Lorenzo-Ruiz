@@ -36,10 +36,13 @@ for directory in uploads storage backups cache logs; do
     ln -s "${destination}" "${web_path}"
 done
 
-chown -R www-data:www-data "${data_root}"
-chmod 0750 "${data_root}"
-find "${data_root}" -type d -exec chmod 0750 {} \;
-find "${data_root}" -type f -exec chmod 0640 {} \;
+chown -R www-data:www-data "${data_root}" 2>/dev/null || true
+chmod 0777 "${data_root}" 2>/dev/null || true
+find "${data_root}" -type d -exec chmod 0777 {} \; 2>/dev/null || true
+find "${data_root}" -type f -exec chmod 0666 {} \; 2>/dev/null || true
+mkdir -p "${data_root}/backups" /tmp/tugon_backups 2>/dev/null || true
+chown -R www-data:www-data "${data_root}/backups" /tmp/tugon_backups 2>/dev/null || true
+chmod -R 0777 "${data_root}/backups" /tmp/tugon_backups 2>/dev/null || true
 printf '%s\n' \
     "session.save_path=\"${data_root}/sessions\"" \
     'session.cookie_secure=1' \
