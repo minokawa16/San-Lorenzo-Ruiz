@@ -195,7 +195,7 @@ if (!function_exists('queueAnnouncementNotifications')) {
         $recipients = $conn->query("SELECT u.id, u.email, u.phone_number, u.fullname, COALESCE(np.email_enabled, 1) AS email_enabled, COALESCE(np.sms_enabled, 1) AS sms_enabled, COALESCE(np.in_app_enabled, 1) AS in_app_enabled
             FROM users u
             LEFT JOIN notification_preferences np ON np.user_id = u.id AND np.category = 'announcements'
-            WHERE u.role = 'user' AND u.status = 'active'");
+            WHERE u.role IN ('user', 'parishioner') AND u.status = 'active'");
         $email_count = 0;
         $sms_count = 0;
         $system_count = 0;
@@ -408,10 +408,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         }
         $audience_values = array_values(array_filter(array_map('trim', explode(',', (string)($_POST['audience_values'] ?? '')))));
         $is_pinned = isset($_POST['is_pinned']) ? 1 : 0;
-        $notify_all = isset($_POST['notify_all']);
-        $notify_email = isset($_POST['notify_email']);
-        $notify_sms = isset($_POST['notify_sms']);
-        $notify_system = isset($_POST['notify_system']);
 
         if ($title === '') {
             $error = 'Please enter an announcement title.';
@@ -439,8 +435,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                         try {
                             $announcement_service->configure($new_id, $publish_mode, $scheduled_value, $expires_value, $audience_type, $audience_values, (int)$_SESSION['user_id']);
                             createAuditLog($conn, $_SESSION['user_id'], 'ADD_ANNOUNCEMENT', 'announcements', $new_id);
-                            if ($publish_mode === 'now' && ($notify_all || $notify_email || $notify_sms || $notify_system)) {
-                                $queued = queueAnnouncementNotifications($conn, $new_id, $title, $notify_email, $notify_system, $notify_sms);
+                            if ($publish_mode === 'now') {
+                                $queued = queueAnnouncementNotifications($conn, $new_id, $title, true, true, true);
                                 $queued_announcement_id = $new_id;
                             }
                             $success = $publish_mode === 'now' ? 'Announcement published successfully.' : ($publish_mode === 'draft' ? 'Announcement saved as draft.' : 'Announcement scheduled successfully.');
@@ -1408,30 +1404,11 @@ $modal_announcements = array_merge([$blank_announcement], $announcements);
                                         </div>
 
                                         <div class="col-12">
-                                            <label class="form-label">Notification Channels & Options</label>
-                                            <div class="notification-settings-panel">
-                                                <div class="d-flex flex-wrap gap-4">
-                                                    <label class="form-check-custom">
-                                                        <input type="checkbox" name="notify_all" checked>
-                                                        <span>Notify All Parishioners</span>
-                                                    </label>
-                                                    <label class="form-check-custom">
-                                                        <input type="checkbox" name="notify_email" checked>
-                                                        <span>Send Email</span>
-                                                    </label>
-                                                    <label class="form-check-custom">
-                                                        <input type="checkbox" name="notify_sms" checked>
-                                                        <span>Send SMS</span>
-                                                    </label>
-                                                    <label class="form-check-custom">
-                                                        <input type="checkbox" name="notify_system" checked>
-                                                        <span>Send In-System Notification</span>
-                                                    </label>
-                                                    <label class="form-check-custom">
-                                                        <input type="checkbox" name="is_pinned" <?php echo intval($modal_item['is_pinned']) === 1 ? 'checked' : ''; ?>>
-                                                        <span><i class="fas fa-thumbtack text-warning me-1"></i> Pin Announcement</span>
-                                                    </label>
-                                                </div>
+                                            <div class="pt-2">
+                                                <label class="form-check-custom mb-0">
+                                                    <input type="checkbox" name="is_pinned" <?php echo intval($modal_item['is_pinned']) === 1 ? 'checked' : ''; ?>>
+                                                    <span><i class="fas fa-thumbtack text-warning me-1"></i> Pin Announcement to Top</span>
+                                                </label>
                                             </div>
                                         </div>
                                     </div>

@@ -202,7 +202,9 @@ function createRequestStatusNotification($conn, array $request, $status, $admin_
 
     require_once dirname(__DIR__) . '/services/NotificationService.php';
     $type = in_array($status, ['approved','rejected'], true) ? 'request_' . $status : 'request_submitted';
-    return (new NotificationService($conn))->create($user_id, $type, ['request_reference'=>$reference], 'request', (int)($request['request_id']??0), 'request.view', $status . '|' . ($request['updated_at']??microtime(true)), true) !== null;
+    $created = (new NotificationService($conn))->create($user_id, $type, ['request_reference'=>$reference], 'request', (int)($request['request_id']??0), 'request.view', $status . '|' . ($request['updated_at']??microtime(true)), true) !== null;
+    dispatchNotificationDelivery($conn, $user_id, $title, $message, 'requests', ['email' => true, 'sms' => true]);
+    return $created;
 }
 
 function dispatchNotificationDelivery($conn, $user_id, $title, $message, $category = null, array $channels = null) {
@@ -259,6 +261,44 @@ function createNotificationSafe($conn, $user_id, $title, $message) {
     }
 
     return createNotification($conn, $user_id, $title, $message);
+}
+
+// System-Wide Automatic Notification Dispatch - Broadcasts to all active parishioners across Email & SMS.
+function notifyAllActiveParishioners($conn, $title, $message, $category = 'announcements') {
+    if (!$conn || !tableExists($conn, 'users')) {
+        return ['count' => 0];
+    }
+    $stmt = $conn->query("SELECT id, fullname, email, phone_number FROM users WHERE role IN ('user', 'parishioner') AND status = 'active'");
+    if (!$stmt) {
+        return ['count' => 0];
+    }
+    $count = 0;
+    while ($user = $stmt->fetch_assoc()) {
+        $uid = (int) $user['id'];
+        try {
+            createNotification($conn, $uid, $title, $message, false, $category);
+            dispatchNotificationDelivery($conn, $uid, $title, $message, $category, ['email' => true, 'sms' => true]);
+            $count++;
+        } catch (Throwable $e) {
+            error_log('Automatic notification dispatch error for user ' . $uid . ': ' . $e->getMessage());
+        }
+    }
+    return ['count' => $count];
+}
+
+// Automatic User Notification Dispatch - Delivers both Email and SMS to a specific user.
+function notifyUserAutomatic($conn, $user_id, $title, $message, $category = 'system') {
+    $uid = (int) $user_id;
+    if ($uid <= 0 || !$conn || !tableExists($conn, 'users')) {
+        return false;
+    }
+    try {
+        createNotification($conn, $uid, $title, $message, false, $category);
+        return dispatchNotificationDelivery($conn, $uid, $title, $message, $category, ['email' => true, 'sms' => true]);
+    } catch (Throwable $e) {
+        error_log('Automatic user notification error for user ' . $uid . ': ' . $e->getMessage());
+        return false;
+    }
 }
 
 // Email Notification Schema - Prepares verification, OTP, preferences, and delivery log tables.

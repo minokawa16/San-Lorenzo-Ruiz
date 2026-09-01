@@ -708,18 +708,6 @@ include '../templates/header.php';
                             <button type="button" class="color-swatch" data-color="#00acc1" style="background:#00acc1" aria-label="Cyan"></button>
                         </div>
                     </div>
-                    <div class="col-md-6">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="notify_email">
-                            <label class="form-check-label" for="notify_email">Notify users in portal / email-ready</label>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="notify_sms">
-                            <label class="form-check-label" for="notify_sms">SMS-ready reminder flag</label>
-                        </div>
-                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -874,8 +862,6 @@ function fillForm(event) {
     document.getElementById('approval_status').value = props.approval_status || 'approved';
     document.getElementById('status').value = props.status || 'upcoming';
     document.getElementById('reminder_minutes').value = String(props.reminder_minutes || 30);
-    document.getElementById('notify_email').checked = Number(props.notify_email) === 1;
-    document.getElementById('notify_sms').checked = Number(props.notify_sms) === 1;
     setActiveColor(event.backgroundColor || '#1a73e8');
     document.getElementById('deleteEventBtn').classList.remove('d-none');
 }
@@ -899,8 +885,6 @@ function formPayload() {
         approval_status: document.getElementById('approval_status').value,
         status: document.getElementById('status').value,
         reminder_minutes: document.getElementById('reminder_minutes').value,
-        notify_email: document.getElementById('notify_email').checked ? 1 : 0,
-        notify_sms: document.getElementById('notify_sms').checked ? 1 : 0,
         csrf_token: CSRF_TOKEN
     };
 }

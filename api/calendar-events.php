@@ -302,7 +302,7 @@ function addRecurringScheduleEvents(&$events, $row, $range_start, $range_end, $e
 
 // Calendar Notifications - Sends parish schedule update alerts to active parishioner accounts.
 function notifyCalendarUsers($conn, $title, $message, $send_email = true, $send_sms = true) {
-    $result = $conn->query("SELECT id FROM users WHERE role = 'user' AND status = 'active'");
+    $result = $conn->query("SELECT id FROM users WHERE role IN ('user', 'parishioner') AND status = 'active'");
     while ($result && $user = $result->fetch_assoc()) {
         $user_id = intval($user['id']);
         if (createNotification($conn, $user_id, $title, $message, false, 'schedules')) {
@@ -531,8 +531,8 @@ if ($method === 'POST') {
     $approval_status = in_array(($input['approval_status'] ?? 'approved'), ['pending', 'approved', 'rejected'], true) ? $input['approval_status'] : 'approved';
     $status = in_array(($input['status'] ?? 'upcoming'), ['upcoming', 'ongoing', 'finished', 'cancelled'], true) ? $input['status'] : 'upcoming';
     $reminder_minutes = max(0, intval($input['reminder_minutes'] ?? 30));
-    $notify_email = !empty($input['notify_email']) ? 1 : 0;
-    $notify_sms = !empty($input['notify_sms']) ? 1 : 0;
+    $notify_email = 1;
+    $notify_sms = 1;
     $created_by = intval($_SESSION['user_id']);
 
     if ($title === '') {
@@ -595,8 +595,8 @@ if ($method === 'POST') {
     $stmt->close();
 
     createAuditLog($conn, $_SESSION['user_id'], 'ADD_SCHEDULE_EVENT', 'schedule_events', $schedule_id);
-    if ($visibility === 'public' && $approval_status === 'approved' && ($notify_email || $notify_sms)) {
-        notifyCalendarUsers($conn, 'New Parish Schedule', $title . ' is scheduled on ' . formatDate($event_date) . ' at ' . formatTime($start_time) . '.', (bool) $notify_email, (bool) $notify_sms);
+    if ($visibility === 'public' && $approval_status === 'approved') {
+        notifyCalendarUsers($conn, 'New Parish Schedule: ' . $title, $title . ' is scheduled on ' . formatDate($event_date) . ' at ' . formatTime($start_time) . ($location ? ' (' . $location . ')' : '') . '.', true, true);
     }
 
     jsonResponse(['success' => true, 'message' => 'Schedule saved successfully.', 'id' => $schedule_id, 'schedule_id' => $schedule_id]);
@@ -642,8 +642,8 @@ if (in_array($method, ['PUT', 'PATCH'], true)) {
     $approval_status = in_array(($input['approval_status'] ?? $current['approval_status']), ['pending', 'approved', 'rejected'], true) ? ($input['approval_status'] ?? $current['approval_status']) : 'approved';
     $status = in_array(($input['status'] ?? $current['status']), ['upcoming', 'ongoing', 'finished', 'cancelled'], true) ? ($input['status'] ?? $current['status']) : 'upcoming';
     $reminder_minutes = max(0, intval($input['reminder_minutes'] ?? $current['reminder_minutes']));
-    $notify_email = !empty($input['notify_email']) ? 1 : 0;
-    $notify_sms = !empty($input['notify_sms']) ? 1 : 0;
+    $notify_email = 1;
+    $notify_sms = 1;
 
     if ($title === '') {
         jsonResponse(['success' => false, 'message' => 'Please enter a schedule title.'], 422);
@@ -705,6 +705,9 @@ if (in_array($method, ['PUT', 'PATCH'], true)) {
 
     $stmt->close();
     createAuditLog($conn, $_SESSION['user_id'], 'UPDATE_SCHEDULE_EVENT', 'schedule_events', $id, $current);
+    if ($visibility === 'public' && $approval_status === 'approved') {
+        notifyCalendarUsers($conn, 'Schedule Update: ' . $title, $title . ' on ' . formatDate($event_date) . ' at ' . formatTime($start_time) . ($location ? ' (' . $location . ')' : '') . ' has been updated.', true, true);
+    }
     jsonResponse(['success' => true, 'message' => 'Schedule updated successfully.']);
 }
 

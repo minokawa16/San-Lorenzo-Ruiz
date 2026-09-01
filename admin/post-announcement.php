@@ -26,7 +26,9 @@ if ($_POST) {
             VALUES ('$title', '$content', '$type', '$admin_id', 'active')";
     
     if ($conn->query($sql)) {
-        $message = '✅ Announcement posted successfully! Check the user dashboard to see it.';
+        $announcement_id = $conn->insert_id;
+        notifyAllActiveParishioners($conn, $title, $content, 'announcements');
+        $message = '✅ Announcement posted and automatically broadcasted to all active parishioners via Email and SMS!';
         $status = 'success';
     } else {
         $message = '❌ Error posting announcement: ' . $conn->error;

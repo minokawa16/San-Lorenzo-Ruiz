@@ -158,6 +158,19 @@ function transitionAccountStatus(mysqli $conn, int $userId, string $nextStatus, 
             throw new RuntimeException('Unable to record registration history.');
         }
         $conn->commit();
+
+        try {
+            if ($nextStatus === 'active') {
+                notifyUserAutomatic($conn, $userId, 'Parish Account Approved', 'Congratulations! Your TUGON parish account has been verified and approved. You can now log in to request certificates, schedules, and blessings.', 'account');
+            } elseif ($nextStatus === 'rejected') {
+                notifyUserAutomatic($conn, $userId, 'Parish Account Registration Update', 'Your TUGON registration was reviewed. Status: Rejected.' . ($storedReason ? ' Reason: ' . $storedReason : '') . ' Please visit the portal to resubmit with corrected information.', 'account');
+            } elseif ($nextStatus === 'inactive' || $nextStatus === 'archived') {
+                notifyUserAutomatic($conn, $userId, 'Parish Account Status Update', 'Your TUGON parish account status is now ' . ucfirst($nextStatus) . '.', 'account');
+            }
+        } catch (Throwable $notifError) {
+            error_log('Account transition notification error: ' . $notifError->getMessage());
+        }
+
         return true;
     } catch (Throwable $exception) {
         $conn->rollback();

@@ -11,10 +11,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     requireValidCsrfToken();
     try {
         $action = (string)($_POST['action'] ?? '');
-        if (!in_array($action, ['approve', 'reject'], true)) {
-            throw new DomainException('Invalid correction action.');
+        $correction_id = (int)($_POST['correction_id'] ?? 0);
+        $review_reason = (string)($_POST['review_reason'] ?? '');
+        (new SacramentalRecordService($conn))->reviewCorrection($correction_id, $action === 'approve', $review_reason, (int)$_SESSION['user_id'], hasPermission('records.correct_locked'));
+        
+        $corr_stmt = $conn->prepare("SELECT requested_by, record_type, record_id FROM sacramental_record_corrections WHERE correction_id = ?");
+        if ($corr_stmt) {
+            $corr_stmt->bind_param('i', $correction_id);
+            $corr_stmt->execute();
+            $corr_row = $corr_stmt->get_result()->fetch_assoc();
+            $corr_stmt->close();
+            if ($corr_row && !empty($corr_row['requested_by'])) {
+                $c_title = 'Record Correction ' . ($action === 'approve' ? 'Approved' : 'Rejected');
+                $c_msg = 'Your correction request for ' . ucfirst($corr_row['record_type']) . ' Record #' . $corr_row['record_id'] . ' was ' . ($action === 'approve' ? 'approved and applied to the registry.' : 'rejected by the parish office.' . ($review_reason ? ' Reason: ' . $review_reason : ''));
+                notifyUserAutomatic($conn, (int)$corr_row['requested_by'], $c_title, $c_msg, 'records');
+            }
         }
-        (new SacramentalRecordService($conn))->reviewCorrection((int)($_POST['correction_id'] ?? 0), $action === 'approve', (string)($_POST['review_reason'] ?? ''), (int)$_SESSION['user_id'], hasPermission('records.correct_locked'));
         redirectWithNotification('record-corrections.php', $action === 'approve' ? 'Correction approved and applied.' : 'Correction rejected.', 'success');
     } catch (Throwable $e) {
         redirectWithNotification('record-corrections.php', $e->getMessage(), 'error');
