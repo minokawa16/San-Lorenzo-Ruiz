@@ -161,7 +161,7 @@ if ($params) {
 
 $breadcrumbs = [
     'Dashboard' => 'dashboard.php',
-    'AI Assistant' => 'ai-assistant.php',
+    'Settings' => 'settings.php',
     'Chatbot Knowledge Base' => null
 ];
 
@@ -185,7 +185,7 @@ include '../templates/header.php';
     $page_header_subtitle = 'Add and manage official parish information used by TUGON AI Parish Assistant.';
     $page_header_icon = 'fa-brain';
     $show_back_button = true;
-    $back_button_url = 'ai-assistant.php';
+    $back_button_url = 'settings.php';
     include '../includes/page_header.php';
     ?>
 

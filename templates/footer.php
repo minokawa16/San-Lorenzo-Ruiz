@@ -1660,7 +1660,7 @@
         }
     </style>
 
-    <?php if (isLoggedIn()): ?>
+    <?php if (isLoggedIn() && empty($is_admin_area)): ?>
     <div class="ai-assistant-widget" id="aiAssistantWidget">
         <button class="ai-assistant-trigger" type="button" id="aiAssistantTrigger" aria-label="Open TUGON AI" aria-expanded="false" title="Need help? Chat with TUGON AI">
             <span class="ai-assistant-online-indicator" aria-hidden="true"></span>
@@ -1760,7 +1760,7 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Custom JS -->
-    <?php if (isLoggedIn()): ?>
+    <?php if (isLoggedIn() && empty($is_admin_area)): ?>
     <script>
         (function() {
             const widget = document.getElementById('aiAssistantWidget');

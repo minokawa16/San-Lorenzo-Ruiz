@@ -101,10 +101,6 @@
       <span><?php echo e(t('nav.announcements', 'Announcements')); ?></span>
     </a>
     <?php endif; ?>
-    <a href="<?php echo BASE_URL; ?>admin/ai-assistant.php" class="nav-link nav-item-ai <?php echo (basename($_SERVER['PHP_SELF']) == 'ai-assistant.php') ? 'active' : ''; ?>" data-tooltip="<?php echo e(t('nav.ai_assistant', 'AI Assistant')); ?>" id="adminSidebarAiAssistantLink" data-open-ai-chat="true" role="button" tabindex="0">
-      <i class="fas fa-robot"></i>
-      <span><?php echo e(t('nav.ai_assistant', 'AI Assistant')); ?></span>
-    </a>
 
     <?php if (hasAnyPermission(['reports.view', 'audit.view'])): ?>
     <div class="nav-section-label">Reports &amp; Monitoring</div>
