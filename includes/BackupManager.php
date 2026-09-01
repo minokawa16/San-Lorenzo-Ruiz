@@ -12,19 +12,45 @@ class BackupManager {
     public function __construct($database_connection, $logger = null) {
         $this->conn = $database_connection;
         $this->logger = $logger;
-        $this->backup_dir = __DIR__ . '/../backups';
+        $configured = trim((string) (getenv('BACKUP_DISK_PATH') ?: ''));
+        if ($configured !== '') {
+            $this->backup_dir = rtrim($configured, '/\\');
+        } else {
+            $this->backup_dir = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'backups';
+        }
         $this->ensureBackupDirectory();
     }
 
     /**
-     * Ensure backup directory exists
+     * Ensure backup directory exists and is writable
      * @return bool
      */
     private function ensureBackupDirectory() {
         if (!is_dir($this->backup_dir)) {
-            return mkdir($this->backup_dir, 0755, true);
+            if (!@mkdir($this->backup_dir, 0775, true) && !is_dir($this->backup_dir)) {
+                return false;
+            }
         }
-        return true;
+
+        $index_file = $this->backup_dir . DIRECTORY_SEPARATOR . 'index.php';
+        if (!file_exists($index_file)) {
+            @file_put_contents($index_file, "<?php\nhttp_response_code(403);\nexit('Access denied');\n");
+        }
+
+        if (@is_writable($this->backup_dir)) {
+            return true;
+        }
+
+        $test_file = $this->backup_dir . DIRECTORY_SEPARATOR . '.probe_' . uniqid('', true) . '.tmp';
+        $handle = @fopen($test_file, 'wb');
+        if ($handle !== false) {
+            @fwrite($handle, '1');
+            @fclose($handle);
+            @unlink($test_file);
+            return true;
+        }
+
+        return false;
     }
 
     /**

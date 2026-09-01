@@ -15,8 +15,13 @@ $page_title = 'Backup, Recovery & Maintenance Center';
 $error = '';
 $success = '';
 $validation_result = null;
-$backup_dir = realpath(__DIR__ . '/..') . DIRECTORY_SEPARATOR . 'backups';
-$project_root = realpath(__DIR__ . '/..');
+$project_root = dirname(__DIR__);
+$backup_dir = trim((string)(getenv('BACKUP_DISK_PATH') ?: ''));
+if ($backup_dir === '') {
+    $backup_dir = $project_root . DIRECTORY_SEPARATOR . 'backups';
+} else {
+    $backup_dir = rtrim($backup_dir, '/\\');
+}
 
 // Recovery Schema - Creates logs and settings tables used by backup and maintenance tools.
 function ensureRecoverySchema($conn) {
@@ -72,23 +77,44 @@ function backupCoverageItems() {
     ];
 }
 
+// Reliable write test probe that bypasses flaky Windows/NTFS is_writable() checks
+function isDirectoryReallyWritable($dir) {
+    if (!is_dir($dir)) {
+        return false;
+    }
+    if (@is_writable($dir)) {
+        return true;
+    }
+    $test_file = $dir . DIRECTORY_SEPARATOR . '.probe_' . uniqid('', true) . '.tmp';
+    $handle = @fopen($test_file, 'wb');
+    if ($handle !== false) {
+        @fwrite($handle, '1');
+        @fclose($handle);
+        @unlink($test_file);
+        return true;
+    }
+    return false;
+}
+
 // Backup Storage - Ensures backup folders are writable and protected from direct browsing.
 function ensureBackupDirectory($backup_dir) {
-    if (!is_dir($backup_dir) && !mkdir($backup_dir, 0755, true)) {
-        return false;
+    if (!is_dir($backup_dir)) {
+        if (!@mkdir($backup_dir, 0775, true) && !is_dir($backup_dir)) {
+            return false;
+        }
     }
 
     $index_file = $backup_dir . DIRECTORY_SEPARATOR . 'index.php';
     if (!file_exists($index_file)) {
-        file_put_contents($index_file, "<?php\nhttp_response_code(403);\nexit('Access denied');\n");
+        @file_put_contents($index_file, "<?php\nhttp_response_code(403);\nexit('Access denied');\n");
     }
 
     $htaccess_file = $backup_dir . DIRECTORY_SEPARATOR . '.htaccess';
     if (!file_exists($htaccess_file)) {
-        file_put_contents($htaccess_file, "Options -Indexes\nRequire all denied\nDeny from all\n");
+        @file_put_contents($htaccess_file, "Options -Indexes\nRequire all denied\nDeny from all\n");
     }
 
-    return is_writable($backup_dir);
+    return isDirectoryReallyWritable($backup_dir);
 }
 
 // SQL Serialization - Escapes values before writing database rows into backup files.
@@ -103,7 +129,7 @@ function sqlValue($conn, $value) {
 // Create Database Backup Function - Documents this helper's role in the parish management workflow.
 function createDatabaseBackup($conn, $backup_dir, $prefix = 'database-backup') {
     if (!ensureBackupDirectory($backup_dir)) {
-        throw new Exception('Backup folder is not writable.');
+        throw new Exception('Backup folder is not writable. Attempted path: ' . $backup_dir);
     }
 
     $filename = $prefix . '-' . date('Ymd-His') . '.sql';
@@ -255,7 +281,7 @@ function createFullBackup($conn, $backup_dir, $project_root, $backup_type = 'com
     }
 
     if (!ensureBackupDirectory($backup_dir)) {
-        throw new Exception('Backup folder is not writable.');
+        throw new Exception('Backup folder is not writable. Attempted path: ' . $backup_dir);
     }
 
     $database_backup = createDatabaseBackup($conn, $backup_dir, $backup_type . '-database');
@@ -750,7 +776,7 @@ function saveUploadedRecoveryPackage($backup_dir) {
     }
 
     if (!ensureBackupDirectory($backup_dir)) {
-        throw new Exception('Backup folder is not writable.');
+        throw new Exception('Backup folder is not writable. Attempted path: ' . $backup_dir);
     }
 
     $target = $backup_dir . DIRECTORY_SEPARATOR . 'uploaded-recovery-' . date('Ymd-His') . '-' . preg_replace('/[^a-zA-Z0-9._-]/', '-', $name);
