@@ -195,7 +195,7 @@ if (!function_exists('queueAnnouncementNotifications')) {
         $recipients = $conn->query("SELECT u.id, u.email, u.phone_number, u.fullname, COALESCE(np.email_enabled, 1) AS email_enabled, COALESCE(np.sms_enabled, 1) AS sms_enabled, COALESCE(np.in_app_enabled, 1) AS in_app_enabled
             FROM users u
             LEFT JOIN notification_preferences np ON np.user_id = u.id AND np.category = 'announcements'
-            WHERE u.role IN ('user', 'parishioner') AND u.status = 'active'");
+            WHERE (u.role IN ('user', 'parishioner', 'member') OR u.role IS NULL OR u.role = '') AND u.status = 'active'");
         $email_count = 0;
         $sms_count = 0;
         $system_count = 0;
@@ -233,9 +233,9 @@ if (!function_exists('queueAnnouncementNotifications')) {
 }
 
 if (!function_exists('processAnnouncementDeliveryQueue')) {
-    function processAnnouncementDeliveryQueue($conn, $announcement_id = 0, $limit = 5) {
+    function processAnnouncementDeliveryQueue($conn, $announcement_id = 0, $limit = 50) {
         $announcement_id = intval($announcement_id);
-        $limit = max(1, min(20, intval($limit)));
+        $limit = max(1, min(100, intval($limit)));
         $where = $announcement_id > 0 ? "AND ar.announcement_id = $announcement_id" : '';
         $rows = $conn->query("SELECT ar.recipient_id, ar.announcement_id, ar.delivery_status, ar.sms_delivery_status, u.id AS user_id, u.email, u.phone_number, a.title, a.content
             FROM announcement_recipients ar

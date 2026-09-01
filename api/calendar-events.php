@@ -302,7 +302,7 @@ function addRecurringScheduleEvents(&$events, $row, $range_start, $range_end, $e
 
 // Calendar Notifications - Sends parish schedule update alerts to active parishioner accounts.
 function notifyCalendarUsers($conn, $title, $message, $send_email = true, $send_sms = true) {
-    $result = $conn->query("SELECT id FROM users WHERE role IN ('user', 'parishioner') AND status = 'active'");
+    $result = $conn->query("SELECT id FROM users WHERE (role IN ('user', 'parishioner', 'member') OR role IS NULL OR role = '') AND status = 'active'");
     while ($result && $user = $result->fetch_assoc()) {
         $user_id = intval($user['id']);
         if (createNotification($conn, $user_id, $title, $message, false, 'schedules')) {

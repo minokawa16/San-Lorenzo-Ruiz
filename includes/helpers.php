@@ -214,7 +214,7 @@ function dispatchNotificationDelivery($conn, $user_id, $title, $message, $catego
 
     $channels = $channels ?: ['email' => true, 'sms' => true];
     $category = $category ?: notificationCategoryFromText($title, $message);
-    $stmt = $conn->prepare("SELECT id, fullname, email, phone_number, status FROM users WHERE id = ? LIMIT 1");
+    $stmt = $conn->prepare("SELECT id, fullname, email, phone_number, role, status FROM users WHERE id = ? LIMIT 1");
     if (!$stmt) {
         return ['email' => ['ok' => false, 'error' => 'Unable to load user.'], 'sms' => ['ok' => false, 'error' => 'Unable to load user.']];
     }
@@ -224,7 +224,15 @@ function dispatchNotificationDelivery($conn, $user_id, $title, $message, $catego
     $user = $stmt->get_result()->fetch_assoc();
     $stmt->close();
 
-    if (!$user || !in_array('parishioner', authenticationRolesForUser($conn, (int) $user['id']), true) || ($user['status'] ?? '') !== 'active') {
+    if (!$user || ($user['status'] ?? '') !== 'active') {
+        return ['email' => ['ok' => true, 'skipped' => true], 'sms' => ['ok' => true, 'skipped' => true]];
+    }
+
+    $user_role = strtolower((string) ($user['role'] ?? ''));
+    $is_parishioner = in_array($user_role, ['user', 'parishioner', 'member', ''], true)
+        || (function_exists('authenticationRolesForUser') && in_array('parishioner', authenticationRolesForUser($conn, $uid), true));
+
+    if (!$is_parishioner) {
         return ['email' => ['ok' => true, 'skipped' => true], 'sms' => ['ok' => true, 'skipped' => true]];
     }
 
@@ -268,7 +276,7 @@ function notifyAllActiveParishioners($conn, $title, $message, $category = 'annou
     if (!$conn || !tableExists($conn, 'users')) {
         return ['count' => 0];
     }
-    $stmt = $conn->query("SELECT id, fullname, email, phone_number FROM users WHERE role IN ('user', 'parishioner') AND status = 'active'");
+    $stmt = $conn->query("SELECT id, fullname, email, phone_number FROM users WHERE (role IN ('user', 'parishioner', 'member') OR role IS NULL OR role = '') AND status = 'active'");
     if (!$stmt) {
         return ['count' => 0];
     }
