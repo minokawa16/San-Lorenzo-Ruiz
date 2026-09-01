@@ -59,18 +59,18 @@ $baptism_sheet_fields = [
     'baptismal_seminar_head' => 'Head of the Baptismal Seminar'
 ];
 $marriage_requirements = [
-    'pre_cana' => 'Pre-Cana',
-    'municipal_license' => 'Municipal License',
-    'bec_recommendation' => 'BEC Recommendation',
-    'baptismal_certificate_marriage_purpose' => 'Baptismal Certificate for Marriage Purpose',
-    'confirmation_certificate' => 'Confirmation Certificate',
-    'permit_to_marry' => 'Permit to Marry',
-    'interview' => 'Interview',
-    'confession' => 'Confession',
-    'co_permit_police_army' => 'CO Permit (Police / Army)'
+    'pre_cana' => ['label' => 'Pre-Cana', 'mandatory' => true],
+    'municipal_license' => ['label' => 'Municipal License', 'mandatory' => true],
+    'bec_recommendation' => ['label' => 'BEC Recommendation', 'mandatory' => true],
+    'baptismal_certificate_marriage_purpose' => ['label' => 'Baptismal Certificate for Marriage Purpose', 'mandatory' => true],
+    'confirmation_certificate' => ['label' => 'Confirmation Certificate', 'mandatory' => true],
+    'permit_to_marry' => ['label' => 'Permit to Marry', 'mandatory' => true],
+    'interview' => ['label' => 'Interview', 'mandatory' => true],
+    'confession' => ['label' => 'Confession', 'mandatory' => true],
+    'co_permit_police_army' => ['label' => 'CO Permit (Police / Army)', 'mandatory' => false, 'badge' => 'Optional / If Applicable']
 ];
 $funeral_requirements = [
-    'death_certificate' => 'Death Certificate'
+    'death_certificate' => ['label' => 'Death Certificate', 'mandatory' => true]
 ];
 $status_meta = [
     'pending' => ['icon' => 'fa-hourglass-half', 'description' => 'Waiting for parish review', 'tone' => 'warning'],
@@ -102,20 +102,26 @@ function serviceValidDate($value) {
 function serviceRequirementUploadPlan($request_type, $baptism_requirements, $marriage_requirements, $funeral_requirements) {
     $plan = [];
     if ($request_type === 'baptism_service') {
-        foreach ($baptism_requirements as $key => $label) {
-            $plan[] = ['keys' => [$key], 'label' => $label];
+        foreach ($baptism_requirements as $key => $meta) {
+            $label = is_array($meta) ? $meta['label'] : $meta;
+            $mandatory = is_array($meta) ? ($meta['mandatory'] ?? true) : true;
+            $plan[] = ['keys' => [$key], 'label' => $label, 'mandatory' => $mandatory];
         }
     }
     if ($request_type === 'marriage_wedding_service') {
         foreach (['male' => 'Male', 'female' => 'Female'] as $side_key => $side_label) {
-            foreach ($marriage_requirements as $key => $label) {
-                $plan[] = ['keys' => [$side_key, $key], 'label' => $side_label . ' - ' . $label];
+            foreach ($marriage_requirements as $key => $meta) {
+                $label = is_array($meta) ? $meta['label'] : $meta;
+                $mandatory = is_array($meta) ? ($meta['mandatory'] ?? true) : true;
+                $plan[] = ['keys' => [$side_key, $key], 'label' => $side_label . ' - ' . $label, 'mandatory' => $mandatory];
             }
         }
     }
     if ($request_type === 'funeral_mass') {
-        foreach ($funeral_requirements as $key => $label) {
-            $plan[] = ['keys' => [$key], 'label' => $label];
+        foreach ($funeral_requirements as $key => $meta) {
+            $label = is_array($meta) ? $meta['label'] : $meta;
+            $mandatory = is_array($meta) ? ($meta['mandatory'] ?? true) : true;
+            $plan[] = ['keys' => [$key], 'label' => $label, 'mandatory' => $mandatory];
         }
     }
     return $plan;
@@ -149,7 +155,7 @@ function serviceRequirementFileUploaded($files, $keys) {
 function missingServiceRequirementUploads($files, $plan) {
     $missing = [];
     foreach ($plan as $item) {
-        if (!serviceRequirementFileUploaded($files, $item['keys'])) {
+        if (!empty($item['mandatory']) && !serviceRequirementFileUploaded($files, $item['keys'])) {
             $missing[] = $item['label'];
         }
     }
@@ -562,13 +568,22 @@ if ($stmt) {
                             <strong role="columnheader">Male</strong>
                             <strong role="columnheader">Female</strong>
                         </div>
-                        <?php foreach ($marriage_requirements as $key => $label): ?>
+                        <?php foreach ($marriage_requirements as $key => $meta): 
+                            $label = is_array($meta) ? $meta['label'] : $meta;
+                            $is_mandatory = is_array($meta) ? ($meta['mandatory'] ?? true) : true;
+                            $badge = is_array($meta) ? ($meta['badge'] ?? '') : '';
+                        ?>
                             <div class="marriage-requirements-row" role="row">
-                                <span role="cell"><?php echo e($label); ?></span>
+                                <span role="cell">
+                                    <?php echo e($label); ?>
+                                    <?php if ($badge): ?>
+                                        <span class="badge-optional" style="display:inline-block; margin-left:6px; font-size:0.72rem; font-weight:700; color:#92400e; background:#fef3c7; border:1px solid #fde68a; padding:2px 8px; border-radius:999px; vertical-align:middle;">(<?php echo e($badge); ?>)</span>
+                                    <?php endif; ?>
+                                </span>
                                 <div role="cell" class="marriage-upload-cell">
                                     <label class="requirement-upload-btn">
                                         <i class="fas fa-folder-open"></i> <span data-upload-label>Choose File</span>
-                                        <input type="file" class="requirement-file-input" name="marriage_requirement_files[male][<?php echo e($key); ?>]" accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,image/jpeg,image/png,image/gif,application/pdf,text/plain" data-requirement-file data-requirement-group="marriage">
+                                        <input type="file" class="requirement-file-input" name="marriage_requirement_files[male][<?php echo e($key); ?>]" accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,image/jpeg,image/png,image/gif,application/pdf,text/plain" data-requirement-file data-requirement-group="marriage" data-requirement-mandatory="<?php echo $is_mandatory ? 'true' : 'false'; ?>">
                                     </label>
                                     <a class="requirement-view-btn marriage-file-view" href="#" target="_blank" rel="noopener" data-file-view hidden>
                                         <i class="fas fa-eye"></i> View
@@ -577,7 +592,7 @@ if ($stmt) {
                                 <div role="cell" class="marriage-upload-cell">
                                     <label class="requirement-upload-btn">
                                         <i class="fas fa-folder-open"></i> <span data-upload-label>Choose File</span>
-                                        <input type="file" class="requirement-file-input" name="marriage_requirement_files[female][<?php echo e($key); ?>]" accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,image/jpeg,image/png,image/gif,application/pdf,text/plain" data-requirement-file data-requirement-group="marriage">
+                                        <input type="file" class="requirement-file-input" name="marriage_requirement_files[female][<?php echo e($key); ?>]" accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,image/jpeg,image/png,image/gif,application/pdf,text/plain" data-requirement-file data-requirement-group="marriage" data-requirement-mandatory="<?php echo $is_mandatory ? 'true' : 'false'; ?>">
                                     </label>
                                     <a class="requirement-view-btn marriage-file-view" href="#" target="_blank" rel="noopener" data-file-view hidden>
                                         <i class="fas fa-eye"></i> View
@@ -789,9 +804,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function requirementFilesReady(group) {
         const inputs = requirementFileInputs.filter(function(input) {
-            return input.dataset.requirementGroup === group;
+            return input.dataset.requirementGroup === group && input.dataset.requirementMandatory !== 'false';
         });
-        return inputs.length > 0 && inputs.every(function(input) {
+        return inputs.length === 0 || inputs.every(function(input) {
             return input.files && input.files.length > 0;
         });
     }
@@ -867,10 +882,12 @@ document.addEventListener('DOMContentLoaded', function() {
             field.required = baptismSelected;
         });
         requirementFileInputs.forEach(function(input) {
-            input.required = input.dataset.requirementGroup === 'baptism' ? baptismSelected
-                : input.dataset.requirementGroup === 'marriage' ? marriageSelected
-                : input.dataset.requirementGroup === 'funeral' ? funeralSelected
-                : false;
+            const isMandatory = input.dataset.requirementMandatory !== 'false';
+            input.required = isMandatory && (
+                (input.dataset.requirementGroup === 'baptism' && baptismSelected) ||
+                (input.dataset.requirementGroup === 'marriage' && marriageSelected) ||
+                (input.dataset.requirementGroup === 'funeral' && funeralSelected)
+            );
             if (!input.required) {
                 clearFieldError(input);
             }
@@ -911,8 +928,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (marriageRequirementWarning) {
             marriageRequirementWarning.classList.toggle('is-complete', marriageReady);
             marriageRequirementWarning.innerHTML = marriageReady
-                ? '<i class="fas fa-circle-check"></i><span>All Marriage requirement files are ready for parish review.</span>'
-                : '<i class="fas fa-triangle-exclamation"></i><span>Upload all Marriage requirement files for both Male and Female before submitting.</span>';
+                ? '<i class="fas fa-circle-check"></i><span>All required Marriage files are ready for parish review.</span>'
+                : '<i class="fas fa-triangle-exclamation"></i><span>Upload required Marriage files for both Male and Female before submitting.</span>';
         }
 
         const funeralReady = funeralSelected && requirementFilesReady('funeral');
