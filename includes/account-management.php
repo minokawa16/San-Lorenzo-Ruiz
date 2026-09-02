@@ -53,21 +53,60 @@ function synchronizeAuthenticationIdentifier(mysqli $conn, int $userId, string $
 
 function authenticationIdentifierAvailable(mysqli $conn, string $type, string $value, ?int $exceptUserId = null): bool {
     $normalized = $type === 'email' ? strtolower(trim($value)) : normalizePhilippineMobileForStorage($value);
+
+    // 1. Check user_auth_identifiers table
     $sql = 'SELECT user_id FROM user_auth_identifiers WHERE identifier_type = ? AND normalized_value = ?';
     if ($exceptUserId !== null) {
         $sql .= ' AND user_id <> ?';
     }
     $sql .= ' LIMIT 1';
     $statement = $conn->prepare($sql);
-    if ($exceptUserId !== null) {
-        $statement->bind_param('ssi', $type, $normalized, $exceptUserId);
-    } else {
-        $statement->bind_param('ss', $type, $normalized);
+    if ($statement) {
+        if ($exceptUserId !== null) {
+            $statement->bind_param('ssi', $type, $normalized, $exceptUserId);
+        } else {
+            $statement->bind_param('ss', $type, $normalized);
+        }
+        $statement->execute();
+        $authRow = $statement->get_result()->fetch_assoc();
+        $statement->close();
+
+        if ($authRow) {
+            $matchedUserId = (int) $authRow['user_id'];
+            // Check if this matched user actually exists in the users table
+            $checkUser = $conn->query("SELECT id FROM users WHERE id = $matchedUserId LIMIT 1");
+            if ($checkUser && $checkUser->num_rows > 0) {
+                return false; // Active existing user owns this identifier
+            } else {
+                // Orphaned identifier without a user record: cleanly remove it
+                $conn->query("DELETE FROM user_auth_identifiers WHERE identifier_type = '$type' AND normalized_value = '$normalized'");
+            }
+        }
     }
-    $statement->execute();
-    $available = !$statement->get_result()->fetch_assoc();
-    $statement->close();
-    return $available;
+
+    // 2. Also check the users table directly (in case user was created via legacy flow)
+    $userCol = $type === 'email' ? 'email' : 'phone_number';
+    $userSql = "SELECT id FROM users WHERE LOWER($userCol) = ?";
+    if ($exceptUserId !== null) {
+        $userSql .= ' AND id <> ?';
+    }
+    $userSql .= ' LIMIT 1';
+    $uStmt = $conn->prepare($userSql);
+    if ($uStmt) {
+        if ($exceptUserId !== null) {
+            $uStmt->bind_param('si', $normalized, $exceptUserId);
+        } else {
+            $uStmt->bind_param('s', $normalized);
+        }
+        $uStmt->execute();
+        $userExists = (bool) $uStmt->get_result()->fetch_assoc();
+        $uStmt->close();
+        if ($userExists) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 function assignUserRole(mysqli $conn, int $userId, string $roleKey, ?int $assignedBy = null): bool {
