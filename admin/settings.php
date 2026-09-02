@@ -160,6 +160,9 @@ function sqlValue($conn, $value) {
 
 // Create Database Backup Function - Documents this helper's role in the parish management workflow.
 function createDatabaseBackup($conn, $backup_dir, $prefix = 'database-backup') {
+    @set_time_limit(300);
+    @ini_set('memory_limit', '512M');
+
     if (!ensureBackupDirectory($backup_dir)) {
         throw new Exception('Backup folder is not writable. Attempted path: ' . $backup_dir);
     }
@@ -262,6 +265,7 @@ function countProjectFiles($project_root) {
 function buildRecoveryMetadata($conn, $project_root, $database_backup, $scope = 'complete_system') {
     return [
         'system' => 'Tugon Parish Management System',
+        'system_version' => '2.5.0',
         'backup_kind' => $scope,
         'created_at' => date('c'),
         'server' => $_SERVER['SERVER_NAME'] ?? 'localhost',
@@ -308,8 +312,11 @@ function addProjectFilesToZip($zip, $project_root, $backup_dir) {
 
 // Create Full Backup Function - Documents this helper's role in the parish management workflow.
 function createFullBackup($conn, $backup_dir, $project_root, $backup_type = 'complete-system') {
+    @set_time_limit(300);
+    @ini_set('memory_limit', '512M');
+
     if (!class_exists('ZipArchive')) {
-        throw new Exception('PHP ZipArchive is not enabled. Enable the zip extension in XAMPP to create full recovery packages.');
+        throw new Exception('PHP ZipArchive is not enabled. Enable the zip extension in php.ini / XAMPP to create full recovery packages.');
     }
 
     if (!ensureBackupDirectory($backup_dir)) {
@@ -929,20 +936,62 @@ function runDueAutomatedTasks($conn, $backup_dir, $project_root, $admin_id) {
 
 if (isset($_GET['download'])) {
     $requested = basename($_GET['download']);
-    $path = $backup_dir . DIRECTORY_SEPARATOR . $requested;
-    $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+    $search_dirs = array_unique(array_filter([
+        $backup_dir,
+        dirname(__DIR__) . DIRECTORY_SEPARATOR . 'backups',
+        '/var/www/tugon-data/backups',
+        sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'tugon_backups',
+        '/tmp/tugon_backups'
+    ]));
 
-    if (!in_array($extension, ['sql', 'zip'], true) || !is_file($path)) {
+    $path = null;
+    foreach ($search_dirs as $dir) {
+        $candidate = $dir . DIRECTORY_SEPARATOR . $requested;
+        if (is_file($candidate)) {
+            $path = $candidate;
+            break;
+        }
+    }
+
+    $extension = $path ? strtolower(pathinfo($path, PATHINFO_EXTENSION)) : '';
+
+    if (!$path || !in_array($extension, ['sql', 'zip'], true) || !is_file($path)) {
         http_response_code(404);
         exit('Backup file not found.');
     }
 
-    header('Content-Type: application/octet-stream');
+    $mime_type = $extension === 'zip' ? 'application/zip' : 'application/sql';
+
+    // Clear any previous output buffers to avoid corrupting binary data
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+
+    header('Content-Description: File Transfer');
+    header('Content-Type: ' . $mime_type);
     header('Content-Disposition: attachment; filename="' . basename($path) . '"');
+    header('Content-Transfer-Encoding: binary');
+    header('Expires: 0');
+    header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
+    header('Pragma: public');
     header('Content-Length: ' . filesize($path));
-    readfile($path);
+
+    $fp = fopen($path, 'rb');
+    if ($fp !== false) {
+        while (!feof($fp)) {
+            echo fread($fp, 1024 * 1024);
+            flush();
+        }
+        fclose($fp);
+    } else {
+        readfile($path);
+    }
     exit;
 }
+
+$is_ajax_request = (isset($_POST['ajax']) && $_POST['ajax'] === '1') 
+    || (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
+    || (isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false);
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     requireValidCsrfToken();
@@ -954,16 +1003,112 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             writeSetting($conn, 'last_daily_backup', date('Y-m-d H:i:s'));
             createAuditLog($conn, $_SESSION['user_id'], 'CREATE_DATABASE_BACKUP', 'system', 0);
             $success = 'Database backup created: ' . basename($path);
+            
+            if ($is_ajax_request) {
+                $backup_files = getBackupFiles($backup_dir);
+                $total_backup_size = directorySize($backup_dir);
+                $latest_backup = latestBackupTime($backup_files);
+                $backup_status = backupStatusFromAge($latest_backup, 7, 30);
+                $zip_status = class_exists('ZipArchive') ? 'healthy' : 'critical';
+                $recovery_readiness = ($backup_status === 'healthy' && $zip_status === 'healthy') ? 'healthy' : (($backup_status === 'critical' || $zip_status === 'critical') ? 'critical' : 'warning');
+
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => true,
+                    'message' => $success,
+                    'filename' => basename($path),
+                    'filesize' => formatFileSize(filesize($path)),
+                    'filesize_bytes' => filesize($path),
+                    'created_at' => date('M d, Y g:i A', filemtime($path)),
+                    'type' => 'SQL',
+                    'download_url' => 'settings.php?download=' . urlencode(basename($path)),
+                    'metrics' => [
+                        'total_backups' => count($backup_files),
+                        'latest_backup_text' => date('M d, Y', $latest_backup),
+                        'latest_backup_subtext' => 'Just now',
+                        'storage_usage_text' => formatFileSize($total_backup_size),
+                        'recovery_readiness' => $recovery_readiness,
+                        'recovery_readiness_label' => healthLabel($recovery_readiness),
+                        'backup_integrity' => $backup_status,
+                        'backup_integrity_label' => healthLabel($backup_status)
+                    ]
+                ]);
+                exit;
+            }
         } elseif ($action === 'weekly_backup') {
             $path = createFullBackup($conn, $backup_dir, $project_root, 'weekly-files');
             writeSetting($conn, 'last_weekly_backup', date('Y-m-d H:i:s'));
             createAuditLog($conn, $_SESSION['user_id'], 'CREATE_WEEKLY_BACKUP', 'system', 0);
             $success = 'Weekly database and file backup created: ' . basename($path);
+
+            if ($is_ajax_request) {
+                $backup_files = getBackupFiles($backup_dir);
+                $total_backup_size = directorySize($backup_dir);
+                $latest_backup = latestBackupTime($backup_files);
+                $backup_status = backupStatusFromAge($latest_backup, 7, 30);
+                $zip_status = class_exists('ZipArchive') ? 'healthy' : 'critical';
+                $recovery_readiness = ($backup_status === 'healthy' && $zip_status === 'healthy') ? 'healthy' : (($backup_status === 'critical' || $zip_status === 'critical') ? 'critical' : 'warning');
+
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => true,
+                    'message' => $success,
+                    'filename' => basename($path),
+                    'filesize' => formatFileSize(filesize($path)),
+                    'filesize_bytes' => filesize($path),
+                    'created_at' => date('M d, Y g:i A', filemtime($path)),
+                    'type' => 'ZIP',
+                    'download_url' => 'settings.php?download=' . urlencode(basename($path)),
+                    'metrics' => [
+                        'total_backups' => count($backup_files),
+                        'latest_backup_text' => date('M d, Y', $latest_backup),
+                        'latest_backup_subtext' => 'Just now',
+                        'storage_usage_text' => formatFileSize($total_backup_size),
+                        'recovery_readiness' => $recovery_readiness,
+                        'recovery_readiness_label' => healthLabel($recovery_readiness),
+                        'backup_integrity' => $backup_status,
+                        'backup_integrity_label' => healthLabel($backup_status)
+                    ]
+                ]);
+                exit;
+            }
         } elseif ($action === 'full_backup') {
             $path = createFullBackup($conn, $backup_dir, $project_root, 'monthly-complete-system');
             writeSetting($conn, 'last_monthly_backup', date('Y-m-d H:i:s'));
             createAuditLog($conn, $_SESSION['user_id'], 'CREATE_COMPLETE_SYSTEM_BACKUP', 'system', 0);
             $success = 'Complete system recovery package created: ' . basename($path);
+
+            if ($is_ajax_request) {
+                $backup_files = getBackupFiles($backup_dir);
+                $total_backup_size = directorySize($backup_dir);
+                $latest_backup = latestBackupTime($backup_files);
+                $backup_status = backupStatusFromAge($latest_backup, 7, 30);
+                $zip_status = class_exists('ZipArchive') ? 'healthy' : 'critical';
+                $recovery_readiness = ($backup_status === 'healthy' && $zip_status === 'healthy') ? 'healthy' : (($backup_status === 'critical' || $zip_status === 'critical') ? 'critical' : 'warning');
+
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => true,
+                    'message' => $success,
+                    'filename' => basename($path),
+                    'filesize' => formatFileSize(filesize($path)),
+                    'filesize_bytes' => filesize($path),
+                    'created_at' => date('M d, Y g:i A', filemtime($path)),
+                    'type' => 'ZIP',
+                    'download_url' => 'settings.php?download=' . urlencode(basename($path)),
+                    'metrics' => [
+                        'total_backups' => count($backup_files),
+                        'latest_backup_text' => date('M d, Y', $latest_backup),
+                        'latest_backup_subtext' => 'Just now',
+                        'storage_usage_text' => formatFileSize($total_backup_size),
+                        'recovery_readiness' => $recovery_readiness,
+                        'recovery_readiness_label' => healthLabel($recovery_readiness),
+                        'backup_integrity' => $backup_status,
+                        'backup_integrity_label' => healthLabel($backup_status)
+                    ]
+                ]);
+                exit;
+            }
         } elseif ($action === 'save_schedule') {
             writeSetting($conn, 'backup_scheduler_enabled', isset($_POST['scheduler_enabled']) ? '1' : '0');
             writeSetting($conn, 'daily_backup_time', $_POST['daily_backup_time'] ?? '01:00');
@@ -1006,6 +1151,16 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             insertRecoveryLog($conn, $_SESSION['user_id'] ?? 0, $_POST['recovery_scope'] ?? 'unknown', basename($_POST['backup_file'] ?? ''), 0, 'failed', $e->getMessage());
         }
         $error = $e->getMessage();
+
+        if ($is_ajax_request) {
+            header('Content-Type: application/json');
+            http_response_code(400);
+            echo json_encode([
+                'success' => false,
+                'error' => $error
+            ]);
+            exit;
+        }
     }
 }
 
@@ -1134,7 +1289,7 @@ $breadcrumbs = [
             <p class="m-0 text-muted" style="font-size: 0.84rem;">Protection for sacramental records, user accounts, system configuration, uploaded files, and recovery logs.</p>
         </div>
         <div class="hero-actions">
-            <form method="POST">
+            <form method="POST" class="backup-action-form">
                 <?php echo csrfInput(); ?>
                 <input type="hidden" name="action" value="full_backup">
                 <button type="submit" class="btn btn-primary" data-progress-button>
@@ -1145,30 +1300,32 @@ $breadcrumbs = [
         </div>
     </section>
 
-    <?php if ($error): ?>
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <?php echo e($error); ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    <?php endif; ?>
+    <div id="backupAlertContainer">
+        <?php if ($error): ?>
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <?php echo e($error); ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        <?php endif; ?>
 
-    <?php if ($success): ?>
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <?php echo e($success); ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    <?php endif; ?>
+        <?php if ($success): ?>
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <?php echo e($success); ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        <?php endif; ?>
+    </div>
 
     <div class="metric-grid">
         <div class="metric-card">
             <div class="metric-label">Total Backups</div>
-            <div class="metric-value"><?php echo count($backup_files); ?></div>
+            <div class="metric-value" id="metricTotalBackups"><?php echo count($backup_files); ?></div>
             <div class="metric-note">Protected recovery files</div>
         </div>
         <div class="metric-card">
             <div class="metric-label">Last Backup</div>
-            <div class="metric-value"><?php echo $latest_backup ? date('M d, Y', $latest_backup) : 'None'; ?></div>
-            <div class="metric-note"><?php echo $latest_backup ? date('g:i A', $latest_backup) : 'Create one now'; ?></div>
+            <div class="metric-value" id="metricLastBackup"><?php echo $latest_backup ? date('M d, Y', $latest_backup) : 'None'; ?></div>
+            <div class="metric-note" id="metricLastBackupNote"><?php echo $latest_backup ? date('g:i A', $latest_backup) : 'Create one now'; ?></div>
         </div>
         <div class="metric-card">
             <div class="metric-label">Next Scheduled</div>
@@ -1177,13 +1334,13 @@ $breadcrumbs = [
         </div>
         <div class="metric-card">
             <div class="metric-label">Storage Usage</div>
-            <div class="metric-value"><?php echo formatFileSize($total_backup_size); ?></div>
+            <div class="metric-value" id="metricStorageUsage"><?php echo formatFileSize($total_backup_size); ?></div>
             <div class="metric-note">Local backup folder</div>
         </div>
         <div class="metric-card">
             <div class="metric-label">Recovery Readiness</div>
-            <div class="metric-value">
-                <span class="status-pill status-<?php echo e($recovery_readiness); ?>"><span class="status-dot"></span><?php echo e(healthLabel($recovery_readiness)); ?></span>
+            <div class="metric-value" id="metricRecoveryReadinessContainer">
+                <span class="status-pill status-<?php echo e($recovery_readiness); ?>" id="metricRecoveryReadiness"><span class="status-dot"></span><?php echo e(healthLabel($recovery_readiness)); ?></span>
             </div>
             <div class="metric-note">Backup age and ZIP support</div>
         </div>
@@ -1194,7 +1351,7 @@ $breadcrumbs = [
         <div class="health-panel"><i class="fas fa-hard-drive"></i> Storage Capacity<br><span class="status-pill status-<?php echo e($storage_status); ?>"><span class="status-dot"></span><?php echo e(healthLabel($storage_status)); ?></span></div>
         <div class="health-panel"><i class="fas fa-microchip"></i> Server Performance<br><span class="status-pill status-healthy"><span class="status-dot"></span>Healthy</span></div>
         <div class="health-panel"><i class="fas fa-user-shield"></i> Security Status<br><span class="status-pill status-healthy"><span class="status-dot"></span>Healthy</span></div>
-        <div class="health-panel"><i class="fas fa-file-shield"></i> Backup Integrity<br><span class="status-pill status-<?php echo e($backup_status); ?>"><span class="status-dot"></span><?php echo e(healthLabel($backup_status)); ?></span></div>
+        <div class="health-panel"><i class="fas fa-file-shield"></i> Backup Integrity<br><span class="status-pill status-<?php echo e($backup_status); ?>" id="metricBackupIntegrity"><span class="status-dot"></span><?php echo e(healthLabel($backup_status)); ?></span></div>
     </div>
 
     <section class="maintenance-dashboard">
@@ -1257,7 +1414,7 @@ $breadcrumbs = [
                     <li><strong><?php echo e($group); ?>:</strong> <?php echo e(implode(', ', $items)); ?></li>
                 <?php endforeach; ?>
             </ul>
-            <form method="POST">
+            <form method="POST" class="backup-action-form">
                 <?php echo csrfInput(); ?>
                 <input type="hidden" name="action" value="full_backup">
                 <button type="submit" class="btn btn-primary w-100" data-progress-button><i class="fas fa-file-zipper"></i> Create Recovery Package</button>
@@ -1402,17 +1559,17 @@ $breadcrumbs = [
         <?php endif; ?>
     </section>
 
-    <div class="card mb-4">
+    <div class="card mb-4" id="backupFilesCard">
         <div class="card-body">
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                 <h2 class="h5 mb-0"><i class="fas fa-clock-rotate-left"></i> Available Backup Files</h2>
                 <div class="d-flex flex-wrap gap-2">
-                    <form method="POST">
+                    <form method="POST" class="backup-action-form">
                         <?php echo csrfInput(); ?>
                         <input type="hidden" name="action" value="database_backup">
                         <button type="submit" class="btn btn-sm btn-outline-primary" data-progress-button><i class="fas fa-database"></i> Daily DB Backup</button>
                     </form>
-                    <form method="POST">
+                    <form method="POST" class="backup-action-form">
                         <?php echo csrfInput(); ?>
                         <input type="hidden" name="action" value="weekly_backup">
                         <button type="submit" class="btn btn-sm btn-outline-success" data-progress-button><i class="fas fa-folder-tree"></i> Weekly Backup</button>
@@ -1420,9 +1577,9 @@ $breadcrumbs = [
                 </div>
             </div>
 
-            <?php if (count($backup_files) > 0): ?>
+            <div id="backupFilesContainer" style="display: <?php echo count($backup_files) > 0 ? 'block' : 'none'; ?>;">
                 <div class="table-responsive">
-                    <table class="table table-hover backup-table">
+                    <table class="table table-hover backup-table" id="backupFilesTable">
                         <thead class="table-light">
                             <tr>
                                 <th>File</th>
@@ -1433,7 +1590,7 @@ $breadcrumbs = [
                                 <th>Action</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="backupFilesTableBody">
                             <?php foreach ($backup_files as $file): ?>
                                 <?php $quick_validation = validateBackupPackage($file); ?>
                                 <tr>
@@ -1452,9 +1609,11 @@ $breadcrumbs = [
                         </tbody>
                     </table>
                 </div>
-            <?php else: ?>
-                <div class="alert alert-info mb-0">No backup files created yet.</div>
-            <?php endif; ?>
+            </div>
+            
+            <div id="noBackupFilesAlert" class="alert alert-info mb-0" style="display: <?php echo count($backup_files) === 0 ? 'block' : 'none'; ?>;">
+                No backup files created yet.
+            </div>
         </div>
     </div>
 
@@ -1522,6 +1681,13 @@ $breadcrumbs = [
 </div>
 
 <script>
+    function escapeHtml(str) {
+        if (!str) return '';
+        var div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
     document.querySelectorAll('[data-confirm]').forEach(function(button) {
         button.addEventListener('click', function(event) {
             if (!confirm(button.getAttribute('data-confirm'))) {
@@ -1530,11 +1696,165 @@ $breadcrumbs = [
         });
     });
 
-    document.querySelectorAll('[data-progress-button]').forEach(function(button) {
-        button.closest('form')?.addEventListener('submit', function() {
-            button.disabled = true;
-            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+    // AJAX Dual-Action Backup Handler: Generates on server + Streams straight to client Downloads
+    document.querySelectorAll('.backup-action-form').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            var btn = form.querySelector('button[type="submit"]');
+            var origHtml = btn ? btn.innerHTML : '';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Packaging Backup & Downloading...';
+            }
+
+            var formData = new FormData(form);
+            formData.append('ajax', '1');
+
+            fetch(window.location.href, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                },
+                body: formData
+            })
+            .then(function(res) {
+                return res.json().then(function(data) {
+                    return { ok: res.ok, status: res.status, data: data };
+                });
+            })
+            .then(function(result) {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = origHtml;
+                }
+
+                if (!result.ok || !result.data.success) {
+                    var errMsg = result.data.error || 'Failed to create backup.';
+                    var alertContainer = document.getElementById('backupAlertContainer');
+                    if (alertContainer) {
+                        alertContainer.innerHTML = `
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                <strong>Backup Error:</strong> ${escapeHtml(errMsg)}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        `;
+                    }
+                    return;
+                }
+
+                var data = result.data;
+
+                // 1. Automatically trigger browser file download to local machine
+                if (data.download_url) {
+                    var downloadLink = document.createElement('a');
+                    downloadLink.href = data.download_url;
+                    downloadLink.download = data.filename;
+                    document.body.appendChild(downloadLink);
+                    downloadLink.click();
+                    document.body.removeChild(downloadLink);
+                }
+
+                // 2. Render prominent success banner with manual download fallback link
+                var alertContainer = document.getElementById('backupAlertContainer');
+                if (alertContainer) {
+                    alertContainer.innerHTML = `
+                        <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+                            <i class="fas fa-circle-check me-1"></i> <strong>Backup Complete!</strong> ${escapeHtml(data.message)}
+                            <div class="mt-1 small">
+                                The archive <code>${escapeHtml(data.filename)}</code> (${escapeHtml(data.filesize)}) is downloading to your computer. 
+                                <a href="${escapeHtml(data.download_url)}" class="alert-link font-weight-bold text-decoration-underline ms-1">
+                                    <i class="fas fa-download"></i> Click here if download did not start automatically
+                                </a>
+                            </div>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    `;
+                }
+
+                // 3. Dynamically update metric cards on UI without full reload
+                if (data.metrics) {
+                    var totalEl = document.getElementById('metricTotalBackups');
+                    if (totalEl) totalEl.textContent = data.metrics.total_backups;
+
+                    var lastBackupEl = document.getElementById('metricLastBackup');
+                    if (lastBackupEl) lastBackupEl.textContent = data.metrics.latest_backup_text;
+
+                    var lastBackupNoteEl = document.getElementById('metricLastBackupNote');
+                    if (lastBackupNoteEl) lastBackupNoteEl.textContent = data.metrics.latest_backup_subtext;
+
+                    var storageEl = document.getElementById('metricStorageUsage');
+                    if (storageEl) storageEl.textContent = data.metrics.storage_usage_text;
+
+                    var readinessContainer = document.getElementById('metricRecoveryReadinessContainer');
+                    if (readinessContainer) {
+                        readinessContainer.innerHTML = `
+                            <span class="status-pill status-${escapeHtml(data.metrics.recovery_readiness)}" id="metricRecoveryReadiness">
+                                <span class="status-dot"></span>${escapeHtml(data.metrics.recovery_readiness_label)}
+                            </span>
+                        `;
+                    }
+
+                    var integrityEl = document.getElementById('metricBackupIntegrity');
+                    if (integrityEl) {
+                        integrityEl.className = 'status-pill status-' + escapeHtml(data.metrics.backup_integrity);
+                        integrityEl.innerHTML = '<span class="status-dot"></span>' + escapeHtml(data.metrics.backup_integrity_label);
+                    }
+                }
+
+                // 4. Prepend new backup file to the available backup files table
+                var tableContainer = document.getElementById('backupFilesContainer');
+                var emptyAlert = document.getElementById('noBackupFilesAlert');
+                var tableBody = document.getElementById('backupFilesTableBody');
+
+                if (tableContainer) tableContainer.style.display = 'block';
+                if (emptyAlert) emptyAlert.style.display = 'none';
+
+                if (tableBody) {
+                    var newRow = document.createElement('tr');
+                    newRow.className = 'table-success';
+                    newRow.innerHTML = `
+                        <td><strong>${escapeHtml(data.filename)}</strong></td>
+                        <td>${escapeHtml(data.type)}</td>
+                        <td>${escapeHtml(data.filesize)}</td>
+                        <td>${escapeHtml(data.created_at)}</td>
+                        <td><span class="status-pill status-healthy"><span class="status-dot"></span>Valid</span></td>
+                        <td>
+                            <a href="${escapeHtml(data.download_url)}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-download"></i> Download
+                            </a>
+                        </td>
+                    `;
+                    tableBody.insertBefore(newRow, tableBody.firstChild);
+                }
+            })
+            .catch(function(err) {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = origHtml;
+                }
+                var alertContainer = document.getElementById('backupAlertContainer');
+                if (alertContainer) {
+                    alertContainer.innerHTML = `
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <strong>Backup Failed:</strong> Network or server error during backup generation.
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    `;
+                }
+            });
         });
+    });
+
+    // Fallback handler for any other form buttons with data-progress-button (like restore wizard)
+    document.querySelectorAll('[data-progress-button]').forEach(function(button) {
+        var form = button.closest('form');
+        if (form && !form.classList.contains('backup-action-form')) {
+            form.addEventListener('submit', function() {
+                button.disabled = true;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            });
+        }
     });
 </script>
 
