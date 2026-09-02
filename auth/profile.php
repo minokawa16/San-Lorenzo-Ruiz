@@ -22,64 +22,36 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') == 'POST') {
     requireValidCsrfToken();
     $fullname = trim($_POST['fullname'] ?? '');
 
-    if ($is_admin) {
-        if ($fullname === '') {
-            $error = 'Full name is required.';
-        } else {
-            $stmt = $conn->prepare("UPDATE users SET fullname = ? WHERE id = ?");
-            if (!$stmt) {
-                $error = 'Unable to update profile.';
-            } else {
-                $stmt->bind_param('si', $fullname, $user_id);
-            }
-        }
+    if ($fullname === '') {
+        $error = 'Full name is required.';
     } else {
-        $phone_number = normalizePhilippineMobileForStorage($_POST['phone_number'] ?? '');
-        $chapel_district = trim($_POST['chapel_district'] ?? '');
-
-        if ($fullname === '' || !isValidPhilippineMobile($phone_number)) {
-            $error = 'Full name and phone number are required.';
-        } elseif (!authenticationIdentifierAvailable($conn, 'mobile', $phone_number, (int) $user_id)) {
-            $error = 'That mobile number is not available for this account.';
+        $stmt = $conn->prepare("UPDATE users SET fullname = ? WHERE id = ?");
+        if (!$stmt) {
+            $error = 'Unable to update profile.';
         } else {
-            $stmt = $conn->prepare("UPDATE users SET fullname = ?, phone_verified_at = CASE WHEN phone_number = ? THEN phone_verified_at ELSE NULL END, phone_number = ?, chapel_district = ? WHERE id = ?");
-            if (!$stmt) {
-                $error = 'Unable to update profile.';
+            $stmt->bind_param('si', $fullname, $user_id);
+            if ($stmt->execute()) {
+                $_SESSION['fullname'] = $fullname;
+                $success = 'Profile updated successfully!';
+                $user = getUserById($conn, $user_id);
             } else {
-                $stmt->bind_param('ssssi', $fullname, $phone_number, $phone_number, $chapel_district, $user_id);
+                $error = 'Error updating profile: ' . $conn->error;
             }
+            $stmt->close();
         }
-    }
-
-    if (!$error && isset($stmt) && $stmt) {
-        if ($stmt->execute()) {
-            $_SESSION['fullname'] = $fullname;
-            if (!$is_admin && isset($phone_number)) {
-                $phoneVerifiedAt = normalizePhilippineMobileForStorage($user['phone_number'] ?? '') === $phone_number
-                    ? ($user['phone_verified_at'] ?? null)
-                    : null;
-                synchronizeAuthenticationIdentifier($conn, (int) $user_id, 'mobile', $phone_number, $phoneVerifiedAt);
-            }
-            $success = 'Profile updated successfully!';
-            $user = getUserById($conn, $user_id);
-        } else {
-            $error = 'Error updating profile: ' . $conn->error;
-        }
-    }
-
-    if (isset($stmt) && $stmt) {
-        $stmt->close();
     }
 }
 
 $completed_request_count = 0;
-$completed_stmt = $conn->prepare("SELECT COUNT(*) AS total FROM requests WHERE user_id = ? AND status = 'completed'");
-if ($completed_stmt) {
-    $completed_stmt->bind_param('i', $user_id);
-    $completed_stmt->execute();
-    $completed_result = $completed_stmt->get_result();
-    $completed_request_count = intval($completed_result->fetch_assoc()['total'] ?? 0);
-    $completed_stmt->close();
+if (!$is_admin) {
+    $completed_stmt = $conn->prepare("SELECT COUNT(*) AS total FROM requests WHERE user_id = ? AND status = 'completed'");
+    if ($completed_stmt) {
+        $completed_stmt->bind_param('i', $user_id);
+        $completed_stmt->execute();
+        $completed_result = $completed_stmt->get_result();
+        $completed_request_count = intval($completed_result->fetch_assoc()['total'] ?? 0);
+        $completed_stmt->close();
+    }
 }
 
 $profile_display_name = trim((string) ($user['fullname'] ?? ($is_admin ? 'Administrator' : 'Parishioner')));
@@ -166,25 +138,6 @@ $page_title = $is_admin ? 'Profile Settings' : 'My Profile';
                                 <?php endif; ?>
                             </div>
                         </div>
-
-                        <?php if (!$is_admin): ?>
-                        <div class="mb-3">
-                            <label for="phone_number" class="form-label">Phone Number</label>
-                            <input type="tel" class="form-control" id="phone_number" name="phone_number" 
-                                   value="<?php echo e($user['phone_number'] ?? ''); ?>" required>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="chapel_district" class="form-label">Chapel/District</label>
-                            <input type="text" class="form-control" id="chapel_district" name="chapel_district" 
-                                   value="<?php echo e($user['chapel_district'] ?? ''); ?>">
-                        </div>
-
-                        <div class="mb-3 profile-member-since-field">
-                            <label class="form-label">Member Since</label>
-                            <input type="text" class="form-control" value="<?php echo formatDate($user['created_at']); ?>" disabled>
-                        </div>
-                        <?php endif; ?>
 
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                             <a href="<?php echo $is_admin ? '../admin/dashboard.php' : '../users/index.php'; ?>" class="btn btn-outline-secondary">Cancel</a>
