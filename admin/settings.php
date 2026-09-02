@@ -1259,64 +1259,77 @@ $breadcrumbs = [
     .form-section-title { color: #101828; font-weight: 850; margin: 0 0 12px; }
     .backup-table td, .backup-table th { vertical-align: middle; }
     .coverage-list { columns: 2; }
-    .custom-checkbox-wrap {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 4px 0 10px;
+    .custom-schedule-toggle-wrap {
+        margin-bottom: 1rem;
     }
-    .custom-theme-checkbox {
-        appearance: none;
-        -webkit-appearance: none;
-        -moz-appearance: none;
-        width: 20px;
-        height: 20px;
-        min-width: 20px;
-        min-height: 20px;
-        border: 1.5px solid #d0d5dd;
-        border-radius: 5px;
-        background-color: #ffffff;
-        background-position: center;
-        background-repeat: no-repeat;
-        background-size: 13px 13px;
-        cursor: pointer;
+    .schedule-checkbox-container {
         display: inline-flex;
         align-items: center;
-        justify-content: center;
-        margin: 0;
-        vertical-align: middle;
-        transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-    }
-    .custom-theme-checkbox:hover {
-        border-color: #7a5214;
-        background-color: #fdfbf7;
-    }
-    .custom-theme-checkbox:focus-visible,
-    .custom-theme-checkbox:focus {
-        outline: none;
-        border-color: #7a5214;
-        box-shadow: 0 0 0 3.5px rgba(122, 82, 20, 0.22);
-    }
-    .custom-theme-checkbox:checked {
-        background-color: #7a5214;
-        border-color: #7a5214;
-        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='M4.5 10.5l4 4L15.5 5.5'/%3e%3c/svg%3e");
-    }
-    .custom-theme-checkbox:checked:hover {
-        background-color: #63420f;
-        border-color: #63420f;
-    }
-    .custom-checkbox-label {
-        font-size: 0.92rem;
-        font-weight: 600;
-        color: #344054;
+        gap: 10px;
         cursor: pointer;
-        margin: 0;
         user-select: none;
         -webkit-user-select: none;
+        margin: 0;
+        padding: 4px 0;
+    }
+    .schedule-checkbox-input {
+        position: absolute;
+        opacity: 0;
+        width: 1px;
+        height: 1px;
+        pointer-events: none;
+    }
+    .schedule-checkbox-custom {
+        position: relative;
+        display: inline-block;
+        width: 22px;
+        height: 22px;
+        min-width: 22px;
+        min-height: 22px;
+        background-color: #ffffff;
+        border: 2px solid #d0d5dd;
+        border-radius: 6px;
+        transition: all 0.15s ease-in-out;
+        box-sizing: border-box;
+        vertical-align: middle;
+    }
+    .schedule-checkbox-container:hover .schedule-checkbox-custom {
+        border-color: #7a5214;
+        background-color: #fcf9f4;
+    }
+    .schedule-checkbox-input:focus-visible + .schedule-checkbox-custom,
+    .schedule-checkbox-input:focus + .schedule-checkbox-custom {
+        border-color: #7a5214;
+        box-shadow: 0 0 0 3.5px rgba(122, 82, 20, 0.25);
+    }
+    .schedule-checkbox-input:checked + .schedule-checkbox-custom {
+        background-color: #7a5214 !important;
+        border-color: #7a5214 !important;
+    }
+    .schedule-checkbox-custom::after {
+        content: '';
+        position: absolute;
+        left: 6px;
+        top: 2px;
+        width: 6px;
+        height: 11px;
+        border: solid #ffffff;
+        border-width: 0 2.5px 2.5px 0;
+        transform: rotate(45deg);
+        opacity: 0;
+        transition: opacity 0.15s ease-in-out, transform 0.15s ease-in-out;
+    }
+    .schedule-checkbox-input:checked + .schedule-checkbox-custom::after {
+        opacity: 1 !important;
+    }
+    .schedule-checkbox-text {
+        font-size: 0.94rem;
+        font-weight: 600;
+        color: #344054;
+        line-height: 1.4;
         transition: color 0.15s ease-in-out;
     }
-    .custom-checkbox-wrap:hover .custom-checkbox-label {
+    .schedule-checkbox-container:hover .schedule-checkbox-text {
         color: #101828;
     }
     @media (max-width: 1100px) {
@@ -1497,9 +1510,19 @@ $breadcrumbs = [
             <form method="POST">
                 <?php echo csrfInput(); ?>
                 <input type="hidden" name="action" value="save_schedule">
-                <div class="custom-checkbox-wrap">
-                    <input class="custom-theme-checkbox" type="checkbox" name="scheduler_enabled" id="schedulerEnabled" role="checkbox" <?php echo $scheduler_enabled ? 'checked' : ''; ?>>
-                    <label class="custom-checkbox-label" for="schedulerEnabled">Enable scheduled backups</label>
+                <div class="custom-schedule-toggle-wrap">
+                    <label class="schedule-checkbox-container" for="schedulerEnabled">
+                        <input 
+                            type="checkbox" 
+                            name="scheduler_enabled" 
+                            id="schedulerEnabled" 
+                            class="schedule-checkbox-input"
+                            role="checkbox"
+                            <?php echo $scheduler_enabled ? 'checked' : ''; ?>
+                        >
+                        <span class="schedule-checkbox-custom"></span>
+                        <span class="schedule-checkbox-text">Enable scheduled backups</span>
+                    </label>
                 </div>
                 <label class="form-label">Daily backup time</label>
                 <input class="form-control mb-2" type="time" name="daily_backup_time" value="<?php echo e($daily_time); ?>">
