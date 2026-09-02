@@ -13,7 +13,8 @@ requirePermission('records.view');
 
 function getSafeRecordCount($conn, $table) {
     if (!$conn) return 0;
-    $res = @$conn->query("SELECT COUNT(*) AS c FROM `$table` WHERE status = 'active'");
+    $table = preg_replace('/[^a-zA-Z0-9_]/', '', (string)$table);
+    $res = @$conn->query("SELECT COUNT(*) AS c FROM `$table` WHERE LOWER(TRIM(status)) = 'active'");
     if ($res && ($row = $res->fetch_assoc())) {
         return (int)($row['c'] ?? 0);
     }
@@ -36,7 +37,7 @@ $registries = [
         'title' => 'First Communion Records',
         'icon' => 'fa-wheat-awn',
         'href' => 'communion-records.php',
-        'count' => getSafeRecordCount($conn, 'communion_records'),
+        'count' => getSafeRecordCount($conn, 'first_communion_records'),
         'description' => 'First Holy Communion registry entries and parish documentation.'
     ],
     [
