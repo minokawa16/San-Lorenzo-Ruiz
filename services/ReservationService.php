@@ -121,7 +121,7 @@ final class ReservationService {
         $stmt->close();
     }
 
-    private function notify(int$userId,string$type,array$variables,string$entityType,int$entityId,string$actionKey):void{(new NotificationService($this->db))->create($userId,$type,$variables,$entityType,$entityId,$actionKey,$type.'|'.$entityId.'|'.microtime(true),false);}
+    private function notify(int$userId,string$type,array$variables,string$entityType,int$entityId,string$actionKey):void{(new NotificationService($this->db))->create($userId,$type,$variables,$entityType,$entityId,$actionKey,$type.'|'.$entityId.'|'.microtime(true),true);}
 
     private function recordConflict(int $actorId,?int $reservationId,array $resourceIds,string $startAt,string $endAt,string $reason):void {
         $reason=mb_strimwidth(tugonRedactSensitive($reason),0,500,'');$correlation=tugonCorrelationId();$stmt=$this->db->prepare('INSERT INTO reservation_conflict_events(attempted_by,reservation_id,resource_id,requested_start,requested_end,reason,correlation_id) VALUES(?,?,?,?,?,?,?)');

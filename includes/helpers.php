@@ -183,14 +183,22 @@ function createRequestStatusNotification($conn, array $request, $status, $admin_
     $admin_note = trim(stripslashes((string) $admin_note));
     $title = $request_type . ' Request ' . $status_label;
 
-    if ($status === 'approved') {
-        $message = 'Your ' . $request_type . ' request' . ($reference !== '' ? ' (' . $reference . ')' : '') . ' has been approved by the parish office.';
+    if ($status === 'submitted') {
+        $message = 'Your ' . $request_type . ' request' . ($reference !== '' ? ' (' . $reference . ')' : '') . ' has been submitted and received by the parish office.';
+    } elseif ($status === 'pending') {
+        $message = 'Your ' . $request_type . ' request' . ($reference !== '' ? ' (' . $reference . ')' : '') . ' is pending review by the parish staff.';
     } elseif ($status === 'processing') {
         $message = 'Your ' . $request_type . ' request' . ($reference !== '' ? ' (' . $reference . ')' : '') . ' is now being processed by the parish office.';
+    } elseif ($status === 'approved') {
+        $message = 'Your ' . $request_type . ' request' . ($reference !== '' ? ' (' . $reference . ')' : '') . ' has been approved by the parish office.';
     } elseif ($status === 'rejected') {
         $message = 'Your ' . $request_type . ' request' . ($reference !== '' ? ' (' . $reference . ')' : '') . ' was rejected by the parish office.';
     } elseif ($status === 'completed') {
-        $message = 'Your ' . $request_type . ' request' . ($reference !== '' ? ' (' . $reference . ')' : '') . ' has been completed.';
+        $message = 'Your ' . $request_type . ' request' . ($reference !== '' ? ' (' . $reference . ')' : '') . ' has been completed. Documents are ready or released.';
+    } elseif ($status === 'cancelled') {
+        $message = 'Your ' . $request_type . ' request' . ($reference !== '' ? ' (' . $reference . ')' : '') . ' has been cancelled.';
+    } elseif (in_array($status, ['needs_correction', 'needs_info', 'requires_additional_information', 'correction_requested'], true)) {
+        $message = 'Your ' . $request_type . ' request' . ($reference !== '' ? ' (' . $reference . ')' : '') . ' requires additional information or document correction.';
     } else {
         $message = 'Your ' . $request_type . ' request' . ($reference !== '' ? ' (' . $reference . ')' : '') . ' status is now ' . $status_label . '.';
     }
@@ -201,9 +209,13 @@ function createRequestStatusNotification($conn, array $request, $status, $admin_
     $message .= ' Please open your TUGON account for details and next steps.';
 
     require_once dirname(__DIR__) . '/services/NotificationService.php';
-    $type = in_array($status, ['approved','rejected'], true) ? 'request_' . $status : 'request_submitted';
-    $created = (new NotificationService($conn))->create($user_id, $type, ['request_reference'=>$reference], 'request', (int)($request['request_id']??0), 'request.view', $status . '|' . ($request['updated_at']??microtime(true)), true) !== null;
-    dispatchNotificationDelivery($conn, $user_id, $title, $message, 'requests', ['email' => true, 'sms' => true]);
+    $type = 'request_' . ($status === 'needs_correction' ? 'needs_info' : $status);
+    $created = (new NotificationService($conn))->create($user_id, $type, [
+        'request_reference' => $reference,
+        'title' => $title,
+        'message' => $message
+    ], 'request', (int)($request['request_id'] ?? 0), 'request.view', $status . '|' . ($request['updated_at'] ?? microtime(true)), true) !== null;
+
     return $created;
 }
 
@@ -260,7 +272,7 @@ function dispatchNotificationDelivery($conn, $user_id, $title, $message, $catego
 // Notification System - Creates in-app alerts for parishioners and staff.
 function createNotification($conn, $user_id, $title, $message, $send_outbound = true, $category = null) {
     require_once dirname(__DIR__) . '/services/NotificationService.php';
-    return (new NotificationService($conn))->createLegacy((int)$user_id,(string)$title,(string)$message,(bool)$send_outbound,(string)($category?:'system')) !== null;
+    return (new NotificationService($conn))->createLegacy((int)$user_id, (string)$title, (string)$message, (bool)$send_outbound, (string)($category ?: 'system')) !== null;
 }
 
 function createNotificationSafe($conn, $user_id, $title, $message) {
@@ -271,38 +283,57 @@ function createNotificationSafe($conn, $user_id, $title, $message) {
     return createNotification($conn, $user_id, $title, $message);
 }
 
-// System-Wide Automatic Notification Dispatch - Broadcasts to all active parishioners across Email & SMS.
-function notifyAllActiveParishioners($conn, $title, $message, $category = 'announcements') {
+// System-Wide Automatic Notification Dispatch - Broadcasts to all active parishioners across In-App, Email & SMS.
+function notifyAllActiveParishioners($conn, $title, $message, $category = 'announcements', array $options = []) {
     if (!$conn || !tableExists($conn, 'users')) {
         return ['count' => 0];
     }
-    $stmt = $conn->query("SELECT id, fullname, email, phone_number FROM users WHERE (role IN ('user', 'parishioner', 'member') OR role IS NULL OR role = '') AND status = 'active'");
+
+    $where = ["(status = 'active')"];
+    $where[] = "(role IN ('user', 'parishioner', 'member') OR role IS NULL OR role = '' OR EXISTS(SELECT 1 FROM user_roles ur JOIN roles r ON r.role_id=ur.role_id WHERE ur.user_id=users.id AND r.role_key='parishioner'))";
+
+    if (!empty($options['chapel_district'])) {
+        $district = $conn->real_escape_string(trim((string)$options['chapel_district']));
+        $where[] = "chapel_district = '$district'";
+    }
+    if (!empty($options['user_id'])) {
+        $specific_uid = intval($options['user_id']);
+        if ($specific_uid > 0) {
+            $where[] = "id = $specific_uid";
+        }
+    }
+
+    $whereSql = implode(' AND ', $where);
+    $stmt = $conn->query("SELECT id, fullname, email, phone_number FROM users WHERE $whereSql");
     if (!$stmt) {
         return ['count' => 0];
     }
+
     $count = 0;
+    require_once dirname(__DIR__) . '/services/NotificationService.php';
+    $notificationService = new NotificationService($conn);
+
     while ($user = $stmt->fetch_assoc()) {
         $uid = (int) $user['id'];
         try {
-            createNotification($conn, $uid, $title, $message, false, $category);
-            dispatchNotificationDelivery($conn, $uid, $title, $message, $category, ['email' => true, 'sms' => true]);
+            $notificationService->createLegacy($uid, (string)$title, (string)$message, false, (string)$category);
             $count++;
         } catch (Throwable $e) {
-            error_log('Automatic notification dispatch error for user ' . $uid . ': ' . $e->getMessage());
+            error_log('Error dispatching broadcast notification to user ' . $uid . ': ' . $e->getMessage());
         }
     }
     return ['count' => $count];
 }
 
-// Automatic User Notification Dispatch - Delivers both Email and SMS to a specific user.
+// Automatic User Notification Dispatch - Delivers In-App, Email and SMS to a specific user.
 function notifyUserAutomatic($conn, $user_id, $title, $message, $category = 'system') {
     $uid = (int) $user_id;
     if ($uid <= 0 || !$conn || !tableExists($conn, 'users')) {
         return false;
     }
     try {
-        createNotification($conn, $uid, $title, $message, false, $category);
-        return dispatchNotificationDelivery($conn, $uid, $title, $message, $category, ['email' => true, 'sms' => true]);
+        require_once dirname(__DIR__) . '/services/NotificationService.php';
+        return (new NotificationService($conn))->createLegacy($uid, (string)$title, (string)$message, true, (string)$category) !== null;
     } catch (Throwable $e) {
         error_log('Automatic user notification error for user ' . $uid . ': ' . $e->getMessage());
         return false;
@@ -311,7 +342,11 @@ function notifyUserAutomatic($conn, $user_id, $title, $message, $category = 'sys
 
 // Email Notification Schema - Prepares verification, OTP, preferences, and delivery log tables.
 function ensureEmailNotificationSchema($conn) {
-    return ensureUserVerificationSchema($conn)
+    if (!$conn) {
+        return false;
+    }
+
+    $ready = ensureUserVerificationSchema($conn)
         && requireSchemaTables($conn, [
             'email_verifications',
             'otp_codes',
@@ -323,6 +358,50 @@ function ensureEmailNotificationSchema($conn) {
         && requireSchemaColumns($conn, 'notification_preferences', [
             'email_enabled', 'sms_enabled', 'in_app_enabled'
         ], 'notification preferences');
+
+    if ($ready && tableExists($conn, 'notification_templates')) {
+        $defaults = [
+            ['request_submitted', 'Request Submitted', 'Your {{request_reference}} request has been submitted and received.', 'Request {{request_reference}} Submitted', 'TUGON: Request {{request_reference}} was submitted.'],
+            ['request_pending', 'Request Pending', 'Your {{request_reference}} request is pending review by parish staff.', 'Request {{request_reference}} Pending', 'TUGON: Request {{request_reference}} is pending review.'],
+            ['request_processing', 'Request Processing', 'Your {{request_reference}} request is now being processed.', 'Request {{request_reference}} Processing', 'TUGON: Request {{request_reference}} is processing.'],
+            ['request_approved', 'Request Approved', 'Your {{request_reference}} request was approved by the parish office.', 'Request {{request_reference}} Approved', 'TUGON: Request {{request_reference}} was approved.'],
+            ['request_rejected', 'Request Rejected', 'Your {{request_reference}} request was not approved.', 'Request {{request_reference}} Update', 'TUGON: Request {{request_reference}} was rejected.'],
+            ['request_completed', 'Request Completed', 'Your {{request_reference}} request has been completed.', 'Request {{request_reference}} Completed', 'TUGON: Request {{request_reference}} is completed.'],
+            ['request_cancelled', 'Request Cancelled', 'Your {{request_reference}} request was cancelled.', 'Request {{request_reference}} Cancelled', 'TUGON: Request {{request_reference}} was cancelled.'],
+            ['request_needs_info', 'Additional Information Required', 'Your {{request_reference}} request requires additional details or correction.', 'Request {{request_reference}} - Action Required', 'TUGON: Request {{request_reference}} needs correction.'],
+            ['reservation_created', 'Reservation Submitted', 'Your reservation was submitted for parish review.', 'Reservation Submitted', 'TUGON: Reservation was submitted.'],
+            ['reservation_pending', 'Reservation Pending', 'Your reservation is pending parish schedule review.', 'Reservation Pending', 'TUGON: Reservation is pending review.'],
+            ['reservation_approved', 'Reservation Approved', 'Your reservation is approved for {{reservation_date}}.', 'Reservation Approved', 'TUGON: Reservation is approved for {{reservation_date}}.'],
+            ['reservation_rejected', 'Reservation Rejected', 'Your reservation request was not approved.', 'Reservation Rejected', 'TUGON: Reservation was rejected.'],
+            ['reservation_rescheduled', 'Reservation Rescheduled', 'Your reservation schedule changed to {{reservation_date}} {{reservation_time}}.', 'Reservation Rescheduled', 'TUGON: Reservation moved to {{reservation_date}} {{reservation_time}}.'],
+            ['reservation_cancelled', 'Reservation Cancelled', 'Your reservation was cancelled.', 'Reservation Cancelled', 'TUGON: Reservation was cancelled.'],
+            ['reservation_reminder', 'Reservation Reminder', 'Your reservation is scheduled for {{reservation_date}} {{reservation_time}}.', 'Reservation Reminder', 'TUGON: Reservation is scheduled for {{reservation_date}} {{reservation_time}}.'],
+            ['certificate_ready', 'Certificate Ready', 'Certificate {{certificate_number}} is ready for pickup or download.', 'Certificate {{certificate_number}} Ready', 'TUGON: Certificate {{certificate_number}} is ready.'],
+            ['certificate_released', 'Certificate Released', 'Certificate {{certificate_number}} was released.', 'Certificate Released', 'TUGON: Certificate {{certificate_number}} released.'],
+            ['announcement_published', 'Parish Announcement', '{{announcement_title}}', 'Parish Announcement: {{announcement_title}}', 'TUGON: {{announcement_title}}'],
+            ['broadcast_notice', 'Parish Notice', '{{message}}', 'TUGON Parish Notice: {{title}}', 'TUGON: {{title}}'],
+            ['account_verified', 'Account Verified', 'Your email and account have been verified successfully.', 'Account Verified', 'TUGON: Your account has been verified.'],
+            ['account_registered', 'Registration Received', 'Your registration has been submitted and is pending verification.', 'Registration Received', 'TUGON: Registration received and pending verification.'],
+            ['registration_approved', 'Registration Approved', 'Your parishioner account has been approved. Welcome to TUGON!', 'Registration Approved', 'TUGON: Your account has been approved. Welcome!'],
+            ['registration_rejected', 'Registration Not Approved', 'Your registration was reviewed and could not be approved.', 'Registration Update', 'TUGON: Registration was not approved.'],
+            ['password_changed', 'Security Notice - Password Changed', 'Your password was changed successfully. If you did not do this, please contact the parish office immediately.', 'Password Changed', 'TUGON: Your account password was changed.'],
+            ['security_notice', 'Security Notice', '{{message}}', 'TUGON Security Notice', 'TUGON Security Notice: {{message}}'],
+            ['system', 'System Notice', '{{message}}', 'TUGON System Notice', 'TUGON: {{message}}']
+        ];
+
+        $ins = $conn->prepare("INSERT INTO notification_templates (notification_type, title_template, in_app_template, email_subject_template, sms_template, status)
+            VALUES (?, ?, ?, ?, ?, 'active')
+            ON DUPLICATE KEY UPDATE title_template = VALUES(title_template), in_app_template = VALUES(in_app_template), email_subject_template = VALUES(email_subject_template), sms_template = VALUES(sms_template)");
+        if ($ins) {
+            foreach ($defaults as $row) {
+                $ins->bind_param('sssss', $row[0], $row[1], $row[2], $row[3], $row[4]);
+                $ins->execute();
+            }
+            $ins->close();
+        }
+    }
+
+    return $ready;
 }
 
 // Environment Loader - Reads simple KEY=value pairs from .env for localhost setup.
@@ -2031,12 +2110,22 @@ function getUserStatusBadgeClass($status) {
 
 // Get notification count
 function getUnreadNotificationCount($conn, $user_id) {
-    $stmt = $conn->prepare("SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND is_read = 0");
+    if (!$conn || !tableExists($conn, 'notifications')) {
+        return 0;
+    }
+    $user_id = intval($user_id);
+    if ($user_id <= 0) {
+        return 0;
+    }
+    $hasState = columnExists($conn, 'notifications', 'state');
+    $sql = $hasState
+        ? "SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND (state = 'unread' OR (state IS NULL AND is_read = 0))"
+        : "SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND is_read = 0";
+    $stmt = $conn->prepare($sql);
     if (!$stmt) {
         return 0;
     }
 
-    $user_id = intval($user_id);
     $stmt->bind_param('i', $user_id);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -2048,13 +2137,20 @@ function getUnreadNotificationCount($conn, $user_id) {
 // Get Recent Notifications Function - Documents this helper's role in the parish management workflow.
 function getRecentNotifications($conn, $user_id, $limit = 5) {
     $notifications = [];
+    if (!$conn || !tableExists($conn, 'notifications')) {
+        return $notifications;
+    }
+    $user_id = intval($user_id);
+    if ($user_id <= 0) {
+        return $notifications;
+    }
+
+    $limit = max(1, intval($limit));
     $stmt = $conn->prepare("SELECT notification_id, title, message, is_read, created_at FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT ?");
     if (!$stmt) {
         return $notifications;
     }
 
-    $user_id = intval($user_id);
-    $limit = max(1, intval($limit));
     $stmt->bind_param('ii', $user_id, $limit);
     $stmt->execute();
     $result = $stmt->get_result();

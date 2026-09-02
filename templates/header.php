@@ -78,6 +78,8 @@ $admin_page_titles = [
     'ai-assistant.php' => ['AI Assistant', 'Use parish knowledge to support staff workflows.'],
     'chatbot-knowledge.php' => ['Chatbot Knowledge', 'Maintain the assistant knowledge base.'],
     'ui-style-guide.php' => ['UI Style Guide', 'Preview shared interface components.'],
+    'broadcast-notification.php' => ['Broadcast Notification', 'Publish parish announcements or broadcast alerts to active parishioners.'],
+    'notification-deliveries.php' => ['Notification Deliveries', 'Track and retry queued email and SMS delivery attempts.'],
     'profile.php' => ['Profile', 'Manage your administrator account and contact information.'],
     'change-password.php' => ['Change Password', 'Update your administrator account security.'],
 ];
@@ -100,6 +102,8 @@ $admin_header_icons = [
     'manage-reservations.php' => 'fa-calendar-check',
     'manage-announcements.php' => 'fa-bullhorn',
     'post-announcement.php' => 'fa-pen-to-square',
+    'broadcast-notification.php' => 'fa-paper-plane',
+    'notification-deliveries.php' => 'fa-envelope-circle-check',
     'manage-calendar.php' => 'fa-calendar-days',
     'reports.php' => 'fa-chart-line',
     'archives.php' => 'fa-box-archive',

@@ -11,6 +11,9 @@ include '../includes/helpers.php';
 requireLogin();
 ensureEmailNotificationSchema($conn);
 
+requireLogin();
+ensureEmailNotificationSchema($conn);
+
 $user_id = $_SESSION['user_id'];
 $user = getUserById($conn, $user_id);
 $error = '';
@@ -19,42 +22,6 @@ $success = '';
 // Handle profile update
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') == 'POST') {
     requireValidCsrfToken();
-    $action = $_POST['action'] ?? 'profile';
-
-    if ($action === 'preferences') {
-        $login_otp_enabled = isset($_POST['login_otp_enabled']) ? 1 : 0;
-        if (isAdmin() && administratorMfaIsEnforced()) {
-            $login_otp_enabled = 1;
-        }
-        if ($login_otp_enabled === 1
-            && verifiedAuthenticationDestination($conn, (int) $user_id, 'email') === null
-            && verifiedAuthenticationDestination($conn, (int) $user_id, 'mobile') === null) {
-            $error = 'Verify an email address or mobile number before enabling login verification.';
-        }
-        $categories = ['announcements', 'requests', 'schedules', 'system'];
-        if ($error === '') {
-            $otpPreference = $conn->prepare('UPDATE users SET login_otp_enabled = ? WHERE id = ?');
-            $otpPreference->bind_param('ii', $login_otp_enabled, $user_id);
-            $otpPreference->execute();
-            $otpPreference->close();
-        }
-        foreach ($error === '' ? $categories : [] as $category) {
-            $email_enabled = isset($_POST['email_' . $category]) ? 1 : 0;
-            $sms_enabled = isset($_POST['sms_' . $category]) ? 1 : 0;
-            $stmt = $conn->prepare("INSERT INTO notification_preferences (user_id, category, email_enabled, sms_enabled, in_app_enabled) VALUES (?, ?, ?, ?, 1)
-                ON DUPLICATE KEY UPDATE email_enabled = VALUES(email_enabled), sms_enabled = VALUES(sms_enabled), in_app_enabled = 1");
-            if ($stmt) {
-                $stmt->bind_param('isii', $user_id, $category, $email_enabled, $sms_enabled);
-                $stmt->execute();
-                $stmt->close();
-            }
-        }
-        if ($error === '') {
-            $success = 'Notification and security preferences updated.';
-            createAuditLog($conn, $user_id, $login_otp_enabled ? 'ENABLE_LOGIN_OTP' : 'DISABLE_LOGIN_OTP', 'users', $user_id);
-        }
-        $user = getUserById($conn, $user_id);
-    } else {
     $fullname = trim($_POST['fullname'] ?? '');
     $phone_number = normalizePhilippineMobileForStorage($_POST['phone_number'] ?? '');
     $chapel_district = trim($_POST['chapel_district'] ?? '');
@@ -86,21 +53,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') == 'POST') {
 
     if (isset($stmt) && $stmt) {
         $stmt->close();
-    }
-    }
-}
-
-$preferences = [];
-$pref_result = $conn->query("SELECT category, email_enabled, sms_enabled FROM notification_preferences WHERE user_id = " . intval($user_id));
-while ($pref_result && $row = $pref_result->fetch_assoc()) {
-    $preferences[$row['category']] = [
-        'email' => intval($row['email_enabled']),
-        'sms' => intval($row['sms_enabled'])
-    ];
-}
-foreach (['announcements', 'requests', 'schedules', 'system'] as $category) {
-    if (!isset($preferences[$category])) {
-        $preferences[$category] = ['email' => 1, 'sms' => 1];
     }
 }
 
@@ -219,49 +171,6 @@ $page_title = 'My Profile';
                             <button type="submit" class="btn btn-primary">Save Changes</button>
                         </div>
                     </form>
-
-                    <hr class="my-4">
-
-                    <div class="profile-settings-section">
-                        <h6><i class="fas fa-bell"></i> Notification and Security Preferences</h6>
-                        <form method="POST" class="row g-3">
-                            <?php echo csrfInput(); ?>
-                            <input type="hidden" name="action" value="preferences">
-                            <div class="col-12">
-                                <label class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="login_otp_enabled" <?php echo ((isAdmin() && administratorMfaIsEnforced()) || !empty($user['login_otp_enabled'])) ? 'checked' : ''; ?> <?php echo (isAdmin() && administratorMfaIsEnforced()) ? 'disabled' : ''; ?>>
-                                    <?php if (isAdmin() && administratorMfaIsEnforced()): ?><input type="hidden" name="login_otp_enabled" value="1"><?php endif; ?>
-                                    <span class="form-check-label"><?php echo (isAdmin() && administratorMfaIsEnforced()) ? 'Login OTP is mandatory for administrators' : 'Require OTP after password login'; ?></span>
-                                    <?php if (isAdmin() && !administratorMfaIsEnforced()): ?><span class="form-text d-block">Administrator OTP is optional during local development and mandatory in production.</span><?php endif; ?>
-                                </label>
-                            </div>
-                            <?php
-                            $labels = [
-                                'announcements' => 'Parish announcements',
-                                'requests' => 'Request status updates',
-                                'schedules' => 'Schedule and reservation updates',
-                                'system' => 'System and verification notices'
-                            ];
-                            ?>
-                            <?php foreach ($labels as $key => $label): ?>
-                                <div class="col-md-6">
-                                    <label class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="email_<?php echo e($key); ?>" <?php echo !empty($preferences[$key]['email']) ? 'checked' : ''; ?>>
-                                        <span class="form-check-label"><?php echo e($label); ?> emails</span>
-                                    </label>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="sms_<?php echo e($key); ?>" <?php echo !empty($preferences[$key]['sms']) ? 'checked' : ''; ?>>
-                                        <span class="form-check-label"><?php echo e($label); ?> SMS</span>
-                                    </label>
-                                </div>
-                            <?php endforeach; ?>
-                            <div class="col-12">
-                                <button type="submit" class="btn btn-outline-primary"><i class="fas fa-save"></i> Save Preferences</button>
-                            </div>
-                        </form>
-                    </div>
 
                     <hr class="my-4">
 
