@@ -1259,6 +1259,66 @@ $breadcrumbs = [
     .form-section-title { color: #101828; font-weight: 850; margin: 0 0 12px; }
     .backup-table td, .backup-table th { vertical-align: middle; }
     .coverage-list { columns: 2; }
+    .custom-checkbox-wrap {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 4px 0 10px;
+    }
+    .custom-theme-checkbox {
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        width: 20px;
+        height: 20px;
+        min-width: 20px;
+        min-height: 20px;
+        border: 1.5px solid #d0d5dd;
+        border-radius: 5px;
+        background-color: #ffffff;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-size: 13px 13px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0;
+        vertical-align: middle;
+        transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+    .custom-theme-checkbox:hover {
+        border-color: #7a5214;
+        background-color: #fdfbf7;
+    }
+    .custom-theme-checkbox:focus-visible,
+    .custom-theme-checkbox:focus {
+        outline: none;
+        border-color: #7a5214;
+        box-shadow: 0 0 0 3.5px rgba(122, 82, 20, 0.22);
+    }
+    .custom-theme-checkbox:checked {
+        background-color: #7a5214;
+        border-color: #7a5214;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='M4.5 10.5l4 4L15.5 5.5'/%3e%3c/svg%3e");
+    }
+    .custom-theme-checkbox:checked:hover {
+        background-color: #63420f;
+        border-color: #63420f;
+    }
+    .custom-checkbox-label {
+        font-size: 0.92rem;
+        font-weight: 600;
+        color: #344054;
+        cursor: pointer;
+        margin: 0;
+        user-select: none;
+        -webkit-user-select: none;
+        transition: color 0.15s ease-in-out;
+    }
+    .custom-checkbox-wrap:hover .custom-checkbox-label {
+        color: #101828;
+    }
     @media (max-width: 1100px) {
         .metric-grid, .enterprise-grid, .health-grid, .analytics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .maintenance-dashboard { grid-template-columns: 1fr; }
@@ -1437,9 +1497,9 @@ $breadcrumbs = [
             <form method="POST">
                 <?php echo csrfInput(); ?>
                 <input type="hidden" name="action" value="save_schedule">
-                <div class="form-check form-switch mb-3">
-                    <input class="form-check-input" type="checkbox" name="scheduler_enabled" id="schedulerEnabled" <?php echo $scheduler_enabled ? 'checked' : ''; ?>>
-                    <label class="form-check-label" for="schedulerEnabled">Enable scheduled backups</label>
+                <div class="custom-checkbox-wrap">
+                    <input class="custom-theme-checkbox" type="checkbox" name="scheduler_enabled" id="schedulerEnabled" role="checkbox" <?php echo $scheduler_enabled ? 'checked' : ''; ?>>
+                    <label class="custom-checkbox-label" for="schedulerEnabled">Enable scheduled backups</label>
                 </div>
                 <label class="form-label">Daily backup time</label>
                 <input class="form-control mb-2" type="time" name="daily_backup_time" value="<?php echo e($daily_time); ?>">
