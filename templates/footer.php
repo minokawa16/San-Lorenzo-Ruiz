@@ -1094,10 +1094,12 @@
             color: #FFFFFF !important;
             position: relative !important;
         }
-        .ai-assistant-icon .fa-robot {
-            font-size: 1.55rem !important;
+        .ai-assistant-icon i,
+        .ai-assistant-icon .fa-church,
+        .ai-assistant-icon .fa-dove {
+            font-size: 1.45rem !important;
             color: #FDFBF7 !important;
-            filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.3));
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
         }
         .ai-assistant-online-indicator {
             position: absolute !important;
@@ -1192,7 +1194,7 @@
             border-radius: 11px !important;
             background: linear-gradient(135deg, #FAF3E0 0%, #F5E6BE 100%) !important;
             border: 1.5px solid #C89B3C !important;
-            color: #8A6409 !important;
+            color: #7A5214 !important;
             display: flex !important;
             align-items: center !important;
             justify-content: center !important;
@@ -1299,13 +1301,14 @@
             height: 48px !important;
             margin: 4px auto 8px !important;
             border-radius: 14px !important;
-            background: linear-gradient(135deg, #FDE68A 0%, #D97706 100%) !important;
-            color: #78350F !important;
+            background: linear-gradient(135deg, #FAF3E0 0%, #D4AF37 100%) !important;
+            color: #5C3D1E !important;
             display: flex !important;
             align-items: center !important;
             justify-content: center !important;
             font-size: 1.45rem !important;
-            box-shadow: 0 4px 18px rgba(217, 119, 6, 0.3) !important;
+            box-shadow: 0 4px 18px rgba(212, 175, 55, 0.3) !important;
+            border: 1.5px solid rgba(200, 155, 60, 0.4) !important;
         }
         .ai-assistant-greeting-bubble {
             background: #FFFFFF !important;
@@ -1320,7 +1323,7 @@
         .ai-assistant-greeting-bubble strong {
             font-size: 0.95rem !important;
             font-weight: 700 !important;
-            color: #1E293B !important;
+            color: #1C2A22 !important;
         }
         .ai-assistant-greeting-bubble span {
             font-size: 0.83rem !important;
@@ -1328,12 +1331,12 @@
             line-height: 1.5 !important;
         }
 
-        /* ── Quick-Reply 2-Column Grid ──────────────────────────────── */
+        /* ── Quick-Reply 2-Column Grid (Zero-Overlap Flex Layout) ───── */
         .ai-assistant-quick-heading {
             font-size: 0.7rem !important;
             font-weight: 700 !important;
             letter-spacing: 0.8px !important;
-            color: #8A7240 !important;
+            color: #7A5214 !important;
             text-transform: uppercase !important;
             margin: 6px 0 2px 2px !important;
         }
@@ -1343,41 +1346,56 @@
             gap: 8px !important;
         }
         .ai-assistant-quick button {
-            display: flex !important;
+            display: inline-flex !important;
             align-items: center !important;
-            gap: 8px !important;
-            padding: 9px 10px !important;
+            gap: 9px !important;
+            padding: 9px 11px !important;
             background: #FFFFFF !important;
-            border: 1px solid #E8E2D5 !important;
+            border: 1px solid #EAE5DB !important;
             border-radius: 12px !important;
             color: #1E293B !important;
-            font-size: 0.76rem !important;
+            font-size: 0.77rem !important;
             font-weight: 600 !important;
             line-height: 1.25 !important;
             text-align: left !important;
             cursor: pointer !important;
             transition: all 0.18s ease !important;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03) !important;
+            box-sizing: border-box !important;
         }
         .ai-assistant-quick button:hover {
             background: #FAF6ED !important;
             border-color: #C89B3C !important;
-            color: #8A6409 !important;
+            color: #7A5214 !important;
             transform: translateY(-2px) !important;
-            box-shadow: 0 4px 12px rgba(200, 155, 60, 0.16) !important;
+            box-shadow: 0 4px 14px rgba(200, 155, 60, 0.2) !important;
         }
         .ai-assistant-quick button:active {
             transform: scale(0.98) !important;
         }
         .ai-chip-icon {
-            width: 26px !important;
-            height: 26px !important;
-            border-radius: 7px !important;
+            width: 28px !important;
+            height: 28px !important;
+            min-width: 28px !important;
+            min-height: 28px !important;
+            border-radius: 8px !important;
             display: inline-flex !important;
             align-items: center !important;
             justify-content: center !important;
-            font-size: 11px !important;
+            font-size: 12px !important;
             flex-shrink: 0 !important;
+        }
+        .chip-cert { background: #EFF6FF !important; color: #2563EB !important; border: 1px solid #BFDBFE !important; }
+        .chip-track { background: #FEF3C7 !important; color: #D97706 !important; border: 1px solid #FDE68A !important; }
+        .chip-sched { background: #ECFDF5 !important; color: #059669 !important; border: 1px solid #A7F3D0 !important; }
+        .chip-bless { background: #FAF5FF !important; color: #7C3AED !important; border: 1px solid #E9D5FF !important; }
+        .chip-news { background: #FFF1F2 !important; color: #E11D48 !important; border: 1px solid #FECDD3 !important; }
+        .chip-pay { background: #F0FDF4 !important; color: #16A34A !important; border: 1px solid #BBF7D0 !important; }
+        .ai-chip-text {
+            flex: 1 1 auto !important;
+            white-space: normal !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
         }
         .chip-cert { background: #EFF6FF !important; color: #2563EB !important; border: 1px solid #BFDBFE !important; }
         .chip-track { background: #FEF3C7 !important; color: #D97706 !important; border: 1px solid #FDE68A !important; }
@@ -1662,10 +1680,10 @@
 
     <?php if (isLoggedIn() && empty($is_admin_area)): ?>
     <div class="ai-assistant-widget" id="aiAssistantWidget">
-        <button class="ai-assistant-trigger" type="button" id="aiAssistantTrigger" aria-label="Open TUGON AI" aria-expanded="false" title="Need help? Chat with TUGON AI">
+        <button class="ai-assistant-trigger" type="button" id="aiAssistantTrigger" aria-label="Open TUGON AI" aria-expanded="false" title="Need help? Chat with TUGON Parish Assistant">
             <span class="ai-assistant-online-indicator" aria-hidden="true"></span>
             <span class="ai-assistant-icon" aria-hidden="true">
-                <i class="fas fa-robot"></i>
+                <i class="fas fa-church"></i>
             </span>
             <span class="ai-assistant-chathead-label">TUGON AI</span>
         </button>
@@ -1675,31 +1693,31 @@
                     <i class="fas fa-chevron-left" aria-hidden="true"></i>
                 </button>
                 <div class="ai-assistant-panel-mark" aria-hidden="true">
-                    <i class="fas fa-robot"></i>
+                    <i class="fas fa-church"></i>
                 </div>
                 <div class="ai-assistant-panel-identity">
-                    <strong>TUGON AI Assistant</strong>
+                    <strong>TUGON Parish Assistant</strong>
                     <span><span class="ai-assistant-status-dot" aria-hidden="true"></span> Online &amp; Ready</span>
                 </div>
                 <button class="ai-assistant-tool" type="button" id="aiAssistantClear" aria-label="Clear conversation" title="Clear conversation">
-                    <i class="fas fa-trash-can"></i>
+                    <i class="fas fa-rotate-left"></i>
                 </button>
                 <button class="ai-assistant-tool" type="button" id="aiAssistantMinimize" aria-label="Minimize chat" title="Minimize chat">
                     <i class="fas fa-minus"></i>
                 </button>
                 <button class="ai-assistant-close" type="button" id="aiAssistantClose" aria-label="<?php echo e(t('chatbot.close_label', 'Close AI assistant')); ?>" title="Close chat">
-                    <i class="fas fa-times"></i>
+                    <i class="fas fa-xmark"></i>
                 </button>
             </div>
             <div class="ai-assistant-panel-body">
                 <div class="ai-assistant-live-answer" id="aiAssistantLiveAnswer">
                     <div class="ai-assistant-empty-state" id="aiAssistantEmptyState">
                         <div class="ai-assistant-welcome-icon" aria-hidden="true">
-                            <i class="fas fa-robot"></i>
+                            <i class="fas fa-church"></i>
                         </div>
                         <div class="ai-assistant-greeting-bubble">
-                            <strong>Hello! I'm TUGON AI.</strong>
-                            <span>Need help? Ask me about certificate requirements, request status, Mass schedules, GCash verification, and parish services.</span>
+                            <strong id="aiAssistantWelcomeHeading">Good day, and peace be with you!</strong>
+                            <span id="aiAssistantWelcomeSub">I'm your Tugon Parish Assistant. Ask me about certificate requirements, request status, Mass schedules, GCash verification, and parish services.</span>
                         </div>
                         <div class="ai-assistant-quick-heading">Quick Questions:</div>
                         <div class="ai-assistant-quick" aria-label="Suggested questions">
@@ -2424,6 +2442,36 @@
                 setAssistantOpen(false);
             });
 
+            function getParishGreeting() {
+                const hour = new Date().getHours();
+                if (hour >= 5 && hour < 12) {
+                    return {
+                        heading: "Good morning, and peace be with you!",
+                        sub: "I'm your Tugon Parish Assistant. How may I assist with parish services, sacraments, or schedules today?"
+                    };
+                } else if (hour >= 12 && hour < 18) {
+                    return {
+                        heading: "Good afternoon! May your day be blessed.",
+                        sub: "I'm your Tugon Parish Assistant. How may I help you with church records, requests, or services today?"
+                    };
+                } else {
+                    return {
+                        heading: "Good evening! How may I assist you today?",
+                        sub: "I'm your Tugon Parish Assistant. Feel free to ask about certificate requirements, Mass schedules, or request tracking."
+                    };
+                }
+            }
+
+            function updateWelcomeGreeting() {
+                const greeting = getParishGreeting();
+                const headingEl = document.getElementById('aiAssistantWelcomeHeading');
+                const subEl = document.getElementById('aiAssistantWelcomeSub');
+                if (headingEl) headingEl.textContent = greeting.heading;
+                if (subEl) subEl.textContent = greeting.sub;
+            }
+
+            updateWelcomeGreeting();
+
             if (mobileBack) {
                 mobileBack.addEventListener('click', function() {
                     setAssistantOpen(false);
@@ -2432,8 +2480,9 @@
 
             if (clear) {
                 clear.addEventListener('click', function() {
+                    const g = getParishGreeting();
                     liveAnswer.hidden = false;
-                    liveAnswer.innerHTML = '<div class="ai-assistant-empty-state" id="aiAssistantEmptyState"><div class="ai-assistant-welcome-icon" aria-hidden="true"><i class="fas fa-robot"></i></div><div class="ai-assistant-greeting-bubble"><strong>Hello! I\'m TUGON AI.</strong><span>Need help? Ask me about certificate requirements, request status, Mass schedules, GCash verification, and parish services.</span></div><div class="ai-assistant-quick-heading">Quick Questions:</div><div class="ai-assistant-quick" aria-label="Suggested questions"><button type="button" data-ai-prompt="How do I request a certificate?"><span class="ai-chip-icon chip-cert"><i class="fas fa-file-lines"></i></span><span class="ai-chip-text">Request Certificate</span></button><button type="button" data-ai-prompt="What is the status of my request?"><span class="ai-chip-icon chip-track"><i class="fas fa-list-check"></i></span><span class="ai-chip-text">Track My Request</span></button><button type="button" data-ai-prompt="Where can I see the parish schedule?"><span class="ai-chip-icon chip-sched"><i class="fas fa-calendar-days"></i></span><span class="ai-chip-text">Parish Schedule</span></button><button type="button" data-ai-prompt="How do I request a blessing?"><span class="ai-chip-icon chip-bless"><i class="fas fa-hands-praying"></i></span><span class="ai-chip-text">Request Blessing</span></button><button type="button" data-ai-prompt="Where can I see parish announcements?"><span class="ai-chip-icon chip-news"><i class="fas fa-bullhorn"></i></span><span class="ai-chip-text">Announcements</span></button><button type="button" data-ai-prompt="How do I verify payment with GCash?"><span class="ai-chip-icon chip-pay"><i class="fas fa-receipt"></i></span><span class="ai-chip-text">GCash Payment</span></button></div></div>';
+                    liveAnswer.innerHTML = '<div class="ai-assistant-empty-state" id="aiAssistantEmptyState"><div class="ai-assistant-welcome-icon" aria-hidden="true"><i class="fas fa-church"></i></div><div class="ai-assistant-greeting-bubble"><strong id="aiAssistantWelcomeHeading">' + escapeHtml(g.heading) + '</strong><span id="aiAssistantWelcomeSub">' + escapeHtml(g.sub) + '</span></div><div class="ai-assistant-quick-heading">Quick Questions:</div><div class="ai-assistant-quick" aria-label="Suggested questions"><button type="button" data-ai-prompt="How do I request a certificate?"><span class="ai-chip-icon chip-cert"><i class="fas fa-file-lines"></i></span><span class="ai-chip-text">Request Certificate</span></button><button type="button" data-ai-prompt="What is the status of my request?"><span class="ai-chip-icon chip-track"><i class="fas fa-list-check"></i></span><span class="ai-chip-text">Track My Request</span></button><button type="button" data-ai-prompt="Where can I see the parish schedule?"><span class="ai-chip-icon chip-sched"><i class="fas fa-calendar-days"></i></span><span class="ai-chip-text">Parish Schedule</span></button><button type="button" data-ai-prompt="How do I request a blessing?"><span class="ai-chip-icon chip-bless"><i class="fas fa-hands-praying"></i></span><span class="ai-chip-text">Request Blessing</span></button><button type="button" data-ai-prompt="Where can I see parish announcements?"><span class="ai-chip-icon chip-news"><i class="fas fa-bullhorn"></i></span><span class="ai-chip-text">Announcements</span></button><button type="button" data-ai-prompt="How do I verify payment with GCash?"><span class="ai-chip-icon chip-pay"><i class="fas fa-receipt"></i></span><span class="ai-chip-text">GCash Payment</span></button></div></div>';
                     conversationHistory.length = 0;
                     if (liveInput) {
                         liveInput.focus();
