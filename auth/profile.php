@@ -11,11 +11,9 @@ include '../includes/helpers.php';
 requireLogin();
 ensureEmailNotificationSchema($conn);
 
-requireLogin();
-ensureEmailNotificationSchema($conn);
-
 $user_id = $_SESSION['user_id'];
 $user = getUserById($conn, $user_id);
+$is_admin = isAdmin();
 $error = '';
 $success = '';
 
@@ -23,32 +21,50 @@ $success = '';
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') == 'POST') {
     requireValidCsrfToken();
     $fullname = trim($_POST['fullname'] ?? '');
-    $phone_number = normalizePhilippineMobileForStorage($_POST['phone_number'] ?? '');
-    $chapel_district = trim($_POST['chapel_district'] ?? '');
 
-    if ($fullname === '' || !isValidPhilippineMobile($phone_number)) {
-        $error = 'Full name and phone number are required.';
-    } elseif (!authenticationIdentifierAvailable($conn, 'mobile', $phone_number, (int) $user_id)) {
-        $error = 'That mobile number is not available for this account.';
-    } else {
-        $stmt = $conn->prepare("UPDATE users SET fullname = ?, phone_verified_at = CASE WHEN phone_number = ? THEN phone_verified_at ELSE NULL END, phone_number = ?, chapel_district = ? WHERE id = ?");
-        if (!$stmt) {
-            $error = 'Unable to update profile.';
+    if ($is_admin) {
+        if ($fullname === '') {
+            $error = 'Full name is required.';
         } else {
-            $stmt->bind_param('ssssi', $fullname, $phone_number, $phone_number, $chapel_district, $user_id);
+            $stmt = $conn->prepare("UPDATE users SET fullname = ? WHERE id = ?");
+            if (!$stmt) {
+                $error = 'Unable to update profile.';
+            } else {
+                $stmt->bind_param('si', $fullname, $user_id);
+            }
+        }
+    } else {
+        $phone_number = normalizePhilippineMobileForStorage($_POST['phone_number'] ?? '');
+        $chapel_district = trim($_POST['chapel_district'] ?? '');
+
+        if ($fullname === '' || !isValidPhilippineMobile($phone_number)) {
+            $error = 'Full name and phone number are required.';
+        } elseif (!authenticationIdentifierAvailable($conn, 'mobile', $phone_number, (int) $user_id)) {
+            $error = 'That mobile number is not available for this account.';
+        } else {
+            $stmt = $conn->prepare("UPDATE users SET fullname = ?, phone_verified_at = CASE WHEN phone_number = ? THEN phone_verified_at ELSE NULL END, phone_number = ?, chapel_district = ? WHERE id = ?");
+            if (!$stmt) {
+                $error = 'Unable to update profile.';
+            } else {
+                $stmt->bind_param('ssssi', $fullname, $phone_number, $phone_number, $chapel_district, $user_id);
+            }
         }
     }
 
-    if (!$error && $stmt->execute()) {
-        $_SESSION['fullname'] = $fullname;
-        $phoneVerifiedAt = normalizePhilippineMobileForStorage($user['phone_number'] ?? '') === $phone_number
-            ? ($user['phone_verified_at'] ?? null)
-            : null;
-        synchronizeAuthenticationIdentifier($conn, (int) $user_id, 'mobile', $phone_number, $phoneVerifiedAt);
-        $success = 'Profile updated successfully!';
-        $user = getUserById($conn, $user_id);
-    } else {
-        $error = $error ?: 'Error updating profile: ' . $conn->error;
+    if (!$error && isset($stmt) && $stmt) {
+        if ($stmt->execute()) {
+            $_SESSION['fullname'] = $fullname;
+            if (!$is_admin && isset($phone_number)) {
+                $phoneVerifiedAt = normalizePhilippineMobileForStorage($user['phone_number'] ?? '') === $phone_number
+                    ? ($user['phone_verified_at'] ?? null)
+                    : null;
+                synchronizeAuthenticationIdentifier($conn, (int) $user_id, 'mobile', $phone_number, $phoneVerifiedAt);
+            }
+            $success = 'Profile updated successfully!';
+            $user = getUserById($conn, $user_id);
+        } else {
+            $error = 'Error updating profile: ' . $conn->error;
+        }
     }
 
     if (isset($stmt) && $stmt) {
@@ -66,31 +82,32 @@ if ($completed_stmt) {
     $completed_stmt->close();
 }
 
-$profile_display_name = trim((string) ($user['fullname'] ?? 'Parishioner'));
+$profile_display_name = trim((string) ($user['fullname'] ?? ($is_admin ? 'Administrator' : 'Parishioner')));
 $profile_first_name_parts = preg_split('/\s+/', $profile_display_name);
-$profile_first_name = $profile_first_name_parts[0] ?? 'Parishioner';
+$profile_first_name = $profile_first_name_parts[0] ?? ($is_admin ? 'Admin' : 'Parishioner');
 $profile_initial = strtoupper(substr($profile_first_name, 0, 1));
 $profile_district = trim((string) ($user['chapel_district'] ?? ''));
 $profile_member_since = !empty($user['created_at']) ? date('M Y', strtotime($user['created_at'])) : 'N/A';
 
-$page_title = 'My Profile';
+$page_title = $is_admin ? 'Profile Settings' : 'My Profile';
 ?>
 <?php include '../templates/header.php'; ?>
 
 <section class="profile-mobile-hero" aria-label="Profile summary">
     <div class="profile-mobile-hero-top">
-        <a href="../users/index.php" class="profile-mobile-back" aria-label="Back to dashboard">
+        <a href="<?php echo $is_admin ? '../admin/dashboard.php' : '../users/index.php'; ?>" class="profile-mobile-back" aria-label="Back to dashboard">
             <i class="fas fa-chevron-left" aria-hidden="true"></i>
         </a>
-        <strong>Profile</strong>
+        <strong><?php echo $is_admin ? 'Profile Settings' : 'Profile'; ?></strong>
     </div>
     <div class="profile-mobile-identity">
         <span class="profile-mobile-avatar"><?php echo e($profile_initial); ?></span>
         <h1><?php echo e($profile_first_name); ?></h1>
-        <p><?php echo e($profile_district !== '' ? $profile_district . ' Member' : 'Parishioner'); ?></p>
+        <p><?php echo $is_admin ? 'Administrator' : e($profile_district !== '' ? $profile_district . ' Member' : 'Parishioner'); ?></p>
     </div>
 </section>
 
+<?php if (!$is_admin): ?>
 <div class="profile-mobile-stack">
     <section class="profile-mobile-stats" aria-label="Profile statistics">
         <div>
@@ -103,13 +120,14 @@ $page_title = 'My Profile';
         </div>
     </section>
 </div>
+<?php endif; ?>
 
 <div class="container mt-4">
     <div class="row justify-content-center">
         <div class="col-md-8">
             <div class="card profile-details-card" id="profileDetails">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-user"></i> My Profile</h5>
+                    <h5 class="mb-0"><i class="fas <?php echo $is_admin ? 'fa-user-shield' : 'fa-user'; ?>"></i> <?php echo $is_admin ? 'Profile Settings' : 'My Profile'; ?></h5>
                 </div>
                 <div class="card-body">
                     
@@ -149,6 +167,7 @@ $page_title = 'My Profile';
                             </div>
                         </div>
 
+                        <?php if (!$is_admin): ?>
                         <div class="mb-3">
                             <label for="phone_number" class="form-label">Phone Number</label>
                             <input type="tel" class="form-control" id="phone_number" name="phone_number" 
@@ -165,9 +184,10 @@ $page_title = 'My Profile';
                             <label class="form-label">Member Since</label>
                             <input type="text" class="form-control" value="<?php echo formatDate($user['created_at']); ?>" disabled>
                         </div>
+                        <?php endif; ?>
 
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                            <a href="<?php echo isAdmin() ? '../admin/dashboard.php' : '../users/index.php'; ?>" class="btn btn-outline-secondary">Cancel</a>
+                            <a href="<?php echo $is_admin ? '../admin/dashboard.php' : '../users/index.php'; ?>" class="btn btn-outline-secondary">Cancel</a>
                             <button type="submit" class="btn btn-primary">Save Changes</button>
                         </div>
                     </form>
