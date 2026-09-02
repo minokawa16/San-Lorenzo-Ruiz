@@ -4676,6 +4676,100 @@ transition: color 0.15s ease-in-out;
 .schedule-checkbox-container:hover .schedule-checkbox-text {
 color: #101828;
 }
+.report-panel-card {
+border: 1px solid #e4e7ec;
+border-radius: 8px;
+background: #ffffff;
+box-shadow: 0 12px 28px rgba(16, 24, 40, .06);
+overflow: hidden;
+transition: box-shadow 0.2s ease-in-out;
+}
+.report-panel-header {
+background: #ffffff;
+border-bottom: 1px solid #e4e7ec;
+padding: 14px 18px;
+display: flex;
+justify-content: space-between;
+align-items: center;
+cursor: pointer;
+user-select: none;
+-webkit-user-select: none;
+transition: background-color 0.15s ease-in-out;
+}
+.report-panel-header:hover {
+background-color: #fcfaf7;
+}
+.report-panel-header:focus-visible {
+outline: none;
+background-color: #fbf7f0;
+box-shadow: inset 0 0 0 2px #7a5214;
+}
+.report-toggle-pill {
+display: inline-flex;
+align-items: center;
+gap: 7px;
+font-size: 0.82rem;
+font-weight: 600;
+padding: 5px 12px;
+border-radius: 20px;
+border: 1px solid #d0d5dd;
+color: #475467;
+background: #ffffff;
+pointer-events: none;
+transition: all 0.15s ease-in-out;
+}
+.report-panel-header:hover .report-toggle-pill {
+border-color: #7a5214;
+color: #7a5214;
+background-color: #fdfbf7;
+}
+.report-panel-body {
+transition: height 0.25s ease-in-out, opacity 0.2s ease-in-out;
+}
+.report-table-scroll-container {
+max-height: 420px;
+overflow-y: auto;
+overflow-x: auto;
+scrollbar-width: thin;
+scrollbar-color: #6d4c1b #f4ede4;
+}
+.report-table-scroll-container::-webkit-scrollbar {
+width: 6px;
+height: 6px;
+}
+.report-table-scroll-container::-webkit-scrollbar-track {
+background: #f4ede4;
+border-radius: 4px;
+}
+.report-table-scroll-container::-webkit-scrollbar-thumb {
+background: #6d4c1b;
+border-radius: 4px;
+}
+.report-table-scroll-container::-webkit-scrollbar-thumb:hover {
+background: #543912;
+}
+.report-data-table {
+margin-bottom: 0;
+}
+.report-data-table thead th {
+position: sticky;
+top: 0;
+z-index: 10;
+background: #f8fafc;
+color: #344054;
+font-size: 0.78rem;
+font-weight: 700;
+text-transform: uppercase;
+letter-spacing: 0.03em;
+border-bottom: 1.5px solid #e4e7ec;
+box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+white-space: nowrap;
+}
+.report-data-table td {
+font-size: 0.86rem;
+vertical-align: middle;
+padding: 10px 14px;
+}
 /*! source: assets/css/premium-parish.css */
 :root {
 --parish-ink: #172033;
