@@ -1332,6 +1332,97 @@ $breadcrumbs = [
     .schedule-checkbox-container:hover .schedule-checkbox-text {
         color: #101828;
     }
+    .log-panel-card {
+        border: 1px solid #e4e7ec;
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: 0 12px 28px rgba(16, 24, 40, .06);
+        overflow: hidden;
+    }
+    .log-panel-header {
+        background: #ffffff;
+        border-bottom: 1px solid #e4e7ec;
+        padding: 14px 18px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: pointer;
+        user-select: none;
+        -webkit-user-select: none;
+        transition: background-color 0.15s ease-in-out;
+    }
+    .log-panel-header:hover {
+        background-color: #fcfaf7;
+    }
+    .log-panel-header:focus-visible {
+        outline: none;
+        background-color: #fbf7f0;
+        box-shadow: inset 0 0 0 2px #7a5214;
+    }
+    .log-toggle-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        padding: 4px 10px;
+        border-radius: 6px;
+        border-color: #d0d5dd;
+        color: #475467;
+        background: #ffffff;
+        pointer-events: none;
+        transition: all 0.15s ease-in-out;
+    }
+    .log-panel-header:hover .log-toggle-btn {
+        border-color: #7a5214;
+        color: #7a5214;
+    }
+    .log-panel-body {
+        transition: height 0.25s ease-in-out, opacity 0.2s ease-in-out;
+    }
+    .logs-scroll-container {
+        max-height: 300px;
+        overflow-y: auto;
+        overflow-x: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #6d4c1b #f4ede4;
+    }
+    .logs-scroll-container::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    .logs-scroll-container::-webkit-scrollbar-track {
+        background: #f4ede4;
+        border-radius: 4px;
+    }
+    .logs-scroll-container::-webkit-scrollbar-thumb {
+        background: #6d4c1b;
+        border-radius: 4px;
+    }
+    .logs-scroll-container::-webkit-scrollbar-thumb:hover {
+        background: #543912;
+    }
+    .log-table {
+        margin-bottom: 0;
+    }
+    .log-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: #f8fafc;
+        color: #475467;
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        border-bottom: 1.5px solid #e4e7ec;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+    .log-table td {
+        font-size: 0.86rem;
+        vertical-align: middle;
+        padding: 8px 12px;
+    }
     @media (max-width: 1100px) {
         .metric-grid, .enterprise-grid, .health-grid, .analytics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .maintenance-dashboard { grid-template-columns: 1fr; }
@@ -1701,14 +1792,23 @@ $breadcrumbs = [
     </div>
 
     <div class="row g-4 mb-4" id="logs">
+        <!-- Recovery Logs Card -->
         <div class="col-lg-6">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h2 class="h5 mb-3"><i class="fas fa-rotate-left"></i> Recovery Logs</h2>
+            <div class="card h-100 log-panel-card" id="recoveryLogsCard">
+                <div class="card-header log-panel-header" id="recoveryLogsHeader" role="button" tabindex="0" aria-expanded="true" aria-controls="recoveryLogsBody">
+                    <h2 class="h5 mb-0"><i class="fas fa-rotate-left"></i> Recovery Logs</h2>
+                    <button type="button" class="btn btn-sm btn-outline-secondary log-toggle-btn" id="recoveryLogsToggle" aria-label="Toggle Recovery Logs">
+                        <span class="toggle-text">Hide</span>
+                        <i class="fas fa-chevron-down toggle-icon"></i>
+                    </button>
+                </div>
+                <div class="card-body p-0 log-panel-body" id="recoveryLogsBody">
                     <?php if ($recent_recovery_logs): ?>
-                        <div class="table-responsive">
-                            <table class="table table-sm">
-                                <thead><tr><th>Date</th><th>Admin/User</th><th>Type</th><th>File</th><th>Status</th><th>Files</th></tr></thead>
+                        <div class="table-responsive logs-scroll-container">
+                            <table class="table table-sm table-hover mb-0 log-table">
+                                <thead>
+                                    <tr><th>Date</th><th>Admin/User</th><th>Type</th><th>File</th><th>Status</th><th>Files</th></tr>
+                                </thead>
                                 <tbody>
                                     <?php foreach ($recent_recovery_logs as $log): ?>
                                         <tr>
@@ -1724,19 +1824,31 @@ $breadcrumbs = [
                             </table>
                         </div>
                     <?php else: ?>
-                        <div class="alert alert-light border mb-0">No recovery operations logged yet.</div>
+                        <div class="p-3">
+                            <div class="alert alert-light border mb-0">No recovery operations logged yet.</div>
+                        </div>
                     <?php endif; ?>
                 </div>
             </div>
         </div>
+
+        <!-- Maintenance Logs Card -->
         <div class="col-lg-6">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h2 class="h5 mb-3"><i class="fas fa-screwdriver-wrench"></i> Maintenance Logs</h2>
+            <div class="card h-100 log-panel-card" id="maintenanceLogsCard">
+                <div class="card-header log-panel-header" id="maintenanceLogsHeader" role="button" tabindex="0" aria-expanded="true" aria-controls="maintenanceLogsBody">
+                    <h2 class="h5 mb-0"><i class="fas fa-screwdriver-wrench"></i> Maintenance Logs</h2>
+                    <button type="button" class="btn btn-sm btn-outline-secondary log-toggle-btn" id="maintenanceLogsToggle" aria-label="Toggle Maintenance Logs">
+                        <span class="toggle-text">Hide</span>
+                        <i class="fas fa-chevron-down toggle-icon"></i>
+                    </button>
+                </div>
+                <div class="card-body p-0 log-panel-body" id="maintenanceLogsBody">
                     <?php if ($recent_maintenance_logs): ?>
-                        <div class="table-responsive">
-                            <table class="table table-sm">
-                                <thead><tr><th>Date</th><th>Admin/User</th><th>Type</th><th>Status</th><th>Details</th></tr></thead>
+                        <div class="table-responsive logs-scroll-container">
+                            <table class="table table-sm table-hover mb-0 log-table">
+                                <thead>
+                                    <tr><th>Date</th><th>Admin/User</th><th>Type</th><th>Status</th><th>Details</th></tr>
+                                </thead>
                                 <tbody>
                                     <?php foreach ($recent_maintenance_logs as $log): ?>
                                         <tr>
@@ -1751,7 +1863,9 @@ $breadcrumbs = [
                             </table>
                         </div>
                     <?php else: ?>
-                        <div class="alert alert-light border mb-0">No maintenance runs logged yet.</div>
+                        <div class="p-3">
+                            <div class="alert alert-light border mb-0">No maintenance runs logged yet.</div>
+                        </div>
                     <?php endif; ?>
                 </div>
             </div>
@@ -1939,6 +2053,64 @@ $breadcrumbs = [
             });
         }
     });
+
+    // Accordion Toggle for Recovery and Maintenance Log Panels with localStorage persistence
+    function initLogPanels() {
+        var panels = [
+            { headerId: 'recoveryLogsHeader', bodyId: 'recoveryLogsBody', key: 'tugon_recovery_logs_state' },
+            { headerId: 'maintenanceLogsHeader', bodyId: 'maintenanceLogsBody', key: 'tugon_maintenance_logs_state' }
+        ];
+
+        panels.forEach(function(p) {
+            var header = document.getElementById(p.headerId);
+            var body = document.getElementById(p.bodyId);
+            if (!header || !body) return;
+
+            var toggleBtn = header.querySelector('.log-toggle-btn');
+            var textSpan = toggleBtn ? toggleBtn.querySelector('.toggle-text') : null;
+            var iconEl = toggleBtn ? toggleBtn.querySelector('.toggle-icon') : null;
+
+            function setPanelState(isExpanded) {
+                if (isExpanded) {
+                    body.style.display = 'block';
+                    header.setAttribute('aria-expanded', 'true');
+                    if (textSpan) textSpan.textContent = 'Hide';
+                    if (iconEl) iconEl.className = 'fas fa-chevron-down toggle-icon';
+                } else {
+                    body.style.display = 'none';
+                    header.setAttribute('aria-expanded', 'false');
+                    if (textSpan) textSpan.textContent = 'Show';
+                    if (iconEl) iconEl.className = 'fas fa-chevron-right toggle-icon';
+                }
+            }
+
+            // Restore state from localStorage (defaults to expanded)
+            var savedState = localStorage.getItem(p.key);
+            if (savedState === 'collapsed') {
+                setPanelState(false);
+            } else {
+                setPanelState(true);
+            }
+
+            // Click listener
+            header.addEventListener('click', function() {
+                var isCurrentlyExpanded = header.getAttribute('aria-expanded') === 'true';
+                var newState = !isCurrentlyExpanded;
+                setPanelState(newState);
+                localStorage.setItem(p.key, newState ? 'expanded' : 'collapsed');
+            });
+
+            // Keyboard accessibility (Enter / Spacebar)
+            header.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    header.click();
+                }
+            });
+        });
+    }
+
+    initLogPanels();
 </script>
 
 <?php include '../templates/footer.php'; ?>
