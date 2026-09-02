@@ -259,55 +259,53 @@ final class TugonConversationalIntent
     private static function greetingResponses($language, $period, $specificIntent = self::GREETING)
     {
         if ($language === 'fil' || $language === 'taglish') {
-            if ($specificIntent === self::GOOD_MORNING) {
+            if ($specificIntent === self::GOOD_MORNING || ($specificIntent === self::GREETING && $period === 'morning')) {
                 return [
-                    "Magandang umaga rin po! ☀️ Paano ko po kayo matutulungan ngayon?",
-                    "Magandang umaga po! ☀️ Welcome sa TUGON. Ano po ang maitutulong ko sa inyo para sa parish services?"
+                    "Magandang umaga po at sumainyo ang kapayapaan! ☀️ Ako po ang inyong TUGON Parish Guide. Handa po akong tumulong sa mga serbisyo ng parokya, iskedyul ng misa, sakramento, at mga kahilingan.",
+                    "Magandang umaga po! Pagpalain nawa ang inyong araw. Paano po kayo matutulungan ng TUGON Parish Guide sa inyong mga katanungan sa simbahan?"
                 ];
             }
-            if ($specificIntent === self::GOOD_AFTERNOON) {
+            if ($specificIntent === self::GOOD_AFTERNOON || ($specificIntent === self::GREETING && $period === 'afternoon')) {
                 return [
-                    "Magandang hapon din po! 😊 Paano ko po kayo matutulungan ngayong hapon?",
-                    "Magandang hapon po! 😊 Welcome sa TUGON. May maitutulong po ba ako tungkol sa mga serbisyo ng parokya?"
+                    "Magandang hapon po at sumainyo ang kapayapaan! 🕊️ Ang TUGON Parish Guide ay narito upang tumulong sa inyong mga sacramental records, schedules, at mga certificate requests.",
+                    "Magandang hapon po! Pagpalain po ang inyong araw. Paano po kayo matutulungan ngayon ng TUGON Parish Guide?"
                 ];
             }
-            if ($specificIntent === self::GOOD_EVENING) {
+            if ($specificIntent === self::GOOD_EVENING || ($specificIntent === self::GREETING && ($period === 'evening' || $period === 'night'))) {
                 return [
-                    "Magandang gabi rin po! 🌙 Paano ko po kayo matutulungan ngayong gabi?",
-                    "Magandang gabi po! 🌙 Welcome sa TUGON. Handa po akong tumulong sa inyong mga katanungan."
+                    "Magandang gabi po at sumainyo ang kapayapaan! 🌙 Narito po ang TUGON Parish Guide upang tumulong sa inyong mga katanungan tungkol sa serbisyo ng parokya at mga iskedyul.",
+                    "Magandang gabi po! Nawa'y maging mapayapa ang inyong gabi. Ano po ang maitutulong ko sa inyo para sa mga serbisyo ng ating simbahan?"
                 ];
             }
             return [
-                "Hello po! 👋 Welcome sa TUGON. Paano ko po kayo matutulungan ngayon?",
-                "Kumusta po! 😊 Handa po akong tumulong sa inyong mga tanong tungkol sa parish services, requests, at schedules.",
-                "Magandang araw po! Paano ko po kayo matutulungan sa inyong parish-related concern?"
+                "Magandang araw po at sumainyo ang kapayapaan! 👋 Ako po ang inyong TUGON Parish Guide. Paano po kita matutulungan sa mga sakramento, sertipiko, o iskedyul ng misa ngayon?",
+                "Kumusta po! Pagpalain po kayo. Narito ang TUGON Parish Guide upang magbigay-gabay sa inyong mga kahilingan sa parokya."
             ];
         }
 
         // English greetings using dynamic time
         if ($specificIntent === self::GOOD_MORNING || ($specificIntent === self::GREETING && $period === 'morning')) {
             return [
-                "Good morning! ☀️ Welcome to TUGON. How may I assist you today?",
-                "Good morning! ☀️ How can I help you with your parish-related concern today?"
+                "Good morning! Peace be with you. ☀️ TUGON Parish Guide is here to assist you with all parish services, Mass schedules, sacraments, certificate requirements, and requests. How can I help you on this blessed day?",
+                "Good morning, and may your day be blessed! ☀️ How may I assist you with parish records, Mass times, or sacramental guidelines today?"
             ];
         }
         if ($specificIntent === self::GOOD_AFTERNOON || ($specificIntent === self::GREETING && $period === 'afternoon')) {
             return [
-                "Good afternoon! 😊 Welcome to TUGON. How can I help you today?",
-                "Good afternoon! 😊 How may I assist you with your parish-related concern?"
+                "Good afternoon! Peace be with you. 🕊️ TUGON Parish Guide is here to assist you with parish services, Mass schedules, sacraments, and certificate requests. How may I help you today?",
+                "Good afternoon! May your day be blessed. How can I assist you with church records or services this afternoon?"
             ];
         }
         if ($specificIntent === self::GOOD_EVENING || ($specificIntent === self::GREETING && ($period === 'evening' || $period === 'night'))) {
             return [
-                "Good evening! 🌙 Welcome to TUGON. How may I assist you tonight?",
-                "Good evening! 🌙 How can I help you with parish information or services tonight?"
+                "Good evening! Peace be with you. 🌙 TUGON Parish Guide is here to assist you with sacramental inquiries, Mass schedules, or request tracking. How may I assist you tonight?",
+                "Good evening! May your night be peaceful and blessed. How can I help you with parish services or inquiries?"
             ];
         }
 
         return [
-            "Hello! 👋 Welcome to TUGON. How may I assist you today?",
-            "Hello! It's nice to hear from you. How can I help you with your parish-related concern?",
-            "Hi there! 😊 I'm TUGON AI, your parish assistant. What can I help you with today?"
+            "Hello, and peace be with you! 🕊️ I'm your TUGON Parish Guide. How may I assist you with sacraments, certificate requests, or Mass schedules today?",
+            "Greetings in Christ! TUGON Parish Guide is at your service for parish records, schedules, and document requirements. How can I help you today?"
         ];
     }
 
