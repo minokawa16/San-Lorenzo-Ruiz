@@ -1,0 +1,32 @@
+{
+  "name": "church-ai-backend",
+  "version": "1.0.0",
+  "description": "24/7 AI Church Assistant Backend Server powered by Google Gemini and Express",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node test.js"
+  },
+  "keywords": [
+    "church",
+    "ai-assistant",
+    "gemini",
+    "taglish-nlp",
+    "express",
+    "railway"
+  ],
+  "author": "San Lorenzo Ruiz Parish",
+  "license": "MIT",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "helmet": "^8.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

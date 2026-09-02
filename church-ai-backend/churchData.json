@@ -1,0 +1,135 @@
+{
+  "parishInfo": {
+    "name": "San Lorenzo Ruiz Parish",
+    "diocese": "Diocese of Kidapawan",
+    "address": "Poblacion, Midsayap, Cotabato, Philippines 9410",
+    "patronSaint": "San Lorenzo Ruiz (Feast Day: September 28)",
+    "parishPriest": "Rev. Fr. Emmanuel M. De Guzman",
+    "parochialVicar": "Rev. Fr. Joseph R. Santos",
+    "emergencyHotline": "+63 917 555 0199",
+    "email": "sanlorenzoruiz.parish@gmail.com",
+    "facebook": "fb.com/SanLorenzoRuizParishOfficial"
+  },
+  "officeHours": {
+    "schedule": [
+      {
+        "days": "Tuesday to Saturday",
+        "morningHours": "8:00 AM - 12:00 PM",
+        "afternoonHours": "1:30 PM - 5:00 PM"
+      },
+      {
+        "days": "Sunday",
+        "hours": "8:00 AM - 12:00 PM (Morning Only)"
+      },
+      {
+        "days": "Monday",
+        "status": "Closed (Priests and Staff Rest Day)"
+      }
+    ],
+    "notes": "Office transactions, document requests, and sacrament bookings are entertained strictly during regular office hours."
+  },
+  "massSchedule": {
+    "sunday": [
+      { "time": "6:00 AM", "language": "Cebuano / Bisaya", "type": "Community Mass" },
+      { "time": "7:30 AM", "language": "Tagalog / Filipino", "type": "Family Mass" },
+      { "time": "9:00 AM", "language": "English", "type": "Youth & High Mass" },
+      { "time": "4:00 PM", "language": "Tagalog", "type": "Afternoon Mass" },
+      { "time": "5:30 PM", "language": "English", "type": "Sunday Evening Mass" }
+    ],
+    "anticipatedSaturday": [
+      { "time": "5:30 PM", "language": "English", "type": "Anticipated Sunday Mass" }
+    ],
+    "weekday": [
+      { "days": "Monday to Friday", "time": "6:00 AM", "language": "Tagalog / Cebuano", "type": "Daily Morning Mass" },
+      { "days": "Wednesday", "time": "5:30 PM", "language": "Tagalog / English", "type": "Novena to Our Mother of Perpetual Help & Holy Mass" },
+      { "days": "First Friday of the Month", "time": "5:30 PM", "language": "English", "type": "Sacred Heart of Jesus Healing Mass & Holy Hour" }
+    ]
+  },
+  "sacraments": {
+    "confession": {
+      "schedule": "Every Wednesday and Friday at 4:30 PM - 5:15 PM (Before Mass); Every Saturday at 4:00 PM - 5:00 PM; or by appointment at the Parish Office for sick calls.",
+      "location": "Confessional Area near the Sacred Heart Shrine",
+      "requirements": "Contrite heart, examination of conscience, and sincere confession."
+    },
+    "baptism": {
+      "schedule": {
+        "regularCommunityBaptism": "Every Sunday at 10:30 AM (Pre-Baptismal Seminar on Saturday at 9:00 AM)",
+        "specialSoloBaptism": "By appointment (Tuesday to Saturday mornings upon priest availability)"
+      },
+      "requirements": [
+        "Photocopy of Child's PSA (Philippine Statistics Authority) or Local Civil Registrar Birth Certificate",
+        "Photocopy of Parents' Catholic Church Marriage Certificate (or Civil Marriage Contract / CENOMAR)",
+        "Parishioner Certificate or Barangay Clearance proving local residency",
+        "Official Godparent (Ninong/Ninang) Catholic Confirmation (Kumpil) Certificate (Must be at least 16 years old and practicing Catholic)",
+        "Attendance of Parents and Godparents at the Pre-Baptismal Seminar (Saturday 9:00 AM at the Parish Hall)"
+      ],
+      "bookingNotice": "Register at the Parish Office at least 1 to 2 weeks before the intended baptism date."
+    },
+    "confirmation": {
+      "schedule": "Annual Parish Confirmation during the Parish Fiesta (September) or quarterly vicariate schedules.",
+      "requirements": [
+        "Photocopy of PSA Birth Certificate",
+        "Original or Certified True Copy of Catholic Baptismal Certificate (marked 'For Confirmation Purposes')",
+        "Parish Catechetical Seminar Completion Certificate",
+        "Sponsor (Ninong/Ninang) Confirmation Certificate"
+      ]
+    },
+    "holyMatrimony": {
+      "schedule": "Tuesdays to Saturdays (Morning slots: 9:00 AM, 10:30 AM; Afternoon slots: 2:00 PM, 3:30 PM). No regular weddings on Sundays or Good Friday.",
+      "bookingNotice": "Apply and submit documentary requirements at least 2 to 3 months prior to wedding date to complete banns publication.",
+      "requirements": [
+        "PSA Birth Certificate of Groom and Bride (Original & 2 photocopies)",
+        "PSA Certificate of No Marriage Record (CENOMAR) valid within 6 months",
+        "Newly issued Catholic Baptismal Certificate with annotation 'For Marriage Purposes' (Valid within 6 months)",
+        "Newly issued Catholic Confirmation Certificate with annotation 'For Marriage Purposes'",
+        "Pre-Cana / Marriage Preparation Seminar Certificate (2-day seminar conducted by Family and Life Ministry)",
+        "Canonical Interview with the Parish Priest (Scheduled after preliminary document review)",
+        "Publication of Marriage Banns in home parishes for 3 consecutive Sundays",
+        "Local Civil Registrar Marriage License (or Article 34 Affidavit of Cohabitation if living together for over 5 years)",
+        "Confession of Bride and Groom (1 or 2 days prior to the wedding mass)"
+      ]
+    },
+    "anointingOfTheSick": {
+      "availability": "24/7 on call for emergency cases / Viaticum; scheduled hospital and home blessings through the Parish Office.",
+      "instructions": "Call the parish emergency mobile hotline immediately (+63 917 555 0199) or visit the office to request a priest."
+    },
+    "funeralAndBlessing": {
+      "funeralMass": "Tuesday to Saturday at 1:00 PM or 2:30 PM (Must present Death Certificate and coordinate with cemetery/crematorium).",
+      "houseAndVehicleBlessing": "Scheduled Tuesday to Saturday afternoons by appointment at the office."
+    }
+  },
+  "certificateIssuance": {
+    "types": [
+      "Baptismal Certificate",
+      "Confirmation Certificate",
+      "Marriage Certificate",
+      "Certificate of Good Moral Character / Parish Recommendation"
+    ],
+    "processingTime": "1 to 3 working days upon filing",
+    "requirements": [
+      "Valid Government-Issued ID of the record owner (or authorization letter and ID of representative)",
+      "Approximate date/year of sacrament and full name of parents recorded in parish registry books"
+    ]
+  },
+  "parishMinistries": [
+    "Commission on Liturgy (Eucharistic Ministers of Holy Communion, Lectors & Commentators, Altar Servers)",
+    "Family and Life Ministry (Pre-Cana seminars, counseling, marriage enrichment)",
+    "Parish Youth Ministry (PYM - Youth fellowship, choir, outreach)",
+    "Social Action & Caritas Ministry (Poverty alleviation, feeding programs, calamity response)",
+    "Catechetical Ministry (Sunday school, baptism and confirmation formation)"
+  ],
+  "frequentlyAskedQuestions": [
+    {
+      "question": "Can non-parishioners request sacraments or certificates?",
+      "answer": "Yes, but they must submit a Certificate of Permission / No Objection from their home parish priest for sacraments."
+    },
+    {
+      "question": "What if my baptism was in another parish?",
+      "answer": "You must obtain your Baptismal Certificate directly from the specific parish where you were baptized, as sacramental registries are maintained by the church of origin."
+    },
+    {
+      "question": "Are godparents required to be Roman Catholics?",
+      "answer": "Yes, canon law requires that at least one official godparent be a fully initiated, practicing Roman Catholic who has received Baptism, First Communion, and Confirmation."
+    }
+  ]
+}
