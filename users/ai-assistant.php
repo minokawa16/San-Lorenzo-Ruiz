@@ -16,22 +16,29 @@ $body_extra_class = 'user-ai-chat-page';
 
 <style>
     :root {
-        --ai-blue: #1e3a8a;
-        --ai-blue-soft: #dbeafe;
-        --ai-gold: #d4af37;
-        --ai-ink: #0f172a;
-        --ai-muted: #64748b;
-        --ai-line: #e2e8f0;
-        --ai-white: #f8fafc;
-        --ai-card: rgba(255, 255, 255, 0.92);
+        --ai-primary: #344536;
+        --ai-primary-dark: #243326;
+        --ai-primary-deep: #1B261D;
+        --ai-gold: #C9A646;
+        --ai-gold-hover: #B89332;
+        --ai-gold-soft: rgba(201, 166, 70, 0.12);
+        --ai-gold-border: #E7DFC9;
+        --ai-bg-cream: #F8F5ED;
+        --ai-bg-warm: #FAF7F0;
+        --ai-surface: #FFFDF8;
+        --ai-text: #30342F;
+        --ai-muted: #7D8078;
+        --ai-line: #E7DFC9;
+        --ai-card: #FFFDF8;
+        --ai-shadow: 0 16px 48px rgba(34, 45, 36, 0.14), 0 4px 16px rgba(201, 166, 70, 0.08);
     }
 
     .tugon-ai-page {
         min-height: calc(100vh - 90px);
         padding: clamp(18px, 3vw, 34px);
         background:
-            radial-gradient(circle at top left, rgba(212, 175, 55, 0.14), transparent 28%),
-            linear-gradient(135deg, #f8fafc 0%, #eef4ff 48%, #f8fafc 100%);
+            radial-gradient(circle at top left, rgba(201, 166, 70, 0.1), transparent 32%),
+            linear-gradient(135deg, #F8F5ED 0%, #FAF7F0 48%, #F8F5ED 100%);
     }
 
     .tugon-ai-shell {
@@ -43,10 +50,10 @@ $body_extra_class = 'user-ai-chat-page';
 
     .tugon-ai-card {
         overflow: hidden;
-        border: 1px solid rgba(226, 232, 240, 0.92);
+        border: 1px solid var(--ai-line);
         border-radius: 20px;
         background: var(--ai-card);
-        box-shadow: 0 24px 70px rgba(15, 23, 42, 0.12);
+        box-shadow: var(--ai-shadow);
         backdrop-filter: blur(18px);
     }
 
@@ -55,11 +62,11 @@ $body_extra_class = 'user-ai-chat-page';
         align-items: center;
         justify-content: space-between;
         gap: 16px;
-        padding: 22px clamp(18px, 3vw, 28px);
-        color: #ffffff;
+        padding: 20px clamp(18px, 3vw, 28px);
+        color: #FFFDF8;
         background:
-            linear-gradient(135deg, rgba(30, 58, 138, 0.98), rgba(30, 64, 175, 0.94)),
-            radial-gradient(circle at top right, rgba(212, 175, 55, 0.34), transparent 32%);
+            linear-gradient(135deg, #344536 0%, #243326 100%);
+        border-bottom: 2px solid var(--ai-gold);
     }
 
     .tugon-ai-identity {
@@ -70,30 +77,32 @@ $body_extra_class = 'user-ai-chat-page';
     }
 
     .tugon-ai-avatar {
-        width: 58px;
-        height: 58px;
-        border-radius: 18px;
+        width: 54px;
+        height: 54px;
+        border-radius: 16px;
         display: grid;
         place-items: center;
         flex: 0 0 auto;
-        color: #172554;
-        background: linear-gradient(135deg, #fff7d6, var(--ai-gold));
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 16px 34px rgba(15, 23, 42, 0.22);
-        font-size: 1.45rem;
+        color: #FFFDF8;
+        background: linear-gradient(135deg, rgba(201, 166, 70, 0.3) 0%, rgba(201, 166, 70, 0.12) 100%);
+        border: 1.5px solid var(--ai-gold);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2), 0 0 10px rgba(201, 166, 70, 0.3);
+        font-size: 1.4rem;
     }
 
     .tugon-ai-title-block h1 {
         margin: 0;
-        color: #ffffff;
-        font-size: clamp(1.35rem, 2.5vw, 2rem);
-        font-weight: 850;
-        letter-spacing: 0;
+        color: #FFFDF8;
+        font-family: "Playfair Display", "Cinzel", Georgia, serif;
+        font-size: clamp(1.35rem, 2.5vw, 1.9rem);
+        font-weight: 700;
+        letter-spacing: 0.3px;
     }
 
     .tugon-ai-title-block p {
-        margin: 4px 0 0;
-        color: rgba(248, 250, 252, 0.82);
-        font-size: 0.95rem;
+        margin: 3px 0 0;
+        color: #D8CEB8;
+        font-size: 0.9rem;
     }
 
     .tugon-ai-status {
@@ -110,38 +119,40 @@ $body_extra_class = 'user-ai-chat-page';
 
     .ai-status-pill,
     .ai-icon-btn {
-        border: 1px solid rgba(255, 255, 255, 0.22);
+        border: 1px solid rgba(201, 166, 70, 0.4);
         border-radius: 999px;
-        background: rgba(255, 255, 255, 0.12);
-        color: #ffffff;
+        background: rgba(255, 255, 255, 0.08);
+        color: #FFFDF8;
         min-height: 36px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         gap: 8px;
-        padding: 8px 12px;
-        font-weight: 800;
-        font-size: 0.84rem;
+        padding: 8px 14px;
+        font-weight: 600;
+        font-size: 0.82rem;
     }
 
     .ai-status-dot {
-        width: 9px;
-        height: 9px;
+        width: 8px;
+        height: 8px;
         border-radius: 50%;
-        background: #22c55e;
-        box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.18);
+        background: #22C55E;
+        box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.3);
     }
 
     .ai-icon-btn {
-        width: 38px;
+        width: 36px;
         padding: 0;
         cursor: pointer;
-        transition: transform 0.18s ease, background 0.18s ease;
+        transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
     }
 
     .ai-icon-btn:hover {
-        background: rgba(255, 255, 255, 0.2);
+        background: rgba(201, 166, 70, 0.25);
+        border-color: var(--ai-gold);
         transform: translateY(-1px);
+        color: #FFFFFF;
     }
 
     .tugon-ai-body {
@@ -149,6 +160,7 @@ $body_extra_class = 'user-ai-chat-page';
         grid-template-columns: minmax(0, 1fr) 290px;
         gap: 18px;
         padding: clamp(16px, 2.4vw, 24px);
+        background: #FAF7F0;
     }
 
     .tugon-ai-main {
@@ -160,23 +172,26 @@ $body_extra_class = 'user-ai-chat-page';
 
     .tugon-ai-welcome {
         border: 1px solid var(--ai-line);
-        border-radius: 18px;
-        padding: 18px;
-        background:
-            linear-gradient(135deg, rgba(248, 250, 252, 0.92), rgba(255, 255, 255, 0.96)),
-            radial-gradient(circle at right, rgba(212, 175, 55, 0.12), transparent 30%);
+        border-left: 4px solid var(--ai-gold);
+        border-radius: 16px;
+        padding: 16px 20px;
+        background: #FFFDF8;
+        box-shadow: 0 3px 12px rgba(52, 69, 54, 0.04);
     }
 
     .tugon-ai-welcome h2 {
-        margin: 0 0 7px;
-        color: var(--ai-ink);
-        font-size: 1.22rem;
-        font-weight: 850;
+        margin: 0 0 6px;
+        color: var(--ai-primary);
+        font-family: "Playfair Display", Georgia, serif;
+        font-size: 1.18rem;
+        font-weight: 700;
     }
 
     .tugon-ai-welcome p {
-        margin: 0 0 13px;
-        color: var(--ai-muted);
+        margin: 0;
+        color: var(--ai-text);
+        font-size: 0.9rem;
+        line-height: 1.55;
     }
 
     .ai-quick-grid {
@@ -186,24 +201,27 @@ $body_extra_class = 'user-ai-chat-page';
     }
 
     .ai-chip {
-        border: 1px solid #cbd5e1;
+        border: 1px solid var(--ai-line);
         border-radius: 999px;
-        background: #ffffff;
-        color: #1e3a8a;
+        background: #FFFDF8;
+        color: var(--ai-primary);
         min-height: 36px;
-        padding: 8px 12px;
-        font-weight: 800;
-        font-size: 0.85rem;
+        padding: 8px 14px;
+        font-weight: 600;
+        font-size: 0.82rem;
         display: inline-flex;
         align-items: center;
-        gap: 8px;
+        gap: 7px;
         cursor: pointer;
-        transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+        transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+        box-shadow: 0 1px 4px rgba(52, 69, 54, 0.04);
     }
 
     .ai-chip:hover {
-        border-color: var(--ai-gold);
-        box-shadow: 0 10px 22px rgba(30, 58, 138, 0.12);
+        background: var(--ai-primary);
+        border-color: var(--ai-primary);
+        color: #FFFFFF;
+        box-shadow: 0 4px 12px rgba(52, 69, 54, 0.15);
         transform: translateY(-1px);
     }
 
@@ -215,7 +233,7 @@ $body_extra_class = 'user-ai-chat-page';
         padding: 16px;
         border: 1px solid var(--ai-line);
         border-radius: 18px;
-        background: rgba(248, 250, 252, 0.78);
+        background: #FFFDF8;
         scroll-behavior: smooth;
     }
 
@@ -234,77 +252,103 @@ $body_extra_class = 'user-ai-chat-page';
     .ai-message-avatar {
         width: 36px;
         height: 36px;
-        border-radius: 14px;
+        border-radius: 12px;
         display: grid;
         place-items: center;
-        color: #ffffff;
-        background: var(--ai-blue);
-        box-shadow: 0 8px 18px rgba(30, 58, 138, 0.18);
+        color: #FFFDF8;
+        background: var(--ai-primary);
+        border: 1px solid var(--ai-gold);
+        box-shadow: 0 4px 12px rgba(52, 69, 54, 0.18);
+        font-size: 0.95rem;
     }
 
     .ai-message.user .ai-message-avatar {
         grid-column: 2;
-        background: #334155;
+        background: #4A4E48;
+        border-color: #7D8078;
     }
 
     .ai-bubble {
         width: fit-content;
         max-width: min(720px, 100%);
-        padding: 13px 14px;
-        border-radius: 18px 18px 18px 8px;
-        color: var(--ai-ink);
-        background: #ffffff;
+        padding: 13px 16px;
+        border-radius: 18px 18px 18px 6px;
+        color: var(--ai-text);
+        background: #FFFDF8;
         border: 1px solid var(--ai-line);
-        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+        border-left: 3px solid var(--ai-gold);
+        box-shadow: 0 3px 14px rgba(52, 69, 54, 0.05);
     }
 
     .ai-message.user .ai-bubble {
         justify-self: end;
         grid-column: 1;
         grid-row: 1;
-        color: #ffffff;
-        background: linear-gradient(135deg, var(--ai-blue), #2563eb);
-        border-color: rgba(37, 99, 235, 0.24);
-        border-radius: 18px 18px 8px 18px;
+        color: #FFFFFF;
+        background: linear-gradient(135deg, var(--ai-primary), #243326);
+        border: 1px solid rgba(201, 166, 70, 0.35);
+        border-radius: 18px 18px 6px 18px;
+        box-shadow: 0 3px 12px rgba(52, 69, 54, 0.15);
     }
 
     .ai-bubble strong {
         display: block;
         margin-bottom: 5px;
-        font-weight: 850;
+        font-weight: 700;
+        color: var(--ai-primary);
+        font-family: "Playfair Display", Georgia, serif;
+    }
+
+    .ai-message.user .ai-bubble strong {
+        color: #FFFDF8;
     }
 
     .ai-bubble p {
         margin: 0;
-        line-height: 1.55;
+        line-height: 1.6;
+        color: inherit;
     }
 
-    .ai-bubble ol {
-        margin: 10px 0 0;
+    .ai-bubble ol,
+    .ai-bubble ul {
+        margin: 8px 0 0;
         padding-left: 18px;
+    }
+
+    .ai-bubble li {
+        margin-bottom: 4px;
+        line-height: 1.5;
     }
 
     .ai-meta {
         display: flex;
         align-items: center;
         gap: 9px;
-        margin-top: 10px;
-        color: #94a3b8;
+        margin-top: 8px;
+        color: var(--ai-muted);
         font-size: 0.76rem;
-        font-weight: 700;
+        font-weight: 600;
     }
 
     .ai-message.user .ai-meta {
-        color: rgba(255, 255, 255, 0.74);
+        color: rgba(255, 255, 255, 0.8);
+        justify-content: flex-end;
     }
 
     .ai-copy-btn {
         border: 0;
-        padding: 0;
+        padding: 2px 6px;
+        border-radius: 4px;
         background: transparent;
-        color: inherit;
-        font-weight: 800;
+        color: var(--ai-muted);
+        font-weight: 600;
         cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .ai-copy-btn:hover {
+        color: var(--ai-gold);
+        background: var(--ai-gold-soft);
     }
 
     .ai-suggestions {
@@ -318,7 +362,7 @@ $body_extra_class = 'user-ai-chat-page';
         width: 100%;
         color: var(--ai-muted);
         font-size: 0.78rem;
-        font-weight: 800;
+        font-weight: 700;
     }
 
     .ai-typing-line {
@@ -326,12 +370,12 @@ $body_extra_class = 'user-ai-chat-page';
         align-items: center;
         gap: 9px;
         color: var(--ai-muted);
-        font-weight: 800;
+        font-weight: 600;
     }
 
     .ai-typing-dots {
         display: inline-flex;
-        gap: 4px;
+        gap: 5px;
     }
 
     .ai-typing-dots span {
@@ -339,15 +383,15 @@ $body_extra_class = 'user-ai-chat-page';
         height: 7px;
         border-radius: 50%;
         background: var(--ai-gold);
-        animation: aiTyping 0.9s infinite ease-in-out;
+        animation: aiTyping 1.2s infinite ease-in-out;
     }
 
     .ai-typing-dots span:nth-child(2) {
-        animation-delay: 0.12s;
+        animation-delay: 0.16s;
     }
 
     .ai-typing-dots span:nth-child(3) {
-        animation-delay: 0.24s;
+        animation-delay: 0.32s;
     }
 
     .tugon-ai-form {
@@ -355,48 +399,71 @@ $body_extra_class = 'user-ai-chat-page';
         grid-template-columns: minmax(0, 1fr) auto auto;
         gap: 10px;
         align-items: end;
-        padding: 12px;
-        border: 1px solid var(--ai-line);
+        padding: 12px 14px;
+        border: 1.5px solid var(--ai-line);
         border-radius: 18px;
-        background: #ffffff;
-        box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+        background: #FFFDF8;
+        box-shadow: 0 4px 18px rgba(52, 69, 54, 0.05);
+        transition: border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .tugon-ai-form:focus-within {
+        border-color: var(--ai-gold);
+        box-shadow: 0 0 0 3.5px rgba(201, 166, 70, 0.18);
     }
 
     .tugon-ai-form textarea {
-        min-height: 48px;
+        min-height: 46px;
         max-height: 130px;
         resize: vertical;
         border: 0;
         outline: 0;
-        padding: 12px 10px;
-        color: var(--ai-ink);
+        padding: 10px 8px;
+        color: var(--ai-text);
         background: transparent;
+        font-family: inherit;
+        font-size: 0.92rem;
     }
 
     .ai-send-btn,
     .ai-voice-btn {
         border: 0;
-        border-radius: 14px;
-        min-height: 46px;
+        border-radius: 12px;
+        min-height: 44px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         gap: 8px;
-        font-weight: 850;
+        font-weight: 700;
         cursor: pointer;
+        transition: transform 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
     }
 
     .ai-send-btn {
-        padding: 0 18px;
-        color: #ffffff;
-        background: linear-gradient(135deg, var(--ai-blue), #2563eb);
-        box-shadow: 0 12px 24px rgba(30, 58, 138, 0.22);
+        padding: 0 20px;
+        color: #FFFDF8;
+        background: linear-gradient(135deg, var(--ai-primary), #243326);
+        border: 1px solid var(--ai-gold);
+        box-shadow: 0 4px 14px rgba(52, 69, 54, 0.2);
+    }
+
+    .ai-send-btn:hover {
+        background: linear-gradient(135deg, var(--ai-gold), var(--ai-gold-hover));
+        color: #FFFFFF;
+        transform: translateY(-1px);
+        box-shadow: 0 6px 18px rgba(201, 166, 70, 0.35);
     }
 
     .ai-voice-btn {
-        width: 46px;
-        color: var(--ai-blue);
-        background: var(--ai-blue-soft);
+        width: 44px;
+        color: var(--ai-primary);
+        background: var(--ai-bg-cream);
+        border: 1px solid var(--ai-line);
+    }
+
+    .ai-voice-btn:hover {
+        background: var(--ai-gold-soft);
+        border-color: var(--ai-gold);
     }
 
     .tugon-ai-side {
@@ -408,16 +475,17 @@ $body_extra_class = 'user-ai-chat-page';
     .ai-side-panel {
         border: 1px solid var(--ai-line);
         border-radius: 18px;
-        padding: 16px;
-        background: #ffffff;
-        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+        padding: 16px 18px;
+        background: #FFFDF8;
+        box-shadow: 0 4px 16px rgba(52, 69, 54, 0.04);
     }
 
     .ai-side-panel h3 {
         margin: 0 0 10px;
-        color: var(--ai-ink);
-        font-size: 0.98rem;
-        font-weight: 850;
+        color: var(--ai-primary);
+        font-size: 0.95rem;
+        font-weight: 700;
+        font-family: "Playfair Display", Georgia, serif;
     }
 
     .ai-scope-list {
@@ -426,9 +494,9 @@ $body_extra_class = 'user-ai-chat-page';
         margin: 0;
         padding: 0;
         list-style: none;
-        color: #475569;
-        font-weight: 700;
-        font-size: 0.88rem;
+        color: #4A4E48;
+        font-weight: 500;
+        font-size: 0.86rem;
     }
 
     .ai-scope-list li {
@@ -442,13 +510,13 @@ $body_extra_class = 'user-ai-chat-page';
     }
 
     .ai-dark-mode {
-        --ai-ink: #e5e7eb;
-        --ai-muted: #94a3b8;
-        --ai-line: rgba(148, 163, 184, 0.24);
-        --ai-card: rgba(15, 23, 42, 0.92);
+        --ai-text: #E5E2DA;
+        --ai-muted: #9E9F9A;
+        --ai-line: rgba(201, 166, 70, 0.25);
+        --ai-card: #202D22;
         background:
-            radial-gradient(circle at top left, rgba(212, 175, 55, 0.1), transparent 28%),
-            linear-gradient(135deg, #020617, #0f172a);
+            radial-gradient(circle at top left, rgba(201, 166, 70, 0.1), transparent 28%),
+            linear-gradient(135deg, #182319, #202D22);
     }
 
     .ai-dark-mode .tugon-ai-card,
@@ -457,21 +525,21 @@ $body_extra_class = 'user-ai-chat-page';
     .ai-dark-mode .tugon-ai-form,
     .ai-dark-mode .ai-side-panel,
     .ai-dark-mode .ai-bubble {
-        background: rgba(15, 23, 42, 0.86);
-        color: var(--ai-ink);
+        background: #202D22;
+        color: var(--ai-text);
     }
 
     .ai-dark-mode .ai-chip,
     .ai-dark-mode .ai-voice-btn {
-        background: rgba(30, 41, 59, 0.92);
-        color: #bfdbfe;
-        border-color: rgba(148, 163, 184, 0.34);
+        background: #28372A;
+        color: #E8D8B5;
+        border-color: rgba(201, 166, 70, 0.3);
     }
 
     .ai-dark-mode .tugon-ai-form textarea,
     .ai-dark-mode .ai-side-panel h3,
     .ai-dark-mode .tugon-ai-welcome h2 {
-        color: var(--ai-ink);
+        color: #FFFDF8;
     }
 
     .tugon-ai-card.is-minimized .tugon-ai-body {
