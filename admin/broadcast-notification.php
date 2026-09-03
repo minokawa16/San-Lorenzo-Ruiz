@@ -184,38 +184,38 @@ include '../templates/header.php';
 
                 <div class="d-flex justify-content-end gap-2">
                     <a href="manage-announcements.php" class="btn btn-outline-secondary px-4">Cancel</a>
-                    <button type="button" class="btn btn-primary px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#confirmBroadcastModal" style="background: #344536; border-color: #2b392d;">
+                    <button type="button" class="btn btn-primary px-4 fw-bold" id="openConfirmModalBtn" style="background: #344536; border-color: #2b392d;">
                         <i class="fas fa-paper-plane me-1"></i> Send Broadcast
                     </button>
                 </div>
-
-                <!-- Confirmation Modal -->
-                <div class="modal fade" id="confirmBroadcastModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
-                    <div class="modal-dialog modal-dialog-centered">
-                        <div class="modal-content rounded-4 border-0 shadow">
-                            <div class="modal-header py-3" style="background: #344536; color: #fff;">
-                                <h5 class="modal-title fs-6 fw-bold" id="confirmModalLabel">
-                                    <i class="fas fa-triangle-exclamation me-2" style="color: #c9a646;"></i> Confirm Parish Notification Broadcast
-                                </h5>
-                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                            </div>
-                            <div class="modal-body p-4">
-                                <p class="mb-3">Are you sure you want to broadcast this notification?</p>
-                                <div class="p-3 rounded-3" style="background: #f8f5ed; border: 1px solid #e8e2d5;">
-                                    <div class="fw-bold text-dark mb-1" id="previewTitle">—</div>
-                                    <div class="text-muted small" id="previewAudience">—</div>
-                                </div>
-                            </div>
-                            <div class="modal-footer border-0">
-                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Go Back</button>
-                                <button type="button" class="btn btn-primary fw-bold" id="confirmSendBtn" style="background: #344536; border-color: #2b392d;">
-                                    <i class="fas fa-paper-plane me-1"></i> Confirm & Send Now
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal (Positioned at root document level to prevent backdrop overlap/flicker) -->
+<div class="modal fade" id="confirmBroadcastModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-white rounded-4 border-0 shadow-lg" style="box-shadow: 0 20px 45px rgba(0,0,0,0.25) !important;">
+            <div class="modal-header py-3" style="background: #344536; color: #fff;">
+                <h5 class="modal-title fs-6 fw-bold" id="confirmModalLabel">
+                    <i class="fas fa-triangle-exclamation me-2" style="color: #c9a646;"></i> Confirm Parish Notification Broadcast
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="mb-3 text-dark fw-medium">Are you sure you want to broadcast this notification?</p>
+                <div class="p-3 rounded-3" style="background: #f8f5ed; border: 1px solid #e8e2d5;">
+                    <div class="fw-bold text-dark mb-1 fs-6" id="previewTitle">—</div>
+                    <div class="text-muted small" id="previewAudience">—</div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Go Back</button>
+                <button type="button" class="btn btn-primary fw-bold px-4" id="confirmSendBtn" style="background: #344536; border-color: #2b392d;">
+                    <i class="fas fa-paper-plane me-1"></i> Confirm & Send Now
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -226,27 +226,48 @@ document.addEventListener('DOMContentLoaded', function () {
     var districtGroup = document.getElementById('districtGroup');
     var userGroup = document.getElementById('userGroup');
     var broadcastForm = document.getElementById('broadcastForm');
+    var openConfirmBtn = document.getElementById('openConfirmModalBtn');
     var confirmSendBtn = document.getElementById('confirmSendBtn');
     var previewTitle = document.getElementById('previewTitle');
     var previewAudience = document.getElementById('previewAudience');
     var titleInput = document.getElementById('broadcast_title');
+    var modalElement = document.getElementById('confirmBroadcastModal');
+    var modalInstance = null;
+
+    if (window.bootstrap && window.bootstrap.Modal) {
+        modalInstance = new bootstrap.Modal(modalElement);
+    }
 
     audienceSelect.addEventListener('change', function () {
         districtGroup.classList.toggle('d-none', this.value !== 'district');
         userGroup.classList.toggle('d-none', this.value !== 'user');
     });
 
-    document.querySelector('[data-bs-target="#confirmBroadcastModal"]').addEventListener('click', function () {
-        previewTitle.textContent = titleInput.value || '(No Title Entered)';
-        var audText = audienceSelect.options[audienceSelect.selectedIndex].text;
-        previewAudience.textContent = 'Target Audience: ' + audText;
-    });
+    if (openConfirmBtn) {
+        openConfirmBtn.addEventListener('click', function () {
+            if (broadcastForm && !broadcastForm.checkValidity()) {
+                broadcastForm.reportValidity();
+                return;
+            }
+            previewTitle.textContent = (titleInput && titleInput.value.trim()) ? titleInput.value.trim() : '(No Title Entered)';
+            var audText = audienceSelect.options[audienceSelect.selectedIndex].text;
+            previewAudience.innerHTML = '<i class="fas fa-users text-primary me-1"></i> ' + audText;
+            
+            if (modalInstance) {
+                modalInstance.show();
+            } else if (window.jQuery && window.jQuery.fn.modal) {
+                window.jQuery(modalElement).modal('show');
+            }
+        });
+    }
 
-    confirmSendBtn.addEventListener('click', function () {
-        confirmSendBtn.disabled = true;
-        confirmSendBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Broadcasting...';
-        broadcastForm.submit();
-    });
+    if (confirmSendBtn) {
+        confirmSendBtn.addEventListener('click', function () {
+            confirmSendBtn.disabled = true;
+            confirmSendBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Broadcasting...';
+            broadcastForm.submit();
+        });
+    }
 });
 </script>
 
