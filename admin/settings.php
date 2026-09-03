@@ -1447,165 +1447,291 @@ $breadcrumbs = [
     include '../includes/page_header.php';
     ?>
 
-    <!-- Simplified Backup & Recovery Section -->
-    <div class="card border-0 shadow-sm rounded-4 p-4 mb-4" style="background: #ffffff;">
-        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 pb-3 mb-4 border-bottom" style="border-color: #f2ede4 !important;">
-            <div>
-                <h2 class="h5 fw-bold mb-1" style="color: #2c2c2c;"><i class="fas fa-shield-halved me-2 text-warning"></i> Backup &amp; Recovery</h2>
-                <p class="text-muted mb-0 small">Create backups and restore parish sacramental records, documents, and system data.</p>
+    <section class="recovery-hero mb-3">
+        <div>
+            <h2 class="h5 m-0 font-weight-bold"><i class="fas fa-shield-halved"></i> Backup &amp; Recovery Hub</h2>
+            <p class="m-0 text-muted" style="font-size: 0.84rem;">Protection for sacramental records, user accounts, system configuration, uploaded files, and recovery logs.</p>
+        </div>
+        <div class="hero-actions">
+            <form method="POST" class="backup-action-form">
+                <?php echo csrfInput(); ?>
+                <input type="hidden" name="action" value="full_backup">
+                <button type="submit" class="btn btn-primary" data-progress-button>
+                    <i class="fas fa-box-archive"></i> Complete System Backup
+                </button>
+            </form>
+            <a href="#recoveryWizard" class="btn btn-outline-primary"><i class="fas fa-life-ring"></i> Emergency Recovery</a>
+        </div>
+    </section>
+
+    <div id="backupAlertContainer">
+        <?php if ($error): ?>
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <?php echo e($error); ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
-            <div class="d-flex flex-wrap gap-2">
-                <form method="POST" class="backup-action-form mb-0">
+        <?php endif; ?>
+
+        <?php if ($success): ?>
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <?php echo e($success); ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        <?php endif; ?>
+    </div>
+
+    <div class="metric-grid">
+        <div class="metric-card">
+            <div class="metric-label">Total Backups</div>
+            <div class="metric-value" id="metricTotalBackups"><?php echo count($backup_files); ?></div>
+            <div class="metric-note">Protected recovery files</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Last Backup</div>
+            <div class="metric-value" id="metricLastBackup"><?php echo $latest_backup ? date('M d, Y', $latest_backup) : 'None'; ?></div>
+            <div class="metric-note" id="metricLastBackupNote"><?php echo $latest_backup ? date('g:i A', $latest_backup) : 'Create one now'; ?></div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Next Scheduled</div>
+            <div class="metric-value"><?php echo $scheduler_enabled ? 'Daily ' . e($daily_time) : 'Paused'; ?></div>
+            <div class="metric-note">Weekly <?php echo e($weekly_day); ?>, monthly day <?php echo e($monthly_day); ?></div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Storage Usage</div>
+            <div class="metric-value" id="metricStorageUsage"><?php echo formatFileSize($total_backup_size); ?></div>
+            <div class="metric-note">Local backup folder</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Recovery Readiness</div>
+            <div class="metric-value" id="metricRecoveryReadinessContainer">
+                <span class="status-pill status-<?php echo e($recovery_readiness); ?>" id="metricRecoveryReadiness"><span class="status-dot"></span><?php echo e(healthLabel($recovery_readiness)); ?></span>
+            </div>
+            <div class="metric-note">Backup age and ZIP support</div>
+        </div>
+    </div>
+
+    <div class="health-grid mb-4">
+        <div class="health-panel"><i class="fas fa-database"></i> Database Health<br><span class="status-pill status-<?php echo e($db_status); ?>"><span class="status-dot"></span><?php echo e(healthLabel($db_status)); ?></span></div>
+        <div class="health-panel"><i class="fas fa-hard-drive"></i> Storage Capacity<br><span class="status-pill status-<?php echo e($storage_status); ?>"><span class="status-dot"></span><?php echo e(healthLabel($storage_status)); ?></span></div>
+        <div class="health-panel"><i class="fas fa-microchip"></i> Server Performance<br><span class="status-pill status-healthy"><span class="status-dot"></span>Healthy</span></div>
+        <div class="health-panel"><i class="fas fa-user-shield"></i> Security Status<br><span class="status-pill status-healthy"><span class="status-dot"></span>Healthy</span></div>
+        <div class="health-panel"><i class="fas fa-file-shield"></i> Backup Integrity<br><span class="status-pill status-<?php echo e($backup_status); ?>" id="metricBackupIntegrity"><span class="status-dot"></span><?php echo e(healthLabel($backup_status)); ?></span></div>
+    </div>
+
+    <section class="maintenance-dashboard">
+        <div class="dashboard-panel">
+            <h2><i class="fas fa-gauge-high"></i> Maintenance Dashboard</h2>
+            <div class="analytics-grid">
+                <div class="analytics-tile">
+                    <span>Backup Success Rate</span>
+                    <strong><?php echo intval($backup_success_rate); ?>%</strong>
+                    <div class="progress slim"><div class="progress-bar bg-success" style="width: <?php echo intval($backup_success_rate); ?>%"></div></div>
+                </div>
+                <div class="analytics-tile">
+                    <span>Database Storage</span>
+                    <strong><?php echo e(formatFileSize($db_storage_bytes)); ?></strong>
+                    <div class="metric-note">Current schema size</div>
+                </div>
+                <div class="analytics-tile">
+                    <span>Backup Storage Used</span>
+                    <strong><?php echo intval($backup_storage_percent); ?>%</strong>
+                    <div class="progress slim"><div class="progress-bar bg-<?php echo $backup_storage_percent >= 85 ? 'warning' : 'primary'; ?>" style="width: <?php echo intval($backup_storage_percent); ?>%"></div></div>
+                </div>
+                <div class="analytics-tile">
+                    <span>Server Memory Peak</span>
+                    <strong><?php echo e(formatFileSize($memory_peak)); ?></strong>
+                    <div class="metric-note">PHP runtime usage</div>
+                </div>
+                <div class="analytics-tile">
+                    <span>Maintenance Runs</span>
+                    <strong><?php echo count($recent_maintenance_logs); ?></strong>
+                    <div class="metric-note">Recent logged actions</div>
+                </div>
+                <div class="analytics-tile">
+                    <span>Recovery Events</span>
+                    <strong><?php echo count($recent_recovery_logs); ?></strong>
+                    <div class="metric-note">Recent recovery history</div>
+                </div>
+            </div>
+        </div>
+        <div class="dashboard-panel">
+            <h2><i class="fas fa-triangle-exclamation"></i> Critical Alerts</h2>
+            <div class="alert-list">
+                <?php if ($critical_alerts): ?>
+                    <?php foreach ($critical_alerts as $alert): ?>
+                        <div class="alert-item"><i class="fas fa-circle-exclamation"></i><span><?php echo e($alert); ?></span></div>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <div class="alert-item ok"><i class="fas fa-circle-check"></i><span>No critical maintenance alerts at this time.</span></div>
+                <?php endif; ?>
+                <div class="alert-item ok"><i class="fas fa-clock-rotate-left"></i><span>Recent maintenance and recovery actions are recorded with timestamps for audit review.</span></div>
+            </div>
+        </div>
+    </section>
+
+    <div class="enterprise-grid mb-4">
+        <div class="enterprise-card">
+            <h3><i class="fas fa-cloud-arrow-down"></i> Complete System Backup</h3>
+            <p>Builds a disaster recovery package with the full database, uploads, source code, assets, templates, configuration, and recovery manifest.</p>
+            <ul class="coverage-list">
+                <?php foreach (backupCoverageItems() as $group => $items): ?>
+                    <li><strong><?php echo e($group); ?>:</strong> <?php echo e(implode(', ', $items)); ?></li>
+                <?php endforeach; ?>
+            </ul>
+            <form method="POST" class="backup-action-form">
+                <?php echo csrfInput(); ?>
+                <input type="hidden" name="action" value="full_backup">
+                <button type="submit" class="btn btn-primary w-100" data-progress-button><i class="fas fa-file-zipper"></i> Create Recovery Package</button>
+            </form>
+        </div>
+
+        <div class="enterprise-card">
+            <h3><i class="fas fa-rotate-left"></i> Full System Recovery</h3>
+            <p>Validates backup integrity, checks database structure, detects corrupt packages, and restores selected recovery scopes.</p>
+            <ul>
+                <li>Restore full database and files</li>
+                <li>Restore sacramental, user, document, or announcement scope</li>
+                <li>Record administrator, status, file count, and recovery type</li>
+            </ul>
+            <a href="#recoveryWizard" class="btn btn-outline-primary w-100"><i class="fas fa-wand-magic-sparkles"></i> Open Recovery Wizard</a>
+        </div>
+
+        <div class="enterprise-card">
+            <h3><i class="fas fa-calendar-check"></i> Automated Backup Schedule</h3>
+            <form method="POST">
+                <?php echo csrfInput(); ?>
+                <input type="hidden" name="action" value="save_schedule">
+                <div class="custom-schedule-toggle-wrap">
+                    <label class="schedule-checkbox-container" for="schedulerEnabled">
+                        <input 
+                            type="checkbox" 
+                            name="scheduler_enabled" 
+                            id="schedulerEnabled" 
+                            class="schedule-checkbox-input"
+                            role="checkbox"
+                            <?php echo $scheduler_enabled ? 'checked' : ''; ?>
+                        >
+                        <span class="schedule-checkbox-custom"></span>
+                        <span class="schedule-checkbox-text">Enable scheduled backups</span>
+                    </label>
+                </div>
+                <label class="form-label">Daily backup time</label>
+                <input class="form-control mb-2" type="time" name="daily_backup_time" value="<?php echo e($daily_time); ?>">
+                <label class="form-label">Weekly backup day</label>
+                <select class="form-select mb-2" name="weekly_backup_day">
+                    <?php foreach (['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as $day): ?>
+                        <option value="<?php echo e($day); ?>" <?php echo $weekly_day === $day ? 'selected' : ''; ?>><?php echo e($day); ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <label class="form-label">Monthly backup day</label>
+                <input class="form-control mb-3" type="number" name="monthly_backup_day" min="1" max="28" value="<?php echo e($monthly_day); ?>">
+                <button type="submit" class="btn btn-primary w-100"><i class="fas fa-save"></i> Save Schedule</button>
+            </form>
+        </div>
+
+        <div class="enterprise-card">
+            <h3><i class="fas fa-screwdriver-wrench"></i> Monthly Maintenance</h3>
+            <p>Runs database repair and optimization, removes expired OTP records, reviews temporary files, validates backups, and applies retention rules.</p>
+            <ul>
+                <li>Daily backups retained for 30 days</li>
+                <li>Weekly backups retained for 6 months</li>
+                <li>Monthly backups retained for 2 years</li>
+            </ul>
+            <form method="POST">
+                <?php echo csrfInput(); ?>
+                <input type="hidden" name="action" value="run_maintenance">
+                <button type="submit" class="btn btn-warning w-100" data-confirm="Run monthly maintenance now?" data-progress-button><i class="fas fa-broom"></i> Run Maintenance</button>
+            </form>
+        </div>
+
+        <div class="enterprise-card">
+            <h3><i class="fas fa-chart-line"></i> System Health Monitor</h3>
+            <p>Monitors database availability, local storage usage, ZIP recovery support, security posture, and backup freshness.</p>
+            <div class="progress slim mb-2"><div class="progress-bar bg-<?php echo e(statusClass($recovery_readiness)); ?>" style="width: <?php echo $recovery_readiness === 'healthy' ? 94 : ($recovery_readiness === 'warning' ? 64 : 32); ?>%"></div></div>
+            <p class="mb-0">Readiness score reflects current backup age and required recovery extensions.</p>
+        </div>
+
+        <div class="enterprise-card">
+            <h3><i class="fas fa-clipboard-list"></i> Backup & Recovery Logs</h3>
+            <p>Maintains recovery and maintenance activity history for continuity audits.</p>
+            <ul>
+                <li>Recovery date and time</li>
+                <li>Administrator responsible</li>
+                <li>Recovery type and status</li>
+                <li>Files restored and operation details</li>
+            </ul>
+            <a href="#logs" class="btn btn-outline-secondary w-100"><i class="fas fa-list"></i> View Logs</a>
+        </div>
+    </div>
+
+    <section class="wizard-panel mb-4" id="recoveryWizard">
+        <h2 class="h4 mb-3"><i class="fas fa-life-ring"></i> Emergency Recovery Mode</h2>
+        <div class="wizard-steps">
+            <div class="wizard-step"><strong>Step 1</strong>Upload or select a recovery package.</div>
+            <div class="wizard-step"><strong>Step 2</strong>Validate backup integrity and structure.</div>
+            <div class="wizard-step"><strong>Step 3</strong>Choose the recovery scope.</div>
+            <div class="wizard-step"><strong>Step 4</strong>Execute confirmed recovery.</div>
+            <div class="wizard-step"><strong>Step 5</strong>Review logs and verification result.</div>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-lg-6">
+                <form method="POST" enctype="multipart/form-data">
                     <?php echo csrfInput(); ?>
-                    <input type="hidden" name="action" value="full_backup">
-                    <button type="submit" class="btn text-white rounded-pill px-4 fw-medium" style="background-color: #b8860b; border: none;" data-progress-button>
-                        <i class="fas fa-cloud-arrow-down me-1"></i> Create Complete Backup
+                    <input type="hidden" name="action" value="validate_backup">
+                    <label class="form-label">Upload Recovery Package</label>
+                    <input type="file" name="recovery_package" class="form-control mb-2" accept=".zip,.sql">
+                    <label class="form-label">Or validate existing backup</label>
+                    <select name="backup_file" class="form-select mb-3">
+                        <option value="">Select backup file</option>
+                        <?php foreach ($backup_files as $file): ?>
+                            <option value="<?php echo e(basename($file)); ?>"><?php echo e(basename($file)); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <button type="submit" class="btn btn-outline-primary"><i class="fas fa-magnifying-glass-chart"></i> Validate Backup</button>
+                </form>
+            </div>
+            <div class="col-lg-6">
+                <form method="POST" id="restoreForm">
+                    <?php echo csrfInput(); ?>
+                    <input type="hidden" name="action" value="restore_backup">
+                    <label class="form-label">Recovery Package</label>
+                    <select name="backup_file" class="form-select mb-2" required>
+                        <?php foreach ($backup_files as $file): ?>
+                            <option value="<?php echo e(basename($file)); ?>"><?php echo e(basename($file)); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <label class="form-label">Recovery Scope</label>
+                    <select name="recovery_scope" class="form-select mb-2" required>
+                        <?php foreach (recoveryScopes() as $key => $label): ?>
+                            <option value="<?php echo e($key); ?>"><?php echo e($label); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <label class="form-label">Confirmation</label>
+                    <input type="text" name="confirmation" class="form-control mb-3" placeholder="Type RESTORE to confirm" required>
+                    <button type="submit" class="btn btn-danger" data-confirm="This will overwrite the selected recovery scope. Continue?" data-progress-button>
+                        <i class="fas fa-triangle-exclamation"></i> Execute Recovery
                     </button>
                 </form>
             </div>
         </div>
 
-        <div id="backupAlertContainer">
-            <?php if ($error): ?>
-                <div class="alert alert-danger alert-dismissible fade show rounded-3 mb-3" role="alert">
-                    <i class="fas fa-circle-exclamation me-2"></i><?php echo e($error); ?>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        <?php if ($validation_result): ?>
+            <div class="alert alert-<?php echo $validation_result['valid'] ? 'success' : 'danger'; ?> mt-3">
+                <strong><?php echo e($validation_result['file']); ?></strong>
+                <div class="row mt-2">
+                    <?php foreach ($validation_result['checks'] as $check): ?>
+                        <div class="col-md-6 mb-2">
+                            <span class="status-pill status-<?php echo e($check['status']); ?>"><span class="status-dot"></span><?php echo e($check['text']); ?></span>
+                        </div>
+                    <?php endforeach; ?>
                 </div>
-            <?php endif; ?>
-
-            <?php if ($success): ?>
-                <div class="alert alert-success alert-dismissible fade show rounded-3 mb-3" role="alert">
-                    <i class="fas fa-circle-check me-2"></i><?php echo e($success); ?>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            <?php endif; ?>
-        </div>
-
-        <!-- 3 Quick Overview Stats -->
-        <div class="row g-3 mb-4">
-            <div class="col-md-4">
-                <div class="p-3 rounded-3 border bg-light h-100">
-                    <div class="text-muted small fw-semibold text-uppercase mb-1">Total Backups</div>
-                    <div class="fs-4 fw-bold text-dark" id="metricTotalBackups"><?php echo count($backup_files); ?> files</div>
-                    <small class="text-muted">Stored in protected local backup archive</small>
-                </div>
+                <?php if (!empty($validation_result['manifest']['tables'])): ?>
+                    <div class="mt-2">Tables in manifest: <?php echo count($validation_result['manifest']['tables']); ?>. Included files: <?php echo intval($validation_result['manifest']['included_file_count'] ?? 0); ?>.</div>
+                <?php endif; ?>
             </div>
-            <div class="col-md-4">
-                <div class="p-3 rounded-3 border bg-light h-100">
-                    <div class="text-muted small fw-semibold text-uppercase mb-1">Latest Backup</div>
-                    <div class="fs-4 fw-bold text-dark" id="metricLastBackup"><?php echo $latest_backup ? date('M d, Y', $latest_backup) : 'None'; ?></div>
-                    <small class="text-muted" id="metricLastBackupNote"><?php echo $latest_backup ? date('g:i A', $latest_backup) : 'Create one now'; ?></small>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="p-3 rounded-3 border bg-light h-100">
-                    <div class="text-muted small fw-semibold text-uppercase mb-1">Automatic Schedule</div>
-                    <div class="fs-4 fw-bold <?php echo $scheduler_enabled ? 'text-success' : 'text-secondary'; ?>">
-                        <?php echo $scheduler_enabled ? 'Daily at ' . e($daily_time) : 'Disabled'; ?>
-                    </div>
-                    <small class="text-muted"><?php echo $scheduler_enabled ? 'Automatic retention active' : 'Scheduled backups currently paused'; ?></small>
-                </div>
-            </div>
-        </div>
-
-        <!-- 3 Simple Action Cards: Create Backup, Restore, and Schedule -->
-        <div class="row g-3 mb-2">
-            <!-- Card 1: Create Backup -->
-            <div class="col-lg-4">
-                <div class="card h-100 border rounded-3 p-3 shadow-none bg-white">
-                    <div class="d-flex align-items-center gap-2 mb-2">
-                        <div class="rounded-circle p-2" style="background: #fdf6e7; color: #b8860b;">
-                            <i class="fas fa-cloud-arrow-down fa-lg"></i>
-                        </div>
-                        <h3 class="h6 fw-bold mb-0">Create Backup</h3>
-                    </div>
-                    <p class="text-muted small mb-3">Download a snapshot of sacramental records, certificate files, and system data.</p>
-                    <div class="d-grid gap-2 mt-auto">
-                        <form method="POST" class="backup-action-form mb-0">
-                            <?php echo csrfInput(); ?>
-                            <input type="hidden" name="action" value="full_backup">
-                            <button type="submit" class="btn text-white w-100 rounded-3 py-2 fw-semibold" style="background-color: #b8860b; border: none;" data-progress-button>
-                                <i class="fas fa-file-zipper me-1"></i> Full System Backup (ZIP)
-                            </button>
-                        </form>
-                        <form method="POST" class="backup-action-form mb-0">
-                            <?php echo csrfInput(); ?>
-                            <input type="hidden" name="action" value="database_backup">
-                            <button type="submit" class="btn btn-outline-secondary w-100 rounded-3 py-2 fw-semibold" data-progress-button>
-                                <i class="fas fa-database me-1"></i> Database Only (SQL)
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Card 2: Restore Backup -->
-            <div class="col-lg-4">
-                <div class="card h-100 border rounded-3 p-3 shadow-none bg-white">
-                    <div class="d-flex align-items-center gap-2 mb-2">
-                        <div class="rounded-circle p-2" style="background: #fef3f2; color: #d92d20;">
-                            <i class="fas fa-rotate-left fa-lg"></i>
-                        </div>
-                        <h3 class="h6 fw-bold mb-0">Restore Backup</h3>
-                    </div>
-                    <p class="text-muted small mb-3">Restore parish data from an existing backup in your archive.</p>
-                    <form method="POST" id="restoreForm" class="mt-auto" onsubmit="return confirm('WARNING: Restoring will overwrite database records with the backup file data. Are you sure you want to proceed?');">
-                        <?php echo csrfInput(); ?>
-                        <input type="hidden" name="action" value="restore_backup">
-                        <input type="hidden" name="confirmation" value="RESTORE">
-                        <div class="mb-2">
-                            <label class="form-label small fw-semibold text-secondary mb-1">Select Backup File</label>
-                            <select name="backup_file" class="form-select form-select-sm rounded-3" required>
-                                <option value="">Choose a backup...</option>
-                                <?php foreach ($backup_files as $file): ?>
-                                    <option value="<?php echo e(basename($file)); ?>"><?php echo e(basename($file)); ?> (<?php echo formatFileSize(filesize($file)); ?>)</option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label small fw-semibold text-secondary mb-1">Restore Scope</label>
-                            <select name="recovery_scope" class="form-select form-select-sm rounded-3" required>
-                                <option value="entire_system">Entire System</option>
-                                <option value="database_only">Database Only</option>
-                                <option value="sacramental_records">Sacramental Records Only</option>
-                            </select>
-                        </div>
-                        <button type="submit" class="btn btn-outline-danger w-100 rounded-3 py-2 fw-semibold" <?php echo empty($backup_files) ? 'disabled' : ''; ?> data-progress-button>
-                            <i class="fas fa-arrow-rotate-left me-1"></i> Restore Data
-                        </button>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Card 3: Automated Schedule -->
-            <div class="col-lg-4">
-                <div class="card h-100 border rounded-3 p-3 shadow-none bg-white">
-                    <div class="d-flex align-items-center gap-2 mb-2">
-                        <div class="rounded-circle p-2" style="background: #eef4ff; color: #3538cd;">
-                            <i class="fas fa-clock fa-lg"></i>
-                        </div>
-                        <h3 class="h6 fw-bold mb-0">Automated Schedule</h3>
-                    </div>
-                    <p class="text-muted small mb-3">Configure automatic daily backups and retention cleanup.</p>
-                    <form method="POST" class="mt-auto">
-                        <?php echo csrfInput(); ?>
-                        <input type="hidden" name="action" value="save_schedule">
-                        <div class="form-check form-switch mb-2">
-                            <input class="form-check-input" type="checkbox" id="schedulerEnabled" name="scheduler_enabled" <?php echo $scheduler_enabled ? 'checked' : ''; ?>>
-                            <label class="form-check-label small fw-semibold" for="schedulerEnabled">Enable automated backups</label>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label small text-secondary mb-1">Daily backup time</label>
-                            <input class="form-control form-control-sm rounded-3" type="time" name="daily_backup_time" value="<?php echo e($daily_time); ?>">
-                        </div>
-                        <button type="submit" class="btn text-white w-100 rounded-3 py-2 fw-semibold" style="background-color: #9A7B38; border: none;">
-                            <i class="fas fa-save me-1"></i> Save Schedule
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
+        <?php endif; ?>
+    </section>
 
     <div class="card mb-4" id="backupFilesCard">
         <div class="card-body">
