@@ -63,15 +63,21 @@ function sendSMS($phone, $message)
     $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
+    $decoded = json_decode((string) $response, true);
+
     if ($status < 200 || $status >= 300) {
+        $errorMessage = is_array($decoded) && !empty($decoded['message'])
+            ? $decoded['message']
+            : (is_array($decoded) && !empty($decoded['error']) ? $decoded['error'] : "TextBee HTTP status " . $status);
+
         return json_encode([
             "success" => false,
-            "error" => "TextBee HTTP status " . $status,
+            "error" => $errorMessage,
+            "http_status" => $status,
             "response" => $response
         ]);
     }
 
-    $decoded = json_decode((string) $response, true);
     if (is_array($decoded)) {
         $decoded["success"] = $decoded["success"] ?? true;
         $decoded["http_status"] = $status;
