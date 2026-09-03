@@ -801,19 +801,7 @@ $dashboard_avatar_letter = strtoupper(substr($dashboard_profile_name ?: 'T', 0, 
                     </div>
                 </a>
 
-                <!-- 5. Event Reservations -->
-                <a href="manage-reservations.php" class="stat-card-compact" aria-label="Manage event reservations">
-                    <div class="stat-card-header">
-                        <span class="stat-card-label">Event Reservations</span>
-                        <span class="stat-card-icon icon-purple"><i class="fas fa-calendar-check"></i></span>
-                    </div>
-                    <div class="stat-card-value"><?php echo number_format($kpis['total_reservations']); ?></div>
-                    <div class="stat-card-footer">
-                        <span class="trend-pill neutral"><i class="fas fa-calendar-alt"></i> Scheduled</span>
-                    </div>
-                </a>
-
-                <!-- 6. Active Announcements -->
+                <!-- 5. Active Announcements -->
                 <a href="manage-announcements.php" class="stat-card-compact" aria-label="View active announcements">
                     <div class="stat-card-header">
                         <span class="stat-card-label">Announcements</span>
