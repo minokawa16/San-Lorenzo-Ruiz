@@ -286,26 +286,43 @@ function buildRecoveryMetadata($conn, $project_root, $database_backup, $scope = 
 
 // File Backup - Adds project source files and uploads to the recovery package safely.
 function addProjectFilesToZip($zip, $project_root, $backup_dir) {
-    $root_length = strlen($project_root) + 1;
+    $included_dirs = ['admin', 'api', 'assets', 'auth', 'config', 'database', 'includes', 'logs', 'ocr', 'services', 'templates', 'uploads', 'users', 'views'];
     $backup_real = realpath($backup_dir);
-    $iterator = new RecursiveIteratorIterator(
-        new RecursiveDirectoryIterator($project_root, FilesystemIterator::SKIP_DOTS),
-        RecursiveIteratorIterator::SELF_FIRST
-    );
+    $root_length = strlen($project_root) + 1;
 
-    foreach ($iterator as $file) {
-        $path = $file->getPathname();
-        $real_path = realpath($path);
-
-        if ($backup_real && $real_path && strpos($real_path, $backup_real) === 0) {
+    foreach ($included_dirs as $dirName) {
+        $dirPath = $project_root . DIRECTORY_SEPARATOR . $dirName;
+        if (!is_dir($dirPath)) {
             continue;
         }
 
-        $relative_path = str_replace('\\', '/', substr($path, $root_length));
-        if ($file->isDir()) {
-            $zip->addEmptyDir($relative_path);
-        } else {
-            $zip->addFile($path, $relative_path);
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($dirPath, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::SELF_FIRST
+        );
+
+        foreach ($iterator as $file) {
+            $path = $file->getPathname();
+            $real_path = realpath($path);
+
+            if ($backup_real && $real_path && strpos($real_path, $backup_real) === 0) {
+                continue;
+            }
+
+            $relative_path = str_replace('\\', '/', substr($path, $root_length));
+            if ($file->isDir()) {
+                $zip->addEmptyDir($relative_path);
+            } elseif ($file->isFile() && $file->getSize() < 50 * 1024 * 1024) {
+                $zip->addFile($path, $relative_path);
+            }
+        }
+    }
+
+    // Add root php files
+    $rootFiles = glob($project_root . DIRECTORY_SEPARATOR . '*.php') ?: [];
+    foreach ($rootFiles as $rf) {
+        if (is_file($rf)) {
+            $zip->addFile($rf, basename($rf));
         }
     }
 }
@@ -934,6 +951,47 @@ function runDueAutomatedTasks($conn, $backup_dir, $project_root, $admin_id) {
     return $messages;
 }
 
+// Direct Stream Action: Immediately generates and streams complete system backup or DB snapshot to the browser
+if (isset($_GET['download_action']) && in_array($_GET['download_action'], ['full_backup', 'database_backup', 'weekly_backup'], true)) {
+    requireAdmin();
+    requirePermission('system.settings');
+    @set_time_limit(300);
+    @ini_set('memory_limit', '512M');
+
+    try {
+        if ($_GET['download_action'] === 'full_backup' || $_GET['download_action'] === 'weekly_backup') {
+            $path = createFullBackup($conn, $backup_dir, $project_root, 'complete-system');
+            writeSetting($conn, 'last_monthly_backup', date('Y-m-d H:i:s'));
+            createAuditLog($conn, $_SESSION['user_id'] ?? 0, 'DOWNLOAD_COMPLETE_SYSTEM_BACKUP', 'system', 0);
+        } else {
+            $path = createDatabaseBackup($conn, $backup_dir, 'database-backup');
+            writeSetting($conn, 'last_daily_backup', date('Y-m-d H:i:s'));
+            createAuditLog($conn, $_SESSION['user_id'] ?? 0, 'DOWNLOAD_DATABASE_BACKUP', 'system', 0);
+        }
+
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        $mime_type = $extension === 'zip' ? 'application/zip' : 'application/sql';
+
+        while (ob_get_level()) {
+            ob_end_clean();
+        }
+
+        header('Content-Description: File Transfer');
+        header('Content-Type: ' . $mime_type);
+        header('Content-Disposition: attachment; filename="' . basename($path) . '"');
+        header('Content-Transfer-Encoding: binary');
+        header('Expires: 0');
+        header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
+        header('Pragma: public');
+        header('Content-Length: ' . filesize($path));
+
+        readfile($path);
+        exit;
+    } catch (Exception $e) {
+        $error = 'Failed to generate backup: ' . $e->getMessage();
+    }
+}
+
 if (isset($_GET['download'])) {
     $requested = basename($_GET['download']);
     $search_dirs = array_unique(array_filter([
@@ -950,6 +1008,19 @@ if (isset($_GET['download'])) {
         if (is_file($candidate)) {
             $path = $candidate;
             break;
+        }
+    }
+
+    // Serverless Fallback: If running on ephemeral environments (e.g. Vercel) and file isn't in current container
+    if ((!$path || !is_file($path)) && $requested !== '') {
+        try {
+            if (strpos($requested, 'complete-system') !== false || strpos($requested, 'recovery') !== false || pathinfo($requested, PATHINFO_EXTENSION) === 'zip') {
+                $path = createFullBackup($conn, $backup_dir, $project_root, 'complete-system');
+            } elseif (strpos($requested, 'database') !== false || pathinfo($requested, PATHINFO_EXTENSION) === 'sql') {
+                $path = createDatabaseBackup($conn, $backup_dir, 'database-backup');
+            }
+        } catch (Exception $e) {
+            $path = null;
         }
     }
 
@@ -1453,14 +1524,10 @@ $breadcrumbs = [
             <p class="m-0 text-muted" style="font-size: 0.84rem;">Protection for sacramental records, user accounts, system configuration, uploaded files, and recovery logs.</p>
         </div>
         <div class="hero-actions">
-            <form method="POST" class="backup-action-form">
-                <?php echo csrfInput(); ?>
-                <input type="hidden" name="action" value="full_backup">
-                <button type="submit" class="btn btn-primary" data-progress-button>
-                    <i class="fas fa-box-archive"></i> Complete System Backup
-                </button>
-            </form>
-            <a href="#recoveryWizard" class="btn btn-outline-primary"><i class="fas fa-life-ring"></i> Emergency Recovery</a>
+            <a href="settings.php?download_action=full_backup" class="btn btn-primary" data-download-action>
+                <i class="fas fa-box-archive me-1"></i> Complete System Backup
+            </a>
+            <a href="#recoveryWizard" class="btn btn-outline-primary"><i class="fas fa-life-ring me-1"></i> Emergency Recovery</a>
         </div>
     </section>
 
@@ -1578,11 +1645,11 @@ $breadcrumbs = [
                     <li><strong><?php echo e($group); ?>:</strong> <?php echo e(implode(', ', $items)); ?></li>
                 <?php endforeach; ?>
             </ul>
-            <form method="POST" class="backup-action-form">
-                <?php echo csrfInput(); ?>
-                <input type="hidden" name="action" value="full_backup">
-                <button type="submit" class="btn btn-primary w-100" data-progress-button><i class="fas fa-file-zipper"></i> Create Recovery Package</button>
-            </form>
+            <div class="mt-auto">
+                <a href="settings.php?download_action=full_backup" class="btn btn-primary w-100" data-download-action>
+                    <i class="fas fa-file-zipper me-1"></i> Create Recovery Package
+                </a>
+            </div>
         </div>
 
         <div class="enterprise-card">
@@ -1738,16 +1805,12 @@ $breadcrumbs = [
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                 <h2 class="h5 mb-0"><i class="fas fa-clock-rotate-left"></i> Available Backup Files</h2>
                 <div class="d-flex flex-wrap gap-2">
-                    <form method="POST" class="backup-action-form">
-                        <?php echo csrfInput(); ?>
-                        <input type="hidden" name="action" value="database_backup">
-                        <button type="submit" class="btn btn-sm btn-outline-primary" data-progress-button><i class="fas fa-database"></i> Daily DB Backup</button>
-                    </form>
-                    <form method="POST" class="backup-action-form">
-                        <?php echo csrfInput(); ?>
-                        <input type="hidden" name="action" value="weekly_backup">
-                        <button type="submit" class="btn btn-sm btn-outline-success" data-progress-button><i class="fas fa-folder-tree"></i> Weekly Backup</button>
-                    </form>
+                    <a href="settings.php?download_action=database_backup" class="btn btn-sm btn-outline-primary" data-download-action>
+                        <i class="fas fa-database me-1"></i> Daily DB Backup
+                    </a>
+                    <a href="settings.php?download_action=full_backup" class="btn btn-sm btn-outline-success" data-download-action>
+                        <i class="fas fa-folder-tree me-1"></i> Weekly Backup
+                    </a>
                 </div>
             </div>
 
@@ -1893,6 +1956,29 @@ $breadcrumbs = [
         });
     });
 
+    // Native Direct-Download Action Handler: Triggers native browser download without popup blocks
+    document.querySelectorAll('[data-download-action]').forEach(function(el) {
+        el.addEventListener('click', function() {
+            var origHtml = el.innerHTML;
+            el.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Preparing Download...';
+
+            var alertContainer = document.getElementById('backupAlertContainer');
+            if (alertContainer) {
+                alertContainer.innerHTML = `
+                    <div class="alert alert-info alert-dismissible fade show shadow-sm" role="alert">
+                        <i class="fas fa-circle-notch fa-spin me-2"></i> <strong>Preparing Backup...</strong> 
+                        Your file is being packaged and will download directly to your computer.
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                `;
+            }
+
+            setTimeout(function() {
+                el.innerHTML = origHtml;
+            }, 6000);
+        });
+    });
+
     // AJAX Dual-Action Backup Handler: Generates on server + Streams straight to client Downloads
     document.querySelectorAll('.backup-action-form').forEach(function(form) {
         form.addEventListener('submit', function(e) {
@@ -1918,6 +2004,8 @@ $breadcrumbs = [
             .then(function(res) {
                 return res.json().then(function(data) {
                     return { ok: res.ok, status: res.status, data: data };
+                }).catch(function() {
+                    return { ok: res.ok, status: res.status, data: { success: false, error: 'Server returned an invalid response (HTTP ' + res.status + ').' } };
                 });
             })
             .then(function(result) {
