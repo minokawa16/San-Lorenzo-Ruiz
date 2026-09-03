@@ -893,6 +893,86 @@ $breadcrumbs = [
         border-radius: 10px;
         padding: 14px 16px;
     }
+    /* Custom High-Contrast Announcement Checkbox */
+    .announcement-custom-check {
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 9px !important;
+        cursor: pointer !important;
+        user-select: none !important;
+        -webkit-user-select: none !important;
+        margin: 0 !important;
+        padding: 4px 0 !important;
+        vertical-align: middle;
+    }
+    .announcement-custom-check .visually-hidden-check {
+        position: absolute !important;
+        opacity: 0 !important;
+        width: 1px !important;
+        height: 1px !important;
+        margin: -1px !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+        clip: rect(0, 0, 0, 0) !important;
+        white-space: nowrap !important;
+        border: 0 !important;
+        pointer-events: none !important;
+    }
+    .announcement-custom-check .custom-check-box {
+        position: relative !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 20px !important;
+        height: 20px !important;
+        min-width: 20px !important;
+        min-height: 20px !important;
+        background-color: #ffffff !important;
+        border: 2px solid #c89b3c !important;
+        border-radius: 5px !important;
+        box-sizing: border-box !important;
+        transition: all 0.15s ease-in-out !important;
+        flex-shrink: 0 !important;
+    }
+    .announcement-custom-check:hover .custom-check-box {
+        border-color: #2e3a2d !important;
+        background-color: #fcf9f4 !important;
+    }
+    .announcement-custom-check .visually-hidden-check:focus-visible + .custom-check-box,
+    .announcement-custom-check .visually-hidden-check:focus + .custom-check-box {
+        border-color: #2e3a2d !important;
+        box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.35) !important;
+    }
+    .announcement-custom-check .visually-hidden-check:checked + .custom-check-box {
+        background-color: #2e3a2d !important;
+        border-color: #2e3a2d !important;
+    }
+    .announcement-custom-check .custom-check-box .check-icon {
+        color: #ffffff !important;
+        font-size: 11px !important;
+        font-weight: 900 !important;
+        opacity: 0 !important;
+        transform: scale(0.6) !important;
+        transition: opacity 0.15s ease, transform 0.15s ease !important;
+        pointer-events: none !important;
+        line-height: 1 !important;
+    }
+    .announcement-custom-check .visually-hidden-check:checked + .custom-check-box .check-icon {
+        opacity: 1 !important;
+        transform: scale(1) !important;
+    }
+    .announcement-custom-check .custom-check-label {
+        font-size: 13.5px !important;
+        font-weight: 600 !important;
+        color: #2e3a2d !important;
+        line-height: 1.4 !important;
+        cursor: pointer !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    .announcement-custom-check:hover .custom-check-label {
+        color: #1a2319 !important;
+    }
     .form-check-custom {
         display: inline-flex;
         align-items: center;
@@ -904,8 +984,8 @@ $breadcrumbs = [
         user-select: none;
     }
     .form-check-custom input[type="checkbox"] {
-        width: 17px;
-        height: 17px;
+        width: 18px;
+        height: 18px;
         accent-color: #2e3a2d;
         cursor: pointer;
     }
@@ -1307,9 +1387,14 @@ $modal_announcements = array_merge([$blank_announcement], $announcements);
                                                     <input class="form-control announcement-event-time" id="event_time-<?php echo e($modal_id); ?>" type="time" name="event_time" value="<?php echo e($val_event_time); ?>" <?php echo $val_is_all_day ? 'disabled' : ''; ?>>
                                                 </div>
                                             </div>
-                                            <div class="form-check mt-2">
-                                                <input class="form-check-input announcement-allday-check" type="checkbox" name="is_all_day" id="allday-<?php echo e($modal_id); ?>" value="1" <?php echo $val_is_all_day ? 'checked' : ''; ?>>
-                                                <label class="form-check-label small" for="allday-<?php echo e($modal_id); ?>">All-day event</label>
+                                            <div class="mt-2">
+                                                <label class="announcement-custom-check" for="allday-<?php echo e($modal_id); ?>">
+                                                    <input class="announcement-allday-check visually-hidden-check" type="checkbox" name="is_all_day" id="allday-<?php echo e($modal_id); ?>" value="1" <?php echo $val_is_all_day ? 'checked' : ''; ?>>
+                                                    <span class="custom-check-box" aria-hidden="true">
+                                                        <i class="fas fa-check check-icon"></i>
+                                                    </span>
+                                                    <span class="custom-check-label">All-day event</span>
+                                                </label>
                                             </div>
                                         </div>
                                         <div class="col-lg-6">
@@ -1461,9 +1546,12 @@ $modal_announcements = array_merge([$blank_announcement], $announcements);
 
                                         <div class="col-12">
                                             <div class="pt-2">
-                                                <label class="form-check-custom mb-0">
-                                                    <input type="checkbox" name="is_pinned" <?php echo intval($modal_item['is_pinned']) === 1 ? 'checked' : ''; ?>>
-                                                    <span><i class="fas fa-thumbtack text-warning me-1"></i> Pin Announcement to Top</span>
+                                                <label class="announcement-custom-check mb-0" for="pin-<?php echo e($modal_id); ?>">
+                                                    <input class="visually-hidden-check" type="checkbox" name="is_pinned" id="pin-<?php echo e($modal_id); ?>" value="1" <?php echo intval($modal_item['is_pinned']) === 1 ? 'checked' : ''; ?>>
+                                                    <span class="custom-check-box" aria-hidden="true">
+                                                        <i class="fas fa-check check-icon"></i>
+                                                    </span>
+                                                    <span class="custom-check-label"><i class="fas fa-thumbtack text-warning me-1"></i> Pin Announcement to Top</span>
                                                 </label>
                                             </div>
                                         </div>

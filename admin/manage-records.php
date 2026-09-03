@@ -186,9 +186,6 @@ include '../templates/header.php';
             <span><strong>Records and certificates are separate.</strong> Add or update parish registry books here. To generate or release official certificates, use Certificates.</span>
         </div>
         <div class="sacramental-banner-actions">
-            <a class="btn btn-sm pds-btn pds-btn-ghost-outline" href="record-corrections.php">
-                <i class="fas fa-pen-to-square"></i> Corrections
-            </a>
             <a class="btn btn-sm pds-btn pds-btn-ghost-outline" href="sacramental-import.php">
                 <i class="fas fa-file-csv"></i> CSV Import
             </a>
