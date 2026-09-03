@@ -307,9 +307,6 @@ include '../templates/header.php';
                 <a href="?status=completed&type=<?php echo urlencode($type_filter); ?>&q=<?php echo urlencode($search); ?>" data-status="completed" class="pds-filter-tab <?php echo $status_filter == 'completed' ? 'active' : ''; ?>">
                     Completed
                 </a>
-                <a href="?status=cancelled&type=<?php echo urlencode($type_filter); ?>&q=<?php echo urlencode($search); ?>" data-status="cancelled" class="pds-filter-tab <?php echo $status_filter == 'cancelled' ? 'active' : ''; ?>">
-                    Cancelled
-                </a>
             </div>
 
             <form class="row g-2 align-items-end mb-3" method="GET" action="">
@@ -332,7 +329,7 @@ include '../templates/header.php';
                     <label for="requestStatusFilter" class="form-label">Status</label>
                     <select id="requestStatusFilter" class="form-select" name="status">
                         <option value="">All Statuses</option>
-                        <?php foreach (['pending', 'approved', 'rejected', 'processing', 'completed', 'cancelled'] as $status_option): ?>
+                        <?php foreach (['pending', 'approved', 'rejected', 'processing', 'completed'] as $status_option): ?>
                             <option value="<?php echo e($status_option); ?>" <?php echo $status_filter === $status_option ? 'selected' : ''; ?>>
                                 <?php echo e(ucfirst($status_option)); ?>
                             </option>
