@@ -1000,10 +1000,7 @@ $breadcrumbs = [
                         <button class="btn btn-primary control-lg" type="submit" title="Apply filter"><i class="fas fa-filter"></i><span class="visually-hidden">Apply filter</span></button>
                     </div>
                     <div class="col-lg-2 d-grid">
-                        <a class="btn btn-outline-primary control-lg" href="broadcast-notification.php" title="Send Parish Broadcast"><i class="fas fa-paper-plane"></i> Broadcast</a>
-                    </div>
-                    <div class="col-lg-2 d-grid">
-                        <button class="btn btn-primary control-lg" type="button" data-bs-toggle="modal" data-bs-target="#announcementModal"><i class="fas fa-plus"></i> New Announcement</button>
+                        <button class="btn btn-primary control-lg" type="button" data-bs-toggle="modal" data-bs-target="#announcementModal"><i class="fas fa-plus me-1"></i> New Announcement</button>
                     </div>
                 </div>
                 <div class="filter-tabs">
