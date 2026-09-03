@@ -129,14 +129,6 @@ $page_title = $is_admin ? 'Profile Settings' : 'My Profile';
                         <div class="mb-3">
                             <label for="email" class="form-label"><i class="fas fa-lock profile-email-lock" aria-hidden="true"></i> Email Address (Cannot be changed)</label>
                             <input type="email" class="form-control" id="email" value="<?php echo e($user['email']); ?>" disabled>
-                            <div class="form-text profile-verification-status">
-                                <span class="profile-verification-prefix">Gmail verification:</span>
-                                <?php if (!empty($user['email_verified_at'])): ?>
-                                    <span class="badge bg-success profile-verification-pill"><i class="fas fa-check" aria-hidden="true"></i> Verified <?php echo e(formatDateTime($user['email_verified_at'])); ?></span>
-                                <?php else: ?>
-                                    <span class="badge bg-warning text-dark profile-verification-pill">Not verified</span>
-                                <?php endif; ?>
-                            </div>
                         </div>
 
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
