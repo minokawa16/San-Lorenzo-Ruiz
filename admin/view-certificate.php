@@ -75,6 +75,7 @@ $is_marriage_certification = $cert_type === 'marriage_certification';
 $is_confirmation_certification = $cert_type === 'confirmation_certification';
 $is_first_communion_certification = $cert_type === 'first_communion_certification';
 $is_funeral_certification = $cert_type === 'funeral_certification';
+$is_certification = $is_baptism_certification || $is_marriage_certification || $is_confirmation_certification || $is_first_communion_certification || $is_funeral_certification;
 
 // Ensure Certificate Schema Function - Documents this helper's role in the parish management workflow.
 function ensureCertificateSchema($conn) {
@@ -620,7 +621,9 @@ if (strcasecmp($layout_secretary_position, 'Signature / Parish Stamp') === 0) {
         <div class="d-flex flex-wrap gap-2">
             <button class="btn btn-primary" onclick="window.print()"><i class="fas fa-print"></i> Print Certificate</button>
             <button class="btn btn-success" type="button" id="downloadPdfBtn"><i class="fas fa-file-pdf"></i> Download PDF</button>
-            <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#editPurposeModal"><i class="fas fa-pen-to-square"></i> Edit Purpose & Details</button>
+            <?php if ($is_certification): ?>
+                <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#editPurposeModal"><i class="fas fa-pen-to-square"></i> Edit Purpose & Details</button>
+            <?php endif; ?>
             <?php if (!$is_manual_certificate && !empty($verification_url)): ?>
                 <a class="btn btn-outline-dark" href="<?php echo e($verification_url); ?>" target="_blank"><i class="fas fa-shield-check"></i> Verify Certificate</a>
             <?php endif; ?>
@@ -1282,7 +1285,8 @@ if (strcasecmp($layout_secretary_position, 'Signature / Parish Stamp') === 0) {
             <p><strong>Verification Code:</strong> <?php echo e($issue['verification_code']); ?></p>
         </div>
     <?php endif; ?>
-    <!-- Edit Purpose & Details Modal -->
+    <?php if ($is_certification): ?>
+    <!-- Edit Purpose & Details Modal (Only for Sacramental Certifications) -->
     <div class="modal fade" id="editPurposeModal" tabindex="-1" aria-labelledby="editPurposeModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content border-0 shadow">
@@ -1290,7 +1294,7 @@ if (strcasecmp($layout_secretary_position, 'Signature / Parish Stamp') === 0) {
                     <?php echo csrfInput(); ?>
                     <input type="hidden" name="action" value="update_certificate_details">
                     <div class="modal-header bg-dark text-white">
-                        <h5 class="modal-title" id="editPurposeModalLabel"><i class="fas fa-pen-to-square me-2"></i> Edit Certificate Purpose & Details</h5>
+                        <h5 class="modal-title" id="editPurposeModalLabel"><i class="fas fa-pen-to-square me-2"></i> Edit Certification Purpose & Details</h5>
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body p-4">
@@ -1372,6 +1376,7 @@ if (strcasecmp($layout_secretary_position, 'Signature / Parish Stamp') === 0) {
             </div>
         </div>
     </div>
+    <?php endif; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>

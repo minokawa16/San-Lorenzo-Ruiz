@@ -299,20 +299,6 @@ include '../templates/header.php';
             </button>
         </div>
     </div>
-
-    <!-- Info Card -->
-    <div class="pds-info-card mt-2">
-        <h6 style="font-family: 'Playfair Display', Georgia, serif; font-weight: 700; color: #1e293b; margin-bottom: 10px;">
-            <i class="fas fa-circle-info text-warning me-2"></i> How to Generate Certificates
-        </h6>
-        <ol class="mb-0 text-muted" style="font-size: 0.84rem; padding-left: 1.2rem; line-height: 1.6;">
-            <li>First encode or verify the parishioner's sacramental record in Sacramental Records.</li>
-            <li>Click on the certificate or certification type card above.</li>
-            <li>Select an existing manual record from the list modal.</li>
-            <li>Click "Generate Certificate" to preview and format the document.</li>
-            <li>Review and print or export directly as official PDF.</li>
-        </ol>
-    </div>
 </div>
 
 <!-- Generate Certificate Modal -->
