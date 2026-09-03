@@ -670,34 +670,11 @@ function announcementCountdown($event_date) {
                     <div class="modal-announcement-content"><?php echo renderStructuredAnnouncementHtml($announcement['content']); ?></div>
                 </div>
                 <div class="modal-footer">
-                    <?php if (!empty($announcement['event_date'])): ?>
-                        <a class="btn btn-outline-secondary" href="https://calendar.google.com/calendar/render?action=TEMPLATE&text=<?php echo urlencode($announcement['title']); ?>&dates=<?php echo date('Ymd', strtotime($announcement['event_date'])); ?>/<?php echo date('Ymd', strtotime($announcement['event_date'] . ' +1 day')); ?>" target="_blank">
-                            <i class="fas fa-calendar-plus"></i> Add to Calendar
-                        </a>
-                    <?php endif; ?>
-                    <button class="btn btn-outline-secondary announcement-share-btn" type="button" data-title="<?php echo e($announcement['title']); ?>">
-                        <i class="fas fa-share-nodes"></i> Share
-                    </button>
                     <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
         </div>
     </div>
 <?php endforeach; ?>
-
-<script>
-    document.querySelectorAll('.announcement-share-btn').forEach(function(button) {
-        button.addEventListener('click', function() {
-            const text = button.dataset.title + ' - ' + window.location.href;
-            if (navigator.clipboard) {
-                navigator.clipboard.writeText(text);
-                button.innerHTML = '<i class="fas fa-check"></i> Copied';
-                setTimeout(function() {
-                    button.innerHTML = '<i class="fas fa-share-nodes"></i> Share';
-                }, 1600);
-            }
-        });
-    });
-</script>
 
 <?php include '../templates/footer.php'; ?>
