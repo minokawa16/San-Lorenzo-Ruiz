@@ -17,7 +17,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     requireValidCsrfToken();
     $current_password = $_POST['current_password'] ?? '';
     $new_password = $_POST['new_password'] ?? '';
-    $confirm_new_password = $_POST['confirm_new_password'] ?? '';
+    $confirm_new_password = $_POST['confirm_password'] ?? $_POST['confirm_new_password'] ?? '';
 
     if ($current_password === '' || $new_password === '' || $confirm_new_password === '') {
         $error = 'Please complete all password fields.';
@@ -62,57 +62,53 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 $page_title = 'Change Password';
 $rotation_user = getAuthenticatedUser($conn);
 $rotation_pending = !empty($_SESSION['must_change_password']) || !empty($rotation_user['must_change_password']);
+$dashboard_url = getUserDashboardURL();
 ?>
 <?php include '../templates/header.php'; ?>
 
-<div class="container mt-4">
+<div class="container py-4 my-3">
     <div class="row justify-content-center">
-        <div class="col-md-7">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-key"></i> Change Password</h5>
-                </div>
-                <div class="card-body">
-                    <?php if ($rotation_pending && !passwordChangeIsEnforced()): ?>
-                        <div class="alert alert-warning" role="status">
-                            Password replacement is required before production deployment, but local development navigation remains available.
-                        </div>
-                    <?php endif; ?>
-                    <?php if ($error): ?>
-                        <div class="alert alert-danger alert-dismissible fade show">
-                            <?php echo e($error); ?>
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    <?php endif; ?>
+        <div class="col-12">
+            <div class="card p-4 shadow-sm border-0 rounded-4" style="max-width: 540px; margin: 0 auto; background: #fff;">
+                <?php if ($error): ?>
+                    <div class="alert alert-danger alert-dismissible fade show rounded-3 mb-3">
+                        <i class="fas fa-circle-exclamation me-1"></i> <?php echo e($error); ?>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                <?php endif; ?>
 
-                    <?php if ($success): ?>
-                        <div class="alert alert-success alert-dismissible fade show">
-                            <?php echo e($success); ?>
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    <?php endif; ?>
+                <?php if ($success): ?>
+                    <div class="alert alert-success alert-dismissible fade show rounded-3 mb-3">
+                        <i class="fas fa-circle-check me-1"></i> <?php echo e($success); ?>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                <?php endif; ?>
 
-                    <form method="POST" action="">
-                        <?php echo csrfInput(); ?>
-                        <div class="mb-3">
-                            <label for="current_password" class="form-label">Current Password</label>
-                            <input type="password" class="form-control" id="current_password" name="current_password" required>
+                <form method="POST" action="">
+                    <?php echo csrfInput(); ?>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-secondary small">Current Password</label>
+                        <input type="password" name="current_password" class="form-control rounded-3 py-2" required placeholder="Enter current password">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-secondary small">New Password</label>
+                        <input type="password" name="new_password" class="form-control rounded-3 py-2" minlength="<?php echo (int) PASSWORD_MIN_LENGTH; ?>" autocomplete="new-password" required placeholder="Enter new password">
+                        <div class="form-text text-muted small mt-1">
+                            Must be at least 8 characters with uppercase, lowercase, numbers, and symbols.
                         </div>
-                        <div class="mb-3">
-                            <label for="new_password" class="form-label">New Password</label>
-                            <input type="password" class="form-control" id="new_password" name="new_password" minlength="<?php echo (int) PASSWORD_MIN_LENGTH; ?>" autocomplete="new-password" required>
-                            <div class="form-text"><?php echo e(passwordRequirementsMessage()); ?></div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="confirm_new_password" class="form-label">Confirm New Password</label>
-                            <input type="password" class="form-control" id="confirm_new_password" name="confirm_new_password" minlength="<?php echo (int) PASSWORD_MIN_LENGTH; ?>" autocomplete="new-password" required>
-                        </div>
-                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                            <a href="<?php echo e(getUserDashboardURL()); ?>" class="btn btn-outline-secondary">Return to Dashboard</a>
-                            <button type="submit" class="btn btn-warning">Change Password</button>
-                        </div>
-                    </form>
-                </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold text-secondary small">Confirm New Password</label>
+                        <input type="password" name="confirm_password" class="form-control rounded-3 py-2" minlength="<?php echo (int) PASSWORD_MIN_LENGTH; ?>" autocomplete="new-password" required placeholder="Repeat new password">
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="<?php echo e($dashboard_url); ?>" class="btn btn-outline-secondary px-4 py-2 rounded-pill fw-medium">Return to Dashboard</a>
+                        <button type="submit" class="btn text-white px-4 py-2 rounded-pill fw-medium" style="background-color: #b8860b; border: none;">Update Password</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>

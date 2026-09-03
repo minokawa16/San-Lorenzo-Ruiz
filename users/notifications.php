@@ -117,15 +117,15 @@ function notificationGroupLabel($date) {
     $days = (int) $created->diff($today)->format('%r%a');
 
     if ($days === 0) {
-        return 'Today';
+        return 'TODAY';
     }
     if ($days === 1) {
-        return 'Yesterday';
+        return 'YESTERDAY';
     }
     if ($days <= 7) {
-        return 'This Week';
+        return 'THIS WEEK';
     }
-    return 'Earlier';
+    return 'EARLIER';
 }
 
 function notificationActionUrl($notification) {
@@ -598,95 +598,67 @@ $body_extra_class = 'user-notifications-page';
         min-width: 0;
     }
 
-    .notification-toolbar {
-        position: sticky;
-        top: 92px;
-        z-index: 12;
-        padding: 12px;
-        margin-bottom: 16px;
-        backdrop-filter: blur(14px);
-        background: rgba(255, 255, 255, 0.94);
-    }
-
-    .notification-toolbar-grid {
-        display: grid;
-        grid-template-columns: minmax(220px, 1fr) 150px 170px 145px auto;
-        gap: 8px;
-        align-items: center;
-    }
-
-    .notification-mark-all-form {
-        margin-top: 8px;
-    }
-
-    .toolbar-control {
-        min-height: 42px;
-        border-radius: 12px;
-        border-color: #e6e0d4;
-        color: #2c2c2c;
-        background-color: #fff;
-        font-size: 0.86rem;
-    }
-
-    .toolbar-control:focus {
-        border-color: #c89b3c;
-        box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.16);
-    }
-
-    .input-with-icon {
-        position: relative;
-    }
-
-    .input-with-icon i {
-        position: absolute;
-        left: 14px;
-        top: 50%;
-        z-index: 1;
-        color: #9a6f18;
-        transform: translateY(-50%);
-    }
-
-    .input-with-icon .form-control {
-        padding-left: 40px;
+    .notification-control-panel {
+        background: #ffffff;
+        border: 1px solid #e8e2d5 !important;
+        border-radius: 16px !important;
+        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04) !important;
+        padding: 16px 20px !important;
+        margin-bottom: 20px !important;
     }
 
     .notification-group-title {
-        margin: 18px 0 10px;
-        color: #6f6f6f;
+        margin: 22px 0 12px;
+        color: #9A7B38;
         font-size: 0.82rem;
-        font-weight: 900;
-        letter-spacing: 0.04em;
+        font-weight: 800;
+        letter-spacing: 0.08em;
         text-transform: uppercase;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .notification-group-title::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: #ede6d8;
     }
 
     .notification-list {
         display: grid;
-        gap: 10px;
+        gap: 12px;
     }
 
     .notification-card {
         position: relative;
         display: grid;
         grid-template-columns: auto minmax(0, 1fr) auto;
-        gap: 14px;
-        padding: 14px;
+        gap: 16px;
+        padding: 16px 18px;
+        border: 1px solid #e8e2d5;
         border-left: 4px solid transparent;
-        transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease, background 0.22s ease;
+        border-radius: 14px;
+        background: #ffffff;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.03);
+        transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s ease, background-color 0.2s ease;
     }
 
     .notification-card:hover {
-        border-color: #c89b3c;
-        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+        border-color: #9A7B38;
+        box-shadow: 0 8px 24px rgba(154, 123, 56, 0.12);
         transform: translateY(-2px);
     }
 
     .notification-card.unread {
-        border-left-color: #c89b3c;
-        background: #fcf8ef;
+        border-left: 4px solid #9A7B38 !important;
+        background: #fffdfa !important;
     }
 
     .notification-card.read {
-        background: #fff;
+        background: #ffffff;
+        border-left: 4px solid transparent;
     }
 
     .notification-card-link {
@@ -697,24 +669,25 @@ $body_extra_class = 'user-notifications-page';
     }
 
     .notification-icon {
-        width: 40px;
-        height: 40px;
+        width: 42px;
+        height: 42px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         border-radius: 12px;
-        color: #5e81ac;
-        background: #eaf1f8;
+        color: #9a6f18;
+        background: #fbf2df;
+        font-size: 1.1rem;
     }
 
-    .notification-icon.success { color: #4f8a5b; background: #e9f4eb; }
-    .notification-icon.danger { color: #c85a54; background: #fbe9e7; }
-    .notification-icon.warning { color: #a7791d; background: #fbf2df; }
+    .notification-icon.success { color: #2e7d32; background: #e8f5e9; }
+    .notification-icon.danger { color: #c62828; background: #ffebee; }
+    .notification-icon.warning { color: #9a6f18; background: #fbf2df; }
     .notification-icon.primary,
-    .notification-icon.info { color: #5e81ac; background: #eaf1f8; }
+    .notification-icon.info { color: #1565c0; background: #e3f2fd; }
     .notification-icon.announcement { color: #9a6f18; background: #fbf2df; }
-    .notification-icon.secondary { color: #6f6f6f; background: #f3f1ec; }
-    .notification-icon.ai { color: #7952b3; background: #f0eafa; }
+    .notification-icon.secondary { color: #616161; background: #f5f5f5; }
+    .notification-icon.ai { color: #6a1b9a; background: #f3e5f5; }
 
     .notification-main,
     .notification-actions {
@@ -727,24 +700,25 @@ $body_extra_class = 'user-notifications-page';
         align-items: center;
         flex-wrap: wrap;
         gap: 8px;
-        margin-bottom: 5px;
+        margin-bottom: 6px;
     }
 
     .notification-card h3 {
         margin: 0;
         color: #2c2c2c;
         font-size: 0.98rem;
-        font-weight: 900;
+        font-weight: 800;
         line-height: 1.35;
     }
 
     .notification-card.read h3 {
         font-weight: 700;
+        color: #4a4a4a;
     }
 
     .notification-card p {
         margin: 0 0 8px;
-        color: #6f6f6f;
+        color: #616161;
         font-size: 0.9rem;
         line-height: 1.5;
     }
@@ -752,65 +726,127 @@ $body_extra_class = 'user-notifications-page';
     .notification-meta {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px 12px;
-        color: #777;
+        gap: 8px 14px;
+        color: #8c8273;
         font-size: 0.78rem;
-        font-weight: 700;
+        font-weight: 600;
     }
 
     .notification-type,
     .read-label {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
-        min-height: 24px;
-        padding: 3px 8px;
+        gap: 5px;
+        min-height: 22px;
+        padding: 2px 8px;
         border-radius: 999px;
         font-size: 0.72rem;
-        font-weight: 900;
+        font-weight: 800;
     }
 
-    .notification-type.success { color: #3f7448; background: #e8f3e9; }
-    .notification-type.danger { color: #a9423d; background: #fae8e6; }
+    .notification-type.success { color: #2e7d32; background: #e8f5e9; }
+    .notification-type.danger { color: #c62828; background: #ffebee; }
     .notification-type.primary,
-    .notification-type.info { color: #3f668b; background: #e8f0f7; }
+    .notification-type.info { color: #1565c0; background: #e3f2fd; }
     .notification-type.warning { color: #8a6116; background: #f8edcf; }
     .notification-type.announcement { color: #8a6116; background: #f8edcf; }
     .notification-type.secondary { color: #626262; background: #f2f0ec; }
     .notification-type.ai { color: #6842a0; background: #efe8f8; }
 
     .read-label {
-        color: #6f6f6f;
-        background: #f3f1ec;
+        color: #757575;
+        background: #f5f5f5;
     }
 
     .read-label.unread {
-        color: #8a6116;
-        background: #f8edcf;
+        color: #9A7B38;
+        background: #fbf2df;
     }
 
     .unread-dot {
-        width: 9px;
-        height: 9px;
-        border-radius: 999px;
-        background: #c89b3c;
-        box-shadow: 0 0 0 5px rgba(200, 155, 60, 0.15);
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #9A7B38;
+        box-shadow: 0 0 0 4px rgba(154, 123, 56, 0.22);
+        display: inline-block;
+        flex-shrink: 0;
     }
 
     .notification-actions {
         display: flex;
-        align-items: flex-start;
+        align-items: center;
         justify-content: flex-end;
         gap: 6px;
-        flex-wrap: wrap;
-        min-width: 214px;
+        flex-wrap: nowrap;
     }
 
-    .notification-actions .btn {
-        min-height: 34px;
-        border-radius: 10px;
-        font-size: 0.78rem;
-        font-weight: 850;
+    .notification-view-btn {
+        background-color: #9A7B38 !important;
+        border: none !important;
+        color: #ffffff !important;
+        font-size: 0.8rem !important;
+        font-weight: 600 !important;
+        padding: 5px 14px !important;
+        border-radius: 50rem !important;
+        text-decoration: none !important;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        white-space: nowrap;
+        transition: background-color 0.15s ease, transform 0.15s ease !important;
+    }
+
+    .notification-view-btn:hover {
+        background-color: #7e6329 !important;
+        color: #ffffff !important;
+        transform: translateY(-1px);
+    }
+
+    .notification-icon-btn {
+        width: 32px !important;
+        height: 32px !important;
+        min-height: 32px !important;
+        border-radius: 50% !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 0 !important;
+        border: 1px solid #dfd8cc !important;
+        background: #ffffff !important;
+        color: #6b6357 !important;
+        font-size: 0.78rem !important;
+        transition: all 0.15s ease !important;
+        cursor: pointer;
+    }
+
+    .notification-icon-btn:hover {
+        background: #f7f3eb !important;
+        border-color: #9A7B38 !important;
+        color: #9A7B38 !important;
+        transform: translateY(-1px);
+    }
+
+    .notification-icon-btn.danger {
+        border-color: #f1cfcf !important;
+        color: #dc3545 !important;
+    }
+
+    .notification-icon-btn.danger:hover {
+        background: #fdf2f2 !important;
+        border-color: #dc3545 !important;
+        color: #dc3545 !important;
+    }
+
+    .notification-icon-btn.success {
+        border-color: #d1e7dd !important;
+        color: #198754 !important;
+    }
+
+    .notification-icon-btn.success:hover {
+        background: #f0fdf4 !important;
+        border-color: #198754 !important;
+        color: #198754 !important;
     }
 
     .notification-empty {
@@ -1481,13 +1517,6 @@ $body_extra_class = 'user-notifications-page';
         </div>
     <?php else: ?>
         <!-- Feed View -->
-        <nav class="notification-summary" aria-label="Notification filters">
-            <a class="notification-chip <?php echo $read_filter === 'all' && $type_filter === 'all' ? 'active' : ''; ?>" href="notifications.php">All <strong><?php echo number_format($total_count); ?></strong></a>
-            <a class="notification-chip <?php echo $read_filter === 'unread' && $type_filter === 'all' ? 'active' : ''; ?>" href="notifications.php?read=unread&amp;type=all">Unread <strong><?php echo number_format($unread_count); ?></strong></a>
-            <a class="notification-chip <?php echo $read_filter === 'read' && $type_filter === 'all' ? 'active' : ''; ?>" href="notifications.php?read=read&amp;type=all">Read <strong><?php echo number_format($read_count); ?></strong></a>
-            <a class="notification-chip <?php echo $type_filter === 'archived' ? 'active' : ''; ?>" href="notifications.php?read=all&amp;type=archived">Archived <strong><?php echo number_format($archived_count); ?></strong></a>
-        </nav>
-
         <div class="notification-layout">
             <aside class="notification-categories" aria-label="Notification categories">
                 <div class="notification-category-header">
@@ -1571,38 +1600,64 @@ $body_extra_class = 'user-notifications-page';
             </aside>
 
             <main class="notification-feed-panel">
-                <section class="notification-toolbar" aria-label="Notification filters">
-                    <form method="GET" class="notification-toolbar-grid">
-                        <div class="input-with-icon toolbar-search">
-                            <i class="fas fa-search"></i>
-                            <input type="search" class="form-control toolbar-control" name="q" value="<?php echo e($search); ?>" placeholder="Search notifications, requests, or updates...">
+                <!-- Consolidated Control Panel Card -->
+                <div class="card border-0 shadow-sm rounded-4 p-3 mb-4 notification-control-panel">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pb-3 mb-3 border-bottom" style="border-color: #f2ede4 !important;">
+                        <div class="d-flex flex-wrap gap-2">
+                            <a class="btn btn-sm rounded-pill px-3 fw-semibold <?php echo $read_filter === 'all' && $type_filter === 'all' ? 'text-white' : 'btn-outline-secondary'; ?>" style="<?php echo $read_filter === 'all' && $type_filter === 'all' ? 'background-color: #9A7B38; border-color: #9A7B38;' : 'border-color: #d8d0c2; color: #4a443b;'; ?>" href="notifications.php">
+                                All <span class="badge ms-1 <?php echo $read_filter === 'all' && $type_filter === 'all' ? 'bg-white text-dark' : 'bg-light text-secondary'; ?>"><?php echo number_format($total_count); ?></span>
+                            </a>
+                            <a class="btn btn-sm rounded-pill px-3 fw-semibold <?php echo $read_filter === 'unread' && $type_filter === 'all' ? 'text-white' : 'btn-outline-secondary'; ?>" style="<?php echo $read_filter === 'unread' && $type_filter === 'all' ? 'background-color: #9A7B38; border-color: #9A7B38;' : 'border-color: #d8d0c2; color: #4a443b;'; ?>" href="notifications.php?read=unread&amp;type=all">
+                                Unread <span class="badge ms-1 <?php echo $read_filter === 'unread' && $type_filter === 'all' ? 'bg-white text-dark' : 'bg-warning text-dark'; ?>"><?php echo number_format($unread_count); ?></span>
+                            </a>
+                            <a class="btn btn-sm rounded-pill px-3 fw-semibold <?php echo $read_filter === 'read' && $type_filter === 'all' ? 'text-white' : 'btn-outline-secondary'; ?>" style="<?php echo $read_filter === 'read' && $type_filter === 'all' ? 'background-color: #9A7B38; border-color: #9A7B38;' : 'border-color: #d8d0c2; color: #4a443b;'; ?>" href="notifications.php?read=read&amp;type=all">
+                                Read <span class="badge ms-1 <?php echo $read_filter === 'read' && $type_filter === 'all' ? 'bg-white text-dark' : 'bg-light text-secondary'; ?>"><?php echo number_format($read_count); ?></span>
+                            </a>
+                            <a class="btn btn-sm rounded-pill px-3 fw-semibold <?php echo $type_filter === 'archived' ? 'text-white' : 'btn-outline-secondary'; ?>" style="<?php echo $type_filter === 'archived' ? 'background-color: #9A7B38; border-color: #9A7B38;' : 'border-color: #d8d0c2; color: #4a443b;'; ?>" href="notifications.php?read=all&amp;type=archived">
+                                Archived <span class="badge ms-1 <?php echo $type_filter === 'archived' ? 'bg-white text-dark' : 'bg-light text-secondary'; ?>"><?php echo number_format($archived_count); ?></span>
+                            </a>
                         </div>
-                        <select name="read" class="form-select toolbar-control">
-                            <option value="all" <?php echo $read_filter === 'all' ? 'selected' : ''; ?>>All</option>
-                            <option value="unread" <?php echo $read_filter === 'unread' ? 'selected' : ''; ?>>Unread only</option>
-                            <option value="read" <?php echo $read_filter === 'read' ? 'selected' : ''; ?>>Read only</option>
-                        </select>
-                        <select name="type" class="form-select toolbar-control">
-                            <option value="all" <?php echo $type_filter === 'all' ? 'selected' : ''; ?>>All types</option>
-                            <?php foreach ($notification_type_catalog as $key => $type_meta): ?>
-                                <option value="<?php echo e($key); ?>" <?php echo $type_filter === $key ? 'selected' : ''; ?>><?php echo e($type_meta['label']); ?></option>
-                            <?php endforeach; ?>
-                            <option value="archived" <?php echo $type_filter === 'archived' ? 'selected' : ''; ?>>Archived</option>
-                        </select>
-                        <select name="sort" class="form-select toolbar-control">
-                            <option value="latest" <?php echo $sort === 'latest' ? 'selected' : ''; ?>>Latest first</option>
-                            <option value="oldest" <?php echo $sort === 'oldest' ? 'selected' : ''; ?>>Oldest first</option>
-                        </select>
-                        <button type="submit" class="btn btn-primary toolbar-control"><i class="fas fa-filter"></i> Filter</button>
+                        <?php if ($unread_count > 0): ?>
+                            <form method="POST" class="d-inline mb-0">
+                                <?php echo csrfInput(); ?>
+                                <input type="hidden" name="action" value="mark_all_read">
+                                <button type="submit" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold" style="border-color: #9A7B38; color: #9A7B38;">
+                                    <i class="fas fa-check-double me-1"></i> Mark All as Read
+                                </button>
+                            </form>
+                        <?php endif; ?>
+                    </div>
+                    <form method="GET" class="row g-2 align-items-center">
+                        <div class="col-md-5">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-light border-end-0 rounded-start-3" style="border-color: #d8d0c2;"><i class="fas fa-search text-muted"></i></span>
+                                <input type="search" class="form-control rounded-end-3" style="border-color: #d8d0c2;" name="q" value="<?php echo e($search); ?>" placeholder="Search notifications, requests, or updates...">
+                            </div>
+                        </div>
+                        <div class="col-sm-6 col-md-3">
+                            <select name="type" class="form-select form-select-sm rounded-3" style="border-color: #d8d0c2;">
+                                <option value="all" <?php echo $type_filter === 'all' ? 'selected' : ''; ?>>All Categories</option>
+                                <?php foreach ($notification_type_catalog as $key => $type_meta): ?>
+                                    <option value="<?php echo e($key); ?>" <?php echo $type_filter === $key ? 'selected' : ''; ?>><?php echo e($type_meta['label']); ?></option>
+                                <?php endforeach; ?>
+                                <option value="archived" <?php echo $type_filter === 'archived' ? 'selected' : ''; ?>>Archived</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-6 col-md-2">
+                            <select name="sort" class="form-select form-select-sm rounded-3" style="border-color: #d8d0c2;">
+                                <option value="latest" <?php echo $sort === 'latest' ? 'selected' : ''; ?>>Latest first</option>
+                                <option value="oldest" <?php echo $sort === 'oldest' ? 'selected' : ''; ?>>Oldest first</option>
+                            </select>
+                        </div>
+                        <input type="hidden" name="read" value="<?php echo e($read_filter); ?>">
+                        <div class="col-md-2 d-flex gap-1">
+                            <button type="submit" class="btn btn-sm text-white rounded-3 flex-fill fw-semibold" style="background-color: #9A7B38; border: none;"><i class="fas fa-filter me-1"></i> Filter</button>
+                            <?php if ($search !== '' || $type_filter !== 'all' || $sort !== 'latest'): ?>
+                                <a href="notifications.php?read=<?php echo e($read_filter); ?>" class="btn btn-sm btn-outline-secondary rounded-3" title="Clear Filters"><i class="fas fa-rotate-left"></i></a>
+                            <?php endif; ?>
+                        </div>
                     </form>
-                    <?php if ($unread_count > 0): ?>
-                        <form method="POST" class="notification-mark-all-form">
-                            <?php echo csrfInput(); ?>
-                            <input type="hidden" name="action" value="mark_all_read">
-                            <button type="submit" class="btn btn-sm btn-outline-primary"><i class="fas fa-check-double"></i> Mark All as Read</button>
-                        </form>
-                    <?php endif; ?>
-                </section>
+                </div>
 
                 <?php if (!empty($grouped_notifications)): ?>
                     <?php foreach ($grouped_notifications as $group => $items): ?>
@@ -1634,23 +1689,26 @@ $body_extra_class = 'user-notifications-page';
                                         </div>
                                     </div>
                                     <div class="notification-actions">
-                                        <a class="btn btn-sm btn-outline-primary" href="<?php echo e(notificationActionUrl($notification)); ?>"><i class="fas fa-arrow-up-right-from-square"></i> View</a>
+                                        <a class="notification-view-btn" href="<?php echo e(notificationActionUrl($notification)); ?>"><i class="fas fa-arrow-up-right-from-square"></i> View</a>
                                         <?php if (!$notification['is_read']): ?>
-                                            <form method="POST">
+                                            <form method="POST" class="d-inline mb-0">
                                                 <?php echo csrfInput(); ?>
                                                 <input type="hidden" name="action" value="mark_read">
                                                 <input type="hidden" name="notification_id" value="<?php echo intval($notification['notification_id']); ?>">
-                                                <button type="submit" class="btn btn-sm btn-outline-success"><i class="fas fa-check"></i> Mark as Read</button>
+                                                <button type="submit" class="notification-icon-btn success" title="Mark as Read" aria-label="Mark as Read"><i class="fas fa-check"></i></button>
                                             </form>
-                                        <?php else: ?>
-                                            <button type="button" class="btn btn-sm btn-outline-secondary" disabled><i class="fas fa-envelope-open"></i> Read</button>
                                         <?php endif; ?>
-                                        <form method="POST"><?php echo csrfInput(); ?><input type="hidden" name="action" value="archive_notification"><input type="hidden" name="notification_id" value="<?php echo intval($notification['notification_id']); ?>"><button class="btn btn-sm btn-outline-secondary"><i class="fas fa-box-archive"></i> Archive</button></form>
-                                        <form method="POST" onsubmit="return confirm('Delete this notification?');">
+                                        <form method="POST" class="d-inline mb-0">
+                                            <?php echo csrfInput(); ?>
+                                            <input type="hidden" name="action" value="archive_notification">
+                                            <input type="hidden" name="notification_id" value="<?php echo intval($notification['notification_id']); ?>">
+                                            <button type="submit" class="notification-icon-btn" title="Archive" aria-label="Archive"><i class="fas fa-box-archive"></i></button>
+                                        </form>
+                                        <form method="POST" class="d-inline mb-0" onsubmit="return confirm('Delete this notification?');">
                                             <?php echo csrfInput(); ?>
                                             <input type="hidden" name="action" value="delete_notification">
                                             <input type="hidden" name="notification_id" value="<?php echo intval($notification['notification_id']); ?>">
-                                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i> Delete</button>
+                                            <button type="submit" class="notification-icon-btn danger" title="Delete" aria-label="Delete"><i class="fas fa-trash-can"></i></button>
                                         </form>
                                     </div>
                                 </article>
