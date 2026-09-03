@@ -508,11 +508,39 @@ final class AiAssistantService
         }
 
         // N. Data Privacy, Security & Discrepancy Handling
-        if (preg_match('/\b(?:how does tugon protect my information|who can see my submitted documents|what should i do if i uploaded the wrong document|what should i do if my information is incorrect|protect my information|wrong document|information is incorrect)\b/iu', $normalized)) {
+        if (preg_match('/\b(?:how does tugon protect my information|who can see my submitted documents|what should i do if i uploaded the wrong document|what should i do if my information is incorrect|protect my information|wrong document|information is incorrect|why does tugon require a valid id|can i submit a request without uploading|what should i do if my uploaded document is blurry|can i upload another document after submitting|how do i know if my document was successfully uploaded|can i request a certificate for another family member|what should i do if my name is different|what should i do if my sacramental record cannot be found|can i request a correction to my parish record|what should i do if the information on my certificate is incorrect)\b/iu', $normalized)) {
             if (preg_match('/\bwho can see/i', $normalized)) {
                 $answer = $isFil
                     ? "Kayo lamang (ang may-ari ng account) at ang mga **Awtorisadong Parish Personnel** (Kura Paroko at Parish Secretary) ang may pahintulot na makakita ng inyong mga naisumiteng ID at dokumento. Naka-store ang mga ito sa protektadong storage."
                     : "Only you (the account owner) and **Authorized Parish Personnel** (Parish Priest & Secretary) have permission to view your submitted IDs and sacramental documents. They are stored in secure, restricted storage.";
+            } elseif (preg_match('/\bwhy.*valid id/i', $normalized)) {
+                $answer = $isFil
+                    ? "Hinihingi ng TUGON ang **Valid ID** upang maprotektahan ang mga sagradong talaan ng parokya, maiwasan ang identity theft, at matiyak na ang mga sertipiko ay maibibigay lamang sa may-ari o awtorisadong kinatawan."
+                    : "TUGON requires a **Valid ID** to safeguard sacramental records, prevent fraudulent requests, and ensure official certificates are released only to verified individuals or authorized representatives.";
+            } elseif (preg_match('/\bwithout uploading|no document/i', $normalized)) {
+                $answer = $isFil
+                    ? "Hindi po maaaring mag-submit nang walang kinakailangang dokumento. Ang mga mandatoryong dokumento (tulad ng PSA Birth Certificate o Valid ID) ay kailangan bago maiproseso ang request."
+                    : "No, you cannot submit without the required documents. Mandatory supporting documents (such as a PSA Birth Certificate or Valid ID) must be attached before submitting.";
+            } elseif (preg_match('/\bblurry|malabo/i', $normalized)) {
+                $answer = $isFil
+                    ? "Kung malabo ang na-upload na dokumento, buksan ang inyong request sa [My Requests](../users/my-requests.php) o magsumite ng bago na may malinaw at maliwanag na litrato (JPG/PNG) o scanned PDF kung saan kita ang lahat ng sulok."
+                    : "If your uploaded file is blurry, open your request in [My Requests](../users/my-requests.php) to re-upload, or submit a high-resolution, well-lit photo (JPG/PNG) or scanned PDF showing all 4 corners.";
+            } elseif (preg_match('/\bupload.*another|upload.*after/i', $normalized)) {
+                $answer = $isFil
+                    ? "Opo! Kung ang inyong request ay **Pending** pa o kung may admin remark ang opisina ng parokya, maaari kayong mag-upload ng karagdagang dokumento sa detalye ng inyong request sa [My Requests](../users/my-requests.php)."
+                    : "Yes! While your request is **Pending** or if staff requested additional requirements, you can upload supplemental documents directly from your request details page in [My Requests](../users/my-requests.php).";
+            } elseif (preg_match('/\bsuccessfully uploaded|uploaded checkmark/i', $normalized)) {
+                $answer = $isFil
+                    ? "Malalaman ninyong matagumpay ang upload kapag may lumitaw na berdeng checkmark (✓), pangalan ng file, at preview thumbnail sa requirements section."
+                    : "You will know your document was successfully uploaded when a green checkmark (✓), filename, and preview thumbnail appear in the upload section.";
+            } elseif (preg_match('/\banother family member|kumuha para sa iba/i', $normalized)) {
+                $answer = $isFil
+                    ? "Opo, maaari kayong kumuha ng sertipiko para sa inyong kapamilya (halimbawa, magulang para sa anak). Magdala lamang ng **Authorization Letter** at Valid ID ninyo at ng may-ari ng dokumento kapag kukunin na sa opisina."
+                    : "Yes, you can request a certificate for an immediate family member (e.g., parents for their children). Please bring an **Authorization Letter** and Valid IDs of both parties when claiming at the parish office.";
+            } elseif (preg_match('/\bname is different|record cannot be found|correction|mali ang nakasulat/i', $normalized)) {
+                $answer = $isFil
+                    ? "Kung may discrepancy sa pangalan, hindi mahanap ang rekord, o kailangan ng pagwawasto:\n1. Maghanda ng opisyal na **PSA Birth Certificate** o **Affidavit of One and the Same Person**.\n2. Makipag-ugnayan sa Parish Secretary sa **0997 742 8176** upang masuri nang manual ang mga pisikal na libro ng parokya."
+                    : "If your name is different, record cannot be found, or you need a record correction:\n1. Prepare an official **PSA Birth Certificate** or **Affidavit of One and the Same Person**.\n2. Contact the Parish Secretary at **0997 742 8176** so staff can conduct a manual search in the parish physical registry books.";
             } elseif (preg_match('/\bwrong document|information is incorrect/i', $normalized)) {
                 $answer = $isFil
                     ? "Kung may maling dokumento o impormasyon:\n1. Para sa profile details, i-update agad sa [Profile Settings](../auth/profile.php).\n2. Para sa naisumiteng request na Pending, kontakin ang Parish Secretary sa **0997 742 8176** dala ang inyong Reference Number upang maiwasto bago i-print ang sertipiko.\n\n[Profile Settings](../auth/profile.php)"
@@ -528,7 +556,82 @@ final class AiAssistantService
             ];
         }
 
-        // O. Announcements
+        // O. Edit, Cancel & Multiple Requests Operations
+        if (preg_match('/\b(?:can i edit my request|can i cancel a submitted request|can i submit more than one|can i have more than one active reservation|accidentally submit the same request twice|how do i know if my certificate is ready for release|what should i do after my certificate request is approved|can i download my certificate from tugon)\b/iu', $normalized)) {
+            if (preg_match('/\bedit/i', $normalized)) {
+                $answer = $isFil
+                    ? "Kung ang request ay **Pending** pa, maaari itong i-cancel at magsumite ng bago, o tawagan ang Parish Secretary sa **0997 742 8176**. Kapag In Processing na, hindi na ito mababago nang direkta sa portal."
+                    : "If your request is still **Pending**, you can cancel and resubmit, or contact the Parish Secretary at **0997 742 8176**. Once In Processing, details cannot be modified directly in the portal.";
+            } elseif (preg_match('/\bcancel|twice|duplicate/i', $normalized)) {
+                $answer = $isFil
+                    ? "Opo! Maaari ninyong i-cancel ang isang Pending request o nadobleng submission sa pamamagitan ng pagbukas ng inyong request sa [My Requests](../users/my-requests.php) at pag-click sa **Cancel Request**."
+                    : "Yes! You can cancel a Pending or accidental duplicate request by opening it in [My Requests](../users/my-requests.php) and clicking **Cancel Request**.";
+            } elseif (preg_match('/\bmore than one|multiple/i', $normalized)) {
+                $answer = $isFil
+                    ? "Opo, maaari kayong magsumite ng mahigit sa isang certificate request o reservation nang sabay. Bawat isa ay magkakaroon ng sariling Reference Number para sa hiwalay na tracking."
+                    : "Yes! You can have multiple certificate requests and active reservations at the same time. Each will have its own unique Reference Number for tracking.";
+            } elseif (preg_match('/\bdownload/i', $normalized)) {
+                $answer = $isFil
+                    ? "Ang opisyal na sertipiko ng Simbahang Katolika ay kailangang may orihinal na lagda ng Kura Paroko at dry seal ng parokya, kaya kailangan itong kunin nang personal sa tanggapan ng parokya dala ang inyong Reference Number at Valid ID."
+                    : "Official Catholic certificates must bear the original pen signature of the Parish Priest and the parish embossed dry seal, so they must be claimed physically at the parish office.";
+            } else {
+                $answer = $isFil
+                    ? "Kapag ang inyong request ay naging **Ready for Pickup**, magtungo lamang sa tanggapan ng parokya dala ang inyong **Reference Number** at isang **Valid ID** upang makuha ang inyong opisyal na sertipiko."
+                    : "When your request status updates to **Ready for Pickup**, proceed to the parish office with your **Reference Number** and **1 Valid ID** to claim your official certificate.";
+            }
+            return [
+                'answer' => $answer,
+                'prompts' => ['Track My Requests', 'Parish Office Hours', 'Request Certificate']
+            ];
+        }
+
+        // P. Technical, Mobile & Browser Compatibility
+        if (preg_match('/\b(?:can i use tugon on my mobile phone|what browsers can i use|what should i do if tugon is not loading|lose internet connection|why does my account need administrator approval|what should i do if my registration is rejected|why did i not receive a request notification|can i still check my request if i did not receive a notification)\b/iu', $normalized)) {
+            if (preg_match('/\bmobile|cellphone|browser/i', $normalized)) {
+                $answer = $isFil
+                    ? "Opo! Gumagana ang TUGON sa anumang smartphone, tablet, o computer gamit ang **Google Chrome, Safari, Mozilla Firefox, Microsoft Edge, o Opera**."
+                    : "Yes! TUGON is fully optimized for mobile smartphones, tablets, and computers using **Google Chrome, Apple Safari, Mozilla Firefox, Microsoft Edge, or Opera**.";
+            } elseif (preg_match('/\bnot loading|internet|connection/i', $normalized)) {
+                $answer = $isFil
+                    ? "Kung hindi naglo-load o nawalan ng internet:\n1. I-refresh ang page o i-clear ang cache ng browser.\n2. Pagkabalik ng internet, buksan ang [My Requests](../users/my-requests.php) upang tingnan kung pumasok ang inyong submission."
+                    : "If TUGON is not loading or you lost internet connection:\n1. Refresh the page or clear browser cache.\n2. Upon reconnecting, check [My Requests](../users/my-requests.php) to verify if your request went through.";
+            } elseif (preg_match('/\badmin.*approval|rejected/i', $normalized)) {
+                $answer = $isFil
+                    ? "Ang pagsusuri ng Administrator sa bagong account ay upang mapatunayan ang tunay na pagkakakilanlan ng parokyano gamit ang Valid ID at mapanatiling ligtas ang sistema. Kung na-reject, mag-register muli gamit ang malinaw na Valid ID."
+                    : "Administrator approval verifies authentic parishioner identity via government ID and keeps the portal secure. If rejected, please register again with a clear, valid ID.";
+            } else {
+                $answer = $isFil
+                    ? "Kahit walang natanggap na SMS o email notification, maaari ninyong tingnan ang inyong mga request 24/7 sa [My Requests](../users/my-requests.php) o sa 🔔 Notifications page."
+                    : "Even without receiving an SMS or email alert, you can always check your live request status 24/7 in [My Requests](../users/my-requests.php) or under the 🔔 Notifications center.";
+            }
+            return [
+                'answer' => $answer,
+                'prompts' => ['Track My Requests', 'Profile Settings', 'Create Account']
+            ];
+        }
+
+        // Q. AI Assistant Scope & Human Authority Clarification
+        if (preg_match('/\b(?:can the ai assistant answer questions outside|which information should i follow|what should i do if the information from the ai assistant is different|can the ai assistant change my request status|can i ask the ai assistant about|what can the tugon ai assistant help me with)\b/iu', $normalized)) {
+            if (preg_match('/\bwhich information|different|follow/i', $normalized)) {
+                $answer = $isFil
+                    ? "Laging sundin ang **Parish Secretary (Agnes C. Calapaan)** at ang **Parish Priest (Rev. Fr. Alberto G. Cahilig, OMI)**. Ang opisina ng parokya ang opisyal na awtoridad; ang TUGON AI ay isang gabay lamang."
+                    : "Always follow the **Parish Secretary (Agnes C. Calapaan)** and the **Parish Priest (Rev. Fr. Alberto G. Cahilig, OMI)**. The parish office is the official canonical authority; TUGON AI serves as an informational assistant.";
+            } elseif (preg_match('/\boutside/i', $normalized)) {
+                $answer = $isFil
+                    ? "Ang TUGON AI ay nakadisenyo lamang para sa mga serbisyo, iskedyul, sakramento, sertipiko, at patakaran ng Parokya ng San Lorenzo Ruiz."
+                    : "TUGON AI is strictly dedicated to San Lorenzo Ruiz Parish services, sacraments, Mass schedules, certificates, and parishioner requests.";
+            } else {
+                $answer = $isFil
+                    ? "Maaari ninyong itanong sa TUGON AI ang tungkol sa mga requirements sa sakramento, iskedyul ng misa, paano mag-request ng sertipiko o basbas, at ang live status ng inyong mga kahilingan."
+                    : "You can ask TUGON AI about sacramental requirements, Mass times, how to request certificates or blessings, and check the live status of your active requests.";
+            }
+            return [
+                'answer' => $answer,
+                'prompts' => ['Mass Schedule', 'Request Certificate', 'Contact Parish Staff']
+            ];
+        }
+
+        // R. Announcements
         if (preg_match('/\b(?:where can i (?:see|view|find|check) (?:parish )?announcements|what are the (?:latest )?announcements|parish announcements|mga anunsyo|balita sa parokya)\b/iu', $normalized)) {
             $answer = $isFil
                 ? "Maaari ninyong basahin ang mga pinakabagong balita, anunsyo para sa kapistahan, paalala sa misa, at mga aktibidad ng komunidad sa **Announcements** page:\n\n[View Announcements](../users/announcements.php)"
@@ -539,8 +642,8 @@ final class AiAssistantService
             ];
         }
 
-        // P. Schedules and Events
-        if (preg_match('/\b(?:where can i (?:see|view|find|check) (?:the )?(?:parish )?schedule|parish schedule|mass schedule|mass times?|parish calendar|oras ng misa|iskedyul ng misa|upcoming mass schedules)\b/iu', $normalized)) {
+        // S. Schedules and Events
+        if (preg_match('/\b(?:where can i (?:see|view|find|check) (?:the )?(?:parish )?schedule|how can i check upcoming (?:parish )?events?|upcoming (?:parish )?events?|parish events?|parish schedule|mass schedule|mass times?|parish calendar|oras ng misa|iskedyul ng misa|upcoming mass schedules|what schedules are available)\b/iu', $normalized)) {
             $answer = $isFil
                 ? "Maaari ninyong tingnan ang kumpletong iskedyul ng mga Misa (Linggo at Araw-araw), mga kaganapan, at banal na pagdiriwang sa ating **Parish Calendar**:\n\n• **Misa tuwing Linggo**: 6:00 AM, 8:00 AM, 10:00 AM, 4:00 PM, 5:30 PM, 7:00 PM\n• **Araw-araw (Martes - Sabado)**: 6:30 AM, 6:00 PM\n\n[View Schedule](../users/view-schedule.php)"
                 : "You can view the comprehensive parish schedule, regular Sunday and weekday Mass times, feast day celebrations, and sacramental calendar here:\n\n• **Sunday Masses**: 6:00 AM, 8:00 AM, 10:00 AM, 4:00 PM, 5:30 PM, 7:00 PM\n• **Weekday Masses (Tue - Sat)**: 6:30 AM, 6:00 PM\n\n[View Schedule](../users/view-schedule.php)";
@@ -550,7 +653,7 @@ final class AiAssistantService
             ];
         }
 
-        // Q. Payments and GCash
+        // T. Payments and GCash
         if (preg_match('/\b(?:how (?:do|can) i pay|payment (?:info|information|status|details)|gcash (?:payment|receipt)|paano magbayad|bayad sa certificate)\b/iu', $normalized)) {
             $answer = $isFil
                 ? "Para sa pagbabayad at pag-upload ng resibo:\n\n1. Buksan ang **Track Requests** (`my-requests.php`).\n2. Piliin ang inyong request upang makita ang detalye.\n3. Makikita roon ang opisyal na GCash account number ng parokya.\n4. I-upload ang screenshot ng inyong GCash transaction receipt upang ma-verify ng parish staff.\n\n[View My Requests](../users/my-requests.php)"
@@ -561,7 +664,7 @@ final class AiAssistantService
             ];
         }
 
-        // R. Account Profile Updates & Password
+        // U. Account Profile Updates & Password
         if (preg_match('/\b(?:how (?:do|can) i (?:update|change|edit) (?:my )?(?:profile|account|password|email)|paano palitan ang (?:profile|password)|how can i change my password|how can i update my profile information)\b/iu', $normalized)) {
             $answer = $isFil
                 ? "Maaari ninyong i-update ang inyong pangalan, mobile number, tirahan, at palitan ang inyong password sa **Profile Settings**:\n\n[Profile Settings](../auth/profile.php)"
@@ -572,7 +675,7 @@ final class AiAssistantService
             ];
         }
 
-        // S. Parish Secretary & Office Contact
+        // V. Parish Secretary & Office Contact
         if (preg_match('/\b(?:how (?:do|can) i contact the parish|who is the (?:parish )?secretary|sino (?:ang )?(?:parish )?secretary|sino (?:ang )?kalihim|parish secretary|secretary name|secretary contact|contact (?:the )?secretary|contact (?:the )?parish|agnes calapaan|agnes|calapaan)\b/iu', $normalized)) {
             $answer = $isFil
                 ? "Maaari po kayong makipag-ugnayan sa tanggapan ng parokya sa pamamagitan ng:\n\n• **Parish Secretary**: Agnes C. Calapaan\n• 📞 **Contact**: 0997 742 8176\n• ⛪ **Parish Priest**: Rev. Fr. Alberto G. Cahilig, OMI\n• 🕒 **Oras ng Opisina**:\n  - Martes hanggang Sabado: 8:00 AM – 5:00 PM (Lunch: 12:00 PM – 1:00 PM)\n  - Linggo: 7:00 AM – 12:00 PM\n  - Lunes: Sarado ang opisina"
@@ -583,7 +686,7 @@ final class AiAssistantService
             ];
         }
 
-        // T. Parish Priest & Clergy Inquiry
+        // W. Parish Priest & Clergy Inquiry
         if (preg_match('/\b(?:who is the (?:parish )?priest|sino (?:ang )?(?:parish )?priest|sino (?:ang )?pari|parish priest|who is the priest|pari ng parokya)\b/iu', $normalized)) {
             $answer = $isFil
                 ? "Ang ating **Parish Priest** ay si **Rev. Fr. Alberto G. Cahilig, OMI**, at ang ating **Parochial Vicar** ay si **Rev. Fr. Alvin Vicente C. Barretto, OMI**."
