@@ -641,9 +641,9 @@ $breadcrumbs = [
     .status-pill.scheduled { color: #80611b; background: #f7f0df; }
     .status-pill.archived { color: #475569; background: #f1f5f9; }
     .announcement-card-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-top: 4px; }
-    .view-details-btn { min-height: 44px; padding: 8px 15px; border: 1px solid #c89b3c; border-radius: 9px; color: #78591b; background: #fff; font-weight: 600; }
-    .view-details-btn:hover, .view-details-btn:focus { color: #2c2c2c; background: #f5e8c5; border-color: #b88b30; }
-    .announcement-full-content { padding: 14px 0 2px; border-top: 1px solid #eee9df; color: #4f4f4f; font-size: 14px; line-height: 1.65; }
+    .view-details-btn { min-height: 40px; padding: 8px 18px; border: 1px solid #c89b3c; border-radius: 9px; color: #78591b; background: #fff; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s ease; user-select: none; }
+    .view-details-btn:hover, .view-details-btn:focus { color: #2c2c2c; background: #fbf2df; border-color: #b88b30; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(200, 155, 60, 0.15); }
+    .announcement-full-content { padding: 16px 0 6px; border-top: 1px solid #eee9df; color: #334155; font-size: 14px; line-height: 1.65; }
     .announcement-full-content img { display: block; max-width: 360px; max-height: 220px; margin: 0 0 14px; border-radius: 10px; object-fit: cover; }
     .feed-pagination { max-width: 1200px; margin-top: 20px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; gap: 14px; color: #6f6f6f; font-size: 13px; }
     .feed-pagination .pagination { margin: 0; }
@@ -1972,6 +1972,52 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         });
+    });
+
+    // Announcement Details Expand/Collapse Toggle Handler
+    document.addEventListener('click', function(e) {
+        const toggleBtn = e.target.closest('.announcement-details-toggle');
+        if (!toggleBtn) return;
+
+        e.preventDefault();
+        const targetId = toggleBtn.getAttribute('data-target') || toggleBtn.dataset.target;
+        if (!targetId) return;
+
+        const detailsEl = document.getElementById(targetId);
+        if (!detailsEl) return;
+
+        const card = toggleBtn.closest('.announcement-card');
+        const previewEl = card ? card.querySelector('.announcement-preview') : null;
+        const footerBtn = card ? card.querySelector('.view-details-btn') : (toggleBtn.classList.contains('view-details-btn') ? toggleBtn : null);
+        const dropdownItem = card ? card.querySelector('.dropdown-item.announcement-details-toggle') : null;
+
+        const isHidden = detailsEl.hasAttribute('hidden') || detailsEl.style.display === 'none' || window.getComputedStyle(detailsEl).display === 'none';
+
+        if (isHidden) {
+            detailsEl.removeAttribute('hidden');
+            detailsEl.style.display = 'block';
+            if (previewEl) previewEl.style.display = 'none';
+            if (card) card.classList.add('is-expanded');
+            if (footerBtn) {
+                footerBtn.innerHTML = 'Hide Details <i class="fas fa-chevron-up ms-1"></i>';
+                footerBtn.setAttribute('aria-expanded', 'true');
+            }
+            if (dropdownItem) {
+                dropdownItem.innerHTML = '<i class="fas fa-eye-slash me-2"></i> Hide details';
+            }
+        } else {
+            detailsEl.setAttribute('hidden', '');
+            detailsEl.style.display = 'none';
+            if (previewEl) previewEl.style.display = 'block';
+            if (card) card.classList.remove('is-expanded');
+            if (footerBtn) {
+                footerBtn.innerHTML = 'View Details <i class="fas fa-arrow-right ms-1"></i>';
+                footerBtn.setAttribute('aria-expanded', 'false');
+            }
+            if (dropdownItem) {
+                dropdownItem.innerHTML = '<i class="fas fa-eye me-2"></i> View details';
+            }
+        }
     });
 });
 </script>
