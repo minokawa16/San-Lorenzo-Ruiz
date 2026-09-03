@@ -1126,8 +1126,19 @@
             justify-content: center !important;
             color: #FFFDF8 !important;
             position: relative !important;
+            transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s ease !important;
         }
-        html body .ai-assistant-icon i {
+        html body .ai-assistant-close-icon {
+            display: none !important;
+            align-items: center !important;
+            justify-content: center !important;
+            color: #FAF6ED !important;
+            position: relative !important;
+            font-size: 1.35rem !important;
+            transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s ease !important;
+        }
+        html body .ai-assistant-icon i,
+        html body .ai-assistant-close-icon i {
             font-size: 1.35rem !important;
             color: #FAF6ED !important;
             filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25));
@@ -1165,20 +1176,48 @@
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) !important;
             pointer-events: none !important;
         }
+
+        /* ── Open State for Floating Launcher (Stays visible & morphs to active Close button) ── */
         html body .ai-assistant-widget.is-open .ai-assistant-trigger {
+            display: inline-flex !important;
+            background: linear-gradient(145deg, #28372A 0%, #1A241C 100%) !important;
+            border-color: #E2CE98 !important;
+            box-shadow: 0 10px 28px rgba(27, 38, 29, 0.45), 0 0 16px rgba(201, 166, 70, 0.35) !important;
+            transform: scale(1) !important;
+        }
+        html body .ai-assistant-widget.is-open .ai-assistant-trigger:hover {
+            transform: scale(1.08) !important;
+            box-shadow: 0 14px 32px rgba(27, 38, 29, 0.55), 0 0 20px rgba(201, 166, 70, 0.5) !important;
+            border-color: #F8F5ED !important;
+        }
+        html body .ai-assistant-widget.is-open .ai-assistant-trigger .ai-assistant-icon {
             display: none !important;
+        }
+        html body .ai-assistant-widget.is-open .ai-assistant-trigger .ai-assistant-close-icon {
+            display: inline-flex !important;
+            animation: aiSpinIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) both !important;
+        }
+        html body .ai-assistant-widget.is-open .ai-assistant-trigger .ai-assistant-chathead-label {
+            display: none !important;
+        }
+        html body .ai-assistant-widget.is-open .ai-assistant-trigger .ai-assistant-online-indicator {
+            display: none !important;
+        }
+        @keyframes aiSpinIn {
+            from { transform: rotate(-90deg) scale(0.6); opacity: 0; }
+            to { transform: rotate(0deg) scale(1); opacity: 1; }
         }
 
         /* ── Main Chat Panel Window (Warm Catholic Sanctuary Aesthetic) ──── */
         html body .ai-assistant-panel,
         html body.user-area .ai-assistant-panel {
             position: fixed !important;
-            bottom: 24px !important;
+            bottom: 92px !important;
             right: 24px !important;
             width: 400px !important;
             max-width: calc(100vw - 32px) !important;
-            height: 580px !important;
-            max-height: calc(100vh - 48px) !important;
+            height: 560px !important;
+            max-height: calc(100vh - 110px) !important;
             border-radius: 20px !important;
             background: #FAF7F0 !important;
             background-image:
@@ -1703,6 +1742,9 @@
                 right: 0 !important;
                 bottom: 0 !important;
             }
+            html body .ai-assistant-widget.is-open .ai-assistant-trigger {
+                display: none !important;
+            }
             html body .ai-assistant-mobile-back {
                 display: inline-flex !important;
             }
@@ -1715,6 +1757,9 @@
             <span class="ai-assistant-online-indicator" aria-hidden="true"></span>
             <span class="ai-assistant-icon" aria-hidden="true">
                 <i class="fas fa-church"></i>
+            </span>
+            <span class="ai-assistant-close-icon" aria-hidden="true">
+                <i class="fas fa-xmark"></i>
             </span>
             <span class="ai-assistant-chathead-label">PARISH GUIDE</span>
         </button>
@@ -2112,20 +2157,20 @@
                 } catch (e) {}
 
                 const widgetRect = widget.getBoundingClientRect();
-                const panelWidth = 400;
-                const panelHeight = 580;
+                const panelWidth = Math.min(400, window.innerWidth - 32);
+                const panelHeight = Math.min(560, window.innerHeight - 110);
 
-                if (widget.style.left) {
+                if (widget.style.left && widget.style.top) {
                     let targetLeft, targetTop;
-                    if (widgetRect.left + 29 < window.innerWidth / 2) {
-                        targetLeft = widgetRect.left;
-                    } else {
+                    if (widgetRect.left + 29 > window.innerWidth / 2) {
                         targetLeft = widgetRect.right - panelWidth;
-                    }
-                    if (widgetRect.top + 29 < window.innerHeight / 2) {
-                        targetTop = widgetRect.top;
                     } else {
-                        targetTop = widgetRect.bottom - panelHeight;
+                        targetLeft = widgetRect.left;
+                    }
+                    if (widgetRect.top + 29 > window.innerHeight / 2) {
+                        targetTop = widgetRect.top - panelHeight - 12;
+                    } else {
+                        targetTop = widgetRect.bottom + 12;
                     }
                     const clamped = clampDesktopPanelPosition(targetLeft, targetTop);
                     panel.style.setProperty('left', clamped.left + 'px', 'important');
@@ -2136,7 +2181,7 @@
                     panel.style.removeProperty('left');
                     panel.style.removeProperty('top');
                     panel.style.setProperty('right', '24px', 'important');
-                    panel.style.setProperty('bottom', '24px', 'important');
+                    panel.style.setProperty('bottom', '92px', 'important');
                 }
             }
 
