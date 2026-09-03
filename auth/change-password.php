@@ -88,9 +88,10 @@ $dashboard_url = getUserDashboardURL();
                     <?php echo csrfInput(); ?>
                     <div class="mb-3">
                         <label for="current_password" class="form-label fw-semibold text-secondary small">Current Password</label>
-                        <div class="input-group">
-                            <input type="password" id="current_password" name="current_password" class="form-control rounded-start-3 py-2" required placeholder="Enter current password">
-                            <button class="btn btn-outline-secondary rounded-end-3 toggle-password-btn" type="button" data-toggle-password="current_password" aria-label="Show password" title="Show password">
+                        <div class="auth-input-wrap">
+                            <i class="fas fa-lock"></i>
+                            <input type="password" id="current_password" name="current_password" class="form-control" required placeholder="Enter current password">
+                            <button class="password-toggle auth-password-toggle" type="button" data-toggle-password="current_password" aria-label="Show password" title="Show password">
                                 <i class="fas fa-eye"></i>
                             </button>
                         </div>
@@ -98,9 +99,10 @@ $dashboard_url = getUserDashboardURL();
 
                     <div class="mb-3">
                         <label for="new_password" class="form-label fw-semibold text-secondary small">New Password</label>
-                        <div class="input-group">
-                            <input type="password" id="new_password" name="new_password" class="form-control rounded-start-3 py-2" minlength="<?php echo (int) PASSWORD_MIN_LENGTH; ?>" autocomplete="new-password" required placeholder="Enter new password">
-                            <button class="btn btn-outline-secondary rounded-end-3 toggle-password-btn" type="button" data-toggle-password="new_password" aria-label="Show password" title="Show password">
+                        <div class="auth-input-wrap">
+                            <i class="fas fa-lock"></i>
+                            <input type="password" id="new_password" name="new_password" class="form-control" minlength="<?php echo (int) PASSWORD_MIN_LENGTH; ?>" autocomplete="new-password" required placeholder="Enter new password">
+                            <button class="password-toggle auth-password-toggle" type="button" data-toggle-password="new_password" aria-label="Show password" title="Show password">
                                 <i class="fas fa-eye"></i>
                             </button>
                         </div>
@@ -111,9 +113,10 @@ $dashboard_url = getUserDashboardURL();
 
                     <div class="mb-4">
                         <label for="confirm_password" class="form-label fw-semibold text-secondary small">Confirm New Password</label>
-                        <div class="input-group">
-                            <input type="password" id="confirm_password" name="confirm_password" class="form-control rounded-start-3 py-2" minlength="<?php echo (int) PASSWORD_MIN_LENGTH; ?>" autocomplete="new-password" required placeholder="Repeat new password">
-                            <button class="btn btn-outline-secondary rounded-end-3 toggle-password-btn" type="button" data-toggle-password="confirm_password" aria-label="Show password" title="Show password">
+                        <div class="auth-input-wrap">
+                            <i class="fas fa-lock"></i>
+                            <input type="password" id="confirm_password" name="confirm_password" class="form-control" minlength="<?php echo (int) PASSWORD_MIN_LENGTH; ?>" autocomplete="new-password" required placeholder="Repeat new password">
+                            <button class="password-toggle auth-password-toggle" type="button" data-toggle-password="confirm_password" aria-label="Show password" title="Show password">
                                 <i class="fas fa-eye"></i>
                             </button>
                         </div>
@@ -130,16 +133,73 @@ $dashboard_url = getUserDashboardURL();
 </div>
 
 <style>
-.toggle-password-btn {
-    border-color: #ced4da;
-    background-color: #fff;
-    color: #6c757d;
-    transition: all 0.15s ease;
+.auth-input-wrap {
+    position: relative;
+    width: 100%;
 }
-.toggle-password-btn:hover, .toggle-password-btn:focus {
-    background-color: #f8f9fa;
-    border-color: #b8860b;
+.auth-input-wrap i.fa-lock {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
     color: #b8860b;
+    font-size: 15px;
+    pointer-events: none;
+    z-index: 2;
+}
+.auth-input-wrap .form-control {
+    width: 100%;
+    min-height: 48px;
+    padding: 10px 48px 10px 44px;
+    border-radius: 12px;
+    border: 1.5px solid #e2d9cc;
+    background: #ffffff;
+    font-size: 0.95rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    box-sizing: border-box;
+}
+.auth-input-wrap .form-control:focus {
+    border-color: #c89b3c;
+    box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.18);
+    outline: none;
+}
+.auth-password-toggle,
+.password-toggle {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    color: #77736b;
+    cursor: pointer;
+    z-index: 6;
+    transition: color 0.18s ease, background 0.18s ease;
+}
+.auth-password-toggle:hover,
+.password-toggle:hover {
+    color: #a97f24;
+    background: rgba(200, 155, 60, 0.12);
+}
+.auth-password-toggle:focus-visible,
+.password-toggle:focus-visible {
+    outline: 2px solid #c89b3c;
+    outline-offset: 2px;
+}
+.auth-password-toggle i,
+.password-toggle i {
+    font-size: 15px;
+    pointer-events: none;
+}
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+    display: none !important;
 }
 </style>
 
