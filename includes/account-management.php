@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/authentication.php';
+require_once __DIR__ . '/helpers.php';
 
 function synchronizeAuthenticationIdentifier(mysqli $conn, int $userId, string $type, ?string $value, ?string $verifiedAt = null): bool {
     if (!in_array($type, ['email', 'mobile'], true)) {

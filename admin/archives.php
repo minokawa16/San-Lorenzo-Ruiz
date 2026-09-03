@@ -1,13 +1,14 @@
 <?php
 /**
  * Archives Module
- * Shows archived requests, announcements, and sacramental records.
+ * Shows archived requests, announcements, sacramental records, and parishioners.
  */
 
 include '../includes/session.php';
 include '../database/config.php';
 include '../includes/helpers.php';
 require_once '../services/SacramentalRecordService.php';
+require_once '../includes/account-management.php';
 
 requireAdmin();
 requirePermission('archives.manage');
@@ -16,7 +17,10 @@ $page_title = 'Archives';
 $error = '';
 $success = '';
 $active_tab = $_GET['tab'] ?? 'requests';
-$allowed_tabs = ['requests', 'announcements', 'records'];
+if ($active_tab === 'users') {
+    $active_tab = 'parishioners';
+}
+$allowed_tabs = ['requests', 'announcements', 'records', 'parishioners'];
 if (!in_array($active_tab, $allowed_tabs, true)) {
     $active_tab = 'requests';
 }
@@ -25,12 +29,12 @@ $archive_filter = trim((string) ($_GET['filter'] ?? ''));
 $date_from = trim((string) ($_GET['date_from'] ?? ''));
 $date_to = trim((string) ($_GET['date_to'] ?? ''));
 
-// Ensure Archive Column Function - Documents this helper's role in the parish management workflow.
+// Ensure Archive Column Function
 function ensureArchiveColumn($conn, $table) {
     return columnExists($conn, $table, 'deleted_at');
 }
 
-// Archive Table Exists Function - Documents this helper's role in the parish management workflow.
+// Archive Table Exists Function
 function archiveTableExists($conn, $table) {
     $table = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
     return schemaTableExists($conn, $table);
@@ -111,10 +115,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (isset($record_tables[$record_type])) {
             $meta = $record_tables[$record_type];
             try {
-                (new SacramentalRecordService($conn))->restore($record_type,$record_id,(int)$_SESSION['user_id']);
+                (new SacramentalRecordService($conn))->restore($record_type, $record_id, (int)$_SESSION['user_id']);
                 $success = $meta['label'] . ' record restored successfully!';
                 $active_tab = 'records';
-            } catch(Throwable $exception) {$error=$exception->getMessage();}
+            } catch (Throwable $exception) {
+                $error = $exception->getMessage();
+            }
+        }
+    } elseif ($action === 'restore_parishioner' || $action === 'restore_user') {
+        $user_id = intval($_POST['user_id'] ?? 0);
+        if ($user_id > 0 && transitionAccountStatus($conn, $user_id, 'active', 'restored', null, (int) $_SESSION['user_id'])) {
+            createAuditLog($conn, $_SESSION['user_id'], 'RESTORE_PARISHIONER', 'users', $user_id);
+            $success = 'Parishioner account restored successfully to Active!';
+            $active_tab = 'parishioners';
+        } else {
+            $error = 'Error restoring parishioner account: ' . ($conn->error ?: 'Operation failed');
         }
     }
 }
@@ -165,6 +180,16 @@ usort($records, function ($a, $b) {
     return strtotime($b['archived_at'] ?? '1970-01-01') <=> strtotime($a['archived_at'] ?? '1970-01-01');
 });
 
+$parishioners = [];
+$parishioner_sql = "SELECT u.id, u.fullname, u.email, u.phone_number, u.address, u.chapel_district, u.status, u.role, u.account_state_changed_at, u.created_at, u.updated_at
+                    FROM users u
+                    WHERE u.status = 'archived'
+                    ORDER BY COALESCE(u.account_state_changed_at, u.updated_at, u.created_at) DESC";
+$parishioner_result = $conn->query($parishioner_sql);
+while ($parishioner_result && $row = $parishioner_result->fetch_assoc()) {
+    $parishioners[] = $row;
+}
+
 $archive_filter_options = [
     'requests' => array_values(array_unique(array_map(function ($request) {
         return (string) ($request['status'] ?? '');
@@ -175,6 +200,9 @@ $archive_filter_options = [
     'records' => array_values(array_unique(array_map(function ($record) {
         return (string) ($record['record_type'] ?? '');
     }, $records))),
+    'parishioners' => array_values(array_unique(array_map(function ($parishioner) {
+        return (string) ($parishioner['chapel_district'] ?? '');
+    }, $parishioners))),
 ];
 foreach ($archive_filter_options as $key => $values) {
     $archive_filter_options[$key] = array_values(array_filter($values, function ($value) {
@@ -235,7 +263,7 @@ if ($active_tab === 'requests') {
             $announcement['fullname'] ?? '',
         ], $archive_search);
     }));
-} else {
+} elseif ($active_tab === 'records') {
     $records = array_values(array_filter($records, function ($record) use ($archive_search, $archive_filter, $date_from, $date_to) {
         if ($archive_filter !== '' && (string) ($record['record_type'] ?? '') !== $archive_filter) {
             return false;
@@ -250,9 +278,26 @@ if ($active_tab === 'requests') {
             $record['record_detail'] ?? '',
         ], $archive_search);
     }));
+} else {
+    $parishioners = array_values(array_filter($parishioners, function ($parishioner) use ($archive_search, $archive_filter, $date_from, $date_to) {
+        if ($archive_filter !== '' && (string) ($parishioner['chapel_district'] ?? '') !== $archive_filter) {
+            return false;
+        }
+        $archived_date = $parishioner['account_state_changed_at'] ?? ($parishioner['updated_at'] ?? $parishioner['created_at']);
+        if (($date_from !== '' || $date_to !== '') && !archiveDateMatches($archived_date, $date_from, $date_to)) {
+            return false;
+        }
+        return archiveTextMatches([
+            $parishioner['fullname'] ?? '',
+            $parishioner['email'] ?? '',
+            $parishioner['phone_number'] ?? '',
+            $parishioner['address'] ?? '',
+            $parishioner['chapel_district'] ?? '',
+        ], $archive_search);
+    }));
 }
 
-$active_archive_count = $active_tab === 'requests' ? count($requests) : ($active_tab === 'announcements' ? count($announcements) : count($records));
+$active_archive_count = $active_tab === 'requests' ? count($requests) : ($active_tab === 'announcements' ? count($announcements) : ($active_tab === 'records' ? count($records) : count($parishioners)));
 
 $page_title = 'Archives';
 $breadcrumbs = [
@@ -267,7 +312,7 @@ include '../templates/header.php';
     <!-- Standardized Section Header -->
     <?php
     $page_header_title = 'Archives';
-    $page_header_subtitle = 'View and restore archived requests, announcements, and sacramental records.';
+    $page_header_subtitle = 'View and restore archived requests, announcements, sacramental records, and parishioners.';
     $page_header_icon = 'fa-box-archive';
     $show_back_button = true;
     $back_button_url = BASE_URL . 'admin/dashboard.php';
@@ -288,39 +333,55 @@ include '../templates/header.php';
         </div>
     <?php endif; ?>
 
-    <div class="card">
-        <div class="card-body">
-            <ul class="nav nav-tabs mb-3">
+    <div class="card shadow-sm border-0 rounded-4">
+        <div class="card-body p-4">
+            <ul class="nav nav-tabs mb-4">
                 <li class="nav-item">
-                    <a class="nav-link <?php echo $active_tab === 'requests' ? 'active' : ''; ?>" href="?tab=requests">
-                        <i class="fas fa-inbox"></i> Requests
-                        <span class="badge bg-secondary"><?php echo count($requests); ?></span>
+                    <a class="nav-link <?php echo $active_tab === 'requests' ? 'active fw-bold' : ''; ?>" href="?tab=requests">
+                        <i class="fas fa-inbox me-1"></i> Requests
+                        <span class="badge bg-secondary ms-1"><?php echo count($requests); ?></span>
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link <?php echo $active_tab === 'announcements' ? 'active' : ''; ?>" href="?tab=announcements">
-                        <i class="fas fa-bullhorn"></i> Announcements
-                        <span class="badge bg-secondary"><?php echo count($announcements); ?></span>
+                        <i class="fas fa-bullhorn me-1"></i> Announcements
+                        <span class="badge bg-secondary ms-1"><?php echo count($announcements); ?></span>
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link <?php echo $active_tab === 'records' ? 'active' : ''; ?>" href="?tab=records">
-                        <i class="fas fa-book-bible"></i> Sacramental Records
-                        <span class="badge bg-secondary"><?php echo count($records); ?></span>
+                        <i class="fas fa-book-bible me-1"></i> Sacramental Records
+                        <span class="badge bg-secondary ms-1"><?php echo count($records); ?></span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link <?php echo $active_tab === 'parishioners' ? 'active fw-bold' : ''; ?>" href="?tab=parishioners">
+                        <i class="fas fa-users me-1"></i> Parishioners
+                        <span class="badge bg-secondary ms-1"><?php echo count($parishioners); ?></span>
                     </a>
                 </li>
             </ul>
 
-            <form class="border rounded bg-light p-3 mb-3" method="GET" action="">
+            <form class="border rounded bg-light p-3 mb-4" method="GET" action="">
                 <input type="hidden" name="tab" value="<?php echo e($active_tab); ?>">
                 <div class="row g-2 align-items-end">
                     <div class="col-lg-4">
-                        <label class="form-label" for="archiveSearch">Search</label>
-                        <input class="form-control" id="archiveSearch" type="text" name="q" value="<?php echo e($archive_search); ?>" placeholder="Search archived items">
+                        <label class="form-label fw-semibold" for="archiveSearch">Search</label>
+                        <input class="form-control" id="archiveSearch" type="text" name="q" value="<?php echo e($archive_search); ?>" placeholder="Search archived items...">
                     </div>
                     <div class="col-lg-3">
-                        <label class="form-label" for="archiveFilter">
-                            <?php echo $active_tab === 'requests' ? 'Status' : ($active_tab === 'announcements' ? 'Type' : 'Record Type'); ?>
+                        <label class="form-label fw-semibold" for="archiveFilter">
+                            <?php 
+                                if ($active_tab === 'requests') {
+                                    echo 'Status';
+                                } elseif ($active_tab === 'announcements') {
+                                    echo 'Type';
+                                } elseif ($active_tab === 'records') {
+                                    echo 'Record Type';
+                                } else {
+                                    echo 'Chapel / District';
+                                }
+                            ?>
                         </label>
                         <select class="form-select" id="archiveFilter" name="filter">
                             <option value="">All</option>
@@ -332,15 +393,15 @@ include '../templates/header.php';
                         </select>
                     </div>
                     <div class="col-lg-2">
-                        <label class="form-label" for="archiveDateFrom">From</label>
+                        <label class="form-label fw-semibold" for="archiveDateFrom">From</label>
                         <input class="form-control" id="archiveDateFrom" type="date" name="date_from" value="<?php echo e($date_from); ?>">
                     </div>
                     <div class="col-lg-2">
-                        <label class="form-label" for="archiveDateTo">To</label>
+                        <label class="form-label fw-semibold" for="archiveDateTo">To</label>
                         <input class="form-control" id="archiveDateTo" type="date" name="date_to" value="<?php echo e($date_to); ?>">
                     </div>
                     <div class="col-lg-1 d-grid">
-                        <button class="btn btn-primary" type="submit"><i class="fas fa-filter"></i></button>
+                        <button class="btn btn-primary" type="submit" title="Apply Filter"><i class="fas fa-filter"></i></button>
                     </div>
                 </div>
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-2">
@@ -379,7 +440,7 @@ include '../templates/header.php';
                                                 <input type="hidden" name="action" value="restore_request">
                                                 <input type="hidden" name="request_id" value="<?php echo $request['request_id']; ?>">
                                                 <button type="submit" class="btn btn-sm btn-outline-success">
-                                                    <i class="fas fa-rotate-left"></i> Restore
+                                                    <i class="fas fa-rotate-left me-1"></i> Restore
                                                 </button>
                                             </form>
                                         </td>
@@ -389,8 +450,9 @@ include '../templates/header.php';
                         </table>
                     </div>
                 <?php else: ?>
-                    <div class="alert alert-info mb-0">No archived requests.</div>
+                    <div class="alert alert-info mb-0">No archived requests found.</div>
                 <?php endif; ?>
+
             <?php elseif ($active_tab === 'announcements'): ?>
                 <?php if (count($announcements) > 0): ?>
                     <div class="table-responsive">
@@ -420,7 +482,7 @@ include '../templates/header.php';
                                                 <input type="hidden" name="action" value="restore_announcement">
                                                 <input type="hidden" name="announcement_id" value="<?php echo $announcement['announcement_id']; ?>">
                                                 <button type="submit" class="btn btn-sm btn-outline-success">
-                                                    <i class="fas fa-rotate-left"></i> Restore
+                                                    <i class="fas fa-rotate-left me-1"></i> Restore
                                                 </button>
                                             </form>
                                         </td>
@@ -430,9 +492,10 @@ include '../templates/header.php';
                         </table>
                     </div>
                 <?php else: ?>
-                    <div class="alert alert-info mb-0">No archived announcements.</div>
+                    <div class="alert alert-info mb-0">No archived announcements found.</div>
                 <?php endif; ?>
-            <?php else: ?>
+
+            <?php elseif ($active_tab === 'records'): ?>
                 <?php if (count($records) > 0): ?>
                     <div class="table-responsive">
                         <table class="table table-hover align-middle">
@@ -461,7 +524,7 @@ include '../templates/header.php';
                                                 <input type="hidden" name="record_type" value="<?php echo e($record['record_type']); ?>">
                                                 <input type="hidden" name="record_id" value="<?php echo $record['record_id']; ?>">
                                                 <button type="submit" class="btn btn-sm btn-outline-success">
-                                                    <i class="fas fa-rotate-left"></i> Restore
+                                                    <i class="fas fa-rotate-left me-1"></i> Restore
                                                 </button>
                                             </form>
                                         </td>
@@ -471,9 +534,62 @@ include '../templates/header.php';
                         </table>
                     </div>
                 <?php else: ?>
-                    <div class="alert alert-info mb-0">No archived sacramental records.</div>
+                    <div class="alert alert-info mb-0">No archived sacramental records found.</div>
+                <?php endif; ?>
+
+            <?php elseif ($active_tab === 'parishioners'): ?>
+                <?php if (count($parishioners) > 0): ?>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Full Name &amp; Contact</th>
+                                    <th>Address &amp; District</th>
+                                    <th>Role</th>
+                                    <th>Status</th>
+                                    <th>Archived Date</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($parishioners as $p): ?>
+                                    <tr>
+                                        <td>
+                                            <strong><?php echo e($p['fullname']); ?></strong><br>
+                                            <small class="text-muted"><i class="fas fa-envelope me-1"></i><?php echo e($p['email'] ?: 'No email'); ?></small>
+                                            <?php if (!empty($p['phone_number'])): ?>
+                                                <br><small class="text-muted"><i class="fas fa-phone me-1"></i><?php echo e($p['phone_number']); ?></small>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <?php echo e($p['address'] ?: 'Not provided'); ?>
+                                            <?php if (!empty($p['chapel_district'])): ?>
+                                                <br><small class="text-muted"><i class="fas fa-church me-1"></i><?php echo e($p['chapel_district']); ?></small>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td><span class="badge bg-info text-dark"><?php echo e(ucfirst($p['role'])); ?></span></td>
+                                        <td><span class="badge bg-secondary">Archived</span></td>
+                                        <td><?php echo formatDateTime($p['account_state_changed_at'] ?? ($p['updated_at'] ?? $p['created_at'])); ?></td>
+                                        <td>
+                                            <form method="POST" class="d-inline" onsubmit="return confirm('Restore this parishioner account to Active?');">
+                                                <?php echo csrfInput(); ?>
+                                                <input type="hidden" name="action" value="restore_parishioner">
+                                                <input type="hidden" name="user_id" value="<?php echo intval($p['id']); ?>">
+                                                <button type="submit" class="btn btn-sm btn-outline-success" title="Restore Parishioner">
+                                                    <i class="fas fa-rotate-left me-1"></i> Restore
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php else: ?>
+                    <div class="alert alert-info mb-0">No archived parishioners found.</div>
                 <?php endif; ?>
             <?php endif; ?>
+
         </div>
     </div>
 </div>
