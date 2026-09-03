@@ -23,6 +23,11 @@ ensureRequestDocumentsSchema($conn);
 ensureEmailNotificationSchema($conn);
 
 $certificate_types = [
+    'baptism_certification' => 'Baptismal Certification',
+    'confirmation_certification' => 'Confirmation Certification',
+    'first_communion_certification' => 'First Communion Certification',
+    'marriage_certification' => 'Marriage Certification',
+    'funeral_certification' => 'Funeral Certification',
     'baptismal_certificate' => 'Baptismal Certificate',
     'confirmation_certificate' => 'Confirmation Certificate',
     'first_communion_certificate' => 'First Communion Certificate',
@@ -38,30 +43,75 @@ $certificate_purposes = [
     'others' => 'Others',
 ];
 $certificate_meta = [
+    'baptism_certification' => [
+        'icon' => 'fa-file-signature',
+        'icon_color' => '#0284c7',
+        'icon_bg' => '#e0f2fe',
+        'title' => 'Baptismal Certification',
+        'hint' => 'Official certified extract from the baptism registry records.'
+    ],
+    'confirmation_certification' => [
+        'icon' => 'fa-file-circle-check',
+        'icon_color' => '#4338ca',
+        'icon_bg' => '#e0e7ff',
+        'title' => 'Confirmation Certification',
+        'hint' => 'Official certified extract from the confirmation registry records.'
+    ],
+    'first_communion_certification' => [
+        'icon' => 'fa-file-lines',
+        'icon_color' => '#b45309',
+        'icon_bg' => '#fef3c7',
+        'title' => 'First Communion Certification',
+        'hint' => 'Official certified extract from the communion registry records.'
+    ],
+    'marriage_certification' => [
+        'icon' => 'fa-ring',
+        'icon_color' => '#dc2626',
+        'icon_bg' => '#fef2f2',
+        'title' => 'Marriage Certification',
+        'hint' => 'Official certified extract from the Holy Matrimony records.'
+    ],
+    'funeral_certification' => [
+        'icon' => 'fa-cross',
+        'icon_color' => '#475569',
+        'icon_bg' => '#f1f5f9',
+        'title' => 'Funeral Certification',
+        'hint' => 'Official certified extract from funeral/burial records.'
+    ],
     'baptismal_certificate' => [
         'icon' => 'fa-water',
+        'icon_color' => '#0284c7',
+        'icon_bg' => '#e0f2fe',
         'title' => 'Baptismal Certificate',
-        'hint' => 'Often used for school, marriage, or personal sacramental records.'
+        'hint' => 'Official canonical certificate of Holy Baptism.'
     ],
     'confirmation_certificate' => [
         'icon' => 'fa-cross',
+        'icon_color' => '#4338ca',
+        'icon_bg' => '#e0e7ff',
         'title' => 'Confirmation Certificate',
-        'hint' => 'Useful for marriage preparation and parish record verification.'
+        'hint' => 'Official canonical certificate of Holy Confirmation.'
     ],
     'first_communion_certificate' => [
-        'icon' => 'fa-dove',
+        'icon' => 'fa-wheat-awn',
+        'icon_color' => '#b45309',
+        'icon_bg' => '#fef3c7',
         'title' => 'First Communion Certificate',
-        'hint' => 'Request a certified copy of your First Communion record.'
+        'hint' => 'Official canonical certificate of First Holy Communion.'
     ],
     'marriage_certificate' => [
         'icon' => 'fa-heart',
+        'icon_color' => '#dc2626',
+        'icon_bg' => '#fef2f2',
         'title' => 'Marriage Certificate',
-        'hint' => 'Official certified copy of the Holy Matrimony sacramental register.'
+        'hint' => 'Official canonical certificate of Holy Matrimony.'
     ],
     'funeral_certificate' => [
         'icon' => 'fa-monument',
+        'icon_color' => '#475569',
+        'icon_bg' => '#f1f5f9',
         'title' => 'Funeral Certificate',
-        'hint' => 'Official certification of Catholic funeral and burial rites.'
+        'hint' => 'Official certificate of Catholic funeral rites.'
     ],
 ];
 $certificate_required_document = 'Copy of PSA / Birth Certificate, Death Certificate, or Valid ID';
@@ -1446,7 +1496,7 @@ if ($stmt) {
                         <label class="certificate-option">
                             <input type="radio" name="request_type" value="<?php echo e($value); ?>" <?php echo (($_POST['request_type'] ?? '') === $value) ? 'checked' : ''; ?>>
                             <span>
-                                <i class="fas <?php echo e($meta['icon']); ?>"></i>
+                                <i class="fas <?php echo e($meta['icon']); ?>" style="<?php echo !empty($meta['icon_color']) ? 'color: ' . $meta['icon_color'] . '; background: ' . $meta['icon_bg'] . ';' : ''; ?>"></i>
                                 <strong><?php echo e($meta['title']); ?></strong>
                                 <small><?php echo e($meta['hint']); ?></small>
                             </span>
