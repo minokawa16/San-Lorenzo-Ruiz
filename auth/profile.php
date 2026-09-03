@@ -141,22 +141,42 @@ $page_title = $is_admin ? 'Profile Settings' : 'My Profile';
 
                     <!-- Change Password Section -->
                     <div class="profile-change-password-section">
-                        <h6><i class="fas fa-key"></i> Change Password</h6>
+                        <h6 class="fw-bold mb-3" style="color: #344536;"><i class="fas fa-key me-2" style="color: #c9a646;"></i> Change Password</h6>
                         <form action="change-password.php" method="POST">
                             <?php echo csrfInput(); ?>
                             <div class="mb-3">
-                                <label for="current_password" class="form-label">Current Password</label>
-                                <input type="password" class="form-control" id="current_password" name="current_password">
+                                <label for="current_password" class="form-label fw-semibold text-secondary small">Current Password</label>
+                                <div class="input-group">
+                                    <input type="password" class="form-control rounded-start-3" id="current_password" name="current_password" required placeholder="Enter current password">
+                                    <button class="btn btn-outline-secondary rounded-end-3 toggle-password-btn" type="button" data-toggle-password="current_password" aria-label="Show password" title="Show password">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
                             </div>
                             <div class="mb-3">
-                                <label for="new_password" class="form-label">New Password</label>
-                                <input type="password" class="form-control" id="new_password" name="new_password">
+                                <label for="new_password" class="form-label fw-semibold text-secondary small">New Password</label>
+                                <div class="input-group">
+                                    <input type="password" class="form-control rounded-start-3" id="new_password" name="new_password" minlength="<?php echo (int) PASSWORD_MIN_LENGTH; ?>" autocomplete="new-password" required placeholder="Enter new password">
+                                    <button class="btn btn-outline-secondary rounded-end-3 toggle-password-btn" type="button" data-toggle-password="new_password" aria-label="Show password" title="Show password">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                                <div class="form-text text-muted small mt-1">
+                                    Must be at least 8 characters with uppercase, lowercase, numbers, and symbols.
+                                </div>
                             </div>
-                            <div class="mb-3">
-                                <label for="confirm_new_password" class="form-label">Confirm New Password</label>
-                                <input type="password" class="form-control" id="confirm_new_password" name="confirm_new_password">
+                            <div class="mb-4">
+                                <label for="confirm_new_password" class="form-label fw-semibold text-secondary small">Confirm New Password</label>
+                                <div class="input-group">
+                                    <input type="password" class="form-control rounded-start-3" id="confirm_new_password" name="confirm_new_password" minlength="<?php echo (int) PASSWORD_MIN_LENGTH; ?>" autocomplete="new-password" required placeholder="Repeat new password">
+                                    <button class="btn btn-outline-secondary rounded-end-3 toggle-password-btn" type="button" data-toggle-password="confirm_new_password" aria-label="Show password" title="Show password">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
                             </div>
-                            <button type="submit" class="btn btn-warning">Change Password</button>
+                            <div class="d-flex justify-content-end">
+                                <button type="submit" class="btn text-white px-4 py-2 rounded-pill fw-medium" style="background-color: #b8860b; border: none;">Change Password</button>
+                            </div>
                         </form>
                     </div>
                 </div>
@@ -169,5 +189,43 @@ $page_title = $is_admin ? 'Profile Settings' : 'My Profile';
     <i class="fas fa-power-off" aria-hidden="true"></i>
     <span>Log Out</span>
 </a>
+
+<style>
+.toggle-password-btn {
+    border-color: #ced4da;
+    background-color: #fff;
+    color: #6c757d;
+    transition: all 0.15s ease;
+}
+.toggle-password-btn:hover, .toggle-password-btn:focus {
+    background-color: #f8f9fa;
+    border-color: #b8860b;
+    color: #b8860b;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[data-toggle-password]').forEach(function(toggle) {
+        toggle.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const targetId = toggle.dataset.togglePassword || toggle.getAttribute('data-toggle-password');
+            const target = document.getElementById(targetId);
+            if (!target) return;
+            const icon = toggle.querySelector('i');
+            const isPassword = target.type === 'password';
+            target.type = isPassword ? 'text' : 'password';
+            if (icon) {
+                icon.classList.remove(isPassword ? 'fa-eye' : 'fa-eye-slash');
+                icon.classList.add(isPassword ? 'fa-eye-slash' : 'fa-eye');
+            }
+            const newLabel = isPassword ? 'Hide password' : 'Show password';
+            toggle.setAttribute('aria-label', newLabel);
+            toggle.setAttribute('title', newLabel);
+        });
+    });
+});
+</script>
 
 <?php include '../templates/footer.php'; ?>

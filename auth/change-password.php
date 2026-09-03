@@ -87,21 +87,36 @@ $dashboard_url = getUserDashboardURL();
                 <form method="POST" action="">
                     <?php echo csrfInput(); ?>
                     <div class="mb-3">
-                        <label class="form-label fw-semibold text-secondary small">Current Password</label>
-                        <input type="password" name="current_password" class="form-control rounded-3 py-2" required placeholder="Enter current password">
+                        <label for="current_password" class="form-label fw-semibold text-secondary small">Current Password</label>
+                        <div class="input-group">
+                            <input type="password" id="current_password" name="current_password" class="form-control rounded-start-3 py-2" required placeholder="Enter current password">
+                            <button class="btn btn-outline-secondary rounded-end-3 toggle-password-btn" type="button" data-toggle-password="current_password" aria-label="Show password" title="Show password">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label fw-semibold text-secondary small">New Password</label>
-                        <input type="password" name="new_password" class="form-control rounded-3 py-2" minlength="<?php echo (int) PASSWORD_MIN_LENGTH; ?>" autocomplete="new-password" required placeholder="Enter new password">
+                        <label for="new_password" class="form-label fw-semibold text-secondary small">New Password</label>
+                        <div class="input-group">
+                            <input type="password" id="new_password" name="new_password" class="form-control rounded-start-3 py-2" minlength="<?php echo (int) PASSWORD_MIN_LENGTH; ?>" autocomplete="new-password" required placeholder="Enter new password">
+                            <button class="btn btn-outline-secondary rounded-end-3 toggle-password-btn" type="button" data-toggle-password="new_password" aria-label="Show password" title="Show password">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
                         <div class="form-text text-muted small mt-1">
                             Must be at least 8 characters with uppercase, lowercase, numbers, and symbols.
                         </div>
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label fw-semibold text-secondary small">Confirm New Password</label>
-                        <input type="password" name="confirm_password" class="form-control rounded-3 py-2" minlength="<?php echo (int) PASSWORD_MIN_LENGTH; ?>" autocomplete="new-password" required placeholder="Repeat new password">
+                        <label for="confirm_password" class="form-label fw-semibold text-secondary small">Confirm New Password</label>
+                        <div class="input-group">
+                            <input type="password" id="confirm_password" name="confirm_password" class="form-control rounded-start-3 py-2" minlength="<?php echo (int) PASSWORD_MIN_LENGTH; ?>" autocomplete="new-password" required placeholder="Repeat new password">
+                            <button class="btn btn-outline-secondary rounded-end-3 toggle-password-btn" type="button" data-toggle-password="confirm_password" aria-label="Show password" title="Show password">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
                     </div>
 
                     <div class="d-flex justify-content-end gap-2">
@@ -113,5 +128,43 @@ $dashboard_url = getUserDashboardURL();
         </div>
     </div>
 </div>
+
+<style>
+.toggle-password-btn {
+    border-color: #ced4da;
+    background-color: #fff;
+    color: #6c757d;
+    transition: all 0.15s ease;
+}
+.toggle-password-btn:hover, .toggle-password-btn:focus {
+    background-color: #f8f9fa;
+    border-color: #b8860b;
+    color: #b8860b;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[data-toggle-password]').forEach(function(toggle) {
+        toggle.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const targetId = toggle.dataset.togglePassword || toggle.getAttribute('data-toggle-password');
+            const target = document.getElementById(targetId);
+            if (!target) return;
+            const icon = toggle.querySelector('i');
+            const isPassword = target.type === 'password';
+            target.type = isPassword ? 'text' : 'password';
+            if (icon) {
+                icon.classList.remove(isPassword ? 'fa-eye' : 'fa-eye-slash');
+                icon.classList.add(isPassword ? 'fa-eye-slash' : 'fa-eye');
+            }
+            const newLabel = isPassword ? 'Hide password' : 'Show password';
+            toggle.setAttribute('aria-label', newLabel);
+            toggle.setAttribute('title', newLabel);
+        });
+    });
+});
+</script>
 
 <?php include '../templates/footer.php'; ?>
