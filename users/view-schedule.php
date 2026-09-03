@@ -651,7 +651,6 @@ if ($stmt) {
             </div>
             <div class="modal-body" id="detailsBody"></div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" id="remindBtn"><i class="fas fa-bell"></i> Remind Me</button>
                 <button type="button" class="btn btn-parish-gold" data-bs-dismiss="modal">Done</button>
             </div>
         </div>
@@ -823,23 +822,6 @@ document.querySelectorAll('.event-card').forEach(card => {
         });
     });
 });
-
-const remindBtn = document.getElementById('remindBtn');
-if (remindBtn) {
-    remindBtn.addEventListener('click', function() {
-        if (!selectedReminder) return;
-
-        const reminders = JSON.parse(localStorage.getItem('parishCalendarReminders') || '[]');
-        reminders.push({
-            title: selectedReminder.title,
-            when: selectedReminder.when,
-            savedAt: new Date().toISOString()
-        });
-        localStorage.setItem('parishCalendarReminders', JSON.stringify(reminders.slice(-25)));
-        this.innerHTML = '<i class="fas fa-check"></i> Reminder Saved';
-        setTimeout(() => this.innerHTML = '<i class="fas fa-bell"></i> Remind Me', 1800);
-    });
-}
 </script>
 
 <?php include '../templates/footer.php'; ?>

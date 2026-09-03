@@ -628,11 +628,6 @@ function announcementCountdown($event_date) {
                                 <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#announcementModal-<?php echo intval($announcement['announcement_id']); ?>">
                                     <i class="fas fa-book-open"></i> Read More
                                 </button>
-                                <?php if (!empty($announcement['attachment_path'])): ?>
-                                    <a class="btn btn-outline-secondary btn-sm" href="../announcement-attachment.php?id=<?php echo intval($announcement['announcement_id']); ?>" target="_blank">
-                                        <i class="fas fa-paperclip"></i> Attachment
-                                    </a>
-                                <?php endif; ?>
                             </div>
                         </div>
                     </article>
@@ -675,11 +670,6 @@ function announcementCountdown($event_date) {
                     <div class="modal-announcement-content"><?php echo renderStructuredAnnouncementHtml($announcement['content']); ?></div>
                 </div>
                 <div class="modal-footer">
-                    <?php if (!empty($announcement['attachment_path'])): ?>
-                        <a class="btn btn-outline-primary" href="../announcement-attachment.php?id=<?php echo intval($announcement['announcement_id']); ?>" target="_blank">
-                            <i class="fas fa-download"></i> Open Attachment
-                        </a>
-                    <?php endif; ?>
                     <?php if (!empty($announcement['event_date'])): ?>
                         <a class="btn btn-outline-secondary" href="https://calendar.google.com/calendar/render?action=TEMPLATE&text=<?php echo urlencode($announcement['title']); ?>&dates=<?php echo date('Ymd', strtotime($announcement['event_date'])); ?>/<?php echo date('Ymd', strtotime($announcement['event_date'] . ' +1 day')); ?>" target="_blank">
                             <i class="fas fa-calendar-plus"></i> Add to Calendar
