@@ -398,6 +398,28 @@ final class AiAssistantService
             ];
         }
 
+        // L. Parish Secretary Inquiry
+        if (preg_match('/\b(?:who is the (?:parish )?secretary|sino (?:ang )?(?:parish )?secretary|sino (?:ang )?kalihim|parish secretary|secretary name|secretary contact|contact (?:the )?secretary|agnes calapaan|agnes|calapaan)\b/iu', $normalized)) {
+            $answer = $isFil
+                ? "Ang ating **Parish Secretary** ay si **Agnes C. Calapaan**.\n\nPara sa mga katanungan sa sertipiko, transaksyon sa tanggapan ng parokya, o verification ng GCash payment, maaari po siyang kontakin sa:\n📞 **0997 742 8176**"
+                : "The Parish Secretary is **Agnes C. Calapaan**.\n\nFor certificate requests, official parish office transactions, or GCash payment verification, you can reach her at:\n📞 **0997 742 8176**";
+            return [
+                'answer' => $answer,
+                'prompts' => ['Parish Office Hours', 'Request Certificate', 'Parish Priest']
+            ];
+        }
+
+        // M. Parish Priest & Clergy Inquiry
+        if (preg_match('/\b(?:who is the (?:parish )?priest|sino (?:ang )?(?:parish )?priest|sino (?:ang )?pari|parish priest|who is the priest|pari ng parokya)\b/iu', $normalized)) {
+            $answer = $isFil
+                ? "Ang ating **Parish Priest** ay si **Rev. Fr. Alberto G. Cahilig, OMI**, at ang ating **Parochial Vicar** ay si **Rev. Fr. Alvin Vicente C. Barretto, OMI**."
+                : "The Parish Priest is **Rev. Fr. Alberto G. Cahilig, OMI**, and the Parochial Vicar is **Rev. Fr. Alvin Vicente C. Barretto, OMI**.";
+            return [
+                'answer' => $answer,
+                'prompts' => ['Parish Secretary', 'Mass Schedule', 'Parish Office Hours']
+            ];
+        }
+
         return null;
     }
 
@@ -509,7 +531,9 @@ final class AiAssistantService
             '/\boras\s*ng\s*misa\b/iu' => 'mass schedule misa',
             '/\biskedyul\s*ng\s*misa\b/iu' => 'mass schedule misa',
             '/\bpabasbas\b/iu' => 'blessing basbas',
-            '/\bpari\b/iu' => 'parish priest pari'
+            '/\bpari\b/iu' => 'parish priest pari',
+            '/\bsecretary\b/iu' => 'parish secretary kalihim agnes calapaan',
+            '/\bkalihim\b/iu' => 'parish secretary agnes calapaan'
         ];
         return preg_replace(array_keys($map), array_values($map), $text);
     }
@@ -630,6 +654,6 @@ final class AiAssistantService
 
     private function isParishRelated(string $text): bool
     {
-        return (bool) preg_match('/parish|parokya|church|mass|misa|office|opisina|bapt|binyag|confirm|kumpil|communion|komunyon|marriage|wedding|kasal|bless|basbas|certificate|sertipiko|request|kahilingan|reserv|venue|schedule|iskedyul|announcement|anunsyo|payment|bayad|funeral|burial|libing|priest|pari|record|tala|sacrament|analytics|report|ulat|TUGON|requirement|kailangan|cost|magkano/i', $text);
+        return (bool) preg_match('/parish|parokya|church|mass|misa|office|opisina|bapt|binyag|confirm|kumpil|communion|komunyon|marriage|wedding|kasal|bless|basbas|certificate|sertipiko|request|kahilingan|reserv|venue|schedule|iskedyul|announcement|anunsyo|payment|bayad|funeral|burial|libing|priest|pari|secretary|kalihim|agnes|calapaan|vicar|record|tala|sacrament|analytics|report|ulat|TUGON|requirement|kailangan|cost|magkano/i', $text);
     }
 }
