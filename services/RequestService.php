@@ -15,7 +15,7 @@ final class RequestService {
 
     public function createInCurrentTransaction(array $data, int $userId, string $idempotencyKey): array {
         $type = strtolower(trim((string) ($data['request_type'] ?? '')));
-        $supportedTypes = ['certificate','blessing','sacramental_service','reservation','baptismal_certificate','confirmation_certificate','first_communion_certificate','blessing_request'];
+        $supportedTypes = ['certificate','blessing','sacramental_service','reservation','baptismal_certificate','confirmation_certificate','first_communion_certificate','marriage_certificate','funeral_certificate','blessing_request'];
         if (!in_array($type, $supportedTypes, true)) throw new InvalidArgumentException('Unsupported request type.');
         $key = strtolower(trim($idempotencyKey));
         if (!preg_match('/^[a-f0-9]{64}$/', $key)) throw new InvalidArgumentException('A valid idempotency key is required.');

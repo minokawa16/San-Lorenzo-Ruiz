@@ -26,11 +26,15 @@ $certificate_types = [
     'baptismal_certificate' => 'Baptismal Certificate',
     'confirmation_certificate' => 'Confirmation Certificate',
     'first_communion_certificate' => 'First Communion Certificate',
+    'marriage_certificate' => 'Marriage Certificate',
+    'funeral_certificate' => 'Funeral Certificate',
 ];
 $certificate_purposes = [
     'first_communion' => 'First Communion',
     'confirmation' => 'Confirmation',
-    'marriage' => 'Marriage',
+    'marriage' => 'Marriage Preparation',
+    'legal_purposes' => 'Legal / Personal Records',
+    'burial_claim' => 'Burial / Estate / Benefits',
     'others' => 'Others',
 ];
 $certificate_meta = [
@@ -49,8 +53,18 @@ $certificate_meta = [
         'title' => 'First Communion Certificate',
         'hint' => 'Request a certified copy of your First Communion record.'
     ],
+    'marriage_certificate' => [
+        'icon' => 'fa-heart',
+        'title' => 'Marriage Certificate',
+        'hint' => 'Official certified copy of the Holy Matrimony sacramental register.'
+    ],
+    'funeral_certificate' => [
+        'icon' => 'fa-monument',
+        'title' => 'Funeral Certificate',
+        'hint' => 'Official certification of Catholic funeral and burial rites.'
+    ],
 ];
-$certificate_required_document = 'Copy of PSA / Birth Certificate';
+$certificate_required_document = 'Copy of PSA / Birth Certificate, Death Certificate, or Valid ID';
 $status_meta = [
     'pending' => ['icon' => 'fa-hourglass-half', 'description' => 'Waiting for parish review', 'tone' => 'warning'],
     'approved' => ['icon' => 'fa-circle-check', 'description' => 'Approved by the office', 'tone' => 'success'],
@@ -87,7 +101,7 @@ function certificateLabel($value, $labels = []) {
     } elseif ($purpose === 'others' && strlen($purpose_other) > 180) {
         $error = 'The custom purpose must be 180 characters or fewer.';
     } elseif (!requestUploadHasFiles($_FILES['requirement_files'] ?? null)) {
-        $error = 'Please upload a copy of the PSA / Birth Certificate before submitting your certificate request.';
+        $error = 'Please upload a copy of the required supporting document (e.g. PSA / Valid ID) before submitting your certificate request.';
     } else {
         $purpose_description = $purpose === 'others' ? $purpose_other : $certificate_purposes[$purpose];
         $description_parts = [
@@ -396,8 +410,8 @@ if ($stmt) {
 
     .certificate-option-grid {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 12px;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 14px;
     }
 
     .certificate-option {

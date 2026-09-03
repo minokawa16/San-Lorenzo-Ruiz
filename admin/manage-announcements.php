@@ -588,11 +588,27 @@ $breadcrumbs = [
     .filter-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
     .filter-tabs a { min-height: 33px; display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; border: 1px solid #e6e0d4; color: #2e3a2d; background: #fff; text-decoration: none; font-size: 12px; font-weight: 600; }
     .filter-tabs a.active, .filter-tabs a:hover { background: #f7f0df; border-color: #c89b3c; color: #2e3a2d; }
-    .stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
-    .stat-card { min-height: 82px; padding: 13px 14px; display: flex; gap: 11px; align-items: center; border-top: 3px solid #c89b3c; }
-    .stat-icon { width: 38px; height: 38px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; color: #2e3a2d; background: #f5efe1; font-size: 14px; }
-    .stat-card strong { display: block; font-size: 24px; line-height: 1; }
-    .stat-card span { color: #6f6f6f; font-size: 12px; font-weight: 500; }
+    .stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 22px; }
+    .stat-card { min-height: 94px; padding: 16px 18px; display: flex; gap: 14px; align-items: center; background: #ffffff; border: 1px solid #ede8de; border-radius: 14px; box-shadow: 0 4px 14px rgba(46, 58, 45, .04); transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease; position: relative; overflow: hidden; }
+    .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(46, 58, 45, .08); border-color: #d6cbba; }
+    .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+    .stat-card-total::before { background: linear-gradient(90deg, #b8860b, #e0b04c); }
+    .stat-card-active::before { background: linear-gradient(90deg, #16a34a, #4ade80); }
+    .stat-card-scheduled::before { background: linear-gradient(90deg, #7c3aed, #a78bfa); }
+    .stat-card-archived::before { background: linear-gradient(90deg, #64748b, #94a3b8); }
+    .stat-icon { width: 44px; height: 44px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0; }
+    .stat-card-total .stat-icon { background: #fdf6e7; color: #b8860b; }
+    .stat-card-active .stat-icon { background: #f0fdf4; color: #16a34a; }
+    .stat-card-scheduled .stat-icon { background: #f5f3ff; color: #7c3aed; }
+    .stat-card-archived .stat-icon { background: #f8fafc; color: #64748b; }
+    .stat-card-body { display: flex; flex-direction: column; min-width: 0; flex-grow: 1; }
+    .stat-card strong { display: block; font-size: 26px; font-weight: 800; line-height: 1.1; color: #1e293b; letter-spacing: -0.5px; }
+    .stat-card span.stat-card-label { color: #64748b; font-size: 12.5px; font-weight: 600; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .stat-card-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.5px; display: inline-block; }
+    .stat-card-total .stat-card-badge { background: #fef3c7; color: #92400e; }
+    .stat-card-active .stat-card-badge { background: #dcfce7; color: #15803d; }
+    .stat-card-scheduled .stat-card-badge { background: #ede9fe; color: #5b21b6; }
+    .stat-card-archived .stat-card-badge { background: #f1f5f9; color: #475569; }
     .announcement-section-heading { display: flex; justify-content: space-between; align-items: end; gap: 12px; margin: 4px 2px 12px; color: #6f6f6f; font-size: 12px; }
     .announcement-section-heading div { display: grid; gap: 2px; }
     .announcement-section-heading div > span { color: #2c2c2c; font-size: 17px; font-weight: 700; }
@@ -1015,10 +1031,46 @@ $breadcrumbs = [
             </form>
 
             <section class="stat-grid" aria-label="Announcement statistics">
-                <div class="stat-card"><span class="stat-icon"><i class="fas fa-layer-group"></i></span><div><strong><?php echo $stats['total']; ?></strong><span>Total Announcements</span></div></div>
-                <div class="stat-card"><span class="stat-icon"><i class="fas fa-check"></i></span><div><strong><?php echo $stats['active']; ?></strong><span>Active Announcements</span></div></div>
-                <div class="stat-card"><span class="stat-icon"><i class="fas fa-clock"></i></span><div><strong><?php echo $stats['scheduled']; ?></strong><span>Scheduled Announcements</span></div></div>
-                <div class="stat-card"><span class="stat-icon"><i class="fas fa-archive"></i></span><div><strong><?php echo $stats['archived']; ?></strong><span>Archived Announcements</span></div></div>
+                <div class="stat-card stat-card-total">
+                    <span class="stat-icon"><i class="fas fa-layer-group"></i></span>
+                    <div class="stat-card-body">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <strong><?php echo number_format($stats['total']); ?></strong>
+                            <span class="stat-card-badge">Total</span>
+                        </div>
+                        <span class="stat-card-label">Total Announcements</span>
+                    </div>
+                </div>
+                <div class="stat-card stat-card-active">
+                    <span class="stat-icon"><i class="fas fa-circle-check"></i></span>
+                    <div class="stat-card-body">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <strong><?php echo number_format($stats['active']); ?></strong>
+                            <span class="stat-card-badge">Live</span>
+                        </div>
+                        <span class="stat-card-label">Active Announcements</span>
+                    </div>
+                </div>
+                <div class="stat-card stat-card-scheduled">
+                    <span class="stat-icon"><i class="fas fa-clock"></i></span>
+                    <div class="stat-card-body">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <strong><?php echo number_format($stats['scheduled']); ?></strong>
+                            <span class="stat-card-badge">Queued</span>
+                        </div>
+                        <span class="stat-card-label">Scheduled Announcements</span>
+                    </div>
+                </div>
+                <div class="stat-card stat-card-archived">
+                    <span class="stat-icon"><i class="fas fa-box-archive"></i></span>
+                    <div class="stat-card-body">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <strong><?php echo number_format($stats['archived']); ?></strong>
+                            <span class="stat-card-badge">Archived</span>
+                        </div>
+                        <span class="stat-card-label">Archived Announcements</span>
+                    </div>
+                </div>
             </section>
 
             <div class="announcement-section-heading">
@@ -1056,7 +1108,6 @@ $breadcrumbs = [
                                                 <?php if (!$is_archived): ?>
                                                     <button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#editAnnouncement-<?php echo intval($announcement['announcement_id']); ?>"><i class="fas fa-pen"></i> Edit</button>
                                                     <form method="POST"><?php echo csrfInput(); ?><input type="hidden" name="action" value="toggle_pin"><input type="hidden" name="announcement_id" value="<?php echo intval($announcement['announcement_id']); ?>"><button class="dropdown-item" type="submit"><i class="fas fa-thumbtack"></i> <?php echo intval($announcement['is_pinned'] ?? 0) === 1 ? 'Unpin' : 'Pin'; ?></button></form>
-                                                    <form method="POST"><?php echo csrfInput(); ?><input type="hidden" name="action" value="duplicate_announcement"><input type="hidden" name="announcement_id" value="<?php echo intval($announcement['announcement_id']); ?>"><button class="dropdown-item" type="submit"><i class="fas fa-copy"></i> Duplicate</button></form>
                                                     <form method="POST"><?php echo csrfInput(); ?><input type="hidden" name="action" value="send_notification"><input type="hidden" name="announcement_id" value="<?php echo intval($announcement['announcement_id']); ?>"><button class="dropdown-item" type="submit"><i class="fas fa-paper-plane"></i> Send notification</button></form>
                                                     <form method="POST" onsubmit="return confirm('Archive this announcement?');"><?php echo csrfInput(); ?><input type="hidden" name="action" value="archive_announcement"><input type="hidden" name="archive_reason" value="Archived through announcement management."><input type="hidden" name="announcement_id" value="<?php echo intval($announcement['announcement_id']); ?>"><button class="dropdown-item" type="submit"><i class="fas fa-archive"></i> Archive</button></form>
                                                 <?php endif; ?>

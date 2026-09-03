@@ -34,7 +34,7 @@ function adminRequestTypeGroups() {
     return [
         'certificate' => [
             'label' => 'Certificate',
-            'types' => ['baptismal_certificate', 'confirmation_certificate', 'first_communion_certificate']
+            'types' => ['baptismal_certificate', 'confirmation_certificate', 'first_communion_certificate', 'marriage_certificate', 'funeral_certificate']
         ],
         'blessing' => [
             'label' => 'Blessing',

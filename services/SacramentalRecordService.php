@@ -42,7 +42,7 @@ final class SacramentalRecordService
             'table' => 'funeral_records', 'id' => 'funeral_id',
             'name' => ['deceased_name'], 'birth' => ['birth_date'], 'event' => 'date_of_burial',
             'required' => ['deceased_name','birth_date','date_of_death','date_of_burial','place_of_burial','minister'],
-            'request_types' => ['funeral_mass'],
+            'request_types' => ['funeral_mass','funeral_certificate'],
             'fields' => ['request_id','registry_no','book_no','page_no','entry_no','deceased_name','birth_date','family_name','date_of_death','date_of_burial','civil_status','funeral_rites','cause_of_death','place_of_burial','minister','remarks'],
         ],
     ];
