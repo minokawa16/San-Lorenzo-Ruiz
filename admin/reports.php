@@ -16,7 +16,7 @@ $service=new ReportService($conn); $export=$_GET['export']??'';
 require_once '../vendor/autoload.php';
 require_once '../services/ReportPdfGenerator.php';
 
-$labels=['all'=>'All Records','turnaround'=>'Request Turnaround','pending_overdue'=>'Pending & Overdue','certificates'=>'Certificate Lifecycle','notifications'=>'Notification Delivery'];
+$labels=['all'=>'All Records','turnaround'=>'Request Processing Time','pending_overdue'=>'Pending & Overdue','notifications'=>'Notification Delivery'];
 
 if(in_array($export,['csv','pdf'],true)){
     requirePermission('reports.export'); $data=$service->export($report,$filters,10000);

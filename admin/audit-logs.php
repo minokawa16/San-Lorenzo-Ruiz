@@ -150,6 +150,52 @@ $data=$service->page($filters,max(1,(int)($_GET['page']??1)),50);$base=array_fil
     <div class="alert alert-warning">Exports are limited to the first <?php echo number_format($data['limit']); ?> matching records.</div>
   <?php endif; ?>
 
+<?php
+function renderAuditDetailsSimple(array $row): string {
+    $new = json_decode((string)($row['new_value'] ?? ''), true);
+    $old = json_decode((string)($row['old_value'] ?? ''), true);
+
+    if (is_array($new) && !empty($new)) {
+        $items = [];
+        foreach ($new as $k => $v) {
+            $formattedKey = ucwords(str_replace('_', ' ', (string)$k));
+            if (is_array($v)) $v = json_encode($v);
+            if (is_null($v)) $v = 'null';
+            if (is_bool($v)) $v = $v ? 'Yes' : 'No';
+
+            if (is_array($old) && isset($old[$k]) && $old[$k] !== $v) {
+                $oldVal = is_array($old[$k]) ? json_encode($old[$k]) : (string)$old[$k];
+                $items[] = '<span class="text-muted">' . e($formattedKey) . ':</span> <span class="text-decoration-line-through text-secondary">' . e(mb_strimwidth($oldVal, 0, 30, '...')) . '</span> &rarr; <strong class="text-dark">' . e(mb_strimwidth((string)$v, 0, 30, '...')) . '</strong>';
+            } else {
+                $items[] = '<span class="text-muted">' . e($formattedKey) . ':</span> <strong class="text-dark">' . e(mb_strimwidth((string)$v, 0, 40, '...')) . '</strong>';
+            }
+        }
+        $shown = array_slice($items, 0, 2);
+        $res = implode('<br>', $shown);
+        if (count($items) > 2) {
+            $res .= ' <small class="text-muted">(+' . (count($items) - 2) . ' more)</small>';
+        }
+        return $res;
+    }
+
+    $rawNew = trim((string)($row['new_value'] ?? ''));
+    if ($rawNew !== '' && $rawNew !== '{}' && $rawNew !== '[]') {
+        return '<span class="text-dark">' . e(mb_strimwidth($rawNew, 0, 60, '...')) . '</span>';
+    }
+
+    return '<span class="text-muted small">Standard activity</span>';
+}
+
+function renderAuditCorrelationSimple(?string $corrId): string {
+    $corr = trim((string)$corrId);
+    if ($corr === '' || $corr === 'legacy') {
+        return '<span class="text-muted small">—</span>';
+    }
+    $short = substr($corr, 0, 8);
+    return '<span class="badge bg-light text-secondary border font-monospace" style="font-size: 0.78rem;" title="Tracking ID: ' . e($corr) . '"><i class="fas fa-fingerprint me-1 text-muted"></i>#' . e($short) . '</span>';
+}
+?>
+
   <section class="card log-panel-card mb-4" id="auditLogsCard">
     <div class="card-header log-panel-header" id="auditLogsHeader" role="button" tabindex="0" aria-expanded="true" aria-controls="auditLogsBody">
       <div class="d-flex align-items-center gap-2">
@@ -172,8 +218,8 @@ $data=$service->page($filters,max(1,(int)($_GET['page']??1)),50);$base=array_fil
               <th>Actor</th>
               <th>Action</th>
               <th>Target</th>
-              <th>Change</th>
-              <th>Correlation</th>
+              <th>Details</th>
+              <th>Tracking Ref</th>
             </tr>
           </thead>
           <tbody>
@@ -189,16 +235,8 @@ $data=$service->page($filters,max(1,(int)($_GET['page']??1)),50);$base=array_fil
                   <small class="d-block text-muted"><?php echo e($row['component'].':'.$row['event']); ?></small>
                 </td>
                 <td><?php echo e(($row['table_name']?:'system').($row['record_id']?' #'.$row['record_id']:'')); ?></td>
-                <td>
-                  <details>
-                    <summary style="cursor: pointer; font-size: 0.84rem; font-weight: 600; color: #7a5214;">View redacted details</summary>
-                    <div class="p-2 mt-1 rounded bg-light border" style="font-size: 0.78rem;">
-                      <div><strong>Old:</strong> <?php echo e(mb_strimwidth((string)$row['old_value'],0,240,'...')); ?></div>
-                      <div><strong>New:</strong> <?php echo e(mb_strimwidth((string)$row['new_value'],0,240,'...')); ?></div>
-                    </div>
-                  </details>
-                </td>
-                <td><code class="text-break" style="font-size: 0.8rem;"><?php echo e($row['correlation_id']?:'legacy'); ?></code></td>
+                <td><?php echo renderAuditDetailsSimple($row); ?></td>
+                <td><?php echo renderAuditCorrelationSimple($row['correlation_id'] ?? ''); ?></td>
               </tr>
             <?php endforeach; ?>
           </tbody>
