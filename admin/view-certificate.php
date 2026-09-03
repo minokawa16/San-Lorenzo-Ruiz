@@ -567,13 +567,9 @@ if (strcasecmp($layout_secretary_position, 'Signature / Parish Stamp') === 0) {
     <div class="cert-toolbar">
         <h1><i class="fas fa-certificate"></i> Certificate Preview</h1>
         <div class="d-flex flex-wrap gap-2">
-            <?php if ($is_manual_certificate): ?>
-            <button class="btn btn-primary" onclick="window.print()"><i class="fas fa-print"></i> Print Manual Certificate</button>
-            <button class="btn btn-success" type="button" id="downloadPdfBtn"><i class="fas fa-file-pdf"></i> Download Preview PDF</button>
-            <?php else: ?>
-            <form method="post" action="certificate-workflow.php" class="d-inline"><?php echo csrfInput(); ?><input type="hidden" name="action" value="create_draft"><input type="hidden" name="certificate_type" value="<?php echo e($cert_type); ?>"><input type="hidden" name="record_id" value="<?php echo (int)$issue['record_id']; ?>"><button class="btn btn-success"><i class="fas fa-file-circle-check"></i> Create Controlled Draft</button></form>
-            <?php endif; ?>
-            <?php if (!$is_manual_certificate): ?>
+            <button class="btn btn-primary" onclick="window.print()"><i class="fas fa-print"></i> Print Certificate</button>
+            <button class="btn btn-success" type="button" id="downloadPdfBtn"><i class="fas fa-file-pdf"></i> Download PDF</button>
+            <?php if (!$is_manual_certificate && !empty($verification_url)): ?>
                 <a class="btn btn-outline-dark" href="<?php echo e($verification_url); ?>" target="_blank"><i class="fas fa-shield-check"></i> Verify Certificate</a>
             <?php endif; ?>
             <?php if ($is_manual_certificate): ?>
