@@ -15,6 +15,58 @@ if (!isset($_SESSION['certificate_data']) || !isset($_SESSION['cert_type'])) {
     exit;
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_certificate_details') {
+    requireValidCsrfToken();
+    if (isset($_POST['purpose'])) {
+        $_SESSION['certificate_data']['purpose'] = trim((string)$_POST['purpose']);
+    }
+    if (isset($_POST['date_issued']) && $_POST['date_issued'] !== '') {
+        $_SESSION['certificate_data']['date_issued'] = trim((string)$_POST['date_issued']);
+        $_SESSION['certificate_data']['issued_at'] = trim((string)$_POST['date_issued']);
+    }
+    if (isset($_POST['residence'])) {
+        $_SESSION['certificate_data']['residence'] = trim((string)$_POST['residence']);
+        $_SESSION['certificate_data']['domicile'] = trim((string)$_POST['residence']);
+    }
+    if (isset($_POST['husband_residence'])) {
+        $_SESSION['certificate_data']['husband_residence'] = trim((string)$_POST['husband_residence']);
+    }
+    if (isset($_POST['wife_residence'])) {
+        $_SESSION['certificate_data']['wife_residence'] = trim((string)$_POST['wife_residence']);
+    }
+    if (isset($_POST['parents'])) {
+        $_SESSION['certificate_data']['parents'] = trim((string)$_POST['parents']);
+    }
+    if (isset($_POST['husband_parents'])) {
+        $_SESSION['certificate_data']['husband_parents'] = trim((string)$_POST['husband_parents']);
+    }
+    if (isset($_POST['wife_parents'])) {
+        $_SESSION['certificate_data']['wife_parents'] = trim((string)$_POST['wife_parents']);
+    }
+    if (isset($_POST['father_name'])) {
+        $_SESSION['certificate_data']['father_name'] = trim((string)$_POST['father_name']);
+    }
+    if (isset($_POST['mother_name'])) {
+        $_SESSION['certificate_data']['mother_name'] = trim((string)$_POST['mother_name']);
+    }
+    if (isset($_POST['volume_no'])) {
+        $_SESSION['certificate_data']['volume_no'] = trim((string)$_POST['volume_no']);
+        $_SESSION['certificate_data']['book_no'] = trim((string)$_POST['volume_no']);
+    }
+    if (isset($_POST['page_no'])) {
+        $_SESSION['certificate_data']['page_no'] = trim((string)$_POST['page_no']);
+    }
+    if (isset($_POST['entry_no'])) {
+        $_SESSION['certificate_data']['entry_no'] = trim((string)$_POST['entry_no']);
+        $_SESSION['certificate_data']['registry_no'] = trim((string)$_POST['entry_no']);
+    }
+    if (isset($_POST['remarks'])) {
+        $_SESSION['certificate_data']['remarks'] = trim((string)$_POST['remarks']);
+    }
+    header('Location: view-certificate.php');
+    exit;
+}
+
 $data = $_SESSION['certificate_data'];
 $cert_type = $_SESSION['cert_type'];
 $is_manual_certificate = !empty($_SESSION['manual_certificate']);
@@ -568,11 +620,12 @@ if (strcasecmp($layout_secretary_position, 'Signature / Parish Stamp') === 0) {
         <div class="d-flex flex-wrap gap-2">
             <button class="btn btn-primary" onclick="window.print()"><i class="fas fa-print"></i> Print Certificate</button>
             <button class="btn btn-success" type="button" id="downloadPdfBtn"><i class="fas fa-file-pdf"></i> Download PDF</button>
+            <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#editPurposeModal"><i class="fas fa-pen-to-square"></i> Edit Purpose & Details</button>
             <?php if (!$is_manual_certificate && !empty($verification_url)): ?>
                 <a class="btn btn-outline-dark" href="<?php echo e($verification_url); ?>" target="_blank"><i class="fas fa-shield-check"></i> Verify Certificate</a>
             <?php endif; ?>
             <?php if ($is_manual_certificate): ?>
-                <a href="manual-certificate-generator.php" class="btn btn-outline-primary"><i class="fas fa-pen-to-square"></i> Edit Information</a>
+                <a href="manual-certificate-generator.php" class="btn btn-outline-secondary"><i class="fas fa-sliders"></i> Full Edit</a>
                 <a href="manual-certificate-generator.php?new=1" class="btn btn-outline-success"><i class="fas fa-plus"></i> Generate Another</a>
             <?php endif; ?>
             <a href="certificate-generator.php" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back</a>
@@ -1229,6 +1282,98 @@ if (strcasecmp($layout_secretary_position, 'Signature / Parish Stamp') === 0) {
             <p><strong>Verification Code:</strong> <?php echo e($issue['verification_code']); ?></p>
         </div>
     <?php endif; ?>
+    <!-- Edit Purpose & Details Modal -->
+    <div class="modal fade" id="editPurposeModal" tabindex="-1" aria-labelledby="editPurposeModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow">
+                <form method="POST" action="">
+                    <?php echo csrfInput(); ?>
+                    <input type="hidden" name="action" value="update_certificate_details">
+                    <div class="modal-header bg-dark text-white">
+                        <h5 class="modal-title" id="editPurposeModalLabel"><i class="fas fa-pen-to-square me-2"></i> Edit Certificate Purpose & Details</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <div class="mb-3">
+                            <label for="edit_purpose" class="form-label fw-bold">Purpose of Certification</label>
+                            <input type="text" class="form-control" id="edit_purpose" name="purpose" value="<?php echo e(!empty($data['purpose']) ? $data['purpose'] : 'whatever lawful purpose it may serve'); ?>" placeholder="e.g., whatever lawful purpose it may serve">
+                            <div class="d-flex flex-wrap gap-1 mt-2">
+                                <span class="badge bg-light text-dark border" style="cursor:pointer;" onclick="document.getElementById('edit_purpose').value='whatever lawful purpose it may serve'">Default (Lawful purpose)</span>
+                                <span class="badge bg-light text-dark border" style="cursor:pointer;" onclick="document.getElementById('edit_purpose').value='For Marriage Requirements'">For Marriage</span>
+                                <span class="badge bg-light text-dark border" style="cursor:pointer;" onclick="document.getElementById('edit_purpose').value='For School Enrollment / Educational Purposes'">For School</span>
+                                <span class="badge bg-light text-dark border" style="cursor:pointer;" onclick="document.getElementById('edit_purpose').value='For Employment Requirements'">For Employment</span>
+                                <span class="badge bg-light text-dark border" style="cursor:pointer;" onclick="document.getElementById('edit_purpose').value='For Passport / Visa Application'">For Passport/Visa</span>
+                                <span class="badge bg-light text-dark border" style="cursor:pointer;" onclick="document.getElementById('edit_purpose').value='For Legal Reference'">For Legal Reference</span>
+                                <span class="badge bg-light text-dark border" style="cursor:pointer;" onclick="document.getElementById('edit_purpose').value='For Confirmation Requirements'">For Confirmation</span>
+                                <span class="badge bg-light text-dark border" style="cursor:pointer;" onclick="document.getElementById('edit_purpose').value='For First Holy Communion Requirements'">For First Communion</span>
+                            </div>
+                        </div>
+
+                        <div class="row g-3">
+                            <?php if ($cert_type === 'marriage' || $cert_type === 'marriage_certification'): ?>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Groom's Residence</label>
+                                    <input type="text" class="form-control" name="husband_residence" value="<?php echo e($data['husband_residence'] ?? ''); ?>" placeholder="Barangay, Municipality, Province">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Bride's Residence</label>
+                                    <input type="text" class="form-control" name="wife_residence" value="<?php echo e($data['wife_residence'] ?? ''); ?>" placeholder="Barangay, Municipality, Province">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Groom's Parents</label>
+                                    <input type="text" class="form-control" name="husband_parents" value="<?php echo e($data['husband_parents'] ?? ''); ?>" placeholder="Mother / Father">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Bride's Parents</label>
+                                    <input type="text" class="form-control" name="wife_parents" value="<?php echo e($data['wife_parents'] ?? ''); ?>" placeholder="Mother / Father">
+                                </div>
+                            <?php else: ?>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Father's Name</label>
+                                    <input type="text" class="form-control" name="father_name" value="<?php echo e($father_name); ?>">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Mother's Name</label>
+                                    <input type="text" class="form-control" name="mother_name" value="<?php echo e($mother_name); ?>">
+                                </div>
+                                <div class="col-md-12">
+                                    <label class="form-label fw-bold">Residence / Address</label>
+                                    <input type="text" class="form-control" name="residence" value="<?php echo e($data['residence'] ?? ($data['domicile'] ?? ($data['parent_address'] ?? ''))); ?>" placeholder="Sitio / Barangay, Municipality, Province">
+                                </div>
+                            <?php endif; ?>
+
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Vol. / Book No.</label>
+                                <input type="text" class="form-control" name="volume_no" value="<?php echo e($volume_no !== 'N/A' ? $volume_no : ''); ?>">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Page No.</label>
+                                <input type="text" class="form-control" name="page_no" value="<?php echo e($page_no !== 'N/A' ? $page_no : ''); ?>">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Entry No.</label>
+                                <input type="text" class="form-control" name="entry_no" value="<?php echo e($entry_no !== 'N/A' ? $entry_no : ''); ?>">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Date Issued</label>
+                                <input type="date" class="form-control" name="date_issued" value="<?php echo e($data['date_issued'] ?? date('Y-m-d')); ?>">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Additional Remarks</label>
+                                <input type="text" class="form-control" name="remarks" value="<?php echo e($data['remarks'] ?? ''); ?>">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Save & Update Certificate</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const downloadPdfBtn = document.getElementById('downloadPdfBtn');
         const certificateDocument = document.getElementById('certificateDocument');

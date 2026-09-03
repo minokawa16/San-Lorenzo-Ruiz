@@ -27,6 +27,7 @@ $field_labels = [
     'fullname' => 'Full Name',
     'birth_date' => 'Date of Birth',
     'birth_place' => 'Place of Birth',
+    'residence' => 'Residence / Address',
     'parents' => "Parents' Names",
     'father_name' => "Father's Name",
     'mother_name' => "Mother's Name",
@@ -48,22 +49,22 @@ $field_labels = [
     'husband_birth_place' => "Groom's Place of Birth",
     'husband_nationality' => "Groom's Nationality",
     'husband_status' => "Groom's Civil Status Before Marriage",
+    'husband_parents' => "Groom's Parents",
+    'husband_residence' => "Groom's Residence",
     'wife_name' => 'Wife / Bride',
     'wife_birth_date' => "Bride's Date of Birth",
     'wife_birth_place' => "Bride's Place of Birth",
     'wife_nationality' => "Bride's Nationality",
     'wife_status' => "Bride's Civil Status Before Marriage",
-    'husband_parents' => "Husband's Parents",
-    'wife_parents' => "Wife's Parents",
-    'husband_residence' => "Husband's Residence",
-    'wife_residence' => "Wife's Residence",
+    'wife_parents' => "Bride's Parents",
+    'wife_residence' => "Bride's Residence",
     'sponsors' => 'Sponsors / Witnesses',
     'certificate_number' => 'Certificate Number',
     'date_issued' => 'Date Issued',
-    'purpose' => 'Purpose',
+    'purpose' => 'Purpose of Certification',
     'remarks' => 'Additional Remarks',
     'record_reference' => 'Book / Page / Entry Reference',
-    'volume_no' => 'Volume Number',
+    'volume_no' => 'Volume / Book Number',
     'book_no' => 'Book Number',
     'page_no' => 'Page Number',
     'entry_no' => 'Entry Number',
@@ -80,16 +81,16 @@ $field_labels = [
 ];
 
 $fields_by_type = [
-    'baptism' => ['fullname', 'birth_date', 'birth_place', 'father_name', 'mother_name', 'baptism_date', 'ceremony_place', 'parish_name', 'priest', 'godfather', 'godmother', 'volume_no', 'page_no', 'entry_no', 'certificate_number', 'date_issued', 'purpose', 'remarks'],
-    'baptism_certification' => ['fullname', 'birth_date', 'birth_place', 'father_name', 'mother_name', 'baptism_date', 'ceremony_place', 'parish_name', 'priest', 'godfather', 'godmother', 'volume_no', 'page_no', 'entry_no', 'certificate_number', 'date_issued', 'purpose', 'remarks'],
-    'confirmation' => ['fullname', 'birth_date', 'birth_place', 'parents', 'sponsor', 'confirmation_date', 'ceremony_place', 'parish_name', 'bishop_priest', 'record_reference', 'certificate_number', 'date_issued', 'purpose', 'remarks'],
-    'confirmation_certification' => ['fullname', 'birth_date', 'birth_place', 'father_name', 'mother_name', 'confirmation_date', 'ceremony_place', 'parish_name', 'bishop_priest', 'sponsor', 'volume_no', 'page_no', 'entry_no', 'certificate_number', 'date_issued', 'purpose', 'remarks'],
-    'communion' => ['fullname', 'birth_date', 'birth_place', 'parents', 'sponsor', 'communion_date', 'ceremony_place', 'parish_name', 'priest', 'record_reference', 'certificate_number', 'date_issued', 'purpose', 'remarks'],
-    'first_communion_certification' => ['fullname', 'birth_date', 'birth_place', 'father_name', 'mother_name', 'communion_date', 'ceremony_place', 'parish_name', 'priest', 'sponsor', 'volume_no', 'page_no', 'entry_no', 'certificate_number', 'date_issued', 'purpose', 'remarks'],
-    'marriage' => ['husband_name', 'wife_name', 'wedding_date', 'ceremony_place', 'parish_name', 'officiating_priest', 'husband_parents', 'wife_parents', 'husband_residence', 'wife_residence', 'sponsors', 'record_reference', 'certificate_number', 'date_issued', 'purpose', 'remarks'],
-    'marriage_certification' => ['husband_name', 'husband_birth_date', 'husband_birth_place', 'husband_nationality', 'husband_status', 'wife_name', 'wife_birth_date', 'wife_birth_place', 'wife_nationality', 'wife_status', 'wedding_date', 'ceremony_place', 'parish_name', 'officiating_priest', 'sponsors', 'volume_no', 'page_no', 'entry_no', 'certificate_number', 'date_issued', 'purpose', 'remarks'],
-    'funeral_certification' => ['deceased_name', 'family_name', 'date_of_death', 'date_of_burial', 'civil_status', 'funeral_rites', 'cause_of_death', 'place_of_burial', 'minister', 'registry_no', 'parish_name', 'certificate_number', 'date_issued', 'purpose', 'remarks'],
-    'other' => ['fullname', 'ceremony_place', 'parish_name', 'priest', 'certificate_number', 'date_issued', 'purpose', 'remarks']
+    'baptism' => ['fullname', 'birth_date', 'birth_place', 'father_name', 'mother_name', 'parents', 'residence', 'baptism_date', 'ceremony_place', 'parish_name', 'priest', 'godfather', 'godmother', 'volume_no', 'page_no', 'entry_no', 'certificate_number', 'date_issued', 'purpose', 'remarks'],
+    'baptism_certification' => ['fullname', 'birth_date', 'birth_place', 'father_name', 'mother_name', 'parents', 'residence', 'baptism_date', 'ceremony_place', 'parish_name', 'priest', 'godfather', 'godmother', 'volume_no', 'page_no', 'entry_no', 'certificate_number', 'date_issued', 'purpose', 'remarks'],
+    'confirmation' => ['fullname', 'birth_date', 'birth_place', 'parents', 'residence', 'sponsor', 'confirmation_date', 'ceremony_place', 'parish_name', 'bishop_priest', 'record_reference', 'volume_no', 'page_no', 'entry_no', 'certificate_number', 'date_issued', 'purpose', 'remarks'],
+    'confirmation_certification' => ['fullname', 'birth_date', 'birth_place', 'father_name', 'mother_name', 'parents', 'residence', 'confirmation_date', 'ceremony_place', 'parish_name', 'bishop_priest', 'sponsor', 'volume_no', 'page_no', 'entry_no', 'certificate_number', 'date_issued', 'purpose', 'remarks'],
+    'communion' => ['fullname', 'birth_date', 'birth_place', 'parents', 'residence', 'sponsor', 'communion_date', 'ceremony_place', 'parish_name', 'priest', 'record_reference', 'volume_no', 'page_no', 'entry_no', 'certificate_number', 'date_issued', 'purpose', 'remarks'],
+    'first_communion_certification' => ['fullname', 'birth_date', 'birth_place', 'father_name', 'mother_name', 'parents', 'residence', 'communion_date', 'ceremony_place', 'parish_name', 'priest', 'sponsor', 'volume_no', 'page_no', 'entry_no', 'certificate_number', 'date_issued', 'purpose', 'remarks'],
+    'marriage' => ['husband_name', 'husband_parents', 'husband_residence', 'wife_name', 'wife_parents', 'wife_residence', 'wedding_date', 'ceremony_place', 'parish_name', 'officiating_priest', 'sponsors', 'record_reference', 'volume_no', 'page_no', 'entry_no', 'certificate_number', 'date_issued', 'purpose', 'remarks'],
+    'marriage_certification' => ['husband_name', 'husband_birth_date', 'husband_birth_place', 'husband_nationality', 'husband_status', 'husband_parents', 'husband_residence', 'wife_name', 'wife_birth_date', 'wife_birth_place', 'wife_nationality', 'wife_status', 'wife_parents', 'wife_residence', 'wedding_date', 'ceremony_place', 'parish_name', 'officiating_priest', 'sponsors', 'volume_no', 'page_no', 'entry_no', 'certificate_number', 'date_issued', 'purpose', 'remarks'],
+    'funeral_certification' => ['deceased_name', 'family_name', 'parents', 'residence', 'date_of_death', 'date_of_burial', 'civil_status', 'funeral_rites', 'cause_of_death', 'place_of_burial', 'minister', 'registry_no', 'parish_name', 'certificate_number', 'date_issued', 'purpose', 'remarks'],
+    'other' => ['fullname', 'parents', 'residence', 'ceremony_place', 'parish_name', 'priest', 'certificate_number', 'date_issued', 'purpose', 'remarks']
 ];
 
 $required_by_type = [
@@ -144,20 +145,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $manual_data['manual_entry'] = true;
         $manual_data['status'] = 'manual';
         if ($selected_type === 'marriage' || $selected_type === 'marriage_certification') {
-            $manual_data['fullname'] = trim($manual_data['husband_name'] . ' and ' . $manual_data['wife_name']);
-            $manual_data['registry_no'] = $manual_data['record_reference'] ?? '';
-            $manual_data['officiating_priest'] = $manual_data['officiating_priest'] ?? '';
-        } else {
-            $manual_data['registry_no'] = $manual_data['record_reference'] ?? '';
-        }
-        if ($selected_type === 'marriage_certification') {
+            $manual_data['fullname'] = trim(($manual_data['husband_name'] ?? '') . ' and ' . ($manual_data['wife_name'] ?? ''));
+            $manual_data['registry_no'] = $manual_data['entry_no'] ?? ($manual_data['record_reference'] ?? '');
             $manual_data['book_no'] = $manual_data['volume_no'] ?? '';
-            $manual_data['registry_no'] = $manual_data['entry_no'] ?? '';
+            $manual_data['officiating_priest'] = $manual_data['officiating_priest'] ?? '';
+            $hParents = trim((string) ($manual_data['husband_parents'] ?? ''));
+            $wParents = trim((string) ($manual_data['wife_parents'] ?? ''));
+            if ($hParents !== '' || $wParents !== '') {
+                $manual_data['parents'] = trim($hParents . ($hParents !== '' && $wParents !== '' ? ' / ' : '') . $wParents);
+            }
+            $hRes = trim((string) ($manual_data['husband_residence'] ?? ''));
+            $wRes = trim((string) ($manual_data['wife_residence'] ?? ''));
+            if ($hRes !== '' || $wRes !== '') {
+                $manual_data['residence'] = trim($hRes . ($hRes !== '' && $wRes !== '' ? ' / ' : '') . $wRes);
+            }
             $manual_data['husband_birth_origin'] = $manual_data['husband_birth_place'] ?? '';
             $manual_data['wife_birth_origin'] = $manual_data['wife_birth_place'] ?? '';
+        } else {
+            $manual_data['registry_no'] = $manual_data['entry_no'] ?? ($manual_data['record_reference'] ?? '');
         }
         if ($selected_type === 'baptism' || $selected_type === 'baptism_certification') {
-            $manual_data['parents'] = trim(($manual_data['father_name'] ?? '') . ' / ' . ($manual_data['mother_name'] ?? ''), " /\t\n\r\0\x0B");
+            if (empty($manual_data['parents'])) {
+                $manual_data['parents'] = trim(($manual_data['father_name'] ?? '') . ' / ' . ($manual_data['mother_name'] ?? ''), " /\t\n\r\0\x0B");
+            }
             $manual_data['godparents'] = trim(($manual_data['godfather'] ?? '') . ' / ' . ($manual_data['godmother'] ?? ''), " /\t\n\r\0\x0B");
             $manual_data['book_no'] = $manual_data['volume_no'] ?? '';
             $manual_data['registry_no'] = $manual_data['entry_no'] ?? '';
@@ -166,15 +176,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $manual_data['baptismal_place'] = $manual_data['birth_place'] ?? '';
         }
         if ($selected_type === 'confirmation_certification') {
-            $manual_data['parents'] = trim(($manual_data['father_name'] ?? '') . ' / ' . ($manual_data['mother_name'] ?? ''), " /\t\n\r\0\x0B");
+            if (empty($manual_data['parents'])) {
+                $manual_data['parents'] = trim(($manual_data['father_name'] ?? '') . ' / ' . ($manual_data['mother_name'] ?? ''), " /\t\n\r\0\x0B");
+            }
             $manual_data['book_no'] = $manual_data['volume_no'] ?? '';
             $manual_data['registry_no'] = $manual_data['entry_no'] ?? '';
         }
-        if ($selected_type === 'communion') {
-            $manual_data['parents'] = $manual_data['parents'] ?? '';
-        }
         if ($selected_type === 'first_communion_certification') {
-            $manual_data['parents'] = trim(($manual_data['father_name'] ?? '') . ' / ' . ($manual_data['mother_name'] ?? ''), " /\t\n\r\0\x0B");
+            if (empty($manual_data['parents'])) {
+                $manual_data['parents'] = trim(($manual_data['father_name'] ?? '') . ' / ' . ($manual_data['mother_name'] ?? ''), " /\t\n\r\0\x0B");
+            }
             $manual_data['book_no'] = $manual_data['volume_no'] ?? '';
             $manual_data['registry_no'] = $manual_data['entry_no'] ?? '';
         }
