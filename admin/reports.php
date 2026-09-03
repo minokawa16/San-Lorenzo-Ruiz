@@ -7,7 +7,7 @@ require_once '../includes/audit.php';
 requireLogin(); requirePermission('reports.view');
 
 $page_title='Reports & Analytics';
-$report=in_array($_GET['report']??'',ReportService::TYPES,true)?$_GET['report']:'turnaround';
+$report=in_array($_GET['report']??'',ReportService::TYPES,true)?$_GET['report']:'all';
 $cleanDate=static fn($v)=>preg_match('/^\d{4}-\d{2}-\d{2}$/',(string)$v)?(string)$v:'';
 $cleanText=static fn($v)=>preg_match('/^[a-z0-9_ -]{0,80}$/i',(string)$v)?trim((string)$v):'';
 $filters=['from'=>$cleanDate($_GET['from']??''),'to'=>$cleanDate($_GET['to']??''),'status'=>$cleanText($_GET['status']??''),'type'=>$cleanText($_GET['type']??'')];
@@ -16,7 +16,7 @@ $service=new ReportService($conn); $export=$_GET['export']??'';
 require_once '../vendor/autoload.php';
 require_once '../services/ReportPdfGenerator.php';
 
-$labels=['turnaround'=>'Request Turnaround','pending_overdue'=>'Pending & Overdue','rejections'=>'Rejections & Resubmissions','reservations'=>'Reservation Utilization','certificates'=>'Certificate Lifecycle','notifications'=>'Notification Delivery'];
+$labels=['all'=>'All Records','turnaround'=>'Request Turnaround','pending_overdue'=>'Pending & Overdue','rejections'=>'Rejections & Resubmissions','certificates'=>'Certificate Lifecycle','notifications'=>'Notification Delivery'];
 
 if(in_array($export,['csv','pdf'],true)){
     requirePermission('reports.export'); $data=$service->export($report,$filters,10000);
@@ -153,13 +153,17 @@ include '../templates/header.php';
       <div class="col-sm-6 col-lg-3"><label for="reportTo" class="form-label">To</label><input id="reportTo" class="form-control" type="date" name="to" value="<?php echo e($filters['to']); ?>"></div>
       <div class="col-sm-6 col-lg-2"><label for="reportStatus" class="form-label">Status</label><input id="reportStatus" class="form-control" name="status" value="<?php echo e($filters['status']); ?>" placeholder="All"></div>
       <div class="col-sm-6 col-lg-2"><label for="reportType" class="form-label">Type</label><input id="reportType" class="form-control" name="type" value="<?php echo e($filters['type']); ?>" placeholder="All"></div>
-      <div class="col-lg-2 d-grid"><button class="btn btn-primary" type="submit"><i class="fas fa-filter" aria-hidden="true"></i> Apply filters</button></div>
+      <div class="col-lg-2 d-flex gap-2">
+        <button class="btn btn-primary flex-fill" type="submit"><i class="fas fa-filter" aria-hidden="true"></i> Apply</button>
+        <a class="btn btn-outline-secondary" href="?report=<?php echo e($report); ?>" title="View all records for this report"><i class="fas fa-list-ul"></i> All</a>
+      </div>
     </div>
   </form>
   <div class="alert alert-info" role="status"><strong>Active filters:</strong> <?php echo e($filters['from']?:'Any date'); ?> to <?php echo e($filters['to']?:'today'); ?>; Type: <?php echo e($filters['type']?:'All'); ?>; Status: <?php echo e($filters['status']?:'All'); ?>. <?php echo number_format($data['total']); ?> matching records.</div>
   <?php if($data['truncated']): ?><div class="alert alert-warning" role="alert">Exports show the first <?php echo number_format($data['limit']); ?> records; the full filtered count is <?php echo number_format($data['total']); ?>.</div><?php endif; ?>
   <?php if(!empty($data['summary'])): ?><section class="row g-3 mb-3" aria-label="Report summary"><?php foreach($data['summary'] as $key=>$value): ?><div class="col-6 col-lg"><div class="card card-body h-100"><small class="text-muted"><?php echo e(ucwords(str_replace('_',' ',$key))); ?></small><strong class="fs-4"><?php echo e((string)($value??0)); ?></strong></div></div><?php endforeach; ?></section><?php endif; ?>
   <div class="d-flex flex-wrap gap-2 mb-3">
+    <a class="btn btn-outline-secondary <?php echo $report === 'all' && empty(array_filter($filters)) ? 'active' : ''; ?>" href="?report=all"><i class="fas fa-list-check" aria-hidden="true"></i> All Reports (All Data)</a>
     <?php if(hasPermission('reports.export')): ?><a class="btn btn-outline-primary" href="?<?php echo e(http_build_query(array_merge($queryBase,['export'=>'csv']))); ?>"><i class="fas fa-file-csv" aria-hidden="true"></i> Export CSV</a><a class="btn btn-outline-primary" href="?<?php echo e(http_build_query(array_merge($queryBase,['export'=>'pdf']))); ?>"><i class="fas fa-file-pdf" aria-hidden="true"></i> Export PDF</a><?php endif; ?>
   </div>
 

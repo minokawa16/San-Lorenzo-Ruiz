@@ -467,6 +467,15 @@ html body .user-sidebar .sidebar-nav .pill-badge {
     font-weight: 800 !important;
 }
 
+html body .admin-sidebar .sidebar-nav .pill-badge:empty,
+html body .admin-sidebar .sidebar-nav .pill-badge[style*="display: none"],
+html body .admin-sidebar .sidebar-nav .pill-badge[style*="display:none"],
+html body .user-sidebar .sidebar-nav .pill-badge:empty,
+html body .user-sidebar .sidebar-nav .pill-badge[style*="display: none"],
+html body .user-sidebar .sidebar-nav .pill-badge[style*="display:none"] {
+    display: none !important;
+}
+
 /* ── Main Content Wrapper (Flex Sibling) ─────────────────── */
 html body .premium-admin-content,
 html body .admin-content,

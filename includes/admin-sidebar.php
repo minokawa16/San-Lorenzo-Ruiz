@@ -50,12 +50,26 @@
     <?php endif; ?>
 
     <?php if (hasAnyPermission(['requests.manage', 'requests.view', 'reservations.manage', 'reservations.view', 'calendar.manage'])): ?>
+    <?php
+    $sidebarPendingCount = 0;
+    if (!isset($conn) || !($conn instanceof mysqli)) {
+        @require_once __DIR__ . '/../database/config.php';
+    }
+    if (isset($conn) && $conn instanceof mysqli) {
+        $countRes = $conn->query("SELECT COUNT(*) AS c FROM requests WHERE deleted_at IS NULL AND status IN ('pending', 'submitted', 'requirements_review')");
+        if ($countRes) {
+            $sidebarPendingCount = (int) ($countRes->fetch_assoc()['c'] ?? 0);
+        }
+    }
+    ?>
     <div class="nav-section-label"><?php echo e(t('nav.request_management', 'Request Management')); ?></div>
     <?php if (hasAnyPermission(['requests.manage', 'requests.view', 'reservations.manage', 'reservations.view'])): ?>
     <a href="<?php echo BASE_URL; ?>admin/manage-requests.php" class="nav-link <?php echo in_array(basename($_SERVER['PHP_SELF']), ['manage-requests.php', 'request-workflow.php', 'process-request.php', 'manage-reservations.php', 'manage-resources.php'], true) ? 'active' : ''; ?>" data-tooltip="<?php echo e(t('nav.requests', 'Requests')); ?>">
       <i class="fas fa-inbox"></i>
       <span><?php echo e(t('nav.requests', 'Requests')); ?></span>
-      <span class="pill-badge" id="pendingBadge" style="display:none;">0</span>
+      <?php if ($sidebarPendingCount > 0): ?>
+      <span class="pill-badge" id="pendingBadge"><?php echo $sidebarPendingCount > 99 ? '99+' : $sidebarPendingCount; ?></span>
+      <?php endif; ?>
     </a>
     <?php endif; ?>
     <?php if (hasPermission('calendar.manage')): ?>
