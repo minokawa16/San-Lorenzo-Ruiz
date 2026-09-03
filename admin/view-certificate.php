@@ -377,7 +377,6 @@ if (strcasecmp($layout_secretary_position, 'Signature / Parish Stamp') === 0) {
     <title><?php echo e($page_title); ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         :root {
             --ink: <?php echo e(layoutCssValue($layout_typography['font_color'] ?? '', '#151515')); ?>;
@@ -620,7 +619,6 @@ if (strcasecmp($layout_secretary_position, 'Signature / Parish Stamp') === 0) {
     <div class="cert-toolbar">
         <div class="d-flex flex-wrap gap-2">
             <button class="btn btn-primary" onclick="window.print()"><i class="fas fa-print"></i> Print Certificate</button>
-            <button class="btn btn-success" type="button" id="downloadPdfBtn"><i class="fas fa-file-pdf"></i> Download PDF</button>
             <?php if ($is_certification): ?>
                 <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#editPurposeModal"><i class="fas fa-pen-to-square"></i> Edit Purpose & Details</button>
             <?php endif; ?>
@@ -634,11 +632,6 @@ if (strcasecmp($layout_secretary_position, 'Signature / Parish Stamp') === 0) {
             <a href="certificate-generator.php" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back</a>
         </div>
     </div>
-    <?php if ($certificate_template_is_pdf): ?>
-        <div class="alert alert-warning mx-auto" style="max-width: 900px;">
-            The active template is a PDF. It can be previewed, backed up, and printed from the browser, but the Download PDF button cannot reliably embed a PDF file as the certificate background. Upload a PNG or JPG version when the generated certificate download must include the template design.
-        </div>
-    <?php endif; ?>
 
     <?php if ($cert_type === 'baptism' || $cert_type === 'baptism_certification'): ?>
         <main class="certificate-page" id="certificateDocument">
@@ -1379,51 +1372,5 @@ if (strcasecmp($layout_secretary_position, 'Signature / Parish Stamp') === 0) {
     <?php endif; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        const downloadPdfBtn = document.getElementById('downloadPdfBtn');
-        const certificateDocument = document.getElementById('certificateDocument');
-        const pdfFileName = <?php echo json_encode(preg_replace('/[^A-Za-z0-9_-]+/', '-', strtolower($meta['title'] . '-' . $certificate_subject)) . '.pdf'); ?>;
-        const activeTemplateIsPdf = <?php echo $certificate_template_is_pdf ? 'true' : 'false'; ?>;
-
-        if (downloadPdfBtn && certificateDocument) {
-            downloadPdfBtn.addEventListener('click', async () => {
-                if (activeTemplateIsPdf) {
-                    alert('The active template is a PDF. The browser PDF downloader cannot reliably include it as a certificate background. Please upload a PNG or JPG version of this template for downloadable generated certificates.');
-                    return;
-                }
-                if (typeof html2pdf === 'undefined') {
-                    alert('PDF generator is still loading. Please wait a moment and click Download PDF again.');
-                    return;
-                }
-
-                const originalHtml = downloadPdfBtn.innerHTML;
-                downloadPdfBtn.disabled = true;
-                downloadPdfBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating PDF';
-
-                try {
-                    await html2pdf()
-                        .set({
-                            margin: 0,
-                            filename: pdfFileName,
-                            image: { type: 'jpeg', quality: 0.98 },
-                            html2canvas: {
-                                scale: 2.2,
-                                useCORS: true,
-                                backgroundColor: '#ffffff',
-                                scrollX: 0,
-                                scrollY: 0
-                            },
-                            jsPDF: { unit: 'mm', format: [152.4, 228.6], orientation: 'portrait' },
-                            pagebreak: { mode: ['avoid-all'] }
-                        })
-                        .from(certificateDocument)
-                        .save();
-                } finally {
-                    downloadPdfBtn.disabled = false;
-                    downloadPdfBtn.innerHTML = originalHtml;
-                }
-            });
-        }
-    </script>
 </body>
 </html>
