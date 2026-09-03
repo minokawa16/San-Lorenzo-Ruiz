@@ -50,10 +50,18 @@
         box-shadow: none !important;
         backdrop-filter: none !important;
         transform: translateY(12px) !important;
+        display: none !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
     }
 
     body.user-area .ai-assistant-widget.is-open .ai-assistant-panel {
         transform: translateY(0) !important;
+        display: flex !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        pointer-events: auto !important;
     }
 
     body.user-area .ai-assistant-panel-header {

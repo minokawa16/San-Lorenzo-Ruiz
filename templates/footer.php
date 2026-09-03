@@ -2468,8 +2468,36 @@
 
             updateWelcomeGreeting();
 
+            if (trigger) {
+                trigger.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (suppressNextAssistantClick) {
+                        return;
+                    }
+                    const isCurrentlyOpen = widget.classList.contains('is-open');
+                    setAssistantOpen(!isCurrentlyOpen);
+                    if (!isCurrentlyOpen) {
+                        checkAssistantHealth(false);
+                        if (liveInput) {
+                            setTimeout(function() { liveInput.focus(); }, 150);
+                        }
+                    }
+                });
+            }
+
+            if (close) {
+                close.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setAssistantOpen(false);
+                });
+            }
+
             if (mobileBack) {
-                mobileBack.addEventListener('click', function() {
+                mobileBack.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    event.stopPropagation();
                     setAssistantOpen(false);
                 });
             }
