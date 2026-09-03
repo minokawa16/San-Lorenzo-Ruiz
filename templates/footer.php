@@ -1697,7 +1697,7 @@
         }
     </style>
 
-    <?php if (isLoggedIn() && empty($is_admin_area)): ?>
+    <?php if (isLoggedIn()): ?>
     <div class="ai-assistant-widget" id="aiAssistantWidget">
         <button class="ai-assistant-trigger" type="button" id="aiAssistantTrigger" aria-label="Open TUGON Parish Guide" aria-expanded="false" title="Need help? Chat with TUGON Parish Guide">
             <span class="ai-assistant-online-indicator" aria-hidden="true"></span>
@@ -1776,7 +1776,7 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Custom JS -->
-    <?php if (isLoggedIn() && empty($is_admin_area)): ?>
+    <?php if (isLoggedIn()): ?>
     <script>
         (function() {
             const widget = document.getElementById('aiAssistantWidget');
@@ -2090,6 +2090,9 @@
                     window.clearTimeout(assistantLongPressTimer);
                     widget.classList.add('is-dragging');
                     trigger.setAttribute('aria-grabbed', 'true');
+                    if (trigger.setPointerCapture && assistantDragState.pointerId !== undefined) {
+                        try { trigger.setPointerCapture(assistantDragState.pointerId); } catch (e) {}
+                    }
                 }
                 if (!assistantDragState.dragging) {
                     return;
@@ -2107,7 +2110,10 @@
                     return;
                 }
                 window.clearTimeout(assistantLongPressTimer);
-                if (assistantDragState.dragging) {
+                const wasDragging = assistantDragState.dragging;
+                const wasLongPress = assistantDragState.longPressed;
+
+                if (wasDragging) {
                     const point = assistantPoint(event);
                     assistantDragState.latestX = point.x;
                     assistantDragState.latestY = point.y;
@@ -2118,15 +2124,23 @@
                     placeAssistant(point.x - assistantDragState.offsetX, point.y - assistantDragState.offsetY, true);
                     suppressNextAssistantClick = true;
                 }
-                if (assistantDragState.longPressed) {
+                if (wasLongPress) {
                     suppressNextAssistantClick = true;
                 }
                 widget.classList.remove('is-dragging');
                 trigger.setAttribute('aria-grabbed', 'false');
+                if (trigger.releasePointerCapture && assistantDragState.pointerId !== undefined) {
+                    try { trigger.releasePointerCapture(assistantDragState.pointerId); } catch (e) {}
+                }
                 assistantDragState = null;
-                window.setTimeout(function() {
+
+                if (wasDragging || wasLongPress) {
+                    window.setTimeout(function() {
+                        suppressNextAssistantClick = false;
+                    }, 120);
+                } else {
                     suppressNextAssistantClick = false;
-                }, 0);
+                }
             }
 
             function cancelAssistantDrag() {
@@ -2141,7 +2155,6 @@
             if (window.PointerEvent) {
                 trigger.addEventListener('pointerdown', function(event) {
                     beginAssistantDrag(event);
-                    if (assistantDragState && trigger.setPointerCapture) trigger.setPointerCapture(event.pointerId);
                 });
                 trigger.addEventListener('pointermove', moveAssistantDrag);
                 trigger.addEventListener('pointerup', endAssistantDrag);
@@ -2177,8 +2190,16 @@
                 document.body.classList.toggle('ai-chat-open', isOpen && window.matchMedia('(max-width: 599px)').matches);
                 trigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
                 panel.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
-                if (isOpen && isDesktopView.matches) {
-                    loadDesktopPanelPosition();
+                if (isOpen) {
+                    if (isDesktopView.matches) {
+                        loadDesktopPanelPosition();
+                    }
+                    if (liveAnswer) {
+                        liveAnswer.scrollTop = liveAnswer.scrollHeight;
+                    }
+                    if (liveInput) {
+                        setTimeout(function() { liveInput.focus(); }, 120);
+                    }
                 }
             }
 
