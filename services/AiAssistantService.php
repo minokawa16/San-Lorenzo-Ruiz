@@ -327,62 +327,208 @@ final class AiAssistantService
             ];
         }
 
-        // C. How to Request a Certificate
-        if (preg_match('/\b(?:how (?:do|can) i (?:request|get|apply for|submit) (?:a )?(?:parish )?certificate|how to (?:get|request) (?:a )?certificate|paano (?:kumuha|mag-?request|humingi) ng (?:sertipiko|certificate)|how to request (?:baptism|confirmation|marriage) certificate)\b/iu', $normalized)) {
+        // C. Account Creation & Registration
+        if (preg_match('/\b(?:how (?:can|do) i (?:create|register|make|open) (?:a )?(?:tugon )?account|how to (?:register|create an account)|paano (?:gumawa ng|mag-?register ng) account|sign up)\b/iu', $normalized)) {
             $answer = $isFil
-                ? "Narito po ang mga hakbang para sa paghiling ng **Sertipiko ng Parokya** (Binyag, Kumpil, o Kasal):\n\n1. Pumunta sa **Certificate Request** page.\n2. Piliin ang uri ng sertipiko (Baptismal, Confirmation, Marriage, o Good Moral).\n3. Ilagay ang mga kinakailangang personal na detalye at layunin.\n4. Mag-upload ng malinaw na kopya ng **PSA / Birth Certificate** (PDF, JPG, o PNG, hanggang 10MB).\n5. I-click ang **Submit Certificate Request** at itabi ang inyong Reference Number.\n\n[Open Certificate Requests](../users/request-certificate.php)"
-                : "Here is the step-by-step guide to request an official **Parish Certificate** (Baptism, Confirmation, Marriage, or Good Moral):\n\n1. Open the **Certificate Request** page.\n2. Select your desired certificate type.\n3. Fill in the required personal details and purpose of request.\n4. Upload a clear copy of your **PSA / Birth Certificate** (PDF, JPG, or PNG, up to 10MB).\n5. Click **Submit Certificate Request** and save your assigned Reference Number.\n\n[Open Certificate Requests](../users/request-certificate.php)";
+                ? "Para gumawa ng **TUGON Account**:\n\n1. Buksan ang **Registration** page.\n2. Ilagay ang inyong buong pangalan, email, mobile number, at tirahan.\n3. Magtakda ng matibay na password.\n4. Mag-upload ng malinaw na **Valid Government ID** para sa OCR verification.\n5. Kumpletuhin ang live selfie face verification.\n6. Ipasok ang natanggap na OTP upang ma-activate ang inyong account.\n\n[Register Now](../auth/register.php)"
+                : "To create a **TUGON Account**:\n\n1. Open the **Registration** page.\n2. Enter your full name, email, mobile number, and residential address.\n3. Create a secure password (minimum 8 characters).\n4. Upload a clear **Valid Government ID** for automated OCR identity verification.\n5. Complete the live selfie face verification.\n6. Enter the OTP code sent to your mobile or email to activate your account.\n\n[Register Now](../auth/register.php)";
             return [
                 'answer' => $answer,
-                'prompts' => ['What does Pending mean?', 'When can I claim my certificate?', 'Check My Requests']
+                'prompts' => ['How can I log in to my account?', 'How to upload valid ID', 'Request Certificate']
             ];
         }
 
-        // D. How to Request a Blessing
-        if (preg_match('/\b(?:how (?:do|can) i (?:request|apply for|submit) (?:a )?blessing|how to request (?:a )?blessing|paano (?:magpa-?bless|mag-?request ng blessing|humingi ng basbas)|house blessing|vehicle blessing|pabasbas ng (?:bahay|sasakyan))\b/iu', $normalized)) {
+        // D. Account Login
+        if (preg_match('/\b(?:how (?:can|do) i (?:log in|login|sign in)|how to login|paano mag-?login|paano pumasok sa account)\b/iu', $normalized)) {
             $answer = $isFil
-                ? "Maaari po kayong mag-request ng **Pagbabasbas (Blessing)** para sa inyong tahanan, sasakyan, negosyo, o mga banal na imahen:\n\n1. Buksan ang **Request Blessing** page.\n2. Piliin ang uri ng blessing (House, Vehicle, Business, o Religious Items).\n3. Itakda ang nais na petsa, oras, at kumpletong lokasyon o address.\n4. Isumite ang inyong kahilingan para sa kumpirmasyon ng opisina ng parokya.\n\n[Open Blessing Requests](../users/request-blessing.php)"
-                : "You can request an official **Parish Blessing** for your home, vehicle, business, or religious items:\n\n1. Open the **Request Blessing** page.\n2. Select the blessing category (House, Vehicle, Business, or Religious Articles).\n3. Specify your preferred date, time, and complete location address.\n4. Submit your request for parish review and clergy assignment.\n\n[Open Blessing Requests](../users/request-blessing.php)";
+                ? "Para mag-login sa inyong account:\n\n1. Pumunta sa **Login** page.\n2. Ilagay ang inyong rehistradong email o mobile number.\n3. I-type ang inyong password.\n4. I-click ang **Sign In**.\n\n[Log In Now](../auth/login.php)"
+                : "To log in to your account:\n\n1. Open the **Login** page.\n2. Enter your registered email address or mobile number.\n3. Type your password.\n4. Click **Sign In** to access your portal.\n\n[Log In Now](../auth/login.php)";
             return [
                 'answer' => $answer,
-                'prompts' => ['Request Blessing', 'Parish Schedule', 'Check My Requests']
+                'prompts' => ['How can I change my password?', 'Create Account', 'Track My Requests']
             ];
         }
 
-        // E. How to Make a Parish Reservation
-        if (preg_match('/\b(?:how (?:do|can) i (?:make|book|apply for) (?:a )?(?:parish )?reservation|how to (?:make|book) (?:a )?reservation|paano (?:mag-?reserve|mag-?book ng (?:simbahan|venue|hall|schedule)))\b/iu', $normalized)) {
+        // E. Specific Certificate Requests (Baptism, Confirmation, Communion, General)
+        if (preg_match('/\b(?:how (?:do|can) i request (?:a )?(?:baptismal|confirmation|first communion|marriage) certificate|request (?:baptismal|confirmation|communion|marriage) certificate|paano kumuha ng sertipiko ng (?:binyag|kumpil|komunyon|kasal)|how to request a certificate|paano kumuha ng certificate)\b/iu', $normalized)) {
+            $certType = 'Certificate';
+            if (preg_match('/\bbaptism/i', $normalized)) $certType = 'Baptismal Certificate';
+            elseif (preg_match('/\bconfirmation|kumpil/i', $normalized)) $certType = 'Confirmation Certificate';
+            elseif (preg_match('/\bcommunion|komunyon/i', $normalized)) $certType = 'First Communion Certificate';
+            elseif (preg_match('/\bmarriage|kasal/i', $normalized)) $certType = 'Marriage Certificate';
+
             $answer = $isFil
-                ? "Narito po ang proseso para sa **Parish Facility & Venue Reservation**:\n\n1. Buksan ang **Make Reservation** form.\n2. Piliin ang uri ng reserbasyon (Kasal, Binyag, Church Venue, atbp.).\n3. Piliin ang pasilidad/resource, petsa, at oras ng inyong kaganapan.\n4. Ilagay ang tagal (service, setup, cleanup) at karagdagang detalye.\n5. Isumite upang ma-review ng staff ng parokya ang schedule.\n\n[Make Reservation](../users/make-reservation.php)"
-                : "Here is the guide to book a **Parish Reservation** for church venues and sacramental events:\n\n1. Open the **Make Reservation** page.\n2. Choose the reservation type (Wedding, Baptism, Venue Reservation, etc.).\n3. Select the resource/facility, target date, and start time.\n4. Enter the estimated duration (service, setup, cleanup) and event details.\n5. Submit for official review and schedule validation.\n\n[Make Reservation](../users/make-reservation.php)";
+                ? "Narito po ang mga hakbang para sa paghiling ng **{$certType}**:\n\n1. Pumunta sa **Certificate Request** page.\n2. Piliin ang **{$certType}**.\n3. Ilagay ang mga personal na detalye (Pangalan, Petsa ng Kapanganakan, Pangalan ng mga Magulang) at layunin ng request.\n4. Mag-upload ng malinaw na kopya ng **PSA / Birth Certificate** o Valid ID.\n5. I-click ang **Submit Certificate Request** at itabi ang inyong Reference Number.\n\n[Open Certificate Requests](../users/request-certificate.php)"
+                : "Here is the step-by-step guide to request an official **{$certType}**:\n\n1. Open the **Certificate Request** page.\n2. Select **{$certType}**.\n3. Fill in the required personal details (Full Name, Date of Birth, Parents' Names) and purpose of request.\n4. Upload a clear copy of your **PSA / Birth Certificate** or Valid ID.\n5. Click **Submit Certificate Request** and save your assigned Reference Number.\n\n[Open Certificate Requests](../users/request-certificate.php)";
             return [
                 'answer' => $answer,
-                'prompts' => ['Make Reservation', 'Parish Schedule', 'Contact Parish Staff']
+                'prompts' => ['What documents do I need to submit?', 'How long does certificate processing take?', 'Track My Requests']
             ];
         }
 
-        // F. Status Meaning Inquiries
-        if (preg_match('/\b(?:what does (?:pending|approved|rejected|cancelled|ready for pickup) mean|ano (?:ang )?ibig sabihin ng (?:pending|approved|rejected|cancelled))\b/iu', $normalized)) {
+        // F. Specific Blessings (House, Vehicle, General)
+        if (preg_match('/\b(?:how (?:do|can) i request (?:a )?(?:house|vehicle|car|motorcycle) blessing|request (?:house|vehicle|car) blessing|pabasbas ng (?:bahay|sasakyan)|how to submit a blessing request|paano magpa-?bless)\b/iu', $normalized)) {
+            $blessType = 'Blessing';
+            if (preg_match('/\bhouse|bahay/i', $normalized)) $blessType = 'House Blessing';
+            elseif (preg_match('/\bvehicle|car|motorcycle|sasakyan/i', $normalized)) $blessType = 'Vehicle Blessing';
+
             $answer = $isFil
-                ? "Narito po ang kahulugan ng mga status sa TUGON System:\n\n• **Pending**: Natanggap na ang inyong kahilingan at kasalukuyang sinusuri ng parish staff.\n• **Approved**: Naaprubahan na ng tanggapan ng parokya. Sinisimulan na ang paggawa o nakareserba na ang inyong schedule.\n• **Ready for Pickup**: Handa na pong kunin ang inyong opisyal na dokumento sa opisina ng parokya.\n• **Rejected / Cancelled**: Hindi naaprubahan dahil sa kakulangan ng requirements o conflict sa schedule. Pakitingnan ang admin notes sa inyong request details.\n\n[View My Requests](../users/my-requests.php)"
-                : "Here is what each request status means in the TUGON System:\n\n• **Pending**: Your request has been received and is in queue awaiting review by parish staff.\n• **Approved**: Your request has been verified and approved by the parish office. Document preparation or schedule booking is confirmed.\n• **Ready for Pickup**: Your physical certificate is printed, signed, stamped, and ready to be claimed at the parish office.\n• **Rejected / Cancelled**: The request could not be processed (e.g. missing requirements or date conflict). Please check admin notes on your request details page.\n\n[View My Requests](../users/my-requests.php)";
+                ? "Maaari po kayong mag-request ng **{$blessType}**:\n\n1. Buksan ang **Request Blessing** page.\n2. Piliin ang kategorya (**{$blessType}**).\n3. Ilagay ang kumpletong address at landmark (para sa bahay) o uri ng sasakyan at plate number.\n4. Itakda ang nais na petsa, oras, at contact number.\n5. Isumite para sa pagtatalaga ng pari.\n\n[Open Blessing Requests](../users/request-blessing.php)"
+                : "You can request an official **{$blessType}**:\n\n1. Open the **Request Blessing** page.\n2. Select the category (**{$blessType}**).\n3. Specify complete address and landmarks (for home) or vehicle model and plate number.\n4. Set your preferred date, time, and contact information.\n5. Submit for parish review and clergy assignment.\n\n[Open Blessing Requests](../users/request-blessing.php)";
             return [
                 'answer' => $answer,
-                'prompts' => ['When can I claim my certificate?', 'Check My Requests', 'Request Certificate']
+                'prompts' => ['What information should I provide for a blessing request?', 'Parish Schedule', 'Contact Parish Staff']
             ];
         }
 
-        // G. When/How to Claim Certificate
-        if (preg_match('/\b(?:when (?:can|do) i claim|how (?:do|can) i claim|where (?:do|can) i claim|paano i-?claim|saan kukunin|kailan makukuha).*(?:certificate|sertipiko)?\b/iu', $normalized)) {
+        // G. Sacramental Reservations (Baptism Service, Wedding Service, Funeral Mass)
+        if (preg_match('/\b(?:how (?:do|can) i (?:request|reserve|book) (?:a )?(?:baptism|marriage|wedding|funeral) (?:service|mass|reservation)|how do i make a sacramental service reservation|magpa-?binyag|magpakasal|misa sa patay|reserve wedding|reserve baptism|reserve funeral)\b/iu', $normalized)) {
+            $serviceName = 'Sacramental Service';
+            if (preg_match('/\bbaptism|binyag/i', $normalized)) $serviceName = 'Baptism Service';
+            elseif (preg_match('/\bmarriage|wedding|kasal/i', $normalized)) $serviceName = 'Matrimony / Wedding Service';
+            elseif (preg_match('/\bfuneral|patay|libing/i', $normalized)) $serviceName = 'Funeral Mass / Blessing';
+
             $answer = $isFil
-                ? "Kapag ang inyong request ay minarkahang **Approved** o **Ready for Pickup**, makatatanggap po kayo ng notification. Maaari ninyong kunin ang inyong opisyal na sertipiko sa tanggapan ng parokya sa pamamagitan ng pagdadala ng:\n\n1. Inyong **Reference Number**\n2. Isang (1) **Valid Government o Student ID**\n3. Resibo o patunay ng bayad (kung kinakailangan)\n\n[View My Requests](../users/my-requests.php)"
-                : "Once your certificate request is marked as **Approved** or **Ready for Pickup**, you will receive a notification. You can claim your physical certificate at the parish office by presenting:\n\n1. Your request **Reference Number**\n2. One (1) **Valid Government or Student ID**\n3. Official receipt / payment confirmation (if applicable)\n\n[View My Requests](../users/my-requests.php)";
+                ? "Para sa pag-reserve ng **{$serviceName}**:\n\n1. Buksan ang **Request Service** o **Make Reservation** page.\n2. Piliin ang **{$serviceName}**.\n3. Pumili ng bakanteng petsa at oras sa liturgical calendar.\n4. I-upload ang mga kinakailangang dokumento (PSA Birth/Death cert, Marriage contract, atbp.).\n5. Isumite para sa kumpirmasyon ng opisina ng parokya.\n\n[Request Service](../users/request-service.php)"
+                : "To book an official **{$serviceName}**:\n\n1. Open **Request Service** or **Make Reservation**.\n2. Select **{$serviceName}**.\n3. Choose an available calendar date and timeslot.\n4. Upload supporting documents (PSA birth/death cert, marriage contract, etc.).\n5. Submit for parish schedule verification.\n\n[Request Service](../users/request-service.php)";
             return [
                 'answer' => $answer,
-                'prompts' => ['Check My Requests', 'What does Pending mean?', 'Parish Office Hours']
+                'prompts' => ['What are the requirements for ' . $serviceName . '?', 'View Parish Schedules', 'Contact Parish Staff']
             ];
         }
 
-        // H. Announcements
+        // H. Status Meaning Inquiries (Pending, Approved, Processing, Rejected)
+        if (preg_match('/\b(?:what does (?:pending|approved|processing|rejected) mean|ano (?:ang )?ibig sabihin ng (?:pending|approved|processing|rejected)|why was my request rejected|what should i do if my request was rejected|can i submit another request after rejection)\b/iu', $normalized)) {
+            if (preg_match('/\brejected/i', $normalized)) {
+                $answer = $isFil
+                    ? "Tungkol sa **Rejected Status**:\n\n• **Bakit na-reject?**: Karaniwang dahilan ay malabo o maling dokumento, kulang na requirements, o discrepancy sa rekord. Ang eksaktong dahilan ay nakasulat sa **Admin Remarks** ng inyong request.\n• **Ano ang dapat gawin?**: Basahin ang admin remarks sa [My Requests](../users/my-requests.php), ihanda ang tamang dokumento, at magsumite ng panibagong request.\n• **Maaari bang mag-submit ulit?**: **Opo, tiyak.** Maaari kayong magsumite muli agad nang walang abala.\n\n[View My Requests](../users/my-requests.php)"
+                    : "Regarding **Rejected Status**:\n\n• **Why was it rejected?**: Common reasons include blurry/incorrect document uploads, missing requirements, or record discrepancies. The specific reason is written in the **Admin Remarks** on your request details.\n• **What should you do?**: Review the remarks in [My Requests](../users/my-requests.php), prepare the corrected document, and submit a new request.\n• **Can you submit another request?**: **Yes, absolutely.** You can submit a fresh request anytime.\n\n[View My Requests](../users/my-requests.php)";
+            } else {
+                $answer = $isFil
+                    ? "Kahulugan ng mga Status sa TUGON:\n\n• **Pending**: Natanggap na ang request at kasalukuyang sinusuri ng parish staff.\n• **Approved**: Na-verify na ang mga dokumento at opisyal nang sinisimulan o nakareserba na ang schedule.\n• **Processing**: Iniimprenta, pinipirmahan ng Parish Priest, at nilalagyan ng opisyal na dry seal ang inyong sertipiko.\n• **Ready for Pickup**: Handa na pong kunin sa tanggapan ng parokya dala ang inyong Valid ID at Reference Number.\n\n[View My Requests](../users/my-requests.php)"
+                    : "Status Definitions in TUGON:\n\n• **Pending**: Request received and currently awaiting initial review by parish staff.\n• **Approved**: Information verified; document preparation or calendar booking is officially confirmed.\n• **Processing**: Certificate is being formatted, printed on official parchment, signed by the Parish Priest, and dry-sealed.\n• **Ready for Pickup**: Official document is ready to claim at the parish office by presenting your Valid ID and Reference Number.\n\n[View My Requests](../users/my-requests.php)";
+            }
+            return [
+                'answer' => $answer,
+                'prompts' => ['Track My Requests', 'How long does certificate processing take?', 'Contact Parish Staff']
+            ];
+        }
+
+        // I. Document Submission & Valid ID Upload Guidance
+        if (preg_match('/\b(?:how (?:do|can) i upload (?:my )?valid id|what documents (?:do i need to submit|to submit)|what documents do i need|paano mag-?upload ng id|anong dokumento ang kailangan)\b/iu', $normalized)) {
+            $answer = $isFil
+                ? "Gabay sa **Pag-upload ng Valid ID at Dokumento**:\n\n• **Paano mag-upload**: Sa form, i-click ang 'Choose File' o i-drag ang malinaw na kopya (JPG, PNG, o PDF, hanggang 10MB). Tiyaking maliwanag at kitang-kita ang 4 na sulok ng ID.\n• **Mga Tinatanggap na Valid ID**: PhilSys National ID, Driver's License, Passport, UMID, Postal ID, PRC ID, Voter's ID.\n• **Pangunahing Dokumento**:\n  - *Sertipiko*: PSA Birth Certificate, Valid ID\n  - *Binyag*: PSA Birth Certificate ng bata, Marriage Contract ng magulang\n  - *Kasal*: PSA Birth Certs, CENOMAR, Annotated Baptismal/Confirmation certs, Pre-Cana cert, Marriage License.\n\n[Request Certificate](../users/request-certificate.php)"
+                : "Guide for **Uploading Valid ID and Supporting Documents**:\n\n• **How to upload**: Click 'Choose File' or drag your file (JPG, PNG, or PDF, up to 10MB) into the upload box. Ensure good lighting and all 4 corners are visible.\n• **Accepted Valid IDs**: PhilSys National ID, Driver's License, Passport, UMID, Postal ID, PRC ID, Voter's ID.\n• **Required Documents**:\n  - *Certificates*: PSA Birth Certificate & Valid ID\n  - *Baptism Service*: Child's PSA Birth Certificate & Parents' Marriage Contract\n  - *Wedding Service*: PSA Birth Certs, CENOMAR, Annotated Baptismal/Confirmation certs, Pre-Cana cert, Marriage License.\n\n[Request Certificate](../users/request-certificate.php)";
+            return [
+                'answer' => $answer,
+                'prompts' => ['Requirements for Baptism', 'Requirements for Marriage', 'Request Certificate']
+            ];
+        }
+
+        // J. Sacramental Requirements (Baptism, Confirmation, Marriage, Communion, Blessings)
+        if (preg_match('/\b(?:what are the requirements for (?:baptism|confirmation|marriage|first communion|wedding)|requirements for (?:baptism|confirmation|marriage|communion|kasal|binyag|kumpil)|what information should i provide for a blessing request)\b/iu', $normalized)) {
+            if (preg_match('/\bblessing/i', $normalized)) {
+                $answer = $isFil
+                    ? "Mga kailangan para sa **Blessing Request**:\n1. Uri ng blessing (Bahay, Sasakyan, Negosyo, Imahen)\n2. Kumpletong address at landmark\n3. Nais na petsa at oras\n4. Pangalan at contact number ng humihiling\n5. Karagdagang paalala para sa pari.\n\n[Request Blessing](../users/request-blessing.php)"
+                    : "Information required for a **Blessing Request**:\n1. Blessing category (House, Vehicle, Business, Religious Articles)\n2. Complete physical address and landmark\n3. Preferred date and time\n4. Contact person name and mobile number\n5. Any special notes for the priest.\n\n[Request Blessing](../users/request-blessing.php)";
+            } elseif (preg_match('/\bmarriage|wedding|kasal/i', $normalized)) {
+                $answer = $isFil
+                    ? "Requirements para sa **Kasal (Holy Matrimony)**:\n1. PSA Birth Certificate (Groom & Bride)\n2. PSA CENOMAR (Certificate of No Marriage Record)\n3. Updated Baptismal & Confirmation Certificates na may tatak na 'For Marriage Purposes'\n4. Pre-Cana Marriage Preparation Seminar Certificate\n5. Canonical Interview sa Kura Paroko\n6. Tawag sa Simbahan (Marriage Banns - 3 Linggo)\n7. Marriage License o Article 34 Affidavit.\n\n[Reserve Wedding](../users/request-service.php)"
+                    : "Requirements for **Holy Matrimony / Wedding**:\n1. PSA Birth Certificates (Bride & Groom)\n2. PSA CENOMAR (Certificate of No Marriage Record)\n3. Updated Baptismal & Confirmation Certificates annotated 'For Marriage Purposes'\n4. Pre-Cana Marriage Seminar Certificate\n5. Canonical Interview with Parish Priest\n6. Publication of Marriage Banns (3 consecutive Sundays)\n7. Marriage License or Article 34 Affidavit.\n\n[Reserve Wedding](../users/request-service.php)";
+            } elseif (preg_match('/\bbaptism|binyag/i', $normalized)) {
+                $answer = $isFil
+                    ? "Requirements para sa **Binyag (Baptism)**:\n1. PSA / Local Civil Registrar Birth Certificate ng bata\n2. Catholic Marriage Certificate ng mga magulang (kung kasal)\n3. Listahan ng mga Ninong at Ninang (kahit isa ay Katoliko)\n4. Pagdalo sa Pre-Baptismal Seminar\n5. Parish Permission Letter (kung nakatira sa labas ng nasasakupan ng parokya).\n\n[Reserve Baptism](../users/request-service.php)"
+                    : "Requirements for **Baptism**:\n1. Child's PSA / Civil Registrar Birth Certificate\n2. Parents' Catholic Marriage Certificate (if married)\n3. Godparent / Sponsor list (at least 1 Catholic sponsor)\n4. Pre-Baptismal Seminar attendance\n5. Parish Permission Letter (if living outside parish territory).\n\n[Reserve Baptism](../users/request-service.php)";
+            } elseif (preg_match('/\bconfirmation|kumpil/i', $normalized)) {
+                $answer = $isFil
+                    ? "Requirements para sa **Kumpil (Confirmation)**:\n1. PSA Birth Certificate\n2. Baptismal Certificate na may tatak na 'For Confirmation Purposes'\n3. Isang Katolikong Ninong o Ninang\n4. Pagdalo sa Confirmation Catechesis.\n\n[Request Service](../users/request-service.php)"
+                    : "Requirements for **Confirmation**:\n1. PSA Birth Certificate\n2. Baptismal Certificate annotated 'For Confirmation Purposes'\n3. One Catholic sponsor (Ninong/Ninang)\n4. Attendance in parish Confirmation Catechesis.\n\n[Request Service](../users/request-service.php)";
+            } else {
+                $answer = $isFil
+                    ? "Requirements para sa **First Holy Communion**:\n1. PSA Birth Certificate\n2. Baptismal Certificate\n3. Pagkakatapos ng First Communion Catechism classes at unang kumpisal.\n\n[Request Service](../users/request-service.php)"
+                    : "Requirements for **First Holy Communion**:\n1. PSA Birth Certificate\n2. Baptismal Certificate\n3. Completion of First Communion Catechism instruction and First Confession.\n\n[Request Service](../users/request-service.php)";
+            }
+            return [
+                'answer' => $answer,
+                'prompts' => ['Request Certificate', 'Request Service', 'Parish Schedule']
+            ];
+        }
+
+        // K. Processing Time & Available Certificates / Services
+        if (preg_match('/\b(?:how long does certificate processing take|processing time|what certificate types are available|what parish services are available|available certificates|available services)\b/iu', $normalized)) {
+            if (preg_match('/\bhow long|time|tagal/i', $normalized)) {
+                $answer = $isFil
+                    ? "Ang pagproseso ng opisyal na sertipiko ay tumatagal ng **2 hanggang 3 araw ng trabaho (working days)** mula sa verification ng requirements at kumpirmasyon ng bayad. Makatatanggap kayo ng SMS at email kapag ito ay **Ready for Pickup** na."
+                    : "Official certificate processing typically takes **2 to 3 working days** upon verification of submitted requirements and payment confirmation. You will receive an SMS and email notification when it is **Ready for Pickup**.";
+            } else {
+                $answer = $isFil
+                    ? "Mga Serbisyo at Sertipiko sa TUGON:\n\n• **Mga Sertipiko**: Baptismal, Confirmation, First Communion, Marriage, at Death Certificates.\n• **Mga Sakramento**: Binyag, Kumpil, Kasal, Funeral Mass, at Mass Intentions.\n• **Mga Basbas**: Bahay, Sasakyan, Negosyo, at mga Banal na Imahen.\n• **Pasilidad**: Parish Hall at Church Venue reservation.\n\n[Request Certificate](../users/request-certificate.php) • [Request Service](../users/request-service.php)"
+                    : "Available Services & Certificates in TUGON:\n\n• **Certificates**: Baptismal, Confirmation, First Communion, Marriage, and Death Certificates.\n• **Sacraments**: Baptism, Confirmation, Holy Matrimony (Wedding), Funeral Mass, and Mass Intentions.\n• **Blessings**: House, Vehicle, Business, and Religious Articles.\n• **Facilities**: Parish Hall & Church Venue reservations.\n\n[Request Certificate](../users/request-certificate.php) • [Request Service](../users/request-service.php)";
+            }
+            return [
+                'answer' => $answer,
+                'prompts' => ['Request Certificate', 'Request Service', 'Track My Requests']
+            ];
+        }
+
+        // L. Notifications & Preferences
+        if (preg_match('/\b(?:where can i view (?:my )?notifications|how can i manage my notification preferences|notification preferences|notifications center|tingnan ang notifications)\b/iu', $normalized)) {
+            $answer = $isFil
+                ? "Maaari ninyong tingnan ang inyong mga abiso sa **Notification Center** sa pamamagitan ng pag-click sa 🔔 Bell icon o pagbukas ng `users/notifications.php`. Doon din ninyo maaaring i-set ang inyong SMS, Email, at In-App notification preferences.\n\n[View Notifications](../users/notifications.php)"
+                : "You can view all system updates in the **Notification Center** by clicking the 🔔 Bell icon or opening `users/notifications.php`. You can also configure SMS, Email, and In-App alert preferences there.\n\n[View Notifications](../users/notifications.php)";
+            return [
+                'answer' => $answer,
+                'prompts' => ['View Notifications', 'Profile Settings', 'Track My Requests']
+            ];
+        }
+
+        // M. AI Assistant Capabilities & Approvals
+        if (preg_match('/\b(?:can the ai assistant approve my request|who approves my request|what can the tugon ai assistant help me with|how do i know if my reservation was approved|can i change my requested schedule)\b/iu', $normalized)) {
+            if (preg_match('/\bcan the ai|ai approve/i', $normalized)) {
+                $answer = $isFil
+                    ? "**Hindi po.** Ang TUGON AI ay isang read-only guide para sa impormasyon, gabay sa form, at pag-track. Lahat ng opisyal na pag-apruba at pag-isyu ng sertipiko ay eksklusibong isinasagawa ng **Parish Secretary (Agnes C. Calapaan)** at **Kura Paroko (Rev. Fr. Alberto G. Cahilig, OMI)**."
+                    : "**No.** TUGON AI is a read-only assistant for information, form guidance, and status lookups. Official approvals, document verifications, and issuances are strictly handled by the **Parish Secretary (Agnes C. Calapaan)** and the **Parish Priest (Rev. Fr. Alberto G. Cahilig, OMI)**.";
+            } elseif (preg_match('/\bwho approves/i', $normalized)) {
+                $answer = $isFil
+                    ? "Ang inyong mga request at reservation ay sinusuri at inaaprubahan ng **Parish Office Staff & Secretary (Agnes C. Calapaan)** sa ilalim ng pamumuno ng **Parish Priest (Rev. Fr. Alberto G. Cahilig, OMI)**."
+                    : "Your requests and reservations are reviewed, verified, and approved by the **Parish Office Staff & Secretary (Agnes C. Calapaan)** under the pastoral authority of **Parish Priest Rev. Fr. Alberto G. Cahilig, OMI**.";
+            } elseif (preg_match('/\bchange.*schedule|reschedule/i', $normalized)) {
+                $answer = $isFil
+                    ? "Kung ang inyong request ay **Pending** pa, maaari itong i-cancel at magsumite ng bago, o makipag-ugnayan sa opisina ng parokya. Kung **Approved** na, mangyaring direktang tumawag sa Parish Secretary sa **0997 742 8176** upang maisaayos ang kalendaryo nang walang conflict."
+                    : "If your request is still **Pending**, you can cancel and resubmit with your new preferred date, or contact the parish office. If already **Approved**, please contact the Parish Secretary directly at **0997 742 8176** to safely adjust the calendar.";
+            } else {
+                $answer = $isFil
+                    ? "Ang **TUGON AI Assistant** ay makatutulong sa inyo sa:\n1. Pagsagot sa mga katanungan tungkol sa requirements at bayarin sa sertipiko\n2. Pagbibigay ng iskedyul ng Misa, oras ng opisina, at mga kaganapan\n3. Pagsusuri ng bilang at live status ng inyong mga naisumiteng request\n4. Hakbang-hakbang na gabay sa paghiling ng basbas at reserbasyon\n5. Pagpapaliwanag ng mga patakaran ng parokya sa Tagalog o English."
+                    : "The **TUGON AI Assistant** can help you with:\n1. Answering questions about certificate requirements and procedures\n2. Providing Mass schedules, office hours, and liturgical calendars\n3. Checking the count and live status of your active requests\n4. Step-by-step guidance for booking blessings and sacramental reservations\n5. Explaining parish guidelines in English, Tagalog, or Taglish.";
+            }
+            return [
+                'answer' => $answer,
+                'prompts' => ['Request Certificate', 'Track My Requests', 'Contact Parish Staff']
+            ];
+        }
+
+        // N. Data Privacy, Security & Discrepancy Handling
+        if (preg_match('/\b(?:how does tugon protect my information|who can see my submitted documents|what should i do if i uploaded the wrong document|what should i do if my information is incorrect|protect my information|wrong document|information is incorrect)\b/iu', $normalized)) {
+            if (preg_match('/\bwho can see/i', $normalized)) {
+                $answer = $isFil
+                    ? "Kayo lamang (ang may-ari ng account) at ang mga **Awtorisadong Parish Personnel** (Kura Paroko at Parish Secretary) ang may pahintulot na makakita ng inyong mga naisumiteng ID at dokumento. Naka-store ang mga ito sa protektadong storage."
+                    : "Only you (the account owner) and **Authorized Parish Personnel** (Parish Priest & Secretary) have permission to view your submitted IDs and sacramental documents. They are stored in secure, restricted storage.";
+            } elseif (preg_match('/\bwrong document|information is incorrect/i', $normalized)) {
+                $answer = $isFil
+                    ? "Kung may maling dokumento o impormasyon:\n1. Para sa profile details, i-update agad sa [Profile Settings](../auth/profile.php).\n2. Para sa naisumiteng request na Pending, kontakin ang Parish Secretary sa **0997 742 8176** dala ang inyong Reference Number upang maiwasto bago i-print ang sertipiko.\n\n[Profile Settings](../auth/profile.php)"
+                    : "If you uploaded a wrong document or have incorrect details:\n1. For profile details, update them in [Profile Settings](../auth/profile.php).\n2. For an active Pending request, contact the Parish Secretary at **0997 742 8176** with your Reference Number so the record can be corrected before printing.\n\n[Profile Settings](../auth/profile.php)";
+            } else {
+                $answer = $isFil
+                    ? "Pinangangalagaan ng TUGON ang inyong impormasyon sa pamamagitan ng:\n• Matibay na password hashing (bcrypt)\n• SSL/TLS encrypted data transmission\n• Awtomatikong pag-redact ng mga sensitibong detalye sa AI query logs\n• Mahigpit na Role-Based Access Control (RBAC)\n• Araw-araw na backup at proteksyon sa data."
+                    : "TUGON protects your information through:\n• Strong password hashing (bcrypt)\n• SSL/TLS encrypted data transmission\n• Automated redaction of sensitive identifiers in AI query logs\n• Strict Role-Based Access Control (RBAC)\n• Regular encrypted backups and data privacy safeguards.";
+            }
+            return [
+                'answer' => $answer,
+                'prompts' => ['Profile Settings', 'Contact Parish Staff', 'Track My Requests']
+            ];
+        }
+
+        // O. Announcements
         if (preg_match('/\b(?:where can i (?:see|view|find|check) (?:parish )?announcements|what are the (?:latest )?announcements|parish announcements|mga anunsyo|balita sa parokya)\b/iu', $normalized)) {
             $answer = $isFil
                 ? "Maaari ninyong basahin ang mga pinakabagong balita, anunsyo para sa kapistahan, paalala sa misa, at mga aktibidad ng komunidad sa **Announcements** page:\n\n[View Announcements](../users/announcements.php)"
@@ -393,18 +539,18 @@ final class AiAssistantService
             ];
         }
 
-        // I. Schedules and Events
-        if (preg_match('/\b(?:where can i (?:see|view|find|check) (?:the )?(?:parish )?schedule|parish schedule|mass schedule|mass times?|parish calendar|oras ng misa|iskedyul ng misa)\b/iu', $normalized)) {
+        // P. Schedules and Events
+        if (preg_match('/\b(?:where can i (?:see|view|find|check) (?:the )?(?:parish )?schedule|parish schedule|mass schedule|mass times?|parish calendar|oras ng misa|iskedyul ng misa|upcoming mass schedules)\b/iu', $normalized)) {
             $answer = $isFil
-                ? "Maaari ninyong tingnan ang kumpletong iskedyul ng mga Misa (Linggo at Araw-araw), mga kaganapan, at banal na pagdiriwang sa ating **Parish Calendar**:\n\n[View Schedule](../users/view-schedule.php)"
-                : "You can view the comprehensive parish schedule, regular Sunday and weekday Mass times, feast day celebrations, and sacramental calendar here:\n\n[View Schedule](../users/view-schedule.php)";
+                ? "Maaari ninyong tingnan ang kumpletong iskedyul ng mga Misa (Linggo at Araw-araw), mga kaganapan, at banal na pagdiriwang sa ating **Parish Calendar**:\n\n• **Misa tuwing Linggo**: 6:00 AM, 8:00 AM, 10:00 AM, 4:00 PM, 5:30 PM, 7:00 PM\n• **Araw-araw (Martes - Sabado)**: 6:30 AM, 6:00 PM\n\n[View Schedule](../users/view-schedule.php)"
+                : "You can view the comprehensive parish schedule, regular Sunday and weekday Mass times, feast day celebrations, and sacramental calendar here:\n\n• **Sunday Masses**: 6:00 AM, 8:00 AM, 10:00 AM, 4:00 PM, 5:30 PM, 7:00 PM\n• **Weekday Masses (Tue - Sat)**: 6:30 AM, 6:00 PM\n\n[View Schedule](../users/view-schedule.php)";
             return [
                 'answer' => $answer,
                 'prompts' => ['View Schedule', 'Request Certificate', 'Make Reservation']
             ];
         }
 
-        // J. Payments and GCash
+        // Q. Payments and GCash
         if (preg_match('/\b(?:how (?:do|can) i pay|payment (?:info|information|status|details)|gcash (?:payment|receipt)|paano magbayad|bayad sa certificate)\b/iu', $normalized)) {
             $answer = $isFil
                 ? "Para sa pagbabayad at pag-upload ng resibo:\n\n1. Buksan ang **Track Requests** (`my-requests.php`).\n2. Piliin ang inyong request upang makita ang detalye.\n3. Makikita roon ang opisyal na GCash account number ng parokya.\n4. I-upload ang screenshot ng inyong GCash transaction receipt upang ma-verify ng parish staff.\n\n[View My Requests](../users/my-requests.php)"
@@ -415,10 +561,10 @@ final class AiAssistantService
             ];
         }
 
-        // K. Account Profile Updates
-        if (preg_match('/\b(?:how (?:do|can) i (?:update|change|edit) (?:my )?(?:profile|account|password|email)|paano palitan ang (?:profile|password))\b/iu', $normalized)) {
+        // R. Account Profile Updates & Password
+        if (preg_match('/\b(?:how (?:do|can) i (?:update|change|edit) (?:my )?(?:profile|account|password|email)|paano palitan ang (?:profile|password)|how can i change my password|how can i update my profile information)\b/iu', $normalized)) {
             $answer = $isFil
-                ? "Maaari ninyong i-update ang inyong pangalan, mobile number, address, at palitan ang inyong password sa **Profile Settings**:\n\n[Profile Settings](../auth/profile.php)"
+                ? "Maaari ninyong i-update ang inyong pangalan, mobile number, tirahan, at palitan ang inyong password sa **Profile Settings**:\n\n[Profile Settings](../auth/profile.php)"
                 : "You can update your personal contact details, residential address, and change your password in **Profile Settings**:\n\n[Profile Settings](../auth/profile.php)";
             return [
                 'answer' => $answer,
@@ -426,18 +572,18 @@ final class AiAssistantService
             ];
         }
 
-        // L. Parish Secretary Inquiry
-        if (preg_match('/\b(?:who is the (?:parish )?secretary|sino (?:ang )?(?:parish )?secretary|sino (?:ang )?kalihim|parish secretary|secretary name|secretary contact|contact (?:the )?secretary|agnes calapaan|agnes|calapaan)\b/iu', $normalized)) {
+        // S. Parish Secretary & Office Contact
+        if (preg_match('/\b(?:how (?:do|can) i contact the parish|who is the (?:parish )?secretary|sino (?:ang )?(?:parish )?secretary|sino (?:ang )?kalihim|parish secretary|secretary name|secretary contact|contact (?:the )?secretary|contact (?:the )?parish|agnes calapaan|agnes|calapaan)\b/iu', $normalized)) {
             $answer = $isFil
-                ? "Ang ating **Parish Secretary** ay si **Agnes C. Calapaan**.\n\nPara sa mga katanungan sa sertipiko, transaksyon sa tanggapan ng parokya, o verification ng GCash payment, maaari po siyang kontakin sa:\n📞 **0997 742 8176**"
-                : "The Parish Secretary is **Agnes C. Calapaan**.\n\nFor certificate requests, official parish office transactions, or GCash payment verification, you can reach her at:\n📞 **0997 742 8176**";
+                ? "Maaari po kayong makipag-ugnayan sa tanggapan ng parokya sa pamamagitan ng:\n\n• **Parish Secretary**: Agnes C. Calapaan\n• 📞 **Contact**: 0997 742 8176\n• ⛪ **Parish Priest**: Rev. Fr. Alberto G. Cahilig, OMI\n• 🕒 **Oras ng Opisina**:\n  - Martes hanggang Sabado: 8:00 AM – 5:00 PM (Lunch: 12:00 PM – 1:00 PM)\n  - Linggo: 7:00 AM – 12:00 PM\n  - Lunes: Sarado ang opisina"
+                : "You can contact the parish office through:\n\n• **Parish Secretary**: Agnes C. Calapaan\n• 📞 **Contact**: 0997 742 8176\n• ⛪ **Parish Priest**: Rev. Fr. Alberto G. Cahilig, OMI\n• 🕒 **Office Hours**:\n  - Tuesday to Saturday: 8:00 AM – 5:00 PM (Lunch: 12:00 PM – 1:00 PM)\n  - Sunday: 7:00 AM – 12:00 PM\n  - Monday: Office Closed";
             return [
                 'answer' => $answer,
-                'prompts' => ['Parish Office Hours', 'Request Certificate', 'Parish Priest']
+                'prompts' => ['Mass Schedule', 'Request Certificate', 'Parish Priest']
             ];
         }
 
-        // M. Parish Priest & Clergy Inquiry
+        // T. Parish Priest & Clergy Inquiry
         if (preg_match('/\b(?:who is the (?:parish )?priest|sino (?:ang )?(?:parish )?priest|sino (?:ang )?pari|parish priest|who is the priest|pari ng parokya)\b/iu', $normalized)) {
             $answer = $isFil
                 ? "Ang ating **Parish Priest** ay si **Rev. Fr. Alberto G. Cahilig, OMI**, at ang ating **Parochial Vicar** ay si **Rev. Fr. Alvin Vicente C. Barretto, OMI**."
