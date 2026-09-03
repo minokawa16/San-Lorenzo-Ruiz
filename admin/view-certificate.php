@@ -547,12 +547,12 @@ if (strcasecmp($layout_secretary_position, 'Signature / Parish Stamp') === 0) {
         .confirmation-right-line { right: 5mm; }
         @page { size: 6in 9in; margin: 0; }
         @media print {
-            body { background: #fff; margin: 0; }
-            .cert-toolbar { display: none; }
-            .certificate-page { width: var(--cert-width); height: var(--cert-height); margin: 0; padding: 4mm; box-shadow: none; page-break-after: avoid; page-break-inside: avoid; break-inside: avoid; }
-            .certificate-sheet { height: 100%; page-break-inside: avoid; break-inside: avoid; }
-            .simple-preview { width: var(--cert-width); min-height: var(--cert-height); margin: 0; box-shadow: none; page-break-after: avoid; page-break-inside: avoid; break-inside: avoid; }
-            .confirmation-page { width: var(--cert-width); height: var(--cert-height); margin: 0; padding: 4mm; box-shadow: none; page-break-after: avoid; }
+            html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; width: 100% !important; height: auto !important; }
+            .cert-toolbar, .cert-toolbar *, .alert, .alert-warning, .btn, button, nav, footer { display: none !important; visibility: hidden !important; height: 0 !important; margin: 0 !important; padding: 0 !important; border: 0 !important; }
+            .certificate-page { width: var(--cert-width) !important; height: var(--cert-height) !important; margin: 0 auto !important; padding: 0 !important; box-shadow: none !important; page-break-before: avoid !important; page-break-after: avoid !important; page-break-inside: avoid !important; break-inside: avoid !important; transform: none !important; }
+            .certificate-sheet { height: 100% !important; page-break-inside: avoid !important; break-inside: avoid !important; }
+            .simple-preview { width: var(--cert-width) !important; min-height: var(--cert-height) !important; margin: 0 auto !important; box-shadow: none !important; page-break-before: avoid !important; page-break-after: avoid !important; page-break-inside: avoid !important; break-inside: avoid !important; }
+            .confirmation-page { width: var(--cert-width) !important; height: var(--cert-height) !important; margin: 0 auto !important; padding: 0 !important; box-shadow: none !important; page-break-before: avoid !important; page-break-after: avoid !important; }
             .confirmation-sheet { height: 100%; }
         }
         @media (max-width: 900px) {
@@ -565,7 +565,6 @@ if (strcasecmp($layout_secretary_position, 'Signature / Parish Stamp') === 0) {
 </head>
 <body>
     <div class="cert-toolbar">
-        <h1><i class="fas fa-certificate"></i> Certificate Preview</h1>
         <div class="d-flex flex-wrap gap-2">
             <button class="btn btn-primary" onclick="window.print()"><i class="fas fa-print"></i> Print Certificate</button>
             <button class="btn btn-success" type="button" id="downloadPdfBtn"><i class="fas fa-file-pdf"></i> Download PDF</button>
@@ -578,7 +577,6 @@ if (strcasecmp($layout_secretary_position, 'Signature / Parish Stamp') === 0) {
             <?php endif; ?>
             <a href="certificate-generator.php" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back</a>
         </div>
-        <?php if (!$is_manual_certificate): ?><div class="alert alert-warning mt-3"><strong>PREVIEW — NOT ISSUED.</strong> No certificate number, verification token, PDF, or record lock has been created.</div><?php endif; ?>
     </div>
     <?php if ($certificate_template_is_pdf): ?>
         <div class="alert alert-warning mx-auto" style="max-width: 900px;">
