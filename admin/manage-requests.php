@@ -38,8 +38,7 @@ function adminRequestTypeGroups() {
                 'baptismal_certificate', 'baptism_certification',
                 'confirmation_certificate', 'confirmation_certification',
                 'first_communion_certificate', 'first_communion_certification',
-                'marriage_certificate', 'marriage_certification',
-                'funeral_certificate', 'funeral_certification'
+                'marriage_certification', 'funeral_certification'
             ]
         ],
         'blessing' => [

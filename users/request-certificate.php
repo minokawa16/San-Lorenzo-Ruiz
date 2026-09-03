@@ -31,8 +31,6 @@ $certificate_types = [
     'baptismal_certificate' => 'Baptismal Certificate',
     'confirmation_certificate' => 'Confirmation Certificate',
     'first_communion_certificate' => 'First Communion Certificate',
-    'marriage_certificate' => 'Marriage Certificate',
-    'funeral_certificate' => 'Funeral Certificate',
 ];
 $certificate_purposes = [
     'first_communion' => 'First Communion',
@@ -43,42 +41,57 @@ $certificate_purposes = [
     'others' => 'Others',
 ];
 $certificate_meta = [
+    // Sacramental Certifications
     'baptism_certification' => [
+        'category' => 'certification',
+        'badge' => 'Registry Extract',
         'icon' => 'fa-file-signature',
         'icon_color' => '#0284c7',
         'icon_bg' => '#e0f2fe',
         'title' => 'Baptismal Certification',
-        'hint' => 'Official certified extract from the baptism registry records.'
+        'hint' => 'Official certified extract from baptism registry records.'
     ],
     'confirmation_certification' => [
+        'category' => 'certification',
+        'badge' => 'Registry Extract',
         'icon' => 'fa-file-circle-check',
         'icon_color' => '#4338ca',
         'icon_bg' => '#e0e7ff',
         'title' => 'Confirmation Certification',
-        'hint' => 'Official certified extract from the confirmation registry records.'
+        'hint' => 'Official certified extract from confirmation registry records.'
     ],
     'first_communion_certification' => [
+        'category' => 'certification',
+        'badge' => 'Registry Extract',
         'icon' => 'fa-file-lines',
         'icon_color' => '#b45309',
         'icon_bg' => '#fef3c7',
         'title' => 'First Communion Certification',
-        'hint' => 'Official certified extract from the communion registry records.'
+        'hint' => 'Official certified extract from first communion records.'
     ],
     'marriage_certification' => [
+        'category' => 'certification',
+        'badge' => 'Registry Extract',
         'icon' => 'fa-ring',
         'icon_color' => '#dc2626',
         'icon_bg' => '#fef2f2',
         'title' => 'Marriage Certification',
-        'hint' => 'Official certified extract from the Holy Matrimony records.'
+        'hint' => 'Official certified extract from Holy Matrimony records.'
     ],
     'funeral_certification' => [
+        'category' => 'certification',
+        'badge' => 'Registry Extract',
         'icon' => 'fa-cross',
         'icon_color' => '#475569',
         'icon_bg' => '#f1f5f9',
         'title' => 'Funeral Certification',
         'hint' => 'Official certified extract from funeral/burial records.'
     ],
+
+    // Sacramental Certificates
     'baptismal_certificate' => [
+        'category' => 'certificate',
+        'badge' => 'Canonical Certificate',
         'icon' => 'fa-water',
         'icon_color' => '#0284c7',
         'icon_bg' => '#e0f2fe',
@@ -86,6 +99,8 @@ $certificate_meta = [
         'hint' => 'Official canonical certificate of Holy Baptism.'
     ],
     'confirmation_certificate' => [
+        'category' => 'certificate',
+        'badge' => 'Canonical Certificate',
         'icon' => 'fa-cross',
         'icon_color' => '#4338ca',
         'icon_bg' => '#e0e7ff',
@@ -93,25 +108,13 @@ $certificate_meta = [
         'hint' => 'Official canonical certificate of Holy Confirmation.'
     ],
     'first_communion_certificate' => [
+        'category' => 'certificate',
+        'badge' => 'Canonical Certificate',
         'icon' => 'fa-wheat-awn',
         'icon_color' => '#b45309',
         'icon_bg' => '#fef3c7',
         'title' => 'First Communion Certificate',
         'hint' => 'Official canonical certificate of First Holy Communion.'
-    ],
-    'marriage_certificate' => [
-        'icon' => 'fa-heart',
-        'icon_color' => '#dc2626',
-        'icon_bg' => '#fef2f2',
-        'title' => 'Marriage Certificate',
-        'hint' => 'Official canonical certificate of Holy Matrimony.'
-    ],
-    'funeral_certificate' => [
-        'icon' => 'fa-monument',
-        'icon_color' => '#475569',
-        'icon_bg' => '#f1f5f9',
-        'title' => 'Funeral Certificate',
-        'hint' => 'Official certificate of Catholic funeral rites.'
     ],
 ];
 $certificate_required_document = 'Copy of PSA / Birth Certificate, Death Certificate, or Valid ID';
@@ -458,16 +461,96 @@ if ($stmt) {
         font-size: 0.88rem;
     }
 
+    .cert-group-block {
+        margin-bottom: 22px;
+    }
+
+    .cert-group-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(23, 32, 51, 0.08);
+    }
+
+    .cert-group-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .cert-group-title {
+        font-family: 'Playfair Display', Georgia, serif;
+        font-size: 1.08rem;
+        font-weight: 700;
+        color: #1e293b;
+        display: flex;
+        align-items: center;
+    }
+
+    .cert-group-desc {
+        font-size: 0.8rem;
+        color: #64748b;
+    }
+
+    .cert-group-badge {
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 4px 11px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        white-space: nowrap;
+    }
+
+    .cert-group-badge.certification {
+        background: #fef3c7;
+        color: #92400e;
+        border: 1px solid #fde68a;
+    }
+
+    .cert-group-badge.certificate {
+        background: #e0f2fe;
+        color: #0369a1;
+        border: 1px solid #bae6fd;
+    }
+
     .certificate-option-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
         gap: 14px;
+    }
+
+    .certificate-option-grid.grid-5 {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+
+    .certificate-option-grid.grid-3 {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    @media (max-width: 1200px) {
+        .certificate-option-grid.grid-5 {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 768px) {
+        .certificate-option-grid.grid-5,
+        .certificate-option-grid.grid-3 {
+            grid-template-columns: repeat(1, minmax(0, 1fr));
+        }
     }
 
     .certificate-option {
         position: relative;
         display: block;
         cursor: pointer;
+        height: 100%;
     }
 
     .certificate-option input {
@@ -476,62 +559,106 @@ if ($stmt) {
         pointer-events: none;
     }
 
-    .certificate-option span {
+    .certificate-option .cert-card-inner {
         position: relative;
-        min-height: 142px;
-        display: grid;
-        gap: 8px;
-        padding: 16px;
-        border: 1px solid rgba(23, 32, 51, 0.1);
-        border-radius: 8px;
+        height: 100%;
+        min-height: 154px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 16px 18px;
+        border: 1.5px solid #e7e2d8;
+        border-radius: 14px;
         background: #ffffff;
-        transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+        box-shadow: 0 3px 12px rgba(23, 32, 51, 0.03);
+        transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+        overflow: hidden;
     }
 
-    .certificate-option i {
-        width: 42px;
-        height: 42px;
+    .cert-card-top-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+    }
+
+    .cert-icon-box {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        border-radius: 8px;
-        color: #17446a;
-        background: #eef5fb;
+        font-size: 18px;
+        transition: transform 0.2s ease;
     }
 
-    .certificate-option strong {
-        color: #172033;
+    .cert-mini-badge {
+        font-size: 0.68rem;
+        font-weight: 700;
+        color: #64748b;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 2px 7px;
+        letter-spacing: 0.2px;
+        text-transform: uppercase;
+    }
+
+    .cert-card-title {
+        color: #1e293b;
         font-size: 0.96rem;
+        font-weight: 700;
+        line-height: 1.25;
+        margin-top: 4px;
+        display: block;
     }
 
-    .certificate-option small {
-        color: #667085;
+    .cert-card-hint {
+        color: #64748b;
+        font-size: 0.78rem;
         line-height: 1.4;
+        display: block;
+        margin-top: auto;
     }
 
-    .certificate-option:hover span,
-    .certificate-option input:focus + span,
-    .certificate-option input:checked + span {
+    .certificate-option:hover .cert-card-inner {
+        transform: translateY(-3px);
+        border-color: #c89b3c;
+        box-shadow: 0 10px 24px rgba(46, 58, 45, 0.08);
+    }
+
+    .certificate-option:hover .cert-icon-box {
+        transform: scale(1.08);
+    }
+
+    .certificate-option input:focus + .cert-card-inner,
+    .certificate-option input:checked + .cert-card-inner {
         transform: translateY(-2px);
-        border-color: rgba(215, 173, 67, 0.6);
-        box-shadow: 0 14px 28px rgba(30, 41, 59, 0.08);
+        border-color: #c89b3c;
+        border-width: 2px;
+        background: #fffdf9;
+        box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.18), 0 10px 22px rgba(46, 58, 45, 0.07);
     }
 
-    .certificate-option input:checked + span::after {
+    .certificate-option input:checked + .cert-card-inner::after {
         content: "\f00c";
         font-family: "Font Awesome 6 Free";
         font-weight: 900;
         position: absolute;
-        top: 12px;
-        right: 12px;
-        width: 28px;
-        height: 28px;
+        top: 10px;
+        right: 10px;
+        width: 24px;
+        height: 24px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         border-radius: 50%;
-        color: #171205;
-        background: #d7ad43;
+        color: #ffffff;
+        background: #c89b3c;
+        font-size: 11px;
+        box-shadow: 0 2px 6px rgba(200, 155, 60, 0.4);
     }
 
     .request-form-control {
@@ -1491,17 +1618,64 @@ if ($stmt) {
                     </div>
                 </div>
 
-                <div class="certificate-option-grid" role="radiogroup" aria-label="Certificate type">
-                    <?php foreach ($certificate_meta as $value => $meta): ?>
-                        <label class="certificate-option">
-                            <input type="radio" name="request_type" value="<?php echo e($value); ?>" <?php echo (($_POST['request_type'] ?? '') === $value) ? 'checked' : ''; ?>>
-                            <span>
-                                <i class="fas <?php echo e($meta['icon']); ?>" style="<?php echo !empty($meta['icon_color']) ? 'color: ' . $meta['icon_color'] . '; background: ' . $meta['icon_bg'] . ';' : ''; ?>"></i>
-                                <strong><?php echo e($meta['title']); ?></strong>
-                                <small><?php echo e($meta['hint']); ?></small>
-                            </span>
-                        </label>
-                    <?php endforeach; ?>
+                <!-- Group 1: Sacramental Certifications -->
+                <div class="cert-group-block">
+                    <div class="cert-group-header">
+                        <div class="cert-group-info">
+                            <span class="cert-group-title"><i class="fas fa-file-signature text-warning me-2"></i> Sacramental Certifications</span>
+                            <span class="cert-group-desc">Certified official extracts transcribed directly from parish canonical registry books.</span>
+                        </div>
+                        <span class="cert-group-badge certification"><i class="fas fa-stamp me-1"></i> Registry Extract</span>
+                    </div>
+
+                    <div class="certificate-option-grid grid-5" role="radiogroup" aria-label="Sacramental Certifications">
+                        <?php foreach ($certificate_meta as $value => $meta): ?>
+                            <?php if (($meta['category'] ?? '') !== 'certification') continue; ?>
+                            <label class="certificate-option">
+                                <input type="radio" name="request_type" value="<?php echo e($value); ?>" <?php echo (($_POST['request_type'] ?? '') === $value) ? 'checked' : ''; ?>>
+                                <span class="cert-card-inner">
+                                    <div class="cert-card-top-row">
+                                        <span class="cert-icon-box" style="<?php echo !empty($meta['icon_color']) ? 'color: ' . $meta['icon_color'] . '; background: ' . $meta['icon_bg'] . ';' : ''; ?>">
+                                            <i class="fas <?php echo e($meta['icon']); ?>"></i>
+                                        </span>
+                                        <span class="cert-mini-badge"><?php echo e($meta['badge']); ?></span>
+                                    </div>
+                                    <strong class="cert-card-title"><?php echo e($meta['title']); ?></strong>
+                                    <small class="cert-card-hint"><?php echo e($meta['hint']); ?></small>
+                                </span>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+
+                <!-- Group 2: Sacramental Certificates -->
+                <div class="cert-group-block">
+                    <div class="cert-group-header">
+                        <div class="cert-group-info">
+                            <span class="cert-group-title"><i class="fas fa-scroll text-warning me-2"></i> Sacramental Certificates</span>
+                            <span class="cert-group-desc">Official canonical commemorative certificates for sacraments celebrated in this parish.</span>
+                        </div>
+                        <span class="cert-group-badge certificate"><i class="fas fa-certificate me-1"></i> Canonical Certificate</span>
+                    </div>
+
+                    <div class="certificate-option-grid grid-3" role="radiogroup" aria-label="Sacramental Certificates">
+                        <?php foreach ($certificate_meta as $value => $meta): ?>
+                            <?php if (($meta['category'] ?? '') !== 'certificate') continue; ?>
+                            <label class="certificate-option">
+                                <input type="radio" name="request_type" value="<?php echo e($value); ?>" <?php echo (($_POST['request_type'] ?? '') === $value) ? 'checked' : ''; ?>>
+                                <span class="cert-card-inner">
+                                    <div class="cert-card-top-row">
+                                        <span class="cert-icon-box" style="<?php echo !empty($meta['icon_color']) ? 'color: ' . $meta['icon_color'] . '; background: ' . $meta['icon_bg'] . ';' : ''; ?>">
+                                            <i class="fas <?php echo e($meta['icon']); ?>"></i>
+                                        </span>
+                                        <span class="cert-mini-badge"><?php echo e($meta['badge']); ?></span>
+                                    </div>
+                                    <strong class="cert-card-title"><?php echo e($meta['title']); ?></strong>
+                                    <small class="cert-card-hint"><?php echo e($meta['hint']); ?></small>
+                                </span>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
                 </div>
 
                 <div class="certificate-mobile-type-field">
