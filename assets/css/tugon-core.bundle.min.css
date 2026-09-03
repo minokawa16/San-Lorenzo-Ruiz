@@ -426,21 +426,50 @@ margin-left: 0 !important;
 position: relative !important;
 background-color: var(--bg-cream) !important;
 }
-@media (min-width: 1024px) {
 html body .admin-sidebar.collapsed,
 html body.admin-sidebar-collapsed .admin-sidebar,
+html body.admin-sidebar-collapsed .premium-admin-shell > .admin-sidebar,
+html body.admin-sidebar-collapsed.premium-admin .premium-admin-shell > .admin-sidebar,
+html body.admin-sidebar-collapsed.church-theme .premium-admin-shell > .admin-sidebar,
+html body .admin-layout > .admin-sidebar.collapsed,
+html body.admin-sidebar-collapsed .admin-layout > .admin-sidebar,
 html body .user-sidebar.collapsed,
-html body.user-sidebar-collapsed .user-sidebar {
-width: var(--admin-sidebar-collapsed-width) !important;
-min-width: var(--admin-sidebar-collapsed-width) !important;
+html body.user-sidebar-collapsed .user-sidebar,
+html body.user-sidebar-collapsed .user-shell > .user-sidebar,
+html body.user-sidebar-collapsed.user-area .user-sidebar {
+width: var(--admin-sidebar-collapsed-width, 74px) !important;
+min-width: var(--admin-sidebar-collapsed-width, 74px) !important;
+max-width: var(--admin-sidebar-collapsed-width, 74px) !important;
+flex: 0 0 var(--admin-sidebar-collapsed-width, 74px) !important;
+overflow-x: hidden !important;
+}
+html body.admin-sidebar-collapsed .premium-admin-content,
+html body.admin-sidebar-collapsed .main-content,
+html body.admin-sidebar-collapsed .admin-layout > .admin-content,
+html body.admin-sidebar-collapsed .premium-admin-shell > .premium-admin-content,
+html body.admin-sidebar-collapsed.premium-admin .premium-admin-shell > .premium-admin-content,
+html body.admin-sidebar-collapsed.church-theme .premium-admin-shell > .premium-admin-content,
+html body.user-sidebar-collapsed .user-main,
+html body.user-sidebar-collapsed .user-shell > .user-main,
+html body.user-sidebar-collapsed.user-area .user-main {
+width: calc(100% - var(--admin-sidebar-collapsed-width, 74px)) !important;
+max-width: calc(100% - var(--admin-sidebar-collapsed-width, 74px)) !important;
+flex: 1 1 auto !important;
 }
 html body .admin-sidebar.collapsed .sidebar-brand,
 html body.admin-sidebar-collapsed .admin-sidebar .sidebar-brand,
+html body.admin-sidebar-collapsed .premium-admin-shell > .admin-sidebar .sidebar-brand,
 html body .user-sidebar.collapsed .sidebar-brand,
 html body.user-sidebar-collapsed .user-sidebar .sidebar-brand {
-padding: 8px 6px !important;
+padding: 10px 4px !important;
 justify-content: center !important;
+align-items: center !important;
+gap: 0 !important;
 }
+html body .admin-sidebar.collapsed .sidebar-brand .brand-logo,
+html body.admin-sidebar-collapsed .admin-sidebar .sidebar-brand .brand-logo,
+html body .user-sidebar.collapsed .sidebar-brand .brand-logo,
+html body.user-sidebar-collapsed .user-sidebar .sidebar-brand .brand-logo,
 html body .admin-sidebar.collapsed .sidebar-brand .brand-text,
 html body.admin-sidebar-collapsed .admin-sidebar .sidebar-brand .brand-text,
 html body .user-sidebar.collapsed .sidebar-brand .brand-text,
@@ -465,11 +494,22 @@ display: none !important;
 opacity: 0 !important;
 visibility: hidden !important;
 }
+html body .admin-sidebar.collapsed .sidebar-brand .sidebar-toggle,
+html body.admin-sidebar-collapsed .admin-sidebar .sidebar-brand .sidebar-toggle,
+html body .user-sidebar.collapsed .sidebar-brand .sidebar-toggle,
+html body.user-sidebar-collapsed .user-sidebar .sidebar-brand .sidebar-toggle {
+margin: 0 auto !important;
+display: inline-flex !important;
+align-items: center !important;
+justify-content: center !important;
+width: 38px !important;
+height: 38px !important;
+}
 html body .admin-sidebar.collapsed .sidebar-nav,
 html body.admin-sidebar-collapsed .admin-sidebar .sidebar-nav,
 html body .user-sidebar.collapsed .sidebar-nav,
 html body.user-sidebar-collapsed .user-sidebar .sidebar-nav {
-padding: 6px 4px 60px !important;
+padding: 8px 4px 60px !important;
 align-items: center !important;
 }
 html body .admin-sidebar.collapsed .sidebar-nav .nav-link,
@@ -477,17 +517,19 @@ html body.admin-sidebar-collapsed .admin-sidebar .sidebar-nav .nav-link,
 html body .user-sidebar.collapsed .sidebar-nav .nav-link,
 html body.user-sidebar-collapsed .user-sidebar .sidebar-nav .nav-link {
 justify-content: center !important;
-padding: 9px 0 !important;
+padding: 10px 0 !important;
 width: 48px !important;
 min-width: 48px !important;
-border-radius: 8px !important;
-margin: 2px auto !important;
+max-width: 48px !important;
+height: 48px !important;
+border-radius: 10px !important;
+margin: 4px auto !important;
 }
 html body .admin-sidebar.collapsed .sidebar-nav .nav-link i,
 html body.admin-sidebar-collapsed .admin-sidebar .sidebar-nav .nav-link i,
 html body .user-sidebar.collapsed .sidebar-nav .nav-link i,
 html body.user-sidebar-collapsed .user-sidebar .sidebar-nav .nav-link i {
-font-size: 1.1rem !important;
+font-size: 1.15rem !important;
 margin: 0 !important;
 }
 html body .admin-sidebar.collapsed .sidebar-nav .nav-link[data-tooltip]:hover::after,
@@ -527,7 +569,6 @@ border-style: solid;
 border-color: transparent #0f172a transparent transparent;
 z-index: 1050;
 pointer-events: none;
-}
 }
 @media (max-width: 1023px) {
 html body .admin-sidebar,
