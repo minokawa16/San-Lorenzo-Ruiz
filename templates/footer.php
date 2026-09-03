@@ -1209,6 +1209,7 @@
         }
 
         /* ── Main Chat Panel Window (Warm Catholic Sanctuary Aesthetic) ──── */
+        html body #aiAssistantPanel,
         html body .ai-assistant-panel,
         html body.user-area .ai-assistant-panel {
             position: fixed !important;
@@ -1224,20 +1225,24 @@
                 radial-gradient(circle at 100% 0%, rgba(201, 166, 70, 0.07) 0%, transparent 45%),
                 radial-gradient(circle at 0% 100%, rgba(52, 69, 54, 0.05) 0%, transparent 45%),
                 url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 6 C24 18 16 28 16 48 L44 48 C44 28 36 18 30 6 Z' fill='none' stroke='%23C9A646' stroke-width='0.75' stroke-opacity='0.035'/%3E%3Cpath d='M30 16 L30 38 M22 25 L38 25' stroke='%23344536' stroke-width='0.65' stroke-opacity='0.028'/%3E%3C/svg%3E") !important;
-            border: 1px solid #E7DFC9 !important;
-            box-shadow: 0 18px 48px rgba(34, 45, 36, 0.22), 0 4px 16px rgba(201, 166, 70, 0.1) !important;
-            display: flex !important;
+            border: 1.5px solid #E7DFC9 !important;
+            box-shadow: 0 18px 48px rgba(34, 45, 36, 0.28), 0 4px 16px rgba(201, 166, 70, 0.15) !important;
+            display: none !important;
             flex-direction: column !important;
             overflow: hidden !important;
             z-index: 99999 !important;
-            transform: translateY(14px) scale(0.96) !important;
             opacity: 0 !important;
+            visibility: hidden !important;
             pointer-events: none !important;
+            transform: translateY(14px) scale(0.96) !important;
             transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease !important;
         }
+        html body #aiAssistantPanel.is-open,
+        html body .ai-assistant-panel.is-open,
         html body .ai-assistant-widget.is-open .ai-assistant-panel {
             display: flex !important;
             opacity: 1 !important;
+            visibility: visible !important;
             pointer-events: auto !important;
             transform: translateY(0) scale(1) !important;
         }
@@ -1729,6 +1734,8 @@
                 bottom: calc(16px + env(safe-area-inset-bottom));
                 right: 16px;
             }
+            html body #aiAssistantPanel.is-open,
+            html body .ai-assistant-panel.is-open,
             html body .ai-assistant-widget.is-open .ai-assistant-panel {
                 inset: 0 !important;
                 width: 100vw !important;
@@ -1741,8 +1748,10 @@
                 left: 0 !important;
                 right: 0 !important;
                 bottom: 0 !important;
+                z-index: 100000 !important;
             }
-            html body .ai-assistant-widget.is-open .ai-assistant-trigger {
+            html body #aiAssistantWidget.is-open,
+            html body .ai-assistant-widget.is-open {
                 display: none !important;
             }
             html body .ai-assistant-mobile-back {
@@ -1763,56 +1772,57 @@
             </span>
             <span class="ai-assistant-chathead-label">PARISH GUIDE</span>
         </button>
-        <section class="ai-assistant-panel" id="aiAssistantPanel" aria-hidden="true" role="dialog" aria-label="TUGON Parish Guide">
-            <div class="ai-assistant-panel-header">
-                <button class="ai-assistant-mobile-back" type="button" id="aiAssistantMobileBack" aria-label="Back to previous screen">
-                    <i class="fas fa-chevron-left" aria-hidden="true"></i>
-                </button>
-                <div class="ai-assistant-panel-mark" aria-hidden="true">
-                    <i class="fas fa-church"></i>
-                </div>
-                <div class="ai-assistant-panel-identity">
-                    <strong>TUGON Parish Guide</strong>
-                    <span id="aiAssistantStatus"><span class="ai-assistant-status-dot" aria-hidden="true"></span> Online &amp; Ready</span>
-                </div>
-                <button class="ai-assistant-tool" type="button" id="aiAssistantClear" aria-label="Clear conversation" title="Clear conversation">
-                    <i class="fas fa-rotate-left"></i>
-                </button>
-                <button class="ai-assistant-tool" type="button" id="aiAssistantMinimize" aria-label="Minimize chat" title="Minimize chat">
-                    <i class="fas fa-minus"></i>
-                </button>
-                <button class="ai-assistant-close" type="button" id="aiAssistantClose" aria-label="<?php echo e(t('chatbot.close_label', 'Close AI assistant')); ?>" title="Close chat">
-                    <i class="fas fa-xmark"></i>
-                </button>
+    </div>
+
+    <section class="ai-assistant-panel" id="aiAssistantPanel" aria-hidden="true" role="dialog" aria-label="TUGON Parish Guide">
+        <div class="ai-assistant-panel-header">
+            <button class="ai-assistant-mobile-back" type="button" id="aiAssistantMobileBack" aria-label="Back to previous screen">
+                <i class="fas fa-chevron-left" aria-hidden="true"></i>
+            </button>
+            <div class="ai-assistant-panel-mark" aria-hidden="true">
+                <i class="fas fa-church"></i>
             </div>
-            <div class="ai-assistant-panel-body">
-                <div class="ai-assistant-live-answer" id="aiAssistantLiveAnswer">
-                    <div class="ai-assistant-empty-state" id="aiAssistantEmptyState">
-                        <div class="ai-assistant-welcome-icon" aria-hidden="true">
-                            <i class="fas fa-cross"></i>
-                        </div>
-                        <div class="ai-assistant-greeting-bubble">
-                            <strong id="aiAssistantWelcomeHeading">Good day, and peace be with you!</strong>
-                            <span id="aiAssistantWelcomeSub">I am your TUGON Parish Guide. Feel free to ask about certificate requirements, Mass schedules, sacramental guidelines, or request tracking.</span>
-                        </div>
-                        <div class="ai-assistant-quick-prompts" id="aiAssistantQuickPrompts">
-                            <button type="button" class="ai-quick-chip" data-ai-prompt="What are the mass schedules?">⛪ Mass Schedules</button>
-                            <button type="button" class="ai-quick-chip" data-ai-prompt="How do I request a Baptismal Certificate?">📜 Baptism Certificate</button>
-                            <button type="button" class="ai-quick-chip" data-ai-prompt="What are the requirements for Matrimony/Wedding?">💍 Wedding Guidelines</button>
-                            <button type="button" class="ai-quick-chip" data-ai-prompt="How do I track my submitted request?">🔍 Track My Request</button>
-                        </div>
+            <div class="ai-assistant-panel-identity">
+                <strong>TUGON Parish Guide</strong>
+                <span id="aiAssistantStatus"><span class="ai-assistant-status-dot" aria-hidden="true"></span> Online &amp; Ready</span>
+            </div>
+            <button class="ai-assistant-tool" type="button" id="aiAssistantClear" aria-label="Clear conversation" title="Clear conversation">
+                <i class="fas fa-rotate-left"></i>
+            </button>
+            <button class="ai-assistant-tool" type="button" id="aiAssistantMinimize" aria-label="Minimize chat" title="Minimize chat">
+                <i class="fas fa-minus"></i>
+            </button>
+            <button class="ai-assistant-close" type="button" id="aiAssistantClose" aria-label="<?php echo e(t('chatbot.close_label', 'Close AI assistant')); ?>" title="Close chat">
+                <i class="fas fa-xmark"></i>
+            </button>
+        </div>
+        <div class="ai-assistant-panel-body">
+            <div class="ai-assistant-live-answer" id="aiAssistantLiveAnswer">
+                <div class="ai-assistant-empty-state" id="aiAssistantEmptyState">
+                    <div class="ai-assistant-welcome-icon" aria-hidden="true">
+                        <i class="fas fa-cross"></i>
+                    </div>
+                    <div class="ai-assistant-greeting-bubble">
+                        <strong id="aiAssistantWelcomeHeading">Good day, and peace be with you!</strong>
+                        <span id="aiAssistantWelcomeSub">I am your TUGON Parish Guide. Feel free to ask about certificate requirements, Mass schedules, sacramental guidelines, or request tracking.</span>
+                    </div>
+                    <div class="ai-assistant-quick-prompts" id="aiAssistantQuickPrompts">
+                        <button type="button" class="ai-quick-chip" data-ai-prompt="What are the mass schedules?">⛪ Mass Schedules</button>
+                        <button type="button" class="ai-quick-chip" data-ai-prompt="How do I request a Baptismal Certificate?">📜 Baptism Certificate</button>
+                        <button type="button" class="ai-quick-chip" data-ai-prompt="What are the requirements for Matrimony/Wedding?">💍 Wedding Guidelines</button>
+                        <button type="button" class="ai-quick-chip" data-ai-prompt="How do I track my submitted request?">🔍 Track My Request</button>
                     </div>
                 </div>
-                <form class="ai-assistant-live-form" id="aiAssistantLiveForm">
-                    <label class="ai-assistant-search" for="aiAssistantLiveInput">
-                        <i class="fas fa-comment-dots" aria-hidden="true"></i>
-                        <textarea id="aiAssistantLiveInput" rows="1" maxlength="2000" data-no-autocomplete="true" placeholder="Ask about certificates, mass schedules, requests..."></textarea>
-                    </label>
-                    <button type="submit" id="aiAssistantSendBtn" aria-label="<?php echo e(t('chatbot.send', 'Send')); ?>" title="Send message" disabled><i class="fas fa-paper-plane" aria-hidden="true"></i></button>
-                </form>
             </div>
-        </section>
-    </div>
+            <form class="ai-assistant-live-form" id="aiAssistantLiveForm">
+                <label class="ai-assistant-search" for="aiAssistantLiveInput">
+                    <i class="fas fa-comment-dots" aria-hidden="true"></i>
+                    <textarea id="aiAssistantLiveInput" rows="1" maxlength="2000" data-no-autocomplete="true" placeholder="Ask about certificates, mass schedules, requests..."></textarea>
+                </label>
+                <button type="submit" id="aiAssistantSendBtn" aria-label="<?php echo e(t('chatbot.send', 'Send')); ?>" title="Send message" disabled><i class="fas fa-paper-plane" aria-hidden="true"></i></button>
+            </form>
+        </div>
+    </section>
     <?php endif; ?>
 
     <!-- Final guard matches the critical head rule, preventing a late inline style from flashing another sidebar color. -->
@@ -1869,7 +1879,7 @@
             const assistantPositionKey = 'tugonAiFabPosition:v1:<?php echo intval($_SESSION['user_id'] ?? 0); ?>';
             const desktopPanelPositionKey = 'tugonAiPanelDesktopPos:v1:<?php echo intval($_SESSION['user_id'] ?? 0); ?>';
             const isDesktopView = window.matchMedia('(min-width: 600px)');
-            const DRAG_THRESHOLD = 6;
+            const DRAG_THRESHOLD = 5;
             const EDGE_MARGIN = 12;
 
             let isDragging = false;
@@ -1969,7 +1979,6 @@
             // ── Floating Launcher Drag Handling (Touch, Mouse, Pointer) ──
             function onTriggerPointerDown(event) {
                 if (event.button !== undefined && event.button !== 0) return;
-                if (widget.classList.contains('is-open')) return;
 
                 const point = assistantPoint(event);
                 const rect = widget.getBoundingClientRect();
@@ -2075,7 +2084,10 @@
                     justDragged = true;
                     window.setTimeout(function() {
                         justDragged = false;
-                    }, 180);
+                    }, 200);
+                    if (panel && panel.classList.contains('is-open')) {
+                        positionDesktopPanel();
+                    }
                 }
 
                 widget.classList.remove('is-dragging');
@@ -2117,7 +2129,7 @@
                     return;
                 }
 
-                const isCurrentlyOpen = widget.classList.contains('is-open');
+                const isCurrentlyOpen = (panel && panel.classList.contains('is-open')) || widget.classList.contains('is-open');
                 setAssistantOpen(!isCurrentlyOpen);
                 if (!isCurrentlyOpen) {
                     checkAssistantHealth(false);
@@ -2127,9 +2139,8 @@
             // ── Desktop Panel Position Clamping & Header Dragging ──────────
             function clampDesktopPanelPosition(left, top) {
                 const margin = 16;
-                const rect = panel.getBoundingClientRect();
-                const width = rect.width || 400;
-                const height = rect.height || 580;
+                const width = Math.min(400, window.innerWidth - 32);
+                const height = Math.min(560, window.innerHeight - 110);
                 const winWidth = window.innerWidth;
                 const winHeight = window.innerHeight;
                 const minLeft = margin;
@@ -2143,7 +2154,7 @@
             }
 
             function positionDesktopPanel() {
-                if (!isDesktopView.matches) return;
+                if (!isDesktopView.matches || !panel) return;
                 try {
                     const saved = JSON.parse(sessionStorage.getItem(desktopPanelPositionKey) || 'null');
                     if (saved && Number.isFinite(saved.left) && Number.isFinite(saved.top)) {
@@ -2270,7 +2281,7 @@
                 if (widget.style.left) {
                     placeAssistant(parseFloat(widget.style.left), parseFloat(widget.style.top), false);
                 }
-                if (widget.classList.contains('is-open') && isDesktopView.matches) {
+                if (panel && panel.classList.contains('is-open') && isDesktopView.matches) {
                     positionDesktopPanel();
                 }
             });
@@ -2285,6 +2296,7 @@
             // ── Open / Close Assistant Controller ─────────────────────────
             function setAssistantOpen(isOpen) {
                 widget.classList.toggle('is-open', isOpen);
+                panel.classList.toggle('is-open', isOpen);
                 document.body.classList.toggle('ai-chat-open', isOpen && window.matchMedia('(max-width: 599px)').matches);
                 trigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
                 panel.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
