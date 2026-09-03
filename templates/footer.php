@@ -1065,8 +1065,8 @@
         html body .ai-assistant-widget,
         html body.user-area .ai-assistant-widget {
             position: fixed !important;
-            bottom: 24px !important;
-            right: 24px !important;
+            bottom: 24px;
+            right: 24px;
             z-index: 99999 !important;
             display: block !important;
             visibility: visible !important;
@@ -1076,8 +1076,8 @@
             height: auto !important;
             margin: 0 !important;
             padding: 0 !important;
-            inset: auto 24px 24px auto !important;
             font-family: "Plus Jakarta Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+            touch-action: none;
         }
 
         /* ── Floating Launcher Trigger (Closed State) ───────────────── */
@@ -1097,12 +1097,15 @@
             align-items: center !important;
             justify-content: center !important;
             font-size: 1.4rem !important;
-            cursor: pointer !important;
+            cursor: grab !important;
             visibility: visible !important;
             opacity: 1 !important;
             pointer-events: auto !important;
             transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease, border-color 0.22s ease !important;
             text-decoration: none !important;
+            touch-action: none !important;
+            user-select: none !important;
+            -webkit-user-select: none !important;
         }
         html body .ai-assistant-trigger:hover,
         html body.user-area .ai-assistant-trigger:hover {
@@ -1110,6 +1113,12 @@
             box-shadow: 0 14px 32px rgba(34, 48, 35, 0.45), 0 4px 14px rgba(201, 166, 70, 0.45) !important;
             border-color: #E2CE98 !important;
             color: #FFFFFF !important;
+        }
+        html body .ai-assistant-widget.is-dragging .ai-assistant-trigger {
+            cursor: grabbing !important;
+            transform: scale(1.08) !important;
+            box-shadow: 0 16px 36px rgba(34, 48, 35, 0.5), 0 6px 18px rgba(201, 166, 70, 0.5) !important;
+            transition: none !important;
         }
         html body .ai-assistant-icon {
             display: inline-flex !important;
@@ -1678,9 +1687,8 @@
 
         @media (max-width: 599px) {
             html body .ai-assistant-widget {
-                bottom: calc(16px + env(safe-area-inset-bottom)) !important;
-                right: 16px !important;
-                inset: auto 16px calc(16px + env(safe-area-inset-bottom)) auto !important;
+                bottom: calc(16px + env(safe-area-inset-bottom));
+                right: 16px;
             }
             html body .ai-assistant-widget.is-open .ai-assistant-panel {
                 inset: 0 !important;
@@ -1690,6 +1698,10 @@
                 max-height: none !important;
                 border-radius: 0 !important;
                 border: 0 !important;
+                top: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                bottom: 0 !important;
             }
             html body .ai-assistant-mobile-back {
                 display: inline-flex !important;
@@ -1716,7 +1728,7 @@
                 </div>
                 <div class="ai-assistant-panel-identity">
                     <strong>TUGON Parish Guide</strong>
-                    <span><span class="ai-assistant-status-dot" aria-hidden="true"></span> Online &amp; Ready</span>
+                    <span id="aiAssistantStatus"><span class="ai-assistant-status-dot" aria-hidden="true"></span> Online &amp; Ready</span>
                 </div>
                 <button class="ai-assistant-tool" type="button" id="aiAssistantClear" aria-label="Clear conversation" title="Clear conversation">
                     <i class="fas fa-rotate-left"></i>
@@ -1791,6 +1803,12 @@
             const liveInput = document.getElementById('aiAssistantLiveInput');
             const liveAnswer = document.getElementById('aiAssistantLiveAnswer');
             const liveSubmit = liveForm ? liveForm.querySelector('button[type="submit"]') : null;
+            const panelHeader = panel ? panel.querySelector('.ai-assistant-panel-header') : null;
+
+            if (!widget || !trigger || !panel || !close) {
+                return;
+            }
+
             const conversationHistory = [];
             let assistantCsrfToken = <?php echo json_encode(generateCsrfToken()); ?>;
             let lastHealthCheckAt = 0;
@@ -1803,23 +1821,23 @@
                 endpointError: <?php echo json_encode(t('chatbot.endpoint_error', 'Unable to reach the chatbot endpoint. Please try again.')); ?>
             };
 
-            if (!widget || !trigger || !panel || !close) {
-                return;
-            }
-
             const assistantPositionKey = 'tugonAiFabPosition:v1:<?php echo intval($_SESSION['user_id'] ?? 0); ?>';
             const desktopPanelPositionKey = 'tugonAiPanelDesktopPos:v1:<?php echo intval($_SESSION['user_id'] ?? 0); ?>';
-            const assistantPhoneView = window.matchMedia('(max-width: 599px)');
-            const isDesktopView = window.matchMedia('(min-width: 1024px)');
-            const assistantDragThreshold = 8;
-            const assistantEdgeMargin = 10;
-            const panelHeader = panel.querySelector('.ai-assistant-panel-header');
-            let assistantDragState = null;
-            let assistantDragFrame = 0;
-            let suppressNextAssistantClick = false;
-            let assistantLongPressTimer = 0;
-            let desktopPanelDragState = null;
-            let desktopPanelDragFrame = 0;
+            const isDesktopView = window.matchMedia('(min-width: 600px)');
+            const DRAG_THRESHOLD = 6;
+            const EDGE_MARGIN = 12;
+
+            let isDragging = false;
+            let hasMovedPastThreshold = false;
+            let justDragged = false;
+            let dragStartX = 0;
+            let dragStartY = 0;
+            let initialWidgetLeft = 0;
+            let initialWidgetTop = 0;
+            let currentClampedLeft = 0;
+            let currentClampedTop = 0;
+            let activePointerId = null;
+            let dragRaf = 0;
 
             function assistantViewport() {
                 const viewport = window.visualViewport;
@@ -1832,7 +1850,7 @@
             }
 
             function assistantBottomLimit(viewport) {
-                let limit = viewport.top + viewport.height - assistantEdgeMargin;
+                let limit = viewport.top + viewport.height - EDGE_MARGIN;
                 const avoidSelectors = [
                     '.user-bottom-nav',
                     '.mobile-sticky-cta',
@@ -1846,7 +1864,7 @@
                     const visible = style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
                     const isBottomControl = rect.bottom >= viewport.top + viewport.height - 4 && rect.top > viewport.top;
                     if (visible && isBottomControl) {
-                        limit = Math.min(limit, rect.top - assistantEdgeMargin);
+                        limit = Math.min(limit, rect.top - EDGE_MARGIN);
                     }
                 });
                 return limit;
@@ -1855,17 +1873,18 @@
             function clampAssistantPosition(left, top) {
                 const viewport = assistantViewport();
                 const rect = trigger.getBoundingClientRect();
-                const width = rect.width || 54;
-                const height = rect.height || 54;
-                const minLeft = viewport.left + assistantEdgeMargin;
-                const maxLeft = Math.max(minLeft, viewport.left + viewport.width - width - assistantEdgeMargin);
-                const minTop = viewport.top + assistantEdgeMargin;
+                const width = rect.width || 58;
+                const height = rect.height || 58;
+                const minLeft = viewport.left + EDGE_MARGIN;
+                const maxLeft = Math.max(minLeft, viewport.left + viewport.width - width - EDGE_MARGIN);
+                const minTop = viewport.top + EDGE_MARGIN;
                 const maxTop = Math.max(minTop, assistantBottomLimit(viewport) - height);
                 return {
                     left: Math.min(Math.max(left, minLeft), maxLeft),
                     top: Math.min(Math.max(top, minTop), maxTop),
                     viewport: viewport,
-                    width: width
+                    width: width,
+                    height: height
                 };
             }
 
@@ -1879,51 +1898,193 @@
                 if (persist) {
                     try {
                         localStorage.setItem(assistantPositionKey, JSON.stringify({left: position.left, top: position.top}));
-                    } catch (error) {
-                        // Local storage may be unavailable in private or restricted browsing modes.
-                    }
+                    } catch (error) {}
                 }
-            }
-
-            function resetAssistantPosition(askFirst) {
-                if (askFirst && !window.confirm('Reset the TUGON AI button to its default position?')) {
-                    return;
-                }
-                try {
-                    localStorage.removeItem(assistantPositionKey);
-                } catch (error) {
-                    // Keep the visual reset even when storage is unavailable.
-                }
-                ['left', 'top', 'right', 'bottom'].forEach(function(property) {
-                    widget.style.removeProperty(property);
-                });
-                widget.classList.remove('ai-tooltip-left');
             }
 
             function loadAssistantPosition() {
-                if (!assistantPhoneView.matches) {
-                    return;
-                }
                 try {
                     const saved = JSON.parse(localStorage.getItem(assistantPositionKey) || 'null');
                     if (saved && Number.isFinite(saved.left) && Number.isFinite(saved.top)) {
-                        placeAssistant(saved.left, saved.top, true);
+                        placeAssistant(saved.left, saved.top, false);
                     }
-                } catch (error) {
-                    try {
-                        localStorage.removeItem(assistantPositionKey);
-                    } catch (storageError) {
-                        // Ignore storage restrictions and keep the default position.
+                } catch (error) {}
+            }
+
+            function assistantPoint(event) {
+                if (event.touches && event.touches.length) {
+                    return { x: event.touches[0].clientX, y: event.touches[0].clientY };
+                }
+                if (event.changedTouches && event.changedTouches.length) {
+                    return { x: event.changedTouches[0].clientX, y: event.changedTouches[0].clientY };
+                }
+                return { x: event.clientX, y: event.clientY };
+            }
+
+            // ── Floating Launcher Drag Handling (Touch, Mouse, Pointer) ──
+            function onTriggerPointerDown(event) {
+                if (event.button !== undefined && event.button !== 0) return;
+                if (widget.classList.contains('is-open')) return;
+
+                const point = assistantPoint(event);
+                const rect = widget.getBoundingClientRect();
+
+                isDragging = false;
+                hasMovedPastThreshold = false;
+                activePointerId = event.pointerId !== undefined ? event.pointerId : null;
+                dragStartX = point.x;
+                dragStartY = point.y;
+                initialWidgetLeft = rect.left;
+                initialWidgetTop = rect.top;
+                currentClampedLeft = rect.left;
+                currentClampedTop = rect.top;
+
+                if (trigger.setPointerCapture && activePointerId !== null) {
+                    try { trigger.setPointerCapture(activePointerId); } catch (e) {}
+                }
+
+                if (window.PointerEvent) {
+                    window.addEventListener('pointermove', onTriggerPointerMove, { passive: false });
+                    window.addEventListener('pointerup', onTriggerPointerUp);
+                    window.addEventListener('pointercancel', onTriggerPointerCancel);
+                } else {
+                    document.addEventListener('mousemove', onTriggerPointerMove);
+                    document.addEventListener('mouseup', onTriggerPointerUp);
+                    document.addEventListener('touchmove', onTriggerPointerMove, { passive: false });
+                    document.addEventListener('touchend', onTriggerPointerUp);
+                    document.addEventListener('touchcancel', onTriggerPointerCancel);
+                }
+            }
+
+            function onTriggerPointerMove(event) {
+                if (activePointerId !== null && event.pointerId !== undefined && event.pointerId !== activePointerId) {
+                    return;
+                }
+                const point = assistantPoint(event);
+                const deltaX = point.x - dragStartX;
+                const deltaY = point.y - dragStartY;
+                const distance = Math.hypot(deltaX, deltaY);
+
+                if (!hasMovedPastThreshold && distance >= DRAG_THRESHOLD) {
+                    hasMovedPastThreshold = true;
+                    isDragging = true;
+                    widget.classList.add('is-dragging');
+                    trigger.setAttribute('aria-grabbed', 'true');
+                }
+
+                if (hasMovedPastThreshold) {
+                    if (event.cancelable) {
+                        event.preventDefault();
+                    }
+                    const rawLeft = initialWidgetLeft + deltaX;
+                    const rawTop = initialWidgetTop + deltaY;
+                    const clamped = clampAssistantPosition(rawLeft, rawTop);
+                    currentClampedLeft = clamped.left;
+                    currentClampedTop = clamped.top;
+
+                    if (!dragRaf) {
+                        dragRaf = window.requestAnimationFrame(function() {
+                            dragRaf = 0;
+                            if (isDragging) {
+                                widget.style.setProperty('left', currentClampedLeft + 'px', 'important');
+                                widget.style.setProperty('top', currentClampedTop + 'px', 'important');
+                                widget.style.setProperty('right', 'auto', 'important');
+                                widget.style.setProperty('bottom', 'auto', 'important');
+                            }
+                        });
                     }
                 }
             }
 
-            // Desktop Panel Position Clamping & Persistence
+            function cleanupDragListeners() {
+                if (window.PointerEvent) {
+                    window.removeEventListener('pointermove', onTriggerPointerMove);
+                    window.removeEventListener('pointerup', onTriggerPointerUp);
+                    window.removeEventListener('pointercancel', onTriggerPointerCancel);
+                } else {
+                    document.removeEventListener('mousemove', onTriggerPointerMove);
+                    document.removeEventListener('mouseup', onTriggerPointerUp);
+                    document.removeEventListener('touchmove', onTriggerPointerMove);
+                    document.removeEventListener('touchend', onTriggerPointerUp);
+                    document.removeEventListener('touchcancel', onTriggerPointerCancel);
+                }
+            }
+
+            function onTriggerPointerUp(event) {
+                if (activePointerId !== null && event.pointerId !== undefined && event.pointerId !== activePointerId) {
+                    return;
+                }
+                cleanupDragListeners();
+
+                if (dragRaf) {
+                    window.cancelAnimationFrame(dragRaf);
+                    dragRaf = 0;
+                }
+
+                if (trigger.releasePointerCapture && activePointerId !== null) {
+                    try { trigger.releasePointerCapture(activePointerId); } catch (e) {}
+                }
+
+                if (hasMovedPastThreshold) {
+                    placeAssistant(currentClampedLeft, currentClampedTop, true);
+                    justDragged = true;
+                    window.setTimeout(function() {
+                        justDragged = false;
+                    }, 180);
+                }
+
+                widget.classList.remove('is-dragging');
+                trigger.setAttribute('aria-grabbed', 'false');
+                isDragging = false;
+                hasMovedPastThreshold = false;
+                activePointerId = null;
+            }
+
+            function onTriggerPointerCancel() {
+                cleanupDragListeners();
+                if (dragRaf) {
+                    window.cancelAnimationFrame(dragRaf);
+                    dragRaf = 0;
+                }
+                if (trigger.releasePointerCapture && activePointerId !== null) {
+                    try { trigger.releasePointerCapture(activePointerId); } catch (e) {}
+                }
+                widget.classList.remove('is-dragging');
+                trigger.setAttribute('aria-grabbed', 'false');
+                isDragging = false;
+                hasMovedPastThreshold = false;
+                activePointerId = null;
+            }
+
+            if (window.PointerEvent) {
+                trigger.addEventListener('pointerdown', onTriggerPointerDown);
+            } else {
+                trigger.addEventListener('mousedown', onTriggerPointerDown);
+                trigger.addEventListener('touchstart', onTriggerPointerDown, { passive: true });
+            }
+
+            // ── Single Authoritative Click Handler (Toggle chat open/close) ──
+            trigger.addEventListener('click', function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+
+                if (justDragged || hasMovedPastThreshold) {
+                    return;
+                }
+
+                const isCurrentlyOpen = widget.classList.contains('is-open');
+                setAssistantOpen(!isCurrentlyOpen);
+                if (!isCurrentlyOpen) {
+                    checkAssistantHealth(false);
+                }
+            });
+
+            // ── Desktop Panel Position Clamping & Header Dragging ──────────
             function clampDesktopPanelPosition(left, top) {
-                const margin = 20;
+                const margin = 16;
                 const rect = panel.getBoundingClientRect();
-                const width = rect.width || 440;
-                const height = rect.height || 560;
+                const width = rect.width || 400;
+                const height = rect.height || 580;
                 const winWidth = window.innerWidth;
                 const winHeight = window.innerHeight;
                 const minLeft = margin;
@@ -1936,29 +2097,51 @@
                 };
             }
 
-            function placeDesktopPanel(left, top, persist) {
-                if (!isDesktopView.matches) return;
-                const clamped = clampDesktopPanelPosition(left, top);
-                panel.style.setProperty('left', clamped.left + 'px', 'important');
-                panel.style.setProperty('top', clamped.top + 'px', 'important');
-                panel.style.setProperty('right', 'auto', 'important');
-                panel.style.setProperty('bottom', 'auto', 'important');
-                if (persist) {
-                    try {
-                        sessionStorage.setItem(desktopPanelPositionKey, JSON.stringify({left: clamped.left, top: clamped.top}));
-                    } catch (e) {}
-                }
-            }
-
-            function loadDesktopPanelPosition() {
+            function positionDesktopPanel() {
                 if (!isDesktopView.matches) return;
                 try {
                     const saved = JSON.parse(sessionStorage.getItem(desktopPanelPositionKey) || 'null');
                     if (saved && Number.isFinite(saved.left) && Number.isFinite(saved.top)) {
-                        placeDesktopPanel(saved.left, saved.top, false);
+                        const clamped = clampDesktopPanelPosition(saved.left, saved.top);
+                        panel.style.setProperty('left', clamped.left + 'px', 'important');
+                        panel.style.setProperty('top', clamped.top + 'px', 'important');
+                        panel.style.setProperty('right', 'auto', 'important');
+                        panel.style.setProperty('bottom', 'auto', 'important');
+                        return;
                     }
                 } catch (e) {}
+
+                const widgetRect = widget.getBoundingClientRect();
+                const panelWidth = 400;
+                const panelHeight = 580;
+
+                if (widget.style.left) {
+                    let targetLeft, targetTop;
+                    if (widgetRect.left + 29 < window.innerWidth / 2) {
+                        targetLeft = widgetRect.left;
+                    } else {
+                        targetLeft = widgetRect.right - panelWidth;
+                    }
+                    if (widgetRect.top + 29 < window.innerHeight / 2) {
+                        targetTop = widgetRect.top;
+                    } else {
+                        targetTop = widgetRect.bottom - panelHeight;
+                    }
+                    const clamped = clampDesktopPanelPosition(targetLeft, targetTop);
+                    panel.style.setProperty('left', clamped.left + 'px', 'important');
+                    panel.style.setProperty('top', clamped.top + 'px', 'important');
+                    panel.style.setProperty('right', 'auto', 'important');
+                    panel.style.setProperty('bottom', 'auto', 'important');
+                } else {
+                    panel.style.removeProperty('left');
+                    panel.style.removeProperty('top');
+                    panel.style.setProperty('right', '24px', 'important');
+                    panel.style.setProperty('bottom', '24px', 'important');
+                }
             }
+
+            let desktopPanelDragState = null;
+            let desktopPanelDragFrame = 0;
 
             function beginDesktopPanelDrag(event) {
                 if (!isDesktopView.matches || (event.button !== undefined && event.button !== 0)) return;
@@ -1971,8 +2154,6 @@
                     startY: event.clientY,
                     initialLeft: rect.left,
                     initialTop: rect.top,
-                    latestX: event.clientX,
-                    latestY: event.clientY,
                     pointerId: event.pointerId
                 };
                 panel.classList.add('is-panel-dragging');
@@ -1985,15 +2166,18 @@
             function moveDesktopPanelDrag(event) {
                 if (!desktopPanelDragState) return;
                 event.preventDefault();
-                desktopPanelDragState.latestX = event.clientX;
-                desktopPanelDragState.latestY = event.clientY;
+                const deltaX = event.clientX - desktopPanelDragState.startX;
+                const deltaY = event.clientY - desktopPanelDragState.startY;
+                const clamped = clampDesktopPanelPosition(desktopPanelDragState.initialLeft + deltaX, desktopPanelDragState.initialTop + deltaY);
+
                 if (!desktopPanelDragFrame) {
                     desktopPanelDragFrame = window.requestAnimationFrame(function() {
                         desktopPanelDragFrame = 0;
                         if (!desktopPanelDragState) return;
-                        const deltaX = desktopPanelDragState.latestX - desktopPanelDragState.startX;
-                        const deltaY = desktopPanelDragState.latestY - desktopPanelDragState.startY;
-                        placeDesktopPanel(desktopPanelDragState.initialLeft + deltaX, desktopPanelDragState.initialTop + deltaY, false);
+                        panel.style.setProperty('left', clamped.left + 'px', 'important');
+                        panel.style.setProperty('top', clamped.top + 'px', 'important');
+                        panel.style.setProperty('right', 'auto', 'important');
+                        panel.style.setProperty('bottom', 'auto', 'important');
                     });
                 }
             }
@@ -2004,10 +2188,19 @@
                     window.cancelAnimationFrame(desktopPanelDragFrame);
                     desktopPanelDragFrame = 0;
                 }
-                const deltaX = (event.clientX || desktopPanelDragState.latestX) - desktopPanelDragState.startX;
-                const deltaY = (event.clientY || desktopPanelDragState.latestY) - desktopPanelDragState.startY;
-                placeDesktopPanel(desktopPanelDragState.initialLeft + deltaX, desktopPanelDragState.initialTop + deltaY, true);
+                const deltaX = event.clientX - desktopPanelDragState.startX;
+                const deltaY = event.clientY - desktopPanelDragState.startY;
+                const clamped = clampDesktopPanelPosition(desktopPanelDragState.initialLeft + deltaX, desktopPanelDragState.initialTop + deltaY);
+                panel.style.setProperty('left', clamped.left + 'px', 'important');
+                panel.style.setProperty('top', clamped.top + 'px', 'important');
+                panel.style.setProperty('right', 'auto', 'important');
+                panel.style.setProperty('bottom', 'auto', 'important');
                 panel.classList.remove('is-panel-dragging');
+
+                try {
+                    sessionStorage.setItem(desktopPanelPositionKey, JSON.stringify({left: clamped.left, top: clamped.top}));
+                } catch (e) {}
+
                 if (panelHeader && panelHeader.releasePointerCapture && desktopPanelDragState.pointerId !== undefined) {
                     try { panelHeader.releasePointerCapture(desktopPanelDragState.pointerId); } catch (e) {}
                 }
@@ -2027,164 +2220,24 @@
                 }
             }
 
-            function assistantPoint(event) {
-                if (event.touches && event.touches.length) {
-                    return {x: event.touches[0].clientX, y: event.touches[0].clientY};
-                }
-                if (event.changedTouches && event.changedTouches.length) {
-                    return {x: event.changedTouches[0].clientX, y: event.changedTouches[0].clientY};
-                }
-                return {x: event.clientX, y: event.clientY};
-            }
-
-            function beginAssistantDrag(event) {
-                if (!assistantPhoneView.matches || widget.classList.contains('is-open') || (event.button !== undefined && event.button !== 0)) {
-                    return;
-                }
-                const point = assistantPoint(event);
-                const rect = trigger.getBoundingClientRect();
-                assistantDragState = {
-                    startX: point.x,
-                    startY: point.y,
-                    offsetX: point.x - rect.left,
-                    offsetY: point.y - rect.top,
-                    latestX: point.x,
-                    latestY: point.y,
-                    dragging: false,
-                    longPressed: false,
-                    pointerId: event.pointerId
-                };
-                window.clearTimeout(assistantLongPressTimer);
-                assistantLongPressTimer = window.setTimeout(function() {
-                    if (!assistantDragState || assistantDragState.dragging) {
-                        return;
-                    }
-                    assistantDragState.longPressed = true;
-                    suppressNextAssistantClick = true;
-                    if (navigator.vibrate) navigator.vibrate(25);
-                    resetAssistantPosition(true);
-                }, 700);
-            }
-
-            function renderAssistantDrag() {
-                assistantDragFrame = 0;
-                if (!assistantDragState || !assistantDragState.dragging) {
-                    return;
-                }
-                placeAssistant(
-                    assistantDragState.latestX - assistantDragState.offsetX,
-                    assistantDragState.latestY - assistantDragState.offsetY,
-                    false
-                );
-            }
-
-            function moveAssistantDrag(event) {
-                if (!assistantDragState) {
-                    return;
-                }
-                const point = assistantPoint(event);
-                const deltaX = point.x - assistantDragState.startX;
-                const deltaY = point.y - assistantDragState.startY;
-                if (!assistantDragState.dragging && Math.hypot(deltaX, deltaY) >= assistantDragThreshold) {
-                    assistantDragState.dragging = true;
-                    window.clearTimeout(assistantLongPressTimer);
-                    widget.classList.add('is-dragging');
-                    trigger.setAttribute('aria-grabbed', 'true');
-                    if (trigger.setPointerCapture && assistantDragState.pointerId !== undefined) {
-                        try { trigger.setPointerCapture(assistantDragState.pointerId); } catch (e) {}
-                    }
-                }
-                if (!assistantDragState.dragging) {
-                    return;
-                }
-                event.preventDefault();
-                assistantDragState.latestX = point.x;
-                assistantDragState.latestY = point.y;
-                if (!assistantDragFrame) {
-                    assistantDragFrame = window.requestAnimationFrame(renderAssistantDrag);
-                }
-            }
-
-            function endAssistantDrag(event) {
-                if (!assistantDragState) {
-                    return;
-                }
-                window.clearTimeout(assistantLongPressTimer);
-                const wasDragging = assistantDragState.dragging;
-                const wasLongPress = assistantDragState.longPressed;
-
-                if (wasDragging) {
-                    const point = assistantPoint(event);
-                    assistantDragState.latestX = point.x;
-                    assistantDragState.latestY = point.y;
-                    if (assistantDragFrame) {
-                        window.cancelAnimationFrame(assistantDragFrame);
-                        assistantDragFrame = 0;
-                    }
-                    placeAssistant(point.x - assistantDragState.offsetX, point.y - assistantDragState.offsetY, true);
-                    suppressNextAssistantClick = true;
-                }
-                if (wasLongPress) {
-                    suppressNextAssistantClick = true;
-                }
-                widget.classList.remove('is-dragging');
-                trigger.setAttribute('aria-grabbed', 'false');
-                if (trigger.releasePointerCapture && assistantDragState.pointerId !== undefined) {
-                    try { trigger.releasePointerCapture(assistantDragState.pointerId); } catch (e) {}
-                }
-                assistantDragState = null;
-
-                if (wasDragging || wasLongPress) {
-                    window.setTimeout(function() {
-                        suppressNextAssistantClick = false;
-                    }, 120);
-                } else {
-                    suppressNextAssistantClick = false;
-                }
-            }
-
-            function cancelAssistantDrag() {
-                window.clearTimeout(assistantLongPressTimer);
-                if (assistantDragFrame) window.cancelAnimationFrame(assistantDragFrame);
-                assistantDragFrame = 0;
-                assistantDragState = null;
-                widget.classList.remove('is-dragging');
-                trigger.setAttribute('aria-grabbed', 'false');
-            }
-
-            if (window.PointerEvent) {
-                trigger.addEventListener('pointerdown', function(event) {
-                    beginAssistantDrag(event);
-                });
-                trigger.addEventListener('pointermove', moveAssistantDrag);
-                trigger.addEventListener('pointerup', endAssistantDrag);
-                trigger.addEventListener('pointercancel', cancelAssistantDrag);
-            } else {
-                trigger.addEventListener('touchstart', beginAssistantDrag, {passive: true});
-                trigger.addEventListener('touchmove', moveAssistantDrag, {passive: false});
-                trigger.addEventListener('touchend', endAssistantDrag);
-                trigger.addEventListener('mousedown', beginAssistantDrag);
-                document.addEventListener('mousemove', moveAssistantDrag);
-                document.addEventListener('mouseup', endAssistantDrag);
-            }
-
             window.requestAnimationFrame(loadAssistantPosition);
             window.addEventListener('resize', function() {
-                if (assistantPhoneView.matches && widget.style.left) {
-                    placeAssistant(parseFloat(widget.style.left), parseFloat(widget.style.top), true);
-                } else if (isDesktopView.matches && panel.style.left) {
-                    placeDesktopPanel(parseFloat(panel.style.left), parseFloat(panel.style.top), false);
+                if (widget.style.left) {
+                    placeAssistant(parseFloat(widget.style.left), parseFloat(widget.style.top), false);
+                }
+                if (widget.classList.contains('is-open') && isDesktopView.matches) {
+                    positionDesktopPanel();
                 }
             });
             if (window.visualViewport) {
                 window.visualViewport.addEventListener('resize', function() {
-                    if (assistantPhoneView.matches && widget.style.left) {
+                    if (widget.style.left) {
                         placeAssistant(parseFloat(widget.style.left), parseFloat(widget.style.top), false);
                     }
                 });
             }
 
-            // Set Assistant Open Function - Documents this helper's role in the parish management workflow.
+            // ── Open / Close Assistant Controller ─────────────────────────
             function setAssistantOpen(isOpen) {
                 widget.classList.toggle('is-open', isOpen);
                 document.body.classList.toggle('ai-chat-open', isOpen && window.matchMedia('(max-width: 599px)').matches);
@@ -2192,7 +2245,7 @@
                 panel.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
                 if (isOpen) {
                     if (isDesktopView.matches) {
-                        loadDesktopPanelPosition();
+                        positionDesktopPanel();
                     }
                     if (liveAnswer) {
                         liveAnswer.scrollTop = liveAnswer.scrollHeight;
@@ -2203,7 +2256,6 @@
                 }
             }
 
-            // Escape Html Function - Documents this helper's role in the parish management workflow.
             function escapeHtml(value) {
                 return String(value).replace(/[&<>"']/g, function(char) {
                     return ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'})[char];
@@ -2215,21 +2267,21 @@
             }
 
             function setTyping(isTyping) {
-                if (!status) {
-                    return;
-                }
-                status.innerHTML = isTyping ? '<span></span> Thinking...' : '<span></span> Online';
+                if (!status) return;
+                status.innerHTML = isTyping
+                    ? '<span class="ai-assistant-status-dot" aria-hidden="true"></span> Thinking...'
+                    : '<span class="ai-assistant-status-dot" aria-hidden="true"></span> Online &amp; Ready';
             }
 
             function setHealthStatus(state) {
                 if (!status) return;
                 status.classList.toggle('is-offline', state !== 'online');
                 if (state === 'online') {
-                    status.innerHTML = '<span></span> AI Online';
+                    status.innerHTML = '<span class="ai-assistant-status-dot" aria-hidden="true"></span> Online &amp; Ready';
                 } else if (state === 'model_unavailable') {
-                    status.innerHTML = '<span></span> Model Offline';
+                    status.innerHTML = '<span class="ai-assistant-status-dot" style="background:#F59E0B;" aria-hidden="true"></span> Model Offline';
                 } else {
-                    status.innerHTML = '<span></span> AI Offline';
+                    status.innerHTML = '<span class="ai-assistant-status-dot" style="background:#EF4444;" aria-hidden="true"></span> AI Offline';
                 }
             }
 
@@ -2296,7 +2348,8 @@
                     result.push('</ul>');
                 }
                 return result.join('');
-            }            // Append Chat Message Function - Documents this helper's role in the parish management workflow.
+            }
+
             function appendChatMessage(type, title, message, sourcePrompt, stream, steps) {
                 if (!liveAnswer) {
                     return null;
@@ -2325,7 +2378,6 @@
                 return item;
             }
 
-            // Append Typing Bubble Function - Documents this helper's role in the parish management workflow.
             function appendTypingBubble() {
                 if (!liveAnswer) {
                     return null;
@@ -2380,7 +2432,6 @@
                 });
             }
 
-            // Ask Live Assistant Function - Documents this helper's role in the parish management workflow.
             function askLiveAssistant(message) {
                 if (!liveAnswer) {
                     return;
@@ -2432,88 +2483,12 @@
 
             checkAssistantHealth(true);
 
-            trigger.addEventListener('click', function() {
-                if (suppressNextAssistantClick) {
-                    return;
-                }
-                setAssistantOpen(!widget.classList.contains('is-open'));
-                if (widget.classList.contains('is-open')) {
-                    checkAssistantHealth(false);
-                }
-            });
-
-            document.querySelectorAll('[data-open-ai-chat], a[href*="ai-assistant.php"]').forEach(function(link) {
-                link.addEventListener('click', function(e) {
-                    if (window.location.pathname.indexOf('ai-assistant.php') === -1) {
-                        e.preventDefault();
-                        setAssistantOpen(true);
-                        checkAssistantHealth(false);
-                        if (liveInput) {
-                            liveInput.focus();
-                        }
-                    }
-                });
-            });
-
-            close.addEventListener('click', function() {
+            // ── Header Buttons & Controls ─────────────────────────────────
+            close.addEventListener('click', function(event) {
+                event.preventDefault();
+                event.stopPropagation();
                 setAssistantOpen(false);
             });
-
-            function getParishGreeting() {
-                const hour = new Date().getHours();
-                if (hour >= 5 && hour < 12) {
-                    return {
-                        heading: "Good morning, and peace be with you!",
-                        sub: "I am your TUGON Parish Guide. How may I assist you with sacramental guidelines, Mass schedules, or certificate requests today?"
-                    };
-                } else if (hour >= 12 && hour < 18) {
-                    return {
-                        heading: "Good afternoon! May your day be blessed.",
-                        sub: "I am your TUGON Parish Guide. How may I help you with parish records, Mass schedules, or online requests?"
-                    };
-                } else {
-                    return {
-                        heading: "Good evening! Peace be with you.",
-                        sub: "I am your TUGON Parish Guide. Feel free to ask about certificate requirements, Mass schedules, or request tracking."
-                    };
-                }
-            }
-
-            function updateWelcomeGreeting() {
-                const greeting = getParishGreeting();
-                const headingEl = document.getElementById('aiAssistantWelcomeHeading');
-                const subEl = document.getElementById('aiAssistantWelcomeSub');
-                if (headingEl) headingEl.textContent = greeting.heading;
-                if (subEl) subEl.textContent = greeting.sub;
-            }
-
-            updateWelcomeGreeting();
-
-            if (trigger) {
-                trigger.addEventListener('click', function(event) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    if (suppressNextAssistantClick) {
-                        return;
-                    }
-                    const isCurrentlyOpen = widget.classList.contains('is-open');
-                    setAssistantOpen(!isCurrentlyOpen);
-                    if (!isCurrentlyOpen) {
-                        checkAssistantHealth(false);
-                        if (liveInput) {
-                            setTimeout(function() { liveInput.focus(); }, 150);
-                        }
-                    }
-                });
-            }
-
-            if (close) {
-                close.addEventListener('click', function(event) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    setAssistantOpen(false);
-                });
-            }
 
             if (mobileBack) {
                 mobileBack.addEventListener('click', function(event) {
@@ -2557,6 +2532,37 @@
                 });
             }
 
+            function getParishGreeting() {
+                const hour = new Date().getHours();
+                if (hour >= 5 && hour < 12) {
+                    return {
+                        heading: "Good morning, and peace be with you!",
+                        sub: "I am your TUGON Parish Guide. How may I assist you with sacramental guidelines, Mass schedules, or certificate requests today?"
+                    };
+                } else if (hour >= 12 && hour < 18) {
+                    return {
+                        heading: "Good afternoon! May your day be blessed.",
+                        sub: "I am your TUGON Parish Guide. How may I help you with parish records, Mass schedules, or online requests?"
+                    };
+                } else {
+                    return {
+                        heading: "Good evening! Peace be with you.",
+                        sub: "I am your TUGON Parish Guide. Feel free to ask about certificate requirements, Mass schedules, or request tracking."
+                    };
+                }
+            }
+
+            function updateWelcomeGreeting() {
+                const greeting = getParishGreeting();
+                const headingEl = document.getElementById('aiAssistantWelcomeHeading');
+                const subEl = document.getElementById('aiAssistantWelcomeSub');
+                if (headingEl) headingEl.textContent = greeting.heading;
+                if (subEl) subEl.textContent = greeting.sub;
+            }
+
+            updateWelcomeGreeting();
+
+            // ── Live Form & Input Handlers ────────────────────────────────
             if (liveForm && liveInput) {
                 liveInput.addEventListener('input', function() {
                     const hasText = liveInput.value.trim().length > 0;
@@ -2586,13 +2592,13 @@
                 });
             }
 
+            // ── Delegated Document Click Handlers ─────────────────────────
             document.addEventListener('click', function(event) {
                 const aiOpener = event.target.closest('[data-open-ai-chat], #sidebarAiAssistantLink, #adminSidebarAiAssistantLink, .nav-item-ai');
                 if (aiOpener) {
                     if (widget && !window.location.pathname.endsWith('ai-assistant.php')) {
                         event.preventDefault();
                         event.stopPropagation();
-                        // If mobile sidebar was open, close it
                         const openSidebar = document.querySelector('.user-sidebar.open, .admin-sidebar.open');
                         if (openSidebar) {
                             openSidebar.classList.remove('open');
