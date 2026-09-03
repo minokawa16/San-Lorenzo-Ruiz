@@ -223,80 +223,108 @@ final class AiAssistantService
         $normalized = mb_strtolower(trim($query));
         $isFil = ($language === 'fil' || $language === 'taglish');
 
-        // A. User's Own Request Status Inquiry
-        if (preg_match('/\b(?:status of (?:my|the) (?:request|certificate|blessing)|check (?:my|the) requests?|my requests?(?: status)?|kumusta (?:ang |yung )?request|anong status ng request|follow[- ]?up (?:sa )?request|check certificate status)\b/iu', $normalized)) {
-            $stmt = $this->db->prepare("SELECT request_id, reference_number, request_type, status, date_requested FROM requests WHERE user_id=? AND deleted_at IS NULL ORDER BY date_requested DESC LIMIT 5");
+        // A. User's Own Request Count, Listing & Status Inquiry
+        $isRequestQuery = (bool) preg_match('/\b(?:(?:how|hoy|hw)\s*many\s*requests?|count\s*(?:of\s*)?(?:my\s*)?requests?|number\s*of\s*(?:my\s*)?requests?|show\s*(?:me\s*)?(?:all\s*)?(?:the\s*)?(?:my\s*)?requests?|list\s*(?:all\s*)?(?:the\s*)?(?:my\s*)?requests?|view\s*(?:all\s*)?(?:the\s*)?(?:my\s*)?requests?|see\s*(?:all\s*)?(?:the\s*)?(?:my\s*)?requests?|display\s*(?:all\s*)?(?:the\s*)?(?:my\s*)?requests?|all\s*(?:the\s*)?requests?\s*(?:that\s*)?i\s*(?:did|have|made|submitted)?|requests?\s*(?:that\s*)?i\s*(?:did|have|made|submitted)|what\s*(?:are\s*)?(?:all\s*)?my\s*requests?|what\s*requests?\s*(?:do\s*i\s*have|did\s*i\s*(?:make|do|submit))|status\s*of\s*(?:my|the)\s*(?:request|certificate|blessing)|check\s*(?:my|the)\s*requests?|my\s*requests?(?:\s*status)?|kumusta\s*(?:ang\s*|yung\s*)?request|anong\s*status\s*ng\s*request|follow[- ]?up\s*(?:sa\s*)?request|check\s*certificate\s*status|mga\s*request\s*ko|lahat\s*ng\s*request\s*ko|ilan\s*(?:ang\s*|na\s*ang\s*)?request\s*ko|ilang\s*request\s*(?:meron\s*ako|ang\s*(?:nagawa|isinumite)\s*ko)|pakita\s*(?:ang\s*)?mga\s*request\s*ko|tingnan\s*(?:ang\s*)?mga\s*request\s*ko)\b/iu', $normalized);
+        if ($isRequestQuery) {
+            $countStmt = $this->db->prepare("SELECT COUNT(*) AS c FROM requests WHERE user_id=? AND deleted_at IS NULL");
+            $totalCount = 0;
+            if ($countStmt) {
+                $countStmt->bind_param('i', $userId);
+                $countStmt->execute();
+                $totalCount = (int) ($countStmt->get_result()->fetch_assoc()['c'] ?? 0);
+                $countStmt->close();
+            }
+
+            $stmt = $this->db->prepare("SELECT request_id, reference_number, request_type, status, date_requested FROM requests WHERE user_id=? AND deleted_at IS NULL ORDER BY date_requested DESC LIMIT 10");
+            $requests = [];
             if ($stmt) {
                 $stmt->bind_param('i', $userId);
                 $stmt->execute();
                 $result = $stmt->get_result();
-                $requests = [];
                 while ($row = $result->fetch_assoc()) {
                     $requests[] = $row;
                 }
                 $stmt->close();
+            }
 
-                if (!empty($requests)) {
-                    $lines = [];
-                    foreach ($requests as $r) {
-                        $ref = $r['reference_number'] ?: ('REQ-' . $r['request_id']);
-                        $type = ucwords(str_replace('_', ' ', $r['request_type']));
-                        $status = ucfirst($r['status']);
-                        $date = date('M d, Y', strtotime($r['date_requested']));
-                        $lines[] = "• **{$ref}** — {$type}\n  Status: **{$status}** (Requested on {$date})";
-                    }
-                    $listStr = implode("\n\n", $lines);
+            if ($totalCount > 0 && !empty($requests)) {
+                $lines = [];
+                foreach ($requests as $r) {
+                    $ref = $r['reference_number'] ?: ('REQ-' . $r['request_id']);
+                    $type = ucwords(str_replace('_', ' ', $r['request_type']));
+                    $status = ucfirst($r['status']);
+                    $date = date('M d, Y', strtotime($r['date_requested']));
+                    $lines[] = "• **{$ref}** — {$type}\n  Status: **{$status}** (Submitted on {$date})";
+                }
+                $listStr = implode("\n\n", $lines);
+
+                $isCounting = (bool) preg_match('/\b(?:how\s*many|hoy\s*many|hw\s*many|count|number\s*of|ilan|ilang)\b/iu', $normalized);
+                if ($isCounting) {
                     $answer = $isFil
-                        ? "Narito po ang kasalukuyang status ng inyong mga isinumiteng kahilingan:\n\n{$listStr}\n\nMaaari ninyong buksan ang inyong kahilingan upang makita ang buong detalye, admin notes, o mag-upload ng GCash payment receipt:\n[View My Requests](../users/my-requests.php)"
-                        : "Here is the current status of your submitted request(s):\n\n{$listStr}\n\nYou can track details, read admin notes, or upload your GCash payment receipt anytime:\n[View My Requests](../users/my-requests.php)";
+                        ? "Mayroon po kayong kabuuang **{$totalCount}** na naisumiteng request sa TUGON:\n\n{$listStr}\n\nMaaari ninyong buksan ang inyong kahilingan upang makita ang buong detalye, admin notes, o mag-upload ng GCash receipt:\n[View My Requests](../users/my-requests.php)"
+                        : "You have submitted a total of **{$totalCount}** request(s) on record in TUGON:\n\n{$listStr}\n\nYou can track details, read admin notes, or upload your GCash payment receipt anytime:\n[View My Requests](../users/my-requests.php)";
                 } else {
                     $answer = $isFil
-                        ? "Wala pa po kayong aktibong request sa kasalukuyan. Kung nais ninyong kumuha ng sertipiko o humiling ng basbas, maaari po kayong magsumite dito:\n\n[Request Certificate](../users/request-certificate.php) [Request Blessing](../users/request-blessing.php)"
-                        : "You currently have no submitted requests in the system. If you need a parish certificate or blessing, you can submit one below:\n\n[Request Certificate](../users/request-certificate.php) [Request Blessing](../users/request-blessing.php)";
+                        ? "Narito po ang tala ng inyong **{$totalCount}** na isinumiteng request sa parokya:\n\n{$listStr}\n\nMaaari ninyong buksan ang inyong kahilingan upang makita ang buong detalye, admin notes, o mag-upload ng GCash receipt:\n[View My Requests](../users/my-requests.php)"
+                        : "Here are your **{$totalCount}** submitted request(s) on record in TUGON:\n\n{$listStr}\n\nYou can track details, read admin notes, or upload your GCash payment receipt anytime:\n[View My Requests](../users/my-requests.php)";
                 }
-                return [
-                    'answer' => $answer,
-                    'prompts' => ['Request Certificate', 'Request Blessing', 'Parish Schedule']
-                ];
+            } else {
+                $answer = $isFil
+                    ? "Wala pa po kayong naitalang request sa kasalukuyan (**0 requests**). Kung nais ninyong kumuha ng sertipiko o humiling ng basbas, maaari po kayong magsumite dito:\n\n[Request Certificate](../users/request-certificate.php) • [Request Blessing](../users/request-blessing.php)"
+                    : "You currently have **0** submitted requests on record in TUGON. If you need a parish certificate or blessing, you can submit one below:\n\n[Request Certificate](../users/request-certificate.php) • [Request Blessing](../users/request-blessing.php)";
             }
+            return [
+                'answer' => $answer,
+                'prompts' => ['Request Certificate', 'Request Blessing', 'Parish Schedule']
+            ];
         }
 
-        // B. User's Own Reservation Status Inquiry
-        if (preg_match('/\b(?:status of (?:my|the) reservation|check (?:my|the) reservations?|my reservations?(?: status)?|kumusta (?:ang |yung )?reservation|anong status ng reservation|check reservation)\b/iu', $normalized)) {
-            $stmt = $this->db->prepare("SELECT reservation_id, reservation_type, event_date, event_time, status FROM reservations WHERE user_id=? ORDER BY event_date DESC LIMIT 5");
+        // B. User's Own Reservation Count, Listing & Status Inquiry
+        $isReservationQuery = (bool) preg_match('/\b(?:(?:how|hoy|hw)\s*many\s*reservations?|count\s*(?:of\s*)?(?:my\s*)?reservations?|number\s*of\s*(?:my\s*)?reservations?|show\s*(?:me\s*)?(?:all\s*)?(?:the\s*)?(?:my\s*)?reservations?|list\s*(?:all\s*)?(?:the\s*)?(?:my\s*)?reservations?|view\s*(?:all\s*)?(?:the\s*)?(?:my\s*)?reservations?|see\s*(?:all\s*)?(?:the\s*)?(?:my\s*)?reservations?|display\s*(?:all\s*)?(?:the\s*)?(?:my\s*)?reservations?|all\s*(?:the\s*)?reservations?\s*(?:that\s*)?i\s*(?:did|have|made|booked)?|reservations?\s*(?:that\s*)?i\s*(?:did|have|made|booked)|what\s*(?:are\s*)?(?:all\s*)?my\s*reservations?|what\s*reservations?\s*(?:do\s*i\s*have|did\s*i\s*(?:make|do|book))|status\s*of\s*(?:my|the)\s*reservations?|check\s*(?:my|the)\s*reservations?|my\s*reservations?(?:\s*status)?|kumusta\s*(?:ang\s*|yung\s*)?reservation|anong\s*status\s*ng\s*reservation|check\s*reservation|mga\s*reservation\s*ko|lahat\s*ng\s*reservation\s*ko|ilan\s*(?:ang\s*|na\s*ang\s*)?reservation\s*ko|ilang\s*reservation\s*(?:meron\s*ako|ang\s*(?:nagawa|na-book)\s*ko)|pakita\s*(?:ang\s*)?mga\s*reservation\s*ko|tingnan\s*(?:ang\s*)?mga\s*reservation\s*ko)\b/iu', $normalized);
+        if ($isReservationQuery) {
+            $countStmt = $this->db->prepare("SELECT COUNT(*) AS c FROM reservations WHERE user_id=?");
+            $totalResCount = 0;
+            if ($countStmt) {
+                $countStmt->bind_param('i', $userId);
+                $countStmt->execute();
+                $totalResCount = (int) ($countStmt->get_result()->fetch_assoc()['c'] ?? 0);
+                $countStmt->close();
+            }
+
+            $stmt = $this->db->prepare("SELECT reservation_id, reservation_type, event_date, event_time, status FROM reservations WHERE user_id=? ORDER BY event_date DESC LIMIT 10");
+            $reservations = [];
             if ($stmt) {
                 $stmt->bind_param('i', $userId);
                 $stmt->execute();
                 $result = $stmt->get_result();
-                $reservations = [];
                 while ($row = $result->fetch_assoc()) {
                     $reservations[] = $row;
                 }
                 $stmt->close();
-
-                if (!empty($reservations)) {
-                    $lines = [];
-                    foreach ($reservations as $res) {
-                        $type = ucwords(str_replace('_', ' ', $res['reservation_type']));
-                        $date = date('M d, Y', strtotime($res['event_date']));
-                        $time = substr((string)$res['event_time'], 0, 5);
-                        $status = ucfirst($res['status']);
-                        $lines[] = "• **{$type}** on **{$date}** ({$time})\n  Status: **{$status}**";
-                    }
-                    $listStr = implode("\n\n", $lines);
-                    $answer = $isFil
-                        ? "Narito po ang tala ng inyong mga reservation sa parokya:\n\n{$listStr}\n\n[Make Reservation](../users/make-reservation.php)"
-                        : "Here is the status of your parish reservation(s):\n\n{$listStr}\n\n[Make Reservation](../users/make-reservation.php)";
-                } else {
-                    $answer = $isFil
-                        ? "Wala pa po kayong aktibong reservation sa ating pasilidad o kaganapan. Kung nais ninyong magpa-reserve, i-click lamang po ang link sa ibaba:\n\n[Make Reservation](../users/make-reservation.php)"
-                        : "You currently have no reservation bookings on file. If you would like to book a parish facility or schedule, click the link below:\n\n[Make Reservation](../users/make-reservation.php)";
-                }
-                return [
-                    'answer' => $answer,
-                    'prompts' => ['Make Reservation', 'Parish Schedule', 'Contact Parish Staff']
-                ];
             }
+
+            if ($totalResCount > 0 && !empty($reservations)) {
+                $lines = [];
+                foreach ($reservations as $res) {
+                    $type = ucwords(str_replace('_', ' ', $res['reservation_type']));
+                    $date = date('M d, Y', strtotime($res['event_date']));
+                    $time = substr((string)$res['event_time'], 0, 5);
+                    $status = ucfirst($res['status']);
+                    $lines[] = "• **{$type}** on **{$date}** ({$time})\n  Status: **{$status}**";
+                }
+                $listStr = implode("\n\n", $lines);
+                $answer = $isFil
+                    ? "Mayroon po kayong **{$totalResCount}** na reservation booking sa talaan:\n\n{$listStr}\n\n[Make Reservation](../users/make-reservation.php)"
+                    : "You have **{$totalResCount}** reservation booking(s) on file:\n\n{$listStr}\n\n[Make Reservation](../users/make-reservation.php)";
+            } else {
+                $answer = $isFil
+                    ? "Wala pa po kayong aktibong reservation sa ating pasilidad o kaganapan (**0 reservations**). Kung nais ninyong magpa-reserve, i-click lamang po ang link sa ibaba:\n\n[Make Reservation](../users/make-reservation.php)"
+                    : "You currently have **0** reservation bookings on file. If you would like to book a parish facility or schedule, click the link below:\n\n[Make Reservation](../users/make-reservation.php)";
+            }
+            return [
+                'answer' => $answer,
+                'prompts' => ['Make Reservation', 'Parish Schedule', 'Contact Parish Staff']
+            ];
         }
 
         // C. How to Request a Certificate
@@ -533,7 +561,10 @@ final class AiAssistantService
             '/\bpabasbas\b/iu' => 'blessing basbas',
             '/\bpari\b/iu' => 'parish priest pari',
             '/\bsecretary\b/iu' => 'parish secretary kalihim agnes calapaan',
-            '/\bkalihim\b/iu' => 'parish secretary agnes calapaan'
+            '/\bkalihim\b/iu' => 'parish secretary agnes calapaan',
+            '/\bhoy\s*many\b/iu' => 'how many',
+            '/\bhw\s*many\b/iu' => 'how many',
+            '/\bhw\s*much\b/iu' => 'how much'
         ];
         return preg_replace(array_keys($map), array_values($map), $text);
     }
