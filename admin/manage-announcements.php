@@ -1111,7 +1111,6 @@ $breadcrumbs = [
                                                     <form method="POST"><?php echo csrfInput(); ?><input type="hidden" name="action" value="send_notification"><input type="hidden" name="announcement_id" value="<?php echo intval($announcement['announcement_id']); ?>"><button class="dropdown-item" type="submit"><i class="fas fa-paper-plane"></i> Send notification</button></form>
                                                     <form method="POST" onsubmit="return confirm('Archive this announcement?');"><?php echo csrfInput(); ?><input type="hidden" name="action" value="archive_announcement"><input type="hidden" name="archive_reason" value="Archived through announcement management."><input type="hidden" name="announcement_id" value="<?php echo intval($announcement['announcement_id']); ?>"><button class="dropdown-item" type="submit"><i class="fas fa-archive"></i> Archive</button></form>
                                                 <?php endif; ?>
-                                                <button class="dropdown-item text-danger" type="button" data-bs-toggle="modal" data-bs-target="#deleteAnnouncement-<?php echo intval($announcement['announcement_id']); ?>"><i class="fas fa-trash"></i> Delete</button>
                                             </div>
                                         </div>
                                     </div>
