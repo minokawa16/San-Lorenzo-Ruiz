@@ -9811,16 +9811,12 @@ pointer-events: none !important;
 body.user-area .ai-assistant-widget.is-open .ai-assistant-trigger,
 body.premium-admin .ai-assistant-widget.is-open .ai-assistant-trigger,
 .ai-assistant-widget.is-open .ai-assistant-trigger {
-display: none !important;
+display: inline-flex !important;
 }
 body.user-area .ai-assistant-panel,
 body.premium-admin .ai-assistant-panel,
 .ai-assistant-panel {
 position: fixed !important;
-bottom: 24px !important;
-right: 24px !important;
-left: auto !important;
-top: auto !important;
 width: 390px !important;
 max-width: calc(100vw - 32px) !important;
 height: 560px !important;
