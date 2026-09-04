@@ -396,7 +396,7 @@ $body_extra_class = 'user-ai-chat-page';
 
     .tugon-ai-form {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) auto auto;
+        grid-template-columns: minmax(0, 1fr) auto;
         gap: 10px;
         align-items: end;
         padding: 12px 14px;
@@ -425,8 +425,7 @@ $body_extra_class = 'user-ai-chat-page';
         font-size: 0.92rem;
     }
 
-    .ai-send-btn,
-    .ai-voice-btn {
+    .ai-send-btn {
         border: 0;
         border-radius: 12px;
         min-height: 44px;
@@ -437,9 +436,6 @@ $body_extra_class = 'user-ai-chat-page';
         font-weight: 700;
         cursor: pointer;
         transition: transform 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
-    }
-
-    .ai-send-btn {
         padding: 0 20px;
         color: #FFFDF8;
         background: linear-gradient(135deg, var(--ai-primary), #243326);
@@ -452,18 +448,6 @@ $body_extra_class = 'user-ai-chat-page';
         color: #FFFFFF;
         transform: translateY(-1px);
         box-shadow: 0 6px 18px rgba(201, 166, 70, 0.35);
-    }
-
-    .ai-voice-btn {
-        width: 44px;
-        color: var(--ai-primary);
-        background: var(--ai-bg-cream);
-        border: 1px solid var(--ai-line);
-    }
-
-    .ai-voice-btn:hover {
-        background: var(--ai-gold-soft);
-        border-color: var(--ai-gold);
     }
 
     .tugon-ai-side {
@@ -529,8 +513,7 @@ $body_extra_class = 'user-ai-chat-page';
         color: var(--ai-text);
     }
 
-    .ai-dark-mode .ai-chip,
-    .ai-dark-mode .ai-voice-btn {
+    .ai-dark-mode .ai-chip {
         background: #28372A;
         color: #E8D8B5;
         border-color: rgba(201, 166, 70, 0.3);
@@ -681,9 +664,6 @@ $body_extra_class = 'user-ai-chat-page';
                     <form class="tugon-ai-form" id="aiChatForm">
                         <label class="visually-hidden" for="aiMessage">Ask a parish question</label>
                         <textarea id="aiMessage" rows="1" placeholder="Type your message..."></textarea>
-                        <button class="ai-voice-btn" type="button" id="aiVoiceBtn" title="Voice input" aria-label="Voice input">
-                            <i class="fas fa-microphone"></i>
-                        </button>
                         <button class="ai-send-btn" type="submit">
                             <i class="fas fa-paper-plane"></i>
                             <span>Send</span>
@@ -726,7 +706,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const darkToggle = document.getElementById('aiDarkToggle');
     const clearBtn = document.getElementById('aiClearBtn');
     const minimizeBtn = document.getElementById('aiMinimizeBtn');
-    const voiceBtn = document.getElementById('aiVoiceBtn');
     const sendBtn = form.querySelector('.ai-send-btn');
     const conversationHistory = [];
     let assistantCsrfToken = <?php echo json_encode(generateCsrfToken()); ?>;
@@ -1052,27 +1031,6 @@ document.addEventListener('DOMContentLoaded', function() {
         page.classList.toggle('ai-dark-mode');
         darkToggle.innerHTML = page.classList.contains('ai-dark-mode') ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
     });
-
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-        voiceBtn.disabled = true;
-        voiceBtn.title = 'Voice input is not supported by this browser';
-    } else {
-        const recognizer = new SpeechRecognition();
-        recognizer.lang = 'en-PH';
-        recognizer.continuous = false;
-        recognizer.interimResults = false;
-        voiceBtn.addEventListener('click', function() {
-            voiceBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
-            recognizer.start();
-        });
-        recognizer.onresult = function(event) {
-            input.value = event.results[0][0].transcript || '';
-        };
-        recognizer.onend = function() {
-            voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
-        };
-    }
 });
 </script>
 
