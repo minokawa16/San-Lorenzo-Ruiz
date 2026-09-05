@@ -112,6 +112,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $error = 'ID number is required.';
     } elseif (empty($_POST['face_capture']) || empty($_POST['valid_id_capture']) || empty($_POST['valid_id_back_capture'])) {
         $error = 'Live face capture and front/back ID verification must be completed before registration.';
+    } elseif (empty($_POST['terms_check'])) {
+        $error = 'You must read and agree to the Terms & Conditions and parish verification policy.';
     } elseif (($_POST['id_ocr_status'] ?? 'pending') === 'mismatch') {
         $error = 'Please correct the fields flagged by the front ID scan before registration.';
     } else {
@@ -2395,6 +2397,159 @@ $has_logo = is_file($logo_file);
             background: rgba(34, 197, 94, 0.04) !important;
         }
 
+        /* ===== SCROLLABLE TERMS BOX ===== */
+        .terms-scroll-box {
+            height: 260px;
+            overflow-y: auto;
+            padding: 18px 20px;
+            border-radius: 10px;
+            border: 1px solid var(--register-border);
+            background: #FFFFFF;
+            color: var(--register-text);
+            font-size: 0.85rem;
+            line-height: 1.65;
+            scroll-behavior: smooth;
+            scrollbar-width: thin;
+            scrollbar-color: var(--register-gold) #f5f0e8;
+        }
+
+        .terms-scroll-box::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .terms-scroll-box::-webkit-scrollbar-track {
+            background: #f5f0e8;
+            border-radius: 3px;
+        }
+
+        .terms-scroll-box::-webkit-scrollbar-thumb {
+            background: var(--register-gold);
+            border-radius: 3px;
+        }
+
+        .terms-scroll-box h4 {
+            font-size: 0.95rem;
+            font-weight: 800;
+            margin: 0 0 4px;
+            color: var(--register-text);
+        }
+
+        .terms-scroll-box h5 {
+            font-size: 0.84rem;
+            font-weight: 700;
+            margin: 0 0 14px;
+            color: var(--register-muted);
+            border-bottom: 1px solid var(--register-border);
+            padding-bottom: 10px;
+        }
+
+        .terms-scroll-box h6 {
+            font-size: 0.84rem;
+            font-weight: 800;
+            margin: 14px 0 4px;
+            color: var(--register-text);
+        }
+
+        .terms-scroll-box p, .terms-scroll-box ul {
+            margin: 0 0 10px;
+            color: rgba(28, 27, 24, 0.82);
+        }
+
+        .terms-scroll-box ul {
+            padding-left: 18px;
+        }
+
+        .terms-scroll-box ul li {
+            margin-bottom: 4px;
+        }
+
+        .terms-scroll-end-marker {
+            height: 1px;
+        }
+
+        .terms-scroll-notice {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            background: rgba(251, 191, 36, 0.12);
+            border: 1px solid rgba(251, 191, 36, 0.32);
+            color: #92400e;
+            font-size: 0.83rem;
+            font-weight: 700;
+            transition: opacity 0.4s ease, height 0.4s ease;
+        }
+
+        .terms-scroll-notice i {
+            color: #d97706;
+            animation: bounce-down 1.4s ease infinite;
+            flex-shrink: 0;
+        }
+
+        .terms-scroll-notice.is-done {
+            background: rgba(34, 197, 94, 0.08);
+            border-color: rgba(34, 197, 94, 0.3);
+            color: #15803d;
+        }
+
+        .terms-scroll-notice.is-done i {
+            animation: none;
+            color: #22c55e;
+        }
+
+        @keyframes bounce-down {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(4px); }
+        }
+
+        /* Terms checkbox disabled state */
+        #terms_check:disabled + span {
+            opacity: 0.52;
+            cursor: not-allowed;
+        }
+
+        label.terms-check:has(#terms_check:disabled) {
+            cursor: not-allowed;
+        }
+
+        /* Submit gate notice */
+        .submit-gate-notice {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            background: rgba(246, 223, 159, 0.16);
+            border: 1px dashed rgba(212, 169, 78, 0.4);
+            color: var(--register-muted);
+            font-size: 0.83rem;
+            font-weight: 700;
+            transition: all 0.35s ease;
+        }
+
+        .submit-gate-notice i {
+            color: var(--register-gold);
+            flex-shrink: 0;
+        }
+
+        .submit-gate-notice.is-ready {
+            background: rgba(34, 197, 94, 0.08);
+            border-color: rgba(34, 197, 94, 0.3);
+            border-style: solid;
+            color: #15803d;
+        }
+
+        .submit-gate-notice.is-ready i {
+            color: #22c55e;
+        }
+
+        .auth-register-card .terms-scroll-box {
+            background: #FFFFFF !important;
+            border-color: var(--register-border) !important;
+            color: var(--register-text) !important;
+        }
+
         @media (max-width: 640px) {
             .reg-step { padding: 14px 12px; gap: 12px; }
             .reg-step-header { gap: 10px; }
@@ -2402,6 +2557,7 @@ $has_logo = is_file($logo_file);
             .reg-step-divider::before { left: 30px; }
             .step-pill { font-size: 0.68rem; padding: 3px 9px; }
             .reg-step-info strong { font-size: 0.9rem; }
+            .terms-scroll-box { height: 210px; }
         }
     </style>
     <link rel="stylesheet" href="../assets/css/auth-mobile.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/auth-mobile.css'); ?>">
@@ -2744,14 +2900,94 @@ $has_logo = is_file($logo_file);
                 <div class="reg-step-divider" aria-hidden="true"></div>
 
                 <!-- ═══════════════════════════════════════════
-                     STEP 3 — Account Security & Submit
+                     STEP 3 — Terms & Verification Agreement
                 ═══════════════════════════════════════════ -->
                 <div class="reg-step" id="regStep3">
                     <div class="reg-step-header">
                         <div class="reg-step-badge-num" id="step3Num">3</div>
                         <div class="reg-step-info">
+                            <strong><i class="fas fa-file-contract" style="margin-right:5px;opacity:.7"></i>Terms &amp; Verification Agreement</strong>
+                            <span>Read the full terms carefully — you must scroll to the bottom before agreeing.</span>
+                        </div>
+                        <div class="reg-step-status">
+                            <span class="step-pill pending" id="step3Pill">Unread</span>
+                        </div>
+                    </div>
+
+                    <div class="terms-scroll-box" id="termsScrollBox" tabindex="0" role="region" aria-label="Terms and Conditions">
+                        <h4><i class="fas fa-church"></i> San Lorenzo Ruiz Mission Station &mdash; TUGON Parish System</h4>
+                        <h5>Terms &amp; Conditions, Parish Verification Policy, and Responsible Use of Sacramental Records</h5>
+                        <p><strong>Effective Date:</strong> Upon account registration and approval by the Parish Office.</p>
+
+                        <p>By completing your registration in the TUGON Parish Management System, you agree to the following terms governing the collection, use, and protection of your personal and sacramental information. Please read each section carefully.</p>
+
+                        <h6>1. Purpose of Registration</h6>
+                        <p>This system is exclusively for verified parishioners and residents of Aleosan, Cotabato who are affiliated with the San Lorenzo Ruiz Mission Station. Registration grants access to parish services including sacramental records, event schedules, requests, and parish announcements.</p>
+
+                        <h6>2. Accuracy of Information</h6>
+                        <p>You affirm that all information submitted during registration &mdash; including your name, address, birthdate, contact details, and valid government ID &mdash; is truthful, accurate, and complete. Submission of false, misleading, or fraudulent information constitutes grounds for immediate account suspension and may be reported to the appropriate authorities.</p>
+
+                        <h6>3. Identity Verification</h6>
+                        <p>Registration requires live face capture and front-and-back images of a valid government-issued ID. These biometric captures are used strictly for identity verification purposes. Your captures are encrypted, stored securely, and reviewed only by authorized Parish Office personnel. No biometric data is shared with third parties.</p>
+
+                        <h6>4. Parish Verification &amp; Approval Policy</h6>
+                        <p>All registrations are subject to manual review and approval by the Parish Office. Your account will remain in a <em>Pending Verification</em> status until a parish administrator confirms your identity. The Parish Office reserves the right to approve, defer, or reject any registration at its sole discretion, particularly if identity cannot be sufficiently verified.</p>
+
+                        <h6>5. Responsible Use of Sacramental Records</h6>
+                        <p>Sacramental records accessible through this system (Baptism, Confirmation, Marriage, etc.) are sacred and confidential ecclesiastical documents. You agree to:</p>
+                        <ul>
+                            <li>Access only records belonging to yourself or your immediate family members.</li>
+                            <li>Never reproduce, distribute, or commercially exploit any record retrieved from this system.</li>
+                            <li>Respect the dignity and privacy of all individuals named in sacramental records.</li>
+                            <li>Use records solely for lawful personal, spiritual, or administrative purposes.</li>
+                        </ul>
+
+                        <h6>6. Data Privacy &amp; Protection</h6>
+                        <p>The Parish System complies with the Philippine Data Privacy Act of 2012 (Republic Act No. 10173). Your personal data is collected with your consent, used only for parish administration, and protected by technical security measures. You have the right to access, correct, or request deletion of your personal data by contacting the Parish Office directly.</p>
+
+                        <h6>7. Account Responsibilities</h6>
+                        <p>You are solely responsible for maintaining the confidentiality of your login credentials. You must not share your account access with any other person. Any unauthorized use of your account must be reported to the Parish Office immediately. The parish is not liable for any damages resulting from your failure to secure your credentials.</p>
+
+                        <h6>8. System Use &amp; Conduct</h6>
+                        <p>Use of this system is limited to lawful, good-faith purposes aligned with the mission and values of the Catholic Church. Prohibited activities include, but are not limited to: unauthorized data access, system manipulation, harassment of parish staff or members, and any activity contrary to moral law or civil law.</p>
+
+                        <h6>9. Amendments</h6>
+                        <p>The Parish Office reserves the right to amend these Terms at any time. Registered parishioners will be notified of material changes. Continued use of the system after notification constitutes acceptance of the revised Terms.</p>
+
+                        <h6>10. Governing Authority</h6>
+                        <p>This system operates under the authority of the San Lorenzo Ruiz Mission Station Parish Office, Aleosan, Cotabato, Philippines. Disputes shall be resolved under the jurisdiction of applicable Philippine civil and canon law.</p>
+
+                        <div class="terms-scroll-end-marker" id="termsScrollEndMarker" aria-hidden="true"></div>
+                    </div>
+
+                    <div class="terms-scroll-notice" id="termsScrollNotice">
+                        <i class="fas fa-arrow-down"></i>
+                        <span>Scroll to the end of the Terms &amp; Conditions to enable the agreement checkbox.</span>
+                    </div>
+
+                    <div class="field-group full">
+                        <label class="auth-check terms-check" for="terms_check" id="termsCheckLabel">
+                            <input type="checkbox" id="terms_check" name="terms_check" required <?php echo !empty($_POST['terms_check']) ? 'checked' : 'disabled'; ?>>
+                            <span>I agree to the Terms &amp; Conditions, parish verification policy, and responsible use of sacramental records.</span>
+                        </label>
+                        <div class="field-message" data-error-for="terms_check"></div>
+                    </div>
+                </div>
+
+                <div class="reg-step-divider" aria-hidden="true"></div>
+
+                <!-- ═══════════════════════════════════════════
+                     STEP 4 — Account Security & Create Account
+                ═══════════════════════════════════════════ -->
+                <div class="reg-step" id="regStep4">
+                    <div class="reg-step-header">
+                        <div class="reg-step-badge-num" id="step4Num">4</div>
+                        <div class="reg-step-info">
                             <strong><i class="fas fa-shield-halved" style="margin-right:5px;opacity:.7"></i>Account Security</strong>
-                            <span>Set a strong password and confirm your parish application.</span>
+                            <span>Set a strong password to secure your parish account.</span>
+                        </div>
+                        <div class="reg-step-status">
+                            <span class="step-pill pending" id="step4Pill">Incomplete</span>
                         </div>
                     </div>
 
@@ -2786,15 +3022,12 @@ $has_logo = is_file($logo_file);
                         </div>
                     </div>
 
-                    <div class="field-group full">
-                        <label class="auth-check terms-check" for="terms_check">
-                            <input type="checkbox" id="terms_check" name="terms_check" required>
-                            <span>I agree to the Terms &amp; Conditions, parish verification policy, and responsible use of sacramental records.</span>
-                        </label>
-                        <div class="field-message" data-error-for="terms_check"></div>
+                    <div class="submit-gate-notice" id="submitGateNotice">
+                        <i class="fas fa-circle-info"></i>
+                        <span id="submitGateText">Complete all steps above — agree to the terms and fill all required fields — to enable account creation.</span>
                     </div>
 
-                    <button type="submit" class="submit-btn" id="registerSubmit" <?php echo $success ? 'disabled' : ''; ?>>
+                    <button type="submit" class="submit-btn" id="registerSubmit" <?php echo $success ? 'disabled' : ''; ?> disabled>
                         <span class="spinner" aria-hidden="true"></span>
                         <i class="fas fa-user-check submit-icon"></i>
                         <span class="submit-text"><?php echo $success ? 'Registration Submitted' : 'Create Account'; ?></span>
@@ -3122,6 +3355,192 @@ $has_logo = is_file($logo_file);
                 if (step1Pill)  { step1Pill.textContent = '\u2715 Scan Failed'; step1Pill.className = 'step-pill error'; }
                 if (banner)     banner.classList.add('is-unlocked');
                 if (bannerTxt)  bannerTxt.textContent = 'OCR scan failed \u2014 please fill in your details manually below.';
+            }
+            updateSubmitGate();
+        }
+
+        function initTermsScrollGate() {
+            const termsBox = document.getElementById('termsScrollBox');
+            const termsNotice = document.getElementById('termsScrollNotice');
+            const termsCheck = document.getElementById('terms_check');
+            const step3Pill = document.getElementById('step3Pill');
+            const regStep3 = document.getElementById('regStep3');
+            const endMarker = document.getElementById('termsScrollEndMarker');
+
+            if (!termsBox || !termsCheck) return;
+
+            let unlocked = !termsCheck.disabled;
+
+            function unlockTerms() {
+                if (unlocked) return;
+                unlocked = true;
+                termsCheck.disabled = false;
+                if (termsNotice) {
+                    termsNotice.classList.add('is-done');
+                    termsNotice.innerHTML = '<i class="fas fa-circle-check"></i><span>You have reached the end of the terms. You may now check the agreement box below.</span>';
+                }
+                if (!termsCheck.checked && step3Pill) {
+                    step3Pill.textContent = 'Ready to Agree';
+                    step3Pill.className = 'step-pill pending';
+                }
+                updateSubmitGate();
+            }
+
+            if (termsCheck.checked) {
+                unlocked = true;
+                termsCheck.disabled = false;
+                if (termsNotice) {
+                    termsNotice.classList.add('is-done');
+                    termsNotice.innerHTML = '<i class="fas fa-circle-check"></i><span>Terms &amp; Conditions agreed.</span>';
+                }
+                if (step3Pill) {
+                    step3Pill.textContent = '\u2713 Agreed';
+                    step3Pill.className = 'step-pill done';
+                }
+                if (regStep3) regStep3.classList.add('step-complete');
+            }
+
+            termsBox.addEventListener('scroll', () => {
+                const atBottom = termsBox.scrollHeight - termsBox.scrollTop - termsBox.clientHeight <= 25;
+                if (atBottom) {
+                    unlockTerms();
+                }
+            }, { passive: true });
+
+            if ('IntersectionObserver' in window && endMarker) {
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach((entry) => {
+                        if (entry.isIntersecting) {
+                            unlockTerms();
+                        }
+                    });
+                }, { root: termsBox, threshold: 0.1 });
+                observer.observe(endMarker);
+            }
+
+            if (termsBox.scrollHeight <= termsBox.clientHeight + 15) {
+                unlockTerms();
+            }
+
+            termsCheck.addEventListener('change', () => {
+                if (termsCheck.checked) {
+                    if (step3Pill) {
+                        step3Pill.textContent = '\u2713 Agreed';
+                        step3Pill.className = 'step-pill done';
+                    }
+                    if (regStep3) regStep3.classList.add('step-complete');
+                    setFieldError('terms_check', '');
+                } else {
+                    if (step3Pill) {
+                        step3Pill.textContent = 'Ready to Agree';
+                        step3Pill.className = 'step-pill pending';
+                    }
+                    if (regStep3) regStep3.classList.remove('step-complete');
+                }
+                updateSubmitGate();
+            });
+        }
+
+        function updateSubmitGate() {
+            const submitBtn = document.getElementById('registerSubmit');
+            const gateNotice = document.getElementById('submitGateNotice');
+            const step1Pill = document.getElementById('step1Pill');
+            const step2Pill = document.getElementById('step2Pill');
+            const step4Pill = document.getElementById('step4Pill');
+            const regStep1 = document.getElementById('regStep1');
+            const regStep2 = document.getElementById('regStep2');
+            const regStep4 = document.getElementById('regStep4');
+            const minPasswordLength = <?php echo (int) PASSWORD_MIN_LENGTH; ?>;
+
+            if (!submitBtn) return;
+
+            // Step 1: Live face & front/back valid ID
+            const hasFace = Boolean(fields.face_capture && fields.face_capture.value);
+            const hasFront = Boolean(fields.valid_id_capture && fields.valid_id_capture.value);
+            const hasBack = Boolean(fields.valid_id_back_capture && fields.valid_id_back_capture.value);
+            const step1Complete = hasFace && hasFront && hasBack;
+
+            if (step1Complete) {
+                if (regStep1) regStep1.classList.add('step-complete');
+            } else {
+                if (regStep1) regStep1.classList.remove('step-complete');
+            }
+
+            // Step 2: Personal information
+            const method = getRegistrationMethod();
+            const contactValid = method === 'email'
+                ? /^[^\s@]+@gmail\.com$/i.test(fields.email.value.trim())
+                : /^(09\d{9}|\+639\d{9})$/.test(fields.phone_number.value.trim());
+
+            const personalFilled = Boolean(
+                fields.first_name.value.trim() &&
+                fields.surname.value.trim() &&
+                fields.chapel_district.value &&
+                fields.address.value.trim() &&
+                fields.birthdate.value.trim() &&
+                fields.birth_place.value.trim() &&
+                fields.id_number.value.trim() &&
+                contactValid
+            );
+
+            if (personalFilled) {
+                if (step2Pill && !step2Pill.classList.contains('done')) {
+                    step2Pill.textContent = 'Completed';
+                    step2Pill.className = 'step-pill done';
+                }
+                if (regStep2) regStep2.classList.add('step-complete');
+            } else {
+                if (regStep2) regStep2.classList.remove('step-complete');
+            }
+
+            // Step 3: Terms agreed
+            const step3Complete = Boolean(fields.terms_check && fields.terms_check.checked);
+
+            // Step 4: Password valid & matched
+            const passVal = fields.password ? fields.password.value : '';
+            const confirmVal = fields.confirm_password ? fields.confirm_password.value : '';
+            const step4Complete = passVal.length >= minPasswordLength && passVal === confirmVal;
+
+            if (step4Pill) {
+                if (step4Complete) {
+                    step4Pill.textContent = '\u2713 Secured';
+                    step4Pill.className = 'step-pill done';
+                    if (regStep4) regStep4.classList.add('step-complete');
+                } else {
+                    step4Pill.textContent = 'Incomplete';
+                    step4Pill.className = 'step-pill pending';
+                    if (regStep4) regStep4.classList.remove('step-complete');
+                }
+            }
+
+            const allComplete = step1Complete && personalFilled && step3Complete && step4Complete;
+
+            if (allComplete) {
+                submitBtn.disabled = false;
+                if (gateNotice) {
+                    gateNotice.classList.add('is-ready');
+                    gateNotice.innerHTML = '<i class="fas fa-circle-check"></i><span>All requirements completed! Click <strong>Create Account</strong> to submit your registration.</span>';
+                }
+            } else {
+                submitBtn.disabled = true;
+                if (gateNotice) {
+                    gateNotice.classList.remove('is-ready');
+                    let hint = 'Complete all 4 steps above to enable account creation.';
+                    if (!step1Complete) {
+                        hint = 'Step 1: Capture live face, front ID, and back ID.';
+                    } else if (!personalFilled) {
+                        hint = 'Step 2: Fill in all required personal information fields.';
+                    } else if (!step3Complete) {
+                        hint = 'Step 3: Scroll to the end of the terms and check the agreement box.';
+                    } else if (!step4Complete) {
+                        if (passVal.length < minPasswordLength) {
+                            hint = 'Step 4: Password must be at least ' + minPasswordLength + ' characters.';
+                        } else if (passVal !== confirmVal) {
+                            hint = 'Step 4: Passwords do not match.';
+                        }
+                    }
+                    gateNotice.innerHTML = '<i class="fas fa-circle-info"></i><span>' + hint + '</span>';
+                }
             }
         }
 
@@ -3469,17 +3888,20 @@ $has_logo = is_file($logo_file);
                 if (field.classList.contains('is-invalid-field')) {
                     validateForm();
                 }
+                updateSubmitGate();
             });
             field.addEventListener('change', () => {
                 if (field.classList.contains('is-invalid-field')) {
                     validateForm();
                 }
+                updateSubmitGate();
             });
         });
 
         verificationMethodInputs.forEach((input) => {
             input.addEventListener('change', () => {
                 syncRegistrationMethod();
+                updateSubmitGate();
             });
         });
         syncRegistrationMethod();
@@ -3628,6 +4050,7 @@ $has_logo = is_file($logo_file);
                 captureIdBackBtn.disabled = false;
                 setCameraStatus('Capture or upload the ' + (side === 'front' ? 'front' : 'back') + ' side of the ID. Fill the yellow frame and keep text sharp.');
             }
+            updateSubmitGate();
         }
 
         async function detectFaceLoop() {
@@ -3727,6 +4150,7 @@ $has_logo = is_file($logo_file);
                 clearInterval(detectionTimer);
                 detectionTimer = setInterval(detectFaceLoop, 350);
             }
+            updateSubmitGate();
         });
 
         function updateIdSide(side, dataUrl) {
@@ -3751,6 +4175,7 @@ $has_logo = is_file($logo_file);
                 const nextSide = fields.valid_id_capture.value ? 'back' : 'front';
                 switchToIdCapture(nextSide);
             }
+            updateSubmitGate();
         }
 
         captureIdFrontBtn.addEventListener('click', async () => {
@@ -3879,6 +4304,10 @@ $has_logo = is_file($logo_file);
                 showToast('error', 'Session token refresh failed', error.message || 'Please refresh the registration page and try again.');
             }
         });
+
+        // Initialize Terms scroll-gate and submit button gating
+        initTermsScrollGate();
+        updateSubmitGate();
     </script>
 </body>
 </html>
