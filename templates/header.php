@@ -161,6 +161,25 @@ if ($is_admin_area) {
     $header_user_first_name = trim(explode(' ', $header_user_name)[0] ?? $header_user_name);
     $header_user_role = 'Parishioner';
 }
+
+$header_avatar_url = '';
+if (isLoggedIn()) {
+    if (!isset($_SESSION['profile_picture']) && isset($conn) && $conn instanceof mysqli) {
+        $u_stmt = $conn->prepare("SELECT profile_picture FROM users WHERE id = ? LIMIT 1");
+        if ($u_stmt) {
+            $u_stmt->bind_param('i', $_SESSION['user_id']);
+            $u_stmt->execute();
+            $u_res = $u_stmt->get_result();
+            if ($u_row = $u_res->fetch_assoc()) {
+                $_SESSION['profile_picture'] = (string) ($u_row['profile_picture'] ?? '');
+            }
+            $u_stmt->close();
+        }
+    }
+    if (!empty($_SESSION['profile_picture'])) {
+        $header_avatar_url = BASE_URL . ltrim($_SESSION['profile_picture'], '/');
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo $current_language === 'fil' ? 'fil' : 'en'; ?>">
@@ -240,8 +259,13 @@ if ($is_admin_area) {
                 <div class="app-header-right admin-global-actions user-global-actions">
                     <div class="dropdown">
                         <button class="profile-btn user-profile-btn parish-profile-pill-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" id="userProfileDropdown">
-                            <span class="profile-avatar parish-profile-avatar">
-                                <?php echo $header_avatar_initial; ?>
+                            <span class="profile-avatar parish-profile-avatar" style="overflow: hidden; padding: 0;">
+                                <?php if (!empty($header_avatar_url)): ?>
+                                    <img src="<?php echo e($header_avatar_url); ?>" alt="Avatar" class="parish-avatar-img" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
+                                    <span style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center;"><?php echo $header_avatar_initial; ?></span>
+                                <?php else: ?>
+                                    <?php echo $header_avatar_initial; ?>
+                                <?php endif; ?>
                             </span>
                             <span class="profile-meta parish-profile-meta">
                                 <span class="profile-name parish-profile-name"><?php echo $header_user_name; ?></span>
@@ -283,7 +307,14 @@ if ($is_admin_area) {
                 <div class="dashboard-header-profile-wrap parish-nav-right admin-global-actions">
                     <div class="dropdown">
                         <button class="profile-chip-btn admin-profile-btn parish-profile-pill-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <span class="profile-chip-avatar profile-avatar parish-profile-avatar"><?php echo $header_avatar_initial; ?></span>
+                            <span class="profile-chip-avatar profile-avatar parish-profile-avatar" style="overflow: hidden; padding: 0;">
+                                <?php if (!empty($header_avatar_url)): ?>
+                                    <img src="<?php echo e($header_avatar_url); ?>" alt="Avatar" class="parish-avatar-img" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
+                                    <span style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center;"><?php echo $header_avatar_initial; ?></span>
+                                <?php else: ?>
+                                    <?php echo $header_avatar_initial; ?>
+                                <?php endif; ?>
+                            </span>
                             <span class="profile-chip-meta profile-meta parish-profile-meta">
                                 <span class="profile-chip-name profile-name parish-profile-name"><?php echo $header_user_name; ?></span>
                                 <span class="profile-chip-role profile-role parish-profile-role"><?php echo e($header_user_role); ?></span>

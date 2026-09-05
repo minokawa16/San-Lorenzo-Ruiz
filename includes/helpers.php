@@ -1795,6 +1795,81 @@ function indexExists($conn, $table, $index) {
     return $result && $result->num_rows > 0;
 }
 
+
+// User Profile Fields Schema - Adds structured profile columns if they do not exist
+function ensureUserProfileFieldsSchema($conn) {
+    if (!($conn instanceof mysqli)) {
+        return false;
+    }
+    $columns = [
+        'middle_name' => "VARCHAR(100) NULL AFTER first_name",
+        'suffix' => "VARCHAR(30) NULL AFTER middle_initial",
+        'id_type' => "VARCHAR(100) NULL AFTER nationality",
+        'street_address' => "VARCHAR(255) NULL AFTER address",
+        'barangay' => "VARCHAR(100) NULL AFTER street_address",
+        'city' => "VARCHAR(100) NULL AFTER barangay",
+        'province' => "VARCHAR(100) NULL AFTER city"
+    ];
+    foreach ($columns as $col => $definition) {
+        if (!columnExists($conn, 'users', $col)) {
+            @$conn->query("ALTER TABLE `users` ADD COLUMN `$col` $definition");
+        }
+    }
+    return true;
+}
+
+// Avatar Upload Directory - Ensures the avatar storage directory exists with index protection
+function ensureAvatarUploadDirectory(): string {
+    $dir = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'avatars';
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0755, true);
+    }
+    $indexFile = $dir . DIRECTORY_SEPARATOR . 'index.php';
+    if (!file_exists($indexFile)) {
+        @file_put_contents($indexFile, "<?php\nhttp_response_code(403);\nexit('Access denied');\n");
+    }
+    return $dir;
+}
+
+// ID Type Detection - Determines human-readable government ID type from user verification metadata
+function detectUserIdType(array $user): string {
+    if (!empty($user['id_type'])) {
+        return $user['id_type'];
+    }
+    $orig = strtolower((string)($user['valid_id_original_name'] ?? ''));
+    $path = strtolower((string)($user['valid_id_path'] ?? ''));
+    if (strpos($orig, 'philsys') !== false || strpos($orig, 'national') !== false) {
+        return 'Philippine National ID (PhilSys)';
+    }
+    if (strpos($orig, 'driver') !== false) {
+        return "Driver's License";
+    }
+    if (strpos($orig, 'umid') !== false) {
+        return 'UMID Card';
+    }
+    if (strpos($orig, 'passport') !== false) {
+        return 'Philippine Passport';
+    }
+    if (strpos($orig, 'sss') !== false) {
+        return 'Social Security System (SSS) ID';
+    }
+    if (strpos($orig, 'prc') !== false) {
+        return 'PRC ID';
+    }
+    if (strpos($orig, 'postal') !== false) {
+        return 'Postal ID';
+    }
+    if (strpos($orig, 'voter') !== false) {
+        return "Voter's ID";
+    }
+    if (!empty($path)) {
+        return 'Philippine Government-Issued ID';
+    }
+    return !empty($user['role']) && $user['role'] === 'admin'
+        ? 'Parish Administrator Credential'
+        : 'Government-Issued ID (On Record)';
+}
+
 // Identity Protection - Derives the encryption key used for sensitive verification assets.
 function getVerificationEncryptionKey() {
     $keys = getVerificationEncryptionKeys();

@@ -256,6 +256,7 @@ function establishAuthenticatedSession(mysqli $conn, array $user, bool $mfaVerif
     $_SESSION['user_id'] = (int) $user['id'];
     $_SESSION['fullname'] = (string) $user['fullname'];
     $_SESSION['email'] = (string) ($user['email'] ?? '');
+    $_SESSION['profile_picture'] = (string) ($user['profile_picture'] ?? '');
     $_SESSION['role_keys'] = $roles;
     $_SESSION['role'] = legacyRoleKey($roles[0]);
     $_SESSION['password_authenticated'] = true;

@@ -22,6 +22,7 @@ uploads/announcements/*
 uploads/live_faces/*
 uploads/valid_ids/*
 uploads/request_requirements/*
+uploads/avatars/*
 
 # Local backups and exports
 backups/*.sql
@@ -36,6 +37,7 @@ backups/*.zip
 !uploads/announcements/index.php
 !uploads/request_requirements/.htaccess
 !uploads/request_requirements/index.php
+!uploads/avatars/index.php
 .codex-deploy-clean/
 TUGON-AI-PRODUCTION-BACKUP/
 scratch/
