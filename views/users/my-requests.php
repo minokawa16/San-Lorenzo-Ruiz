@@ -75,7 +75,7 @@
                                     </td>
                                     <td class="py-3 px-3" data-label="Status">
                                         <span class="badge bg-<?php echo getStatusBadgeClass($request['status']); ?> px-2 py-1" style="font-size: 0.78rem; font-weight: 600;">
-                                            <?php echo e(ucfirst($request['status'])); ?>
+                                            <?php echo e(ucfirst(str_replace('_', ' ', $request['status']))); ?>
                                         </span>
                                     </td>
                                     <td class="py-3 px-3 text-muted" data-label="Date Requested" style="font-size: 0.88rem;">

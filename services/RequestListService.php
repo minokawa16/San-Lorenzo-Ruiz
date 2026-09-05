@@ -5,7 +5,7 @@ require_once dirname(__DIR__) . '/repositories/RequestRepository.php';
 /** Validates filters and assembles the request-list view model. */
 final class RequestListService
 {
-    public const ALLOWED_STATUSES = ['pending', 'submitted', 'requirements_review', 'needs_information', 'payment_required', 'payment_review', 'approved', 'scheduled', 'processing', 'ready_for_release', 'completed', 'rejected', 'cancelled'];
+    public const ALLOWED_STATUSES = ['pending', 'processing', 'completed', 'rejected'];
     private $repository;
 
     public function __construct(RequestRepository $repository)

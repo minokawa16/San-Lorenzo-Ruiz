@@ -18,7 +18,11 @@ final class RequestRepository
 
         if ($status !== '') {
             if ($status === 'pending') {
-                $where[] = "(status = 'pending' OR status = 'submitted' OR status = 'requirements_review')";
+                $where[] = "(status = 'pending' OR status = 'submitted' OR status = 'requirements_review' OR status = 'needs_information' OR status = 'payment_required' OR status = 'payment_review')";
+            } elseif ($status === 'processing') {
+                $where[] = "(status = 'processing' OR status = 'approved' OR status = 'scheduled' OR status = 'ready_for_release')";
+            } elseif ($status === 'rejected') {
+                $where[] = "(status = 'rejected' OR status = 'cancelled')";
             } else {
                 $where[] = 'status = ?';
                 $types .= 's';
