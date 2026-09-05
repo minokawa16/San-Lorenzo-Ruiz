@@ -3,6 +3,7 @@
 require_once __DIR__ . '/authentication.php';
 require_once __DIR__ . '/helpers.php';
 
+if (!function_exists('synchronizeAuthenticationIdentifier')) {
 function synchronizeAuthenticationIdentifier(mysqli $conn, int $userId, string $type, ?string $value, ?string $verifiedAt = null): bool {
     if (!in_array($type, ['email', 'mobile'], true)) {
         return false;
@@ -51,7 +52,9 @@ function synchronizeAuthenticationIdentifier(mysqli $conn, int $userId, string $
     $statement->close();
     return $success;
 }
+}
 
+if (!function_exists('authenticationIdentifierAvailable')) {
 function authenticationIdentifierAvailable(mysqli $conn, string $type, string $value, ?int $exceptUserId = null): bool {
     $normalized = $type === 'email' ? strtolower(trim($value)) : normalizePhilippineMobileForStorage($value);
 
@@ -109,7 +112,9 @@ function authenticationIdentifierAvailable(mysqli $conn, string $type, string $v
 
     return true;
 }
+}
 
+if (!function_exists('assignUserRole')) {
 function assignUserRole(mysqli $conn, int $userId, string $roleKey, ?int $assignedBy = null): bool {
     $role = $conn->prepare('SELECT role_id FROM roles WHERE role_key = ? LIMIT 1');
     if (!$role) {
@@ -135,7 +140,9 @@ function assignUserRole(mysqli $conn, int $userId, string $roleKey, ?int $assign
     $statement->close();
     return $success;
 }
+}
 
+if (!function_exists('recordAccountStatusChange')) {
 function recordAccountStatusChange(mysqli $conn, int $userId, ?string $previous, string $next, string $action, ?string $reason, ?int $actor): bool {
     $ip = authenticationClientIp();
     $agent = authenticationUserAgent();
@@ -148,7 +155,9 @@ function recordAccountStatusChange(mysqli $conn, int $userId, ?string $previous,
     $statement->close();
     return $success;
 }
+}
 
+if (!function_exists('recordRegistrationReview')) {
 function recordRegistrationReview(mysqli $conn, int $userId, string $action, ?string $previous, string $next, ?string $reason, ?int $actor): bool {
     $ip = authenticationClientIp();
     $agent = authenticationUserAgent();
@@ -161,7 +170,9 @@ function recordRegistrationReview(mysqli $conn, int $userId, string $action, ?st
     $statement->close();
     return $success;
 }
+}
 
+if (!function_exists('transitionAccountStatus')) {
 function transitionAccountStatus(mysqli $conn, int $userId, string $nextStatus, string $action, ?string $reason, ?int $actor): bool {
     $allowed = ['pending_verification', 'active', 'rejected', 'inactive', 'archived'];
     if (!in_array($nextStatus, $allowed, true)) {
@@ -216,4 +227,5 @@ function transitionAccountStatus(mysqli $conn, int $userId, string $nextStatus, 
         $conn->rollback();
         return false;
     }
+}
 }

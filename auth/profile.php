@@ -3,11 +3,11 @@
  * User Profile Module - Handles profile details, avatar uploads, preferences, and account settings.
  */
 // Include centralized session management
-include '../includes/session.php';
-include '../config/security.php';
-include '../database/config.php';
-include '../includes/helpers.php';
-include '../includes/account-management.php';
+require_once __DIR__ . '/../includes/session.php';
+require_once __DIR__ . '/../config/security.php';
+require_once __DIR__ . '/../database/config.php';
+require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../includes/account-management.php';
 
 requireLogin();
 ensureEmailNotificationSchema($conn);
