@@ -1248,6 +1248,18 @@ function ensureExpandedRequestTypeSchema($conn) {
         && requireSchemaColumns($conn, 'requests', ['request_id', 'user_id', 'request_type'], 'requests');
 }
 
+// Request Duplicate Guard - Ensures record_holder_name column and indexes exist on requests table.
+function ensureCertificateDuplicateGuardSchema($conn) {
+    if (!($conn instanceof mysqli)) return false;
+    $res = $conn->query("SHOW COLUMNS FROM requests LIKE 'record_holder_name'");
+    if ($res && $res->num_rows === 0) {
+        $conn->query("ALTER TABLE requests ADD COLUMN record_holder_name VARCHAR(191) NULL AFTER request_type");
+        $conn->query("ALTER TABLE requests ADD KEY idx_requests_duplicate_guard (user_id, request_type, record_holder_name, status)");
+    }
+    return true;
+}
+
+
 // Request Documents - Prepares file metadata storage for uploaded parish requirements.
 function ensureRequestDocumentsSchema($conn) {
     return $conn instanceof mysqli

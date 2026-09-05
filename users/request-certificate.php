@@ -21,6 +21,7 @@ $success = '';
 $request_idempotency_key = bin2hex(random_bytes(32));
 ensureRequestDocumentsSchema($conn);
 ensureEmailNotificationSchema($conn);
+ensureCertificateDuplicateGuardSchema($conn);
 
 $certificate_types = [
     'baptism_certification' => 'Baptismal Certification',
@@ -144,9 +145,15 @@ function certificateLabel($value, $labels = []) {
     $request_type = trim((string) ($_POST['request_type'] ?? $_POST['certificate_mobile_type'] ?? ''));
     $purpose = trim((string) ($_POST['purpose'] ?? ''));
     $purpose_other = trim((string) ($_POST['purpose_other'] ?? ''));
+    $record_holder_name = trim((string) ($_POST['record_holder_name'] ?? ''));
+    if ($record_holder_name === '') {
+        $record_holder_name = trim((string) ($_SESSION['fullname'] ?? ''));
+    }
 
     if (!array_key_exists($request_type, $certificate_types)) {
         $error = 'Please select a certificate type.';
+    } elseif ($record_holder_name === '') {
+        $error = 'Please provide the full legal name of the person named on the certificate.';
     } elseif (!array_key_exists($purpose, $certificate_purposes)) {
         $error = 'Please select the purpose of your certificate request.';
     } elseif ($purpose === 'others' && $purpose_other === '') {
@@ -158,6 +165,7 @@ function certificateLabel($value, $labels = []) {
     } else {
         $purpose_description = $purpose === 'others' ? $purpose_other : $certificate_purposes[$purpose];
         $description_parts = [
+            'Record Holder Name: ' . $record_holder_name,
             'Required document: ' . $certificate_required_document,
             'Purpose: ' . $purpose_description
         ];
@@ -167,7 +175,11 @@ function certificateLabel($value, $labels = []) {
             if (empty($idempotency_key) || !preg_match('/^[a-f0-9]{64}$/', $idempotency_key)) {
                 $idempotency_key = bin2hex(random_bytes(32));
             }
-            $requestResult = (new RequestService($conn))->create(['request_type' => $request_type, 'description' => $description], $user_id, $idempotency_key);
+            $requestResult = (new RequestService($conn))->create([
+                'request_type' => $request_type,
+                'description' => $description,
+                'record_holder_name' => $record_holder_name
+            ], $user_id, $idempotency_key);
             $request_id = (int) $requestResult['request_id'];
             $reference_number = $requestResult['reference_number'];
             $documents = saveMultipleRequirementDocuments($conn, $request_id, $user_id, $_FILES['requirement_files'] ?? null);
@@ -179,6 +191,13 @@ function certificateLabel($value, $labels = []) {
                 $file_text = $doc_count === 1 ? 'file' : 'files';
                 createNotification($conn, $user_id, 'Certificate Request Created', 'Your certificate request has been submitted with reference: ' . $reference_number . ' (' . $doc_count . ' ' . $file_text . ' attached)');
                 $success = 'Certificate request submitted successfully! Reference: ' . $reference_number . ' (' . $doc_count . ' file' . ($doc_count === 1 ? '' : 's') . ' attached)';
+            }
+        } catch (DuplicateRequestException $exception) {
+            http_response_code(409);
+            $duplicate_ref = $exception->getReferenceNumber();
+            $error = '<strong>Duplicate Request Blocked (HTTP 409 Conflict):</strong> ' . e($exception->getMessage());
+            if ($duplicate_ref) {
+                $error .= ' <a href="my-requests.php" class="alert-link text-decoration-underline ms-1">Track Existing Request (' . e($duplicate_ref) . ')</a>';
             }
         } catch (Throwable $exception) {
             $error = 'Unable to save your certificate request: ' . $exception->getMessage();
@@ -1703,14 +1722,14 @@ if ($stmt) {
                 <div class="step-heading">
                     <span class="step-number">2</span>
                     <div>
-                        <h3>Applicant Details</h3>
-                        <p>Confirm who is submitting this certificate request.</p>
+                        <h3>Applicant & Record Details</h3>
+                        <p>Confirm who is submitting this request and whose sacramental record is needed.</p>
                     </div>
                 </div>
 
                 <div class="row g-3">
                     <div class="col-lg-4">
-                        <label class="form-label">Full Name</label>
+                        <label class="form-label">Applicant Name (You)</label>
                         <input type="text" class="form-control request-form-control" value="<?php echo e($_SESSION['fullname'] ?? ''); ?>" readonly>
                     </div>
                     <div class="col-lg-4">
@@ -1722,6 +1741,11 @@ if ($stmt) {
                         <div class="form-control request-form-control d-flex align-items-center gap-2 text-muted">
                             <i class="fas fa-bell"></i> Updates appear in Notifications.
                         </div>
+                    </div>
+                    <div class="col-12 mt-1">
+                        <label for="record_holder_name" class="form-label"><strong>Record Holder's Full Name (Person on Certificate)</strong> <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control request-form-control" id="record_holder_name" name="record_holder_name" value="<?php echo e($_POST['record_holder_name'] ?? $_SESSION['fullname'] ?? ''); ?>" placeholder="Full legal name as it appears in parish sacramental records" required>
+                        <div class="form-text text-muted"><i class="fas fa-info-circle"></i> If requesting your own certificate, keep your name. If requesting for your child, spouse, or relative, enter their full legal name.</div>
                     </div>
                 </div>
             </section>
@@ -1916,6 +1940,11 @@ if ($stmt) {
 
         if (form) {
             form.addEventListener('submit', function(event) {
+                if (form.dataset.submitting === 'true') {
+                    event.preventDefault();
+                    return false;
+                }
+
                 const checkedRadio = document.querySelector('input[name="request_type"]:checked');
                 const mobileVal = mobileSelect ? mobileSelect.value : '';
                 const selectedType = (checkedRadio ? checkedRadio.value : '') || mobileVal;
@@ -1930,6 +1959,14 @@ if ($stmt) {
                     } else if (mobileSelect) {
                         mobileSelect.focus();
                     }
+                    return false;
+                }
+
+                const recordHolderInput = document.getElementById('record_holder_name');
+                if (recordHolderInput && !recordHolderInput.value.trim()) {
+                    event.preventDefault();
+                    alert('Please provide the full legal name of the person named on the certificate.');
+                    recordHolderInput.focus();
                     return false;
                 }
 
@@ -1953,16 +1990,16 @@ if ($stmt) {
 
                 if (fileInput && (!fileInput.files || fileInput.files.length === 0)) {
                     event.preventDefault();
-                    alert('Please upload a copy of the PSA / Birth Certificate before submitting.');
+                    alert('Please upload a copy of the required supporting document before submitting.');
                     fileInput.focus();
                     return false;
                 }
 
+                // Immediately lock submission and disable button on first click to prevent rapid double-clicks
+                form.dataset.submitting = 'true';
                 if (submitBtn) {
                     submitBtn.classList.add('is-loading');
-                    window.setTimeout(function() {
-                        submitBtn.disabled = true;
-                    }, 10);
+                    submitBtn.disabled = true;
                 }
             });
         }

@@ -53,10 +53,10 @@ final class ResourceAvailabilityService {
         $types = str_repeat('i', count($ids)) . 'ss';
         $params[] = $occupiedEnd; $params[] = $occupiedStart;
         if ($excludeReservationId !== null) { $sql .= ' AND r.reservation_id<>?'; $types .= 'i'; $params[] = $excludeReservationId; }
-        $sql .= ' LIMIT 1';
+        $sql .= ' LIMIT 1 FOR UPDATE';
         $stmt = $this->db->prepare($sql); $stmt->bind_param($types, ...$params); $stmt->execute();
         $conflict = $stmt->get_result()->fetch_assoc(); $stmt->close();
-        if ($conflict) throw new DomainException($conflict['name'] . ' is already occupied during this schedule, including setup and cleanup time.');
+        if ($conflict) throw new DomainException($conflict['name'] . ' is already occupied during this schedule, including setup, cleanup, and transition buffer time. Please select an available time slot.');
 
         $stmt = $this->db->prepare("SELECT u.*,x.name FROM resource_unavailability u JOIN resources x ON x.resource_id=u.resource_id WHERE u.resource_id IN ($placeholders) AND (u.recurrence_rule IS NOT NULL OR (u.start_at < ? AND u.end_at > ?))");
         $params = $ids; $types = str_repeat('i', count($ids)) . 'ss'; $params[] = $occupiedEnd; $params[] = $occupiedStart;
