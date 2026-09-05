@@ -2212,6 +2212,197 @@ $has_logo = is_file($logo_file);
             font-size: 1.05rem !important;
             flex: 0 0 auto !important;
         }
+
+        /* ===== 3-TIER REGISTRATION STEP LAYOUT ===== */
+        .registration-form {
+            display: grid !important;
+            gap: 0 !important;
+        }
+
+        .reg-step {
+            position: relative;
+            display: grid;
+            gap: 14px;
+            padding: 20px;
+            border-radius: 14px;
+            border: 1px solid var(--register-border);
+            background: rgba(246, 223, 159, 0.06);
+            margin-bottom: 0;
+            transition: border-color 0.3s ease, background 0.3s ease;
+        }
+
+        .auth-register-card .reg-step {
+            background: rgba(246, 223, 159, 0.07) !important;
+            border-color: var(--register-border) !important;
+        }
+
+        .reg-step.step-complete {
+            border-color: rgba(34, 197, 94, 0.38) !important;
+            background: rgba(34, 197, 94, 0.04) !important;
+        }
+
+        .reg-step-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .reg-step-badge-num {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 38px;
+            height: 38px;
+            min-width: 38px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--register-gold-soft), var(--register-gold));
+            color: #1C1B18;
+            font-weight: 900;
+            font-size: 1rem;
+            flex-shrink: 0;
+            box-shadow: 0 4px 12px rgba(212, 169, 78, 0.26);
+            transition: background 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .reg-step.step-complete .reg-step-badge-num {
+            background: linear-gradient(135deg, #86efac, #22c55e);
+            color: #14532d;
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.24);
+        }
+
+        .reg-step-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .reg-step-info strong {
+            font-weight: 800;
+            font-size: 0.98rem;
+            color: var(--register-text);
+            display: block;
+        }
+
+        .reg-step-info span {
+            font-size: 0.81rem;
+            color: var(--register-muted);
+            line-height: 1.4;
+            display: block;
+        }
+
+        .reg-step-status {
+            flex-shrink: 0;
+            margin-left: auto;
+        }
+
+        .step-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 11px;
+            border-radius: 999px;
+            font-size: 0.73rem;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+            white-space: nowrap;
+            border: 1px solid transparent;
+        }
+
+        .step-pill.pending {
+            background: rgba(246, 223, 159, 0.26);
+            color: #6F675A;
+            border-color: var(--register-border);
+        }
+
+        .step-pill.scanning {
+            background: rgba(251, 191, 36, 0.16);
+            color: #92400e;
+            border-color: rgba(251, 191, 36, 0.32);
+            animation: pill-pulse 1.6s ease infinite;
+        }
+
+        .step-pill.done {
+            background: rgba(34, 197, 94, 0.13);
+            color: #15803d;
+            border-color: rgba(34, 197, 94, 0.28);
+        }
+
+        .step-pill.error {
+            background: rgba(239, 68, 68, 0.11);
+            color: #b91c1c;
+            border-color: rgba(239, 68, 68, 0.26);
+        }
+
+        @keyframes pill-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .reg-step-divider {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 22px;
+            position: relative;
+            margin: 0;
+        }
+
+        .reg-step-divider::before {
+            content: "";
+            position: absolute;
+            left: 38px;
+            top: 0;
+            width: 2px;
+            height: 100%;
+            background: linear-gradient(180deg, var(--register-border) 60%, transparent);
+        }
+
+        .reg-fields-lock-banner {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            background: rgba(246, 223, 159, 0.16);
+            border: 1px dashed rgba(212, 169, 78, 0.4);
+            color: var(--register-muted);
+            font-size: 0.84rem;
+            font-weight: 700;
+            transition: background 0.4s ease, border-color 0.4s ease, color 0.4s ease;
+        }
+
+        .reg-fields-lock-banner i {
+            color: var(--register-gold);
+            flex-shrink: 0;
+            font-size: 1rem;
+        }
+
+        .reg-fields-lock-banner.is-unlocked {
+            background: rgba(34, 197, 94, 0.08);
+            border-color: rgba(34, 197, 94, 0.3);
+            border-style: solid;
+            color: #15803d;
+        }
+
+        .reg-fields-lock-banner.is-unlocked i {
+            color: #22c55e;
+        }
+
+        .form-control.ocr-autofilled {
+            border-color: rgba(34, 197, 94, 0.52) !important;
+            background: rgba(34, 197, 94, 0.04) !important;
+        }
+
+        @media (max-width: 640px) {
+            .reg-step { padding: 14px 12px; gap: 12px; }
+            .reg-step-header { gap: 10px; }
+            .reg-step-badge-num { width: 32px; height: 32px; min-width: 32px; font-size: 0.9rem; }
+            .reg-step-divider::before { left: 30px; }
+            .step-pill { font-size: 0.68rem; padding: 3px 9px; }
+            .reg-step-info strong { font-size: 0.9rem; }
+        }
     </style>
     <link rel="stylesheet" href="../assets/css/auth-mobile.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/auth-mobile.css'); ?>">
 </head>
@@ -2303,256 +2494,312 @@ $has_logo = is_file($logo_file);
 
             <form method="POST" action="" class="registration-form" id="registrationForm" novalidate>
                 <?php echo csrfInput(); ?>
-                <div class="field-group full">
-                    <span class="field-label">Registration Method</span>
-                    <div class="verification-options">
-                        <label class="verification-option">
-                            <input type="radio" name="verification_method" value="email" <?php echo $form_data['verification_method'] === 'email' ? 'checked' : ''; ?>>
-                            <span><i class="fas fa-envelope-circle-check"></i> Register using Email Address</span>
-                        </label>
-                        <label class="verification-option">
-                            <input type="radio" name="verification_method" value="mobile" <?php echo $form_data['verification_method'] === 'mobile' ? 'checked' : ''; ?>>
-                            <span><i class="fas fa-mobile-screen-button"></i> Register using Mobile Number</span>
-                        </label>
+
+                <!-- ═══════════════════════════════════════════
+                     STEP 1 — Identity Verification & ID Scan
+                ═══════════════════════════════════════════ -->
+                <div class="reg-step" id="regStep1">
+                    <div class="reg-step-header">
+                        <div class="reg-step-badge-num" id="step1Num">1</div>
+                        <div class="reg-step-info">
+                            <strong><i class="fas fa-camera" style="margin-right:5px;opacity:.7"></i>Identity Verification</strong>
+                            <span>Capture your live face and valid ID — OCR will auto-fill your details below.</span>
+                        </div>
+                        <div class="reg-step-status">
+                            <span class="step-pill pending" id="step1Pill">Pending</span>
+                        </div>
                     </div>
-                    <div class="field-message" data-error-for="verification_method"></div>
+
+                    <div class="live-verification" id="liveVerification">
+                        <div class="camera-stage">
+                            <video id="verificationVideo" playsinline muted></video>
+                            <canvas id="captureCanvas" hidden></canvas>
+                            <div class="face-guide" id="faceGuide" aria-hidden="true"></div>
+                            <div class="id-guide" id="idGuide" aria-hidden="true">
+                                <span>Fill this frame with the ID</span>
+                            </div>
+                            <div class="camera-placeholder" id="cameraPlaceholder">
+                                <i class="fas fa-camera"></i>
+                                <strong>Camera verification required</strong>
+                                <small>No gallery uploads are allowed. Tugon will capture your live face and valid ID using the device camera.</small>
+                            </div>
+                        </div>
+
+                        <div class="verification-steps">
+                            <div class="verification-step is-current" id="faceStep">
+                                <i class="fas fa-user-check"></i>
+                                <span>Face</span>
+                            </div>
+                            <div class="verification-step" id="idFrontStep">
+                                <i class="fas fa-id-card"></i>
+                                <span>Front ID</span>
+                            </div>
+                            <div class="verification-step" id="idBackStep">
+                                <i class="fas fa-address-card"></i>
+                                <span>Back ID</span>
+                            </div>
+                        </div>
+
+                        <div class="camera-actions">
+                            <button type="button" class="camera-btn" id="startCameraBtn">
+                                <i class="fas fa-video"></i> Start Camera
+                            </button>
+                            <button type="button" class="camera-btn secondary" id="captureIdFrontBtn" disabled>
+                                <i class="fas fa-camera-retro"></i> Capture Front
+                            </button>
+                            <button type="button" class="camera-btn secondary" id="captureIdBackBtn" disabled>
+                                <i class="fas fa-camera"></i> Capture Back
+                            </button>
+                        </div>
+
+                        <div class="id-upload-actions">
+                            <label class="id-side-upload" for="frontIdUpload">
+                                <i class="fas fa-upload"></i>
+                                <span>Upload Front ID</span>
+                                <input type="file" id="frontIdUpload" accept="image/png,image/jpeg">
+                            </label>
+                            <label class="id-side-upload" for="backIdUpload">
+                                <i class="fas fa-upload"></i>
+                                <span>Upload Back ID</span>
+                                <input type="file" id="backIdUpload" accept="image/png,image/jpeg">
+                            </label>
+                        </div>
+
+                        <p class="camera-status" id="cameraStatus">Start the camera and position your face inside the guide.</p>
+
+                        <div class="capture-previews">
+                            <div class="capture-preview">
+                                <span>Live Face</span>
+                                <img id="facePreviewImage" alt="Captured live face preview">
+                            </div>
+                            <div class="capture-preview">
+                                <span>Front ID</span>
+                                <img id="idFrontPreviewImage" alt="Captured front ID preview">
+                            </div>
+                            <div class="capture-preview">
+                                <span>Back ID</span>
+                                <img id="idBackPreviewImage" alt="Captured back ID preview">
+                            </div>
+                        </div>
+
+                        <div class="face-match-status warning" id="faceMatchStatus">
+                            <i class="fas fa-user-shield"></i>
+                            <span>Capture your live face and valid ID to compare identity details.</span>
+                        </div>
+
+                        <div class="id-ocr-status warning" id="idOcrStatus">
+                            <i class="fas fa-id-card-clip"></i>
+                            <span>Front and back ID text will be scanned to auto-fill identity details.</span>
+                        </div>
+                    </div>
+
+                    <input type="hidden" id="face_capture" name="face_capture">
+                    <input type="hidden" id="valid_id_capture" name="valid_id_capture">
+                    <input type="hidden" id="valid_id_back_capture" name="valid_id_back_capture">
+                    <input type="hidden" id="face_match_status_input" name="face_match_status" value="pending">
+                    <input type="hidden" id="id_ocr_status_input" name="id_ocr_status" value="pending">
+                    <input type="hidden" id="registration_id" name="registration_id" value="<?php echo htmlspecialchars($registration_verification_id, ENT_QUOTES); ?>">
+                    <div class="field-message" data-error-for="live_verification"></div>
                 </div>
-                <div class="form-grid">
-                    <div class="field-group">
-                        <label for="first_name" class="field-label">First Name</label>
-                        <div class="input-wrap">
-                            <i class="fas fa-user field-icon"></i>
-                            <input type="text" class="form-control" id="first_name" name="first_name" value="<?php echo e($form_data['first_name']); ?>" autocomplete="given-name" required autofocus>
+
+                <div class="reg-step-divider" aria-hidden="true"></div>
+
+                <!-- ═══════════════════════════════════════════
+                     STEP 2 — Personal Information
+                ═══════════════════════════════════════════ -->
+                <div class="reg-step" id="regStep2">
+                    <div class="reg-step-header">
+                        <div class="reg-step-badge-num" id="step2Num">2</div>
+                        <div class="reg-step-info">
+                            <strong><i class="fas fa-user-pen" style="margin-right:5px;opacity:.7"></i>Personal Information</strong>
+                            <span>Review and complete your details — OCR auto-fills highlighted fields from your ID.</span>
                         </div>
-                        <div class="field-message" data-error-for="first_name"></div>
+                        <div class="reg-step-status">
+                            <span class="step-pill pending" id="step2Pill">Pending ID Scan</span>
+                        </div>
                     </div>
 
-                    <div class="field-group">
-                        <label for="surname" class="field-label">Surname</label>
-                        <div class="input-wrap">
-                            <i class="fas fa-user-tag field-icon"></i>
-                            <input type="text" class="form-control" id="surname" name="surname" value="<?php echo e($form_data['surname']); ?>" autocomplete="family-name" required>
-                        </div>
-                        <div class="field-message" data-error-for="surname"></div>
-                    </div>
-
-                    <div class="field-group">
-                        <label for="middle_initial" class="field-label">Middle Initial</label>
-                        <div class="input-wrap">
-                            <i class="fas fa-signature field-icon"></i>
-                            <input type="text" class="form-control" id="middle_initial" name="middle_initial" value="<?php echo e($form_data['middle_initial']); ?>" autocomplete="additional-name" maxlength="1" placeholder="Optional">
-                        </div>
-                        <div class="field-message" data-error-for="middle_initial"></div>
-                    </div>
-
-                    <div class="field-group" data-registration-field="mobile">
-                        <label for="phone_number" class="field-label">Phone Number</label>
-                        <div class="input-wrap">
-                            <i class="fas fa-phone field-icon"></i>
-                            <input type="tel" class="form-control" id="phone_number" name="phone_number" value="<?php echo e($form_data['phone_number']); ?>" autocomplete="tel" inputmode="tel" pattern="(09[0-9]{9}|\+639[0-9]{9})" maxlength="13" placeholder="09XXXXXXXXX or +639XXXXXXXXX">
-                        </div>
-                        <div class="form-hint">Use 09XXXXXXXXX or +639XXXXXXXXX.</div>
-                        <div class="field-message" data-error-for="phone_number"></div>
-                    </div>
-
-                    <div class="field-group" data-registration-field="email">
-                        <label for="email" class="field-label">Gmail Address</label>
-                        <div class="input-wrap">
-                            <i class="fas fa-envelope field-icon"></i>
-                            <input type="email" class="form-control" id="email" name="email" value="<?php echo e($form_data['email']); ?>" autocomplete="email" placeholder="name@gmail.com">
-                        </div>
-                        <div class="field-message" data-error-for="email"></div>
-                    </div>
-
-                    <div class="field-group">
-                        <label for="chapel_district" class="field-label">Chapel/District</label>
-                        <div class="input-wrap">
-                            <i class="fas fa-location-dot field-icon"></i>
-                            <select class="form-select" id="chapel_district" name="chapel_district" required>
-                                <option value="">Select your Chapel/District</option>
-                                <?php foreach ($chapel_options as $option): ?>
-                                    <option value="<?php echo e($option); ?>" <?php echo $form_data['chapel_district'] === $option ? 'selected' : ''; ?>>
-                                        <?php echo e($option); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="field-message" data-error-for="chapel_district"></div>
+                    <div class="reg-fields-lock-banner" id="regFieldsBanner">
+                        <i class="fas fa-wand-magic-sparkles"></i>
+                        <span id="regFieldsBannerText">Complete Step 1 to scan your ID — OCR will auto-fill most fields below.</span>
                     </div>
 
                     <div class="field-group full">
-                        <label for="address" class="field-label">Address</label>
-                        <div class="input-wrap">
-                            <i class="fas fa-map-location-dot field-icon"></i>
-                            <input type="text" class="form-control" id="address" name="address" value="<?php echo e($form_data['address']); ?>" autocomplete="street-address" placeholder="Complete Aleosan address" required>
+                        <span class="field-label">Registration Method</span>
+                        <div class="verification-options">
+                            <label class="verification-option">
+                                <input type="radio" name="verification_method" value="email" <?php echo $form_data['verification_method'] === 'email' ? 'checked' : ''; ?>>
+                                <span><i class="fas fa-envelope-circle-check"></i> Register using Email Address</span>
+                            </label>
+                            <label class="verification-option">
+                                <input type="radio" name="verification_method" value="mobile" <?php echo $form_data['verification_method'] === 'mobile' ? 'checked' : ''; ?>>
+                                <span><i class="fas fa-mobile-screen-button"></i> Register using Mobile Number</span>
+                            </label>
                         </div>
-                        <div class="field-message" data-error-for="address"></div>
+                        <div class="field-message" data-error-for="verification_method"></div>
                     </div>
 
-                    <div class="field-group">
-                        <label for="birthdate" class="field-label">Birthdate</label>
-                        <div class="input-wrap">
-                            <i class="fas fa-calendar-day field-icon"></i>
-                            <input type="text" class="form-control" id="birthdate" name="birthdate" value="<?php echo e($form_data['birthdate']); ?>" autocomplete="bday" placeholder="December 16, 2005" required>
-                        </div>
-                        <div class="field-message" data-error-for="birthdate"></div>
-                    </div>
-
-                    <div class="field-group">
-                        <label for="birth_place" class="field-label">Place of Birth</label>
-                        <div class="input-wrap">
-                            <i class="fas fa-map-pin field-icon"></i>
-                            <input type="text" class="form-control" id="birth_place" name="birth_place" value="<?php echo e($form_data['birth_place']); ?>" autocomplete="off" placeholder="City / Municipality / Province" required>
-                        </div>
-                        <div class="field-message" data-error-for="birth_place"></div>
-                    </div>
-
-                    <div class="field-group full">
-                        <label for="id_number" class="field-label">ID Number</label>
-                        <div class="input-wrap">
-                            <i class="fas fa-fingerprint field-icon"></i>
-                            <input type="text" class="form-control" id="id_number" name="id_number" value="<?php echo e($form_data['id_number']); ?>" autocomplete="off" placeholder="Enter ID number" required>
-                        </div>
-                        <div class="form-hint">Enter the ID number shown on your valid ID.</div>
-                        <div class="field-message" data-error-for="id_number"></div>
-                    </div>
-
-                    <div class="field-group">
-                        <label for="password" class="field-label">Password</label>
-                        <div class="input-wrap password">
-                            <i class="fas fa-lock field-icon"></i>
-                            <input type="password" class="form-control" id="password" name="password" autocomplete="new-password" minlength="<?php echo (int) PASSWORD_MIN_LENGTH; ?>" required>
-                            <button type="button" class="password-toggle" data-toggle-password="password" aria-label="Show password" title="Show password">
-                                <i class="fas fa-eye" aria-hidden="true"></i>
-                            </button>
-                        </div>
-                        <div class="form-hint"><?php echo e(passwordRequirementsMessage()); ?></div>
-                        <div class="password-strength" aria-label="Password strength">
-                            <span></span><span></span><span></span><span></span>
-                        </div>
-                        <div class="form-hint" id="passwordStrengthText">Password strength: waiting for input.</div>
-                        <div class="field-message" data-error-for="password"></div>
-                    </div>
-
-                    <div class="field-group">
-                        <label for="confirm_password" class="field-label">Confirm Password</label>
-                        <div class="input-wrap password">
-                            <i class="fas fa-key field-icon"></i>
-                            <input type="password" class="form-control" id="confirm_password" name="confirm_password" autocomplete="new-password" minlength="<?php echo (int) PASSWORD_MIN_LENGTH; ?>" required>
-                            <button type="button" class="password-toggle" data-toggle-password="confirm_password" aria-label="Show confirm password" title="Show confirm password">
-                                <i class="fas fa-eye" aria-hidden="true"></i>
-                            </button>
-                        </div>
-                        <div class="field-message" data-error-for="confirm_password"></div>
-                    </div>
-
-                    <div class="field-group full">
-                        <span class="field-label">Live Identity Verification</span>
-                        <div class="live-verification" id="liveVerification">
-                            <div class="camera-stage">
-                                <video id="verificationVideo" playsinline muted></video>
-                                <canvas id="captureCanvas" hidden></canvas>
-                                <div class="face-guide" id="faceGuide" aria-hidden="true"></div>
-                                <div class="id-guide" id="idGuide" aria-hidden="true">
-                                    <span>Fill this frame with the ID</span>
-                                </div>
-                                <div class="camera-placeholder" id="cameraPlaceholder">
-                                    <i class="fas fa-camera"></i>
-                                    <strong>Camera verification required</strong>
-                                    <small>No gallery uploads are allowed. Tugon will capture your live face and valid ID using the device camera.</small>
-                                </div>
+                    <div class="form-grid">
+                        <div class="field-group">
+                            <label for="first_name" class="field-label">First Name</label>
+                            <div class="input-wrap">
+                                <i class="fas fa-user field-icon"></i>
+                                <input type="text" class="form-control" id="first_name" name="first_name" value="<?php echo e($form_data['first_name']); ?>" autocomplete="given-name" required autofocus>
                             </div>
+                            <div class="field-message" data-error-for="first_name"></div>
+                        </div>
 
-                            <div class="verification-steps">
-                                <div class="verification-step is-current" id="faceStep">
-                                    <i class="fas fa-user-check"></i>
-                                    <span>Face verification</span>
-                                </div>
-                                <div class="verification-step" id="idFrontStep">
-                                    <i class="fas fa-id-card"></i>
-                                    <span>Front ID</span>
-                                </div>
-                                <div class="verification-step" id="idBackStep">
-                                    <i class="fas fa-address-card"></i>
-                                    <span>Back ID</span>
-                                </div>
+                        <div class="field-group">
+                            <label for="surname" class="field-label">Surname</label>
+                            <div class="input-wrap">
+                                <i class="fas fa-user-tag field-icon"></i>
+                                <input type="text" class="form-control" id="surname" name="surname" value="<?php echo e($form_data['surname']); ?>" autocomplete="family-name" required>
                             </div>
+                            <div class="field-message" data-error-for="surname"></div>
+                        </div>
 
-                            <div class="camera-actions">
-                                <button type="button" class="camera-btn" id="startCameraBtn">
-                                    <i class="fas fa-video"></i> Start Camera
+                        <div class="field-group">
+                            <label for="middle_initial" class="field-label">Middle Initial</label>
+                            <div class="input-wrap">
+                                <i class="fas fa-signature field-icon"></i>
+                                <input type="text" class="form-control" id="middle_initial" name="middle_initial" value="<?php echo e($form_data['middle_initial']); ?>" autocomplete="additional-name" maxlength="1" placeholder="Optional">
+                            </div>
+                            <div class="field-message" data-error-for="middle_initial"></div>
+                        </div>
+
+                        <div class="field-group" data-registration-field="mobile">
+                            <label for="phone_number" class="field-label">Phone Number</label>
+                            <div class="input-wrap">
+                                <i class="fas fa-phone field-icon"></i>
+                                <input type="tel" class="form-control" id="phone_number" name="phone_number" value="<?php echo e($form_data['phone_number']); ?>" autocomplete="tel" inputmode="tel" pattern="(09[0-9]{9}|\+639[0-9]{9})" maxlength="13" placeholder="09XXXXXXXXX or +639XXXXXXXXX">
+                            </div>
+                            <div class="form-hint">Use 09XXXXXXXXX or +639XXXXXXXXX.</div>
+                            <div class="field-message" data-error-for="phone_number"></div>
+                        </div>
+
+                        <div class="field-group" data-registration-field="email">
+                            <label for="email" class="field-label">Gmail Address</label>
+                            <div class="input-wrap">
+                                <i class="fas fa-envelope field-icon"></i>
+                                <input type="email" class="form-control" id="email" name="email" value="<?php echo e($form_data['email']); ?>" autocomplete="email" placeholder="name@gmail.com">
+                            </div>
+                            <div class="field-message" data-error-for="email"></div>
+                        </div>
+
+                        <div class="field-group">
+                            <label for="chapel_district" class="field-label">Chapel/District</label>
+                            <div class="input-wrap">
+                                <i class="fas fa-location-dot field-icon"></i>
+                                <select class="form-select" id="chapel_district" name="chapel_district" required>
+                                    <option value="">Select your Chapel/District</option>
+                                    <?php foreach ($chapel_options as $option): ?>
+                                        <option value="<?php echo e($option); ?>" <?php echo $form_data['chapel_district'] === $option ? 'selected' : ''; ?>>
+                                            <?php echo e($option); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="field-message" data-error-for="chapel_district"></div>
+                        </div>
+
+                        <div class="field-group full">
+                            <label for="address" class="field-label">Address</label>
+                            <div class="input-wrap">
+                                <i class="fas fa-map-location-dot field-icon"></i>
+                                <input type="text" class="form-control" id="address" name="address" value="<?php echo e($form_data['address']); ?>" autocomplete="street-address" placeholder="Complete Aleosan address" required>
+                            </div>
+                            <div class="field-message" data-error-for="address"></div>
+                        </div>
+
+                        <div class="field-group">
+                            <label for="birthdate" class="field-label">Birthdate</label>
+                            <div class="input-wrap">
+                                <i class="fas fa-calendar-day field-icon"></i>
+                                <input type="text" class="form-control" id="birthdate" name="birthdate" value="<?php echo e($form_data['birthdate']); ?>" autocomplete="bday" placeholder="December 16, 2005" required>
+                            </div>
+                            <div class="field-message" data-error-for="birthdate"></div>
+                        </div>
+
+                        <div class="field-group">
+                            <label for="birth_place" class="field-label">Place of Birth</label>
+                            <div class="input-wrap">
+                                <i class="fas fa-map-pin field-icon"></i>
+                                <input type="text" class="form-control" id="birth_place" name="birth_place" value="<?php echo e($form_data['birth_place']); ?>" autocomplete="off" placeholder="City / Municipality / Province" required>
+                            </div>
+                            <div class="field-message" data-error-for="birth_place"></div>
+                        </div>
+
+                        <div class="field-group full">
+                            <label for="id_number" class="field-label">ID Number</label>
+                            <div class="input-wrap">
+                                <i class="fas fa-fingerprint field-icon"></i>
+                                <input type="text" class="form-control" id="id_number" name="id_number" value="<?php echo e($form_data['id_number']); ?>" autocomplete="off" placeholder="Enter ID number" required>
+                            </div>
+                            <div class="form-hint">Enter the ID number shown on your valid ID.</div>
+                            <div class="field-message" data-error-for="id_number"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="reg-step-divider" aria-hidden="true"></div>
+
+                <!-- ═══════════════════════════════════════════
+                     STEP 3 — Account Security & Submit
+                ═══════════════════════════════════════════ -->
+                <div class="reg-step" id="regStep3">
+                    <div class="reg-step-header">
+                        <div class="reg-step-badge-num" id="step3Num">3</div>
+                        <div class="reg-step-info">
+                            <strong><i class="fas fa-shield-halved" style="margin-right:5px;opacity:.7"></i>Account Security</strong>
+                            <span>Set a strong password and confirm your parish application.</span>
+                        </div>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="field-group">
+                            <label for="password" class="field-label">Password</label>
+                            <div class="input-wrap password">
+                                <i class="fas fa-lock field-icon"></i>
+                                <input type="password" class="form-control" id="password" name="password" autocomplete="new-password" minlength="<?php echo (int) PASSWORD_MIN_LENGTH; ?>" required>
+                                <button type="button" class="password-toggle" data-toggle-password="password" aria-label="Show password" title="Show password">
+                                    <i class="fas fa-eye" aria-hidden="true"></i>
                                 </button>
-                                <button type="button" class="camera-btn secondary" id="captureIdFrontBtn" disabled>
-                                    <i class="fas fa-camera-retro"></i> Capture Front
-                                </button>
-                                <button type="button" class="camera-btn secondary" id="captureIdBackBtn" disabled>
-                                    <i class="fas fa-camera"></i> Capture Back
-                                </button>
                             </div>
-
-                            <div class="id-upload-actions">
-                                <label class="id-side-upload" for="frontIdUpload">
-                                    <i class="fas fa-upload"></i>
-                                    <span>Upload Front ID</span>
-                                    <input type="file" id="frontIdUpload" accept="image/png,image/jpeg">
-                                </label>
-                                <label class="id-side-upload" for="backIdUpload">
-                                    <i class="fas fa-upload"></i>
-                                    <span>Upload Back ID</span>
-                                    <input type="file" id="backIdUpload" accept="image/png,image/jpeg">
-                                </label>
+                            <div class="form-hint"><?php echo e(passwordRequirementsMessage()); ?></div>
+                            <div class="password-strength" aria-label="Password strength">
+                                <span></span><span></span><span></span><span></span>
                             </div>
-
-                            <p class="camera-status" id="cameraStatus">Start the camera and position your face inside the guide.</p>
-
-                            <div class="capture-previews">
-                                <div class="capture-preview">
-                                    <span>Live Face</span>
-                                    <img id="facePreviewImage" alt="Captured live face preview">
-                                </div>
-                                <div class="capture-preview">
-                                    <span>Front ID</span>
-                                    <img id="idFrontPreviewImage" alt="Captured front ID preview">
-                                </div>
-                                <div class="capture-preview">
-                                    <span>Back ID</span>
-                                    <img id="idBackPreviewImage" alt="Captured back ID preview">
-                                </div>
-                            </div>
-
-                            <div class="face-match-status warning" id="faceMatchStatus">
-                                <i class="fas fa-user-shield"></i>
-                                <span>Capture your live face and valid ID to compare identity details.</span>
-                            </div>
-
-                            <div class="id-ocr-status warning" id="idOcrStatus">
-                                <i class="fas fa-id-card-clip"></i>
-                                <span>Front and back ID text will be scanned to auto-fill identity details.</span>
-                            </div>
+                            <div class="form-hint" id="passwordStrengthText">Password strength: waiting for input.</div>
+                            <div class="field-message" data-error-for="password"></div>
                         </div>
-                        <input type="hidden" id="face_capture" name="face_capture">
-                        <input type="hidden" id="valid_id_capture" name="valid_id_capture">
-                        <input type="hidden" id="valid_id_back_capture" name="valid_id_back_capture">
-                        <input type="hidden" id="face_match_status_input" name="face_match_status" value="pending">
-                        <input type="hidden" id="id_ocr_status_input" name="id_ocr_status" value="pending">
-                        <input type="hidden" id="registration_id" name="registration_id" value="<?php echo htmlspecialchars($registration_verification_id, ENT_QUOTES); ?>">
-                        <div class="field-message" data-error-for="live_verification"></div>
+
+                        <div class="field-group">
+                            <label for="confirm_password" class="field-label">Confirm Password</label>
+                            <div class="input-wrap password">
+                                <i class="fas fa-key field-icon"></i>
+                                <input type="password" class="form-control" id="confirm_password" name="confirm_password" autocomplete="new-password" minlength="<?php echo (int) PASSWORD_MIN_LENGTH; ?>" required>
+                                <button type="button" class="password-toggle" data-toggle-password="confirm_password" aria-label="Show confirm password" title="Show confirm password">
+                                    <i class="fas fa-eye" aria-hidden="true"></i>
+                                </button>
+                            </div>
+                            <div class="field-message" data-error-for="confirm_password"></div>
+                        </div>
                     </div>
 
                     <div class="field-group full">
                         <label class="auth-check terms-check" for="terms_check">
                             <input type="checkbox" id="terms_check" name="terms_check" required>
-                            <span>I agree to the Terms & Conditions, parish verification policy, and responsible use of sacramental records.</span>
+                            <span>I agree to the Terms &amp; Conditions, parish verification policy, and responsible use of sacramental records.</span>
                         </label>
                         <div class="field-message" data-error-for="terms_check"></div>
                     </div>
-                </div>
 
-                <button type="submit" class="submit-btn" id="registerSubmit" <?php echo $success ? 'disabled' : ''; ?>>
-                    <span class="spinner" aria-hidden="true"></span>
-                    <i class="fas fa-user-check submit-icon"></i>
-                    <span class="submit-text"><?php echo $success ? 'Registration Submitted' : 'Create Account'; ?></span>
-                </button>
+                    <button type="submit" class="submit-btn" id="registerSubmit" <?php echo $success ? 'disabled' : ''; ?>>
+                        <span class="spinner" aria-hidden="true"></span>
+                        <i class="fas fa-user-check submit-icon"></i>
+                        <span class="submit-text"><?php echo $success ? 'Registration Submitted' : 'Create Account'; ?></span>
+                    </button>
+                </div>
             </form>
 
             <p class="login-link">
@@ -2841,6 +3088,41 @@ $has_logo = is_file($logo_file);
                 : '';
             idOcrStatus.innerHTML = '<i class="fas ' + icon + '"></i><span>' + message + aiBadge + '</span>';
             idOcrStatusInput.value = type === 'success' ? 'verified' : (type === 'error' ? 'mismatch' : 'pending');
+            // Update 3-step UI badges
+            _updateStepBadges(type);
+        }
+
+        // Step badge & banner updater — tied to OCR scan result
+        function _updateStepBadges(ocrType) {
+            const step1Pill  = document.getElementById('step1Pill');
+            const step2Pill  = document.getElementById('step2Pill');
+            const step1El    = document.getElementById('regStep1');
+            const banner     = document.getElementById('regFieldsBanner');
+            const bannerTxt  = document.getElementById('regFieldsBannerText');
+            const hasCaptures = fields.face_capture.value && fields.valid_id_capture.value && fields.valid_id_back_capture.value;
+
+            if (ocrType === 'success') {
+                if (step1Pill)  { step1Pill.textContent = '\u2713 Scanned'; step1Pill.className = 'step-pill done'; }
+                if (step2Pill)  { step2Pill.textContent = 'Auto-filled';   step2Pill.className = 'step-pill done'; }
+                if (step1El)    step1El.classList.add('step-complete');
+                if (banner)     banner.classList.add('is-unlocked');
+                if (bannerTxt)  bannerTxt.textContent = '\u2726 OCR complete \u2014 fields auto-filled from your ID. Review and edit if needed.';
+                // Highlight auto-filled fields
+                ['first_name','surname','middle_initial','address','birth_place','id_number','birthdate'].forEach(function(n) {
+                    const f = fields[n]; if (f && f.value.trim()) f.classList.add('ocr-autofilled');
+                });
+            } else if (ocrType === 'warning' && hasCaptures) {
+                if (step1Pill)  { step1Pill.textContent = '\u26a0 Review';     step1Pill.className = 'step-pill error'; }
+                if (step2Pill)  { step2Pill.textContent = 'Needs Review';   step2Pill.className = 'step-pill error'; }
+                if (banner)     banner.classList.add('is-unlocked');
+                if (bannerTxt)  bannerTxt.textContent = 'Some fields need your review \u2014 check and correct the highlighted fields below.';
+            } else if (ocrType === 'warning' && !hasCaptures) {
+                if (step1Pill)  { step1Pill.textContent = 'Scanning\u2026'; step1Pill.className = 'step-pill scanning'; }
+            } else if (ocrType === 'error') {
+                if (step1Pill)  { step1Pill.textContent = '\u2715 Scan Failed'; step1Pill.className = 'step-pill error'; }
+                if (banner)     banner.classList.add('is-unlocked');
+                if (bannerTxt)  bannerTxt.textContent = 'OCR scan failed \u2014 please fill in your details manually below.';
+            }
         }
 
         function hasFilledIdDetails() {
