@@ -1755,16 +1755,16 @@ if ($stmt) {
                 <div class="step-heading">
                     <span class="step-number">4</span>
                     <div>
-                        <h3>Upload Requirement</h3>
-                        <p>The only required document for certificate requests is a copy of the PSA / Birth Certificate.</p>
+                        <h3>Upload All Requirements</h3>
+                        <p>Upload all required documents for your certificate request (e.g. PSA / Birth Certificate, Valid ID, or supporting records).</p>
                     </div>
                 </div>
 
                 <label class="upload-zone" id="uploadZone" for="requirement_files">
                     <i class="fas fa-cloud-arrow-up"></i>
-                    <strong>Upload copy of PSA / Birth Certificate.</strong>
-                    <small>Accepted formats: PDF, JPG, or PNG. Maximum 10MB per file. This is required for all certificate requests.</small>
-                    <input type="file" id="requirement_files" name="requirement_files[]" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" required>
+                    <strong>Upload all requirements</strong>
+                    <small>Accepted formats: PDF, JPG, or PNG. Maximum 10MB per file. You can select and upload multiple files.</small>
+                    <input type="file" id="requirement_files" name="requirement_files[]" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" multiple required>
                 </label>
                 <div class="file-preview" id="filePreview">
                     <div id="fileList">
@@ -1877,7 +1877,7 @@ if ($stmt) {
                 file_names.push(files[i].name);
             }
             
-            fileName.textContent = file_names.length === 1 ? 'PSA / Birth Certificate copy selected' : file_names.length + ' files selected';
+            fileName.textContent = file_names.length === 1 ? file_names[0] : file_names.length + ' files selected';
             fileSize.textContent = (total_size / 1024 / 1024).toFixed(2) + ' MB total';
             
             if (file_names.length > 1) {
