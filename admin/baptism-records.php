@@ -1361,9 +1361,6 @@ include '../templates/header.php';
                                     </td>
                                     <td style="text-align: center;">
                                         <div class="record-actions-wrap justify-content-center">
-                                            <button type="button" class="btn-reg-action btn-reg-edit" onclick="openEditModal(<?php echo js_value($record_payload); ?>)" title="Edit this record">
-                                                <i class="fas fa-pen-to-square"></i> Edit
-                                            </button>
                                             <button type="button" class="btn-reg-action btn-reg-archive" onclick="confirmArchive(<?php echo (int)$record['baptism_id']; ?>)" title="Archive this record">
                                                 <i class="fas fa-box-archive"></i> Archive
                                             </button>

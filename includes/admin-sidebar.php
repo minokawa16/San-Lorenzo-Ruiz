@@ -121,7 +121,7 @@
     <?php if (hasPermission('reports.view')): ?>
     <a href="<?php echo BASE_URL; ?>admin/reports.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'reports.php') ? 'active' : ''; ?>" data-tooltip="<?php echo e(t('nav.analytics_report', 'Analytics Report')); ?>">
       <i class="fas fa-chart-line"></i>
-      <span><?php echo e(t('nav.analytics_report', 'Analytics Report')); ?></span>
+      <span><?php echo e(t('nav.analytics_report', 'Analytics &amp; Reports')); ?></span>
     </a>
     <?php endif; ?>
     <?php if (hasPermission('audit.view')): ?>

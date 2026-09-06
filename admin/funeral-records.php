@@ -699,9 +699,6 @@ include '../templates/header.php';
                                         </td>
                                         <td>
                                             <div class="action-buttons">
-                                                <button class="action-btn btn-edit" onclick="openEditModal(<?php echo funeral_js_value($record_payload); ?>)">
-                                                    <i class="fas fa-edit"></i> Edit
-                                                </button>
                                                 <button class="action-btn btn-delete" onclick="confirmArchive(<?php echo $record['funeral_id']; ?>)">
                                                     <i class="fas fa-archive"></i> Archive
                                                 </button>
