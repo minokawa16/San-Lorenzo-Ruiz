@@ -18,6 +18,7 @@ $body_extra_class = 'certificate-mobile-page';
 $user_id = intval($_SESSION['user_id']);
 $error = '';
 $success = '';
+$duplicate_notice = null;
 $request_idempotency_key = bin2hex(random_bytes(32));
 ensureRequestDocumentsSchema($conn);
 ensureEmailNotificationSchema($conn);
@@ -195,14 +196,43 @@ function certificateLabel($value, $labels = []) {
         } catch (DuplicateRequestException $exception) {
             http_response_code(409);
             $duplicate_ref = $exception->getReferenceNumber();
-            $error = '<strong>Duplicate Request Blocked (HTTP 409 Conflict):</strong> ' . e($exception->getMessage());
-            if ($duplicate_ref) {
-                $error .= ' <a href="my-requests.php" class="alert-link text-decoration-underline ms-1">Track Existing Request (' . e($duplicate_ref) . ')</a>';
-            }
+            $duplicate_status = $exception->getExistingStatus() ?: 'SUBMITTED';
+            $duplicate_id = $exception->getExistingRequestId();
+            $duplicate_msg = $exception->getMessage();
+            $duplicate_notice = [
+                'reference' => $duplicate_ref,
+                'status' => $duplicate_status,
+                'request_id' => $duplicate_id,
+                'message' => "You're not allowed to request another certificate because it will duplicate your active request.",
+                'details' => $duplicate_msg,
+                'track_url' => $duplicate_ref ? "my-requests.php?q=" . urlencode($duplicate_ref) : "my-requests.php",
+            ];
+            $error = "You're not allowed to request another certificate because it will duplicate your active request" . ($duplicate_ref ? " ({$duplicate_ref})" : "") . ".";
         } catch (Throwable $exception) {
             $error = 'Unable to save your certificate request: ' . $exception->getMessage();
         }
     }
+}
+
+$active_certificate_requests = [];
+$act_stmt = $conn->prepare("SELECT request_id, reference_number, request_type, status, record_holder_name 
+    FROM requests 
+    WHERE user_id = ? 
+      AND status NOT IN ('completed', 'rejected', 'cancelled') 
+      AND deleted_at IS NULL
+    ORDER BY request_id DESC");
+if ($act_stmt) {
+    $act_stmt->bind_param('i', $user_id);
+    $act_stmt->execute();
+    $act_res = $act_stmt->get_result();
+    while ($act_row = $act_res->fetch_assoc()) {
+        $cFamily = RequestService::certificateFamily($act_row['request_type']);
+        if ($cFamily !== null) {
+            $act_row['certificate_family'] = $cFamily;
+            $active_certificate_requests[] = $act_row;
+        }
+    }
+    $act_stmt->close();
 }
 
 $all_certificate_types = array_values(array_unique(array_merge($certificate_type_keys, [
@@ -1627,10 +1657,39 @@ if ($stmt) {
             </aside>
         </section>
 
-    <?php if ($error): ?>
-        <div class="alert alert-danger alert-dismissible fade show">
-            <?php echo e($error); ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    <?php if (!empty($duplicate_notice)): ?>
+        <div class="alert alert-warning alert-dismissible fade show border-0 shadow-sm d-flex align-items-center justify-content-between flex-wrap gap-3 p-3 mb-4" style="background: #FFFBEB; border-left: 5px solid #F59E0B !important; border-radius: 12px;" role="alert">
+            <div class="d-flex align-items-start gap-3">
+                <div class="text-warning fs-3 mt-1"><i class="fas fa-triangle-exclamation"></i></div>
+                <div>
+                    <h6 class="mb-1 fw-bold text-dark" style="font-size: 1rem;">Duplicate Request Not Allowed</h6>
+                    <p class="mb-0 text-secondary" style="font-size: 0.92rem;">
+                        <?php echo e($duplicate_notice['message']); ?>
+                        <?php if (!empty($duplicate_notice['reference'])): ?>
+                            <span class="d-block mt-1">
+                                <strong class="text-dark">Active Reference:</strong> 
+                                <span class="badge bg-dark font-monospace px-2 py-1 ms-1"><?php echo e($duplicate_notice['reference']); ?></span>
+                                <span class="badge bg-warning text-dark text-uppercase px-2 py-1 ms-1"><?php echo e(strtoupper($duplicate_notice['status'])); ?></span>
+                            </span>
+                        <?php endif; ?>
+                    </p>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-sm btn-outline-warning text-dark fw-semibold" data-bs-toggle="modal" data-bs-target="#duplicateRequestModal" style="border-radius: 8px;">
+                    <i class="fas fa-eye me-1"></i> View Notice
+                </button>
+                <a href="<?php echo e($duplicate_notice['track_url']); ?>" class="btn btn-sm text-white fw-semibold" style="background: #C89B3C; border-color: #A97F24; border-radius: 8px;">
+                    <i class="fas fa-receipt me-1"></i> Track Active Request
+                </a>
+                <button type="button" class="btn-close ms-2" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        </div>
+    <?php elseif ($error): ?>
+        <div class="alert alert-danger alert-dismissible fade show d-flex align-items-center gap-3 p-3 mb-4" style="border-radius: 12px;">
+            <i class="fas fa-circle-exclamation fs-4 text-danger"></i>
+            <div class="flex-grow-1"><?php echo e($error); ?></div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     <?php endif; ?>
 
@@ -2132,6 +2191,189 @@ if ($stmt) {
             mobileQuery.addListener(syncMobileSteps);
         }
         syncMobileSteps();
+    })();
+</script>
+
+<!-- Duplicate Request Prevention Modal (Pop-up Notification) -->
+<div class="modal fade" id="duplicateRequestModal" tabindex="-1" aria-labelledby="duplicateRequestModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 530px;">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px; overflow: hidden; background: #FFFFFF;">
+            <div class="modal-header border-0 pb-0" style="background: linear-gradient(135deg, #FEF3C7 0%, #FFFBEB 100%); padding: 24px 24px 16px;">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="d-flex align-items-center justify-content-center" style="width: 52px; height: 52px; border-radius: 50%; background: #FDE68A; color: #B45309; font-size: 24px; box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3); flex-shrink: 0;">
+                        <i class="fas fa-triangle-exclamation"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold text-dark mb-0" id="duplicateRequestModalLabel" style="font-family: 'Playfair Display', Georgia, serif; font-size: 1.25rem;">
+                            Request Not Allowed
+                        </h5>
+                        <span class="badge text-uppercase" style="background: rgba(180, 83, 9, 0.15); color: #B45309; font-size: 0.72rem; letter-spacing: 0.5px;">Duplicate Request Prevention</span>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="font-size: 0.85rem;"></button>
+            </div>
+            <div class="modal-body p-4 pt-3">
+                <div class="p-3 mb-3" style="background: #FFFBEB; border: 1px solid #FCD34D; border-radius: 12px; color: #92400E;">
+                    <div class="d-flex align-items-start gap-2">
+                        <i class="fas fa-ban mt-1" style="color: #D97706; font-size: 1.1rem;"></i>
+                        <p class="mb-0 fw-semibold" id="duplicateModalMainMessage" style="font-size: 0.98rem; line-height: 1.5;">
+                            <?php echo e($duplicate_notice['message'] ?? "You're not allowed to request another certificate because it will duplicate your active request."); ?>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="card border-0 mb-3" style="background: #FAF7F2; border: 1px solid #E8E1D5 !important; border-radius: 14px;">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom" style="border-color: #E8E1D5 !important;">
+                            <span class="text-secondary small fw-semibold">Active Request Reference:</span>
+                            <span class="badge bg-dark font-monospace px-2 py-1" id="duplicateModalRef" style="font-size: 0.85rem; letter-spacing: 0.5px;">
+                                <?php echo e($duplicate_notice['reference'] ?? 'Active Reference'); ?>
+                            </span>
+                        </div>
+                        <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom" style="border-color: #E8E1D5 !important;">
+                            <span class="text-secondary small fw-semibold">Current Status:</span>
+                            <span class="badge bg-warning text-dark text-uppercase px-2 py-1" id="duplicateModalStatus" style="font-size: 0.8rem; font-weight: 700;">
+                                <?php echo e(strtoupper($duplicate_notice['status'] ?? 'SUBMITTED')); ?>
+                            </span>
+                        </div>
+                        <div class="text-secondary small" style="line-height: 1.5;">
+                            <i class="fas fa-circle-info text-warning me-1"></i>
+                            <span id="duplicateModalDetails">
+                                <?php echo e($duplicate_notice['details'] ?? 'Duplicate requests cannot be submitted until your previous request is completed, rejected, or cancelled.'); ?>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex align-items-start gap-2 text-muted small" style="line-height: 1.45;">
+                    <i class="fas fa-shield-halved text-success mt-1"></i>
+                    <span>To preserve canonical record accuracy and prevent duplicate processing, the parish allows only one active certificate request per record holder.</span>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0 px-4 pb-4 gap-2">
+                <button type="button" class="btn btn-outline-secondary px-3" data-bs-dismiss="modal" style="border-radius: 10px; font-weight: 600;">
+                    I Understand
+                </button>
+                <a href="<?php echo e(!empty($duplicate_notice['track_url']) ? $duplicate_notice['track_url'] : 'my-requests.php'); ?>" id="duplicateModalTrackBtn" class="btn text-white px-4 fw-semibold shadow-sm" style="background: #C89B3C; border-color: #A97F24; border-radius: 10px;">
+                    <i class="fas fa-receipt me-1"></i> Track Existing Request
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        const activeCertRequests = <?php echo json_encode($active_certificate_requests); ?>;
+        const serverDuplicateNotice = <?php echo json_encode($duplicate_notice); ?>;
+
+        const familyMap = {
+            'baptismal_certificate': 'baptism', 'baptism_certification': 'baptism', 'baptism': 'baptism',
+            'confirmation_certificate': 'confirmation', 'confirmation_certification': 'confirmation', 'confirmation': 'confirmation',
+            'first_communion_certificate': 'first_communion', 'first_communion_certification': 'first_communion', 'first_communion': 'first_communion',
+            'marriage_certificate': 'marriage', 'marriage_certification': 'marriage', 'marriage': 'marriage',
+            'funeral_certificate': 'funeral', 'funeral_certification': 'funeral', 'funeral': 'funeral', 'burial': 'funeral', 'death': 'funeral',
+            'certificate': 'general_certificate'
+        };
+
+        function getCertFamily(type) {
+            if (!type) return '';
+            const t = String(type).toLowerCase().trim();
+            return familyMap[t] || t;
+        }
+
+        function findMatchingActiveRequest(selectedType, recordHolderName) {
+            if (!selectedType || !Array.isArray(activeCertRequests) || activeCertRequests.length === 0) {
+                return null;
+            }
+            const targetFamily = getCertFamily(selectedType);
+            const cleanHolder = String(recordHolderName || '').toLowerCase().trim();
+
+            return activeCertRequests.find(function(item) {
+                const itemFamily = item.certificate_family || getCertFamily(item.request_type);
+                if (itemFamily !== targetFamily) {
+                    return false;
+                }
+                if (!cleanHolder) {
+                    return true;
+                }
+                const itemHolder = String(item.record_holder_name || '').toLowerCase().trim();
+                return itemHolder === cleanHolder;
+            }) || null;
+        }
+
+        function openDuplicateModal(data) {
+            if (!data) return;
+            const ref = data.reference || data.reference_number || 'Active Request';
+            const status = (data.status || 'SUBMITTED').toUpperCase();
+            const mainMsg = data.message || "You're not allowed to request another certificate because it will duplicate your active request.";
+            const friendlyType = data.request_type ? data.request_type.replace(/_/g, ' ') : 'certificate';
+            const details = data.details || ("An active " + friendlyType + " request (" + ref + ") is currently in " + status + " status. Duplicate requests cannot be submitted until your previous request is completed, rejected, or cancelled.");
+            const trackUrl = data.track_url || ("my-requests.php?q=" + encodeURIComponent(ref));
+
+            const msgEl = document.getElementById('duplicateModalMainMessage');
+            const refEl = document.getElementById('duplicateModalRef');
+            const statusEl = document.getElementById('duplicateModalStatus');
+            const detailsEl = document.getElementById('duplicateModalDetails');
+            const trackBtn = document.getElementById('duplicateModalTrackBtn');
+
+            if (msgEl) msgEl.textContent = mainMsg;
+            if (refEl) refEl.textContent = ref;
+            if (statusEl) statusEl.textContent = status;
+            if (detailsEl) detailsEl.textContent = details;
+            if (trackBtn) trackBtn.href = trackUrl;
+
+            const modalEl = document.getElementById('duplicateRequestModal');
+            if (modalEl && typeof bootstrap !== 'undefined') {
+                const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+                modalInstance.show();
+            }
+
+            if (typeof ParishToast !== 'undefined' && typeof ParishToast.show === 'function') {
+                ParishToast.show({
+                    title: "Request Not Allowed",
+                    message: mainMsg,
+                    type: "warning",
+                    duration: 6500
+                });
+            }
+        }
+
+        // 1. Auto-show on page load if server detected duplicate (HTTP 409)
+        window.addEventListener('load', function() {
+            if (serverDuplicateNotice) {
+                openDuplicateModal(serverDuplicateNotice);
+            }
+        });
+
+        // 2. Client-side prevention on form submission
+        const certForm = document.getElementById('certificateRequestForm');
+        if (certForm) {
+            certForm.addEventListener('submit', function(event) {
+                const selectedRadio = certForm.querySelector('input[name="request_type"]:checked');
+                const selectedSelect = certForm.querySelector('select[name="certificate_mobile_type"]');
+                const chosenType = (selectedRadio && selectedRadio.value) || (selectedSelect && selectedSelect.value) || '';
+
+                const holderInput = document.getElementById('record_holder_name');
+                const holderName = holderInput ? holderInput.value.trim() : '';
+
+                if (chosenType) {
+                    const match = findMatchingActiveRequest(chosenType, holderName);
+                    if (match) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        openDuplicateModal({
+                            reference: match.reference_number,
+                            status: match.status,
+                            request_type: match.request_type,
+                            message: "You're not allowed to request another certificate because it will duplicate your active request.",
+                            track_url: "my-requests.php?q=" + encodeURIComponent(match.reference_number)
+                        });
+                        return false;
+                    }
+                }
+            });
+        }
     })();
 </script>
 
