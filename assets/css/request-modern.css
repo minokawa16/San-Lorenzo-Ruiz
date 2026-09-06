@@ -583,61 +583,148 @@
     background: #f0fdf4;
 }
 
-.baptism-sheet-card {
+.baptism-sheet-card,
+.investigation-sheet-card {
     display: grid;
-    gap: 16px;
-    padding: 18px;
-    border: 1px solid #dfe4ea;
-    border-radius: 8px;
+    gap: 18px;
+    padding: 22px;
+    border: 1px solid #e2d9cc;
+    border-radius: 12px;
     background: #ffffff;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+    margin-top: 20px;
 }
 
-.baptism-sheet-heading h3 {
-    margin: 10px 0 6px;
+.baptism-sheet-heading,
+.investigation-sheet-heading {
+    border-bottom: 1px solid #f0eae1;
+    padding-bottom: 14px;
+}
+
+.baptism-sheet-heading h3,
+.investigation-sheet-heading h3 {
+    margin: 8px 0 4px;
     color: #172033;
-    font-size: 1.12rem;
-    font-weight: 900;
+    font-size: 1.18rem;
+    font-weight: 800;
 }
 
-.baptism-sheet-heading p {
+.baptism-sheet-heading p,
+.investigation-sheet-heading p {
     margin: 0;
     color: #667085;
-    line-height: 1.55;
+    font-size: 0.88rem;
+    line-height: 1.5;
 }
 
-.baptism-sheet-grid {
+.investigation-subcard {
+    background: #fdfbf7;
+    border: 1px solid #eedfc9;
+    border-radius: 10px;
+    padding: 16px 18px;
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
+    gap: 14px;
 }
 
-.baptism-sheet-field {
+.investigation-subcard-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.95rem;
+    font-weight: 750;
+    color: #78350f;
+    margin: 0;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed #e6d5bd;
+}
+
+.investigation-subcard-title i {
+    color: #d97706;
+}
+
+.investigation-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.investigation-grid-full {
     display: grid;
     gap: 6px;
 }
 
-.baptism-sheet-field.full {
+.baptism-sheet-grid {
+    display: grid;
+    gap: 16px;
+}
+
+.baptism-sheet-field,
+.investigation-field {
+    display: grid;
+    gap: 6px;
+}
+
+.baptism-sheet-field.full,
+.investigation-field.full {
     grid-column: 1 / -1;
 }
 
-.baptism-sheet-field label {
+.baptism-sheet-field label,
+.investigation-field label {
     color: #344054;
-    font-size: 0.82rem;
-    font-weight: 850;
+    font-size: 0.83rem;
+    font-weight: 750;
 }
 
-.baptism-sheet-field textarea {
-    min-height: 96px;
+.baptism-sheet-field textarea,
+.investigation-field textarea {
+    min-height: 84px;
     resize: vertical;
 }
 
-.baptism-sheet-field.is-missing label {
+.baptism-sheet-field.is-missing label,
+.investigation-field.is-missing label {
     color: #b42318;
 }
 
-.baptism-sheet-field.is-missing .request-form-control {
+.baptism-sheet-field.is-missing .request-form-control,
+.investigation-field.is-missing .request-form-control {
     border-color: #fda29b;
     background: #fff7f6;
+}
+
+.schedule-sync-card {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 10px;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.schedule-sync-card i {
+    font-size: 1.5rem;
+    color: #16a34a;
+    flex-shrink: 0;
+}
+
+.schedule-sync-card strong {
+    color: #15803d;
+    display: block;
+    font-size: 0.94rem;
+    margin-bottom: 2px;
+}
+
+.schedule-sync-card span {
+    color: #166534;
+    font-size: 0.85rem;
+}
+
+@media (max-width: 768px) {
+    .investigation-grid-2 {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* Shared validation and final-review pattern for multi-step request forms. */

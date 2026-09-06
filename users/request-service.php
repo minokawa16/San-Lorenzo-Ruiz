@@ -47,16 +47,38 @@ $baptism_sheet_fields = [
     'child_name' => 'Name of Child',
     'birth_date' => 'Date of Birth',
     'birth_place' => 'Place of Birth',
-    'baptism_date' => 'Date of Baptism',
-    'father_name' => 'Father',
-    'father_origin' => 'Father Place of Origin',
-    'mother_name' => 'Mother',
-    'mother_origin' => 'Mother Place of Origin',
-    'godparents' => 'Godparents',
-    'father_residence' => 'Father Residence',
-    'mother_residence' => 'Mother Residence',
-    'authorized_signature' => 'Authorized Signature',
-    'baptismal_seminar_head' => 'Head of the Baptismal Seminar'
+    'father_name' => "Father's Complete Name",
+    'father_origin' => "Father's Place of Origin / Residence",
+    'mother_name' => "Mother's Complete Maiden Name",
+    'mother_origin' => "Mother's Place of Origin / Residence",
+    'parents_marriage' => "Parents' Marriage Status",
+    'sponsor_male_name' => 'Principal Male Sponsor (Ninong)',
+    'sponsor_male_origin' => 'Ninong Place of Origin / Residence',
+    'sponsor_female_name' => 'Principal Female Sponsor (Ninang)',
+    'sponsor_female_origin' => 'Ninang Place of Origin / Residence',
+    'godparents' => 'Additional Sponsors',
+    'baptism_date' => 'Date of Baptism'
+];
+
+$marriage_sheet_fields = [
+    'groom_name' => "Groom's Full Name",
+    'groom_birth_date' => "Groom's Date of Birth",
+    'groom_birth_place' => "Groom's Place of Birth",
+    'groom_residence' => "Groom's Place of Origin / Residence",
+    'groom_religion' => "Groom's Religion / Church of Baptism",
+    'groom_father_name' => "Groom's Father's Complete Name",
+    'groom_mother_name' => "Groom's Mother's Maiden Name",
+    'bride_name' => "Bride's Full Maiden Name",
+    'bride_birth_date' => "Bride's Date of Birth",
+    'bride_birth_place' => "Bride's Place of Birth",
+    'bride_residence' => "Bride's Place of Origin / Residence",
+    'bride_religion' => "Bride's Religion / Church of Baptism",
+    'bride_father_name' => "Bride's Father's Complete Name",
+    'bride_mother_name' => "Bride's Mother's Maiden Name",
+    'witness_male' => "Male Principal Sponsor (Ninong)",
+    'witness_female' => "Female Principal Sponsor (Ninang)",
+    'additional_sponsors' => "Additional Sponsors / Entourage",
+    'wedding_date' => "Date of Marriage / Wedding"
 ];
 $marriage_requirements = [
     'pre_cana' => ['label' => 'Pre-Cana', 'mandatory' => true],
@@ -195,6 +217,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $preferred_date = trim($_POST['preferred_date'] ?? '');
     $preferred_time = trim($_POST['preferred_time'] ?? '');
     $patronal_fiesta_date = trim($_POST['patronal_fiesta_date'] ?? '');
+    $service_date = trim($_POST['service_date'] ?? '');
     $location = trim($_POST['location'] ?? '');
     $details = trim($_POST['details'] ?? '');
     $requirement_upload_plan = serviceRequirementUploadPlan($request_type, $baptism_requirements, $marriage_requirements, $funeral_requirements);
@@ -204,34 +227,86 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             ? ($_FILES['marriage_requirement_files'] ?? null)
             : ($request_type === 'funeral_mass' ? ($_FILES['funeral_requirement_files'] ?? null) : null));
     $missing_requirement_uploads = missingServiceRequirementUploads($requirement_upload_files, $requirement_upload_plan);
+
+    // Extract Pre-Baptismal Sheet
     $baptism_sheet = [];
     foreach ($baptism_sheet_fields as $field_key => $field_label) {
         $baptism_sheet[$field_key] = trim((string) ($_POST['baptism_sheet'][$field_key] ?? ''));
     }
+
+    // Extract Pre-Nuptial / Marriage Sheet
+    $marriage_sheet = [];
+    foreach ($marriage_sheet_fields as $field_key => $field_label) {
+        $marriage_sheet[$field_key] = trim((string) ($_POST['marriage_sheet'][$field_key] ?? ''));
+    }
+
+    // Single source of truth: Bind schedule date automatically from investigation sheets
+    if ($request_type === 'baptism_service') {
+        $preferred_date = $baptism_sheet['baptism_date'] ?? '';
+    } elseif ($request_type === 'marriage_wedding_service') {
+        $preferred_date = $marriage_sheet['wedding_date'] ?? '';
+    } elseif ($request_type === 'patronal_fiesta' && $patronal_fiesta_date !== '') {
+        $preferred_date = $patronal_fiesta_date;
+    } elseif ($service_date !== '') {
+        $preferred_date = $service_date;
+    }
+
+    // Validate required fields for Baptism Sheet
     $missing_baptism_sheet = [];
-    foreach ($baptism_sheet_fields as $field_key => $field_label) {
-        if ($baptism_sheet[$field_key] === '') {
-            $missing_baptism_sheet[] = $field_label;
+    if ($request_type === 'baptism_service') {
+        $required_baptism_keys = [
+            'child_name', 'birth_date', 'birth_place',
+            'father_name', 'father_origin',
+            'mother_name', 'mother_origin',
+            'parents_marriage',
+            'sponsor_male_name', 'sponsor_female_name',
+            'baptism_date'
+        ];
+        foreach ($required_baptism_keys as $k) {
+            if (empty($baptism_sheet[$k])) {
+                $missing_baptism_sheet[] = $baptism_sheet_fields[$k] ?? $k;
+            }
         }
     }
-    if ($request_type === 'patronal_fiesta' && $patronal_fiesta_date !== '') {
-        $preferred_date = $patronal_fiesta_date;
+
+    // Validate required fields for Marriage Sheet
+    $missing_marriage_sheet = [];
+    if ($request_type === 'marriage_wedding_service') {
+        $required_marriage_keys = [
+            'groom_name', 'groom_birth_date', 'groom_birth_place', 'groom_residence', 'groom_religion', 'groom_father_name', 'groom_mother_name',
+            'bride_name', 'bride_birth_date', 'bride_birth_place', 'bride_residence', 'bride_religion', 'bride_father_name', 'bride_mother_name',
+            'witness_male', 'witness_female',
+            'wedding_date'
+        ];
+        foreach ($required_marriage_keys as $k) {
+            if (empty($marriage_sheet[$k])) {
+                $missing_marriage_sheet[] = $marriage_sheet_fields[$k] ?? $k;
+            }
+        }
     }
 
     if (!array_key_exists($request_type, $service_types)) {
         $error = 'Please choose a sacramental service.';
     } elseif ($request_type === 'baptism_service' && !empty($missing_baptism_sheet)) {
-        $error = 'Please complete the Baptism Information Sheet before requesting Baptism. Missing: ' . implode(', ', array_slice($missing_baptism_sheet, 0, 4)) . (count($missing_baptism_sheet) > 4 ? ', and more.' : '.');
+        $error = 'Please complete the Pre-Baptismal Investigation Sheet before requesting Baptism. Missing: ' . implode(', ', array_slice($missing_baptism_sheet, 0, 4)) . (count($missing_baptism_sheet) > 4 ? ', and more.' : '.');
     } elseif ($request_type === 'baptism_service' && !serviceValidDate($baptism_sheet['birth_date'])) {
-        $error = 'Please provide a valid date of birth.';
+        $error = 'Please provide a valid date of birth for the child.';
     } elseif ($request_type === 'baptism_service' && !serviceValidDate($baptism_sheet['baptism_date'])) {
         $error = 'Please provide a valid date of Baptism.';
+    } elseif ($request_type === 'marriage_wedding_service' && !empty($missing_marriage_sheet)) {
+        $error = 'Please complete the Pre-Nuptial / Marriage Investigation Sheet before requesting Marriage. Missing: ' . implode(', ', array_slice($missing_marriage_sheet, 0, 4)) . (count($missing_marriage_sheet) > 4 ? ', and more.' : '.');
+    } elseif ($request_type === 'marriage_wedding_service' && !serviceValidDate($marriage_sheet['groom_birth_date'])) {
+        $error = 'Please provide a valid date of birth for the groom.';
+    } elseif ($request_type === 'marriage_wedding_service' && !serviceValidDate($marriage_sheet['bride_birth_date'])) {
+        $error = 'Please provide a valid date of birth for the bride.';
+    } elseif ($request_type === 'marriage_wedding_service' && !serviceValidDate($marriage_sheet['wedding_date'])) {
+        $error = 'Please provide a valid date of Marriage.';
     } elseif (in_array($request_type, ['baptism_service', 'marriage_wedding_service', 'funeral_mass'], true) && !empty($missing_requirement_uploads)) {
         $error = 'Please upload a file for each requirement. Missing: ' . implode(', ', array_slice($missing_requirement_uploads, 0, 4)) . (count($missing_requirement_uploads) > 4 ? ', and more.' : '.');
     } elseif ($request_type === 'patronal_fiesta' && $patronal_fiesta_date === '') {
         $error = 'Please choose the date of the Patronal Fiesta.';
     } elseif ($preferred_date === '') {
-        $error = 'Please choose a preferred date.';
+        $error = 'Please choose a scheduled service date.';
     } elseif ($preferred_time === '') {
         $error = 'Please choose a preferred time.';
     } elseif ($location === '') {
@@ -247,13 +322,46 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         }
         if ($request_type === 'baptism_service') {
             $description_parts[] = 'Baptism requirement uploads: ' . implode(', ', array_values($baptism_requirements));
-            $description_parts[] = 'Baptism Information Sheet:';
-            foreach ($baptism_sheet_fields as $field_key => $field_label) {
-                $description_parts[] = $field_label . ': ' . $baptism_sheet[$field_key];
+            $description_parts[] = "\n--- PRE-BAPTISMAL INVESTIGATION SHEET ---";
+            $description_parts[] = "1. Child's Information:";
+            $description_parts[] = "Name of Child: " . $baptism_sheet['child_name'];
+            $description_parts[] = "Date of Birth: " . $baptism_sheet['birth_date'] . " | Place of Birth: " . $baptism_sheet['birth_place'];
+            $description_parts[] = "\n2. Parents' Information:";
+            $description_parts[] = "Father: " . $baptism_sheet['father_name'] . " (Origin/Residence: " . $baptism_sheet['father_origin'] . ")";
+            $description_parts[] = "Mother: " . $baptism_sheet['mother_name'] . " (Origin/Residence: " . $baptism_sheet['mother_origin'] . ")";
+            $description_parts[] = "Parents' Marriage Status: " . $baptism_sheet['parents_marriage'];
+            $description_parts[] = "\n3. Sponsors (Godparents / Ninong & Ninang):";
+            $description_parts[] = "Principal Male Sponsor (Ninong): " . $baptism_sheet['sponsor_male_name'] . (!empty($baptism_sheet['sponsor_male_origin']) ? " (" . $baptism_sheet['sponsor_male_origin'] . ")" : "");
+            $description_parts[] = "Principal Female Sponsor (Ninang): " . $baptism_sheet['sponsor_female_name'] . (!empty($baptism_sheet['sponsor_female_origin']) ? " (" . $baptism_sheet['sponsor_female_origin'] . ")" : "");
+            if (!empty($baptism_sheet['godparents'])) {
+                $description_parts[] = "Additional Sponsors: " . $baptism_sheet['godparents'];
             }
+            $description_parts[] = "\n4. Proposed Baptism Schedule:";
+            $description_parts[] = "Date of Baptism: " . $baptism_sheet['baptism_date'];
         }
         if ($request_type === 'marriage_wedding_service') {
             $description_parts[] = 'Marriage requirement uploads: Male and Female files submitted for each requirement.';
+            $description_parts[] = "\n--- PRE-NUPTIAL / MARRIAGE INVESTIGATION SHEET ---";
+            $description_parts[] = "1. Groom (Nobyo) Information:";
+            $description_parts[] = "Full Name: " . $marriage_sheet['groom_name'];
+            $description_parts[] = "Date of Birth: " . $marriage_sheet['groom_birth_date'] . " | Place of Birth: " . $marriage_sheet['groom_birth_place'];
+            $description_parts[] = "Place of Origin / Current Residence: " . $marriage_sheet['groom_residence'];
+            $description_parts[] = "Religion / Church of Baptism: " . $marriage_sheet['groom_religion'];
+            $description_parts[] = "Father: " . $marriage_sheet['groom_father_name'] . " | Mother: " . $marriage_sheet['groom_mother_name'];
+            $description_parts[] = "\n2. Bride (Nobya) Information:";
+            $description_parts[] = "Full Maiden Name: " . $marriage_sheet['bride_name'];
+            $description_parts[] = "Date of Birth: " . $marriage_sheet['bride_birth_date'] . " | Place of Birth: " . $marriage_sheet['bride_birth_place'];
+            $description_parts[] = "Place of Origin / Current Residence: " . $marriage_sheet['bride_residence'];
+            $description_parts[] = "Religion / Church of Baptism: " . $marriage_sheet['bride_religion'];
+            $description_parts[] = "Father: " . $marriage_sheet['bride_father_name'] . " | Mother: " . $marriage_sheet['bride_mother_name'];
+            $description_parts[] = "\n3. Principal Witnesses / Sponsors (Ninong & Ninang):";
+            $description_parts[] = "Male Principal Sponsor: " . $marriage_sheet['witness_male'];
+            $description_parts[] = "Female Principal Sponsor: " . $marriage_sheet['witness_female'];
+            if (!empty($marriage_sheet['additional_sponsors'])) {
+                $description_parts[] = "Additional Sponsors / Entourage: " . $marriage_sheet['additional_sponsors'];
+            }
+            $description_parts[] = "\n4. Wedding Ceremony Schedule:";
+            $description_parts[] = "Date of Marriage: " . $marriage_sheet['wedding_date'];
         }
         if ($request_type === 'funeral_mass') {
             $description_parts[] = 'Funeral Mass requirement uploads: ' . implode(', ', array_values($funeral_requirements));
@@ -485,78 +593,108 @@ if ($stmt) {
                         <span>Upload one file for every Baptism requirement before submitting.</span>
                     </div>
 
-                    <div class="baptism-sheet-card" id="baptismSheetCard">
-                        <div class="baptism-sheet-heading">
+                    <div class="investigation-sheet-card baptism-sheet-card" id="baptismSheetCard">
+                        <div class="investigation-sheet-heading baptism-sheet-heading">
                             <span class="request-kicker"><i class="fas fa-file-lines"></i> Pre-Baptismal Investigation Sheet</span>
                             <h3>Fill Out This Form Before Requesting Baptism</h3>
-                            <p>Enter the child, parent, godparent, and seminar details exactly as they should appear for parish review.</p>
+                            <p>Enter the child, parent, and godparent details exactly as they should appear for parish canonical records.</p>
                         </div>
 
-                        <div class="baptism-sheet-grid">
-                            <div class="baptism-sheet-field full">
-                                <label for="baptism_child_name">Name of Child</label>
-                                <input type="text" class="form-control request-form-control" id="baptism_child_name" name="baptism_sheet[child_name]" data-baptism-sheet placeholder="Complete name of child">
+                        <!-- A. Child's Information -->
+                        <div class="investigation-subcard">
+                            <h4 class="investigation-subcard-title"><i class="fas fa-child"></i> 1. Child's Information</h4>
+                            <div class="investigation-grid-full">
+                                <label for="baptism_child_name">Full Name of Child <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control request-form-control" id="baptism_child_name" name="baptism_sheet[child_name]" data-baptism-sheet placeholder="Complete name of child (First, Middle, Surname)" required>
                             </div>
+                            <div class="investigation-grid-2">
+                                <div class="investigation-field">
+                                    <label for="baptism_birth_date">Date of Birth <span class="text-danger">*</span></label>
+                                    <input type="date" min="1900-01-01" max="<?php echo date('Y-m-d'); ?>" class="form-control request-form-control" id="baptism_birth_date" name="baptism_sheet[birth_date]" data-baptism-sheet required>
+                                </div>
+                                <div class="investigation-field">
+                                    <label for="baptism_birth_place">Place of Birth <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control request-form-control" id="baptism_birth_place" name="baptism_sheet[birth_place]" data-baptism-sheet placeholder="Municipality / City, Province" required>
+                                </div>
+                            </div>
+                        </div>
 
-                            <div class="baptism-sheet-field">
-                                <label for="baptism_birth_date">Date of Birth</label>
-                                <input type="date" min="1900-01-01" max="<?php echo date('Y-m-d'); ?>" class="form-control request-form-control" id="baptism_birth_date" name="baptism_sheet[birth_date]" data-baptism-sheet>
+                        <!-- B. Parents' Information -->
+                        <div class="investigation-subcard">
+                            <h4 class="investigation-subcard-title"><i class="fas fa-people-roof"></i> 2. Parents' Information</h4>
+                            <div class="investigation-grid-2">
+                                <div class="investigation-field">
+                                    <label for="baptism_father_name">Father's Complete Name <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control request-form-control" id="baptism_father_name" name="baptism_sheet[father_name]" data-baptism-sheet placeholder="Father's full name" required>
+                                </div>
+                                <div class="investigation-field">
+                                    <label for="baptism_father_origin">Father's Place of Origin / Residence <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control request-form-control" id="baptism_father_origin" name="baptism_sheet[father_origin]" data-baptism-sheet placeholder="Municipality / Province / Residence" required>
+                                </div>
                             </div>
+                            <div class="investigation-grid-2">
+                                <div class="investigation-field">
+                                    <label for="baptism_mother_name">Mother's Complete Maiden Name <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control request-form-control" id="baptism_mother_name" name="baptism_sheet[mother_name]" data-baptism-sheet placeholder="First, Middle, Maiden Surname" required>
+                                </div>
+                                <div class="investigation-field">
+                                    <label for="baptism_mother_origin">Mother's Place of Origin / Residence <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control request-form-control" id="baptism_mother_origin" name="baptism_sheet[mother_origin]" data-baptism-sheet placeholder="Municipality / Province / Residence" required>
+                                </div>
+                            </div>
+                            <div class="investigation-grid-full">
+                                <label for="baptism_parents_marriage">Parents' Marriage Status <span class="text-danger">*</span></label>
+                                <select class="form-select request-form-control" id="baptism_parents_marriage" name="baptism_sheet[parents_marriage]" data-baptism-sheet required>
+                                    <option value="">-- Select Marriage Status --</option>
+                                    <option value="Catholic Church Marriage">Catholic Church Marriage</option>
+                                    <option value="Civil Marriage">Civil Marriage</option>
+                                    <option value="Not Married / Common-Law">Not Married / Common-Law</option>
+                                    <option value="Other Christian / Religious Rite">Other Christian / Religious Rite</option>
+                                </select>
+                            </div>
+                        </div>
 
-                            <div class="baptism-sheet-field full">
-                                <label for="baptism_birth_place">Place of Birth</label>
-                                <input type="text" class="form-control request-form-control" id="baptism_birth_place" name="baptism_sheet[birth_place]" data-baptism-sheet placeholder="Municipality / City / Province">
+                        <!-- C. Sponsors (Godparents / Ninong & Ninang) -->
+                        <div class="investigation-subcard">
+                            <h4 class="investigation-subcard-title"><i class="fas fa-hands-holding-child"></i> 3. Sponsors (Godparents / Ninong &amp; Ninang)</h4>
+                            <div class="investigation-grid-2">
+                                <div class="investigation-field">
+                                    <label for="baptism_sponsor_male_name">Principal Male Sponsor (Ninong) <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control request-form-control" id="baptism_sponsor_male_name" name="baptism_sheet[sponsor_male_name]" data-baptism-sheet placeholder="Ninong full name" required>
+                                </div>
+                                <div class="investigation-field">
+                                    <label for="baptism_sponsor_male_origin">Ninong Place of Origin / Residence</label>
+                                    <input type="text" class="form-control request-form-control" id="baptism_sponsor_male_origin" name="baptism_sheet[sponsor_male_origin]" data-baptism-sheet placeholder="Municipality / Province">
+                                </div>
                             </div>
+                            <div class="investigation-grid-2">
+                                <div class="investigation-field">
+                                    <label for="baptism_sponsor_female_name">Principal Female Sponsor (Ninang) <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control request-form-control" id="baptism_sponsor_female_name" name="baptism_sheet[sponsor_female_name]" data-baptism-sheet placeholder="Ninang full name" required>
+                                </div>
+                                <div class="investigation-field">
+                                    <label for="baptism_sponsor_female_origin">Ninang Place of Origin / Residence</label>
+                                    <input type="text" class="form-control request-form-control" id="baptism_sponsor_female_origin" name="baptism_sheet[sponsor_female_origin]" data-baptism-sheet placeholder="Municipality / Province">
+                                </div>
+                            </div>
+                            <div class="investigation-grid-full">
+                                <label for="baptism_godparents">Additional Sponsors</label>
+                                <textarea class="form-control request-form-control" id="baptism_godparents" name="baptism_sheet[godparents]" rows="2" data-baptism-sheet placeholder="List any additional godparents / sponsors (one per line)"></textarea>
+                            </div>
+                        </div>
 
-                            <div class="baptism-sheet-field">
-                                <label for="baptism_date">Date of Baptism</label>
-                                <input type="date" min="1900-01-01" max="<?php echo date('Y-m-d', strtotime('+2 years')); ?>" class="form-control request-form-control" id="baptism_date" name="baptism_sheet[baptism_date]" data-baptism-sheet>
-                            </div>
-
-                            <div class="baptism-sheet-field">
-                                <label for="baptism_father_name">Father</label>
-                                <input type="text" class="form-control request-form-control" id="baptism_father_name" name="baptism_sheet[father_name]" data-baptism-sheet placeholder="Father's complete name">
-                            </div>
-                            <div class="baptism-sheet-field">
-                                <label for="baptism_father_origin">Father Place of Origin</label>
-                                <input type="text" class="form-control request-form-control" id="baptism_father_origin" name="baptism_sheet[father_origin]" data-baptism-sheet placeholder="Place of origin">
-                            </div>
-                            <div class="baptism-sheet-field">
-                                <label for="baptism_mother_name">Mother</label>
-                                <input type="text" class="form-control request-form-control" id="baptism_mother_name" name="baptism_sheet[mother_name]" data-baptism-sheet placeholder="Mother's complete maiden name">
-                            </div>
-                            <div class="baptism-sheet-field">
-                                <label for="baptism_mother_origin">Mother Place of Origin</label>
-                                <input type="text" class="form-control request-form-control" id="baptism_mother_origin" name="baptism_sheet[mother_origin]" data-baptism-sheet placeholder="Place of origin">
-                            </div>
-
-                            <div class="baptism-sheet-field full">
-                                <label for="baptism_godparents">Godparents</label>
-                                <textarea class="form-control request-form-control" id="baptism_godparents" name="baptism_sheet[godparents]" rows="3" data-baptism-sheet placeholder="List godparents / sponsors"></textarea>
-                            </div>
-
-                            <div class="baptism-sheet-field">
-                                <label for="baptism_father_residence">Father Residence</label>
-                                <input type="text" class="form-control request-form-control" id="baptism_father_residence" name="baptism_sheet[father_residence]" data-baptism-sheet placeholder="Residence">
-                            </div>
-                            <div class="baptism-sheet-field">
-                                <label for="baptism_mother_residence">Mother Residence</label>
-                                <input type="text" class="form-control request-form-control" id="baptism_mother_residence" name="baptism_sheet[mother_residence]" data-baptism-sheet placeholder="Residence">
-                            </div>
-
-                            <div class="baptism-sheet-field">
-                                <label for="baptism_authorized_signature">Authorized Signature</label>
-                                <input type="text" class="form-control request-form-control" id="baptism_authorized_signature" name="baptism_sheet[authorized_signature]" data-baptism-sheet placeholder="Name of authorized signer">
-                            </div>
-                            <div class="baptism-sheet-field">
-                                <label for="baptism_seminar_head">Head of the Baptismal Seminar</label>
-                                <input type="text" class="form-control request-form-control" id="baptism_seminar_head" name="baptism_sheet[baptismal_seminar_head]" data-baptism-sheet placeholder="Seminar head name">
+                        <!-- D. Proposed Baptism Schedule -->
+                        <div class="investigation-subcard" style="background: #fefce8; border-color: #fde047;">
+                            <h4 class="investigation-subcard-title" style="color: #854d0e; border-bottom-color: #fef08a;"><i class="fas fa-calendar-check"></i> 4. Proposed Baptism Schedule</h4>
+                            <div class="investigation-grid-full">
+                                <label for="baptism_date">Date of Baptism <span class="text-danger">*</span> <small class="text-muted fw-normal">(Serves as your scheduled service date)</small></label>
+                                <input type="date" min="<?php echo date('Y-m-d'); ?>" max="<?php echo date('Y-m-d', strtotime('+2 years')); ?>" class="form-control request-form-control" id="baptism_date" name="baptism_sheet[baptism_date]" data-baptism-sheet required>
                             </div>
                         </div>
 
                         <div class="baptism-warning" id="baptismSheetWarning">
                             <i class="fas fa-pen-to-square"></i>
-                            <span>Complete the Pre-Baptismal Investigation Sheet before submitting.</span>
+                            <span>Complete all required fields in the Pre-Baptismal Investigation Sheet before submitting.</span>
                         </div>
                     </div>
                 </div>
@@ -624,6 +762,126 @@ if ($stmt) {
                     <div class="baptism-warning" id="marriageRequirementWarning">
                         <i class="fas fa-triangle-exclamation"></i>
                         <span>Upload all Marriage requirement files for both Male and Female before submitting.</span>
+                    </div>
+
+                    <!-- Pre-Nuptial / Marriage Investigation Sheet -->
+                    <div class="investigation-sheet-card marriage-sheet-card" id="marriageSheetCard">
+                        <div class="investigation-sheet-heading">
+                            <span class="request-kicker"><i class="fas fa-ring"></i> Pre-Nuptial Investigation Sheet</span>
+                            <h3>Fill Out This Canonical Form Before Requesting Marriage</h3>
+                            <p>Official Catholic Sacramental Book IV (Marriage Register) data requirements for the groom, bride, and principal sponsors.</p>
+                        </div>
+
+                        <!-- 1. Groom (Nobyo) Information -->
+                        <div class="investigation-subcard">
+                            <h4 class="investigation-subcard-title"><i class="fas fa-user-tie"></i> 1. Groom (Nobyo) Information</h4>
+                            <div class="investigation-grid-full">
+                                <label for="marriage_groom_name">Full Name of Groom <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control request-form-control" id="marriage_groom_name" name="marriage_sheet[groom_name]" data-marriage-sheet placeholder="First Name, Middle Name, Last Name, Suffix" required>
+                            </div>
+                            <div class="investigation-grid-2">
+                                <div class="investigation-field">
+                                    <label for="marriage_groom_birth_date">Date of Birth <span class="text-danger">*</span></label>
+                                    <input type="date" min="1920-01-01" max="<?php echo date('Y-m-d', strtotime('-18 years')); ?>" class="form-control request-form-control" id="marriage_groom_birth_date" name="marriage_sheet[groom_birth_date]" data-marriage-sheet required>
+                                </div>
+                                <div class="investigation-field">
+                                    <label for="marriage_groom_birth_place">Place of Birth <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control request-form-control" id="marriage_groom_birth_place" name="marriage_sheet[groom_birth_place]" data-marriage-sheet placeholder="Municipality / City, Province" required>
+                                </div>
+                            </div>
+                            <div class="investigation-grid-2">
+                                <div class="investigation-field">
+                                    <label for="marriage_groom_residence">Place of Origin / Current Residence <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control request-form-control" id="marriage_groom_residence" name="marriage_sheet[groom_residence]" data-marriage-sheet placeholder="Barangay, City / Municipality, Province" required>
+                                </div>
+                                <div class="investigation-field">
+                                    <label for="marriage_groom_religion">Religion / Church of Baptism <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control request-form-control" id="marriage_groom_religion" name="marriage_sheet[groom_religion]" data-marriage-sheet placeholder="e.g., Roman Catholic / Parish of Baptism" required>
+                                </div>
+                            </div>
+                            <div class="investigation-grid-2">
+                                <div class="investigation-field">
+                                    <label for="marriage_groom_father_name">Father's Complete Name <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control request-form-control" id="marriage_groom_father_name" name="marriage_sheet[groom_father_name]" data-marriage-sheet placeholder="Father's complete name" required>
+                                </div>
+                                <div class="investigation-field">
+                                    <label for="marriage_groom_mother_name">Mother's Complete Maiden Name <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control request-form-control" id="marriage_groom_mother_name" name="marriage_sheet[groom_mother_name]" data-marriage-sheet placeholder="Mother's complete maiden name" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 2. Bride (Nobya) Information -->
+                        <div class="investigation-subcard">
+                            <h4 class="investigation-subcard-title"><i class="fas fa-person-dress"></i> 2. Bride (Nobya) Information</h4>
+                            <div class="investigation-grid-full">
+                                <label for="marriage_bride_name">Full Maiden Name of Bride <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control request-form-control" id="marriage_bride_name" name="marriage_sheet[bride_name]" data-marriage-sheet placeholder="First Name, Middle Name, Maiden Surname" required>
+                            </div>
+                            <div class="investigation-grid-2">
+                                <div class="investigation-field">
+                                    <label for="marriage_bride_birth_date">Date of Birth <span class="text-danger">*</span></label>
+                                    <input type="date" min="1920-01-01" max="<?php echo date('Y-m-d', strtotime('-18 years')); ?>" class="form-control request-form-control" id="marriage_bride_birth_date" name="marriage_sheet[bride_birth_date]" data-marriage-sheet required>
+                                </div>
+                                <div class="investigation-field">
+                                    <label for="marriage_bride_birth_place">Place of Birth <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control request-form-control" id="marriage_bride_birth_place" name="marriage_sheet[bride_birth_place]" data-marriage-sheet placeholder="Municipality / City, Province" required>
+                                </div>
+                            </div>
+                            <div class="investigation-grid-2">
+                                <div class="investigation-field">
+                                    <label for="marriage_bride_residence">Place of Origin / Current Residence <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control request-form-control" id="marriage_bride_residence" name="marriage_sheet[bride_residence]" data-marriage-sheet placeholder="Barangay, City / Municipality, Province" required>
+                                </div>
+                                <div class="investigation-field">
+                                    <label for="marriage_bride_religion">Religion / Church of Baptism <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control request-form-control" id="marriage_bride_religion" name="marriage_sheet[bride_religion]" data-marriage-sheet placeholder="e.g., Roman Catholic / Parish of Baptism" required>
+                                </div>
+                            </div>
+                            <div class="investigation-grid-2">
+                                <div class="investigation-field">
+                                    <label for="marriage_bride_father_name">Father's Complete Name <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control request-form-control" id="marriage_bride_father_name" name="marriage_sheet[bride_father_name]" data-marriage-sheet placeholder="Father's complete name" required>
+                                </div>
+                                <div class="investigation-field">
+                                    <label for="marriage_bride_mother_name">Mother's Complete Maiden Name <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control request-form-control" id="marriage_bride_mother_name" name="marriage_sheet[bride_mother_name]" data-marriage-sheet placeholder="Mother's complete maiden name" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 3. Principal Witnesses / Sponsors (Ninong & Ninang) -->
+                        <div class="investigation-subcard">
+                            <h4 class="investigation-subcard-title"><i class="fas fa-users"></i> 3. Principal Witnesses / Sponsors (Ninong &amp; Ninang)</h4>
+                            <div class="investigation-grid-2">
+                                <div class="investigation-field">
+                                    <label for="marriage_witness_male">Male Principal Sponsor (Full Name &amp; Residence) <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control request-form-control" id="marriage_witness_male" name="marriage_sheet[witness_male]" data-marriage-sheet placeholder="Full Name, City / Municipality" required>
+                                </div>
+                                <div class="investigation-field">
+                                    <label for="marriage_witness_female">Female Principal Sponsor (Full Name &amp; Residence) <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control request-form-control" id="marriage_witness_female" name="marriage_sheet[witness_female]" data-marriage-sheet placeholder="Full Name, City / Municipality" required>
+                                </div>
+                            </div>
+                            <div class="investigation-grid-full">
+                                <label for="marriage_additional_sponsors">Additional Sponsors / Entourage (Optional)</label>
+                                <textarea class="form-control request-form-control" id="marriage_additional_sponsors" name="marriage_sheet[additional_sponsors]" rows="2" data-marriage-sheet placeholder="List additional secondary sponsors, bridesmaid, groomsmen (optional)"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- 4. Wedding Ceremony Schedule -->
+                        <div class="investigation-subcard" style="background: #fdf4ff; border-color: #f0abfc;">
+                            <h4 class="investigation-subcard-title" style="color: #86198f; border-bottom-color: #f5d0fe;"><i class="fas fa-calendar-heart"></i> 4. Wedding Ceremony Schedule</h4>
+                            <div class="investigation-grid-full">
+                                <label for="marriage_wedding_date">Date of Marriage <span class="text-danger">*</span> <small class="text-muted fw-normal">(Serves as your scheduled wedding ceremony date)</small></label>
+                                <input type="date" min="<?php echo date('Y-m-d', strtotime('+1 month')); ?>" max="<?php echo date('Y-m-d', strtotime('+3 years')); ?>" class="form-control request-form-control" id="marriage_wedding_date" name="marriage_sheet[wedding_date]" data-marriage-sheet required>
+                            </div>
+                        </div>
+
+                        <div class="baptism-warning" id="marriageSheetWarning">
+                            <i class="fas fa-pen-to-square"></i>
+                            <span>Complete all required fields in the Pre-Nuptial Investigation Sheet before submitting.</span>
+                        </div>
                     </div>
                 </div>
 
@@ -713,19 +971,29 @@ if ($stmt) {
 
                 <div class="row g-3">
                     <div class="col-md-6" id="patronalDateGroup" style="display:none;">
-                        <label for="patronal_fiesta_date" class="form-label">Date of Patronal Fiesta</label>
+                        <label for="patronal_fiesta_date" class="form-label">Date of Patronal Fiesta <span class="text-danger">*</span></label>
                         <input type="date" class="form-control request-form-control" id="patronal_fiesta_date" name="patronal_fiesta_date">
                     </div>
-                    <div class="col-md-6" id="preferredDateGroup">
-                        <label for="preferred_date" class="form-label">Preferred Date</label>
-                        <input type="date" class="form-control request-form-control" id="preferred_date" name="preferred_date" required>
+                    <div class="col-md-6" id="generalServiceDateGroup" style="display:none;">
+                        <label for="general_service_date" class="form-label">Requested Service Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control request-form-control" id="general_service_date" name="service_date" min="<?php echo date('Y-m-d'); ?>">
                     </div>
-                    <div class="col-md-6">
-                        <label for="preferred_time" class="form-label">Preferred Time</label>
+                    <div class="col-12" id="scheduleSyncCard">
+                        <div class="schedule-sync-card">
+                            <i class="fas fa-calendar-check schedule-sync-icon"></i>
+                            <div class="schedule-sync-body">
+                                <strong id="scheduleSyncTitle">Schedule Date Synchronized</strong>
+                                <p id="scheduleSyncText">The schedule date is automatically synchronized with your investigation sheet above.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <input type="hidden" id="preferred_date" name="preferred_date">
+                    <div class="col-md-6" id="preferredTimeGroup">
+                        <label for="preferred_time" class="form-label">Preferred Time <span class="text-danger">*</span></label>
                         <input type="time" class="form-control request-form-control" id="preferred_time" name="preferred_time" required>
                     </div>
                     <div class="col-12">
-                        <label for="location" class="form-label">Location</label>
+                        <label for="location" class="form-label">Location <span class="text-danger">*</span></label>
                         <input type="text" class="form-control request-form-control" id="location" name="location" placeholder="Church, chapel, home, hospital, cemetery, or venue" required>
                     </div>
                     <div class="col-12">
@@ -774,6 +1042,21 @@ if ($stmt) {
                     <dl class="request-review-grid" id="reviewGodparents"></dl>
                 </div>
 
+                <div class="request-review-section" id="reviewGroomSection" hidden>
+                    <h3><i class="fas fa-user-tie"></i> Groom (Nobyo) Information</h3>
+                    <dl class="request-review-grid" id="reviewGroomInfo"></dl>
+                </div>
+
+                <div class="request-review-section" id="reviewBrideSection" hidden>
+                    <h3><i class="fas fa-person-dress"></i> Bride (Nobya) Information</h3>
+                    <dl class="request-review-grid" id="reviewBrideInfo"></dl>
+                </div>
+
+                <div class="request-review-section" id="reviewMarriageSponsorsSection" hidden>
+                    <h3><i class="fas fa-users"></i> Principal Witnesses / Sponsors (Ninong &amp; Ninang)</h3>
+                    <dl class="request-review-grid" id="reviewMarriageSponsorsInfo"></dl>
+                </div>
+
                 <div class="request-review-section">
                     <h3><i class="fas fa-calendar-check"></i> Applicant, Schedule, and Location</h3>
                     <dl class="request-review-grid" id="reviewScheduleInfo"></dl>
@@ -808,14 +1091,22 @@ document.addEventListener('DOMContentLoaded', function() {
     const confirmSubmitBtn = document.getElementById('confirmServiceSubmit');
     const patronalGroup = document.getElementById('patronalDateGroup');
     const patronalDate = document.getElementById('patronal_fiesta_date');
-    const preferredDateGroup = document.getElementById('preferredDateGroup');
+    const generalServiceDateGroup = document.getElementById('generalServiceDateGroup');
+    const generalServiceDate = document.getElementById('general_service_date');
+    const scheduleSyncCard = document.getElementById('scheduleSyncCard');
+    const scheduleSyncTitle = document.getElementById('scheduleSyncTitle');
+    const scheduleSyncText = document.getElementById('scheduleSyncText');
     const preferredDate = document.getElementById('preferred_date');
     const baptismRequirementsCard = document.getElementById('baptismRequirementsCard');
     const baptismRequirementWarning = document.getElementById('baptismRequirementWarning');
     const baptismSheetFields = Array.from(document.querySelectorAll('[data-baptism-sheet]'));
     const baptismSheetWarning = document.getElementById('baptismSheetWarning');
+    const baptismDateInput = document.getElementById('baptism_date');
     const marriageRequirementsCard = document.getElementById('marriageRequirementsCard');
     const marriageRequirementWarning = document.getElementById('marriageRequirementWarning');
+    const marriageSheetFields = Array.from(document.querySelectorAll('[data-marriage-sheet]'));
+    const marriageSheetWarning = document.getElementById('marriageSheetWarning');
+    const weddingDateInput = document.getElementById('marriage_wedding_date');
     const funeralRequirementsCard = document.getElementById('funeralRequirementsCard');
     const funeralRequirementWarning = document.getElementById('funeralRequirementWarning');
     const requirementFileInputs = Array.from(document.querySelectorAll('[data-requirement-file]'));
@@ -883,10 +1174,96 @@ document.addEventListener('DOMContentLoaded', function() {
         return selectedType && selectedType.value === 'funeral_mass';
     }
 
+    function isPatronalSelected() {
+        const selectedType = document.querySelector('input[name="request_type"]:checked');
+        return selectedType && selectedType.value === 'patronal_fiesta';
+    }
+
+    function getScheduledDate() {
+        if (isBaptismSelected()) {
+            return baptismDateInput ? baptismDateInput.value.trim() : '';
+        }
+        if (isMarriageSelected()) {
+            return weddingDateInput ? weddingDateInput.value.trim() : '';
+        }
+        if (isPatronalSelected()) {
+            return patronalDate ? patronalDate.value.trim() : '';
+        }
+        return generalServiceDate ? generalServiceDate.value.trim() : (preferredDate ? preferredDate.value.trim() : '');
+    }
+
+    function syncScheduleDate() {
+        const dateVal = getScheduledDate();
+        if (preferredDate) {
+            preferredDate.value = dateVal;
+        }
+        if (scheduleSyncCard && !scheduleSyncCard.hidden && scheduleSyncText) {
+            if (dateVal) {
+                scheduleSyncText.innerHTML = 'Sacramental date: <strong style="color: #0f766e;">' + displayDate(dateVal) + '</strong> (automatically bound from investigation sheet above).';
+            } else {
+                scheduleSyncText.innerHTML = 'Your sacramental service date will automatically synchronize from the investigation sheet above once selected.';
+            }
+        }
+    }
+
+    function toggleDateInputs() {
+        const baptismSelected = isBaptismSelected();
+        const marriageSelected = isMarriageSelected();
+        const patronalSelected = isPatronalSelected();
+
+        if (baptismSelected) {
+            if (scheduleSyncCard) {
+                scheduleSyncCard.hidden = false;
+                scheduleSyncCard.style.display = '';
+            }
+            if (scheduleSyncTitle) {
+                scheduleSyncTitle.textContent = 'Baptism Schedule Synchronized';
+            }
+            if (patronalGroup) patronalGroup.style.display = 'none';
+            if (patronalDate) patronalDate.required = false;
+            if (generalServiceDateGroup) generalServiceDateGroup.style.display = 'none';
+            if (generalServiceDate) generalServiceDate.required = false;
+        } else if (marriageSelected) {
+            if (scheduleSyncCard) {
+                scheduleSyncCard.hidden = false;
+                scheduleSyncCard.style.display = '';
+            }
+            if (scheduleSyncTitle) {
+                scheduleSyncTitle.textContent = 'Wedding Schedule Synchronized';
+            }
+            if (patronalGroup) patronalGroup.style.display = 'none';
+            if (patronalDate) patronalDate.required = false;
+            if (generalServiceDateGroup) generalServiceDateGroup.style.display = 'none';
+            if (generalServiceDate) generalServiceDate.required = false;
+        } else if (patronalSelected) {
+            if (scheduleSyncCard) {
+                scheduleSyncCard.hidden = true;
+                scheduleSyncCard.style.display = 'none';
+            }
+            if (patronalGroup) patronalGroup.style.display = '';
+            if (patronalDate) patronalDate.required = true;
+            if (generalServiceDateGroup) generalServiceDateGroup.style.display = 'none';
+            if (generalServiceDate) generalServiceDate.required = false;
+        } else {
+            // Funeral mass, anointing of the sick, or other services
+            if (scheduleSyncCard) {
+                scheduleSyncCard.hidden = true;
+                scheduleSyncCard.style.display = 'none';
+            }
+            if (patronalGroup) patronalGroup.style.display = 'none';
+            if (patronalDate) patronalDate.required = false;
+            if (generalServiceDateGroup) generalServiceDateGroup.style.display = '';
+            if (generalServiceDate) generalServiceDate.required = true;
+        }
+        syncScheduleDate();
+        updateSpecialRequirementsState();
+    }
+
     function updateSpecialRequirementsState() {
         const baptismSelected = isBaptismSelected();
         const marriageSelected = isMarriageSelected();
         const funeralSelected = isFuneralSelected();
+
         if (baptismRequirementsCard) {
             baptismRequirementsCard.hidden = !baptismSelected;
         }
@@ -899,7 +1276,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
         baptismSheetFields.forEach(function(field) {
             field.required = baptismSelected;
+            if (!field.required) {
+                clearFieldError(field);
+            }
         });
+
+        marriageSheetFields.forEach(function(field) {
+            const isOptional = field.id === 'marriage_additional_sponsors';
+            field.required = marriageSelected && !isOptional;
+            if (!field.required) {
+                clearFieldError(field);
+            }
+        });
+
         requirementFileInputs.forEach(function(input) {
             const isMandatory = input.dataset.requirementMandatory !== 'false';
             input.required = isMandatory && (
@@ -911,78 +1300,71 @@ document.addEventListener('DOMContentLoaded', function() {
                 clearFieldError(input);
             }
         });
-        baptismSheetFields.forEach(function(field) {
-            if (!field.required) {
-                clearFieldError(field);
+
+        syncScheduleDate();
+
+        if (baptismSelected) {
+            const baptismSheetComplete = baptismSheetFields.every(function(field) {
+                if (!field.required) return true;
+                return field.value.trim() !== '';
+            });
+            const baptismFilesReady = requirementFilesReady('baptism');
+
+            if (baptismRequirementWarning) {
+                baptismRequirementWarning.classList.toggle('is-complete', baptismFilesReady);
+                baptismRequirementWarning.innerHTML = baptismFilesReady
+                    ? '<i class="fas fa-circle-check"></i><span>Each Baptism requirement has its own uploaded file.</span>'
+                    : '<i class="fas fa-triangle-exclamation"></i><span>Upload one file for every Baptism requirement before submitting.</span>';
             }
-        });
 
-        if (!baptismSelected && !marriageSelected && !funeralSelected) {
-            return;
+            if (baptismSheetWarning) {
+                baptismSheetWarning.classList.toggle('is-complete', baptismSheetComplete);
+                baptismSheetWarning.innerHTML = baptismSheetComplete
+                    ? '<i class="fas fa-circle-check"></i><span>Pre-Baptismal Investigation Sheet is complete.</span>'
+                    : '<i class="fas fa-pen-to-square"></i><span>Complete all required fields in the Pre-Baptismal Investigation Sheet before submitting.</span>';
+            }
         }
 
-        const sheetComplete = baptismSheetFields.every(function(field) {
-            const complete = field.value.trim() !== '';
-            return complete;
-        });
-        const baptismFilesReady = requirementFilesReady('baptism');
-        const ready = baptismFilesReady && sheetComplete;
+        if (marriageSelected) {
+            const marriageSheetComplete = marriageSheetFields.every(function(field) {
+                if (!field.required) return true;
+                return field.value.trim() !== '';
+            });
+            const marriageFilesReady = requirementFilesReady('marriage');
 
-        if (baptismRequirementWarning) {
-            baptismRequirementWarning.classList.toggle('is-complete', ready);
-            baptismRequirementWarning.innerHTML = ready
-                ? '<i class="fas fa-circle-check"></i><span>Each Baptism requirement has its own uploaded file.</span>'
-                : '<i class="fas fa-triangle-exclamation"></i><span>Upload one file for every Baptism requirement before submitting.</span>';
+            if (marriageRequirementWarning) {
+                marriageRequirementWarning.classList.toggle('is-complete', marriageFilesReady);
+                marriageRequirementWarning.innerHTML = marriageFilesReady
+                    ? '<i class="fas fa-circle-check"></i><span>All required Marriage files are ready for parish review.</span>'
+                    : '<i class="fas fa-triangle-exclamation"></i><span>Upload required Marriage files for both Male and Female before submitting.</span>';
+            }
+
+            if (marriageSheetWarning) {
+                marriageSheetWarning.classList.toggle('is-complete', marriageSheetComplete);
+                marriageSheetWarning.innerHTML = marriageSheetComplete
+                    ? '<i class="fas fa-circle-check"></i><span>Pre-Nuptial Investigation Sheet is complete.</span>'
+                    : '<i class="fas fa-pen-to-square"></i><span>Complete all required fields in the Pre-Nuptial Investigation Sheet before submitting.</span>';
+            }
         }
 
-        if (baptismSheetWarning) {
-            baptismSheetWarning.classList.toggle('is-complete', sheetComplete);
-            baptismSheetWarning.innerHTML = sheetComplete
-                ? '<i class="fas fa-circle-check"></i><span>Pre-Baptismal Investigation Sheet is complete.</span>'
-                : '<i class="fas fa-pen-to-square"></i><span>Complete the Pre-Baptismal Investigation Sheet before submitting.</span>';
+        if (funeralSelected) {
+            const funeralReady = requirementFilesReady('funeral');
+            if (funeralRequirementWarning) {
+                funeralRequirementWarning.classList.toggle('is-complete', funeralReady);
+                funeralRequirementWarning.innerHTML = funeralReady
+                    ? '<i class="fas fa-circle-check"></i><span>Death Certificate is ready for parish review.</span>'
+                    : '<i class="fas fa-triangle-exclamation"></i><span>Upload the Death Certificate before submitting.</span>';
+            }
         }
-
-        const marriageReady = marriageSelected && requirementFilesReady('marriage');
-
-        if (marriageRequirementWarning) {
-            marriageRequirementWarning.classList.toggle('is-complete', marriageReady);
-            marriageRequirementWarning.innerHTML = marriageReady
-                ? '<i class="fas fa-circle-check"></i><span>All required Marriage files are ready for parish review.</span>'
-                : '<i class="fas fa-triangle-exclamation"></i><span>Upload required Marriage files for both Male and Female before submitting.</span>';
-        }
-
-        const funeralReady = funeralSelected && requirementFilesReady('funeral');
-
-        if (funeralRequirementWarning) {
-            funeralRequirementWarning.classList.toggle('is-complete', funeralReady);
-            funeralRequirementWarning.innerHTML = funeralReady
-                ? '<i class="fas fa-circle-check"></i><span>Death Certificate is ready for parish review.</span>'
-                : '<i class="fas fa-triangle-exclamation"></i><span>Upload the Death Certificate before submitting.</span>';
-        }
-
-    }
-
-    // Toggle Patronal Date Function - Documents this helper's role in the parish management workflow.
-    function togglePatronalDate() {
-        const selectedType = document.querySelector('input[name="request_type"]:checked');
-        const isPatronal = selectedType && selectedType.value === 'patronal_fiesta';
-        patronalGroup.style.display = isPatronal ? '' : 'none';
-        patronalDate.required = isPatronal;
-        preferredDateGroup.style.display = isPatronal ? 'none' : '';
-        preferredDate.required = !isPatronal;
-        if (!isPatronal) {
-            patronalDate.value = '';
-        } else if (patronalDate.value) {
-            preferredDate.value = patronalDate.value;
-        }
-        updateSpecialRequirementsState();
     }
 
     function validationWrapper(field) {
         if (field.type === 'radio') {
             return document.querySelector('.request-type-grid');
         }
-        return field.closest('.baptism-sheet-field')
+        return field.closest('.investigation-field')
+            || field.closest('.investigation-grid-full')
+            || field.closest('.baptism-sheet-field')
             || field.closest('.marriage-upload-cell')
             || field.closest('.requirement-upload-item')
             || field.closest('.col-md-6')
@@ -1103,7 +1485,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    function baptismValue(id) {
+    function formValue(id) {
         const field = document.getElementById(id);
         return field ? field.value.trim() : '';
     }
@@ -1122,36 +1504,84 @@ document.addEventListener('DOMContentLoaded', function() {
         ]);
 
         const baptismSelected = isBaptismSelected();
+        const marriageSelected = isMarriageSelected();
+
         document.getElementById('reviewChildSection').hidden = !baptismSelected;
         document.getElementById('reviewParentsSection').hidden = !baptismSelected;
         document.getElementById('reviewGodparentsSection').hidden = !baptismSelected;
+
         if (baptismSelected) {
             renderReviewItems('reviewChildInfo', [
-                ['Name of Child', baptismValue('baptism_child_name')],
-                ['Date of Birth', displayDate(baptismValue('baptism_birth_date'))],
-                ['Place of Birth', baptismValue('baptism_birth_place')],
-                ['Date of Baptism', displayDate(baptismValue('baptism_date'))]
+                ['Name of Child', formValue('baptism_child_name')],
+                ['Date of Birth', displayDate(formValue('baptism_birth_date'))],
+                ['Place of Birth', formValue('baptism_birth_place')],
+                ['Date of Baptism', displayDate(formValue('baptism_date'))]
             ]);
             renderReviewItems('reviewParents', [
-                ['Father', baptismValue('baptism_father_name')],
-                ['Father Place of Origin', baptismValue('baptism_father_origin')],
-                ['Father Residence', baptismValue('baptism_father_residence')],
-                ['Mother', baptismValue('baptism_mother_name')],
-                ['Mother Place of Origin', baptismValue('baptism_mother_origin')],
-                ['Mother Residence', baptismValue('baptism_mother_residence')]
+                ['Father\'s Complete Name', formValue('baptism_father_name')],
+                ['Father\'s Place of Origin / Residence', formValue('baptism_father_origin')],
+                ['Mother\'s Complete Maiden Name', formValue('baptism_mother_name')],
+                ['Mother\'s Place of Origin / Residence', formValue('baptism_mother_origin')],
+                ['Parents\' Marriage Status', formValue('baptism_parents_marriage')]
             ]);
+            const maleSponsor = formValue('baptism_sponsor_male_name') + (formValue('baptism_sponsor_male_origin') ? ' (' + formValue('baptism_sponsor_male_origin') + ')' : '');
+            const femaleSponsor = formValue('baptism_sponsor_female_name') + (formValue('baptism_sponsor_female_origin') ? ' (' + formValue('baptism_sponsor_female_origin') + ')' : '');
             renderReviewItems('reviewGodparents', [
-                ['Godparents / Sponsors', baptismValue('baptism_godparents')],
-                ['Authorized Signature', baptismValue('baptism_authorized_signature')],
-                ['Head of the Baptismal Seminar', baptismValue('baptism_seminar_head')]
+                ['Principal Male Sponsor (Ninong)', maleSponsor],
+                ['Principal Female Sponsor (Ninang)', femaleSponsor],
+                ['Additional Sponsors', formValue('baptism_godparents') || 'None']
             ]);
         }
 
-        const scheduleDate = patronalDate.required ? patronalDate.value : preferredDate.value;
+        const reviewGroomSec = document.getElementById('reviewGroomSection');
+        const reviewBrideSec = document.getElementById('reviewBrideSection');
+        const reviewMarriageSponsorsSec = document.getElementById('reviewMarriageSponsorsSection');
+
+        if (reviewGroomSec) reviewGroomSec.hidden = !marriageSelected;
+        if (reviewBrideSec) reviewBrideSec.hidden = !marriageSelected;
+        if (reviewMarriageSponsorsSec) reviewMarriageSponsorsSec.hidden = !marriageSelected;
+
+        if (marriageSelected) {
+            renderReviewItems('reviewGroomInfo', [
+                ['Full Name of Groom', formValue('marriage_groom_name')],
+                ['Date of Birth', displayDate(formValue('marriage_groom_birth_date'))],
+                ['Place of Birth', formValue('marriage_groom_birth_place')],
+                ['Place of Origin / Current Residence', formValue('marriage_groom_residence')],
+                ['Religion / Church of Baptism', formValue('marriage_groom_religion')],
+                ['Father\'s Complete Name', formValue('marriage_groom_father_name')],
+                ['Mother\'s Complete Maiden Name', formValue('marriage_groom_mother_name')]
+            ]);
+            renderReviewItems('reviewBrideInfo', [
+                ['Full Maiden Name of Bride', formValue('marriage_bride_name')],
+                ['Date of Birth', displayDate(formValue('marriage_bride_birth_date'))],
+                ['Place of Birth', formValue('marriage_bride_birth_place')],
+                ['Place of Origin / Current Residence', formValue('marriage_bride_residence')],
+                ['Religion / Church of Baptism', formValue('marriage_bride_religion')],
+                ['Father\'s Complete Name', formValue('marriage_bride_father_name')],
+                ['Mother\'s Complete Maiden Name', formValue('marriage_bride_mother_name')]
+            ]);
+            renderReviewItems('reviewMarriageSponsorsInfo', [
+                ['Male Principal Sponsor (Ninong)', formValue('marriage_witness_male')],
+                ['Female Principal Sponsor (Ninang)', formValue('marriage_witness_female')],
+                ['Additional Sponsors / Entourage', formValue('marriage_additional_sponsors') || 'None'],
+                ['Date of Marriage', displayDate(formValue('marriage_wedding_date'))]
+            ]);
+        }
+
+        const scheduleDate = getScheduledDate();
+        let scheduleDateLabel = 'Preferred Date';
+        if (baptismSelected) {
+            scheduleDateLabel = 'Date of Baptism';
+        } else if (marriageSelected) {
+            scheduleDateLabel = 'Date of Marriage';
+        } else if (isPatronalSelected()) {
+            scheduleDateLabel = 'Date of Patronal Fiesta';
+        }
+
         renderReviewItems('reviewScheduleInfo', [
             ['Applicant', <?php echo json_encode((string) ($_SESSION['fullname'] ?? ''), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>],
             ['Email Address', <?php echo json_encode((string) ($_SESSION['email'] ?? ''), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>],
-            [patronalDate.required ? 'Date of Patronal Fiesta' : 'Preferred Date', displayDate(scheduleDate)],
+            [scheduleDateLabel, displayDate(scheduleDate)],
             ['Preferred Time', displayTime(document.getElementById('preferred_time').value)],
             ['Location', document.getElementById('location').value.trim()],
             ['Additional Details', document.getElementById('details').value.trim() || 'None']
@@ -1173,25 +1603,39 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (typeRadios.length) {
         typeRadios.forEach(function(radio) {
-            radio.addEventListener('change', togglePatronalDate);
+            radio.addEventListener('change', toggleDateInputs);
         });
         baptismSheetFields.forEach(function(field) {
             field.addEventListener('input', updateSpecialRequirementsState);
             field.addEventListener('change', updateSpecialRequirementsState);
         });
+        marriageSheetFields.forEach(function(field) {
+            field.addEventListener('input', updateSpecialRequirementsState);
+            field.addEventListener('change', updateSpecialRequirementsState);
+        });
+        if (baptismDateInput) {
+            baptismDateInput.addEventListener('input', syncScheduleDate);
+            baptismDateInput.addEventListener('change', syncScheduleDate);
+        }
+        if (weddingDateInput) {
+            weddingDateInput.addEventListener('input', syncScheduleDate);
+            weddingDateInput.addEventListener('change', syncScheduleDate);
+        }
+        if (patronalDate) {
+            patronalDate.addEventListener('input', syncScheduleDate);
+            patronalDate.addEventListener('change', syncScheduleDate);
+        }
+        if (generalServiceDate) {
+            generalServiceDate.addEventListener('input', syncScheduleDate);
+            generalServiceDate.addEventListener('change', syncScheduleDate);
+        }
         requirementFileInputs.forEach(function(input) {
             input.addEventListener('change', function() {
                 updateRequirementFileLabel(input);
                 updateSpecialRequirementsState();
             });
         });
-        patronalDate.addEventListener('change', function() {
-            const selectedType = document.querySelector('input[name="request_type"]:checked');
-            if (selectedType && selectedType.value === 'patronal_fiesta') {
-                preferredDate.value = patronalDate.value;
-            }
-        });
-        togglePatronalDate();
+        toggleDateInputs();
         updateSpecialRequirementsState();
     }
 
