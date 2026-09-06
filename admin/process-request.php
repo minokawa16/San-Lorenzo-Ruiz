@@ -95,7 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $currentWorkflowStatus = RequestStateMachine::normalize((string) $request['status']);
                 // Legacy pending approvals are explicitly walked through the
                 // review stage; no direct submitted->approved bypass remains.
-                if ($action === 'approve' && $currentWorkflowStatus === 'submitted') {
+                if ($action === 'approve' && ($currentWorkflowStatus === 'submitted' || $currentWorkflowStatus === 'pending')) {
                     $workflow->transition($request_id, 'requirements_review', (int) $_SESSION['user_id'], 'Requirements review completed.');
                 }
                 $workflow->transition($request_id, $new_status, (int) $_SESSION['user_id'], $admin_response);
@@ -450,8 +450,11 @@ $page_title = 'Review Request - #' . $request['reference_number'];
                     <p class="text-muted mb-0">Reference: <strong><?php echo $request['reference_number']; ?></strong></p>
                 </div>
                 <div class="col-auto">
-                    <span class="status-badge status-<?php echo $request['status']; ?>">
-                        <?php echo ucfirst($request['status']); ?>
+                    <?php 
+                        $disp_status = strtolower($request['status']) === 'submitted' ? 'pending' : $request['status'];
+                    ?>
+                    <span class="status-badge status-<?php echo e($disp_status); ?>">
+                        <?php echo ucfirst(str_replace('_', ' ', $disp_status)); ?>
                     </span>
                 </div>
             </div>

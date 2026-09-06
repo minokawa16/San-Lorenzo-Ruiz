@@ -134,7 +134,8 @@ final class RequestService {
                 $dupStmt->close();
 
                 if ($existingActive) {
-                    $activeStatus = strtoupper((string) $existingActive['status']);
+                    $rawStatus = (string) $existingActive['status'];
+                    $activeStatus = strtoupper($rawStatus === 'submitted' ? 'pending' : $rawStatus);
                     $activeRef = (string) $existingActive['reference_number'];
                     $holderDisplay = $recordHolderName !== '' ? " for '{$recordHolderName}'" : "";
                     $friendlyType = ucwords(str_replace('_', ' ', $type));
@@ -142,7 +143,7 @@ final class RequestService {
                         "An active {$friendlyType} request ({$activeRef}){$holderDisplay} is currently in {$activeStatus} status. Duplicate requests cannot be submitted until your previous request is completed, rejected, or cancelled.",
                         (int) $existingActive['request_id'],
                         $activeRef,
-                        (string) $existingActive['status']
+                        $rawStatus === 'submitted' ? 'pending' : $rawStatus
                     );
                 }
             }
@@ -151,7 +152,7 @@ final class RequestService {
         $reference = 'TUGON-' . date('Y') . '-' . strtoupper(bin2hex(random_bytes(4)));
         $description = trim((string) ($data['description'] ?? ''));
         if (strlen($description) > 10000) throw new InvalidArgumentException('Request details are too long.');
-        $status = 'submitted';
+        $status = 'pending';
 
         $hasColumn = false;
         $chkCol = $this->db->query("SHOW COLUMNS FROM requests LIKE 'record_holder_name'");

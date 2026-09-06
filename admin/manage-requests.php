@@ -401,8 +401,11 @@ include '../templates/header.php';
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <span class="<?php echo e(pdsStatusClass($request['status'])); ?>">
-                                            <?php echo ucfirst($request['status']); ?>
+                                        <?php 
+                                            $disp_status = strtolower($request['status']) === 'submitted' ? 'pending' : $request['status'];
+                                        ?>
+                                        <span class="<?php echo e(pdsStatusClass($disp_status)); ?>">
+                                            <?php echo ucfirst(str_replace('_', ' ', $disp_status)); ?>
                                         </span>
                                     </td>
                                     <td><?php echo formatDate($request['submitted_at']); ?></td>

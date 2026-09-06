@@ -46,7 +46,7 @@ try {
         'record_holder_name' => $holder1
     ], $userId, $key1);
 
-    certCheck(!empty($req1['request_id']) && $req1['status'] === 'submitted', 'First certificate request succeeds');
+    certCheck(!empty($req1['request_id']) && $req1['status'] === 'pending', 'First certificate request succeeds');
     $req1Id = (int) $req1['request_id'];
 
     // Test 2: Submitting duplicate request for same user, same holder, and same certificate family is BLOCKED with 409

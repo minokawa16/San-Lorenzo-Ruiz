@@ -363,8 +363,11 @@ $page_title = 'View Request';
                 <div class="card-header">
                     <div class="d-flex justify-content-between align-items-center">
                         <h5 class="mb-0"><i class="fas fa-file-alt"></i> Request Details</h5>
-                        <span class="badge bg-<?php echo getStatusBadgeClass($request['status']); ?>">
-                            <?php echo e(ucfirst($request['status'])); ?>
+                        <?php 
+                            $disp_status = strtolower($request['status']) === 'submitted' ? 'pending' : $request['status'];
+                        ?>
+                        <span class="badge bg-<?php echo getStatusBadgeClass($disp_status); ?>">
+                            <?php echo e(ucfirst(str_replace('_', ' ', $disp_status))); ?>
                         </span>
                     </div>
                 </div>

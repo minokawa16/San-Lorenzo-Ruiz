@@ -226,7 +226,10 @@ $breadcrumbs = [
             <div class="card mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0"><i class="fas fa-route"></i> Request <?php echo e($request['reference_number']); ?></h5>
-                    <span class="badge bg-<?php echo getStatusBadgeClass($request['status']); ?>"><?php echo e(ucfirst($request['status'])); ?></span>
+                    <?php 
+                        $disp_status = strtolower($request['status']) === 'submitted' ? 'pending' : $request['status'];
+                    ?>
+                    <span class="badge bg-<?php echo getStatusBadgeClass($disp_status); ?>"><?php echo e(ucfirst(str_replace('_', ' ', $disp_status))); ?></span>
                 </div>
                 <div class="card-body">
                     <div class="row g-3 mb-3">

@@ -28,11 +28,18 @@ function pdsButton($label, $href = '', $variant = 'ghost-outline', $icon = '', $
 
 function pdsBadge($label, $status = 'neutral', $icon = '') {
     $status = strtolower((string) $status);
+    if ($status === 'submitted') {
+        $status = 'pending';
+        if (strtolower((string) $label) === 'submitted') {
+            $label = 'Pending';
+        }
+    }
     $map = [
         'active' => 'approved',
         'approved' => 'approved',
         'completed' => 'completed',
         'pending' => 'pending',
+        'submitted' => 'pending',
         'processing' => 'neutral',
         'rejected' => 'rejected',
         'cancelled' => 'cancelled',
@@ -49,6 +56,7 @@ function pdsStatusClass($status) {
         'approved' => 'approved',
         'completed' => 'completed',
         'pending' => 'pending',
+        'submitted' => 'pending',
         'processing' => 'neutral',
         'rejected' => 'rejected',
         'cancelled' => 'cancelled',

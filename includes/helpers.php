@@ -1256,6 +1256,7 @@ function ensureCertificateDuplicateGuardSchema($conn) {
         $conn->query("ALTER TABLE requests ADD COLUMN record_holder_name VARCHAR(191) NULL AFTER request_type");
         $conn->query("ALTER TABLE requests ADD KEY idx_requests_duplicate_guard (user_id, request_type, record_holder_name, status)");
     }
+    @$conn->query("UPDATE requests SET status = 'pending' WHERE status = 'submitted'");
     return true;
 }
 

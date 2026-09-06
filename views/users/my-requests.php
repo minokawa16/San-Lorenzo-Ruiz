@@ -80,8 +80,11 @@
                                         <span class="fw-semibold text-dark"><?php echo e(ucfirst(str_replace('_', ' ', $request['request_type']))); ?></span>
                                     </td>
                                     <td class="py-3 px-3" data-label="Status">
-                                        <span class="badge bg-<?php echo getStatusBadgeClass($request['status']); ?> px-2 py-1" style="font-size: 0.78rem; font-weight: 600;">
-                                            <?php echo e(ucfirst(str_replace('_', ' ', $request['status']))); ?>
+                                        <?php 
+                                            $disp_status = strtolower($request['status']) === 'submitted' ? 'pending' : $request['status'];
+                                        ?>
+                                        <span class="badge bg-<?php echo getStatusBadgeClass($disp_status); ?> px-2 py-1" style="font-size: 0.78rem; font-weight: 600;">
+                                            <?php echo e(ucfirst(str_replace('_', ' ', $disp_status))); ?>
                                         </span>
                                     </td>
                                     <td class="py-3 px-3 text-muted" data-label="Date Requested" style="font-size: 0.88rem;">

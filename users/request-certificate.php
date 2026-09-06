@@ -196,9 +196,12 @@ function certificateLabel($value, $labels = []) {
         } catch (DuplicateRequestException $exception) {
             http_response_code(409);
             $duplicate_ref = $exception->getReferenceNumber();
-            $duplicate_status = $exception->getExistingStatus() ?: 'SUBMITTED';
+            $duplicate_status = $exception->getExistingStatus() ?: 'PENDING';
+            if (strtolower($duplicate_status) === 'submitted') {
+                $duplicate_status = 'PENDING';
+            }
             $duplicate_id = $exception->getExistingRequestId();
-            $duplicate_msg = $exception->getMessage();
+            $duplicate_msg = str_ireplace('submitted', 'pending', $exception->getMessage());
             $duplicate_notice = [
                 'reference' => $duplicate_ref,
                 'status' => $duplicate_status,
@@ -228,6 +231,8 @@ if ($act_stmt) {
     while ($act_row = $act_res->fetch_assoc()) {
         $cFamily = RequestService::certificateFamily($act_row['request_type']);
         if ($cFamily !== null) {
+            $rawStatus = (string)$act_row['status'];
+            $act_row['status'] = $rawStatus === 'submitted' ? 'pending' : $rawStatus;
             $act_row['certificate_family'] = $cFamily;
             $active_certificate_requests[] = $act_row;
         }
@@ -1669,7 +1674,11 @@ if ($stmt) {
                             <span class="d-block mt-1">
                                 <strong class="text-dark">Active Reference:</strong> 
                                 <span class="badge bg-dark font-monospace px-2 py-1 ms-1"><?php echo e($duplicate_notice['reference']); ?></span>
-                                <span class="badge bg-warning text-dark text-uppercase px-2 py-1 ms-1"><?php echo e(strtoupper($duplicate_notice['status'])); ?></span>
+                                <?php 
+                                    $bannerStatus = strtoupper($duplicate_notice['status'] ?? 'PENDING');
+                                    if ($bannerStatus === 'SUBMITTED') $bannerStatus = 'PENDING';
+                                ?>
+                                <span class="badge bg-warning text-dark text-uppercase px-2 py-1 ms-1"><?php echo e($bannerStatus); ?></span>
                             </span>
                         <?php endif; ?>
                     </p>
@@ -2233,13 +2242,17 @@ if ($stmt) {
                         <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom" style="border-color: #E8E1D5 !important;">
                             <span class="text-secondary small fw-semibold">Current Status:</span>
                             <span class="badge bg-warning text-dark text-uppercase px-2 py-1" id="duplicateModalStatus" style="font-size: 0.8rem; font-weight: 700;">
-                                <?php echo e(strtoupper($duplicate_notice['status'] ?? 'SUBMITTED')); ?>
+                                <?php 
+                                    $modalStatus = strtoupper($duplicate_notice['status'] ?? 'PENDING');
+                                    if ($modalStatus === 'SUBMITTED') $modalStatus = 'PENDING';
+                                    echo e($modalStatus); 
+                                ?>
                             </span>
                         </div>
                         <div class="text-secondary small" style="line-height: 1.5;">
                             <i class="fas fa-circle-info text-warning me-1"></i>
                             <span id="duplicateModalDetails">
-                                <?php echo e($duplicate_notice['details'] ?? 'Duplicate requests cannot be submitted until your previous request is completed, rejected, or cancelled.'); ?>
+                                <?php echo e(str_ireplace('submitted', 'pending', $duplicate_notice['details'] ?? 'Duplicate requests cannot be submitted until your previous request is completed, rejected, or cancelled.')); ?>
                             </span>
                         </div>
                     </div>
@@ -2305,10 +2318,12 @@ if ($stmt) {
         function openDuplicateModal(data) {
             if (!data) return;
             const ref = data.reference || data.reference_number || 'Active Request';
-            const status = (data.status || 'SUBMITTED').toUpperCase();
+            const rawStatus = (data.status || 'PENDING').toUpperCase();
+            const status = rawStatus === 'SUBMITTED' ? 'PENDING' : rawStatus;
             const mainMsg = data.message || "You're not allowed to request another certificate because it will duplicate your active request.";
             const friendlyType = data.request_type ? data.request_type.replace(/_/g, ' ') : 'certificate';
-            const details = data.details || ("An active " + friendlyType + " request (" + ref + ") is currently in " + status + " status. Duplicate requests cannot be submitted until your previous request is completed, rejected, or cancelled.");
+            let details = data.details || ("An active " + friendlyType + " request (" + ref + ") is currently in " + status + " status. Duplicate requests cannot be submitted until your previous request is completed, rejected, or cancelled.");
+            details = details.replace(/submitted/gi, 'pending');
             const trackUrl = data.track_url || ("my-requests.php?q=" + encodeURIComponent(ref));
 
             const msgEl = document.getElementById('duplicateModalMainMessage');

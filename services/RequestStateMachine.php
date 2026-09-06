@@ -1,12 +1,13 @@
 <?php
 
 final class RequestStateMachine {
-    public const STATES = ['draft','submitted','requirements_review','needs_information','payment_required','payment_review','approved','scheduled','processing','ready_for_release','completed','rejected','cancelled'];
+    public const STATES = ['draft','pending','submitted','requirements_review','needs_information','payment_required','payment_review','approved','scheduled','processing','ready_for_release','completed','rejected','cancelled'];
     private const TRANSITIONS = [
-        'draft' => ['submitted','cancelled'],
-        'submitted' => ['requirements_review','needs_information','rejected','cancelled'],
+        'draft' => ['pending','submitted','cancelled'],
+        'pending' => ['requirements_review','needs_information','approved','rejected','cancelled'],
+        'submitted' => ['requirements_review','needs_information','approved','rejected','cancelled'],
         'requirements_review' => ['needs_information','payment_required','approved','rejected'],
-        'needs_information' => ['submitted','cancelled'],
+        'needs_information' => ['pending','submitted','cancelled'],
         'payment_required' => ['payment_review','cancelled'],
         'payment_review' => ['approved','payment_required','rejected'],
         'approved' => ['scheduled','processing','cancelled'],
@@ -16,12 +17,19 @@ final class RequestStateMachine {
         'completed' => [], 'rejected' => [], 'cancelled' => [],
     ];
 
-    public static function normalize(string $status): string { return strtolower(trim($status)) === 'pending' ? 'submitted' : strtolower(trim($status)); }
-    public static function canTransition(string $from, string $to): bool { return in_array($to, self::TRANSITIONS[self::normalize($from)] ?? [], true); }
+    public static function normalize(string $status): string { 
+        $s = strtolower(trim($status));
+        return $s === 'submitted' ? 'pending' : $s; 
+    }
+    public static function canTransition(string $from, string $to): bool { 
+        $normTo = self::normalize($to);
+        $normFrom = self::normalize($from);
+        return in_array($normTo, self::TRANSITIONS[$normFrom] ?? [], true) || in_array($to, self::TRANSITIONS[$normFrom] ?? [], true); 
+    }
     public static function requiresReason(string $to): bool { return in_array($to, ['rejected','needs_information','cancelled'], true); }
     public static function nextAction(string $status): array {
         return match (self::normalize($status)) {
-            'submitted','requirements_review' => ['required'=>true,'label'=>'The parish office is reviewing your requirements.','action'=>'Wait for review or respond to any request for information.'],
+            'pending','submitted','requirements_review' => ['required'=>true,'label'=>'The parish office is reviewing your requirements.','action'=>'Wait for review or respond to any request for information.'],
             'needs_information' => ['required'=>true,'label'=>'Additional information is required.','action'=>'Upload the requested information or send a message.'],
             'payment_required' => ['required'=>true,'label'=>'Payment is required.','action'=>'Submit payment through this request.'],
             'payment_review' => ['required'=>false,'label'=>'Payment is under review.','action'=>'Wait for payment verification.'],

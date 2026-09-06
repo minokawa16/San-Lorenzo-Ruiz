@@ -432,7 +432,10 @@ include '../templates/header.php';
                                         <td><strong><?php echo e($request['reference_number']); ?></strong></td>
                                         <td><?php echo e($request['fullname']); ?><br><small><?php echo e($request['email']); ?></small></td>
                                         <td><?php echo e(ucfirst(str_replace('_', ' ', $request['request_type']))); ?></td>
-                                        <td><span class="badge bg-<?php echo getStatusBadgeClass($request['status']); ?>"><?php echo e(ucfirst($request['status'])); ?></span></td>
+                                        <?php 
+                                            $disp_status = strtolower($request['status']) === 'submitted' ? 'pending' : $request['status'];
+                                        ?>
+                                        <td><span class="badge bg-<?php echo getStatusBadgeClass($disp_status); ?>"><?php echo e(ucfirst(str_replace('_', ' ', $disp_status))); ?></span></td>
                                         <td><?php echo formatDateTime($request['deleted_at']); ?></td>
                                         <td>
                                             <form method="POST" class="d-inline" onsubmit="return confirm('Restore this request?');">
