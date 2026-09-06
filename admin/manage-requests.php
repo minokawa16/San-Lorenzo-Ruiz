@@ -115,44 +115,38 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
     $status = $conn->real_escape_string($_POST['status']);
     $admin_response = $conn->real_escape_string($_POST['admin_response']);
 
-    $approval_conflict = ['conflict' => false, 'message' => ''];
     if ($status === 'approved') {
-        $approval_conflict = requestApprovalConflict($conn, $request_id);
-    }
-
-    if ($approval_conflict['conflict']) {
-        $error = $approval_conflict['message'] . ' Please choose another schedule before approving.';
+        require_once __DIR__ . '/../services/SacramentalApprovalService.php';
+        try {
+            $sacramentalService = new SacramentalApprovalService($conn);
+            $approvalResult = $sacramentalService->approveRequest($request_id, (int)$_SESSION['user_id'], [
+                'admin_response' => $admin_response
+            ]);
+            $success = 'Request approved successfully! ' . (!empty($approvalResult['sacramental_record']['registered']) ? 'Sacramental record registered and calendar schedule locked.' : 'Calendar schedule locked.');
+        } catch (Throwable $e) {
+            $error = $e->getMessage();
+        }
     } else {
         $sql = "UPDATE requests SET status = '$status', admin_response = '$admin_response'
                 WHERE request_id = $request_id";
 
         if ($conn->query($sql)) {
-        // Get user_id for notification
-        $req_result = $conn->query("SELECT r.user_id, r.reference_number, r.request_type, u.email, u.fullname, COALESCE(np.email_enabled, 1) AS email_enabled
-            FROM requests r
-            JOIN users u ON r.user_id = u.id
-            LEFT JOIN notification_preferences np ON np.user_id = u.id AND np.category = 'requests'
-            WHERE r.request_id = $request_id");
-        $req_data = $req_result->fetch_assoc();
-        
-        if ($req_data) {
-            createRequestStatusNotification($conn, $req_data, $status, $admin_response);
-        }
-        createAuditLog($conn, $_SESSION['user_id'], 'UPDATE_REQUEST', 'requests', $request_id);
-        if ($status === 'approved') {
-            $sync_result = syncApprovedRequestToCalendar($conn, $request_id, $_SESSION['user_id']);
-            $success = 'Request updated successfully!';
-            if ($sync_result['success'] && in_array($sync_result['message'], ['Calendar event created.', 'Calendar event updated.'], true)) {
-                $success .= ' It is now synced to the calendar.';
-            } elseif (!$sync_result['success']) {
-                $success .= ' Calendar sync skipped: ' . $sync_result['message'];
+            // Get user_id for notification
+            $req_result = $conn->query("SELECT r.user_id, r.reference_number, r.request_type, u.email, u.fullname, COALESCE(np.email_enabled, 1) AS email_enabled
+                FROM requests r
+                JOIN users u ON r.user_id = u.id
+                LEFT JOIN notification_preferences np ON np.user_id = u.id AND np.category = 'requests'
+                WHERE r.request_id = $request_id");
+            $req_data = $req_result->fetch_assoc();
+            
+            if ($req_data) {
+                createRequestStatusNotification($conn, $req_data, $status, $admin_response);
             }
-        } else {
+            createAuditLog($conn, $_SESSION['user_id'], 'UPDATE_REQUEST', 'requests', $request_id);
             if (in_array($status, ['pending', 'processing', 'rejected'], true)) {
                 cancelLinkedRequestCalendarEvent($conn, $request_id);
             }
             $success = 'Request updated successfully!';
-        }
         } else {
             $error = 'Error updating request: ' . $conn->error;
         }

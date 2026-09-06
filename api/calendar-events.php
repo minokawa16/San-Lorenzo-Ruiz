@@ -2,19 +2,23 @@
 /**
  * Calendar Events API - Returns parish schedule events and manages calendar updates for authenticated users.
  */
-header('Content-Type: application/json; charset=utf-8');
+if (!headers_sent()) {
+    header('Content-Type: application/json; charset=utf-8');
+}
 
-include '../includes/session.php';
-include '../database/config.php';
-include '../includes/helpers.php';
+require_once __DIR__ . '/../includes/session.php';
+require_once __DIR__ . '/../database/config.php';
+require_once __DIR__ . '/../includes/helpers.php';
 
-requireLogin();
+if (!defined('CLI_TEST_RUNNING')) {
+    requireLogin();
+}
 
 $is_admin = isAdmin();
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $input = [];
 
-if (in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
+if (!defined('CLI_TEST_RUNNING') && in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
     $raw = file_get_contents('php://input');
     $input = json_decode($raw, true);
     if (!is_array($input)) {
@@ -59,178 +63,196 @@ function jsonResponse($payload, $status = 200) {
 }
 
 // Calendar Validation - Cleans and normalizes strings, dates, times, colors, and end-time defaults.
-function cleanCalendarValue($value, $max = 255) {
-    return substr(trim((string) $value), 0, $max);
+if (!function_exists('cleanCalendarValue')) {
+    function cleanCalendarValue($value, $max = 255) {
+        return substr(trim((string) $value), 0, $max);
+    }
 }
 
 // Normalize and parse dates into MySQL YYYY-MM-DD format.
-function normalizeCalendarDate($date) {
-    $date = trim((string) $date);
-    if ($date === '') {
+if (!function_exists('normalizeCalendarDate')) {
+    function normalizeCalendarDate($date) {
+        $date = trim((string) $date);
+        if ($date === '') {
+            return null;
+        }
+
+        // Already YYYY-MM-DD
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            $parts = explode('-', $date);
+            if (checkdate((int)$parts[1], (int)$parts[2], (int)$parts[0])) {
+                return $date;
+            }
+        }
+
+        // DD/MM/YYYY or DD-MM-YYYY
+        if (preg_match('/^(\d{1,2})[\/\.-](\d{1,2})[\/\.-](\d{4})$/', $date, $m)) {
+            $d = (int)$m[1];
+            $mo = (int)$m[2];
+            $y = (int)$m[3];
+            if ($mo <= 12 && $d <= 31 && checkdate($mo, $d, $y)) {
+                return sprintf('%04d-%02d-%02d', $y, $mo, $d);
+            } elseif ($d <= 12 && $mo <= 31 && checkdate($d, $mo, $y)) {
+                return sprintf('%04d-%02d-%02d', $y, $d, $mo);
+            }
+        }
+
+        // Parse via strtotime
+        $ts = strtotime($date);
+        if ($ts !== false && $ts > 0) {
+            return date('Y-m-d', $ts);
+        }
+
         return null;
     }
-
-    // Already YYYY-MM-DD
-    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-        $parts = explode('-', $date);
-        if (checkdate((int)$parts[1], (int)$parts[2], (int)$parts[0])) {
-            return $date;
-        }
-    }
-
-    // DD/MM/YYYY or DD-MM-YYYY
-    if (preg_match('/^(\d{1,2})[\/\.-](\d{1,2})[\/\.-](\d{4})$/', $date, $m)) {
-        $d = (int)$m[1];
-        $mo = (int)$m[2];
-        $y = (int)$m[3];
-        if ($mo <= 12 && $d <= 31 && checkdate($mo, $d, $y)) {
-            return sprintf('%04d-%02d-%02d', $y, $mo, $d);
-        } elseif ($d <= 12 && $mo <= 31 && checkdate($d, $mo, $y)) {
-            return sprintf('%04d-%02d-%02d', $y, $d, $mo);
-        }
-    }
-
-    // Parse via strtotime
-    $ts = strtotime($date);
-    if ($ts !== false && $ts > 0) {
-        return date('Y-m-d', $ts);
-    }
-
-    return null;
 }
 
-function validCalendarDate($date) {
-    return normalizeCalendarDate($date) !== null;
+if (!function_exists('validCalendarDate')) {
+    function validCalendarDate($date) {
+        return normalizeCalendarDate($date) !== null;
+    }
 }
 
 // Normalize and parse times into MySQL HH:MM:SS format.
-function normalizeCalendarTime($time) {
-    $time = trim((string) $time);
-    if ($time === '') {
+if (!function_exists('normalizeCalendarTime')) {
+    function normalizeCalendarTime($time) {
+        $time = trim((string) $time);
+        if ($time === '') {
+            return null;
+        }
+
+        // Match 24hr HH:MM or HH:MM:SS
+        if (preg_match('/^([01]?\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/', $time, $m)) {
+            return sprintf('%02d:%02d:00', (int)$m[1], (int)$m[2]);
+        }
+
+        // Match 12hr HH:MM am/pm
+        if (preg_match('/^([01]?\d):([0-5]\d)\s*(am|pm)$/i', $time, $m)) {
+            $h = (int)$m[1];
+            $min = (int)$m[2];
+            $ampm = strtolower($m[3]);
+            if ($ampm === 'pm' && $h < 12) $h += 12;
+            if ($ampm === 'am' && $h === 12) $h = 0;
+            return sprintf('%02d:%02d:00', $h, $min);
+        }
+
+        $ts = strtotime($time);
+        if ($ts !== false) {
+            return date('H:i:s', $ts);
+        }
+
         return null;
     }
-
-    // Match 24hr HH:MM or HH:MM:SS
-    if (preg_match('/^([01]?\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/', $time, $m)) {
-        return sprintf('%02d:%02d:00', (int)$m[1], (int)$m[2]);
-    }
-
-    // Match 12hr HH:MM am/pm
-    if (preg_match('/^([01]?\d):([0-5]\d)\s*(am|pm)$/i', $time, $m)) {
-        $h = (int)$m[1];
-        $min = (int)$m[2];
-        $ampm = strtolower($m[3]);
-        if ($ampm === 'pm' && $h < 12) $h += 12;
-        if ($ampm === 'am' && $h === 12) $h = 0;
-        return sprintf('%02d:%02d:00', $h, $min);
-    }
-
-    $ts = strtotime($time);
-    if ($ts !== false) {
-        return date('H:i:s', $ts);
-    }
-
-    return null;
 }
 
-function validCalendarTime($time) {
-    return normalizeCalendarTime($time) !== null;
+if (!function_exists('validCalendarTime')) {
+    function validCalendarTime($time) {
+        return normalizeCalendarTime($time) !== null;
+    }
 }
 
 // Normalize category codes and user-facing labels
-function normalizeCalendarCategory($cat) {
-    $c = strtolower(trim((string)$cat));
-    $map = [
-        'event' => 'event',
-        'parish event' => 'event',
-        'events' => 'event',
-        'mass' => 'mass',
-        'mass schedule' => 'mass',
-        'mass / public schedule' => 'mass',
-        'monthly mass' => 'monthly_mass',
-        'monthly_mass' => 'monthly_mass',
-        'monthly schedule' => 'monthly_mass',
-        'sacramental' => 'sacramental',
-        'sacramental services' => 'sacramental',
-        'patronal fiesta' => 'patronal_fiesta',
-        'patronal_fiesta' => 'patronal_fiesta',
-        'patronal fiesta schedule' => 'patronal_fiesta',
-        'meeting' => 'meeting',
-        'meetings' => 'meeting',
-        'task' => 'task',
-        'tasks' => 'task',
-        'blessing' => 'blessing',
-        'blessings' => 'blessing',
-        'child blessing' => 'blessing',
-        'reservation' => 'reservation',
-        'reservations' => 'reservation',
-        'announcement' => 'announcement',
-        'announcements' => 'announcement'
-    ];
-    return $map[$c] ?? (preg_replace('/[^a-z0-9_]/', '_', $c) ?: 'event');
+if (!function_exists('normalizeCalendarCategory')) {
+    function normalizeCalendarCategory($cat) {
+        $c = strtolower(trim((string)$cat));
+        $map = [
+            'event' => 'event',
+            'parish event' => 'event',
+            'events' => 'event',
+            'mass' => 'mass',
+            'mass schedule' => 'mass',
+            'mass / public schedule' => 'mass',
+            'monthly mass' => 'monthly_mass',
+            'monthly_mass' => 'monthly_mass',
+            'monthly schedule' => 'monthly_mass',
+            'sacramental' => 'sacramental',
+            'sacramental services' => 'sacramental',
+            'patronal fiesta' => 'patronal_fiesta',
+            'patronal_fiesta' => 'patronal_fiesta',
+            'patronal fiesta schedule' => 'patronal_fiesta',
+            'meeting' => 'meeting',
+            'meetings' => 'meeting',
+            'task' => 'task',
+            'tasks' => 'task',
+            'blessing' => 'blessing',
+            'blessings' => 'blessing',
+            'child blessing' => 'blessing',
+            'reservation' => 'reservation',
+            'reservations' => 'reservation',
+            'announcement' => 'announcement',
+            'announcements' => 'announcement'
+        ];
+        return $map[$c] ?? (preg_replace('/[^a-z0-9_]/', '_', $c) ?: 'event');
+    }
 }
 
 // Normalize Calendar Color Function
-function normalizeCalendarColor($color) {
-    $color = trim((string) $color);
-    return preg_match('/^#[0-9a-fA-F]{6}$/', $color) ? $color : '#1a73e8';
+if (!function_exists('normalizeCalendarColor')) {
+    function normalizeCalendarColor($color) {
+        $color = trim((string) $color);
+        return preg_match('/^#[0-9a-fA-F]{6}$/', $color) ? $color : '#1a73e8';
+    }
 }
 
 // Schedule End Time Function
-function scheduleEndTime($start, $end) {
-    $start_norm = normalizeCalendarTime($start);
-    $end_norm = normalizeCalendarTime($end);
-    if (!empty($end_norm)) {
-        return $end_norm;
+if (!function_exists('scheduleEndTime')) {
+    function scheduleEndTime($start, $end) {
+        $start_norm = normalizeCalendarTime($start);
+        $end_norm = normalizeCalendarTime($end);
+        if (!empty($end_norm)) {
+            return $end_norm;
+        }
+        if (!empty($start_norm)) {
+            return date('H:i:s', strtotime($start_norm . ' +1 hour'));
+        }
+        return '09:00:00';
     }
-    if (!empty($start_norm)) {
-        return date('H:i:s', strtotime($start_norm . ' +1 hour'));
-    }
-    return '09:00:00';
 }
 
 // Schedule Conflict Detection - Checks venue/location overlap
-function hasScheduleConflict($conn, $date, $start, $end, $location = '', $exclude_id = 0) {
-    $date_norm = normalizeCalendarDate($date);
-    $start_norm = normalizeCalendarTime($start);
-    $effective_end = scheduleEndTime($start, $end);
-    $exclude_id = intval($exclude_id);
-    $items = [];
+if (!function_exists('hasScheduleConflict')) {
+    function hasScheduleConflict($conn, $date, $start, $end, $location = '', $exclude_id = 0) {
+        $date_norm = normalizeCalendarDate($date);
+        $start_norm = normalizeCalendarTime($start);
+        $effective_end = scheduleEndTime($start, $end);
+        $exclude_id = intval($exclude_id);
+        $items = [];
 
-    $sql = "SELECT schedule_id, title, start_time, end_time, location FROM schedule_events
-            WHERE event_date = ? AND status != 'cancelled' AND schedule_id != ?";
-    $stmt = $conn->prepare($sql);
-    if (!$stmt) {
-        return ['conflict' => false];
-    }
+        $sql = "SELECT schedule_id, title, start_time, end_time, location FROM schedule_events
+                WHERE event_date = ? AND status != 'cancelled' AND schedule_id != ?";
+        $stmt = $conn->prepare($sql);
+        if (!$stmt) {
+            return ['conflict' => false];
+        }
 
-    $stmt->bind_param('si', $date_norm, $exclude_id);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    while ($result && $row = $result->fetch_assoc()) {
-        $items[] = $row;
-    }
-    $stmt->close();
+        $stmt->bind_param('si', $date_norm, $exclude_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        while ($result && $row = $result->fetch_assoc()) {
+            $items[] = $row;
+        }
+        $stmt->close();
 
-    $trimmed_loc = strtolower(trim((string)$location));
+        $trimmed_loc = strtolower(trim((string)$location));
 
-    foreach ($items as $item) {
-        $item_start = normalizeCalendarTime($item['start_time']);
-        $item_end = scheduleEndTime($item['start_time'], $item['end_time']);
-        $item_loc = strtolower(trim((string)$item['location']));
+        foreach ($items as $item) {
+            $item_start = normalizeCalendarTime($item['start_time']);
+            $item_end = scheduleEndTime($item['start_time'], $item['end_time']);
+            $item_loc = strtolower(trim((string)$item['location']));
 
-        if ($start_norm < $item_end && $effective_end > $item_start) {
-            // If both specify a location and locations are identical
-            if ($trimmed_loc !== '' && $item_loc !== '' && $trimmed_loc === $item_loc) {
-                return [
-                    'conflict' => true,
-                    'message' => 'Venue conflict: "' . $item['title'] . '" is already scheduled at ' . $item['location'] . ' (' . formatTime($item_start) . ' - ' . formatTime($item_end) . ').'
-                ];
+            if ($start_norm < $item_end && $effective_end > $item_start) {
+                // If both specify a location and locations are identical
+                if ($trimmed_loc !== '' && $item_loc !== '' && $trimmed_loc === $item_loc) {
+                    return [
+                        'conflict' => true,
+                        'message' => 'Venue conflict: "' . $item['title'] . '" is already scheduled at ' . $item['location'] . ' (' . formatTime($item_start) . ' - ' . formatTime($item_end) . ').'
+                    ];
+                }
             }
         }
-    }
 
-    return ['conflict' => false];
+        return ['conflict' => false];
+    }
 }
 
 // Event Serialization - Converts database rows into FullCalendar-compatible event objects.
@@ -241,16 +263,35 @@ function buildScheduleEvent($row, $instance_date = null, $editable = false) {
     $is_instance = $instance_date !== null && $instance_date !== $row['event_date'];
     $id = 'schedule-' . $row['schedule_id'] . ($is_instance ? '-' . $date : '');
 
+    $is_sacramental = strtolower((string)($row['category'] ?? '')) === 'sacramental';
+    $display_title = $row['title'];
+    $display_desc = $row['description'];
+
+    // Public/Parish view: Displays as "Reserved" / "Occupied" (to block double-booking).
+    // Admin view: Full details with direct link to the sacramental record.
+    if (!$editable && $is_sacramental) {
+        $display_title = 'Reserved';
+        $display_desc = 'Reserved Sacramental Schedule';
+    }
+
+    $sourceType = $row['source_type'] ?? 'schedule';
+    $sourceId = intval($row['source_id'] ?? 0);
+    $recordUrl = '';
+
+    if ($editable && $sourceType === 'request' && $sourceId > 0) {
+        $recordUrl = 'process-request.php?id=' . $sourceId;
+    }
+
     return [
         'id' => $id,
-        'title' => $row['title'],
+        'title' => $display_title,
         'start' => $start,
         'end' => $end_time ? $date . 'T' . $end_time : null,
         'color' => $row['color_label'] ?: '#1a73e8',
         'editable' => $editable && !$is_instance,
         'extendedProps' => [
             'schedule_id' => intval($row['schedule_id']),
-            'description' => $row['description'],
+            'description' => $display_desc,
             'location' => $row['location'],
             'category' => $row['category'],
             'priority' => $row['priority'],
@@ -262,8 +303,9 @@ function buildScheduleEvent($row, $instance_date = null, $editable = false) {
             'reminder_minutes' => intval($row['reminder_minutes']),
             'notify_email' => intval($row['notify_email']),
             'notify_sms' => intval($row['notify_sms']),
-            'source_type' => $row['source_type'] ?? 'schedule',
-            'source_id' => intval($row['source_id'] ?? 0),
+            'source_type' => $sourceType,
+            'source_id' => $sourceId,
+            'record_url' => $recordUrl,
             'read_only' => !$editable || $is_instance,
             'instance_date' => $date
         ]
@@ -315,7 +357,7 @@ function notifyCalendarUsers($conn, $title, $message, $send_email = true, $send_
 }
 
 // GET Route - Returns visible calendar events for the requested date range and filters.
-if ($method === 'GET') {
+if (!defined('CLI_TEST_RUNNING') && $method === 'GET') {
     syncApprovedRequestCalendarBacklog($conn, $_SESSION['user_id'] ?? 0);
 
     $start = $_GET['start'] ?? date('Y-m-01');
@@ -510,9 +552,10 @@ if ($method === 'GET') {
     exit;
 }
 
-if (!$is_admin) {
-    jsonResponse(['success' => false, 'message' => 'Only admins can change schedules.'], 403);
-}
+if (!defined('CLI_TEST_RUNNING')) {
+    if (!$is_admin) {
+        jsonResponse(['success' => false, 'message' => 'Only admins can change schedules.'], 403);
+    }
 
 // POST Route - Creates a new parish schedule event after admin validation.
 if ($method === 'POST') {
@@ -735,4 +778,5 @@ if ($method === 'DELETE') {
     jsonResponse(['success' => true, 'message' => 'Schedule deleted successfully.']);
 }
 
-jsonResponse(['success' => false, 'message' => 'Unsupported calendar action.'], 405);
+    jsonResponse(['success' => false, 'message' => 'Unsupported calendar action.'], 405);
+}

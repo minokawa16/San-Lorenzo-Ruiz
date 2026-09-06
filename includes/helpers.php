@@ -1260,6 +1260,18 @@ function ensureCertificateDuplicateGuardSchema($conn) {
     return true;
 }
 
+// Sacramental Record Views - Ensures canonical register views exist for sacramental registries.
+function ensureSacramentalRecordViews($conn = null) {
+    if (!$conn && isset($GLOBALS['conn'])) {
+        $conn = $GLOBALS['conn'];
+    }
+    if (!($conn instanceof mysqli)) return false;
+    @$conn->query("CREATE OR REPLACE VIEW sacramental_records_baptism AS SELECT * FROM baptism_records");
+    @$conn->query("CREATE OR REPLACE VIEW sacramental_records_marriage AS SELECT * FROM marriage_records");
+    @$conn->query("CREATE OR REPLACE VIEW sacramental_records_death AS SELECT * FROM funeral_records");
+    return true;
+}
+
 
 // Request Documents - Prepares file metadata storage for uploaded parish requirements.
 function ensureRequestDocumentsSchema($conn) {

@@ -64,8 +64,19 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $error = 'Upload a released certificate or parish office file before marking this request completed.';
         } elseif ($status === 'completed' && intval($current_payment_summary['total']) > 0 && intval($current_payment_summary['verified']) <= 0) {
             $error = 'A submitted payment receipt must be verified before marking this request completed.';
-        } elseif ($status === 'approved' && requestApprovalConflict($conn, $request_id)['conflict']) {
-            $error = requestApprovalConflict($conn, $request_id)['message'] . ' Please choose another schedule before approving.';
+        } elseif ($status === 'approved') {
+            require_once __DIR__ . '/../services/SacramentalApprovalService.php';
+            try {
+                $sacramentalService = new SacramentalApprovalService($conn);
+                $approvalResult = $sacramentalService->approveRequest($request_id, (int)$_SESSION['user_id'], [
+                    'admin_response' => $admin_response
+                ]);
+                $request['status'] = 'approved';
+                $request['admin_response'] = $admin_response;
+                $success = 'Request approved successfully! Sacramental record registered and calendar schedule locked.';
+            } catch (Throwable $e) {
+                $error = $e->getMessage();
+            }
         } else {
             $stmt = $conn->prepare("UPDATE requests SET status = ?, admin_response = ? WHERE request_id = ?");
             if ($stmt) {
@@ -73,9 +84,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 if ($stmt->execute()) {
                     createAuditLog($conn, $_SESSION['user_id'], 'UPDATE_REQUEST_STATUS', 'requests', $request_id);
                     createRequestStatusNotification($conn, $request, $status, $admin_response);
-                    if ($status === 'approved') {
-                        syncApprovedRequestToCalendar($conn, $request_id, $_SESSION['user_id']);
-                    }
                     $request['status'] = $status;
                     $request['admin_response'] = $admin_response;
                     $success = 'Request status updated.';

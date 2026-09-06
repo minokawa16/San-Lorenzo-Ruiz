@@ -16,6 +16,7 @@ include __DIR__ . '/../database/config.php';
 include __DIR__ . '/../includes/session.php';
 include __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../services/RequestService.php';
+require_once __DIR__ . '/../services/SacramentalApprovalService.php';
 
 // Check admin access
 requireAdmin();
@@ -65,39 +66,50 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $action = trim($_POST['action'] ?? '');
         $admin_response = trim($_POST['admin_response'] ?? '');
         $new_status = trim($_POST['status'] ?? '');
+        $officiating_priest = trim($_POST['officiating_priest'] ?? $_POST['minister'] ?? '');
 
         // Validate action
         if (!in_array($action, ['approve', 'reject', 'request_more', 'complete', 'remark'])) {
             throw new Exception('Invalid action');
         }
 
-        // Map actions to statuses
-        $status_map = [
-            'approve' => 'approved',
-            'reject' => 'rejected',
-            'request_more' => 'needs_information',
-            'complete' => 'completed',
-            'remark' => $request['status']  // Keep current status
-        ];
-
-        $new_status = $status_map[$action];
-
         if ($action === 'approve') {
-            $approval_conflict = requestApprovalConflict($conn, $request_id);
-            if ($approval_conflict['conflict']) {
-                throw new Exception($approval_conflict['message'] . ' Please choose another schedule before approving.');
-            }
-        }
+            $sacramentalService = new SacramentalApprovalService($conn);
+            $approvalResult = $sacramentalService->approveRequest($request_id, (int)$_SESSION['user_id'], [
+                'admin_response' => $admin_response,
+                'officiating_priest' => $officiating_priest
+            ]);
 
-        try {
+            $success_message = 'Request approved successfully! User has been notified.';
+            if (!empty($approvalResult['sacramental_record']['registered'])) {
+                $recType = ucfirst($approvalResult['sacramental_record']['type'] ?? 'Sacramental');
+                $regNo = $approvalResult['sacramental_record']['registry_no'] ?? '';
+                $success_message .= " Official {$recType} record registered ({$regNo}) and parish calendar schedule locked.";
+            } else {
+                $success_message .= ' Parish calendar schedule locked.';
+            }
+
+            $logger->info('Sacramental request approved via SacramentalApprovalService', [
+                'request_id' => $request_id,
+                'user_id' => $request['user_id'],
+                'result' => $approvalResult
+            ]);
+
+            // Refresh request data
+            $request = $db->selectOne($sql, 'i', [$request_id]);
+        } else {
+            // Map actions to statuses
+            $status_map = [
+                'reject' => 'rejected',
+                'request_more' => 'needs_information',
+                'complete' => 'completed',
+                'remark' => $request['status']  // Keep current status
+            ];
+
+            $new_status = $status_map[$action];
+
             if ($action !== 'remark') {
                 $workflow = new RequestService($conn);
-                $currentWorkflowStatus = RequestStateMachine::normalize((string) $request['status']);
-                // Legacy pending approvals are explicitly walked through the
-                // review stage; no direct submitted->approved bypass remains.
-                if ($action === 'approve' && ($currentWorkflowStatus === 'submitted' || $currentWorkflowStatus === 'pending')) {
-                    $workflow->transition($request_id, 'requirements_review', (int) $_SESSION['user_id'], 'Requirements review completed.');
-                }
                 $workflow->transition($request_id, $new_status, (int) $_SESSION['user_id'], $admin_response);
             }
 
@@ -111,20 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             createRequestStatusNotification($conn, $request, $new_status, $admin_response);
 
             $success_message = 'Request ' . $action . 'd successfully! User has been notified.';
-            if ($action === 'approve') {
-                $sync_result = syncApprovedRequestToCalendar($conn, $request_id, $_SESSION['user_id']);
-                if ($sync_result['success'] && in_array($sync_result['message'], ['Calendar event created.', 'Calendar event updated.'], true)) {
-                    $success_message .= ' It is now synced to the calendar.';
-                } elseif (!$sync_result['success']) {
-                    $success_message .= ' Calendar sync skipped: ' . $sync_result['message'];
-                }
-
-                $logger->info('Request approved - calendar sync checked', [
-                    'request_id' => $request_id,
-                    'user_id' => $request['user_id'],
-                    'calendar_sync' => $sync_result
-                ]);
-            } elseif (in_array($new_status, ['pending', 'processing', 'rejected'], true)) {
+            if (in_array($new_status, ['pending', 'processing', 'rejected'], true)) {
                 cancelLinkedRequestCalendarEvent($conn, $request_id);
             }
             
@@ -138,8 +137,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
             // Refresh request data
             $request = $db->selectOne($sql, 'i', [$request_id]);
-
-        } catch (Exception $e) { throw $e; }
+        }
 
     } catch (Exception $e) {
         $error_message = $e->getMessage();
@@ -647,6 +645,17 @@ $page_title = 'Review Request - #' . $request['reference_number'];
                                 <textarea class="form-control" id="admin_response" name="admin_response" rows="4" placeholder="Add your remarks here..."></textarea>
                                 <small class="text-muted">User will be notified of your remarks</small>
                             </div>
+
+                            <?php 
+                            $is_sacramental_form = SacramentalApprovalService::isSacramentalRequestType((string)($request['request_type'] ?? ''));
+                            if ($is_sacramental_form): 
+                            ?>
+                                <div class="mb-3">
+                                    <label for="officiating_priest" class="form-label">Officiating Priest / Minister</label>
+                                    <input type="text" class="form-control" id="officiating_priest" name="officiating_priest" placeholder="e.g. Rev. Fr. Parish Priest" value="<?php echo htmlspecialchars(getParishPriestName()); ?>">
+                                    <small class="text-muted">Assigned priest for sacramental record and calendar</small>
+                                </div>
+                            <?php endif; ?>
 
                             <div class="d-grid gap-2">
                                 <button type="submit" name="action" value="approve" class="action-btn btn-approve" onclick="return confirm('Approve this request?');">

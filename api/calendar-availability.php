@@ -151,6 +151,45 @@ if (!empty($resourceIds)) {
     }
 }
 
+// 1b. Check schedule_events for confirmed parish calendar bookings & sacramental reservations
+$seSql = "SELECT schedule_id, title, start_time, end_time, location, category FROM schedule_events WHERE event_date = ? AND status != 'cancelled'";
+$seStmt = $conn->prepare($seSql);
+if ($seStmt) {
+    $seStmt->bind_param('s', $dateStr);
+    $seStmt->execute();
+    $seRes = $seStmt->get_result();
+    while ($seRow = $seRes->fetch_assoc()) {
+        $seStartNorm = normalizeCalendarTime($seRow['start_time']);
+        $seEndNorm = scheduleEndTime($seRow['start_time'], $seRow['end_time']);
+        if ($seStartNorm) {
+            $seStartTs = strtotime($dateStr . ' ' . $seStartNorm);
+            $seEndTs = strtotime($dateStr . ' ' . $seEndNorm);
+            $occupiedWindows[] = [
+                'window_start' => $seStartTs - ($setupBuffer * 60),
+                'window_end' => $seEndTs + ($cleanupBuffer * 60),
+                'service_start' => $seStartTs,
+                'service_end' => $seEndTs,
+                'type' => $seRow['category'] === 'sacramental' ? 'sacramental_service' : 'parish_event',
+                'status' => 'reserved',
+                'resources' => $seRow['location'] ?: 'Church'
+            ];
+            $occupiedIntervals[] = [
+                'reservation_id' => 0,
+                'type' => 'Parish Calendar: ' . $seRow['title'],
+                'status' => 'reserved',
+                'start_time' => date('H:i', $seStartTs),
+                'end_time' => date('H:i', $seEndTs),
+                'start_display' => date('g:i A', $seStartTs),
+                'end_display' => date('g:i A', $seEndTs),
+                'buffer_start' => date('H:i', $seStartTs - ($setupBuffer * 60)),
+                'buffer_end' => date('H:i', $seEndTs + ($cleanupBuffer * 60)),
+                'resources' => $seRow['location'] ?: 'Church'
+            ];
+        }
+    }
+    $seStmt->close();
+}
+
 // 2. Generate standard parish service time slots (e.g. 8:00 AM to 5:00 PM)
 $baseSlots = [
     '08:00', '09:00', '10:00', '11:00',
