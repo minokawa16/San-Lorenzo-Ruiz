@@ -205,19 +205,65 @@ function certificateLabel($value, $labels = []) {
     }
 }
 
-$certificate_placeholders = implode(',', array_fill(0, count($certificate_type_keys), '?'));
+$all_certificate_types = array_values(array_unique(array_merge($certificate_type_keys, [
+    'baptism_certification',
+    'confirmation_certification',
+    'first_communion_certification',
+    'marriage_certification',
+    'funeral_certification',
+    'baptismal_certificate',
+    'confirmation_certificate',
+    'first_communion_certificate',
+    'marriage_certificate',
+    'funeral_certificate',
+    'certificate',
+    'certification',
+    'baptism',
+    'confirmation',
+    'first_communion',
+    'marriage',
+    'funeral',
+])));
+
+$certificate_placeholders = implode(',', array_fill(0, count($all_certificate_types), '?'));
+
+$status_map = [
+    'submitted' => 'pending',
+    'pending' => 'pending',
+    'requirements_review' => 'pending',
+    'under_review' => 'pending',
+    'needs_information' => 'pending',
+    'payment_required' => 'pending',
+    'payment_review' => 'pending',
+    'approved' => 'approved',
+    'processing' => 'processing',
+    'scheduled' => 'processing',
+    'ready_for_release' => 'processing',
+    'completed' => 'completed',
+    'rejected' => 'rejected',
+    'cancelled' => 'cancelled',
+];
 
 $status_counts = array_fill_keys($allowed_statuses, 0);
-$count_types = 'i' . str_repeat('s', count($certificate_type_keys));
-$count_params = array_merge([$user_id], $certificate_type_keys);
-$stmt = $conn->prepare("SELECT status, COUNT(*) AS count FROM requests WHERE user_id = ? AND request_type IN ($certificate_placeholders) GROUP BY status");
+$count_types = 'i' . str_repeat('s', count($all_certificate_types));
+$count_params = array_merge([$user_id], $all_certificate_types);
+$stmt = $conn->prepare("SELECT status, COUNT(*) AS count 
+    FROM requests 
+    WHERE user_id = ? 
+      AND (
+          request_type IN ($certificate_placeholders) 
+          OR request_type LIKE '%cert%'
+      ) 
+    GROUP BY status");
 if ($stmt) {
     $stmt->bind_param($count_types, ...$count_params);
     $stmt->execute();
     $result = $stmt->get_result();
     while ($row = $result->fetch_assoc()) {
-        if (isset($status_counts[$row['status']])) {
-            $status_counts[$row['status']] = intval($row['count']);
+        $raw_status = strtolower(trim((string) $row['status']));
+        $target_status = $status_map[$raw_status] ?? (isset($status_counts[$raw_status]) ? $raw_status : 'pending');
+        if (isset($status_counts[$target_status])) {
+            $status_counts[$target_status] += intval($row['count']);
         }
     }
     $stmt->close();

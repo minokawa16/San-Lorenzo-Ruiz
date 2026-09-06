@@ -30,9 +30,15 @@
                 <div class="col-md-3">
                     <select class="form-select" name="status" style="border-color: #E8E1D5; background: #FAF7F2;">
                         <option value="">All Statuses</option>
-                        <?php foreach ($allowed_statuses as $status_option): ?>
+                        <?php
+                        $filter_options = $dropdown_statuses ?? ['pending', 'processing', 'completed', 'rejected'];
+                        if ($status_filter !== '' && !in_array($status_filter, $filter_options, true)) {
+                            $filter_options[] = $status_filter;
+                        }
+                        ?>
+                        <?php foreach ($filter_options as $status_option): ?>
                             <option value="<?php echo e($status_option); ?>" <?php echo $status_filter === $status_option ? 'selected' : ''; ?>>
-                                <?php echo e(ucfirst($status_option)); ?>
+                                <?php echo e(ucfirst(str_replace('_', ' ', $status_option))); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>

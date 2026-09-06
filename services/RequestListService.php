@@ -5,7 +5,8 @@ require_once dirname(__DIR__) . '/repositories/RequestRepository.php';
 /** Validates filters and assembles the request-list view model. */
 final class RequestListService
 {
-    public const ALLOWED_STATUSES = ['pending', 'processing', 'completed', 'rejected'];
+    public const ALLOWED_STATUSES = ['pending', 'processing', 'completed', 'rejected', 'approved', 'cancelled'];
+    public const DROPDOWN_STATUSES = ['pending', 'processing', 'completed', 'rejected'];
     private $repository;
 
     public function __construct(RequestRepository $repository)
@@ -40,6 +41,7 @@ final class RequestListService
             'search' => $search,
             'status_filter' => $status,
             'allowed_statuses' => self::ALLOWED_STATUSES,
+            'dropdown_statuses' => self::DROPDOWN_STATUSES,
         ];
     }
 }

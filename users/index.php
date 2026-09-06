@@ -28,17 +28,35 @@ $request_counts = [
 ];
 $unread_count = getUnreadNotificationCount($conn, $user_id);
 
+$status_map = [
+    'submitted' => 'pending',
+    'pending' => 'pending',
+    'requirements_review' => 'pending',
+    'under_review' => 'pending',
+    'needs_information' => 'pending',
+    'payment_required' => 'pending',
+    'payment_review' => 'pending',
+    'approved' => 'approved',
+    'processing' => 'processing',
+    'scheduled' => 'processing',
+    'ready_for_release' => 'processing',
+    'completed' => 'completed',
+    'rejected' => 'rejected',
+    'cancelled' => 'cancelled',
+];
+
 $stmt = $conn->prepare("SELECT status, COUNT(*) AS count FROM requests WHERE user_id = ? GROUP BY status");
 if ($stmt) {
     $stmt->bind_param('i', $user_id);
     $stmt->execute();
     $result = $stmt->get_result();
     while ($row = $result->fetch_assoc()) {
-        $status = $row['status'];
+        $raw_status = strtolower(trim((string) $row['status']));
         $count = intval($row['count']);
         $request_counts['total'] += $count;
-        if (isset($request_counts[$status])) {
-            $request_counts[$status] = $count;
+        $target_status = $status_map[$raw_status] ?? (isset($request_counts[$raw_status]) ? $raw_status : 'pending');
+        if (isset($request_counts[$target_status])) {
+            $request_counts[$target_status] += $count;
         }
     }
     $stmt->close();

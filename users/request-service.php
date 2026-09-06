@@ -290,6 +290,23 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 }
 
 $service_placeholders = implode(',', array_fill(0, count($service_type_keys), '?'));
+$status_map = [
+    'submitted' => 'pending',
+    'pending' => 'pending',
+    'requirements_review' => 'pending',
+    'under_review' => 'pending',
+    'needs_information' => 'pending',
+    'payment_required' => 'pending',
+    'payment_review' => 'pending',
+    'approved' => 'approved',
+    'processing' => 'processing',
+    'scheduled' => 'processing',
+    'ready_for_release' => 'processing',
+    'completed' => 'completed',
+    'rejected' => 'rejected',
+    'cancelled' => 'cancelled',
+];
+
 $status_counts = array_fill_keys($allowed_statuses, 0);
 $count_types = 'i' . str_repeat('s', count($service_type_keys));
 $count_params = array_merge([$user_id], $service_type_keys);
@@ -299,8 +316,10 @@ if ($stmt) {
     $stmt->execute();
     $result = $stmt->get_result();
     while ($row = $result->fetch_assoc()) {
-        if (isset($status_counts[$row['status']])) {
-            $status_counts[$row['status']] = intval($row['count']);
+        $raw_status = strtolower(trim((string) $row['status']));
+        $target_status = $status_map[$raw_status] ?? (isset($status_counts[$raw_status]) ? $raw_status : 'pending');
+        if (isset($status_counts[$target_status])) {
+            $status_counts[$target_status] += intval($row['count']);
         }
     }
     $stmt->close();
