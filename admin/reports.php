@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * ANALYTICS & REPORTS
  * Comprehensive parish operational statistics, sacramental records,
@@ -498,7 +498,7 @@ $kpi_completion_rate = $kpi_requests_total > 0
   <!-- â•â• PAGE HEADER â•â• -->
   <div class="ar-header">
     <div class="ar-header-meta">
-      <div class="ar-header-icon"><i class="fas fa-chart-mixed"></i></div>
+      <div class="ar-header-icon"><i class="fas fa-chart-line"></i></div>
       <div>
         <h1 class="ar-header-title">Analytics &amp; Reports</h1>
         <p class="ar-header-sub">Parish operational statistics &mdash; <?php echo date('F Y'); ?></p>
