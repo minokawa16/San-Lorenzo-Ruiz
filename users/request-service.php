@@ -87,8 +87,6 @@ $marriage_requirements = [
     'baptismal_certificate_marriage_purpose' => ['label' => 'Baptismal Certificate for Marriage Purpose', 'mandatory' => true],
     'confirmation_certificate' => ['label' => 'Confirmation Certificate', 'mandatory' => true],
     'permit_to_marry' => ['label' => 'Permit to Marry', 'mandatory' => true],
-    'interview' => ['label' => 'Interview', 'mandatory' => true],
-    'confession' => ['label' => 'Confession', 'mandatory' => true],
     'co_permit_police_army' => ['label' => 'CO Permit (Police / Army)', 'mandatory' => false, 'badge' => 'Optional / If Applicable']
 ];
 $funeral_requirements = [
