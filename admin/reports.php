@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * ANALYTICS & REPORTS
  * Comprehensive parish operational statistics, sacramental records,
@@ -56,23 +56,25 @@ if (in_array($export, ['csv', 'pdf'], true)) {
 }
 
 // ─── KPI Queries ──────────────────────────────────────────────────────────────
+// Parishioners: role='user', status 'active'=verified, 'pending_verification'=pending
 $kpi_parishioners_total    = 0;
 $kpi_parishioners_verified = 0;
 $kpi_parishioners_pending  = 0;
-$r = $conn->query("SELECT COUNT(*) AS total, SUM(status='verified') AS verified, SUM(status IN ('pending','unverified')) AS pending FROM users WHERE role='parishioner' AND deleted_at IS NULL");
+$r = $conn->query("SELECT COUNT(*) AS total, SUM(status='active') AS verified, SUM(status='pending_verification') AS pending FROM users WHERE role='user'");
 if ($r && $row = $r->fetch_assoc()) {
     $kpi_parishioners_total    = (int)($row['total']    ?? 0);
     $kpi_parishioners_verified = (int)($row['verified'] ?? 0);
     $kpi_parishioners_pending  = (int)($row['pending']  ?? 0);
 }
 
+// Sacramental records — using actual table names
 $sacrament_counts = ['Baptism' => 0, 'Confirmation' => 0, 'Communion' => 0, 'Marriage' => 0, 'Funeral' => 0];
 $sacrament_tables = [
-    'Baptism'      => ['baptism_records',      'status'],
-    'Confirmation' => ['confirmation_records',  'status'],
-    'Communion'    => ['communion_records',     'status'],
-    'Marriage'     => ['marriage_records',      'status'],
-    'Funeral'      => ['funeral_records',       'status'],
+    'Baptism'      => ['baptism_records',       'status'],
+    'Confirmation' => ['confirmation_records',   'status'],
+    'Communion'    => ['first_communion_records','status'],
+    'Marriage'     => ['marriage_records',       'status'],
+    'Funeral'      => ['funeral_records',        'status'],
 ];
 foreach ($sacrament_tables as $label => [$table, $col]) {
     $rr = $conn->query("SELECT COUNT(*) AS c FROM `$table` WHERE `$col` != 'archived'");
@@ -80,6 +82,7 @@ foreach ($sacrament_tables as $label => [$table, $col]) {
 }
 $kpi_sacraments_total = array_sum($sacrament_counts);
 
+// Requests
 $kpi_requests_total   = 0;
 $kpi_requests_pending = 0;
 $rq = $conn->query("SELECT COUNT(*) AS total, SUM(status IN ('pending','submitted','requirements_review')) AS pending FROM requests WHERE deleted_at IS NULL");
@@ -88,8 +91,9 @@ if ($rq && $row3 = $rq->fetch_assoc()) {
     $kpi_requests_pending = (int)($row3['pending'] ?? 0);
 }
 
+// Calendar events — table is schedule_events, date column is event_date
 $kpi_events_month = 0;
-$ev = $conn->query("SELECT COUNT(*) AS c FROM calendar_events WHERE YEAR(start_date)=YEAR(CURDATE()) AND MONTH(start_date)=MONTH(CURDATE())");
+$ev = $conn->query("SELECT COUNT(*) AS c FROM schedule_events WHERE YEAR(event_date)=YEAR(CURDATE()) AND MONTH(event_date)=MONTH(CURDATE())");
 if ($ev && $row4 = $ev->fetch_assoc()) $kpi_events_month = (int)($row4['c'] ?? 0);
 
 // ─── Chart A: Sacramental Records by Month (last 12 months) ──────────────────
@@ -100,12 +104,13 @@ for ($i = 11; $i >= 0; $i--) {
 $chart_a_labels = array_map(fn($m) => date('M Y', strtotime($m . '-01')), $chart_months);
 
 $chart_a_datasets = [];
+// Correct table names and date column names from actual schema
 $sacrament_chart_tables = [
-    'Baptism'      => ['baptism_records',      'baptism_date'],
-    'Confirmation' => ['confirmation_records',  'confirmation_date'],
-    'Communion'    => ['communion_records',     'communion_date'],
-    'Marriage'     => ['marriage_records',      'marriage_date'],
-    'Funeral'      => ['funeral_records',       'burial_date'],
+    'Baptism'      => ['baptism_records',       'baptism_date'],
+    'Confirmation' => ['confirmation_records',   'confirmation_date'],
+    'Communion'    => ['first_communion_records','communion_date'],
+    'Marriage'     => ['marriage_records',       'wedding_date'],
+    'Funeral'      => ['funeral_records',        'date_of_burial'],
 ];
 $chart_a_colors = ['#C89B3C','#2E7D52','#1E5FA8','#9B2C2C','#6B46C1'];
 $ci = 0;
@@ -153,7 +158,7 @@ if ($rc) {
 
 // ─── Chart D: Parishioner Registration Growth (last 12 months) ───────────────
 $chart_d_data = array_fill(0, 12, 0);
-$rd = $conn->query("SELECT DATE_FORMAT(created_at,'%Y-%m') AS ym, COUNT(*) AS c FROM users WHERE role='parishioner' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH) GROUP BY ym");
+$rd = $conn->query("SELECT DATE_FORMAT(created_at,'%Y-%m') AS ym, COUNT(*) AS c FROM users WHERE role='user' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH) GROUP BY ym");
 if ($rd) {
     while ($row7 = $rd->fetch_assoc()) {
         $idx = array_search($row7['ym'], $chart_months);
