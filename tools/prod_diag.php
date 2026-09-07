@@ -32,23 +32,32 @@ if ($action === 'git_info') {
     exit;
 }
 
-if ($action === 'run_migration') {
-    echo "=== RUNNING CANONICAL MIGRATION 012 ON RAILWAY MYSQL ===\n";
-    $m12 = @file_get_contents(__DIR__ . '/../database/canonical-migrations/012_auth_password_column_protection.sql');
-    if ($m12) {
-        $conn->multi_query($m12);
-        do {
-            if ($res = $conn->store_result()) {
-                $res->free();
-            }
-        } while ($conn->more_results() && $conn->next_result());
-        
-        $checksum = hash_file('sha256', __DIR__ . '/../database/canonical-migrations/012_auth_password_column_protection.sql');
-        $conn->query("INSERT IGNORE INTO schema_migrations (filename, checksum, execution_ms) VALUES ('012_auth_password_column_protection.sql', '{$checksum}', 50)");
-        echo "Migration 012 executed and recorded in schema_migrations.\n\n";
-    } else {
-        echo "Could not read migration 012 file.\n\n";
+if ($action === 'migrate_up' || $action === 'run_migration_021') {
+    echo "=== RUNNING CANONICAL MIGRATIONS ON RAILWAY MYSQL ===\n";
+    $files = glob(__DIR__ . '/../database/canonical-migrations/*.sql');
+    sort($files);
+    $applied = [];
+    $res = $conn->query("SELECT filename FROM schema_migrations");
+    if ($res) {
+        while ($r = $res->fetch_assoc()) $applied[] = $r['filename'];
     }
+    foreach ($files as $f) {
+        $b = basename($f);
+        if (in_array($b, $applied, true)) continue;
+        echo "Applying {$b}... ";
+        $sql = file_get_contents($f);
+        if ($conn->multi_query($sql)) {
+            do {
+                if ($res = $conn->store_result()) $res->free();
+            } while ($conn->more_results() && $conn->next_result());
+            $cs = hash_file('sha256', $f);
+            $conn->query("INSERT IGNORE INTO schema_migrations (filename, checksum, execution_ms) VALUES ('{$b}', '{$cs}', 50)");
+            echo "OK\n";
+        } else {
+            echo "FAILED: " . $conn->error . "\n";
+        }
+    }
+    echo "All pending migrations applied.\n\n";
 }
 
 if ($action === 'schema_audit') {
