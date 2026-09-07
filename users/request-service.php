@@ -22,16 +22,20 @@ ensureEmailNotificationSchema($conn);
 
 $service_types = [
     'baptism_service' => 'Baptism',
+    'confirmation_service' => 'Confirmation',
+    'first_communion_service' => 'First Communion / Eucharist',
     'marriage_wedding_service' => 'Marriage / Wedding',
-    'funeral_mass' => 'Funeral Mass',
     'anointing_of_the_sick' => 'Anointing of the Sick',
+    'funeral_mass' => 'Funeral Mass',
     'patronal_fiesta' => 'Patronal Fiesta'
 ];
 $service_meta = [
     'baptism_service' => ['icon' => 'fa-water', 'hint' => 'Schedule a baptism service with parish coordination.'],
+    'confirmation_service' => ['icon' => 'fa-dove', 'hint' => 'Request Holy Confirmation service scheduling.'],
+    'first_communion_service' => ['icon' => 'fa-bread-slice', 'hint' => 'Request First Holy Communion service scheduling.'],
     'marriage_wedding_service' => ['icon' => 'fa-ring', 'hint' => 'Request wedding or marriage service scheduling.'],
-    'funeral_mass' => ['icon' => 'fa-cross', 'hint' => 'Coordinate funeral Mass details with the parish.'],
     'anointing_of_the_sick' => ['icon' => 'fa-hand-holding-medical', 'hint' => 'Request pastoral care and anointing schedule.'],
+    'funeral_mass' => ['icon' => 'fa-cross', 'hint' => 'Coordinate funeral Mass details with the parish.'],
     'patronal_fiesta' => ['icon' => 'fa-church', 'hint' => 'Submit Patronal Fiesta details for parish review.']
 ];
 $baptism_requirements = [
@@ -209,189 +213,258 @@ function saveServiceRequirementUploads($conn, $request_id, $uploaded_by, $files,
     return $results;
 }
 
-if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
-    requireValidCsrfToken();
-    $request_type = $_POST['request_type'] ?? '';
-    $preferred_date = trim($_POST['preferred_date'] ?? '');
-    $preferred_time = trim($_POST['preferred_time'] ?? '');
-    $patronal_fiesta_date = trim($_POST['patronal_fiesta_date'] ?? '');
-    $service_date = trim($_POST['service_date'] ?? '');
-    $location = trim($_POST['location'] ?? '');
-    $details = trim($_POST['details'] ?? '');
-    $requirement_upload_plan = serviceRequirementUploadPlan($request_type, $baptism_requirements, $marriage_requirements, $funeral_requirements);
-    $requirement_upload_files = $request_type === 'baptism_service'
-        ? ($_FILES['baptism_requirement_files'] ?? null)
-        : ($request_type === 'marriage_wedding_service'
-            ? ($_FILES['marriage_requirement_files'] ?? null)
-            : ($request_type === 'funeral_mass' ? ($_FILES['funeral_requirement_files'] ?? null) : null));
-    $missing_requirement_uploads = missingServiceRequirementUploads($requirement_upload_files, $requirement_upload_plan);
+$is_ajax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
+    || (isset($_SERVER['HTTP_ACCEPT']) && strpos(strtolower($_SERVER['HTTP_ACCEPT']), 'application/json') !== false)
+    || (isset($_POST['is_ajax']) && $_POST['is_ajax'] === '1');
 
-    // Extract Pre-Baptismal Sheet
-    $baptism_sheet = [];
-    foreach ($baptism_sheet_fields as $field_key => $field_label) {
-        $baptism_sheet[$field_key] = trim((string) ($_POST['baptism_sheet'][$field_key] ?? ''));
-    }
-
-    // Extract Pre-Nuptial / Marriage Sheet
-    $marriage_sheet = [];
-    foreach ($marriage_sheet_fields as $field_key => $field_label) {
-        $marriage_sheet[$field_key] = trim((string) ($_POST['marriage_sheet'][$field_key] ?? ''));
-    }
-
-    // Single source of truth: Bind schedule date automatically from investigation sheets
-    if ($request_type === 'baptism_service') {
-        $preferred_date = $baptism_sheet['baptism_date'] ?? '';
-    } elseif ($request_type === 'marriage_wedding_service') {
-        $preferred_date = $marriage_sheet['wedding_date'] ?? '';
-    } elseif ($request_type === 'patronal_fiesta' && $patronal_fiesta_date !== '') {
-        $preferred_date = $patronal_fiesta_date;
-    } elseif ($service_date !== '') {
-        $preferred_date = $service_date;
-    }
-
-    // Validate required fields for Baptism Sheet
-    $missing_baptism_sheet = [];
-    if ($request_type === 'baptism_service') {
-        $required_baptism_keys = [
-            'child_name', 'birth_date', 'birth_place',
-            'father_name', 'father_origin',
-            'mother_name', 'mother_origin',
-            'parents_marriage',
-            'sponsor_male_name', 'sponsor_female_name',
-            'baptism_date'
-        ];
-        foreach ($required_baptism_keys as $k) {
-            if (empty($baptism_sheet[$k])) {
-                $missing_baptism_sheet[] = $baptism_sheet_fields[$k] ?? $k;
-            }
+$respond = function($ok, $message, $extra = []) use ($is_ajax, &$error, &$success) {
+    if ($is_ajax) {
+        while (ob_get_level() > 0) {
+            ob_end_clean();
         }
+        header('Content-Type: application/json; charset=utf-8');
+        $status_code = isset($extra['status_code']) ? intval($extra['status_code']) : ($ok ? 200 : 400);
+        http_response_code($status_code);
+        $payload = array_merge([
+            'success' => (bool) $ok,
+            'message' => (string) $message
+        ], $extra);
+        unset($payload['status_code']);
+        echo json_encode($payload);
+        exit;
     }
-
-    // Validate required fields for Marriage Sheet
-    $missing_marriage_sheet = [];
-    if ($request_type === 'marriage_wedding_service') {
-        $required_marriage_keys = [
-            'groom_name', 'groom_birth_date', 'groom_birth_place', 'groom_residence', 'groom_religion', 'groom_father_name', 'groom_mother_name',
-            'bride_name', 'bride_birth_date', 'bride_birth_place', 'bride_residence', 'bride_religion', 'bride_father_name', 'bride_mother_name',
-            'witness_male', 'witness_female',
-            'wedding_date'
-        ];
-        foreach ($required_marriage_keys as $k) {
-            if (empty($marriage_sheet[$k])) {
-                $missing_marriage_sheet[] = $marriage_sheet_fields[$k] ?? $k;
-            }
-        }
-    }
-
-    if (!array_key_exists($request_type, $service_types)) {
-        $error = 'Please choose a sacramental service.';
-    } elseif ($request_type === 'baptism_service' && !empty($missing_baptism_sheet)) {
-        $error = 'Please complete the Pre-Baptismal Investigation Sheet before requesting Baptism. Missing: ' . implode(', ', array_slice($missing_baptism_sheet, 0, 4)) . (count($missing_baptism_sheet) > 4 ? ', and more.' : '.');
-    } elseif ($request_type === 'baptism_service' && !serviceValidDate($baptism_sheet['birth_date'])) {
-        $error = 'Please provide a valid date of birth for the child.';
-    } elseif ($request_type === 'baptism_service' && !serviceValidDate($baptism_sheet['baptism_date'])) {
-        $error = 'Please provide a valid date of Baptism.';
-    } elseif ($request_type === 'marriage_wedding_service' && !empty($missing_marriage_sheet)) {
-        $error = 'Please complete the Pre-Nuptial / Marriage Investigation Sheet before requesting Marriage. Missing: ' . implode(', ', array_slice($missing_marriage_sheet, 0, 4)) . (count($missing_marriage_sheet) > 4 ? ', and more.' : '.');
-    } elseif ($request_type === 'marriage_wedding_service' && !serviceValidDate($marriage_sheet['groom_birth_date'])) {
-        $error = 'Please provide a valid date of birth for the groom.';
-    } elseif ($request_type === 'marriage_wedding_service' && !serviceValidDate($marriage_sheet['bride_birth_date'])) {
-        $error = 'Please provide a valid date of birth for the bride.';
-    } elseif ($request_type === 'marriage_wedding_service' && !serviceValidDate($marriage_sheet['wedding_date'])) {
-        $error = 'Please provide a valid date of Marriage.';
-    } elseif (in_array($request_type, ['baptism_service', 'marriage_wedding_service', 'funeral_mass'], true) && !empty($missing_requirement_uploads)) {
-        $error = 'Please upload a file for each requirement. Missing: ' . implode(', ', array_slice($missing_requirement_uploads, 0, 4)) . (count($missing_requirement_uploads) > 4 ? ', and more.' : '.');
-    } elseif ($request_type === 'patronal_fiesta' && $patronal_fiesta_date === '') {
-        $error = 'Please choose the date of the Patronal Fiesta.';
-    } elseif ($preferred_date === '') {
-        $error = 'Please choose a scheduled service date.';
-    } elseif ($preferred_time === '') {
-        $error = 'Please choose a preferred time.';
-    } elseif ($location === '') {
-        $error = 'Please provide the service location.';
+    if ($ok) {
+        $success = $message;
     } else {
-        $description_parts = [
-            'Preferred date: ' . $preferred_date,
-            'Preferred time: ' . $preferred_time,
-            'Location: ' . $location,
+        $error = $message;
+    }
+};
+
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+    try {
+        requireValidCsrfToken();
+
+        $request_type = trim((string) ($_POST['request_type'] ?? ''));
+        $type_aliases = [
+            'confirmation' => 'confirmation_service',
+            'matrimony' => 'marriage_wedding_service',
+            'marriage' => 'marriage_wedding_service',
+            'wedding' => 'marriage_wedding_service',
+            'eucharist' => 'first_communion_service',
+            'first_communion' => 'first_communion_service',
+            'baptism' => 'baptism_service',
+            'anointing' => 'anointing_of_the_sick'
         ];
-        if ($request_type === 'patronal_fiesta') {
-            $description_parts[] = 'Date of Patronal Fiesta: ' . $patronal_fiesta_date;
+        if (isset($type_aliases[$request_type])) {
+            $request_type = $type_aliases[$request_type];
         }
+
+        $preferred_date = trim((string) ($_POST['preferred_date'] ?? ''));
+        $preferred_time = trim((string) ($_POST['preferred_time'] ?? ''));
+        $patronal_fiesta_date = trim((string) ($_POST['patronal_fiesta_date'] ?? ''));
+        $service_date = trim((string) ($_POST['service_date'] ?? ''));
+        $location = trim((string) ($_POST['location'] ?? ''));
+        $details = trim((string) ($_POST['details'] ?? ''));
+        $requirement_upload_plan = serviceRequirementUploadPlan($request_type, $baptism_requirements, $marriage_requirements, $funeral_requirements);
+        $requirement_upload_files = $request_type === 'baptism_service'
+            ? ($_FILES['baptism_requirement_files'] ?? null)
+            : ($request_type === 'marriage_wedding_service'
+                ? ($_FILES['marriage_requirement_files'] ?? null)
+                : ($request_type === 'funeral_mass' ? ($_FILES['funeral_requirement_files'] ?? null) : null));
+        $missing_requirement_uploads = missingServiceRequirementUploads($requirement_upload_files, $requirement_upload_plan);
+
+        // Extract Pre-Baptismal Sheet
+        $baptism_sheet = [];
+        $raw_baptism = (isset($_POST['baptism_sheet']) && is_array($_POST['baptism_sheet'])) ? $_POST['baptism_sheet'] : [];
+        foreach ($baptism_sheet_fields as $field_key => $field_label) {
+            $baptism_sheet[$field_key] = trim((string) ($raw_baptism[$field_key] ?? ''));
+        }
+
+        // Extract Pre-Nuptial / Marriage Sheet
+        $marriage_sheet = [];
+        $raw_marriage = (isset($_POST['marriage_sheet']) && is_array($_POST['marriage_sheet'])) ? $_POST['marriage_sheet'] : [];
+        foreach ($marriage_sheet_fields as $field_key => $field_label) {
+            $marriage_sheet[$field_key] = trim((string) ($raw_marriage[$field_key] ?? ''));
+        }
+
+        // Single source of truth: Bind schedule date automatically from investigation sheets
         if ($request_type === 'baptism_service') {
-            $description_parts[] = 'Baptism requirement uploads: ' . implode(', ', array_values($baptism_requirements));
-            $description_parts[] = "\n--- PRE-BAPTISMAL INVESTIGATION SHEET ---";
-            $description_parts[] = "1. Child's Information:";
-            $description_parts[] = "Name of Child: " . $baptism_sheet['child_name'];
-            $description_parts[] = "Date of Birth: " . $baptism_sheet['birth_date'] . " | Place of Birth: " . $baptism_sheet['birth_place'];
-            $description_parts[] = "\n2. Parents' Information:";
-            $description_parts[] = "Father: " . $baptism_sheet['father_name'] . " (Origin/Residence: " . $baptism_sheet['father_origin'] . ")";
-            $description_parts[] = "Mother: " . $baptism_sheet['mother_name'] . " (Origin/Residence: " . $baptism_sheet['mother_origin'] . ")";
-            $description_parts[] = "Parents' Marriage Status: " . $baptism_sheet['parents_marriage'];
-            $description_parts[] = "\n3. Sponsors (Godparents / Ninong & Ninang):";
-            $description_parts[] = "Principal Male Sponsor (Ninong): " . $baptism_sheet['sponsor_male_name'] . (!empty($baptism_sheet['sponsor_male_origin']) ? " (" . $baptism_sheet['sponsor_male_origin'] . ")" : "");
-            $description_parts[] = "Principal Female Sponsor (Ninang): " . $baptism_sheet['sponsor_female_name'] . (!empty($baptism_sheet['sponsor_female_origin']) ? " (" . $baptism_sheet['sponsor_female_origin'] . ")" : "");
-            if (!empty($baptism_sheet['godparents'])) {
-                $description_parts[] = "Additional Sponsors: " . $baptism_sheet['godparents'];
-            }
-            $description_parts[] = "\n4. Proposed Baptism Schedule:";
-            $description_parts[] = "Date of Baptism: " . $baptism_sheet['baptism_date'];
+            $preferred_date = $baptism_sheet['baptism_date'] ?? '';
+        } elseif ($request_type === 'marriage_wedding_service') {
+            $preferred_date = $marriage_sheet['wedding_date'] ?? '';
+        } elseif ($request_type === 'patronal_fiesta' && $patronal_fiesta_date !== '') {
+            $preferred_date = $patronal_fiesta_date;
+        } elseif ($service_date !== '') {
+            $preferred_date = $service_date;
         }
-        if ($request_type === 'marriage_wedding_service') {
-            $description_parts[] = 'Marriage requirement uploads: Male and Female files submitted for each requirement.';
-            $description_parts[] = "\n--- PRE-NUPTIAL / MARRIAGE INVESTIGATION SHEET ---";
-            $description_parts[] = "1. Groom (Nobyo) Information:";
-            $description_parts[] = "Full Name: " . $marriage_sheet['groom_name'];
-            $description_parts[] = "Date of Birth: " . $marriage_sheet['groom_birth_date'] . " | Place of Birth: " . $marriage_sheet['groom_birth_place'];
-            $description_parts[] = "Place of Origin / Current Residence: " . $marriage_sheet['groom_residence'];
-            $description_parts[] = "Religion / Church of Baptism: " . $marriage_sheet['groom_religion'];
-            $description_parts[] = "Father: " . $marriage_sheet['groom_father_name'] . " | Mother: " . $marriage_sheet['groom_mother_name'];
-            $description_parts[] = "\n2. Bride (Nobya) Information:";
-            $description_parts[] = "Full Maiden Name: " . $marriage_sheet['bride_name'];
-            $description_parts[] = "Date of Birth: " . $marriage_sheet['bride_birth_date'] . " | Place of Birth: " . $marriage_sheet['bride_birth_place'];
-            $description_parts[] = "Place of Origin / Current Residence: " . $marriage_sheet['bride_residence'];
-            $description_parts[] = "Religion / Church of Baptism: " . $marriage_sheet['bride_religion'];
-            $description_parts[] = "Father: " . $marriage_sheet['bride_father_name'] . " | Mother: " . $marriage_sheet['bride_mother_name'];
-            $description_parts[] = "\n3. Principal Witnesses / Sponsors (Ninong & Ninang):";
-            $description_parts[] = "Male Principal Sponsor: " . $marriage_sheet['witness_male'];
-            $description_parts[] = "Female Principal Sponsor: " . $marriage_sheet['witness_female'];
-            if (!empty($marriage_sheet['additional_sponsors'])) {
-                $description_parts[] = "Additional Sponsors / Entourage: " . $marriage_sheet['additional_sponsors'];
-            }
-            $description_parts[] = "\n4. Wedding Ceremony Schedule:";
-            $description_parts[] = "Date of Marriage: " . $marriage_sheet['wedding_date'];
-        }
-        if ($request_type === 'funeral_mass') {
-            $description_parts[] = 'Funeral Mass requirement uploads: ' . implode(', ', array_values($funeral_requirements));
-        }
-        $description_parts[] = 'Details: ' . ($details ?: 'None');
 
-        $description = implode("\n", $description_parts);
-        $reference_number = generateReferenceNumber();
-        $status = 'pending';
-
-        $stmt = $conn->prepare("INSERT INTO requests (user_id, request_type, description, status, reference_number) VALUES (?, ?, ?, ?, ?)");
-        if (!$stmt) {
-            $error = 'Unable to prepare your sacramental service request. Please contact the parish office.';
-        } else {
-            $stmt->bind_param('issss', $user_id, $request_type, $description, $status, $reference_number);
-            if ($stmt->execute()) {
-                $request_id = $conn->insert_id;
-                $documents = saveServiceRequirementUploads($conn, $request_id, $user_id, $requirement_upload_files, $requirement_upload_plan);
-                if (!$documents['ok'] && empty($documents['saved'])) {
-                    $error = $documents['error'] . ' Your request was saved, but the files were not attached. Reference: ' . $reference_number;
-                } else {
-                    createAuditLog($conn, $user_id, 'CREATE_REQUEST', 'requests', $request_id);
-                    $doc_count = intval($documents['saved'] ?? 0);
-                    $file_text = $doc_count === 1 ? 'file' : 'files';
-                    createNotification($conn, $user_id, 'Sacramental Service Request Created', 'Your service request has been submitted with reference: ' . $reference_number . ' (' . $doc_count . ' ' . $file_text . ' attached)');
-                    $success = 'Sacramental service request submitted successfully! Reference: ' . $reference_number . ' (' . $doc_count . ' file' . ($doc_count === 1 ? '' : 's') . ' attached)';
+        // Validate required fields for Baptism Sheet
+        $missing_baptism_sheet = [];
+        if ($request_type === 'baptism_service') {
+            $required_baptism_keys = [
+                'child_name', 'birth_date', 'birth_place',
+                'father_name', 'father_origin',
+                'mother_name', 'mother_origin',
+                'parents_marriage',
+                'sponsor_male_name', 'sponsor_female_name',
+                'baptism_date'
+            ];
+            foreach ($required_baptism_keys as $k) {
+                if (empty($baptism_sheet[$k])) {
+                    $missing_baptism_sheet[] = $baptism_sheet_fields[$k] ?? $k;
                 }
-            } else {
-                $error = 'Error submitting service request: ' . $conn->error;
             }
-            $stmt->close();
         }
+
+        // Validate required fields for Marriage Sheet
+        $missing_marriage_sheet = [];
+        if ($request_type === 'marriage_wedding_service') {
+            $required_marriage_keys = [
+                'groom_name', 'groom_birth_date', 'groom_birth_place', 'groom_residence', 'groom_religion', 'groom_father_name', 'groom_mother_name',
+                'bride_name', 'bride_birth_date', 'bride_birth_place', 'bride_residence', 'bride_religion', 'bride_father_name', 'bride_mother_name',
+                'witness_male', 'witness_female',
+                'wedding_date'
+            ];
+            foreach ($required_marriage_keys as $k) {
+                if (empty($marriage_sheet[$k])) {
+                    $missing_marriage_sheet[] = $marriage_sheet_fields[$k] ?? $k;
+                }
+            }
+        }
+
+        if (!array_key_exists($request_type, $service_types)) {
+            $respond(false, 'Please choose a sacramental service.', ['status_code' => 422]);
+        } elseif ($request_type === 'baptism_service' && !empty($missing_baptism_sheet)) {
+            $respond(false, 'Please complete the Pre-Baptismal Investigation Sheet before requesting Baptism. Missing: ' . implode(', ', array_slice($missing_baptism_sheet, 0, 4)) . (count($missing_baptism_sheet) > 4 ? ', and more.' : '.'), ['status_code' => 422]);
+        } elseif ($request_type === 'baptism_service' && !serviceValidDate($baptism_sheet['birth_date'])) {
+            $respond(false, 'Please provide a valid date of birth for the child.', ['status_code' => 422]);
+        } elseif ($request_type === 'baptism_service' && !serviceValidDate($baptism_sheet['baptism_date'])) {
+            $respond(false, 'Please provide a valid date of Baptism.', ['status_code' => 422]);
+        } elseif ($request_type === 'marriage_wedding_service' && !empty($missing_marriage_sheet)) {
+            $respond(false, 'Please complete the Pre-Nuptial / Marriage Investigation Sheet before requesting Marriage. Missing: ' . implode(', ', array_slice($missing_marriage_sheet, 0, 4)) . (count($missing_marriage_sheet) > 4 ? ', and more.' : '.'), ['status_code' => 422]);
+        } elseif ($request_type === 'marriage_wedding_service' && !serviceValidDate($marriage_sheet['groom_birth_date'])) {
+            $respond(false, 'Please provide a valid date of birth for the groom.', ['status_code' => 422]);
+        } elseif ($request_type === 'marriage_wedding_service' && !serviceValidDate($marriage_sheet['bride_birth_date'])) {
+            $respond(false, 'Please provide a valid date of birth for the bride.', ['status_code' => 422]);
+        } elseif ($request_type === 'marriage_wedding_service' && !serviceValidDate($marriage_sheet['wedding_date'])) {
+            $respond(false, 'Please provide a valid date of Marriage.', ['status_code' => 422]);
+        } elseif (in_array($request_type, ['baptism_service', 'marriage_wedding_service', 'funeral_mass'], true) && !empty($missing_requirement_uploads)) {
+            $respond(false, 'Please upload a file for each requirement. Missing: ' . implode(', ', array_slice($missing_requirement_uploads, 0, 4)) . (count($missing_requirement_uploads) > 4 ? ', and more.' : '.'), ['status_code' => 422]);
+        } elseif ($request_type === 'patronal_fiesta' && $patronal_fiesta_date === '') {
+            $respond(false, 'Please choose the date of the Patronal Fiesta.', ['status_code' => 422]);
+        } elseif ($preferred_date === '') {
+            $respond(false, 'Please choose a scheduled service date.', ['status_code' => 422]);
+        } elseif ($preferred_time === '') {
+            $respond(false, 'Please choose a preferred time.', ['status_code' => 422]);
+        } elseif ($location === '') {
+            $respond(false, 'Please provide the service location.', ['status_code' => 422]);
+        } else {
+            $description_parts = [
+                'Preferred date: ' . $preferred_date,
+                'Preferred time: ' . $preferred_time,
+                'Location: ' . $location,
+            ];
+            if ($request_type === 'patronal_fiesta') {
+                $description_parts[] = 'Date of Patronal Fiesta: ' . $patronal_fiesta_date;
+            } elseif ($request_type === 'confirmation_service') {
+                $description_parts[] = 'Service: Holy Confirmation';
+            } elseif ($request_type === 'first_communion_service') {
+                $description_parts[] = 'Service: First Holy Communion / Eucharist';
+            } elseif ($request_type === 'anointing_of_the_sick') {
+                $description_parts[] = 'Service: Anointing of the Sick (Pastoral Care)';
+            }
+            if ($request_type === 'baptism_service') {
+                $description_parts[] = 'Baptism requirement uploads: ' . implode(', ', array_values($baptism_requirements));
+                $description_parts[] = "\n--- PRE-BAPTISMAL INVESTIGATION SHEET ---";
+                $description_parts[] = "1. Child's Information:";
+                $description_parts[] = "Name of Child: " . $baptism_sheet['child_name'];
+                $description_parts[] = "Date of Birth: " . $baptism_sheet['birth_date'] . " | Place of Birth: " . $baptism_sheet['birth_place'];
+                $description_parts[] = "\n2. Parents' Information:";
+                $description_parts[] = "Father: " . $baptism_sheet['father_name'] . " (Origin/Residence: " . $baptism_sheet['father_origin'] . ")";
+                $description_parts[] = "Mother: " . $baptism_sheet['mother_name'] . " (Origin/Residence: " . $baptism_sheet['mother_origin'] . ")";
+                $description_parts[] = "Parents' Marriage Status: " . $baptism_sheet['parents_marriage'];
+                $description_parts[] = "\n3. Sponsors (Godparents / Ninong & Ninang):";
+                $description_parts[] = "Principal Male Sponsor (Ninong): " . $baptism_sheet['sponsor_male_name'] . (!empty($baptism_sheet['sponsor_male_origin']) ? " (" . $baptism_sheet['sponsor_male_origin'] . ")" : "");
+                $description_parts[] = "Principal Female Sponsor (Ninang): " . $baptism_sheet['sponsor_female_name'] . (!empty($baptism_sheet['sponsor_female_origin']) ? " (" . $baptism_sheet['sponsor_female_origin'] . ")" : "");
+                if (!empty($baptism_sheet['godparents'])) {
+                    $description_parts[] = "Additional Sponsors: " . $baptism_sheet['godparents'];
+                }
+                $description_parts[] = "\n4. Proposed Baptism Schedule:";
+                $description_parts[] = "Date of Baptism: " . $baptism_sheet['baptism_date'];
+            }
+            if ($request_type === 'marriage_wedding_service') {
+                $description_parts[] = 'Marriage requirement uploads: Male and Female files submitted for each requirement.';
+                $description_parts[] = "\n--- PRE-NUPTIAL / MARRIAGE INVESTIGATION SHEET ---";
+                $description_parts[] = "1. Groom (Nobyo) Information:";
+                $description_parts[] = "Full Name: " . $marriage_sheet['groom_name'];
+                $description_parts[] = "Date of Birth: " . $marriage_sheet['groom_birth_date'] . " | Place of Birth: " . $marriage_sheet['groom_birth_place'];
+                $description_parts[] = "Place of Origin / Current Residence: " . $marriage_sheet['groom_residence'];
+                $description_parts[] = "Religion / Church of Baptism: " . $marriage_sheet['groom_religion'];
+                $description_parts[] = "Father: " . $marriage_sheet['groom_father_name'] . " | Mother: " . $marriage_sheet['groom_mother_name'];
+                $description_parts[] = "\n2. Bride (Nobya) Information:";
+                $description_parts[] = "Full Maiden Name: " . $marriage_sheet['bride_name'];
+                $description_parts[] = "Date of Birth: " . $marriage_sheet['bride_birth_date'] . " | Place of Birth: " . $marriage_sheet['bride_birth_place'];
+                $description_parts[] = "Place of Origin / Current Residence: " . $marriage_sheet['bride_residence'];
+                $description_parts[] = "Religion / Church of Baptism: " . $marriage_sheet['bride_religion'];
+                $description_parts[] = "Father: " . $marriage_sheet['bride_father_name'] . " | Mother: " . $marriage_sheet['bride_mother_name'];
+                $description_parts[] = "\n3. Principal Witnesses / Sponsors (Ninong & Ninang):";
+                $description_parts[] = "Male Principal Sponsor: " . $marriage_sheet['witness_male'];
+                $description_parts[] = "Female Principal Sponsor: " . $marriage_sheet['witness_female'];
+                if (!empty($marriage_sheet['additional_sponsors'])) {
+                    $description_parts[] = "Additional Sponsors / Entourage: " . $marriage_sheet['additional_sponsors'];
+                }
+                $description_parts[] = "\n4. Wedding Ceremony Schedule:";
+                $description_parts[] = "Date of Marriage: " . $marriage_sheet['wedding_date'];
+            }
+            if ($request_type === 'funeral_mass') {
+                $description_parts[] = 'Funeral Mass requirement uploads: ' . implode(', ', array_values($funeral_requirements));
+            }
+            $description_parts[] = 'Details: ' . ($details !== '' ? $details : 'None');
+
+            $description = implode("\n", $description_parts);
+            $reference_number = generateReferenceNumber();
+            $status = 'pending';
+
+            $stmt = $conn->prepare("INSERT INTO requests (user_id, request_type, description, status, reference_number) VALUES (?, ?, ?, ?, ?)");
+            if (!$stmt) {
+                throw new Exception("Unable to prepare your sacramental service request: " . $conn->error);
+            }
+
+            $stmt->bind_param('issss', $user_id, $request_type, $description, $status, $reference_number);
+            if (!$stmt->execute()) {
+                $exec_err = $stmt->error;
+                $stmt->close();
+                throw new Exception("Error executing service request insert: " . $exec_err);
+            }
+            $request_id = $conn->insert_id;
+            $stmt->close();
+
+            $documents = saveServiceRequirementUploads($conn, $request_id, $user_id, $requirement_upload_files, $requirement_upload_plan);
+            $doc_count = intval($documents['saved'] ?? 0);
+            $file_text = $doc_count === 1 ? 'file' : 'files';
+
+            if (!$documents['ok'] && empty($documents['saved']) && !empty($requirement_upload_plan)) {
+                $error_msg = ($documents['error'] ?? 'File upload error') . ' Your request was recorded, but files could not be attached. Reference: ' . $reference_number;
+                $respond(false, $error_msg, [
+                    'status_code' => 500,
+                    'reference_number' => $reference_number,
+                    'request_id' => $request_id
+                ]);
+            } else {
+                createAuditLog($conn, $user_id, 'CREATE_REQUEST', 'requests', $request_id);
+                createNotification($conn, $user_id, 'Sacramental Service Request Created', 'Your service request has been submitted with reference: ' . $reference_number . ' (' . $doc_count . ' ' . $file_text . ' attached)');
+                $success_msg = 'Sacramental service request submitted successfully! Reference: ' . $reference_number . ' (' . $doc_count . ' file' . ($doc_count === 1 ? '' : 's') . ' attached)';
+                $respond(true, $success_msg, [
+                    'reference_number' => $reference_number,
+                    'request_id' => $request_id,
+                    'doc_count' => $doc_count,
+                    'redirect_url' => 'my-requests.php?q=' . urlencode($reference_number)
+                ]);
+            }
+        }
+    } catch (Throwable $e) {
+        error_log("Sacramental Request Controller Error: " . $e->getMessage() . "\n" . $e->getTraceAsString());
+        $respond(false, 'Unable to complete sacramental service request: ' . $e->getMessage(), ['status_code' => 500]);
     }
 }
 
@@ -1649,6 +1722,86 @@ document.addEventListener('DOMContentLoaded', function() {
             validationBanner.hidden = !serviceForm.querySelector('.request-field-error');
         }
     });
+    function showServiceError(message) {
+        if (validationBanner) {
+            validationBanner.innerHTML = '<i class="fas fa-triangle-exclamation"></i> <span>' + message + '</span>';
+            validationBanner.hidden = false;
+            validationBanner.scrollIntoView({behavior: 'smooth', block: 'center'});
+        }
+        if (typeof ParishToast !== 'undefined' && typeof ParishToast.show === 'function') {
+            ParishToast.show({
+                title: 'Submission Error',
+                message: message,
+                type: 'error',
+                duration: 7000
+            });
+        }
+    }
+
+    async function executeServiceSubmission() {
+        if (!validateForReview()) {
+            reviewPanel.hidden = true;
+            entryPanel.hidden = false;
+            return;
+        }
+
+        const activeSubmit = confirmSubmitBtn;
+        activeSubmit.classList.add('is-loading');
+        activeSubmit.disabled = true;
+        if (validationBanner) {
+            validationBanner.hidden = true;
+        }
+
+        try {
+            const formData = new FormData(serviceForm);
+            formData.append('is_ajax', '1');
+
+            const response = await fetch(serviceForm.action || window.location.href, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            });
+
+            let data = null;
+            try {
+                data = await response.json();
+            } catch (jsonErr) {
+                console.warn('Unable to parse JSON response:', jsonErr);
+            }
+
+            if (response.ok && data && data.success) {
+                if (typeof ParishToast !== 'undefined' && typeof ParishToast.show === 'function') {
+                    ParishToast.show({
+                        title: 'Request Submitted',
+                        message: data.message || 'Sacramental service request submitted successfully!',
+                        type: 'success',
+                        duration: 5000
+                    });
+                }
+                const targetUrl = data.redirect_url || ('my-requests.php?q=' + encodeURIComponent(data.reference_number || ''));
+                window.setTimeout(function() {
+                    window.location.href = targetUrl;
+                }, 600);
+                return; // Keep button disabled while redirecting
+            }
+
+            const errorMsg = (data && data.message)
+                ? data.message
+                : ('Submission failed (HTTP ' + response.status + '). Please check your information and try again.');
+            showServiceError(errorMsg);
+        } catch (err) {
+            console.error('Sacramental request submission error:', err);
+            showServiceError('A network error occurred while submitting your request. Please check your internet connection and try again.');
+        } finally {
+            // GUARANTEE: Reset loading spinner and re-enable submit button
+            activeSubmit.classList.remove('is-loading');
+            activeSubmit.disabled = false;
+        }
+    }
+
     submitRequestBtn.addEventListener('click', openReview);
     reviewBackBtn.addEventListener('click', function() {
         reviewPanel.hidden = true;
@@ -1656,9 +1809,11 @@ document.addEventListener('DOMContentLoaded', function() {
         entryPanel.scrollIntoView({behavior: 'smooth', block: 'start'});
     });
     serviceForm.addEventListener('submit', function(event) {
-        if (event.submitter !== confirmSubmitBtn) {
-            event.preventDefault();
+        event.preventDefault();
+        if (event.submitter !== confirmSubmitBtn && reviewPanel.hidden) {
             openReview();
+        } else {
+            executeServiceSubmission();
         }
     });
 });

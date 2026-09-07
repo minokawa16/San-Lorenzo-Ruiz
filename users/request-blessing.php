@@ -57,63 +57,109 @@ function blessingLabel($value, $labels = []) {
     return $labels[$value] ?? ucfirst(str_replace('_', ' ', (string) $value));
 }
 
-if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
-    requireValidCsrfToken();
-    $request_type = $_POST['request_type'] ?? '';
-    $other_blessing_name = trim((string) ($_POST['other_blessing_name'] ?? ''));
-    $other_blessing_length = function_exists('mb_strlen') ? mb_strlen($other_blessing_name) : strlen($other_blessing_name);
-    $preferred_date = trim($_POST['preferred_date'] ?? '');
-    $preferred_time = trim($_POST['preferred_time'] ?? '');
-    $location = trim($_POST['location'] ?? '');
-    $details = trim($_POST['details'] ?? '');
+$is_ajax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
+    || (isset($_SERVER['HTTP_ACCEPT']) && strpos(strtolower($_SERVER['HTTP_ACCEPT']), 'application/json') !== false)
+    || (isset($_POST['is_ajax']) && $_POST['is_ajax'] === '1');
 
-    if (!array_key_exists($request_type, $blessing_types)) {
-        $error = 'Please choose a blessing type.';
-    } elseif ($request_type === 'other_blessing' && ($other_blessing_name === '' || $other_blessing_length > 120)) {
-        $error = 'Please specify the other blessing you are requesting (maximum 120 characters).';
-    } elseif ($preferred_date === '') {
-        $error = 'Please choose a preferred blessing date.';
-    } elseif ($preferred_time === '') {
-        $error = 'Please choose a preferred blessing time.';
-    } elseif ($location === '') {
-        $error = 'Please provide the blessing location.';
+$respond = function($ok, $message, $extra = []) use ($is_ajax, &$error, &$success) {
+    if ($is_ajax) {
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        header('Content-Type: application/json; charset=utf-8');
+        $status_code = isset($extra['status_code']) ? intval($extra['status_code']) : ($ok ? 200 : 400);
+        http_response_code($status_code);
+        $payload = array_merge([
+            'success' => (bool) $ok,
+            'message' => (string) $message
+        ], $extra);
+        unset($payload['status_code']);
+        echo json_encode($payload);
+        exit;
+    }
+    if ($ok) {
+        $success = $message;
     } else {
-        $description_parts = [];
-        if ($request_type === 'other_blessing') {
-            $description_parts[] = 'Requested blessing: ' . $other_blessing_name;
-        }
-        $description_parts = array_merge($description_parts, [
-            'Preferred date: ' . $preferred_date,
-            'Preferred time: ' . $preferred_time,
-            'Location: ' . $location,
-            'Details: ' . ($details ?: 'None'),
-        ]);
-        $description = implode("\n", $description_parts);
-        $reference_number = generateReferenceNumber();
-        $status = 'pending';
+        $error = $message;
+    }
+};
 
-        $stmt = $conn->prepare("INSERT INTO requests (user_id, request_type, description, status, reference_number) VALUES (?, ?, ?, ?, ?)");
-        if (!$stmt) {
-            $error = 'Unable to prepare your blessing request. Please contact the parish office.';
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+    try {
+        requireValidCsrfToken();
+        $request_type = trim((string) ($_POST['request_type'] ?? ''));
+        $other_blessing_name = trim((string) ($_POST['other_blessing_name'] ?? ''));
+        $other_blessing_length = function_exists('mb_strlen') ? mb_strlen($other_blessing_name) : strlen($other_blessing_name);
+        $preferred_date = trim((string) ($_POST['preferred_date'] ?? ''));
+        $preferred_time = trim((string) ($_POST['preferred_time'] ?? ''));
+        $location = trim((string) ($_POST['location'] ?? ''));
+        $details = trim((string) ($_POST['details'] ?? ''));
+
+        if (!array_key_exists($request_type, $blessing_types)) {
+            $respond(false, 'Please choose a blessing type.', ['status_code' => 422]);
+        } elseif ($request_type === 'other_blessing' && ($other_blessing_name === '' || $other_blessing_length > 120)) {
+            $respond(false, 'Please specify the other blessing you are requesting (maximum 120 characters).', ['status_code' => 422]);
+        } elseif ($preferred_date === '') {
+            $respond(false, 'Please choose a preferred blessing date.', ['status_code' => 422]);
+        } elseif ($preferred_time === '') {
+            $respond(false, 'Please choose a preferred blessing time.', ['status_code' => 422]);
+        } elseif ($location === '') {
+            $respond(false, 'Please provide the blessing location.', ['status_code' => 422]);
         } else {
-            $stmt->bind_param('issss', $user_id, $request_type, $description, $status, $reference_number);
-            if ($stmt->execute()) {
-                $request_id = $conn->insert_id;
-                $documents = saveMultipleRequirementDocuments($conn, $request_id, $user_id, $_FILES['requirement_files'] ?? null);
-                if (!$documents['ok'] && empty($documents['saved'])) {
-                    $error = $documents['error'] . ' Your request was saved, but the files were not attached. Reference: ' . $reference_number;
-                } else {
-                    createAuditLog($conn, $user_id, 'CREATE_REQUEST', 'requests', $request_id);
-                    $doc_count = intval($documents['saved'] ?? 0);
-                    $file_text = $doc_count === 1 ? 'file' : 'files';
-                    createNotification($conn, $user_id, 'Blessing Request Created', 'Your blessing request has been submitted with reference: ' . $reference_number . ' (' . $doc_count . ' ' . $file_text . ' attached)');
-                    $success = 'Blessing request submitted successfully! Reference: ' . $reference_number . ' (' . $doc_count . ' file' . ($doc_count === 1 ? '' : 's') . ' attached)';
-                }
-            } else {
-                $error = 'Error submitting blessing request: ' . $conn->error;
+            $description_parts = [];
+            if ($request_type === 'other_blessing') {
+                $description_parts[] = 'Requested blessing: ' . $other_blessing_name;
             }
+            $description_parts = array_merge($description_parts, [
+                'Preferred date: ' . $preferred_date,
+                'Preferred time: ' . $preferred_time,
+                'Location: ' . $location,
+                'Details: ' . ($details !== '' ? $details : 'None'),
+            ]);
+            $description = implode("\n", $description_parts);
+            $reference_number = generateReferenceNumber();
+            $status = 'pending';
+
+            $stmt = $conn->prepare("INSERT INTO requests (user_id, request_type, description, status, reference_number) VALUES (?, ?, ?, ?, ?)");
+            if (!$stmt) {
+                throw new Exception("Unable to prepare your blessing request: " . $conn->error);
+            }
+
+            $stmt->bind_param('issss', $user_id, $request_type, $description, $status, $reference_number);
+            if (!$stmt->execute()) {
+                $exec_err = $stmt->error;
+                $stmt->close();
+                throw new Exception("Error submitting blessing request: " . $exec_err);
+            }
+            $request_id = $conn->insert_id;
             $stmt->close();
+
+            $documents = saveMultipleRequirementDocuments($conn, $request_id, $user_id, $_FILES['requirement_files'] ?? null);
+            $doc_count = intval($documents['saved'] ?? 0);
+            $file_text = $doc_count === 1 ? 'file' : 'files';
+
+            if (!$documents['ok'] && empty($documents['saved']) && !empty($_FILES['requirement_files']['name'][0])) {
+                $error_msg = ($documents['error'] ?? 'File upload error') . ' Your request was saved, but the files were not attached. Reference: ' . $reference_number;
+                $respond(false, $error_msg, [
+                    'status_code' => 500,
+                    'reference_number' => $reference_number,
+                    'request_id' => $request_id
+                ]);
+            } else {
+                createAuditLog($conn, $user_id, 'CREATE_REQUEST', 'requests', $request_id);
+                createNotification($conn, $user_id, 'Blessing Request Created', 'Your blessing request has been submitted with reference: ' . $reference_number . ' (' . $doc_count . ' ' . $file_text . ' attached)');
+                $success_msg = 'Blessing request submitted successfully! Reference: ' . $reference_number . ' (' . $doc_count . ' file' . ($doc_count === 1 ? '' : 's') . ' attached)';
+                $respond(true, $success_msg, [
+                    'reference_number' => $reference_number,
+                    'request_id' => $request_id,
+                    'doc_count' => $doc_count,
+                    'redirect_url' => 'my-requests.php?q=' . urlencode($reference_number)
+                ]);
+            }
         }
+    } catch (Throwable $e) {
+        error_log("Blessing Request Controller Error: " . $e->getMessage() . "\n" . $e->getTraceAsString());
+        $respond(false, 'Unable to complete blessing request: ' . $e->getMessage(), ['status_code' => 500]);
     }
 }
 
@@ -376,4 +422,88 @@ if ($stmt) {
 </div>
 
 <script src="../assets/js/request-modern.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const blessingForm = document.querySelector('form[data-modern-request-form]');
+    const submitBtn = document.getElementById('submitRequestBtn');
+
+    if (blessingForm && submitBtn) {
+        blessingForm.addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const activeSubmit = submitBtn;
+            activeSubmit.classList.add('is-loading');
+            activeSubmit.disabled = true;
+
+            try {
+                const formData = new FormData(blessingForm);
+                formData.append('is_ajax', '1');
+
+                const response = await fetch(blessingForm.action || window.location.href, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                });
+
+                let data = null;
+                try {
+                    data = await response.json();
+                } catch (jsonErr) {
+                    console.warn('Unable to parse JSON response:', jsonErr);
+                }
+
+                if (response.ok && data && data.success) {
+                    if (typeof ParishToast !== 'undefined' && typeof ParishToast.show === 'function') {
+                        ParishToast.show({
+                            title: 'Request Submitted',
+                            message: data.message || 'Blessing request submitted successfully!',
+                            type: 'success',
+                            duration: 5000
+                        });
+                    }
+                    const targetUrl = data.redirect_url || ('my-requests.php?q=' + encodeURIComponent(data.reference_number || ''));
+                    window.setTimeout(function() {
+                        window.location.href = targetUrl;
+                    }, 600);
+                    return;
+                }
+
+                const errorMsg = (data && data.message)
+                    ? data.message
+                    : ('Submission failed (HTTP ' + response.status + '). Please check your information and try again.');
+                
+                if (typeof ParishToast !== 'undefined' && typeof ParishToast.show === 'function') {
+                    ParishToast.show({
+                        title: 'Submission Error',
+                        message: errorMsg,
+                        type: 'error',
+                        duration: 7000
+                    });
+                } else {
+                    alert(errorMsg);
+                }
+            } catch (err) {
+                console.error('Blessing request submission error:', err);
+                const networkMsg = 'A network error occurred while submitting your request. Please check your connection and try again.';
+                if (typeof ParishToast !== 'undefined' && typeof ParishToast.show === 'function') {
+                    ParishToast.show({
+                        title: 'Submission Error',
+                        message: networkMsg,
+                        type: 'error',
+                        duration: 7000
+                    });
+                } else {
+                    alert(networkMsg);
+                }
+            } finally {
+                // GUARANTEE: Reset loading spinner and re-enable button
+                activeSubmit.classList.remove('is-loading');
+                activeSubmit.disabled = false;
+            }
+        });
+    }
+});
+</script>
 <?php include '../templates/footer.php'; ?>

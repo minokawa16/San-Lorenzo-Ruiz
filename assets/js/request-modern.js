@@ -121,7 +121,32 @@
                 const activeSubmit = event.submitter || submitBtn;
                 activeSubmit.classList.add('is-loading');
                 activeSubmit.disabled = true;
+
+                // Fail-safe: Re-enable button after 15 seconds if navigation did not occur
+                window.setTimeout(function() {
+                    if (activeSubmit && activeSubmit.classList.contains('is-loading')) {
+                        activeSubmit.classList.remove('is-loading');
+                        activeSubmit.disabled = false;
+                    }
+                }, 15000);
             }, 0);
         });
     }
+
+    // Reset button states on bfcache page restore (Back/Forward navigation)
+    window.addEventListener('pageshow', function() {
+        document.querySelectorAll('.submit-request-btn').forEach(function(btn) {
+            btn.classList.remove('is-loading');
+            btn.disabled = false;
+        });
+    });
+
+    // Global reset helper for request forms
+    window.resetSubmitLoadingStates = function(scope) {
+        const root = scope || document;
+        root.querySelectorAll('.submit-request-btn').forEach(function(btn) {
+            btn.classList.remove('is-loading');
+            btn.disabled = false;
+        });
+    };
 })();
