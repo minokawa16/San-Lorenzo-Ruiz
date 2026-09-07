@@ -277,17 +277,40 @@ function dispatchNotificationDelivery($conn, $user_id, $title, $message, $catego
         'sms' => ['ok' => true, 'skipped' => true]
     ];
 
+    $is_announcement = in_array(strtolower((string)$category), ['announcements', 'announcement', 'broadcast', 'broadcast_notice'], true);
+
     $email = trim((string) ($user['email'] ?? ''));
     if (!empty($channels['email']) && $email !== '' && isValidEmail($email) && userAllowsNotificationCategory($conn, $uid, $category, 'email')) {
-        $body = '<p>Hello ' . e($user['fullname'] ?: 'Parishioner') . ',</p>'
-            . '<p>' . nl2br(e((string) $message)) . '</p>'
-            . '<p>Please open your TUGON account for full details.</p>';
-        $results['email'] = sendTugonEmail($conn, $email, 'TUGON Notification - ' . (string) $title, tugonEmailTemplate((string) $title, $body), '', $uid, $category);
+        if ($is_announcement) {
+            $clean_body = trim((string) $message);
+            if ($clean_body !== '') {
+                $subject = trim((string) $title);
+                if ($subject === '' || strcasecmp($subject, 'announcement') === 0 || strcasecmp($subject, 'notification') === 0) {
+                    $subject = 'Parish Announcement';
+                }
+                // Verbatim announcement email body without auto-generated greetings, headers, card wrappers, or signatures
+                $html_body = '<div style="font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Arial, sans-serif; font-size: 15px; line-height: 1.6; color: #111827; white-space: pre-wrap;">' . htmlspecialchars($clean_body, ENT_QUOTES, 'UTF-8') . '</div>';
+                $results['email'] = sendTugonEmail($conn, $email, $subject, $html_body, $clean_body, $uid, 'announcement');
+            }
+        } else {
+            $body = '<p>Hello ' . e($user['fullname'] ?: 'Parishioner') . ',</p>'
+                . '<p>' . nl2br(e((string) $message)) . '</p>'
+                . '<p>Please open your TUGON account for full details.</p>';
+            $results['email'] = sendTugonEmail($conn, $email, 'TUGON Notification - ' . (string) $title, tugonEmailTemplate((string) $title, $body), '', $uid, $category);
+        }
     }
 
     $phone = trim((string) ($user['phone_number'] ?? ''));
     if (!empty($channels['sms']) && $phone !== '' && isValidPhilippineMobile($phone) && userAllowsNotificationCategory($conn, $uid, $category, 'sms')) {
-        $results['sms'] = sendTugonSms($conn, $phone, notificationSmsMessage($title, $message), $uid, $category);
+        if ($is_announcement) {
+            // Verbatim announcement SMS: raw body string directly, trimmed of leading/trailing whitespace, preserving internal spacing and newlines
+            $clean_sms = trim((string) $message);
+            if ($clean_sms !== '') {
+                $results['sms'] = sendTugonSms($conn, $phone, $clean_sms, $uid, 'announcement');
+            }
+        } else {
+            $results['sms'] = sendTugonSms($conn, $phone, notificationSmsMessage($title, $message), $uid, $category);
+        }
     }
 
     return $results;
@@ -313,6 +336,15 @@ function notifyAllActiveParishioners($conn, $title, $message, $category = 'annou
         return ['count' => 0];
     }
 
+    $title = trim((string) $title);
+    $message = trim((string) $message);
+    if ($message === '') {
+        return ['count' => 0, 'error' => 'Announcement message cannot be empty or whitespace only.'];
+    }
+    if ($title === '') {
+        $title = 'Parish Announcement';
+    }
+
     $where = ["(status = 'active')"];
     $where[] = "(role IN ('user', 'parishioner', 'member') OR role IS NULL OR role = '' OR EXISTS(SELECT 1 FROM user_roles ur JOIN roles r ON r.role_id=ur.role_id WHERE ur.user_id=users.id AND r.role_key='parishioner'))";
 
@@ -334,13 +366,14 @@ function notifyAllActiveParishioners($conn, $title, $message, $category = 'annou
     }
 
     $count = 0;
+    $send_outbound = isset($options['outbound']) ? (bool) $options['outbound'] : true;
     require_once dirname(__DIR__) . '/services/NotificationService.php';
     $notificationService = new NotificationService($conn);
 
     while ($user = $stmt->fetch_assoc()) {
         $uid = (int) $user['id'];
         try {
-            $notificationService->createLegacy($uid, (string)$title, (string)$message, false, (string)$category);
+            $notificationService->createLegacy($uid, (string)$title, (string)$message, $send_outbound, (string)$category);
             $count++;
         } catch (Throwable $e) {
             error_log('Error dispatching broadcast notification to user ' . $uid . ': ' . $e->getMessage());
@@ -402,8 +435,8 @@ function ensureEmailNotificationSchema($conn) {
             ['reservation_reminder', 'Reservation Reminder', 'Your reservation is scheduled for {{reservation_date}} {{reservation_time}}.', 'Reservation Reminder', 'TUGON: Reservation is scheduled for {{reservation_date}} {{reservation_time}}.'],
             ['certificate_ready', 'Certificate Ready', 'Certificate {{certificate_number}} is ready for pickup or download.', 'Certificate {{certificate_number}} Ready', 'TUGON: Certificate {{certificate_number}} is ready.'],
             ['certificate_released', 'Certificate Released', 'Certificate {{certificate_number}} was released.', 'Certificate Released', 'TUGON: Certificate {{certificate_number}} released.'],
-            ['announcement_published', 'Parish Announcement', '{{announcement_title}}', 'Parish Announcement: {{announcement_title}}', 'TUGON: {{announcement_title}}'],
-            ['broadcast_notice', 'Parish Notice', '{{message}}', 'TUGON Parish Notice: {{title}}', 'TUGON: {{title}}'],
+            ['announcement_published', 'Parish Announcement', '{{message}}', '{{title}}', '{{message}}'],
+            ['broadcast_notice', 'Parish Notice', '{{message}}', '{{title}}', '{{message}}'],
             ['account_verified', 'Account Verified', 'Your email and account have been verified successfully.', 'Account Verified', 'TUGON: Your account has been verified.'],
             ['account_registered', 'Registration Received', 'Your registration has been submitted and is pending verification.', 'Registration Received', 'TUGON: Registration received and pending verification.'],
             ['registration_approved', 'Registration Approved', 'Your parishioner account has been approved. Welcome to TUGON!', 'Registration Approved', 'TUGON: Your account has been approved. Welcome!'],
@@ -550,12 +583,14 @@ function tugonFriendlySmtpError($error) {
 }
 
 function tugonEmailHeaders($from_email, $from_name, $to, $subject, $reply_to = '') {
+    $encoded_subject = preg_match('/[^\x20-\x7E]/', (string) $subject) ? ('=?UTF-8?B?' . base64_encode((string) $subject) . '?=') : (string) $subject;
+    $encoded_from_name = preg_match('/[^\x20-\x7E]/', (string) $from_name) ? ('=?UTF-8?B?' . base64_encode((string) $from_name) . '?=') : (string) $from_name;
     $headers = [
         'MIME-Version: 1.0',
         'Content-Type: text/html; charset=UTF-8',
-        'From: ' . $from_name . ' <' . $from_email . '>',
+        'From: ' . $encoded_from_name . ' <' . $from_email . '>',
         'To: ' . $to,
-        'Subject: ' . $subject,
+        'Subject: ' . $encoded_subject,
         'Date: ' . date(DATE_RFC2822)
     ];
     if ($reply_to !== '') {
@@ -685,6 +720,8 @@ function sendTugonEmail($conn, $to, $subject, $html_body, $text_body = '', $user
 
     if (!isValidEmail($to)) {
         $error = 'Invalid email address.';
+    } elseif (trim(strip_tags((string) $html_body)) === '' && trim((string) $text_body) === '') {
+        $error = 'Email message body is empty or contains only whitespace.';
     } elseif (!empty($config['enabled'])) {
         $from = $config['from_email'];
         $from_name = $config['from_name'];
@@ -742,9 +779,14 @@ function sendTugonSms($conn, $phone_number, $message, $user_id = null, $type = '
     $error = '';
     $sent_at = null;
 
+    $trimmed_message = trim((string) $message);
+    if ($trimmed_message === '') {
+        return ['ok' => false, 'error' => 'SMS message is empty or contains only whitespace.', 'sent_at' => null];
+    }
+
     if (function_exists('curl_init')) {
         require_once __DIR__ . '/../config/sms/send_sms.php';
-        $response = sendSMS($formatted_phone, $message);
+        $response = sendSMS($formatted_phone, $trimmed_message);
         $decoded = json_decode((string) $response, true);
         $httpStatus = is_array($decoded) ? intval($decoded['http_status'] ?? 0) : 0;
         $ok = is_array($decoded) && (
@@ -1652,9 +1694,37 @@ function formatFileSize($bytes) {
  * Formats structured announcement data into formal parish announcement content.
  */
 function build5W1HAnnouncementContent(array $data): string {
+    $what = trim($data['what'] ?? '');
+    $when = trim($data['when_text'] ?? '');
+    $date = trim($data['event_date'] ?? '');
+    $time = trim($data['event_time'] ?? '');
+    $all_day = !empty($data['is_all_day']);
+
+    if ($when === '' && $date !== '') {
+        $formatted_date = date('F j, Y', strtotime($date));
+        if ($all_day) {
+            $when = $formatted_date . ' (All-day event)';
+        } elseif ($time !== '') {
+            $formatted_time = date('g:i A', strtotime($time));
+            $when = $formatted_date . ' — ' . $formatted_time;
+        } else {
+            $when = $formatted_date;
+        }
+    }
+
+    $where = trim($data['where'] ?? ($data['location'] ?? ''));
+    $who = trim($data['who'] ?? ($data['target_audience'] ?? ''));
+    $why = trim($data['why'] ?? ($data['purpose'] ?? ''));
+    $how = trim($data['how'] ?? ($data['instructions'] ?? ''));
+    $additional = trim($data['additional_details'] ?? ($data['additional_information'] ?? ''));
+
+    // If only the announcement description is provided without structured subfields, return exact string verbatim
+    if ($when === '' && $where === '' && $who === '' && $why === '' && $how === '' && $additional === '') {
+        return $what;
+    }
+
     $parts = [];
 
-    $what = trim($data['what'] ?? '');
     if ($what !== '') {
         $parts[] = "📌 WHAT\n" . $what;
     }

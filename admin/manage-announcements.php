@@ -254,9 +254,23 @@ if (!function_exists('processAnnouncementDeliveryQueue')) {
         while ($rows && $row = $rows->fetch_assoc()) {
             $processed++;
             $errors = [];
+            $raw_content = trim(strip_tags((string) ($row['content'] ?? '')));
+            if ($raw_content === '') {
+                $raw_content = trim((string) ($row['title'] ?? ''));
+            }
+            $subject = trim((string) ($row['title'] ?? ''));
+            if ($subject === '') {
+                $subject = 'Parish Announcement';
+            }
+
             if ($row['delivery_status'] === 'pending') {
-                $email_body = '<p><strong>' . e($row['title']) . '</strong></p><p>' . nl2br(e(strip_tags($row['content']))) . '</p><p>Published: ' . e(formatDateTime(date('Y-m-d H:i:s'))) . '</p>';
-                $sent = sendTugonEmail($conn, $row['email'], 'New Parish Announcement: ' . $row['title'], tugonEmailTemplate('Parish Announcement', $email_body, 'View Announcement', $view_url), '', $row['user_id'], 'announcement');
+                if ($raw_content === '') {
+                    $sent = ['ok' => false, 'error' => 'Announcement message is empty or contains only whitespace.'];
+                } else {
+                    // Verbatim email body: exact announcement string without auto-generated greetings, headers, card frames, or signatures
+                    $email_html = '<div style="font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Arial, sans-serif; font-size: 15px; line-height: 1.6; color: #111827; white-space: pre-wrap;">' . htmlspecialchars($raw_content, ENT_QUOTES, 'UTF-8') . '</div>';
+                    $sent = sendTugonEmail($conn, $row['email'], $subject, $email_html, $raw_content, $row['user_id'], 'announcement');
+                }
                 $email_status = $sent['ok'] ? 'sent' : 'failed';
                 $sent['ok'] ? $sent_email++ : $failed++;
                 if (!$sent['ok']) {
@@ -274,7 +288,12 @@ if (!function_exists('processAnnouncementDeliveryQueue')) {
             }
 
             if ($row['sms_delivery_status'] === 'pending') {
-                $sms = sendTugonSms($conn, $row['phone_number'], notificationSmsMessage('New Parish Announcement', $row['title']), $row['user_id'], 'announcement');
+                if ($raw_content === '') {
+                    $sms = ['ok' => false, 'error' => 'Announcement message is empty or contains only whitespace.'];
+                } else {
+                    // Send raw announcement body string directly as the SMS payload text, trimmed, preserving spacing and line breaks
+                    $sms = sendTugonSms($conn, $row['phone_number'], $raw_content, $row['user_id'], 'announcement');
+                }
                 $sms_status = $sms['ok'] ? 'sent' : 'failed';
                 $sms['ok'] ? $sent_sms++ : $failed++;
                 if (!$sms['ok']) {

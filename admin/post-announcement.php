@@ -17,22 +17,35 @@ $message = '';
 $status = 'info';
 
 if ($_POST) {
-    $title = $conn->real_escape_string(trim($_POST['title'] ?? 'Test Announcement'));
-    $content = $conn->real_escape_string(trim($_POST['content'] ?? 'This is a test announcement to verify the system is working.'));
+    if (function_exists('requireValidCsrfToken') && isset($_POST['_csrf_token'])) {
+        requireValidCsrfToken();
+    }
+    $raw_title = trim($_POST['title'] ?? '');
+    $raw_content = trim($_POST['content'] ?? '');
     $type = $conn->real_escape_string($_POST['type'] ?? 'announcement');
     $admin_id = $_SESSION['user_id'];
-    
-    $sql = "INSERT INTO announcements (title, content, type, published_by, status) 
-            VALUES ('$title', '$content', '$type', '$admin_id', 'active')";
-    
-    if ($conn->query($sql)) {
-        $announcement_id = $conn->insert_id;
-        notifyAllActiveParishioners($conn, $title, $content, 'announcements');
-        $message = '✅ Announcement posted and automatically broadcasted to all active parishioners via Email and SMS!';
-        $status = 'success';
-    } else {
-        $message = '❌ Error posting announcement: ' . $conn->error;
+
+    if ($raw_title === '') {
+        $message = '❌ Please enter an announcement title.';
         $status = 'error';
+    } elseif ($raw_content === '') {
+        $message = '❌ Announcement content cannot be empty or whitespace only.';
+        $status = 'error';
+    } else {
+        $title = $conn->real_escape_string($raw_title);
+        $content = $conn->real_escape_string($raw_content);
+        $sql = "INSERT INTO announcements (title, content, type, published_by, status) 
+                VALUES ('$title', '$content', '$type', '$admin_id', 'active')";
+        
+        if ($conn->query($sql)) {
+            $announcement_id = $conn->insert_id;
+            notifyAllActiveParishioners($conn, $raw_title, $raw_content, 'announcements', ['outbound' => true]);
+            $message = '✅ Announcement posted and automatically broadcasted to all active parishioners via Email and SMS!';
+            $status = 'success';
+        } else {
+            $message = '❌ Error posting announcement: ' . $conn->error;
+            $status = 'error';
+        }
     }
 }
 

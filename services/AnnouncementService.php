@@ -132,13 +132,27 @@ final class AnnouncementService
         $stmt->close();
         if (!$a) return;
 
+        $rawBody = trim(strip_tags((string) ($a['content'] ?? '')));
+        if ($rawBody === '') {
+            $rawBody = trim((string) ($a['title'] ?? ''));
+        }
+        if ($rawBody === '') {
+            return;
+        }
+        $title = trim((string) ($a['title'] ?? '')) ?: 'Parish Announcement';
+
         $users = $this->recipients($id);
         $notifications = new NotificationService($this->db);
         foreach ($users as $uid) {
             $notifications->create(
                 $uid,
                 'announcement_published',
-                ['announcement_title' => $a['title'], 'title' => $a['title'], 'message' => $a['content']],
+                [
+                    'announcement_title' => $title,
+                    'title' => $title,
+                    'message' => $rawBody,
+                    'content' => $rawBody
+                ],
                 'announcement',
                 $id,
                 'announcement.view',

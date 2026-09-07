@@ -91,15 +91,30 @@ final class NotificationService
         $tpl = $stmt->get_result()->fetch_assoc();
         $stmt->close();
 
-        if (!$tpl) {
-            $title = $variables['title'] ?? ucfirst(str_replace('_', ' ', $type));
-            $message = $variables['message'] ?? 'You have a new update regarding ' . str_replace('_', ' ', $type) . '.';
-        } else {
-            $title = $this->render($tpl['title_template'], $variables);
-            $message = $this->render($tpl['in_app_template'], $variables);
-        }
-
         $category = self::CATEGORIES[$type] ?? 'system';
+        $isAnnouncement = ($category === 'announcements' || $type === 'announcement_published' || $type === 'broadcast_notice');
+
+        if ($isAnnouncement) {
+            // For announcements, preserve the exact announcement body word-for-word
+            $rawMsg = trim((string) ($variables['message'] ?? $variables['content'] ?? ''));
+            if ($rawMsg !== '') {
+                $message = $rawMsg;
+            } elseif ($tpl) {
+                $message = $this->render($tpl['in_app_template'], $variables);
+            } else {
+                $message = $variables['message'] ?? '';
+            }
+            $rawTitle = trim((string) ($variables['title'] ?? $variables['announcement_title'] ?? ''));
+            $title = $rawTitle !== '' ? $rawTitle : 'Parish Announcement';
+        } else {
+            if (!$tpl) {
+                $title = $variables['title'] ?? ucfirst(str_replace('_', ' ', $type));
+                $message = $variables['message'] ?? 'You have a new update regarding ' . str_replace('_', ' ', $type) . '.';
+            } else {
+                $title = $this->render($tpl['title_template'], $variables);
+                $message = $this->render($tpl['in_app_template'], $variables);
+            }
+        }
         $dedupe = $dedupeSeed !== null ? hash('sha256', $type . '|' . $entityType . '|' . $entityId . '|' . $dedupeSeed) : null;
 
         // Verify in-app allowance
@@ -152,13 +167,24 @@ final class NotificationService
             return null;
         }
 
+        $message = trim($message);
+        if ($message === '') {
+            return null;
+        }
+
+        $isAnnouncement = in_array(strtolower($category), ['announcements', 'announcement', 'broadcast', 'broadcast_notice'], true);
+        if ($isAnnouncement && trim($title) === '') {
+            $title = 'Parish Announcement';
+        }
+
         $allowInApp = $this->allows($userId, $category, 'in_app');
         $id = null;
 
         if ($allowInApp) {
-            $stmt = $this->db->prepare("INSERT INTO notifications (user_id, notification_type, title, message, state, is_read) VALUES (?, 'system', ?, ?, 'unread', 0)");
+            $notifType = $isAnnouncement ? 'announcement_published' : 'system';
+            $stmt = $this->db->prepare("INSERT INTO notifications (user_id, notification_type, title, message, state, is_read) VALUES (?, ?, ?, ?, 'unread', 0)");
             if ($stmt) {
-                $stmt->bind_param('iss', $userId, $title, $message);
+                $stmt->bind_param('isss', $userId, $notifType, $title, $message);
                 $stmt->execute();
                 $id = (int) $stmt->insert_id;
                 $stmt->close();

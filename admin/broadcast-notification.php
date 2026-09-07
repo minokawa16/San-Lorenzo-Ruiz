@@ -41,16 +41,16 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $category = 'announcements';
     }
 
-    if (mb_strlen($title) < 4) {
-        $error = 'Please provide a descriptive notification title (at least 4 characters).';
-    } elseif (mb_strlen($message) < 10) {
-        $error = 'Please provide meaningful notification message content (at least 10 characters).';
+    if (mb_strlen($title) < 2) {
+        $error = 'Please provide a notification title.';
+    } elseif ($message === '') {
+        $error = 'Please provide notification message content (cannot be empty or whitespace only).';
     } elseif ($audience === 'district' && $target_district === '') {
         $error = 'Please select a chapel / district for this targeted broadcast.';
     } elseif ($audience === 'user' && $target_user_id <= 0) {
         $error = 'Please select a specific parishioner recipient.';
     } else {
-        $options = [];
+        $options = ['outbound' => true];
         if ($audience === 'district') {
             $options['chapel_district'] = $target_district;
         } elseif ($audience === 'user') {

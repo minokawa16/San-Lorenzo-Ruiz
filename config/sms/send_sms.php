@@ -32,7 +32,7 @@ function sendSMS($phone, $message)
     ];
 
     $headers = [
-        "Content-Type: application/json",
+        "Content-Type: application/json; charset=utf-8",
         "x-api-key: " . TEXTBEE_API_KEY
     ];
 
@@ -44,7 +44,7 @@ function sendSMS($phone, $message)
 
     curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 4);
     curl_setopt($ch, CURLOPT_TIMEOUT, 8);
 
