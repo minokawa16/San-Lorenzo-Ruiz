@@ -132,13 +132,17 @@
     <?php endif; ?>
     <?php endif; ?>
 
-    <?php if (hasPermission('system.settings')): ?>
     <div class="nav-section-label">System</div>
+    <?php if (hasPermission('system.settings')): ?>
     <a href="<?php echo BASE_URL; ?>admin/settings.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'settings.php') ? 'active' : ''; ?>" data-tooltip="<?php echo e(t('nav.settings', 'Settings')); ?>">
       <i class="fas fa-cog"></i>
       <span><?php echo e(t('nav.settings', 'Settings')); ?></span>
     </a>
     <?php endif; ?>
+    <a href="<?php echo BASE_URL; ?>admin/help.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'help.php') ? 'active' : ''; ?>" data-tooltip="Admin Manual">
+      <i class="fas fa-circle-question"></i>
+      <span>Admin Manual</span>
+    </a>
 
     <div class="nav-section-label"><?php echo e(t('nav.account', 'Account')); ?></div>
     <a href="<?php echo BASE_URL; ?>auth/logout.php" class="nav-link logout" data-tooltip="<?php echo e(t('nav.logout', 'Logout')); ?>">

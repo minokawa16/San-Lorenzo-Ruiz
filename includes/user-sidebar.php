@@ -97,6 +97,10 @@ $is_primary_user_dashboard = $is_user_dashboard_page && (($_GET['view'] ?? '') !
       <i class="fas fa-user-gear"></i>
       <span><?php echo e(t('nav.profile_settings', 'Profile Settings')); ?></span>
     </a>
+    <a href="<?php echo BASE_URL; ?>users/help.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'help.php') ? 'active' : ''; ?>" data-tooltip="<?php echo e(t('nav.help', 'Help & Guide')); ?>">
+      <i class="fas fa-circle-question"></i>
+      <span><?php echo e(t('nav.help', 'Help & Guide')); ?></span>
+    </a>
     <a href="<?php echo BASE_URL; ?>auth/logout.php" class="nav-link logout" data-tooltip="<?php echo e(t('nav.logout', 'Logout')); ?>">
       <i class="fas fa-arrow-right-from-bracket"></i>
       <span><?php echo e(t('nav.logout', 'Logout')); ?></span>
