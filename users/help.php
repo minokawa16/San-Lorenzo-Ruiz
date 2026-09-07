@@ -175,10 +175,15 @@ include '../includes/breadcrumb.php';
   cursor: pointer;
   transition: all 0.15s;
 }
-.usr-pill:hover {
+.usr-pill:hover,
+.usr-pill.active {
   background: var(--usr-gold);
   color: #1e293b;
   border-color: var(--usr-gold);
+  font-weight: 700;
+}
+.usr-pill.active {
+  box-shadow: 0 2px 8px rgba(200, 155, 60, 0.4);
 }
 
 /* --- Layout Grid --- */
@@ -232,13 +237,14 @@ include '../includes/breadcrumb.php';
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 12px;
+  padding: 10px 12px;
   border-radius: 8px;
-  font-size: 0.84rem;
+  font-size: 0.85rem;
   font-weight: 600;
   color: var(--usr-slate-700);
   text-decoration: none;
-  transition: all 0.15s;
+  transition: all 0.15s ease;
+  border-left: 4px solid transparent;
 }
 .usr-toc-link i {
   width: 18px;
@@ -246,6 +252,7 @@ include '../includes/breadcrumb.php';
   font-size: 0.9rem;
   color: var(--usr-slate-600);
   flex-shrink: 0;
+  transition: color 0.15s;
 }
 .usr-toc-link:hover {
   background: var(--usr-slate-100);
@@ -255,10 +262,11 @@ include '../includes/breadcrumb.php';
   background: var(--usr-green-light);
   color: var(--usr-green);
   font-weight: 700;
-  border-left: 3px solid var(--usr-green);
+  border-left-color: var(--usr-green);
+  box-shadow: 0 2px 6px rgba(46, 58, 45, 0.08);
 }
 .usr-toc-link.active i {
-  color: var(--usr-gold);
+  color: var(--usr-green-mid);
 }
 .usr-toc-shortcuts {
   margin-top: 20px;
@@ -287,7 +295,7 @@ include '../includes/breadcrumb.php';
   color: var(--usr-green);
 }
 
-/* --- Content Section Cards --- */
+/* --- Content Section Cards (Tabbed View: Inactive Hidden) --- */
 .usr-section-card {
   background: #ffffff;
   border: 1px solid var(--usr-slate-200);
@@ -296,6 +304,64 @@ include '../includes/breadcrumb.php';
   margin-bottom: 26px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   scroll-margin-top: 86px;
+  display: none; /* Inactive modules hidden by default */
+}
+.usr-section-card.active-module {
+  display: block; /* Only active module displayed */
+  animation: usrModuleFadeIn 0.22s ease-out;
+}
+@keyframes usrModuleFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Bottom Module Navigation */
+.usr-module-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1.5px solid var(--usr-slate-100);
+  flex-wrap: wrap;
+}
+.usr-module-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--usr-slate-700);
+  background: var(--usr-slate-50);
+  border: 1.5px solid var(--usr-slate-200);
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+.usr-module-nav-btn:hover {
+  background: var(--usr-green-light);
+  color: var(--usr-green);
+  border-color: var(--usr-green);
+}
+.usr-module-nav-btn.btn-primary-nav {
+  background: var(--usr-green);
+  color: #ffffff;
+  border-color: var(--usr-green);
+  margin-left: auto;
+}
+.usr-module-nav-btn.btn-primary-nav:hover {
+  background: var(--usr-green-mid);
+  color: #ffffff;
+  border-color: var(--usr-green-mid);
 }
 .usr-section-header {
   display: flex;
@@ -679,7 +745,7 @@ include '../includes/breadcrumb.php';
       </div>
 
       <!-- ================= MODULE 1 ================= -->
-      <section id="module1" class="usr-section-card">
+      <section id="module1" class="usr-section-card active-module">
         <div class="usr-section-header">
           <div class="usr-section-meta">
             <div class="usr-section-icon icon-gold">
@@ -758,6 +824,15 @@ include '../includes/breadcrumb.php';
             Place your ID flat on a table in a well-lit room. Avoid glare or strong light bouncing directly off the plastic card so the system can read your name clearly.
           </div>
         </div>
+
+        <!-- Module Navigation Footer -->
+        <div class="usr-module-nav">
+          <div></div>
+          <button type="button" class="usr-module-nav-btn btn-primary-nav" data-target="#module2">
+            <span>Next: Module 2 (Profile Settings)</span>
+            <i class="fas fa-arrow-right"></i>
+          </button>
+        </div>
       </section>
 
       <!-- ================= MODULE 2 ================= -->
@@ -810,6 +885,18 @@ include '../includes/breadcrumb.php';
               </p>
             </div>
           </div>
+        </div>
+
+        <!-- Module Navigation Footer -->
+        <div class="usr-module-nav">
+          <button type="button" class="usr-module-nav-btn" data-target="#module1">
+            <i class="fas fa-arrow-left"></i>
+            <span>Previous: Module 1</span>
+          </button>
+          <button type="button" class="usr-module-nav-btn btn-primary-nav" data-target="#module3">
+            <span>Next: Module 3 (Request Certificate)</span>
+            <i class="fas fa-arrow-right"></i>
+          </button>
         </div>
       </section>
 
@@ -887,6 +974,18 @@ include '../includes/breadcrumb.php';
             You cannot submit a second request for the same person while an earlier request is still pending or being processed. Please wait for the current request to be completed before making another one.
           </div>
         </div>
+
+        <!-- Module Navigation Footer -->
+        <div class="usr-module-nav">
+          <button type="button" class="usr-module-nav-btn" data-target="#module2">
+            <i class="fas fa-arrow-left"></i>
+            <span>Previous: Module 2</span>
+          </button>
+          <button type="button" class="usr-module-nav-btn btn-primary-nav" data-target="#module4">
+            <span>Next: Module 4 (Book Church Service)</span>
+            <i class="fas fa-arrow-right"></i>
+          </button>
+        </div>
       </section>
 
       <!-- ================= MODULE 4 ================= -->
@@ -948,6 +1047,18 @@ include '../includes/breadcrumb.php';
             <strong>Calendar Slot Protection:</strong>
             Our calendar is directly linked to the parish schedule. Any date or time slot that is already reserved by another church service is automatically blocked so no two events are ever double-booked. Once the church office approves your booking, your slot is officially locked!
           </div>
+        </div>
+
+        <!-- Module Navigation Footer -->
+        <div class="usr-module-nav">
+          <button type="button" class="usr-module-nav-btn" data-target="#module3">
+            <i class="fas fa-arrow-left"></i>
+            <span>Previous: Module 3</span>
+          </button>
+          <button type="button" class="usr-module-nav-btn btn-primary-nav" data-target="#module5">
+            <span>Next: Module 5 (Track &amp; Claim)</span>
+            <i class="fas fa-arrow-right"></i>
+          </button>
         </div>
       </section>
 
@@ -1018,6 +1129,18 @@ include '../includes/breadcrumb.php';
             </ul>
           </div>
         </div>
+
+        <!-- Module Navigation Footer -->
+        <div class="usr-module-nav">
+          <button type="button" class="usr-module-nav-btn" data-target="#module4">
+            <i class="fas fa-arrow-left"></i>
+            <span>Previous: Module 4</span>
+          </button>
+          <button type="button" class="usr-module-nav-btn btn-primary-nav" data-target="#module6">
+            <span>Next: Module 6 (Questions &amp; Answers)</span>
+            <i class="fas fa-arrow-right"></i>
+          </button>
+        </div>
       </section>
 
       <!-- ================= MODULE 6 ================= -->
@@ -1075,6 +1198,18 @@ include '../includes/breadcrumb.php';
             Check your browser settings (Chrome or Safari) and make sure Camera permissions are set to <strong>Allow</strong>. If your phone is in Low Power mode, turn it off and refresh the page.
           </div>
         </div>
+
+        <!-- Module Navigation Footer -->
+        <div class="usr-module-nav">
+          <button type="button" class="usr-module-nav-btn" data-target="#module5">
+            <i class="fas fa-arrow-left"></i>
+            <span>Previous: Module 5</span>
+          </button>
+          <a href="<?php echo BASE_URL; ?>index.php" class="usr-module-nav-btn btn-primary-nav">
+            <span>Back to Dashboard</span>
+            <i class="fas fa-house"></i>
+          </a>
+        </div>
       </section>
 
     </main>
@@ -1089,36 +1224,172 @@ include '../includes/breadcrumb.php';
   const searchClear = document.getElementById('usrSearchClear');
   const emptyState  = document.getElementById('usrSearchEmpty');
   const cards       = Array.from(document.querySelectorAll('.usr-section-card'));
+  const tocLinks    = Array.from(document.querySelectorAll('.usr-toc-link'));
+  const pills       = Array.from(document.querySelectorAll('.usr-pill'));
+  let currentActiveId = 'module1';
 
+  /**
+   * Switch the active module tab dynamically
+   * @param {string} targetId e.g. '#module2' or 'module2'
+   * @param {boolean} updateHash whether to update browser URL hash
+   * @param {boolean} scrollIntoView whether to smoothly scroll into view
+   */
+  function switchModule(targetId, updateHash = true, scrollIntoView = false) {
+    const cleanId = (targetId || '').replace(/^#/, '');
+    const targetEl = document.getElementById(cleanId);
+    const targetCard = (targetEl && targetEl.classList.contains('usr-section-card'))
+      ? targetEl
+      : document.getElementById('module1');
+
+    if (!targetCard) return;
+    currentActiveId = targetCard.id;
+
+    // Reset search bar if user was searching
+    if (searchInput && searchInput.value) {
+      searchInput.value = '';
+      if (searchClear) searchClear.style.display = 'none';
+      if (emptyState) emptyState.style.display = 'none';
+    }
+
+    // Toggle modules: display ONLY the single active module
+    cards.forEach(card => {
+      const isTarget = (card.id === currentActiveId);
+      card.classList.toggle('active-module', isTarget);
+      card.style.display = isTarget ? 'block' : 'none';
+    });
+
+    // Update left sidebar TOC highlighting
+    tocLinks.forEach(link => {
+      const href = (link.getAttribute('href') || '').replace(/^#/, '');
+      const isActive = (href === currentActiveId);
+      link.classList.toggle('active', isActive);
+      link.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+
+    // Update quick navigation pills in hero
+    pills.forEach(pill => {
+      const pTarget = (pill.getAttribute('data-target') || '').replace(/^#/, '');
+      pill.classList.toggle('active', pTarget === currentActiveId);
+    });
+
+    // Update URL hash for bookmarking & history without jump
+    if (updateHash) {
+      if (window.history && window.history.pushState) {
+        window.history.pushState(null, null, '#' + currentActiveId);
+      } else {
+        window.location.hash = '#' + currentActiveId;
+      }
+    }
+
+    // Smooth scroll to content top if requested or on mobile
+    if (scrollIntoView || window.innerWidth < 992) {
+      const mainCol = document.querySelector('.usr-content-col');
+      if (mainCol) {
+        const topOffset = mainCol.getBoundingClientRect().top + window.pageYOffset - 90;
+        window.scrollTo({ top: Math.max(0, topOffset), behavior: 'smooth' });
+      }
+    }
+  }
+
+  // Handle URL hash on initial load
+  function initFromHash() {
+    const hash = window.location.hash;
+    const cleanId = hash ? hash.replace(/^#/, '') : '';
+    if (cleanId && document.getElementById(cleanId)) {
+      switchModule(cleanId, false, false);
+    } else {
+      switchModule('module1', false, false);
+    }
+  }
+
+  // Handle browser back/forward buttons
+  window.addEventListener('hashchange', function () {
+    const hash = window.location.hash;
+    if (hash) {
+      const cleanId = hash.replace(/^#/, '');
+      if (document.getElementById(cleanId)) {
+        switchModule(cleanId, false, false);
+      }
+    }
+  });
+
+  // Sidebar TOC click handling
+  tocLinks.forEach(link => {
+    link.addEventListener('click', function (e) {
+      e.preventDefault();
+      const targetId = this.getAttribute('href');
+      switchModule(targetId, true, window.innerWidth < 992);
+    });
+  });
+
+  // Quick navigation pills click handling
+  pills.forEach(pill => {
+    pill.addEventListener('click', function (e) {
+      e.preventDefault();
+      const targetId = this.getAttribute('data-target');
+      switchModule(targetId, true, true);
+    });
+  });
+
+  // Prev / Next module buttons click handling
+  document.querySelectorAll('.usr-module-nav-btn[data-target]').forEach(btn => {
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      const targetId = this.getAttribute('data-target');
+      switchModule(targetId, true, true);
+    });
+  });
+
+  // Accordion toggle
+  document.querySelectorAll('.usr-accordion-btn').forEach(btn => {
+    btn.addEventListener('click', function () {
+      const body = this.nextElementSibling;
+      this.classList.toggle('active');
+      if (body) {
+        body.classList.toggle('show');
+      }
+    });
+  });
+
+  // Search functionality: when typing, reveals matching modules; when cleared, restores active tab
   function doUsrSearch() {
     const q = (searchInput.value || '').trim().toLowerCase();
-    searchClear.style.display = q ? 'block' : 'none';
+    if (searchClear) searchClear.style.display = q ? 'block' : 'none';
 
+    if (!q) {
+      // Restore tabbed view of current active module
+      switchModule(currentActiveId, false, false);
+      if (emptyState) emptyState.style.display = 'none';
+      return;
+    }
+
+    // While searching, display all matching modules
     let matchCount = 0;
     cards.forEach(card => {
       const text = card.textContent.toLowerCase();
-      if (!q || text.includes(q)) {
+      if (text.includes(q)) {
         card.style.display = 'block';
+        card.classList.add('active-module');
         matchCount++;
 
-        if (q) {
-          card.querySelectorAll('.usr-accordion-item').forEach(acc => {
-            const accText = acc.textContent.toLowerCase();
-            const btn = acc.querySelector('.usr-accordion-btn');
-            const body = acc.querySelector('.usr-accordion-body');
-            if (accText.includes(q)) {
-              btn?.classList.add('active');
-              body?.classList.add('show');
-            }
-          });
-        }
+        // Auto-expand matching accordions
+        card.querySelectorAll('.usr-accordion-item').forEach(acc => {
+          const accText = acc.textContent.toLowerCase();
+          const btn = acc.querySelector('.usr-accordion-btn');
+          const body = acc.querySelector('.usr-accordion-body');
+          if (accText.includes(q)) {
+            btn?.classList.add('active');
+            body?.classList.add('show');
+          }
+        });
       } else {
         card.style.display = 'none';
+        card.classList.remove('active-module');
       }
     });
 
     if (emptyState) {
-      emptyState.style.display = (matchCount === 0 && q) ? 'block' : 'none';
+      emptyState.style.display = (matchCount === 0) ? 'block' : 'none';
     }
   }
 
@@ -1141,52 +1412,8 @@ include '../includes/breadcrumb.php';
     }
   };
 
-  // Quick pills scroll
-  document.querySelectorAll('.usr-pill').forEach(pill => {
-    pill.addEventListener('click', function () {
-      const targetId = this.getAttribute('data-target');
-      const targetEl = document.querySelector(targetId);
-      if (targetEl) {
-        if (searchInput && searchInput.value) {
-          searchInput.value = '';
-          doUsrSearch();
-        }
-        targetEl.scrollIntoView({ behavior: 'smooth' });
-      }
-    });
-  });
-
-  // Accordion toggle
-  document.querySelectorAll('.usr-accordion-btn').forEach(btn => {
-    btn.addEventListener('click', function () {
-      const body = this.nextElementSibling;
-      this.classList.toggle('active');
-      if (body) {
-        body.classList.toggle('show');
-      }
-    });
-  });
-
-  // TOC scrollspy
-  const tocLinks = Array.from(document.querySelectorAll('.usr-toc-link'));
-  function onScroll() {
-    const scrollPos = window.scrollY + 140;
-    cards.forEach(card => {
-      const top = card.offsetTop;
-      const height = card.offsetHeight;
-      const id = card.getAttribute('id');
-      if (scrollPos >= top && scrollPos < top + height) {
-        tocLinks.forEach(link => {
-          if (link.getAttribute('href') === '#' + id) {
-            link.classList.add('active');
-          } else {
-            link.classList.remove('active');
-          }
-        });
-      }
-    });
-  }
-  window.addEventListener('scroll', onScroll, { passive: true });
+  // Initialize active tab on load
+  initFromHash();
 
 })();
 </script>

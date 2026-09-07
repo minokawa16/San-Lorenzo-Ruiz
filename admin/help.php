@@ -173,10 +173,15 @@ include '../templates/header.php';
   cursor: pointer;
   transition: all 0.15s;
 }
-.adm-pill:hover {
+.adm-pill:hover,
+.adm-pill.active {
   background: var(--adm-gold);
   color: #1e293b;
   border-color: var(--adm-gold);
+  font-weight: 700;
+}
+.adm-pill.active {
+  box-shadow: 0 2px 8px rgba(200, 155, 60, 0.4);
 }
 
 /* --- Layout Grid --- */
@@ -230,13 +235,14 @@ include '../templates/header.php';
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 12px;
+  padding: 10px 12px;
   border-radius: 8px;
-  font-size: 0.84rem;
+  font-size: 0.85rem;
   font-weight: 600;
   color: var(--adm-slate-700);
   text-decoration: none;
-  transition: all 0.15s;
+  transition: all 0.15s ease;
+  border-left: 4px solid transparent;
 }
 .adm-toc-link i {
   width: 18px;
@@ -244,6 +250,7 @@ include '../templates/header.php';
   font-size: 0.9rem;
   color: var(--adm-slate-600);
   flex-shrink: 0;
+  transition: color 0.15s;
 }
 .adm-toc-link:hover {
   background: var(--adm-slate-100);
@@ -253,10 +260,11 @@ include '../templates/header.php';
   background: var(--adm-green-light);
   color: var(--adm-green);
   font-weight: 700;
-  border-left: 3px solid var(--adm-green);
+  border-left-color: var(--adm-green);
+  box-shadow: 0 2px 6px rgba(46, 58, 45, 0.08);
 }
 .adm-toc-link.active i {
-  color: var(--adm-gold);
+  color: var(--adm-green-mid);
 }
 .adm-toc-shortcuts {
   margin-top: 20px;
@@ -285,7 +293,7 @@ include '../templates/header.php';
   color: var(--adm-green);
 }
 
-/* --- Content Section Cards --- */
+/* --- Content Section Cards (Tabbed View: Inactive Hidden) --- */
 .adm-section-card {
   background: #ffffff;
   border: 1px solid var(--adm-slate-200);
@@ -294,6 +302,64 @@ include '../templates/header.php';
   margin-bottom: 26px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   scroll-margin-top: 86px;
+  display: none; /* Inactive modules hidden by default */
+}
+.adm-section-card.active-module {
+  display: block; /* Only active module displayed */
+  animation: admModuleFadeIn 0.22s ease-out;
+}
+@keyframes admModuleFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Bottom Module Navigation */
+.adm-module-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1.5px solid var(--adm-slate-100);
+  flex-wrap: wrap;
+}
+.adm-module-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--adm-slate-700);
+  background: var(--adm-slate-50);
+  border: 1.5px solid var(--adm-slate-200);
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+.adm-module-nav-btn:hover {
+  background: var(--adm-green-light);
+  color: var(--adm-green);
+  border-color: var(--adm-green);
+}
+.adm-module-nav-btn.btn-primary-nav {
+  background: var(--adm-green);
+  color: #ffffff;
+  border-color: var(--adm-green);
+  margin-left: auto;
+}
+.adm-module-nav-btn.btn-primary-nav:hover {
+  background: var(--adm-green-mid);
+  color: #ffffff;
+  border-color: var(--adm-green-mid);
 }
 .adm-section-header {
   display: flex;
@@ -681,7 +747,7 @@ include '../templates/header.php';
       </div>
 
       <!-- ================= MODULE 1 ================= -->
-      <section id="module1" class="adm-section-card">
+      <section id="module1" class="adm-section-card active-module">
         <div class="adm-section-header">
           <div class="adm-section-meta">
             <div class="adm-section-icon icon-gold">
@@ -740,6 +806,15 @@ include '../templates/header.php';
             <strong>Helpful Tip:</strong>
             Make sure the parishioner's full name and birthdate match their ID card exactly before clicking <strong>Approve</strong>. This keeps our church records accurate and protects members from identity mix-ups.
           </div>
+        </div>
+
+        <!-- Module Navigation Footer -->
+        <div class="adm-module-nav">
+          <div></div>
+          <button type="button" class="adm-module-nav-btn btn-primary-nav" data-target="#module2">
+            <span>Next: Module 2 (Request Workflows)</span>
+            <i class="fas fa-arrow-right"></i>
+          </button>
         </div>
       </section>
 
@@ -813,6 +888,18 @@ include '../templates/header.php';
             </ul>
           </div>
         </div>
+
+        <!-- Module Navigation Footer -->
+        <div class="adm-module-nav">
+          <button type="button" class="adm-module-nav-btn" data-target="#module1">
+            <i class="fas fa-arrow-left"></i>
+            <span>Previous: Module 1</span>
+          </button>
+          <button type="button" class="adm-module-nav-btn btn-primary-nav" data-target="#module3">
+            <span>Next: Module 3 (Church Records)</span>
+            <i class="fas fa-arrow-right"></i>
+          </button>
+        </div>
       </section>
 
       <!-- ================= MODULE 3 ================= -->
@@ -879,6 +966,18 @@ include '../templates/header.php';
             Under Catholic Church rules, official church records cannot be deleted once created. If a mistake was made during encoding, edit the entry to correct it or mark it as archived.
           </div>
         </div>
+
+        <!-- Module Navigation Footer -->
+        <div class="adm-module-nav">
+          <button type="button" class="adm-module-nav-btn" data-target="#module2">
+            <i class="fas fa-arrow-left"></i>
+            <span>Previous: Module 2</span>
+          </button>
+          <button type="button" class="adm-module-nav-btn btn-primary-nav" data-target="#module4">
+            <span>Next: Module 4 (Schedule Calendar)</span>
+            <i class="fas fa-arrow-right"></i>
+          </button>
+        </div>
       </section>
 
       <!-- ================= MODULE 4 ================= -->
@@ -932,6 +1031,18 @@ include '../templates/header.php';
             </div>
           </div>
         </div>
+
+        <!-- Module Navigation Footer -->
+        <div class="adm-module-nav">
+          <button type="button" class="adm-module-nav-btn" data-target="#module3">
+            <i class="fas fa-arrow-left"></i>
+            <span>Previous: Module 3</span>
+          </button>
+          <button type="button" class="adm-module-nav-btn btn-primary-nav" data-target="#module5">
+            <span>Next: Module 5 (Analytics &amp; Reports)</span>
+            <i class="fas fa-arrow-right"></i>
+          </button>
+        </div>
       </section>
 
       <!-- ================= MODULE 5 ================= -->
@@ -984,6 +1095,18 @@ include '../templates/header.php';
               </p>
             </div>
           </div>
+        </div>
+
+        <!-- Module Navigation Footer -->
+        <div class="adm-module-nav">
+          <button type="button" class="adm-module-nav-btn" data-target="#module4">
+            <i class="fas fa-arrow-left"></i>
+            <span>Previous: Module 4</span>
+          </button>
+          <button type="button" class="adm-module-nav-btn btn-primary-nav" data-target="#module6">
+            <span>Next: Module 6 (Audit Logs)</span>
+            <i class="fas fa-arrow-right"></i>
+          </button>
         </div>
       </section>
 
@@ -1047,6 +1170,18 @@ include '../templates/header.php';
             Member phone numbers and government IDs are private. Never share parishioner contact information or personal documents with outside parties.
           </div>
         </div>
+
+        <!-- Module Navigation Footer -->
+        <div class="adm-module-nav">
+          <button type="button" class="adm-module-nav-btn" data-target="#module5">
+            <i class="fas fa-arrow-left"></i>
+            <span>Previous: Module 5</span>
+          </button>
+          <a href="<?php echo BASE_URL; ?>admin/index.php" class="adm-module-nav-btn btn-primary-nav">
+            <span>Back to Dashboard</span>
+            <i class="fas fa-house"></i>
+          </a>
+        </div>
       </section>
 
     </main>
@@ -1061,36 +1196,172 @@ include '../templates/header.php';
   const searchClear = document.getElementById('admSearchClear');
   const emptyState  = document.getElementById('admSearchEmpty');
   const cards       = Array.from(document.querySelectorAll('.adm-section-card'));
+  const tocLinks    = Array.from(document.querySelectorAll('.adm-toc-link'));
+  const pills       = Array.from(document.querySelectorAll('.adm-pill'));
+  let currentActiveId = 'module1';
 
+  /**
+   * Switch the active module tab dynamically
+   * @param {string} targetId e.g. '#module2' or 'module2'
+   * @param {boolean} updateHash whether to update browser URL hash
+   * @param {boolean} scrollIntoView whether to smoothly scroll into view
+   */
+  function switchModule(targetId, updateHash = true, scrollIntoView = false) {
+    const cleanId = (targetId || '').replace(/^#/, '');
+    const targetEl = document.getElementById(cleanId);
+    const targetCard = (targetEl && targetEl.classList.contains('adm-section-card'))
+      ? targetEl
+      : document.getElementById('module1');
+
+    if (!targetCard) return;
+    currentActiveId = targetCard.id;
+
+    // Reset search bar display if user was searching
+    if (searchInput && searchInput.value) {
+      searchInput.value = '';
+      if (searchClear) searchClear.style.display = 'none';
+      if (emptyState) emptyState.style.display = 'none';
+    }
+
+    // Toggle modules: display ONLY the single active module
+    cards.forEach(card => {
+      const isTarget = (card.id === currentActiveId);
+      card.classList.toggle('active-module', isTarget);
+      card.style.display = isTarget ? 'block' : 'none';
+    });
+
+    // Update left sidebar TOC highlighting
+    tocLinks.forEach(link => {
+      const href = (link.getAttribute('href') || '').replace(/^#/, '');
+      const isActive = (href === currentActiveId);
+      link.classList.toggle('active', isActive);
+      link.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+
+    // Update quick navigation pills in hero
+    pills.forEach(pill => {
+      const pTarget = (pill.getAttribute('data-target') || '').replace(/^#/, '');
+      pill.classList.toggle('active', pTarget === currentActiveId);
+    });
+
+    // Update URL hash for bookmarking & history without jump
+    if (updateHash) {
+      if (window.history && window.history.pushState) {
+        window.history.pushState(null, null, '#' + currentActiveId);
+      } else {
+        window.location.hash = '#' + currentActiveId;
+      }
+    }
+
+    // Smooth scroll to content top if requested or on mobile
+    if (scrollIntoView || window.innerWidth < 992) {
+      const mainCol = document.querySelector('.adm-content-col');
+      if (mainCol) {
+        const topOffset = mainCol.getBoundingClientRect().top + window.pageYOffset - 90;
+        window.scrollTo({ top: Math.max(0, topOffset), behavior: 'smooth' });
+      }
+    }
+  }
+
+  // Handle URL hash on initial load
+  function initFromHash() {
+    const hash = window.location.hash;
+    const cleanId = hash ? hash.replace(/^#/, '') : '';
+    if (cleanId && document.getElementById(cleanId)) {
+      switchModule(cleanId, false, false);
+    } else {
+      switchModule('module1', false, false);
+    }
+  }
+
+  // Handle browser back/forward buttons
+  window.addEventListener('hashchange', function () {
+    const hash = window.location.hash;
+    if (hash) {
+      const cleanId = hash.replace(/^#/, '');
+      if (document.getElementById(cleanId)) {
+        switchModule(cleanId, false, false);
+      }
+    }
+  });
+
+  // Sidebar TOC click handling
+  tocLinks.forEach(link => {
+    link.addEventListener('click', function (e) {
+      e.preventDefault();
+      const targetId = this.getAttribute('href');
+      switchModule(targetId, true, window.innerWidth < 992);
+    });
+  });
+
+  // Quick navigation pills click handling
+  pills.forEach(pill => {
+    pill.addEventListener('click', function (e) {
+      e.preventDefault();
+      const targetId = this.getAttribute('data-target');
+      switchModule(targetId, true, true);
+    });
+  });
+
+  // Prev / Next module buttons click handling
+  document.querySelectorAll('.adm-module-nav-btn[data-target]').forEach(btn => {
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      const targetId = this.getAttribute('data-target');
+      switchModule(targetId, true, true);
+    });
+  });
+
+  // Accordion toggle
+  document.querySelectorAll('.adm-accordion-btn').forEach(btn => {
+    btn.addEventListener('click', function () {
+      const body = this.nextElementSibling;
+      this.classList.toggle('active');
+      if (body) {
+        body.classList.toggle('show');
+      }
+    });
+  });
+
+  // Search functionality: when typing, reveals matching modules; when cleared, restores active tab
   function doAdmSearch() {
     const q = (searchInput.value || '').trim().toLowerCase();
-    searchClear.style.display = q ? 'block' : 'none';
+    if (searchClear) searchClear.style.display = q ? 'block' : 'none';
 
+    if (!q) {
+      // Restore tabbed view of current active module
+      switchModule(currentActiveId, false, false);
+      if (emptyState) emptyState.style.display = 'none';
+      return;
+    }
+
+    // While searching, display all matching modules
     let matchCount = 0;
     cards.forEach(card => {
       const text = card.textContent.toLowerCase();
-      if (!q || text.includes(q)) {
+      if (text.includes(q)) {
         card.style.display = 'block';
+        card.classList.add('active-module');
         matchCount++;
 
-        if (q) {
-          card.querySelectorAll('.adm-accordion-item').forEach(acc => {
-            const accText = acc.textContent.toLowerCase();
-            const btn = acc.querySelector('.adm-accordion-btn');
-            const body = acc.querySelector('.adm-accordion-body');
-            if (accText.includes(q)) {
-              btn?.classList.add('active');
-              body?.classList.add('show');
-            }
-          });
-        }
+        // Auto-expand matching accordions
+        card.querySelectorAll('.adm-accordion-item').forEach(acc => {
+          const accText = acc.textContent.toLowerCase();
+          const btn = acc.querySelector('.adm-accordion-btn');
+          const body = acc.querySelector('.adm-accordion-body');
+          if (accText.includes(q)) {
+            btn?.classList.add('active');
+            body?.classList.add('show');
+          }
+        });
       } else {
         card.style.display = 'none';
+        card.classList.remove('active-module');
       }
     });
 
     if (emptyState) {
-      emptyState.style.display = (matchCount === 0 && q) ? 'block' : 'none';
+      emptyState.style.display = (matchCount === 0) ? 'block' : 'none';
     }
   }
 
@@ -1113,52 +1384,8 @@ include '../templates/header.php';
     }
   };
 
-  // Quick navigation pills
-  document.querySelectorAll('.adm-pill').forEach(pill => {
-    pill.addEventListener('click', function () {
-      const targetId = this.getAttribute('data-target');
-      const targetEl = document.querySelector(targetId);
-      if (targetEl) {
-        if (searchInput && searchInput.value) {
-          searchInput.value = '';
-          doAdmSearch();
-        }
-        targetEl.scrollIntoView({ behavior: 'smooth' });
-      }
-    });
-  });
-
-  // Accordion toggle
-  document.querySelectorAll('.adm-accordion-btn').forEach(btn => {
-    btn.addEventListener('click', function () {
-      const body = this.nextElementSibling;
-      this.classList.toggle('active');
-      if (body) {
-        body.classList.toggle('show');
-      }
-    });
-  });
-
-  // TOC scrollspy
-  const tocLinks = Array.from(document.querySelectorAll('.adm-toc-link'));
-  function onScroll() {
-    const scrollPos = window.scrollY + 140;
-    cards.forEach(card => {
-      const top = card.offsetTop;
-      const height = card.offsetHeight;
-      const id = card.getAttribute('id');
-      if (scrollPos >= top && scrollPos < top + height) {
-        tocLinks.forEach(link => {
-          if (link.getAttribute('href') === '#' + id) {
-            link.classList.add('active');
-          } else {
-            link.classList.remove('active');
-          }
-        });
-      }
-    });
-  }
-  window.addEventListener('scroll', onScroll, { passive: true });
+  // Initialize active tab on load
+  initFromHash();
 
 })();
 </script>
