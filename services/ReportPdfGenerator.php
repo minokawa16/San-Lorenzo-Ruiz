@@ -54,10 +54,12 @@ final class ReportPdfGenerator
         array $filters,
         array $data,
         string $generatedBy = 'Administrator',
-        string $orientation = 'landscape',
-        ?string $subtitle = null
+        string $orientation = 'portrait',
+        ?string $subtitle = null,
+        array $charts = [],
+        array $meta = []
     ): void {
-        $html = self::buildHtml($reportKey, $title, $filters, $data, $generatedBy, $subtitle);
+        $html = self::buildHtml($reportKey, $title, $filters, $data, $generatedBy, $subtitle, $charts, $meta);
 
         $options = new Options();
         $options->set('isRemoteEnabled', true);
@@ -152,6 +154,8 @@ final class ReportPdfGenerator
             $filtersFormatted = $filters;
         }
 
+        $timestamp = !empty($meta['timestamp']) ? (string)$meta['timestamp'] : date('F d, Y \a\t g:i A');
+
         ob_start();
         ?>
         <table class="parish-letterhead" cellpadding="0" cellspacing="0">
@@ -187,6 +191,7 @@ final class ReportPdfGenerator
             <?php if (!empty($subtitle) && strcasecmp(trim($subtitle), trim($reportTitle)) !== 0): ?>
                 <div class="report-subtitle"><?php echo htmlspecialchars($subtitle, ENT_QUOTES, 'UTF-8'); ?></div>
             <?php endif; ?>
+            <div class="report-timestamp">Generated on: <?php echo htmlspecialchars($timestamp, ENT_QUOTES, 'UTF-8'); ?></div>
             <div class="report-filters">Filters: <?php echo htmlspecialchars($filtersFormatted, ENT_QUOTES, 'UTF-8'); ?></div>
         </div>
         <?php
@@ -202,14 +207,16 @@ final class ReportPdfGenerator
         array $filters,
         array $data,
         string $generatedBy = 'Administrator',
-        ?string $subtitle = null
+        ?string $subtitle = null,
+        array $charts = [],
+        array $meta = []
     ): string {
         $columns = $data['columns'] ?? [];
         $rows = $data['rows'] ?? [];
         $totalRecords = (int) ($data['total'] ?? count($rows));
         $truncated = !empty($data['truncated']);
 
-        $headerHtml = self::generateParishReportHeader($title, $subtitle, $filters);
+        $headerHtml = self::generateParishReportHeader($title, $subtitle, $filters, $meta);
 
         ob_start();
 ?>
@@ -220,7 +227,7 @@ final class ReportPdfGenerator
 <title><?php echo htmlspecialchars($title, ENT_QUOTES, 'UTF-8'); ?></title>
 <style>
     @page {
-        margin: 20mm 15mm 18mm 15mm;
+        margin: 15mm;
     }
     *, *::before, *::after {
         box-sizing: border-box;
@@ -337,13 +344,91 @@ final class ReportPdfGenerator
         font-size: 10pt;
         color: #475569;
         font-weight: 500;
-        margin-bottom: 4px;
+        margin-bottom: 3px;
+    }
+    .report-timestamp {
+        font-size: 8pt;
+        color: #64748b;
+        margin-top: 2px;
+        margin-bottom: 2px;
     }
     .report-filters {
         font-size: 8.5pt;
         color: #334155;
-        margin-top: 3px;
+        margin-top: 2px;
         margin-bottom: 2px;
+    }
+
+    /* ── KPI Overview Summary ────────────────────────────────────── */
+    .kpi-summary-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 8px;
+        margin-bottom: 14px;
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+    .kpi-box {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 8px 10px;
+        text-align: center;
+    }
+    .kpi-num {
+        font-size: 13pt;
+        font-weight: bold;
+        color: #1e3a5f;
+        line-height: 1.2;
+    }
+    .kpi-lbl {
+        font-size: 6.5pt;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        font-weight: 600;
+        margin-top: 2px;
+    }
+
+    /* ── Dynamic Chart Grid & Page-Break Safeguards ──────────────── */
+    .pdf-analytics-charts {
+        margin-top: 6px;
+        margin-bottom: 14px;
+    }
+    .chart-box {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 10px 12px;
+        page-break-inside: avoid;
+        break-inside: avoid;
+        margin-bottom: 12px;
+    }
+    .chart-title-bar {
+        font-family: 'Helvetica', 'Arial', sans-serif;
+        font-size: 9.5pt;
+        font-weight: bold;
+        color: #0f172a;
+        margin-bottom: 2px;
+        line-height: 1.2;
+    }
+    .chart-sub-bar {
+        font-size: 7.5pt;
+        color: #64748b;
+        margin-bottom: 6px;
+        line-height: 1.2;
+    }
+    .chart-two-col {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 12px;
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+    .chart-two-col td {
+        vertical-align: top;
+        page-break-inside: avoid;
+        break-inside: avoid;
     }
 
     /* ── Data Table with Multi-Page Header Repeating ─────────────── */
@@ -446,6 +531,109 @@ final class ReportPdfGenerator
     <!-- Standardized Parish Header Component -->
     <?php echo $headerHtml; ?>
 
+    <?php if (!empty($meta['parishioners_total']) || !empty($meta['sacraments_total']) || !empty($meta['total_requests'])): ?>
+    <!-- KPI Summary Overview -->
+    <table class="kpi-summary-table" cellpadding="0" cellspacing="0">
+        <tr>
+            <td style="width: 25%; padding: 3px;">
+                <div class="kpi-box">
+                    <div class="kpi-num"><?php echo number_format((int)($meta['parishioners_total'] ?? 0)); ?></div>
+                    <div class="kpi-lbl">Total Parishioners</div>
+                </div>
+            </td>
+            <td style="width: 25%; padding: 3px;">
+                <div class="kpi-box">
+                    <div class="kpi-num"><?php echo number_format((int)($meta['sacraments_total'] ?? 0)); ?></div>
+                    <div class="kpi-lbl">Sacramental Records</div>
+                </div>
+            </td>
+            <td style="width: 25%; padding: 3px;">
+                <div class="kpi-box">
+                    <div class="kpi-num"><?php echo number_format((int)($meta['total_requests'] ?? 0)); ?></div>
+                    <div class="kpi-lbl">Service Requests</div>
+                </div>
+            </td>
+            <td style="width: 25%; padding: 3px;">
+                <div class="kpi-box">
+                    <div class="kpi-num"><?php echo number_format((int)($meta['events_month'] ?? 0)); ?></div>
+                    <div class="kpi-lbl">Calendar Events (Month)</div>
+                </div>
+            </td>
+        </tr>
+    </table>
+    <?php endif; ?>
+
+    <?php if (!empty($charts['sacraments']) || !empty($charts['request_status']) || !empty($charts['top_services']) || !empty($charts['parish_growth'])): ?>
+    <!-- Structured Analytics Charts Section -->
+    <div class="pdf-analytics-charts">
+
+        <!-- Top: Sacramental Records Administered (Full-width bar chart) -->
+        <?php if (!empty($charts['sacraments'])): ?>
+        <div class="chart-box" style="page-break-inside: avoid;">
+            <div class="chart-title-bar">Sacramental Records Administered</div>
+            <div class="chart-sub-bar">Monthly volume by sacrament type &#8211; last 12 months</div>
+            <div style="text-align: center; margin-top: 4px;">
+                <img src="<?php echo $charts['sacraments']; ?>" style="width: 100%; max-height: 230px; object-fit: contain;">
+            </div>
+        </div>
+        <?php endif; ?>
+
+        <!-- Middle Grid: Request Status Breakdown (left) & Most Requested Services (right) -->
+        <?php if (!empty($charts['request_status']) || !empty($charts['top_services'])): ?>
+        <table class="chart-two-col" cellpadding="0" cellspacing="0">
+            <tr>
+                <!-- Left: Request Status Breakdown (Donut chart) -->
+                <td style="width: 48%; padding-right: 6px;">
+                    <div class="chart-box" style="page-break-inside: avoid; height: 100%;">
+                        <div class="chart-title-bar">Request Status Breakdown</div>
+                        <div class="chart-sub-bar">Distribution of all service requests by status</div>
+                        <?php if (!empty($charts['request_status'])): ?>
+                        <div style="text-align: center; padding: 6px 0;">
+                            <img src="<?php echo $charts['request_status']; ?>" style="max-height: 185px; max-width: 95%; object-fit: contain;">
+                            <?php if (!empty($meta['total_requests'])): ?>
+                            <div style="font-size: 8pt; font-weight: bold; color: #1e3a5f; margin-top: 4px;">
+                                Total Requests: <?php echo number_format((int)$meta['total_requests']); ?>
+                            </div>
+                            <?php endif; ?>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                </td>
+
+                <!-- Right: Most Requested Services (Horizontal bar chart) -->
+                <td style="width: 52%; padding-left: 6px;">
+                    <div class="chart-box" style="page-break-inside: avoid; height: 100%;">
+                        <div class="chart-title-bar">Most Requested Services</div>
+                        <div class="chart-sub-bar">Top service &amp; certificate types by volume</div>
+                        <?php if (!empty($charts['top_services'])): ?>
+                        <div style="text-align: center; padding: 6px 0;">
+                            <img src="<?php echo $charts['top_services']; ?>" style="width: 100%; max-height: 185px; object-fit: contain;">
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                </td>
+            </tr>
+        </table>
+        <?php endif; ?>
+
+        <!-- Bottom: Parishioner Registration Growth line chart (Full-width) -->
+        <?php if (!empty($charts['parish_growth'])): ?>
+        <div class="chart-box" style="page-break-inside: avoid;">
+            <div class="chart-title-bar">Parishioner Registration Growth</div>
+            <div class="chart-sub-bar">Newly registered parishioners per month &#8211; last 12 months</div>
+            <div style="text-align: center; margin-top: 4px;">
+                <img src="<?php echo $charts['parish_growth']; ?>" style="width: 100%; max-height: 210px; object-fit: contain;">
+            </div>
+        </div>
+        <?php endif; ?>
+
+    </div>
+    <?php endif; ?>
+
+    <?php if (!empty($columns)): ?>
+    <div style="font-family: 'Times New Roman', serif; font-size: 11pt; font-weight: bold; color: #0f172a; margin-top: 14px; margin-bottom: 4px; page-break-after: avoid;">
+        Parish Records &amp; Activity Log
+    </div>
     <!-- Data Table -->
     <table class="data-table">
         <thead>
@@ -478,6 +666,7 @@ final class ReportPdfGenerator
         <div class="truncated-warning">
             <strong>Notice:</strong> This PDF export shows the first <?php echo number_format(count($rows)); ?> records out of <?php echo number_format($totalRecords); ?> total matching records.
         </div>
+    <?php endif; ?>
     <?php endif; ?>
 
 </body>

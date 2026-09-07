@@ -14,48 +14,25 @@ requireLogin(); requirePermission('reports.view');
 
 $page_title = 'Analytics & Reports';
 
-// â”€â”€â”€ Sanitise filter inputs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Sanitise filter inputs ------------------------------------------------
 $cleanDate = static fn($v) => preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$v) ? (string)$v : '';
 $cleanText = static fn($v) => preg_match('/^[a-z0-9_ -]{0,80}$/i', (string)$v) ? trim((string)$v) : '';
-$report  = in_array($_GET['report'] ?? '', ReportService::TYPES, true) ? $_GET['report'] : 'all';
-$filters = [
-    'from'   => $cleanDate($_GET['from']   ?? ''),
-    'to'     => $cleanDate($_GET['to']     ?? ''),
-    'status' => $cleanText($_GET['status'] ?? ''),
-    'type'   => $cleanText($_GET['type']   ?? ''),
+$rawReport = $_POST['report'] ?? ($_GET['report'] ?? '');
+$report    = in_array($rawReport, ReportService::TYPES, true) ? $rawReport : 'all';
+$filters   = [
+    'from'   => $cleanDate($_POST['from']   ?? ($_GET['from']   ?? '')),
+    'to'     => $cleanDate($_POST['to']     ?? ($_GET['to']     ?? '')),
+    'status' => $cleanText($_POST['status'] ?? ($_GET['status'] ?? '')),
+    'type'   => $cleanText($_POST['type']   ?? ($_GET['type']   ?? '')),
+];
+$labels    = [
+    'all'             => 'All Records',
+    'turnaround'      => 'Request Processing Time',
+    'pending_overdue' => 'Pending & Overdue',
+    'notifications'   => 'Notification Delivery',
 ];
 
-// â”€â”€â”€ Export (preserve existing export logic) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-require_once '../vendor/autoload.php';
-require_once '../services/ReportPdfGenerator.php';
-$service = new ReportService($conn);
-$export  = $_GET['export'] ?? '';
-$labels  = ['all' => 'All Records', 'turnaround' => 'Request Processing Time', 'pending_overdue' => 'Pending & Overdue', 'notifications' => 'Notification Delivery'];
-
-if (in_array($export, ['csv', 'pdf'], true)) {
-    requirePermission('reports.export');
-    $data = $service->export($report, $filters, 10000);
-    writeAuditLog($conn, $_SESSION['user_id'], 'EXPORT_REPORT', 'reports', null, null,
-        ['report' => $report, 'filters' => $filters, 'format' => $export, 'rows' => count($data['rows'])], 'reports', 'reports.export');
-    $title    = ucwords(str_replace('_', ' ', $report)) . ' Report';
-    $subtitle = $labels[$report] ?? '';
-    if ($export === 'csv') {
-        header('Content-Type: text/csv; charset=utf-8');
-        header('Content-Disposition: attachment; filename="tugon-' . $report . '-' . date('Ymd-His') . '.csv"');
-        $out = fopen('php://output', 'w');
-        fwrite($out, "\xEF\xBB\xBF");
-        fputcsv($out, [$title]);
-        fputcsv($out, ['Filters', json_encode(array_filter($filters))]);
-        fputcsv($out, array_values($data['columns']));
-        foreach ($data['rows'] as $row) fputcsv($out, array_map(static fn($k) => $row[$k] ?? '', array_keys($data['columns'])));
-        if ($data['truncated']) fputcsv($out, ['Showing first 10,000 records.']);
-        fclose($out); exit;
-    }
-    $generatedBy = !empty($_SESSION['fullname']) ? (string)$_SESSION['fullname'] : 'Parish Administrator';
-    ReportPdfGenerator::stream($report, $title, $filters, $data, $generatedBy, 'landscape', $subtitle);
-}
-
-// â”€â”€â”€ KPI Queries â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- KPI Queries (loaded early so export meta has full data) ---------------
 // Parishioners: role='user', status 'active'=verified, 'pending_verification'=pending
 $kpi_parishioners_total    = 0;
 $kpi_parishioners_verified = 0;
@@ -67,14 +44,14 @@ if ($r && $row = $r->fetch_assoc()) {
     $kpi_parishioners_pending  = (int)($row['pending']  ?? 0);
 }
 
-// Sacramental records â€” using actual table names
+// Sacramental records — using actual table names
 $sacrament_counts = ['Baptism' => 0, 'Confirmation' => 0, 'Communion' => 0, 'Marriage' => 0, 'Funeral' => 0];
 $sacrament_tables = [
-    'Baptism'      => ['baptism_records',       'status'],
-    'Confirmation' => ['confirmation_records',   'status'],
-    'Communion'    => ['first_communion_records','status'],
-    'Marriage'     => ['marriage_records',       'status'],
-    'Funeral'      => ['funeral_records',        'status'],
+    'Baptism'      => ['baptism_records',        'status'],
+    'Confirmation' => ['confirmation_records',    'status'],
+    'Communion'    => ['first_communion_records', 'status'],
+    'Marriage'     => ['marriage_records',        'status'],
+    'Funeral'      => ['funeral_records',         'status'],
 ];
 foreach ($sacrament_tables as $label => [$table, $col]) {
     $rr = $conn->query("SELECT COUNT(*) AS c FROM `$table` WHERE `$col` != 'archived'");
@@ -91,12 +68,68 @@ if ($rq && $row3 = $rq->fetch_assoc()) {
     $kpi_requests_pending = (int)($row3['pending'] ?? 0);
 }
 
-// Calendar events â€” table is schedule_events, date column is event_date
+// Calendar events — table is schedule_events, date column is event_date
 $kpi_events_month = 0;
 $ev = $conn->query("SELECT COUNT(*) AS c FROM schedule_events WHERE YEAR(event_date)=YEAR(CURDATE()) AND MONTH(event_date)=MONTH(CURDATE())");
 if ($ev && $row4 = $ev->fetch_assoc()) $kpi_events_month = (int)($row4['c'] ?? 0);
 
-// â”€â”€â”€ Chart A: Sacramental Records by Month (last 12 months) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Export Logic (PDF & CSV) ---------------------------------------------
+require_once '../vendor/autoload.php';
+require_once '../services/ReportPdfGenerator.php';
+$service = new ReportService($conn);
+$export  = $_POST['export'] ?? ($_GET['export'] ?? '');
+
+if (in_array($export, ['csv', 'pdf'], true)) {
+    requirePermission('reports.export');
+    $data = $service->export($report, $filters, 10000);
+    writeAuditLog($conn, $_SESSION['user_id'], 'EXPORT_REPORT', 'reports', null, null,
+        ['report' => $report, 'filters' => $filters, 'format' => $export, 'rows' => count($data['rows'])], 'reports', 'reports.export');
+    $title    = 'Parish Analytics & Operational Report';
+    $subtitle = $labels[$report] ?? 'Parish Operational Statistics';
+    if ($export === 'csv') {
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="tugon-' . $report . '-' . date('Ymd-His') . '.csv"');
+        $out = fopen('php://output', 'w');
+        fwrite($out, "\xEF\xBB\xBF");
+        fputcsv($out, [$title]);
+        fputcsv($out, ['Filters', json_encode(array_filter($filters))]);
+        fputcsv($out, array_values($data['columns']));
+        foreach ($data['rows'] as $row) fputcsv($out, array_map(static fn($k) => $row[$k] ?? '', array_keys($data['columns'])));
+        if ($data['truncated']) fputcsv($out, ['Showing first 10,000 records.']);
+        fclose($out); exit;
+    }
+
+    // Dynamic Chart Image extraction from POST (high-resolution Base64 PNGs)
+    $charts = [];
+    $rawSacraments    = $_POST['chart_sacraments'] ?? '';
+    $rawRequestStatus = $_POST['chart_request_status'] ?? '';
+    $rawTopServices   = $_POST['chart_top_services'] ?? '';
+    $rawParishGrowth  = $_POST['chart_parish_growth'] ?? '';
+
+    $isValidDataUri = static function ($str): bool {
+        return is_string($str) && preg_match('#^data:image/(png|jpeg|jpg|webp);base64,[A-Za-z0-9+/=]+$#', $str) === 1;
+    };
+
+    if ($isValidDataUri($rawSacraments))    $charts['sacraments']     = $rawSacraments;
+    if ($isValidDataUri($rawRequestStatus)) $charts['request_status'] = $rawRequestStatus;
+    if ($isValidDataUri($rawTopServices))   $charts['top_services']   = $rawTopServices;
+    if ($isValidDataUri($rawParishGrowth))  $charts['parish_growth']  = $rawParishGrowth;
+
+    $meta = [
+        'parishioners_total'    => $kpi_parishioners_total,
+        'sacraments_total'      => $kpi_sacraments_total,
+        'total_requests'        => $kpi_requests_total,
+        'events_month'          => $kpi_events_month,
+        'requests_pending'      => $kpi_requests_pending,
+        'parishioners_verified' => $kpi_parishioners_verified,
+        'parishioners_pending'  => $kpi_parishioners_pending,
+    ];
+
+    $generatedBy = !empty($_SESSION['fullname']) ? (string)$_SESSION['fullname'] : 'Parish Administrator';
+    ReportPdfGenerator::stream($report, $title, $filters, $data, $generatedBy, 'portrait', $subtitle, $charts, $meta);
+}
+
+// --- Chart A: Sacramental Records by Month (last 12 months) ----------------
 $chart_months = [];
 for ($i = 11; $i >= 0; $i--) {
     $chart_months[] = date('Y-m', strtotime("-$i months"));
@@ -137,7 +170,7 @@ foreach ($sacrament_chart_tables as $label => [$table, $date_col]) {
     $ci++;
 }
 
-// â”€â”€â”€ Chart B: Request Status Breakdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Chart B: Request Status Breakdown ------------------------------------
 $chart_b_data   = [0, 0, 0, 0];
 $chart_b_labels = ['Pending', 'In Progress', 'Completed', 'Rejected'];
 $rb = $conn->query("SELECT SUM(status IN ('pending','submitted','requirements_review')) AS pending, SUM(status IN ('approved','in_processing','processing','ready_for_pickup')) AS in_progress, SUM(status IN ('completed','released')) AS completed, SUM(status IN ('rejected','cancelled')) AS rejected FROM requests WHERE deleted_at IS NULL");
@@ -145,7 +178,7 @@ if ($rb && $row5 = $rb->fetch_assoc()) {
     $chart_b_data = [(int)$row5['pending'], (int)$row5['in_progress'], (int)$row5['completed'], (int)$row5['rejected']];
 }
 
-// â”€â”€â”€ Chart C: Top Requested Service/Certificate Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Chart C: Top Requested Service/Certificate Types ----------------------
 $chart_c_labels = [];
 $chart_c_data   = [];
 $rc = $conn->query("SELECT request_type, COUNT(*) AS c FROM requests WHERE deleted_at IS NULL GROUP BY request_type ORDER BY c DESC LIMIT 8");
@@ -156,7 +189,7 @@ if ($rc) {
     }
 }
 
-// â”€â”€â”€ Chart D: Parishioner Registration Growth (last 12 months) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Chart D: Parishioner Registration Growth (last 12 months) -------------
 $chart_d_data = array_fill(0, 12, 0);
 $rd = $conn->query("SELECT DATE_FORMAT(created_at,'%Y-%m') AS ym, COUNT(*) AS c FROM users WHERE role='user' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH) GROUP BY ym");
 if ($rd) {
@@ -166,17 +199,16 @@ if ($rd) {
     }
 }
 
-// â”€â”€â”€ Master table data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Master table data -----------------------------------------------------
 $tableData = $service->run($report, $filters, max(1, (int)($_GET['page'] ?? 1)), 50);
 $queryBase = array_filter(array_merge(['report' => $report], $filters), static fn($v) => $v !== '');
 
 include '../templates/header.php';
 ?>
 <style>
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   ANALYTICS & REPORTS  â€”  Premium SaaS Dashboard Theme
-   Palette: Slate Â· Teal Â· Gold Â· Forest Green
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* --------------------------------------------------------------------------
+   ANALYTICS & REPORTS — Premium SaaS Dashboard Theme
+   -------------------------------------------------------------------------- */
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
 :root {
@@ -216,10 +248,10 @@ include '../templates/header.php';
   --shadow-lg:   0 10px 30px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.04);
 }
 
-/* â”€â”€â”€ Global â”€â”€â”€ */
+/* --- Global --- */
 .ar-page { font-family: 'Plus Jakarta Sans', sans-serif; color: var(--slate-700); }
 
-/* â”€â”€â”€ Page Header â”€â”€â”€ */
+/* --- Page Header --- */
 .ar-header {
   display: flex; align-items: flex-start; justify-content: space-between;
   flex-wrap: wrap; gap: 16px;
@@ -264,7 +296,7 @@ include '../templates/header.php';
 }
 .ar-btn-outline:hover { background: var(--slate-50); border-color: var(--gold); color: var(--gold); transform: translateY(-1px); }
 
-/* â”€â”€â”€ KPI Grid â”€â”€â”€ */
+/* --- KPI Grid --- */
 .ar-kpi-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -331,7 +363,7 @@ include '../templates/header.php';
 .tag-slate    { background: var(--slate-100);   color: var(--slate-600); }
 .tag-blue     { background: var(--blue-dim);    color: #1d4ed8; }
 
-/* â”€â”€â”€ Chart Grid â”€â”€â”€ */
+/* --- Chart Grid --- */
 .ar-chart-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -371,7 +403,7 @@ include '../templates/header.php';
 .ar-donut-center-num { font-size: 1.6rem; font-weight: 800; color: var(--slate-800); line-height: 1; }
 .ar-donut-center-lbl { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--slate-400); }
 
-/* â”€â”€â”€ Table Section â”€â”€â”€ */
+/* --- Table Section --- */
 .ar-table-section {
   background: #fff;
   border: 1px solid var(--slate-200);
@@ -495,7 +527,7 @@ $kpi_completion_rate = $kpi_requests_total > 0
 
 <div class="ar-page container-fluid px-0">
 
-  <!-- â•â• PAGE HEADER â•â• -->
+  <!-- === PAGE HEADER === -->
   <div class="ar-header">
     <div class="ar-header-meta">
       <div class="ar-header-icon"><i class="fas fa-chart-line"></i></div>
@@ -516,7 +548,7 @@ $kpi_completion_rate = $kpi_requests_total > 0
     <?php endif; ?>
   </div>
 
-  <!-- â•â• KPI CARDS â•â• -->
+  <!-- === KPI CARDS === -->
   <div class="ar-kpi-grid">
 
     <!-- Parishioners -->
@@ -589,17 +621,17 @@ $kpi_completion_rate = $kpi_requests_total > 0
 
   </div><!-- /kpi-grid -->
 
-  <!-- â•â• CHARTS â•â• -->
+  <!-- === CHARTS === -->
   <div class="ar-chart-grid">
 
-    <!-- Chart A: Grouped Bar â€” full width -->
+    <!-- Chart A: Grouped Bar - full width -->
     <div class="ar-chart-card ar-chart-full">
       <div class="ar-chart-header">
         <div class="ar-chart-title">
           <span class="ar-chart-title-dot" style="background:var(--gold);"></span>
           Sacramental Records Administered
         </div>
-        <p class="ar-chart-sub">Monthly volume by sacrament type â€” last 12 months</p>
+        <p class="ar-chart-sub">Monthly volume by sacrament type &ndash; last 12 months</p>
       </div>
       <div class="ar-chart-canvas-wrap">
         <canvas id="chartSacraments" role="img" aria-label="Sacramental records by month"></canvas>
@@ -640,14 +672,14 @@ $kpi_completion_rate = $kpi_requests_total > 0
       </div>
     </div>
 
-    <!-- Chart D: Area Line â€” full width -->
+    <!-- Chart D: Area Line - full width -->
     <div class="ar-chart-card ar-chart-full">
       <div class="ar-chart-header">
         <div class="ar-chart-title">
           <span class="ar-chart-title-dot" style="background:var(--emerald);"></span>
           Parishioner Registration Growth
         </div>
-        <p class="ar-chart-sub">Newly registered parishioners per month â€” last 12 months</p>
+        <p class="ar-chart-sub">Newly registered parishioners per month &ndash; last 12 months</p>
       </div>
       <div class="ar-chart-canvas-wrap">
         <canvas id="chartParishGrowth" role="img" aria-label="Parishioner registration growth"></canvas>
@@ -656,7 +688,7 @@ $kpi_completion_rate = $kpi_requests_total > 0
 
   </div><!-- /chart-grid -->
 
-  <!-- â•â• MASTER RECORDS TABLE â•â• -->
+  <!-- === MASTER RECORDS TABLE === -->
   <div class="ar-table-section">
 
     <div class="ar-table-header">
@@ -746,8 +778,8 @@ $kpi_completion_rate = $kpi_requests_total > 0
           <tr>
             <?php foreach (array_keys($tableData['columns']) as $colKey): ?>
             <?php
-              $cellVal = (string)($tRow[$colKey] ?? 'â€”');
-              if ($colKey === 'status' && $cellVal !== 'â€”') {
+              $cellVal = (string)($tRow[$colKey] ?? '–');
+              if ($colKey === 'status' && $cellVal !== '–') {
                   $slug = strtolower(str_replace([' ','-'], '_', $cellVal));
                   echo '<td><span class="s-pill ' . e($slug) . '">' . e($cellVal) . '</span></td>';
               } else {
@@ -780,13 +812,22 @@ $kpi_completion_rate = $kpi_requests_total > 0
 
 </div><!-- /ar-page -->
 
-<!-- â•â• CHART.JS â•â• -->
+<!-- === CHART.JS & HIGH-RES PDF EXPORT SCRIPTS === -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>
 (function () {
   'use strict';
 
-  /* â”€â”€â”€ Design Tokens â”€â”€â”€ */
+  // Global registry for chart instances
+  window.parishCharts = {
+    sacraments: null,
+    requestStatus: null,
+    topServices: null,
+    parishGrowth: null
+  };
+
+  /* --- Design Tokens --- */
   const GOLD     = '#C89B3C';
   const TEAL     = '#0d9488';
   const BLUE     = '#3b82f6';
@@ -801,24 +842,16 @@ $kpi_completion_rate = $kpi_requests_total > 0
   Chart.defaults.plugins.tooltip.cornerRadius = 8;
   Chart.defaults.plugins.tooltip.titleFont = { weight: '700', size: 12 };
 
-  /* â”€â”€â”€ Helper: smooth gradient fill â”€â”€â”€ */
-  function makeGradient(ctx, color, alphaTop = 0.25, alphaBot = 0.0) {
-    const g = ctx.createLinearGradient(0, 0, 0, ctx.canvas.height);
-    g.addColorStop(0, color.replace(')', `,${alphaTop})`).replace('rgb', 'rgba'));
-    g.addColorStop(1, color.replace(')', `,${alphaBot})`).replace('rgb', 'rgba'));
-    return g;
-  }
-
-  /* â”€â”€â”€ Sacrament color palette (cohesive slate family + gold/teal accents) â”€â”€â”€ */
+  /* --- Sacrament color palette --- */
   const sacramentPalette = [
-    { border: GOLD,    bg: 'rgba(200,155,60,0.80)'   },
-    { border: TEAL,    bg: 'rgba(13,148,136,0.80)'   },
-    { border: BLUE,    bg: 'rgba(59,130,246,0.80)'   },
-    { border: EMERALD, bg: 'rgba(16,185,129,0.80)'   },
+    { border: GOLD,      bg: 'rgba(200,155,60,0.80)'   },
+    { border: TEAL,      bg: 'rgba(13,148,136,0.80)'   },
+    { border: BLUE,      bg: 'rgba(59,130,246,0.80)'   },
+    { border: EMERALD,   bg: 'rgba(16,185,129,0.80)'   },
     { border: '#8b5cf6', bg: 'rgba(139,92,246,0.80)' },
   ];
 
-  /* â”€â”€â”€ Chart A: Sacramental Records â€” Rounded Grouped Bar â”€â”€â”€ */
+  /* --- Chart A: Sacramental Records Administered --- */
   const chartAEl = document.getElementById('chartSacraments');
   if (chartAEl) {
     const rawDatasets = <?php echo json_encode($chart_a_datasets); ?>;
@@ -831,7 +864,7 @@ $kpi_completion_rate = $kpi_requests_total > 0
       borderSkipped: false,
       hoverBackgroundColor: sacramentPalette[i % sacramentPalette.length].border,
     }));
-    new Chart(chartAEl, {
+    window.parishCharts.sacraments = new Chart(chartAEl, {
       type: 'bar',
       data: {
         labels: <?php echo json_encode($chart_a_labels); ?>,
@@ -840,6 +873,7 @@ $kpi_completion_rate = $kpi_requests_total > 0
       options: {
         responsive: true,
         maintainAspectRatio: true,
+        animation: { duration: 400 },
         interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: {
@@ -860,10 +894,10 @@ $kpi_completion_rate = $kpi_requests_total > 0
     });
   }
 
-  /* â”€â”€â”€ Chart B: Request Status â€” Clean Doughnut â”€â”€â”€ */
+  /* --- Chart B: Request Status Breakdown (Donut) --- */
   const chartBEl = document.getElementById('chartRequestStatus');
   if (chartBEl) {
-    new Chart(chartBEl, {
+    window.parishCharts.requestStatus = new Chart(chartBEl, {
       type: 'doughnut',
       data: {
         labels: <?php echo json_encode($chart_b_labels); ?>,
@@ -880,6 +914,7 @@ $kpi_completion_rate = $kpi_requests_total > 0
       options: {
         responsive: false,
         cutout: '72%',
+        animation: { duration: 400 },
         plugins: {
           legend: {
             position: 'right',
@@ -899,14 +934,13 @@ $kpi_completion_rate = $kpi_requests_total > 0
     });
   }
 
-  /* â”€â”€â”€ Chart C: Top Services â€” Horizontal Bar with gradient bars â”€â”€â”€ */
+  /* --- Chart C: Top Requested Services (Horizontal Bar) --- */
   const chartCEl = document.getElementById('chartTopServices');
   if (chartCEl) {
     const topLabels = <?php echo json_encode($chart_c_labels); ?>;
     const topData   = <?php echo json_encode($chart_c_data); ?>;
-    // Cohesive teal-to-blue gradient color ramp
     const ramp = [TEAL,'#14b8a6','#22d3ee',BLUE,'#60a5fa','#818cf8','#a78bfa',GOLD];
-    new Chart(chartCEl, {
+    window.parishCharts.topServices = new Chart(chartCEl, {
       type: 'bar',
       data: {
         labels: topLabels,
@@ -925,6 +959,7 @@ $kpi_completion_rate = $kpi_requests_total > 0
         indexAxis: 'y',
         responsive: true,
         maintainAspectRatio: true,
+        animation: { duration: 400 },
         plugins: {
           legend: { display: false },
           tooltip: { callbacks: { label: ctx => '  ' + ctx.parsed.x + ' requests' } }
@@ -937,7 +972,7 @@ $kpi_completion_rate = $kpi_requests_total > 0
     });
   }
 
-  /* â”€â”€â”€ Chart D: Registration Growth â€” Smooth Area Line with gradient fill â”€â”€â”€ */
+  /* --- Chart D: Parishioner Registration Growth (Area Line) --- */
   const chartDEl = document.getElementById('chartParishGrowth');
   if (chartDEl) {
     const gradientFill = (context) => {
@@ -949,7 +984,7 @@ $kpi_completion_rate = $kpi_requests_total > 0
       gradient.addColorStop(1,   'rgba(16,185,129,0.00)');
       return gradient;
     };
-    new Chart(chartDEl, {
+    window.parishCharts.parishGrowth = new Chart(chartDEl, {
       type: 'line',
       data: {
         labels: <?php echo json_encode($chart_a_labels); ?>,
@@ -973,6 +1008,7 @@ $kpi_completion_rate = $kpi_requests_total > 0
       options: {
         responsive: true,
         maintainAspectRatio: true,
+        animation: { duration: 400 },
         interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { display: false },
@@ -985,6 +1021,101 @@ $kpi_completion_rate = $kpi_requests_total > 0
       }
     });
   }
+
+  /* --- High-Resolution Chart Image Capture Helper --- */
+  function extractChartBase64(inst, canvasId) {
+    if (inst) {
+      try {
+        if (typeof inst.update === 'function') inst.update('none');
+        if (typeof inst.toBase64Image === 'function') {
+          const img = inst.toBase64Image('image/png', 1.0);
+          if (img && img.startsWith('data:image/')) return img;
+        }
+      } catch (e) {
+        console.warn('chartInstance.toBase64Image error:', e);
+      }
+    }
+    const canvas = document.getElementById(canvasId);
+    if (canvas && typeof canvas.toDataURL === 'function') {
+      try {
+        return canvas.toDataURL('image/png', 1.0);
+      } catch (e) {
+        console.warn('canvas.toDataURL error:', e);
+      }
+    }
+    return '';
+  }
+
+  /* --- PDF Export with Chart Capture & Form POST --- */
+  function triggerPdfExportWithCharts(e) {
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
+    const btn = e ? e.currentTarget : null;
+    let origHtml = '';
+    if (btn) {
+      origHtml = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparing PDF...';
+    }
+
+    try {
+      const sacramentsImg    = extractChartBase64(window.parishCharts.sacraments, 'chartSacraments');
+      const requestStatusImg = extractChartBase64(window.parishCharts.requestStatus, 'chartRequestStatus');
+      const topServicesImg   = extractChartBase64(window.parishCharts.topServices, 'chartTopServices');
+      const parishGrowthImg  = extractChartBase64(window.parishCharts.parishGrowth, 'chartParishGrowth');
+
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = 'reports.php';
+      form.style.display = 'none';
+
+      const postParams = {
+        'export': 'pdf',
+        'report': <?php echo json_encode($report); ?>,
+        'from': <?php echo json_encode($filters['from']); ?>,
+        'to': <?php echo json_encode($filters['to']); ?>,
+        'status': <?php echo json_encode($filters['status']); ?>,
+        'type': <?php echo json_encode($filters['type']); ?>,
+        'chart_sacraments': sacramentsImg,
+        'chart_request_status': requestStatusImg,
+        'chart_top_services': topServicesImg,
+        'chart_parish_growth': parishGrowthImg,
+        <?php echo json_encode(csrfTokenName()); ?>: <?php echo json_encode(generateCsrfToken()); ?>
+      };
+
+      for (const [key, val] of Object.entries(postParams)) {
+        if (val !== undefined && val !== null) {
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = key;
+          input.value = val;
+          form.appendChild(input);
+        }
+      }
+
+      document.body.appendChild(form);
+      form.submit();
+
+      setTimeout(() => {
+        if (form.parentNode) form.parentNode.removeChild(form);
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = origHtml;
+        }
+      }, 3500);
+    } catch (err) {
+      console.error('PDF export with charts failed, falling back to direct stream:', err);
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = origHtml;
+      }
+      window.location.href = '?export=pdf&report=<?php echo urlencode($report); ?>';
+    }
+  }
+
+  // Attach listener to PDF export buttons
+  document.querySelectorAll('.ar-export-pdf-btn, a[href*="export=pdf"]').forEach(el => {
+    el.addEventListener('click', triggerPdfExportWithCharts);
+  });
 
 })();
 </script>
