@@ -39,6 +39,34 @@ if (!$request) {
     redirect('manage-requests.php');
 }
 
+// Category Classification
+$raw_type = strtolower(trim((string)($request['request_type'] ?? '')));
+$request_category = 'other';
+if (str_contains($raw_type, 'certif')) {
+    $request_category = 'certificate';
+} elseif (str_contains($raw_type, 'blessing')) {
+    $request_category = 'blessing';
+} else {
+    $request_category = 'sacramental';
+}
+
+$is_certificate = ($request_category === 'certificate');
+$is_blessing = ($request_category === 'blessing');
+$is_sacramental = ($request_category === 'sacramental');
+
+$category_labels = [
+    'certificate' => 'Certificate Request',
+    'blessing'    => 'Blessing Service',
+    'sacramental' => 'Sacramental Service',
+    'other'       => 'Parish Request'
+];
+$category_badges = [
+    'certificate' => 'primary',
+    'blessing'    => 'warning text-dark',
+    'sacramental' => 'success',
+    'other'       => 'secondary'
+];
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     requireValidCsrfToken();
     $action = $_POST['action'] ?? '';
@@ -60,9 +88,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $error = 'Invalid request status.';
         } elseif (in_array($status, ['approved', 'processing', 'completed'], true) && $requires_supporting_docs && $requirement_count <= 0) {
             $error = 'This request cannot move forward until at least one supporting requirement is attached.';
-        } elseif ($status === 'completed' && $released_count <= 0 && $requires_supporting_docs) {
+        } elseif ($status === 'completed' && $is_certificate && $released_count <= 0 && $requires_supporting_docs) {
             $error = 'Upload a released certificate or parish office file before marking this request completed.';
-        } elseif ($status === 'completed' && intval($current_payment_summary['total']) > 0 && intval($current_payment_summary['verified']) <= 0) {
+        } elseif ($status === 'completed' && $is_certificate && intval($current_payment_summary['total']) > 0 && intval($current_payment_summary['verified']) <= 0) {
             $error = 'A submitted payment receipt must be verified before marking this request completed.';
         } elseif ($status === 'approved') {
             require_once __DIR__ . '/../services/SacramentalApprovalService.php';
@@ -187,6 +215,78 @@ if (!empty($documents_by_type['requirement'])) {
 
 $payments = getRequestPayments($conn, $request_id);
 $payment_summary = getRequestPaymentSummary($conn, $request_id);
+
+$linked_reservation = null;
+$res_stmt = $conn->prepare("SELECT * FROM reservations WHERE request_id = ? LIMIT 1");
+if ($res_stmt) {
+    $res_stmt->bind_param('i', $request_id);
+    $res_stmt->execute();
+    $linked_reservation = $res_stmt->get_result()->fetch_assoc();
+    $res_stmt->close();
+}
+
+if (!function_exists('parseSubmittedApplicationForm')) {
+    function parseSubmittedApplicationForm(string $description): array {
+        $lines = array_filter(array_map('trim', explode("\n", str_replace(["\r\n", "\r"], "\n", $description))), static fn($l) => $l !== '');
+
+        $sections = [];
+        $currentSection = 'Application Overview';
+        $sections[$currentSection] = [];
+
+        foreach ($lines as $line) {
+            if (preg_match('/^---\s*(.*?)\s*---$/', $line, $m)) {
+                $currentSection = ucwords(strtolower(trim($m[1])));
+                if (!isset($sections[$currentSection])) {
+                    $sections[$currentSection] = [];
+                }
+                continue;
+            }
+            if (preg_match('/^\d+\.\s*(.*?):?$/', $line, $m)) {
+                $currentSection = trim($m[1]);
+                if (!isset($sections[$currentSection])) {
+                    $sections[$currentSection] = [];
+                }
+                continue;
+            }
+
+            if (str_contains($line, ':')) {
+                if (str_contains($line, '|')) {
+                    $parts = explode('|', $line);
+                    foreach ($parts as $part) {
+                        if (str_contains($part, ':')) {
+                            [$k, $v] = explode(':', $part, 2);
+                            $sections[$currentSection][] = [
+                                'type' => 'field',
+                                'label' => trim($k),
+                                'value' => trim($v)
+                            ];
+                        } else {
+                            $sections[$currentSection][] = [
+                                'type' => 'note',
+                                'text' => trim($part)
+                            ];
+                        }
+                    }
+                } else {
+                    [$k, $v] = explode(':', $line, 2);
+                    $sections[$currentSection][] = [
+                        'type' => 'field',
+                        'label' => trim($k),
+                        'value' => trim($v)
+                    ];
+                }
+            } else {
+                $sections[$currentSection][] = [
+                    'type' => 'note',
+                    'text' => $line
+                ];
+            }
+        }
+
+        return array_filter($sections, static fn($items) => !empty($items));
+    }
+}
+
 $page_title = 'Request Workflow';
 $breadcrumbs = [
     'Dashboard' => 'dashboard.php',
@@ -215,7 +315,13 @@ $breadcrumbs = [
     <!-- Standardized Section Header -->
     <?php
     $page_header_title = 'Request Workflow';
-    $page_header_subtitle = 'Process document review, verify payment receipts, and release certificates for ' . e($request['reference_number']);
+    if ($is_certificate) {
+        $page_header_subtitle = 'Process document review, verify payment receipts, and release certificates for ' . e($request['reference_number']);
+    } elseif ($is_blessing) {
+        $page_header_subtitle = 'Review blessing details, inspect applicant submission, and manage schedule for ' . e($request['reference_number']);
+    } else {
+        $page_header_subtitle = 'Review sacramental application, inspect submitted details, and manage schedule for ' . e($request['reference_number']);
+    }
     $page_header_icon = 'fa-route';
     $show_back_button = true;
     $back_button_url = 'manage-requests.php';
@@ -231,37 +337,131 @@ $breadcrumbs = [
 
     <div class="row g-4">
         <div class="col-lg-8">
-            <div class="card mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="fas fa-route"></i> Request <?php echo e($request['reference_number']); ?></h5>
+            <!-- Request Summary Header Card -->
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center bg-white py-3">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <h5 class="mb-0"><i class="fas fa-route text-primary me-2"></i>Request <?php echo e($request['reference_number']); ?></h5>
+                        <span class="badge bg-<?php echo $category_badges[$request_category] ?? 'secondary'; ?> text-uppercase"><?php echo e($category_labels[$request_category] ?? 'Request'); ?></span>
+                    </div>
                     <?php 
                         $disp_status = strtolower($request['status']) === 'submitted' ? 'pending' : $request['status'];
                     ?>
-                    <span class="badge bg-<?php echo getStatusBadgeClass($disp_status); ?>"><?php echo e(ucfirst(str_replace('_', ' ', $disp_status))); ?></span>
+                    <span class="badge bg-<?php echo getStatusBadgeClass($disp_status); ?> px-3 py-2 fs-6"><?php echo e(ucfirst(str_replace('_', ' ', $disp_status))); ?></span>
                 </div>
                 <div class="card-body">
-                    <div class="row g-3 mb-3">
+                    <div class="row g-3">
                         <div class="col-md-4">
                             <div class="text-muted small">Parishioner</div>
                             <strong><?php echo e($request['fullname']); ?></strong>
-                            <div class="small"><?php echo e($request['email']); ?></div>
+                            <div class="small text-muted"><?php echo e($request['email']); ?></div>
                         </div>
                         <div class="col-md-4">
-                            <div class="text-muted small">Type</div>
+                            <div class="text-muted small">Request Type</div>
                             <strong><?php echo e(ucfirst(str_replace('_', ' ', $request['request_type']))); ?></strong>
+                            <div class="small text-muted"><?php echo e($category_labels[$request_category] ?? 'Service'); ?></div>
                         </div>
                         <div class="col-md-4">
-                            <div class="text-muted small">Requested</div>
+                            <div class="text-muted small">Date Requested</div>
                             <strong><?php echo e(formatDate($request['date_requested'])); ?></strong>
+                            <div class="small text-muted"><?php echo date('h:i A', strtotime($request['date_requested'])); ?></div>
                         </div>
                     </div>
-                    <div class="border rounded p-3 bg-light">
-                        <?php echo nl2br(e($request['description'] ?: 'No description provided.')); ?>
+                    <?php if ($is_certificate): ?>
+                    <div class="border rounded p-3 bg-light mt-3">
+                        <div class="small text-muted text-uppercase fw-semibold mb-1">Purpose / Notes</div>
+                        <?php echo nl2br(e($request['description'] ?: 'No description or purpose provided.')); ?>
                     </div>
+                    <?php endif; ?>
                 </div>
             </div>
 
-            <div class="card mb-4">
+            <!-- Submitted Application Form Card (Only for Blessings & Sacramental Services) -->
+            <?php if (!$is_certificate): ?>
+            <?php $parsedSections = parseSubmittedApplicationForm((string)($request['description'] ?? '')); ?>
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center bg-white py-3">
+                    <h5 class="mb-0 text-dark">
+                        <i class="fas fa-clipboard-list text-primary me-2"></i> Submitted Application Form
+                    </h5>
+                    <span class="badge bg-<?php echo $category_badges[$request_category] ?? 'primary'; ?> text-uppercase">
+                        <?php echo e($category_labels[$request_category] ?? 'Application'); ?>
+                    </span>
+                </div>
+                <div class="card-body">
+                    <?php if ($linked_reservation): ?>
+                    <div class="alert alert-info d-flex align-items-center gap-3 mb-4 py-3 px-3 border-0 shadow-sm">
+                        <div class="rounded-circle bg-white text-info p-2 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px; flex-shrink: 0;">
+                            <i class="fas fa-calendar-check fa-lg"></i>
+                        </div>
+                        <div>
+                            <strong class="d-block text-dark">Parish Schedule Reservation Linked</strong>
+                            <div class="small text-muted mt-1">
+                                Event Date: <strong class="text-dark"><?php echo formatDate($linked_reservation['event_date']); ?></strong>
+                                <?php if (!empty($linked_reservation['event_time'])): ?>
+                                    at <strong class="text-dark"><?php echo e(date('h:i A', strtotime($linked_reservation['event_time']))); ?></strong>
+                                <?php endif; ?>
+                                &bull; Status: <span class="badge bg-<?php echo $linked_reservation['status'] === 'approved' ? 'success' : 'warning text-dark'; ?> ms-1"><?php echo e(ucfirst($linked_reservation['status'])); ?></span>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+
+                    <?php if (empty($parsedSections)): ?>
+                        <div class="text-muted p-3 bg-light rounded text-center">No application details provided.</div>
+                    <?php else: ?>
+                        <div class="row g-3">
+                            <?php foreach ($parsedSections as $secTitle => $secItems): ?>
+                                <div class="col-12">
+                                    <div class="border rounded p-3 bg-light">
+                                        <h6 class="text-primary fw-bold mb-3 border-bottom pb-2 d-flex align-items-center gap-2">
+                                            <i class="fas fa-check-circle text-primary small"></i>
+                                            <?php echo e($secTitle); ?>
+                                        </h6>
+                                        <div class="row g-3">
+                                            <?php foreach ($secItems as $item): ?>
+                                                <?php if ($item['type'] === 'field'): ?>
+                                                    <div class="col-sm-6">
+                                                        <div class="small text-muted text-uppercase fw-semibold" style="font-size: 0.72rem; letter-spacing: 0.04em;">
+                                                            <?php echo e($item['label']); ?>
+                                                        </div>
+                                                        <div class="fw-bold text-dark text-break mt-1">
+                                                            <?php echo e($item['value']); ?>
+                                                        </div>
+                                                    </div>
+                                                <?php else: ?>
+                                                    <div class="col-12">
+                                                        <div class="alert alert-light border py-2 px-3 mb-0 small text-secondary">
+                                                            <i class="fas fa-info-circle me-1 text-muted"></i>
+                                                            <?php echo e($item['text']); ?>
+                                                        </div>
+                                                    </div>
+                                                <?php endif; ?>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+
+                    <div class="mt-3 pt-2 border-top d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <small class="text-muted"><i class="fas fa-shield-halved me-1"></i> Form submitted by parishioner &bull; <?php echo formatDate($request['date_requested']); ?></small>
+                        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#rawSubmissionCollapse" aria-expanded="false">
+                            <i class="fas fa-code me-1"></i> Toggle Raw Text
+                        </button>
+                    </div>
+                    <div class="collapse mt-2" id="rawSubmissionCollapse">
+                        <div class="card card-body bg-light small font-monospace text-secondary p-3">
+                            <?php echo nl2br(e($request['description'] ?: 'No raw submission text.')); ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <!-- Parishioner Requirements Card -->
+            <div class="card mb-4 shadow-sm">
                 <div class="card-header">
                     <h5 class="mb-0"><i class="fas fa-paperclip"></i> Parishioner Requirements</h5>
                 </div>
@@ -292,7 +492,9 @@ $breadcrumbs = [
                 </div>
             </div>
 
-            <div class="card mb-4">
+            <!-- Payment Receipts Card (Only for Certificate Requests) -->
+            <?php if ($is_certificate): ?>
+            <div class="card mb-4 shadow-sm">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0"><i class="fas fa-receipt me-2"></i> Payment Receipts</h5>
                     <span class="badge bg-success">Verified: PHP <?php echo number_format($payment_summary['verified_amount'], 2); ?></span>
@@ -400,7 +602,8 @@ $breadcrumbs = [
                 </div>
             </div>
 
-            <div class="card">
+            <!-- Certificates Released Card (Only for Certificate Requests) -->
+            <div class="card shadow-sm">
                 <div class="card-header">
                     <h5 class="mb-0"><i class="fas fa-file-circle-check"></i> Certificates Released to Parishioner</h5>
                 </div>
@@ -420,51 +623,102 @@ $breadcrumbs = [
                     <?php endif; ?>
                 </div>
             </div>
+            <?php endif; ?>
         </div>
 
         <div class="col-lg-4">
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-clipboard-check"></i> Review Status</h5>
+            <div class="sticky-top" style="top: 1.5rem; z-index: 10;">
+                <!-- Review Status Card (Always visible) -->
+                <div class="card mb-4 shadow-sm">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-clipboard-check"></i> Review Status</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST">
+                            <?php echo csrfInput(); ?>
+                            <input type="hidden" name="action" value="update_status">
+                            <input type="hidden" name="request_id" value="<?php echo intval($request_id); ?>">
+                            <div class="mb-3">
+                                <label class="form-label" for="status">Status</label>
+                                <select class="form-select" id="status" name="status" required>
+                                    <?php foreach (['pending', 'approved', 'processing', 'completed', 'rejected'] as $status): ?>
+                                        <option value="<?php echo e($status); ?>" <?php echo $request['status'] === $status ? 'selected' : ''; ?>><?php echo e(ucfirst($status)); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="admin_response">Admin Response</label>
+                                <textarea class="form-control" id="admin_response" name="admin_response" rows="4"><?php echo e($request['admin_response'] ?? ''); ?></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">Update Request</button>
+                        </form>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <form method="POST">
-                        <?php echo csrfInput(); ?>
-                        <input type="hidden" name="action" value="update_status">
-                        <input type="hidden" name="request_id" value="<?php echo intval($request_id); ?>">
-                        <div class="mb-3">
-                            <label class="form-label" for="status">Status</label>
-                            <select class="form-select" id="status" name="status" required>
-                                <?php foreach (['pending', 'approved', 'processing', 'completed', 'rejected'] as $status): ?>
-                                    <option value="<?php echo e($status); ?>" <?php echo $request['status'] === $status ? 'selected' : ''; ?>><?php echo e(ucfirst($status)); ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label" for="admin_response">Admin Response</label>
-                            <textarea class="form-control" id="admin_response" name="admin_response" rows="4"><?php echo e($request['admin_response'] ?? ''); ?></textarea>
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100">Update Request</button>
-                    </form>
-                </div>
-            </div>
 
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-upload"></i> Release Certificate</h5>
+                <!-- Release Certificate Card (Only for Certificate Requests) -->
+                <?php if ($is_certificate): ?>
+                <div class="card shadow-sm">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-upload"></i> Release Certificate</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" enctype="multipart/form-data">
+                            <?php echo csrfInput(); ?>
+                            <input type="hidden" name="action" value="upload_release">
+                            <input type="hidden" name="request_id" value="<?php echo intval($request_id); ?>">
+                            <div class="mb-3">
+                                <label class="form-label" for="release_file">File</label>
+                                <input type="file" class="form-control" id="release_file" name="release_file" accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,image/jpeg,image/png,image/gif,application/pdf,text/plain" required>
+                            </div>
+                            <button type="submit" class="btn btn-success w-100">Release to Parishioner</button>
+                        </form>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <form method="POST" enctype="multipart/form-data">
-                        <?php echo csrfInput(); ?>
-                        <input type="hidden" name="action" value="upload_release">
-                        <input type="hidden" name="request_id" value="<?php echo intval($request_id); ?>">
-                        <div class="mb-3">
-                            <label class="form-label" for="release_file">File</label>
-                            <input type="file" class="form-control" id="release_file" name="release_file" accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,image/jpeg,image/png,image/gif,application/pdf,text/plain" required>
+                <?php else: ?>
+                <!-- Applicant Summary & Actions (For Blessings & Sacramental Services) -->
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white py-3">
+                        <h6 class="mb-0 fw-bold text-dark"><i class="fas fa-user-check me-2 text-primary"></i> Applicant Summary</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex align-items-center gap-3 mb-3">
+                            <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold fs-5" style="width: 46px; height: 46px; flex-shrink: 0;">
+                                <?php echo strtoupper(substr($request['fullname'] ?? 'P', 0, 1)); ?>
+                            </div>
+                            <div class="min-w-0">
+                                <strong class="d-block text-dark text-truncate"><?php echo e($request['fullname']); ?></strong>
+                                <span class="small text-muted text-break"><?php echo e($request['email']); ?></span>
+                            </div>
                         </div>
-                        <button type="submit" class="btn btn-success w-100">Release to Parishioner</button>
-                    </form>
+                        <ul class="list-unstyled small mb-3 border-top pt-2">
+                            <?php if (!empty($request['phone_number'])): ?>
+                            <li class="py-2 d-flex justify-content-between border-bottom">
+                                <span class="text-muted"><i class="fas fa-phone me-1"></i> Phone:</span>
+                                <a href="tel:<?php echo e($request['phone_number']); ?>" class="fw-bold text-decoration-none"><?php echo e($request['phone_number']); ?></a>
+                            </li>
+                            <?php endif; ?>
+                            <li class="py-2 d-flex justify-content-between border-bottom">
+                                <span class="text-muted"><i class="fas fa-hashtag me-1"></i> Reference:</span>
+                                <span class="font-monospace fw-bold"><?php echo e($request['reference_number']); ?></span>
+                            </li>
+                            <li class="py-2 d-flex justify-content-between">
+                                <span class="text-muted"><i class="fas fa-calendar-alt me-1"></i> Submitted:</span>
+                                <span><?php echo formatDate($request['date_requested']); ?></span>
+                            </li>
+                        </ul>
+                        <div class="d-grid gap-2">
+                            <?php if (!empty($request['phone_number'])): ?>
+                            <a href="tel:<?php echo e($request['phone_number']); ?>" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-phone me-1"></i> Call Parishioner
+                            </a>
+                            <?php endif; ?>
+                            <a href="mailto:<?php echo e($request['email']); ?>?subject=Parish%20Request%20<?php echo e($request['reference_number']); ?>" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-envelope me-1"></i> Email Parishioner
+                            </a>
+                        </div>
+                    </div>
                 </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
