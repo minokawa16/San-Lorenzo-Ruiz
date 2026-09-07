@@ -462,14 +462,10 @@ $breadcrumbs = [
                             <label class="form-label" for="release_file">File</label>
                             <input type="file" class="form-control" id="release_file" name="release_file" accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,image/jpeg,image/png,image/gif,application/pdf,text/plain" required>
                         </div>
-                        <div class="form-check mb-3">
-                            <input type="checkbox" class="form-check-input" id="mark_completed" name="mark_completed" value="1">
-                            <label class="form-check-label" for="mark_completed">Mark request completed after upload</label>
-                        </div>
                         <button type="submit" class="btn btn-success w-100">Release to Parishioner</button>
                     </form>
                 </div>
-            
+            </div>
         </div>
     </div>
 </div>
