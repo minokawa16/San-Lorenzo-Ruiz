@@ -1738,10 +1738,31 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    async function executeServiceSubmission() {
+    async function executeServiceSubmission(isRetry = false) {
         if (!validateForReview()) {
             reviewPanel.hidden = true;
             entryPanel.hidden = false;
+            return;
+        }
+
+        // 1. Client-side file size validation (prevent silent post_max_size drop)
+        let totalFileSize = 0;
+        const oversizedFiles = [];
+        requirementFileInputs.forEach(function(input) {
+            if (input.files && input.files[0]) {
+                const f = input.files[0];
+                totalFileSize += f.size;
+                if (f.size > 10 * 1024 * 1024) {
+                    oversizedFiles.push(f.name + ' (' + (f.size / (1024 * 1024)).toFixed(1) + ' MB)');
+                }
+            }
+        });
+        if (oversizedFiles.length > 0) {
+            showServiceError('The following files exceed the 10 MB limit: ' + oversizedFiles.join(', ') + '. Please compress or use smaller files.');
+            return;
+        }
+        if (totalFileSize > 25 * 1024 * 1024) {
+            showServiceError('Total uploaded files (' + (totalFileSize / (1024 * 1024)).toFixed(1) + ' MB) exceed the 25 MB server upload limit. Please compress your files before submitting.');
             return;
         }
 
@@ -1756,13 +1777,27 @@ document.addEventListener('DOMContentLoaded', function() {
             const formData = new FormData(serviceForm);
             formData.append('is_ajax', '1');
 
+            // Find CSRF token in form
+            const csrfInput = serviceForm.querySelector('input[name="_csrf_token"], input[name="csrf_token"], input[name="_token"]');
+            const tokenVal = csrfInput ? csrfInput.value : '';
+            if (tokenVal) {
+                formData.set('_csrf_token', tokenVal);
+                formData.set('csrf_token', tokenVal);
+            }
+
+            const reqHeaders = {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            };
+            if (tokenVal) {
+                reqHeaders['X-CSRF-Token'] = tokenVal;
+            }
+
             const response = await fetch(serviceForm.action || window.location.href, {
                 method: 'POST',
                 body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json'
-                }
+                credentials: 'same-origin',
+                headers: reqHeaders
             });
 
             let data = null;
@@ -1770,6 +1805,35 @@ document.addEventListener('DOMContentLoaded', function() {
                 data = await response.json();
             } catch (jsonErr) {
                 console.warn('Unable to parse JSON response:', jsonErr);
+            }
+
+            // AUTO-RETRY ON CSRF EXPIRY:
+            // If the security token expired or session desynchronized, refresh the token and retry once automatically!
+            if (!isRetry && (response.status === 403 || (data && data.error === 'SECURITY_VALIDATION_FAILED'))) {
+                let freshToken = data && (data.token || data.csrf_token);
+                if (!freshToken) {
+                    try {
+                        const tokenRes = await fetch('../api/csrf-token.php', {
+                            method: 'GET',
+                            credentials: 'same-origin',
+                            headers: { 'Accept': 'application/json' }
+                        });
+                        const tokenData = await tokenRes.json();
+                        if (tokenData && tokenData.success && tokenData.token) {
+                            freshToken = tokenData.token;
+                        }
+                    } catch (tErr) {
+                        console.warn('Failed to fetch new CSRF token:', tErr);
+                    }
+                }
+
+                if (freshToken) {
+                    if (csrfInput) {
+                        csrfInput.value = freshToken;
+                    }
+                    // Automatically retry once with the fresh token
+                    return await executeServiceSubmission(true);
+                }
             }
 
             if (response.ok && data && data.success) {
@@ -1786,6 +1850,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     window.location.href = targetUrl;
                 }, 600);
                 return; // Keep button disabled while redirecting
+            }
+
+            // If payload too large (HTTP 413)
+            if (response.status === 413 || (data && data.error === 'PAYLOAD_TOO_LARGE')) {
+                showServiceError(data && data.message ? data.message : 'The uploaded files exceed the server limit. Please upload smaller files.');
+                return;
             }
 
             const errorMsg = (data && data.message)

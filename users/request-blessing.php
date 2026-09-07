@@ -428,8 +428,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const submitBtn = document.getElementById('submitRequestBtn');
 
     if (blessingForm && submitBtn) {
-        blessingForm.addEventListener('submit', async function(event) {
-            event.preventDefault();
+        async function submitBlessing(isRetry = false) {
             const activeSubmit = submitBtn;
             activeSubmit.classList.add('is-loading');
             activeSubmit.disabled = true;
@@ -438,13 +437,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 const formData = new FormData(blessingForm);
                 formData.append('is_ajax', '1');
 
+                const csrfInput = blessingForm.querySelector('input[name="_csrf_token"], input[name="csrf_token"], input[name="_token"]');
+                const tokenVal = csrfInput ? csrfInput.value : '';
+                if (tokenVal) {
+                    formData.set('_csrf_token', tokenVal);
+                    formData.set('csrf_token', tokenVal);
+                }
+
+                const reqHeaders = {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                };
+                if (tokenVal) {
+                    reqHeaders['X-CSRF-Token'] = tokenVal;
+                }
+
                 const response = await fetch(blessingForm.action || window.location.href, {
                     method: 'POST',
                     body: formData,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'application/json'
-                    }
+                    credentials: 'same-origin',
+                    headers: reqHeaders
                 });
 
                 let data = null;
@@ -452,6 +464,33 @@ document.addEventListener('DOMContentLoaded', function() {
                     data = await response.json();
                 } catch (jsonErr) {
                     console.warn('Unable to parse JSON response:', jsonErr);
+                }
+
+                // AUTO-RETRY ON CSRF EXPIRY
+                if (!isRetry && (response.status === 403 || (data && data.error === 'SECURITY_VALIDATION_FAILED'))) {
+                    let freshToken = data && (data.token || data.csrf_token);
+                    if (!freshToken) {
+                        try {
+                            const tokenRes = await fetch('../api/csrf-token.php', {
+                                method: 'GET',
+                                credentials: 'same-origin',
+                                headers: { 'Accept': 'application/json' }
+                            });
+                            const tokenData = await tokenRes.json();
+                            if (tokenData && tokenData.success && tokenData.token) {
+                                freshToken = tokenData.token;
+                            }
+                        } catch (tErr) {
+                            console.warn('Failed to fetch new CSRF token:', tErr);
+                        }
+                    }
+
+                    if (freshToken) {
+                        if (csrfInput) {
+                            csrfInput.value = freshToken;
+                        }
+                        return await submitBlessing(true);
+                    }
                 }
 
                 if (response.ok && data && data.success) {
@@ -498,10 +537,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     alert(networkMsg);
                 }
             } finally {
-                // GUARANTEE: Reset loading spinner and re-enable button
                 activeSubmit.classList.remove('is-loading');
                 activeSubmit.disabled = false;
             }
+        }
+
+        blessingForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            submitBlessing(false);
         });
     }
 });

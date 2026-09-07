@@ -100,11 +100,28 @@ function csrfFailureMessage() {
 }
 
 function requireValidCsrfToken() {
+    // 1. Detect if post_max_size was exceeded (PHP automatically clears both $_POST and $_FILES)
+    if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? '')) === 'POST' && empty($_POST) && empty($_FILES) && intval($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) {
+        $postMaxSize = ini_get('post_max_size') ?: '8M';
+        $message = "The total file size uploaded exceeds the server limit ({$postMaxSize}). Please upload smaller or compressed files.";
+        $accept = strtolower((string) ($_SERVER['HTTP_ACCEPT'] ?? ''));
+        $is_json_request = strpos($accept, 'application/json') !== false || strtolower((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'xmlhttprequest';
+        if ($is_json_request) {
+            http_response_code(413);
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['success' => false, 'error' => 'PAYLOAD_TOO_LARGE', 'message' => $message]);
+            exit;
+        }
+        $redirect = strtok((string) ($_SERVER['REQUEST_URI'] ?? ''), "\r\n") ?: ($_SERVER['PHP_SELF'] ?? '/');
+        redirectWithNotification($redirect, $message, 'error');
+    }
+
     $name = csrfTokenName();
-    $headerToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+    $headerToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? ($_SERVER['HTTP_X_XSRF_TOKEN'] ?? '');
     $submittedToken = is_string($headerToken) && $headerToken !== ''
         ? $headerToken
-        : ($_POST[$name] ?? '');
+        : ($_POST[$name] ?? ($_POST['csrf_token'] ?? ($_POST['_csrf_token'] ?? ($_POST['_token'] ?? ''))));
+
     if (!verifyCsrfToken($submittedToken)) {
         $_SESSION[$name] = bin2hex(random_bytes(32));
         $_SESSION[$name . '_time'] = time();
@@ -113,12 +130,19 @@ function requireValidCsrfToken() {
         $accept = strtolower((string) ($_SERVER['HTTP_ACCEPT'] ?? ''));
         $is_json_request = strpos($accept, 'application/json') !== false || strtolower((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'xmlhttprequest';
         if ($is_json_request) {
+            $newToken = $_SESSION[$name];
             if (function_exists('sendJsonActionResponse')) {
-                sendJsonActionResponse(false, 'The request could not be validated.', 'error', ['error' => 'SECURITY_VALIDATION_FAILED'], 403);
+                sendJsonActionResponse(false, 'Your security session has expired. Please try again.', 'error', ['error' => 'SECURITY_VALIDATION_FAILED', 'csrf_token' => $newToken, 'token' => $newToken], 403);
             }
             http_response_code(403);
             header('Content-Type: application/json; charset=utf-8');
-            echo json_encode(['success' => false, 'error' => 'SECURITY_VALIDATION_FAILED', 'message' => 'The request could not be validated.']);
+            echo json_encode([
+                'success' => false,
+                'error' => 'SECURITY_VALIDATION_FAILED',
+                'message' => 'Your security session has expired. Please try again.',
+                'token' => $newToken,
+                'csrf_token' => $newToken
+            ]);
             exit;
         }
 
