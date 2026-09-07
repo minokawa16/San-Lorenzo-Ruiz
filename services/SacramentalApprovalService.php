@@ -152,8 +152,25 @@ class SacramentalApprovalService {
             // 6. Action 3: Parishioner Notification
             $this->notifyParishionerOnApproval($request, $calendarEvent, $adminResponse);
 
-            // 7. Audit log
-            createAuditLog($this->conn, $actorUserId, strtoupper($targetStatus) . '_SACRAMENTAL_REQUEST', 'requests', $requestId);
+            // 7. Audit log with complete metadata
+            $sacType = !empty($sacramentalRecord['type']) ? ucwords(str_replace('_', ' ', (string)$sacramentalRecord['type'])) : 'Sacramental';
+            $sacId = !empty($sacramentalRecord['record_id']) ? (int)$sacramentalRecord['record_id'] : null;
+            $calId = !empty($calendarEvent['event_id']) ? (int)$calendarEvent['event_id'] : null;
+            $trackCode = !empty($request['tracking_code']) ? (string)$request['tracking_code'] : ('REQ-' . $requestId);
+            $actionDesc = "Approved Sacramental Request #{$requestId} ({$trackCode}); auto-created {$sacType} Record" . ($sacId ? " #{$sacId}" : "") . ($calId ? " and locked calendar slot #{$calId}" : "") . ".";
+            $auditPayload = [
+                'status' => $targetStatus,
+                'tracking_code' => $trackCode,
+                'sacramental_type' => $sacType,
+                'sacramental_record_id' => $sacId,
+                'calendar_event_id' => $calId,
+                'officiating_priest' => $officiatingPriest,
+                'admin_response' => $adminResponse
+            ];
+            createAuditLog(
+                $this->conn, $actorUserId, strtoupper($targetStatus) . '_SACRAMENTAL_REQUEST',
+                'requests', $requestId, null, $auditPayload, $actionDesc, 'SACRAMENTS', 'INFO'
+            );
 
             // Commit atomic transaction
             $this->conn->commit();

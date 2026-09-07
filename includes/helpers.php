@@ -2355,11 +2355,15 @@ function getRecentNotifications($conn, $user_id, $limit = 5) {
     return $notifications;
 }
 
-// Log audit trail for admin actions
-// Audit Log - Records user activities and system actions for accountability.
-function createAuditLog($conn, $user_id, $action, $table_name, $record_id, $old_value = null, $new_value = null) {
+// Log audit trail for user and system actions
+// Audit Log - Records activities with canonical security metadata, IP, and event descriptions.
+function createAuditLog($conn, $user_id, $action, $table_name = null, $record_id = null, $old_value = null, $new_value = null, ?string $description = null, ?string $category = null, ?string $severity = null) {
     require_once __DIR__ . '/audit.php';
-    return writeAuditLog($conn, $user_id, (string)$action, (string)$table_name, $record_id, $old_value, $new_value);
+    return writeAuditLog(
+        $conn, $user_id, (string)$action, $table_name !== null ? (string)$table_name : null,
+        $record_id, $old_value, $new_value, 'application', null, null,
+        $description, $category, $severity
+    );
 }
 
 // Format date for display

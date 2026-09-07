@@ -53,14 +53,22 @@ switch($cert_type) {
 
 $result = $conn->query($sql);
 
-if ($result->num_rows > 0) {
+if ($result && $result->num_rows > 0) {
     $record = $result->fetch_assoc();
     unset($_SESSION['manual_certificate']);
     $_SESSION['certificate_data'] = $record;
     $_SESSION['cert_type'] = $cert_type;
     
-    // Log this action
-    createAuditLog($conn, $_SESSION['user_id'], 'GENERATE_CERTIFICATE', 'records', $record_id, 'Certificate generated for ' . $cert_type);
+    // Log this action with complete audit context
+    $prettyType = ucwords(str_replace('_', ' ', $cert_type));
+    $recipientName = trim((string)($record['fullname'] ?? $record['deceased_name'] ?? trim(($record['husband_name'] ?? '') . ' and ' . ($record['wife_name'] ?? ''))));
+    $desc = "Generated {$prettyType} preview for record #{$record_id}" . ($recipientName !== '' ? " ({$recipientName})" : "") . ".";
+    createAuditLog(
+        $conn, (int)$_SESSION['user_id'], 'GENERATE_CERTIFICATE',
+        $cert_type, $record_id, null,
+        ['cert_type' => $cert_type, 'recipient' => $recipientName],
+        $desc, 'CERTIFICATES', 'INFO'
+    );
     
     header('Location: view-certificate.php');
     exit;
@@ -69,4 +77,3 @@ if ($result->num_rows > 0) {
     header('Location: certificate-generator.php');
     exit;
 }
-?>
