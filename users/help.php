@@ -1,8 +1,7 @@
 <?php
 /**
  * User Help Module & Documentation Guide (/users/help.php)
- * Comprehensive manual for Parishioners explaining registration, OCR scanning,
- * certificate applications, sacramental service bookings, calendar scheduling, and tracking.
+ * Simple, easy-to-understand step-by-step guide for Parishioners.
  */
 
 require_once '../includes/session.php';
@@ -15,7 +14,7 @@ if (!isUser()) {
     redirect('../auth/login.php');
 }
 
-$page_title = 'Help & User Manual';
+$page_title = 'Help & User Guide';
 $body_extra_class = 'user-help-page';
 $breadcrumbs = [
     'Dashboard' => 'index.php',
@@ -28,54 +27,57 @@ include '../includes/breadcrumb.php';
 
 <style>
 /* --------------------------------------------------------------------------
-   USER HELP & DOCUMENTATION MODULE STYLES
-   Palette: Forest Green (#2E3A2D), Gold (#C89B3C), Teal (#0d9488), Slate
+   USER MANUAL & GUIDE STYLES
+   Clean, easy-to-read typography and scannable visual step cards
+   Palette: Forest Green (#2E3A2D), Church Gold (#C89B3C), Slate, Teal
    -------------------------------------------------------------------------- */
 :root {
-  --docs-green:      #2E3A2D;
-  --docs-green-mid:  #3D5C3A;
-  --docs-green-dim:  rgba(46, 58, 45, 0.08);
-  --docs-gold:       #C89B3C;
-  --docs-gold-dim:   rgba(200, 155, 60, 0.12);
-  --docs-teal:       #0d9488;
-  --docs-teal-dim:   rgba(13, 148, 136, 0.10);
-  --docs-blue:       #2563eb;
-  --docs-blue-dim:   rgba(37, 99, 235, 0.10);
-  --docs-amber:      #d97706;
-  --docs-amber-dim:  rgba(217, 119, 6, 0.10);
-  --docs-rose:       #e11d48;
-  --docs-rose-dim:   rgba(225, 29, 72, 0.10);
-  --docs-slate-50:   #f8fafc;
-  --docs-slate-100:  #f1f5f9;
-  --docs-slate-200:  #e2e8f0;
-  --docs-slate-300:  #cbd5e1;
-  --docs-slate-600:  #475569;
-  --docs-slate-700:  #334155;
-  --docs-slate-800:  #1e293b;
-  --docs-radius:     14px;
-  --docs-shadow-sm:  0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-  --docs-shadow-md:  0 4px 14px rgba(0,0,0,0.07), 0 2px 5px rgba(0,0,0,0.03);
-  --docs-shadow-lg:  0 10px 30px rgba(0,0,0,0.08);
+  --usr-green:       #2E3A2D;
+  --usr-green-mid:   #3D5C3A;
+  --usr-green-light: #ebf3ec;
+  --usr-gold:        #C89B3C;
+  --usr-gold-light:  #fdf8ec;
+  --usr-teal:        #0d9488;
+  --usr-teal-light:  #f0fdfa;
+  --usr-blue:        #2563eb;
+  --usr-blue-light:  #eff6ff;
+  --usr-purple:      #7c3aed;
+  --usr-purple-light:#f5f3ff;
+  --usr-amber:       #d97706;
+  --usr-amber-light: #fffbeb;
+  --usr-rose:        #e11d48;
+  --usr-rose-light:  #fff1f2;
+  --usr-slate-50:    #f8fafc;
+  --usr-slate-100:   #f1f5f9;
+  --usr-slate-200:   #e2e8f0;
+  --usr-slate-300:   #cbd5e1;
+  --usr-slate-600:   #475569;
+  --usr-slate-700:   #334155;
+  --usr-slate-800:   #1e293b;
+  --usr-slate-900:   #0f172a;
+  --usr-radius:      14px;
 }
 
-.docs-wrapper {
-  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  color: var(--docs-slate-700);
-  padding-bottom: 50px;
+.usr-manual-wrap {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: var(--usr-slate-800);
+  font-size: 0.94rem;
+  line-height: 1.65;
+  padding-bottom: 60px;
 }
 
 /* --- Hero Banner --- */
-.docs-hero {
-  background: linear-gradient(135deg, #1e293b 0%, #2E3A2D 60%, #1c2e22 100%);
-  border-radius: var(--docs-radius);
-  padding: 32px 36px;
+.usr-hero {
+  background: linear-gradient(135deg, #1e293b 0%, #2E3A2D 60%, #172a1e 100%);
+  border-radius: var(--usr-radius);
+  padding: 34px 38px;
   color: #ffffff;
   margin-bottom: 28px;
   position: relative;
   overflow: hidden;
-  box-shadow: var(--docs-shadow-md);
+  box-shadow: 0 4px 18px rgba(0,0,0,0.08);
 }
-.docs-hero::after {
+.usr-hero::after {
   content: '';
   position: absolute;
   top: -40px;
@@ -85,7 +87,7 @@ include '../includes/breadcrumb.php';
   background: radial-gradient(circle, rgba(200,155,60,0.22) 0%, rgba(200,155,60,0) 70%);
   pointer-events: none;
 }
-.docs-hero-title {
+.usr-hero-title {
   font-size: 1.65rem;
   font-weight: 800;
   letter-spacing: -0.02em;
@@ -94,945 +96,983 @@ include '../includes/breadcrumb.php';
   align-items: center;
   gap: 12px;
 }
-.docs-hero-badge {
-  background: var(--docs-gold);
+.usr-hero-badge {
+  background: var(--usr-gold);
   color: #1e293b;
   font-size: 0.72rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  padding: 4px 10px;
+  padding: 4px 12px;
   border-radius: 20px;
   vertical-align: middle;
 }
-.docs-hero-sub {
-  font-size: 0.92rem;
-  color: rgba(255,255,255,0.82);
-  max-width: 680px;
+.usr-hero-sub {
+  font-size: 0.95rem;
+  color: rgba(255,255,255,0.88);
+  max-width: 720px;
   margin-bottom: 22px;
-  line-height: 1.5;
+  line-height: 1.55;
 }
 
-/* Search bar inside Hero */
-.docs-search-wrap {
+/* Search bar */
+.usr-search-wrap {
   position: relative;
   max-width: 620px;
 }
-.docs-search-input {
+.usr-search-input {
   width: 100%;
   padding: 13px 44px 13px 46px;
   border-radius: 12px;
   border: 1.5px solid rgba(255,255,255,0.18);
-  background: rgba(255,255,255,0.95);
-  font-size: 0.92rem;
-  color: var(--docs-slate-800);
+  background: rgba(255,255,255,0.98);
+  font-size: 0.93rem;
+  color: var(--usr-slate-900);
   outline: none;
-  box-shadow: 0 4px 18px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 18px rgba(0,0,0,0.12);
   transition: all 0.2s ease;
 }
-.docs-search-input:focus {
+.usr-search-input:focus {
   background: #ffffff;
-  border-color: var(--docs-gold);
+  border-color: var(--usr-gold);
   box-shadow: 0 0 0 4px rgba(200,155,60,0.30);
 }
-.docs-search-icon {
+.usr-search-icon {
   position: absolute;
   left: 16px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--docs-slate-600);
+  color: var(--usr-slate-600);
   font-size: 1rem;
   pointer-events: none;
 }
-.docs-search-clear {
+.usr-search-clear {
   position: absolute;
   right: 14px;
   top: 50%;
   transform: translateY(-50%);
   background: transparent;
   border: none;
-  color: var(--docs-slate-600);
+  color: var(--usr-slate-600);
   cursor: pointer;
   display: none;
   font-size: 0.9rem;
 }
-.docs-quick-pills {
+.usr-quick-pills {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
   margin-top: 14px;
 }
-.docs-pill {
+.usr-pill {
   background: rgba(255,255,255,0.12);
-  color: #fff;
-  border: 1px solid rgba(255,255,255,0.16);
-  padding: 4px 12px;
+  color: #ffffff;
+  border: 1px solid rgba(255,255,255,0.18);
+  padding: 5px 13px;
   border-radius: 20px;
-  font-size: 0.76rem;
+  font-size: 0.78rem;
   font-weight: 600;
-  text-decoration: none;
-  transition: all 0.15s;
   cursor: pointer;
+  transition: all 0.15s;
 }
-.docs-pill:hover {
-  background: var(--docs-gold);
+.usr-pill:hover {
+  background: var(--usr-gold);
   color: #1e293b;
-  border-color: var(--docs-gold);
+  border-color: var(--usr-gold);
 }
 
 /* --- Layout Grid --- */
-.docs-layout {
+.usr-layout {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-columns: 290px minmax(0, 1fr);
   gap: 28px;
   align-items: flex-start;
 }
 @media (max-width: 991px) {
-  .docs-layout {
+  .usr-layout {
     grid-template-columns: 1fr;
-  }
-  .docs-toc-col {
-    position: static !important;
   }
 }
 
-/* --- Left TOC Column --- */
-.docs-toc-card {
+/* --- Left TOC Card --- */
+.usr-toc-card {
   background: #ffffff;
-  border: 1px solid var(--docs-slate-200);
-  border-radius: var(--docs-radius);
-  padding: 18px 16px;
-  box-shadow: var(--docs-shadow-sm);
+  border: 1px solid var(--usr-slate-200);
+  border-radius: var(--usr-radius);
+  padding: 20px 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   position: sticky;
-  top: 90px;
-  max-height: calc(100vh - 110px);
+  top: 86px;
+  max-height: calc(100vh - 100px);
   overflow-y: auto;
   scrollbar-width: thin;
 }
-.docs-toc-header {
-  font-size: 0.72rem;
+.usr-toc-header {
+  font-size: 0.74rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--docs-slate-600);
+  color: var(--usr-slate-600);
   padding: 0 8px 10px;
-  border-bottom: 1px solid var(--docs-slate-100);
+  border-bottom: 1px solid var(--usr-slate-100);
   margin-bottom: 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
-.docs-toc-list {
+.usr-toc-list {
   list-style: none;
   padding: 0;
   margin: 0;
 }
-.docs-toc-item {
+.usr-toc-item {
   margin-bottom: 3px;
 }
-.docs-toc-link {
+.usr-toc-link {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 12px;
+  padding: 9px 12px;
   border-radius: 8px;
-  font-size: 0.82rem;
+  font-size: 0.84rem;
   font-weight: 600;
-  color: var(--docs-slate-700);
+  color: var(--usr-slate-700);
   text-decoration: none;
   transition: all 0.15s;
 }
-.docs-toc-link i {
+.usr-toc-link i {
   width: 18px;
   text-align: center;
-  font-size: 0.88rem;
-  color: var(--docs-slate-600);
+  font-size: 0.9rem;
+  color: var(--usr-slate-600);
   flex-shrink: 0;
 }
-.docs-toc-link:hover {
-  background: var(--docs-slate-100);
-  color: var(--docs-green);
+.usr-toc-link:hover {
+  background: var(--usr-slate-100);
+  color: var(--usr-green);
 }
-.docs-toc-link.active {
-  background: var(--docs-green-dim);
-  color: var(--docs-green);
+.usr-toc-link.active {
+  background: var(--usr-green-light);
+  color: var(--usr-green);
   font-weight: 700;
-  border-left: 3px solid var(--docs-green);
+  border-left: 3px solid var(--usr-green);
 }
-.docs-toc-link.active i {
-  color: var(--docs-gold);
+.usr-toc-link.active i {
+  color: var(--usr-gold);
 }
-.docs-toc-shortcuts {
+.usr-toc-shortcuts {
   margin-top: 20px;
   padding-top: 14px;
-  border-top: 1px solid var(--docs-slate-100);
+  border-top: 1px solid var(--usr-slate-100);
 }
-.docs-shortcut-btn {
+.usr-shortcut-btn {
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: 8px 12px;
+  padding: 9px 12px;
   border-radius: 8px;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-weight: 600;
-  background: var(--docs-slate-50);
-  border: 1px solid var(--docs-slate-200);
-  color: var(--docs-slate-700);
+  background: var(--usr-slate-50);
+  border: 1px solid var(--usr-slate-200);
+  color: var(--usr-slate-700);
   text-decoration: none;
   margin-bottom: 6px;
   transition: all 0.15s;
 }
-.docs-shortcut-btn:hover {
-  background: var(--docs-gold-dim);
-  border-color: var(--docs-gold);
-  color: var(--docs-green);
+.usr-shortcut-btn:hover {
+  background: var(--usr-gold-light);
+  border-color: var(--usr-gold);
+  color: var(--usr-green);
 }
 
-/* --- Content Cards --- */
-.docs-card {
+/* --- Content Section Cards --- */
+.usr-section-card {
   background: #ffffff;
-  border: 1px solid var(--docs-slate-200);
-  border-radius: var(--docs-radius);
-  padding: 28px 32px;
-  margin-bottom: 24px;
-  box-shadow: var(--docs-shadow-sm);
-  transition: box-shadow 0.2s;
-  scroll-margin-top: 90px;
+  border: 1px solid var(--usr-slate-200);
+  border-radius: var(--usr-radius);
+  padding: 30px 34px;
+  margin-bottom: 26px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  scroll-margin-top: 86px;
 }
-.docs-card:hover {
-  box-shadow: var(--docs-shadow-md);
-}
-.docs-card-header {
+.usr-section-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  border-bottom: 1.5px solid var(--docs-slate-100);
+  border-bottom: 1.5px solid var(--usr-slate-100);
   padding-bottom: 16px;
-  margin-bottom: 20px;
+  margin-bottom: 22px;
 }
-.docs-card-meta {
+.usr-section-meta {
   display: flex;
   align-items: center;
   gap: 14px;
 }
-.docs-card-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
+.usr-section-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.15rem;
+  font-size: 1.25rem;
   flex-shrink: 0;
 }
-.icon-green { background: var(--docs-green-dim); color: var(--docs-green); }
-.icon-gold  { background: var(--docs-gold-dim);  color: var(--docs-gold); }
-.icon-teal  { background: var(--docs-teal-dim);  color: var(--docs-teal); }
-.icon-blue  { background: var(--docs-blue-dim);  color: var(--docs-blue); }
-.icon-amber { background: var(--docs-amber-dim); color: var(--docs-amber); }
+.icon-gold   { background: var(--usr-gold-light);   color: var(--usr-gold);   border: 1px solid rgba(200,155,60,0.25); }
+.icon-blue   { background: var(--usr-blue-light);   color: var(--usr-blue);   border: 1px solid rgba(37,99,235,0.20); }
+.icon-green  { background: var(--usr-green-light);  color: var(--usr-green);  border: 1px solid rgba(46,58,45,0.20); }
+.icon-teal   { background: var(--usr-teal-light);   color: var(--usr-teal);   border: 1px solid rgba(13,148,136,0.20); }
+.icon-purple { background: var(--usr-purple-light); color: var(--usr-purple); border: 1px solid rgba(124,58,237,0.20); }
+.icon-amber  { background: var(--usr-amber-light);  color: var(--usr-amber);  border: 1px solid rgba(217,119,6,0.20); }
 
-.docs-card-title {
-  font-size: 1.25rem;
+.usr-section-title {
+  font-size: 1.28rem;
   font-weight: 800;
-  color: var(--docs-slate-800);
-  margin: 0 0 2px;
+  color: var(--usr-slate-900);
+  margin: 0 0 3px;
   letter-spacing: -0.01em;
 }
-.docs-card-sub {
-  font-size: 0.8rem;
-  color: var(--docs-slate-600);
+.usr-section-sub {
+  font-size: 0.85rem;
+  color: var(--usr-slate-600);
   margin: 0;
 }
-.docs-card-tag {
-  font-size: 0.68rem;
+.usr-section-tag {
+  font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  padding: 3px 10px;
+  padding: 4px 11px;
   border-radius: 20px;
-  background: var(--docs-slate-100);
-  color: var(--docs-slate-600);
+  background: var(--usr-slate-100);
+  color: var(--usr-slate-700);
+  white-space: nowrap;
 }
 
-/* Step-by-step numbers */
-.docs-step-list {
+.usr-intro-text {
+  font-size: 0.94rem;
+  line-height: 1.65;
+  color: var(--usr-slate-700);
+  margin-bottom: 20px;
+}
+
+/* --- Visual Step Cards (Clean, High-Contrast) --- */
+.step-cards-grid {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  margin: 18px 0;
+  gap: 14px;
+  margin: 20px 0;
 }
-.docs-step-item {
+.step-card {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 18px 20px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1.5px solid var(--usr-slate-200);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  transition: all 0.15s ease-in-out;
+}
+.step-card:hover {
+  border-color: var(--usr-gold);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+.step-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--usr-green);
+  color: #ffffff;
+  font-size: 0.76rem;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.step-card-body {
+  flex: 1;
+}
+.step-card-title {
+  font-size: 0.96rem;
+  font-weight: 800;
+  color: var(--usr-slate-900);
+  margin-bottom: 4px;
+}
+.step-card-desc {
+  font-size: 0.9rem;
+  color: var(--usr-slate-700);
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* --- Action Badges (Highlight Key UI Buttons & Tabs) --- */
+.action-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+.action-badge-amber {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fde68a;
+}
+.action-badge-green {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #bbf7d0;
+}
+.action-badge-blue {
+  background: #dbeafe;
+  color: #1e40af;
+  border-color: #bfdbfe;
+}
+.action-badge-purple {
+  background: #f3e8ff;
+  color: #6b21a8;
+  border-color: #e9d5ff;
+}
+.action-badge-red {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+.action-badge-slate {
+  background: #f1f5f9;
+  color: #334155;
+  border-color: #e2e8f0;
+}
+
+/* --- Visual Callout Boxes --- */
+.callout-box {
+  padding: 16px 20px;
+  border-radius: 12px;
+  margin: 20px 0;
   display: flex;
   gap: 14px;
   align-items: flex-start;
-  padding: 14px 16px;
-  border-radius: 10px;
-  background: var(--docs-slate-50);
-  border: 1px solid var(--docs-slate-200);
+  font-size: 0.89rem;
+  line-height: 1.6;
 }
-.docs-step-num {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--docs-green);
-  color: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.82rem;
-  font-weight: 800;
+.callout-box i {
+  font-size: 1.15rem;
+  margin-top: 3px;
   flex-shrink: 0;
-  margin-top: 1px;
 }
-.docs-step-content {
-  flex: 1;
-}
-.docs-step-title {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--docs-slate-800);
+.callout-box strong {
+  display: block;
   margin-bottom: 3px;
-}
-.docs-step-desc {
-  font-size: 0.83rem;
-  color: var(--docs-slate-600);
-  margin: 0;
-  line-height: 1.5;
-}
-
-/* Callout Boxes */
-.callout {
-  padding: 14px 18px;
-  border-radius: 10px;
-  margin: 16px 0;
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  font-size: 0.84rem;
-  line-height: 1.5;
-}
-.callout i {
-  font-size: 1.05rem;
-  margin-top: 2px;
-  flex-shrink: 0;
-}
-.callout-info {
-  background: #eff6ff;
-  border-left: 4px solid #3b82f6;
-  color: #1e40af;
-}
-.callout-warning {
-  background: #fffbeb;
-  border-left: 4px solid #f59e0b;
-  color: #92400e;
-}
-.callout-danger {
-  background: #fff1f2;
-  border-left: 4px solid #f43f5e;
-  color: #9f1239;
+  font-size: 0.92rem;
 }
 .callout-tip {
   background: #f0fdf4;
-  border-left: 4px solid #10b981;
-  color: #166534;
+  border: 1.5px solid #bbf7d0;
+  border-left: 5px solid #16a34a;
+  color: #14532d;
+}
+.callout-note {
+  background: #eff6ff;
+  border: 1.5px solid #bfdbfe;
+  border-left: 5px solid #2563eb;
+  color: #1e3a8a;
+}
+.callout-warning {
+  background: #fffbeb;
+  border: 1.5px solid #fde68a;
+  border-left: 5px solid #d97706;
+  color: #78350f;
+}
+.callout-danger {
+  background: #fff1f2;
+  border: 1.5px solid #fecaca;
+  border-left: 5px solid #e11d48;
+  color: #881337;
 }
 
-/* Accordion UI */
-.docs-accordion-item {
-  border: 1px solid var(--docs-slate-200);
+/* --- Accordions --- */
+.usr-accordion-item {
+  border: 1.5px solid var(--usr-slate-200);
   border-radius: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   overflow: hidden;
+  background: #ffffff;
 }
-.docs-accordion-btn {
+.usr-accordion-btn {
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 18px;
-  background: #fff;
+  padding: 15px 20px;
+  background: #ffffff;
   border: none;
-  font-size: 0.87rem;
+  font-size: 0.92rem;
   font-weight: 700;
-  color: var(--docs-slate-800);
+  color: var(--usr-slate-900);
   cursor: pointer;
   text-align: left;
   transition: background 0.15s;
 }
-.docs-accordion-btn:hover {
-  background: var(--docs-slate-50);
+.usr-accordion-btn:hover {
+  background: var(--usr-slate-50);
 }
-.docs-accordion-btn i.fa-chevron-down {
+.usr-accordion-btn i.fa-chevron-down {
   transition: transform 0.2s;
-  font-size: 0.8rem;
-  color: var(--docs-slate-600);
+  font-size: 0.85rem;
+  color: var(--usr-slate-600);
 }
-.docs-accordion-btn.active i.fa-chevron-down {
+.usr-accordion-btn.active i.fa-chevron-down {
   transform: rotate(180deg);
 }
-.docs-accordion-body {
+.usr-accordion-body {
   display: none;
-  padding: 14px 18px;
-  background: var(--docs-slate-50);
-  border-top: 1px solid var(--docs-slate-200);
-  font-size: 0.84rem;
-  line-height: 1.55;
-  color: var(--docs-slate-700);
+  padding: 16px 20px;
+  background: var(--usr-slate-50);
+  border-top: 1px solid var(--usr-slate-200);
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--usr-slate-700);
 }
-.docs-accordion-body.show {
+.usr-accordion-body.show {
   display: block;
 }
 
-/* Checklist */
-.docs-checklist {
-  list-style: none;
-  padding: 0;
-  margin: 10px 0;
-}
-.docs-checklist li {
-  position: relative;
-  padding-left: 24px;
-  margin-bottom: 8px;
-  font-size: 0.84rem;
-  color: var(--docs-slate-700);
-}
-.docs-checklist li::before {
-  content: '\f00c';
-  font-family: 'Font Awesome 6 Free', 'Font Awesome 5 Free';
-  font-weight: 900;
-  position: absolute;
-  left: 0;
-  color: var(--docs-teal);
-  font-size: 0.8rem;
-}
-
-/* Highlights */
-.docs-badge {
-  display: inline-block;
-  padding: 2px 7px;
-  border-radius: 6px;
-  font-size: 0.72rem;
-  font-weight: 700;
-}
-.docs-badge-gold { background: var(--docs-gold-dim); color: #854d0e; }
-.docs-badge-green { background: #dcfce7; color: #166534; }
-.docs-badge-blue { background: #dbeafe; color: #1e40af; }
-.docs-badge-red { background: #ffe4e6; color: #9f1239; }
-
-/* Empty Search Results State */
-#docsSearchEmpty {
+/* Empty search container */
+#usrSearchEmpty {
   display: none;
   text-align: center;
   padding: 50px 20px;
-  background: #fff;
-  border: 1px dashed var(--docs-slate-300);
-  border-radius: var(--docs-radius);
-  color: var(--docs-slate-600);
+  background: #ffffff;
+  border: 2px dashed var(--usr-slate-300);
+  border-radius: var(--usr-radius);
+  color: var(--usr-slate-600);
 }
 </style>
 
-<div class="docs-wrapper container-fluid px-0">
+<div class="usr-manual-wrap container-fluid px-0">
 
   <!-- ================= HERO BANNER ================= -->
-  <div class="docs-hero">
-    <div class="docs-hero-title">
+  <div class="usr-hero">
+    <div class="usr-hero-title">
       <i class="fas fa-book-open"></i>
-      Parishioner User Manual &amp; Guide
-      <span class="docs-hero-badge">TUGON System</span>
+      Parishioner User Guide &amp; Manual
+      <span class="usr-hero-badge">TUGON System</span>
     </div>
-    <p class="docs-hero-sub">
-      Step-by-step instructions, guidelines, and troubleshooting tips for registering your account, requesting official sacramental certificates, booking ceremonies, and tracking requests.
+    <p class="usr-hero-sub">
+      A simple, step-by-step guide to help you register with your ID, request official church certificates, book baptisms or weddings, and track your requests.
     </p>
 
-    <!-- Search bar -->
-    <div class="docs-search-wrap">
-      <i class="fas fa-search docs-search-icon"></i>
-      <input type="text" id="docsSearchInput" class="docs-search-input" placeholder="Search topics, steps, certificates, ID requirements..." aria-label="Search User Guide">
-      <button type="button" id="docsSearchClear" class="docs-search-clear" title="Clear search"><i class="fas fa-times"></i></button>
+    <!-- Quick Search -->
+    <div class="usr-search-wrap">
+      <i class="fas fa-search usr-search-icon"></i>
+      <input type="text" id="usrSearchInput" class="usr-search-input" placeholder="Search a topic or step (e.g., register ID, request certificate, baptism, calendar)..." aria-label="Search User Guide">
+      <button type="button" id="usrSearchClear" class="usr-search-clear" title="Clear search"><i class="fas fa-times"></i></button>
     </div>
 
-    <!-- Quick Filter Pills -->
-    <div class="docs-quick-pills">
-      <span class="docs-pill" data-target="#module1">ID Registration &amp; OCR</span>
-      <span class="docs-pill" data-target="#module2">Profile Settings</span>
-      <span class="docs-pill" data-target="#module3">Certificate Requests</span>
-      <span class="docs-pill" data-target="#module4">Booking Sacraments</span>
-      <span class="docs-pill" data-target="#module5">Tracking &amp; Status</span>
-      <span class="docs-pill" data-target="#module6">Frequently Asked Questions</span>
+    <!-- Quick Navigation Pills -->
+    <div class="usr-quick-pills">
+      <span class="usr-pill" data-target="#module1">1. Register with an ID</span>
+      <span class="usr-pill" data-target="#module2">2. Update Profile</span>
+      <span class="usr-pill" data-target="#module3">3. Request Certificate</span>
+      <span class="usr-pill" data-target="#module4">4. Book a Church Service</span>
+      <span class="usr-pill" data-target="#module5">5. Track &amp; Claim</span>
+      <span class="usr-pill" data-target="#module6">6. FAQs</span>
     </div>
   </div>
 
   <!-- ================= MAIN LAYOUT ================= -->
-  <div class="docs-layout">
+  <div class="usr-layout">
 
-    <!-- LEFT: Sticky Table of Contents -->
-    <aside class="docs-toc-col">
-      <div class="docs-toc-card">
-        <div class="docs-toc-header">
-          <span>Table of Contents</span>
-          <i class="fas fa-list-ul"></i>
+    <!-- LEFT: Sticky TOC -->
+    <aside class="usr-toc-col">
+      <div class="usr-toc-card">
+        <div class="usr-toc-header">
+          <span>Guide Topics</span>
+          <i class="fas fa-bars-staggered"></i>
         </div>
-        <ul class="docs-toc-list">
-          <li class="docs-toc-item">
-            <a href="#module1" class="docs-toc-link active">
+        <ul class="usr-toc-list">
+          <li class="usr-toc-item">
+            <a href="#module1" class="usr-toc-link active">
               <i class="fas fa-id-card"></i>
-              <span>1. Registration &amp; OCR</span>
+              <span>1. Register with an ID</span>
             </a>
           </li>
-          <li class="docs-toc-item">
-            <a href="#module2" class="docs-toc-link">
-              <i class="fas fa-user-gear"></i>
-              <span>2. Managing Profile</span>
+          <li class="usr-toc-item">
+            <a href="#module2" class="usr-toc-link">
+              <i class="fas fa-user-pen"></i>
+              <span>2. Profile Settings</span>
             </a>
           </li>
-          <li class="docs-toc-item">
-            <a href="#module3" class="docs-toc-link">
+          <li class="usr-toc-item">
+            <a href="#module3" class="usr-toc-link">
               <i class="fas fa-certificate"></i>
-              <span>3. Sacramental Certificates</span>
+              <span>3. Request Certificate</span>
             </a>
           </li>
-          <li class="docs-toc-item">
-            <a href="#module4" class="docs-toc-link">
+          <li class="usr-toc-item">
+            <a href="#module4" class="usr-toc-link">
               <i class="fas fa-church"></i>
-              <span>4. Booking Sacraments</span>
+              <span>4. Book Church Service</span>
             </a>
           </li>
-          <li class="docs-toc-item">
-            <a href="#module5" class="docs-toc-link">
+          <li class="usr-toc-item">
+            <a href="#module5" class="usr-toc-link">
               <i class="fas fa-route"></i>
-              <span>5. Tracking &amp; Status</span>
+              <span>5. Track &amp; Claim</span>
             </a>
           </li>
-          <li class="docs-toc-item">
-            <a href="#module6" class="docs-toc-link">
+          <li class="usr-toc-item">
+            <a href="#module6" class="usr-toc-link">
               <i class="fas fa-circle-question"></i>
-              <span>6. FAQs &amp; Helpdesk</span>
+              <span>6. Questions &amp; Answers</span>
             </a>
           </li>
         </ul>
 
-        <!-- Direct Portal Shortcuts -->
-        <div class="docs-toc-shortcuts">
-          <div class="docs-toc-header" style="padding-left:0; margin-bottom:8px;">
+        <!-- Direct Parishioner Shortcuts -->
+        <div class="usr-toc-shortcuts">
+          <div class="usr-toc-header" style="padding-left:0; margin-bottom:8px;">
             <span>Quick Shortcuts</span>
             <i class="fas fa-arrow-up-right-from-square"></i>
           </div>
-          <a href="<?php echo BASE_URL; ?>users/request-certificate.php" class="docs-shortcut-btn">
-            <span><i class="fas fa-file-invoice" style="margin-right:6px; color:var(--docs-gold);"></i> Request Certificate</span>
+          <a href="<?php echo BASE_URL; ?>users/request-certificate.php" class="usr-shortcut-btn">
+            <span><i class="fas fa-file-invoice" style="margin-right:6px; color:var(--usr-gold);"></i> Request Certificate</span>
             <i class="fas fa-chevron-right" style="font-size:0.7rem;"></i>
           </a>
-          <a href="<?php echo BASE_URL; ?>users/request-service.php" class="docs-shortcut-btn">
-            <span><i class="fas fa-calendar-plus" style="margin-right:6px; color:var(--docs-teal);"></i> Book Service</span>
+          <a href="<?php echo BASE_URL; ?>users/request-service.php" class="usr-shortcut-btn">
+            <span><i class="fas fa-calendar-plus" style="margin-right:6px; color:var(--usr-teal);"></i> Book Service</span>
             <i class="fas fa-chevron-right" style="font-size:0.7rem;"></i>
           </a>
-          <a href="<?php echo BASE_URL; ?>users/my-requests.php" class="docs-shortcut-btn">
-            <span><i class="fas fa-list-check" style="margin-right:6px; color:var(--docs-blue);"></i> Track Requests</span>
+          <a href="<?php echo BASE_URL; ?>users/my-requests.php" class="usr-shortcut-btn">
+            <span><i class="fas fa-list-check" style="margin-right:6px; color:var(--usr-blue);"></i> Track My Requests</span>
             <i class="fas fa-chevron-right" style="font-size:0.7rem;"></i>
           </a>
-          <a href="<?php echo BASE_URL; ?>users/view-schedule.php" class="docs-shortcut-btn">
-            <span><i class="fas fa-calendar-days" style="margin-right:6px; color:var(--docs-green);"></i> Parish Calendar</span>
+          <a href="<?php echo BASE_URL; ?>users/view-schedule.php" class="usr-shortcut-btn">
+            <span><i class="fas fa-calendar-days" style="margin-right:6px; color:var(--usr-green);"></i> Parish Calendar</span>
             <i class="fas fa-chevron-right" style="font-size:0.7rem;"></i>
           </a>
         </div>
       </div>
     </aside>
 
-    <!-- RIGHT: Content Modules -->
-    <main class="docs-content-col">
+    <!-- RIGHT: Content Sections -->
+    <main class="usr-content-col">
 
-      <!-- Empty Search Result Container -->
-      <div id="docsSearchEmpty">
+      <!-- Empty Search State -->
+      <div id="usrSearchEmpty">
         <i class="fas fa-magnifying-glass" style="font-size:2.4rem; opacity:0.3; margin-bottom:12px;"></i>
-        <h5 style="font-weight:800; color:var(--docs-slate-800);">No matching topics found</h5>
-        <p style="font-size:0.85rem; margin-bottom:14px;">Try searching for different keywords like "baptism", "certificate", "camera", or "schedule".</p>
-        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetDocsSearch()">Clear Search</button>
+        <h5 style="font-weight:800; color:var(--usr-slate-900);">No matching topics found</h5>
+        <p style="font-size:0.9rem; margin-bottom:14px;">Try searching for simple words like "register", "ID", "baptism", "wedding", "status", or "pickup".</p>
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetUsrSearch()">Clear Search</button>
       </div>
 
       <!-- ================= MODULE 1 ================= -->
-      <section id="module1" class="docs-card">
-        <div class="docs-card-header">
-          <div class="docs-card-meta">
-            <div class="docs-card-icon icon-gold">
+      <section id="module1" class="usr-section-card">
+        <div class="usr-section-header">
+          <div class="usr-section-meta">
+            <div class="usr-section-icon icon-gold">
               <i class="fas fa-id-card"></i>
             </div>
             <div>
-              <h2 class="docs-card-title">Module 1: Registration &amp; ID Verification</h2>
-              <p class="docs-card-sub">Live camera capture, automated OCR extraction, and account activation</p>
+              <h2 class="usr-section-title">Module 1: How to Register &amp; Take an ID Photo</h2>
+              <p class="usr-section-sub">Create your account by taking a quick photo of your government ID</p>
             </div>
           </div>
-          <span class="docs-card-tag">Account Setup</span>
+          <span class="usr-section-tag">Account Setup</span>
         </div>
 
-        <p style="font-size:0.87rem; line-height:1.6;">
-          To safeguard the integrity of sacred canonical records and prevent identity theft, TUGON enforces a <strong>Live Camera Capture</strong> policy during registration. Uploading pre-saved gallery images is disabled to guarantee that the applicant is physically presenting an authentic government ID.
+        <p class="usr-intro-text">
+          To protect church records and keep our parish community safe, TUGON uses a live camera photo of your ID during registration. Follow these 5 easy steps to register your account.
         </p>
 
-        <!-- Steps List -->
-        <div class="docs-step-list">
-          <div class="docs-step-item">
-            <div class="docs-step-num">1</div>
-            <div class="docs-step-content">
-              <div class="docs-step-title">Allow Camera Permissions</div>
-              <p class="docs-step-desc">When prompted by your browser or smartphone, click <strong>Allow</strong> to grant camera access. The live viewfinder will activate on your screen.</p>
+        <!-- Visual Step Cards -->
+        <div class="step-cards-grid">
+          <div class="step-card">
+            <span class="step-badge">Step 1</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Allow Camera Access</div>
+              <p class="step-card-desc">
+                When you click Register, your browser or phone will ask to use your camera. Click <span class="action-badge action-badge-green"><i class="fas fa-video"></i> Allow</span> so the live camera opens.
+              </p>
             </div>
           </div>
 
-          <div class="docs-step-item">
-            <div class="docs-step-num">2</div>
-            <div class="docs-step-content">
-              <div class="docs-step-title">Position Your Government ID</div>
-              <p class="docs-step-desc">Place your Philippine Government ID (PhilSys National ID, Driver's License, UMID, Postal ID, Passport, PRC ID, or Voter's ID) flat inside the on-screen alignment frame. Ensure all text and the photo are clearly visible without glare or shadow.</p>
+          <div class="step-card">
+            <span class="step-badge">Step 2</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Position Your ID Inside the Frame</div>
+              <p class="step-card-desc">
+                Hold your Government ID (PhilSys National ID, Driver's License, UMID, Postal ID, Passport, PRC ID, or Voter's ID) flat inside the box on your screen. Make sure your name and photo are clearly visible.
+              </p>
             </div>
           </div>
 
-          <div class="docs-step-item">
-            <div class="docs-step-num">3</div>
-            <div class="docs-step-content">
-              <div class="docs-step-title">OCR Auto-Extraction</div>
-              <p class="docs-step-desc">Click <strong>Capture ID</strong>. The TUGON OCR engine will automatically scan the card and extract your Full Name, Date of Birth, Gender, Address, and ID Card Number directly into the form.</p>
+          <div class="step-card">
+            <span class="step-badge">Step 3</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Click Capture ID</div>
+              <p class="step-card-desc">
+                Press <span class="action-badge action-badge-blue"><i class="fas fa-camera"></i> Capture ID</span>. The system will read your ID card and automatically type your full name, birthdate, and address into the form.
+              </p>
             </div>
           </div>
 
-          <div class="docs-step-item">
-            <div class="docs-step-num">4</div>
-            <div class="docs-step-content">
-              <div class="docs-step-title">Review &amp; Correct Details</div>
-              <p class="docs-step-desc">Carefully check the auto-filled fields. You can refine any slight typos, add your active mobile number, and enter a secure password.</p>
+          <div class="step-card">
+            <span class="step-badge">Step 4</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Check Your Details &amp; Add Mobile Phone</div>
+              <p class="step-card-desc">
+                Review the information on screen. Fix any small spelling mistakes, enter your active mobile phone number, and choose a password for your account.
+              </p>
             </div>
           </div>
 
-          <div class="docs-step-item">
-            <div class="docs-step-num">5</div>
-            <div class="docs-step-content">
-              <div class="docs-step-title">Read Terms to Bottom &amp; Acknowledge</div>
-              <p class="docs-step-desc">Scroll the Terms and Conditions box all the way to the very bottom. Once the scroll position reaches the bottom, the <em>"I accept and acknowledge the Terms"</em> checkbox unlocks for checking.</p>
+          <div class="step-card">
+            <span class="step-badge">Step 5</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Accept Terms &amp; Create Account</div>
+              <p class="step-card-desc">
+                Scroll the Terms &amp; Conditions box all the way to the bottom. Click the checkbox to agree, then press <span class="action-badge action-badge-green">Create Account</span>. You're done!
+              </p>
             </div>
           </div>
         </div>
 
-        <div class="callout callout-warning">
-          <i class="fas fa-exclamation-triangle"></i>
+        <!-- Tip Box -->
+        <div class="callout-box callout-tip">
+          <i class="fas fa-lightbulb"></i>
           <div>
-            <strong>Camera &amp; Lighting Tips:</strong>
-            Avoid direct overhead fluorescent bulbs or reflections on laminated ID cards. Place the card on a dark, flat surface with gentle natural lighting for optimal OCR scan accuracy.
-          </div>
-        </div>
-
-        <!-- Accordion for Troubleshooting -->
-        <div class="docs-accordion-item">
-          <button type="button" class="docs-accordion-btn">
-            <span><i class="fas fa-video-slash" style="margin-right:8px; color:var(--docs-rose);"></i> Camera Permission Denied or Stuck on Loading?</span>
-            <i class="fas fa-chevron-down"></i>
-          </button>
-          <div class="docs-accordion-body">
-            <ul class="docs-checklist">
-              <li><strong>On Google Chrome (Desktop):</strong> Click the padlock or settings icon on the left side of the address bar, toggle <em>Camera</em> to <strong>Allow</strong>, and refresh the page.</li>
-              <li><strong>On Safari / iOS:</strong> Go to <em>Settings &gt; Safari &gt; Camera</em> and choose <strong>Allow</strong>. Ensure your device is not in Low Power Mode that suspends media streams.</li>
-              <li><strong>On Android:</strong> Tap the lock icon in the URL bar, go to <em>Permissions &gt; Camera</em>, select <strong>Allow</strong>, and reload.</li>
-            </ul>
+            <strong>Photo Tip:</strong>
+            Place your ID flat on a table in a well-lit room. Avoid glare or strong light bouncing directly off the plastic card so the system can read your name clearly.
           </div>
         </div>
       </section>
 
       <!-- ================= MODULE 2 ================= -->
-      <section id="module2" class="docs-card">
-        <div class="docs-card-header">
-          <div class="docs-card-meta">
-            <div class="docs-card-icon icon-teal">
-              <i class="fas fa-user-gear"></i>
+      <section id="module2" class="usr-section-card">
+        <div class="usr-section-header">
+          <div class="usr-section-meta">
+            <div class="usr-section-icon icon-teal">
+              <i class="fas fa-user-pen"></i>
             </div>
             <div>
-              <h2 class="docs-card-title">Module 2: Managing Your Profile</h2>
-              <p class="docs-card-sub">Updating contact info, profile photos, and account security</p>
+              <h2 class="usr-section-title">Module 2: How to Update Your Profile &amp; Password</h2>
+              <p class="usr-section-sub">Change your profile picture, update your phone number, or change your password</p>
             </div>
           </div>
-          <span class="docs-card-tag">Profile &amp; Settings</span>
+          <span class="usr-section-tag">Profile Settings</span>
         </div>
 
-        <p style="font-size:0.87rem; line-height:1.6;">
-          Your parishioner profile maintains your verified contact channels. Keeping your mobile phone and email address current guarantees you receive instant SMS alerts and notifications whenever your requests are updated.
+        <p class="usr-intro-text">
+          Keep your contact information up to date so you never miss important church announcements, ceremony reminders, or pickup alerts.
         </p>
 
-        <div class="docs-step-list">
-          <div class="docs-step-item">
-            <div class="docs-step-num"><i class="fas fa-camera"></i></div>
-            <div class="docs-step-content">
-              <div class="docs-step-title">Profile Picture Avatar</div>
-              <p class="docs-step-desc">Navigate to <a href="<?php echo BASE_URL; ?>auth/profile.php">Profile Settings</a>. Click the camera badge over your avatar to upload a clean portrait photo (PNG or JPG, max 5MB). This image helps parish staff verify identity upon office visits.</p>
+        <!-- Visual Step Cards -->
+        <div class="step-cards-grid">
+          <div class="step-card">
+            <span class="step-badge">Step 1</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Upload a Profile Picture</div>
+              <p class="step-card-desc">
+                Go to <a href="<?php echo BASE_URL; ?>auth/profile.php"><strong>Profile Settings</strong></a>. Click the camera icon on your avatar to upload a friendly photo of yourself.
+              </p>
             </div>
           </div>
 
-          <div class="docs-step-item">
-            <div class="docs-step-num"><i class="fas fa-envelope"></i></div>
-            <div class="docs-step-content">
-              <div class="docs-step-title">Contact &amp; Address Updates</div>
-              <p class="docs-step-desc">Keep your 11-digit mobile number (e.g. <code>0917XXXXXXX</code>) and residential address updated. Critical SMS delivery notifications and schedule reminders are sent directly to this number.</p>
+          <div class="step-card">
+            <span class="step-badge">Step 2</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Update Your Phone and Address</div>
+              <p class="step-card-desc">
+                Enter your current 11-digit cellphone number (e.g., <code>09171234567</code>) and home address. Click <span class="action-badge action-badge-green">Save Profile</span>.
+              </p>
             </div>
           </div>
 
-          <div class="docs-step-item">
-            <div class="docs-step-num"><i class="fas fa-lock"></i></div>
-            <div class="docs-step-content">
-              <div class="docs-step-title">Changing Your Password</div>
-              <p class="docs-step-desc">Go to the Security tab in your profile. Provide your current password, followed by your new password (minimum 8 characters with letters, numbers, and symbols). Never share your password with anyone.</p>
+          <div class="step-card">
+            <span class="step-badge">Step 3</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Change Your Password</div>
+              <p class="step-card-desc">
+                Click the <strong>Security</strong> tab. Type your old password, then type your new password twice. Click <span class="action-badge action-badge-blue">Update Password</span>.
+              </p>
             </div>
-          </div>
-        </div>
-
-        <div class="callout callout-tip">
-          <i class="fas fa-shield-halved"></i>
-          <div>
-            <strong>Parishioner Verification Badge:</strong>
-            Accounts displaying a green <code><i class="fas fa-circle-check"></i> Verified</code> badge have been authenticated against official registry archives by parish administration.
           </div>
         </div>
       </section>
 
       <!-- ================= MODULE 3 ================= -->
-      <section id="module3" class="docs-card">
-        <div class="docs-card-header">
-          <div class="docs-card-meta">
-            <div class="docs-card-icon icon-blue">
+      <section id="module3" class="usr-section-card">
+        <div class="usr-section-header">
+          <div class="usr-section-meta">
+            <div class="usr-section-icon icon-blue">
               <i class="fas fa-certificate"></i>
             </div>
             <div>
-              <h2 class="docs-card-title">Module 3: Requesting Sacramental Certificates</h2>
-              <p class="docs-card-sub">Applying for official certificates with anti-spam protection rules</p>
+              <h2 class="usr-section-title">Module 3: How to Request a Church Certificate</h2>
+              <p class="usr-section-sub">Apply for official Baptism, Confirmation, First Communion, or Marriage certificates</p>
             </div>
           </div>
-          <span class="docs-card-tag">Certificates</span>
+          <span class="usr-section-tag">Certificates</span>
         </div>
 
-        <p style="font-size:0.87rem; line-height:1.6;">
-          Parishioners can request official canonical copies of <strong>Baptismal</strong>, <strong>Confirmation</strong>, <strong>First Communion</strong>, and <strong>Marriage</strong> certificates directly through the system without waiting in long parish office lines.
+        <p class="usr-intro-text">
+          Need an official church certificate for school enrollment, a wedding requirement, or sponsor duties? You can request it right from your phone or computer.
         </p>
 
-        <!-- Steps List -->
-        <div class="docs-step-list">
-          <div class="docs-step-item">
-            <div class="docs-step-num">1</div>
-            <div class="docs-step-content">
-              <div class="docs-step-title">Select Certificate Type</div>
-              <p class="docs-step-desc">Go to <a href="<?php echo BASE_URL; ?>users/request-certificate.php">Request Certificate</a>. Choose the sacrament for which you need official documentation.</p>
+        <!-- Visual Step Cards -->
+        <div class="step-cards-grid">
+          <div class="step-card">
+            <span class="step-badge">Step 1</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Go to Request Certificate</div>
+              <p class="step-card-desc">
+                Click <a href="<?php echo BASE_URL; ?>users/request-certificate.php"><strong>Request Certificate</strong></a> in the menu.
+              </p>
             </div>
           </div>
 
-          <div class="docs-step-item">
-            <div class="docs-step-num">2</div>
-            <div class="docs-step-content">
-              <div class="docs-step-title">State the Purpose of Request</div>
-              <p class="docs-step-desc">Select or specify the canonical purpose (e.g., School Requirement, Marriage License / Pre-Cana, Confirmation Sponsor, Passport / DFA, Employment, or Personal Archive).</p>
+          <div class="step-card">
+            <span class="step-badge">Step 2</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Pick the Certificate You Need</div>
+              <p class="step-card-desc">
+                Select your sacrament:
+                <span class="action-badge action-badge-blue">Baptismal Certificate</span>,
+                <span class="action-badge action-badge-amber">Confirmation Certificate</span>,
+                <span class="action-badge action-badge-green">Marriage Certificate</span>, or
+                <span class="action-badge action-badge-purple">First Communion</span>.
+              </p>
             </div>
           </div>
 
-          <div class="docs-step-item">
-            <div class="docs-step-num">3</div>
-            <div class="docs-step-content">
-              <div class="docs-step-title">Provide Approximate Date &amp; Details</div>
-              <p class="docs-step-desc">Enter the approximate year of the sacrament, the officiating priest (if remembered), and parent names. This allows the archivist to quickly pull up the Book and Page number from the registry archives.</p>
+          <div class="step-card">
+            <span class="step-badge">Step 3</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Select the Reason for Request</div>
+              <p class="step-card-desc">
+                Choose why you need the certificate (e.g., <em>School Requirement</em>, <em>Marriage Requirement</em>, <em>Sponsor / Godparent</em>, or <em>Personal Copy</em>).
+              </p>
             </div>
           </div>
 
-          <div class="docs-step-item">
-            <div class="docs-step-num">4</div>
-            <div class="docs-step-content">
-              <div class="docs-step-title">Upload Supporting Documents</div>
-              <p class="docs-step-desc">Attach a legible photo of your PSA Birth Certificate or valid government ID to verify parentage and identity.</p>
+          <div class="step-card">
+            <span class="step-badge">Step 4</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Enter Details &amp; Upload Requirements</div>
+              <p class="step-card-desc">
+                Type the approximate year of the sacrament and your parents' names. Attach a clear photo of your PSA Birth Certificate or valid ID, then click <span class="action-badge action-badge-green">Send Request</span>.
+              </p>
             </div>
           </div>
         </div>
 
-        <!-- Anti-Spam Policy Warning Box -->
-        <div class="callout callout-danger">
+        <!-- Warning Callout (Anti-Duplicate Rule) -->
+        <div class="callout-box callout-danger">
           <i class="fas fa-shield-xmark"></i>
           <div>
-            <strong>Strict Anti-Spam Duplicate Rule:</strong><br>
-            To prevent system backlog and redundant archival searches, <strong>duplicate requests for the same person and certificate type cannot be submitted</strong> while an earlier request remains in <code>Pending</code> or <code>In Processing</code> status. Please wait for the current request to be completed or released before filing another one.
+            <strong>Important Rule (No Duplicate Requests):</strong>
+            You cannot submit a second request for the same person while an earlier request is still pending or being processed. Please wait for the current request to be completed before making another one.
           </div>
         </div>
       </section>
 
       <!-- ================= MODULE 4 ================= -->
-      <section id="module4" class="docs-card">
-        <div class="docs-card-header">
-          <div class="docs-card-meta">
-            <div class="docs-card-icon icon-green">
+      <section id="module4" class="usr-section-card">
+        <div class="usr-section-header">
+          <div class="usr-section-meta">
+            <div class="usr-section-icon icon-green">
               <i class="fas fa-church"></i>
             </div>
             <div>
-              <h2 class="docs-card-title">Module 4: Booking Sacramental Services</h2>
-              <p class="docs-card-sub">Pre-Baptismal &amp; Pre-Nuptial investigation sheets and automated calendar scheduling</p>
+              <h2 class="usr-section-title">Module 4: How to Book a Church Service (Baptism, Wedding, Funeral)</h2>
+              <p class="usr-section-sub">Fill out the simple form and pick an available date and time on the calendar</p>
             </div>
           </div>
-          <span class="docs-card-tag">Sacraments &amp; Liturgy</span>
+          <span class="usr-section-tag">Services &amp; Calendar</span>
         </div>
 
-        <p style="font-size:0.87rem; line-height:1.6;">
-          Booking services such as <strong>Baptism</strong>, <strong>Weddings (Matrimony)</strong>, and <strong>Funeral Masses / Blessings</strong> requires filling out formal canonical investigation sheets and locking in ceremony times on the parish master schedule.
+        <p class="usr-intro-text">
+          Follow these steps to schedule a sacred ceremony at our parish with real-time calendar availability.
         </p>
 
-        <!-- Subsections -->
-        <div class="docs-accordion-item">
-          <button type="button" class="docs-accordion-btn">
-            <span><i class="fas fa-water" style="margin-right:8px; color:var(--docs-gold);"></i> 1. Holy Baptism Booking Workflow</span>
-            <i class="fas fa-chevron-down"></i>
-          </button>
-          <div class="docs-accordion-body">
-            <p><strong>Required Information &amp; Documents:</strong></p>
-            <ul class="docs-checklist">
-              <li><strong>Child's Details:</strong> Full legal name, date and place of birth as stated on PSA Birth Certificate.</li>
-              <li><strong>Parents' Information:</strong> Father and Mother's maiden name, residence, and marriage status (Church or Civil).</li>
-              <li><strong>Sponsors (Ninong &amp; Ninang):</strong> At least one practicing Catholic sponsor who has received Confirmation.</li>
-              <li><strong>Document Upload:</strong> PSA Birth Certificate and Marriage Certificate of parents (if married).</li>
-              <li><strong>Pre-Jordan Seminar:</strong> Parents and primary godparents must attend the required catechetical seminar before the ceremony.</li>
-            </ul>
+        <!-- Visual Step Cards -->
+        <div class="step-cards-grid">
+          <div class="step-card">
+            <span class="step-badge">Step 1</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Go to Book Service</div>
+              <p class="step-card-desc">
+                Click <a href="<?php echo BASE_URL; ?>users/request-service.php"><strong>Sacramental Services</strong></a> (or <em>Blessings</em>) in the menu. Choose whether you want to book a <strong>Baptism</strong>, <strong>Wedding</strong>, <strong>Funeral Mass</strong>, or <strong>Blessing</strong>.
+              </p>
+            </div>
+          </div>
+
+          <div class="step-card">
+            <span class="step-badge">Step 2</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Fill Out the Information Form</div>
+              <p class="step-card-desc">
+                Enter the names of the child/couple, parent details, and chosen godparents (ninong/ninang). Upload your PSA Birth Certificate or Marriage Certificate.
+              </p>
+            </div>
+          </div>
+
+          <div class="step-card">
+            <span class="step-badge">Step 3</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Choose Your Ceremony Date and Time Slot</div>
+              <p class="step-card-desc">
+                Select your preferred date from the calendar. The system will show you only available time slots. Click <span class="action-badge action-badge-green">Submit Booking</span>.
+              </p>
+            </div>
           </div>
         </div>
 
-        <div class="docs-accordion-item">
-          <button type="button" class="docs-accordion-btn">
-            <span><i class="fas fa-rings-wedding" style="margin-right:8px; color:var(--docs-teal);"></i> 2. Holy Matrimony (Wedding) Booking Workflow</span>
-            <i class="fas fa-chevron-down"></i>
-          </button>
-          <div class="docs-accordion-body">
-            <p><strong>Canonical Investigation Requirements:</strong></p>
-            <ul class="docs-checklist">
-              <li><strong>Groom &amp; Bride Profiles:</strong> Complete legal background, religious affiliation, and canonical freedom to marry.</li>
-              <li><strong>Documents:</strong> Recently issued PSA Birth Certificate, Certificate of No Marriage (CENOMAR), and Baptismal/Confirmation Certificates marked <em>"For Marriage Purposes"</em> (valid within 6 months).</li>
-              <li><strong>Canonical Interview &amp; Pre-Cana:</strong> Both parties must complete the Pre-Nuptial interview with the Parish Priest and the Pre-Cana seminar.</li>
-            </ul>
-          </div>
-        </div>
-
-        <!-- Calendar Locking Callout -->
-        <div class="callout callout-info">
+        <!-- Real-Time Slot Locking Callout -->
+        <div class="callout-box callout-note">
           <i class="fas fa-calendar-check"></i>
           <div>
-            <strong>Real-Time Calendar Synchronization &amp; Slot Locking:</strong><br>
-            The scheduling dropdown connects directly to the parish master calendar. <strong>Dates and times that are already occupied by existing liturgies, masses, or previously confirmed services will be automatically disabled</strong>. Once your booking is approved by the parish office, your time slot is officially locked into the parish master schedule.
+            <strong>Calendar Slot Protection:</strong>
+            Our calendar is directly linked to the parish schedule. Any date or time slot that is already reserved by another church service is automatically blocked so no two events are ever double-booked. Once the church office approves your booking, your slot is officially locked!
           </div>
         </div>
       </section>
 
       <!-- ================= MODULE 5 ================= -->
-      <section id="module5" class="docs-card">
-        <div class="docs-card-header">
-          <div class="docs-card-meta">
-            <div class="docs-card-icon icon-amber">
+      <section id="module5" class="usr-section-card">
+        <div class="usr-section-header">
+          <div class="usr-section-meta">
+            <div class="usr-section-icon icon-amber">
               <i class="fas fa-route"></i>
             </div>
             <div>
-              <h2 class="docs-card-title">Module 5: Tracking &amp; Notifications</h2>
-              <p class="docs-card-sub">Tracking request status timelines and claiming completed documents</p>
+              <h2 class="usr-section-title">Module 5: How to Track Your Request &amp; Pick Up Documents</h2>
+              <p class="usr-section-sub">Monitor live status progress and know what to bring to the parish office</p>
             </div>
           </div>
-          <span class="docs-card-tag">Monitoring</span>
+          <span class="usr-section-tag">Track &amp; Claim</span>
         </div>
 
-        <p style="font-size:0.87rem; line-height:1.6;">
-          You can monitor every request in real time on the <a href="<?php echo BASE_URL; ?>users/my-requests.php">Track Requests</a> dashboard. Whenever the parish staff updates your request, an instant notification is dispatched.
+        <p class="usr-intro-text">
+          You never have to guess whether your request is ready. You can check its progress anytime from your account.
         </p>
 
-        <!-- Status Lifecycle -->
-        <div class="docs-step-list">
-          <div class="docs-step-item">
-            <div class="docs-step-num"><i class="fas fa-paper-plane"></i></div>
-            <div class="docs-step-content">
-              <div class="docs-step-title"><span class="docs-badge docs-badge-gold">Submitted / Pending</span></div>
-              <p class="docs-step-desc">Your request is queued for parish administrative review. A tracking number (e.g. <code>REQ-2026-0042</code>) has been assigned.</p>
+        <!-- Visual Step Cards -->
+        <div class="step-cards-grid">
+          <div class="step-card">
+            <span class="step-badge">Step 1</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Click Track Requests</div>
+              <p class="step-card-desc">
+                Go to <a href="<?php echo BASE_URL; ?>users/my-requests.php"><strong>Track Requests</strong></a> in the sidebar menu.
+              </p>
             </div>
           </div>
 
-          <div class="docs-step-item">
-            <div class="docs-step-num"><i class="fas fa-magnifying-glass"></i></div>
-            <div class="docs-step-content">
-              <div class="docs-step-title"><span class="docs-badge docs-badge-blue">Requirements Review</span></div>
-              <p class="docs-step-desc">Parish staff is validating your uploaded documents against physical baptismal or marriage books in the archive vault.</p>
+          <div class="step-card">
+            <span class="step-badge">Step 2</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Understand Your Request Status</div>
+              <p class="step-card-desc">
+                &bull; <span class="action-badge action-badge-amber">Submitted / Pending</span>: We received your request and it is waiting for staff review.
+                <br>&bull; <span class="action-badge action-badge-blue">In Processing</span>: Church staff is checking the physical church record books and printing the certificate.
+                <br>&bull; <span class="action-badge action-badge-green">Ready for Pickup / Completed</span>: Your certificate is signed, sealed, and ready at the parish office!
+              </p>
             </div>
           </div>
 
-          <div class="docs-step-item">
-            <div class="docs-step-num"><i class="fas fa-spinner"></i></div>
-            <div class="docs-step-content">
-              <div class="docs-step-title"><span class="docs-badge docs-badge-blue">In Processing</span></div>
-              <p class="docs-step-desc">The record has been verified. The certificate is being encoded and prepared for formal pastoral signature and dry seal.</p>
-            </div>
-          </div>
-
-          <div class="docs-step-item">
-            <div class="docs-step-num"><i class="fas fa-check-double"></i></div>
-            <div class="docs-step-content">
-              <div class="docs-step-title"><span class="docs-badge docs-badge-green">Ready for Pickup / Completed</span></div>
-              <p class="docs-step-desc">Your document is signed, sealed, and ready for release at the Parish Office. You will receive an SMS and email with pickup instructions.</p>
+          <div class="step-card">
+            <span class="step-badge">Step 3</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Pick Up Your Certificate at the Parish Office</div>
+              <p class="step-card-desc">
+                Visit the parish office during open office hours. Bring your <strong>Tracking Code</strong> (e.g. <code>REQ-2026-0042</code>) and a <strong>valid ID</strong>.
+              </p>
             </div>
           </div>
         </div>
 
-        <div class="callout callout-tip">
-          <i class="fas fa-building-columns"></i>
+        <!-- Pickup Reminder Box -->
+        <div class="callout-box callout-tip">
+          <i class="fas fa-user-check"></i>
           <div>
-            <strong>What to Bring on Pickup Day:</strong>
-            1. Your valid Government ID.<br>
-            2. Tracking Code (e.g. <code>REQ-2026-0042</code>).<br>
-            3. If claiming via representative: Signed Authorization Letter and photocopy of both IDs.
+            <strong>Sending a Representative to Claim for You?</strong>
+            If you cannot visit personally, give your representative:
+            <ul style="margin: 4px 0 0; padding-left: 18px;">
+              <li>A short Authorization Letter signed by you.</li>
+              <li>A photocopy of your valid ID.</li>
+              <li>Their own original valid ID.</li>
+            </ul>
           </div>
         </div>
       </section>
 
       <!-- ================= MODULE 6 ================= -->
-      <section id="module6" class="docs-card">
-        <div class="docs-card-header">
-          <div class="docs-card-meta">
-            <div class="docs-card-icon icon-gold">
+      <section id="module6" class="usr-section-card">
+        <div class="usr-section-header">
+          <div class="usr-section-meta">
+            <div class="usr-section-icon icon-purple">
               <i class="fas fa-circle-question"></i>
             </div>
             <div>
-              <h2 class="docs-card-title">Module 6: Frequently Asked Questions (FAQ)</h2>
-              <p class="docs-card-sub">Quick answers to common questions about services and accounts</p>
+              <h2 class="usr-section-title">Module 6: Common Questions &amp; Answers (FAQ)</h2>
+              <p class="usr-section-sub">Quick answers to frequently asked parishioner questions</p>
             </div>
           </div>
-          <span class="docs-card-tag">Helpdesk</span>
+          <span class="usr-section-tag">Help &amp; Answers</span>
         </div>
 
-        <div class="docs-accordion-item">
-          <button type="button" class="docs-accordion-btn">
-            <span>How long does certificate processing take?</span>
+        <!-- Accordions -->
+        <div class="usr-accordion-item">
+          <button type="button" class="usr-accordion-btn">
+            <span>How long does it take to get my certificate?</span>
             <i class="fas fa-chevron-down"></i>
           </button>
-          <div class="docs-accordion-body">
-            Standard turnaround time is <strong>2 to 3 parish working days</strong>. Archival records requiring physical book retrieval from earlier decades may take up to 5 working days. You can track real-time progress on your <em>Track Requests</em> dashboard.
+          <div class="usr-accordion-body">
+            Standard processing takes <strong>2 to 3 parish office days</strong>. If the record is from many years ago, looking through the physical archive books may take up to 5 days. You will receive an SMS and email as soon as it is ready!
           </div>
         </div>
 
-        <div class="docs-accordion-item">
-          <button type="button" class="docs-accordion-btn">
-            <span>Can I reschedule a booked baptism or wedding?</span>
+        <div class="usr-accordion-item">
+          <button type="button" class="usr-accordion-btn">
+            <span>Can I change the date of a booked wedding or baptism?</span>
             <i class="fas fa-chevron-down"></i>
           </button>
-          <div class="docs-accordion-body">
-            Yes. Please contact or visit the Parish Office at least <strong>7 days before</strong> the ceremony date so the staff can adjust the calendar slot and verify priest availability.
+          <div class="usr-accordion-body">
+            Yes. Please contact or visit the parish office at least <strong>7 days before</strong> the ceremony so our staff can check priest availability and move your slot on the calendar.
           </div>
         </div>
 
-        <div class="docs-accordion-item">
-          <button type="button" class="docs-accordion-btn">
-            <span>Why is my account still in "Pending Verification"?</span>
+        <div class="usr-accordion-item">
+          <button type="button" class="usr-accordion-btn">
+            <span>Why does my account say "Pending Verification"?</span>
             <i class="fas fa-chevron-down"></i>
           </button>
-          <div class="docs-accordion-body">
-            Newly registered accounts undergo verification by parish administrators to confirm that the captured ID matches church census records. You can still submit requests while pending verification; requests will be processed once verified.
+          <div class="usr-accordion-body">
+            When you first sign up, church staff reviews your ID photo to confirm your profile. You can still submit requests while waiting. Once verified, a green <span class="action-badge action-badge-green"><i class="fas fa-circle-check"></i> Verified</span> badge will appear on your profile.
           </div>
         </div>
 
-        <div class="docs-accordion-item">
-          <button type="button" class="docs-accordion-btn">
-            <span>Can someone else claim my certificate for me?</span>
+        <div class="usr-accordion-item">
+          <button type="button" class="usr-accordion-btn">
+            <span>What if my phone camera will not turn on during registration?</span>
             <i class="fas fa-chevron-down"></i>
           </button>
-          <div class="docs-accordion-body">
-            Yes. Your representative must present: (1) an Authorization Letter signed by you, (2) a photocopy of your valid ID, and (3) their own original valid ID.
+          <div class="usr-accordion-body">
+            Check your browser settings (Chrome or Safari) and make sure Camera permissions are set to <strong>Allow</strong>. If your phone is in Low Power mode, turn it off and refresh the page.
           </div>
         </div>
       </section>
@@ -1045,13 +1085,12 @@ include '../includes/breadcrumb.php';
 (function () {
   'use strict';
 
-  // Quick search filter implementation
-  const searchInput = document.getElementById('docsSearchInput');
-  const searchClear = document.getElementById('docsSearchClear');
-  const emptyState  = document.getElementById('docsSearchEmpty');
-  const cards       = Array.from(document.querySelectorAll('.docs-card'));
+  const searchInput = document.getElementById('usrSearchInput');
+  const searchClear = document.getElementById('usrSearchClear');
+  const emptyState  = document.getElementById('usrSearchEmpty');
+  const cards       = Array.from(document.querySelectorAll('.usr-section-card'));
 
-  function doSearch() {
+  function doUsrSearch() {
     const q = (searchInput.value || '').trim().toLowerCase();
     searchClear.style.display = q ? 'block' : 'none';
 
@@ -1062,12 +1101,11 @@ include '../includes/breadcrumb.php';
         card.style.display = 'block';
         matchCount++;
 
-        // Auto-open accordions matching search query
         if (q) {
-          card.querySelectorAll('.docs-accordion-item').forEach(acc => {
+          card.querySelectorAll('.usr-accordion-item').forEach(acc => {
             const accText = acc.textContent.toLowerCase();
-            const btn = acc.querySelector('.docs-accordion-btn');
-            const body = acc.querySelector('.docs-accordion-body');
+            const btn = acc.querySelector('.usr-accordion-btn');
+            const body = acc.querySelector('.usr-accordion-body');
             if (accText.includes(q)) {
               btn?.classList.add('active');
               body?.classList.add('show');
@@ -1085,41 +1123,41 @@ include '../includes/breadcrumb.php';
   }
 
   if (searchInput) {
-    searchInput.addEventListener('input', doSearch);
+    searchInput.addEventListener('input', doUsrSearch);
   }
 
   if (searchClear) {
     searchClear.addEventListener('click', function () {
       searchInput.value = '';
-      doSearch();
+      doUsrSearch();
       searchInput.focus();
     });
   }
 
-  window.resetDocsSearch = function () {
+  window.resetUsrSearch = function () {
     if (searchInput) {
       searchInput.value = '';
-      doSearch();
+      doUsrSearch();
     }
   };
 
-  // Quick filter pills
-  document.querySelectorAll('.docs-pill').forEach(pill => {
+  // Quick pills scroll
+  document.querySelectorAll('.usr-pill').forEach(pill => {
     pill.addEventListener('click', function () {
       const targetId = this.getAttribute('data-target');
       const targetEl = document.querySelector(targetId);
       if (targetEl) {
         if (searchInput && searchInput.value) {
           searchInput.value = '';
-          doSearch();
+          doUsrSearch();
         }
         targetEl.scrollIntoView({ behavior: 'smooth' });
       }
     });
   });
 
-  // Accordion toggle mechanics
-  document.querySelectorAll('.docs-accordion-btn').forEach(btn => {
+  // Accordion toggle
+  document.querySelectorAll('.usr-accordion-btn').forEach(btn => {
     btn.addEventListener('click', function () {
       const body = this.nextElementSibling;
       this.classList.toggle('active');
@@ -1129,8 +1167,8 @@ include '../includes/breadcrumb.php';
     });
   });
 
-  // TOC active scrollspy highlight
-  const tocLinks = Array.from(document.querySelectorAll('.docs-toc-link'));
+  // TOC scrollspy
+  const tocLinks = Array.from(document.querySelectorAll('.usr-toc-link'));
   function onScroll() {
     const scrollPos = window.scrollY + 140;
     cards.forEach(card => {

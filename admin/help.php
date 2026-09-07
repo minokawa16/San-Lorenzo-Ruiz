@@ -1,8 +1,7 @@
 <?php
 /**
  * Admin Operational Manual & Documentation Guide (/admin/help.php)
- * Comprehensive operational manual for Parish Administrators explaining parishioner verification,
- * request approval workflows, automatic record generation, calendar scheduling, and analytics.
+ * Simple, plain-English step-by-step operational guide for Parish Administrators and Church Staff.
  */
 
 require_once '../includes/session.php';
@@ -27,60 +26,62 @@ include '../templates/header.php';
 <style>
 /* --------------------------------------------------------------------------
    ADMIN OPERATIONAL MANUAL STYLES
-   Palette: Forest Green (#2E3A2D), Gold (#C89B3C), Teal (#0d9488), Slate
+   Clean, easy-to-read typography and scannable visual step cards
+   Palette: Forest Green (#2E3A2D), Church Gold (#C89B3C), Slate, Teal
    -------------------------------------------------------------------------- */
 :root {
-  --adm-green:      #2E3A2D;
-  --adm-green-mid:  #3D5C3A;
-  --adm-green-dim:  rgba(46, 58, 45, 0.08);
-  --adm-gold:       #C89B3C;
-  --adm-gold-dim:   rgba(200, 155, 60, 0.12);
-  --adm-teal:       #0d9488;
-  --adm-teal-dim:   rgba(13, 148, 136, 0.10);
-  --adm-blue:       #2563eb;
-  --adm-blue-dim:   rgba(37, 99, 235, 0.10);
-  --adm-purple:     #7c3aed;
-  --adm-purple-dim: rgba(124, 58, 237, 0.10);
-  --adm-amber:      #d97706;
-  --adm-amber-dim:  rgba(217, 119, 6, 0.10);
-  --adm-rose:       #e11d48;
-  --adm-rose-dim:   rgba(225, 29, 72, 0.10);
-  --adm-slate-50:   #f8fafc;
-  --adm-slate-100:  #f1f5f9;
-  --adm-slate-200:  #e2e8f0;
-  --adm-slate-300:  #cbd5e1;
-  --adm-slate-600:  #475569;
-  --adm-slate-700:  #334155;
-  --adm-slate-800:  #1e293b;
-  --adm-radius:     14px;
-  --adm-shadow-sm:  0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-  --adm-shadow-md:  0 4px 14px rgba(0,0,0,0.07), 0 2px 5px rgba(0,0,0,0.03);
+  --adm-green:       #2E3A2D;
+  --adm-green-mid:   #3D5C3A;
+  --adm-green-light: #ebf3ec;
+  --adm-gold:        #C89B3C;
+  --adm-gold-light:  #fdf8ec;
+  --adm-teal:        #0d9488;
+  --adm-teal-light:  #f0fdfa;
+  --adm-blue:        #2563eb;
+  --adm-blue-light:  #eff6ff;
+  --adm-purple:      #7c3aed;
+  --adm-purple-light:#f5f3ff;
+  --adm-amber:       #d97706;
+  --adm-amber-light: #fffbeb;
+  --adm-rose:        #e11d48;
+  --adm-rose-light:  #fff1f2;
+  --adm-slate-50:    #f8fafc;
+  --adm-slate-100:   #f1f5f9;
+  --adm-slate-200:   #e2e8f0;
+  --adm-slate-300:   #cbd5e1;
+  --adm-slate-600:   #475569;
+  --adm-slate-700:   #334155;
+  --adm-slate-800:   #1e293b;
+  --adm-slate-900:   #0f172a;
+  --adm-radius:      14px;
 }
 
-.adm-docs-wrap {
-  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  color: var(--adm-slate-700);
-  padding-bottom: 50px;
+.adm-manual-wrap {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: var(--adm-slate-800);
+  font-size: 0.94rem;
+  line-height: 1.65;
+  padding-bottom: 60px;
 }
 
 /* --- Hero Banner --- */
 .adm-hero {
-  background: linear-gradient(135deg, #1e293b 0%, #2E3A2D 60%, #152219 100%);
+  background: linear-gradient(135deg, #1e293b 0%, #2E3A2D 60%, #172a1e 100%);
   border-radius: var(--adm-radius);
-  padding: 32px 36px;
+  padding: 34px 38px;
   color: #ffffff;
   margin-bottom: 28px;
   position: relative;
   overflow: hidden;
-  box-shadow: var(--adm-shadow-md);
+  box-shadow: 0 4px 18px rgba(0,0,0,0.08);
 }
 .adm-hero::after {
   content: '';
   position: absolute;
   top: -40px;
   right: -40px;
-  width: 280px;
-  height: 280px;
+  width: 260px;
+  height: 260px;
   background: radial-gradient(circle, rgba(200,155,60,0.22) 0%, rgba(200,155,60,0) 70%);
   pointer-events: none;
 }
@@ -100,16 +101,16 @@ include '../templates/header.php';
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  padding: 4px 10px;
+  padding: 4px 12px;
   border-radius: 20px;
   vertical-align: middle;
 }
 .adm-hero-sub {
-  font-size: 0.92rem;
-  color: rgba(255,255,255,0.85);
+  font-size: 0.95rem;
+  color: rgba(255,255,255,0.88);
   max-width: 720px;
   margin-bottom: 22px;
-  line-height: 1.5;
+  line-height: 1.55;
 }
 
 /* Search bar */
@@ -122,11 +123,11 @@ include '../templates/header.php';
   padding: 13px 44px 13px 46px;
   border-radius: 12px;
   border: 1.5px solid rgba(255,255,255,0.18);
-  background: rgba(255,255,255,0.95);
-  font-size: 0.92rem;
-  color: var(--adm-slate-800);
+  background: rgba(255,255,255,0.98);
+  font-size: 0.93rem;
+  color: var(--adm-slate-900);
   outline: none;
-  box-shadow: 0 4px 18px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 18px rgba(0,0,0,0.12);
   transition: all 0.2s ease;
 }
 .adm-search-input:focus {
@@ -163,15 +164,14 @@ include '../templates/header.php';
 }
 .adm-pill {
   background: rgba(255,255,255,0.12);
-  color: #fff;
-  border: 1px solid rgba(255,255,255,0.16);
-  padding: 4px 12px;
+  color: #ffffff;
+  border: 1px solid rgba(255,255,255,0.18);
+  padding: 5px 13px;
   border-radius: 20px;
-  font-size: 0.76rem;
+  font-size: 0.78rem;
   font-weight: 600;
-  text-decoration: none;
-  transition: all 0.15s;
   cursor: pointer;
+  transition: all 0.15s;
 }
 .adm-pill:hover {
   background: var(--adm-gold);
@@ -192,21 +192,21 @@ include '../templates/header.php';
   }
 }
 
-/* --- Left TOC Column --- */
+/* --- Left TOC Card --- */
 .adm-toc-card {
   background: #ffffff;
   border: 1px solid var(--adm-slate-200);
   border-radius: var(--adm-radius);
-  padding: 18px 16px;
-  box-shadow: var(--adm-shadow-sm);
+  padding: 20px 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   position: sticky;
-  top: 90px;
-  max-height: calc(100vh - 110px);
+  top: 86px;
+  max-height: calc(100vh - 100px);
   overflow-y: auto;
   scrollbar-width: thin;
 }
 .adm-toc-header {
-  font-size: 0.72rem;
+  font-size: 0.74rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -230,9 +230,9 @@ include '../templates/header.php';
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 12px;
+  padding: 9px 12px;
   border-radius: 8px;
-  font-size: 0.82rem;
+  font-size: 0.84rem;
   font-weight: 600;
   color: var(--adm-slate-700);
   text-decoration: none;
@@ -241,7 +241,7 @@ include '../templates/header.php';
 .adm-toc-link i {
   width: 18px;
   text-align: center;
-  font-size: 0.88rem;
+  font-size: 0.9rem;
   color: var(--adm-slate-600);
   flex-shrink: 0;
 }
@@ -250,7 +250,7 @@ include '../templates/header.php';
   color: var(--adm-green);
 }
 .adm-toc-link.active {
-  background: var(--adm-green-dim);
+  background: var(--adm-green-light);
   color: var(--adm-green);
   font-weight: 700;
   border-left: 3px solid var(--adm-green);
@@ -268,9 +268,9 @@ include '../templates/header.php';
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: 8px 12px;
+  padding: 9px 12px;
   border-radius: 8px;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-weight: 600;
   background: var(--adm-slate-50);
   border: 1px solid var(--adm-slate-200);
@@ -280,180 +280,245 @@ include '../templates/header.php';
   transition: all 0.15s;
 }
 .adm-shortcut-btn:hover {
-  background: var(--adm-gold-dim);
+  background: var(--adm-gold-light);
   border-color: var(--adm-gold);
   color: var(--adm-green);
 }
 
-/* --- Content Cards --- */
-.adm-card {
+/* --- Content Section Cards --- */
+.adm-section-card {
   background: #ffffff;
   border: 1px solid var(--adm-slate-200);
   border-radius: var(--adm-radius);
-  padding: 28px 32px;
-  margin-bottom: 24px;
-  box-shadow: var(--adm-shadow-sm);
-  transition: box-shadow 0.2s;
-  scroll-margin-top: 90px;
+  padding: 30px 34px;
+  margin-bottom: 26px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  scroll-margin-top: 86px;
 }
-.adm-card:hover {
-  box-shadow: var(--adm-shadow-md);
-}
-.adm-card-header {
+.adm-section-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
   border-bottom: 1.5px solid var(--adm-slate-100);
   padding-bottom: 16px;
-  margin-bottom: 20px;
+  margin-bottom: 22px;
 }
-.adm-card-meta {
+.adm-section-meta {
   display: flex;
   align-items: center;
   gap: 14px;
 }
-.adm-card-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
+.adm-section-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.15rem;
+  font-size: 1.25rem;
   flex-shrink: 0;
 }
-.icon-green  { background: var(--adm-green-dim);  color: var(--adm-green); }
-.icon-gold   { background: var(--adm-gold-dim);   color: var(--adm-gold); }
-.icon-teal   { background: var(--adm-teal-dim);   color: var(--adm-teal); }
-.icon-blue   { background: var(--adm-blue-dim);   color: var(--adm-blue); }
-.icon-purple { background: var(--adm-purple-dim); color: var(--adm-purple); }
-.icon-amber  { background: var(--adm-amber-dim);  color: var(--adm-amber); }
+.icon-gold   { background: var(--adm-gold-light);   color: var(--adm-gold);   border: 1px solid rgba(200,155,60,0.25); }
+.icon-blue   { background: var(--adm-blue-light);   color: var(--adm-blue);   border: 1px solid rgba(37,99,235,0.20); }
+.icon-green  { background: var(--adm-green-light);  color: var(--adm-green);  border: 1px solid rgba(46,58,45,0.20); }
+.icon-teal   { background: var(--adm-teal-light);   color: var(--adm-teal);   border: 1px solid rgba(13,148,136,0.20); }
+.icon-purple { background: var(--adm-purple-light); color: var(--adm-purple); border: 1px solid rgba(124,58,237,0.20); }
+.icon-amber  { background: var(--adm-amber-light);  color: var(--adm-amber);  border: 1px solid rgba(217,119,6,0.20); }
 
-.adm-card-title {
-  font-size: 1.25rem;
+.adm-section-title {
+  font-size: 1.28rem;
   font-weight: 800;
-  color: var(--adm-slate-800);
-  margin: 0 0 2px;
+  color: var(--adm-slate-900);
+  margin: 0 0 3px;
   letter-spacing: -0.01em;
 }
-.adm-card-sub {
-  font-size: 0.8rem;
+.adm-section-sub {
+  font-size: 0.85rem;
   color: var(--adm-slate-600);
   margin: 0;
 }
-.adm-card-tag {
-  font-size: 0.68rem;
+.adm-section-tag {
+  font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  padding: 3px 10px;
+  padding: 4px 11px;
   border-radius: 20px;
   background: var(--adm-slate-100);
-  color: var(--adm-slate-600);
+  color: var(--adm-slate-700);
+  white-space: nowrap;
 }
 
-/* Step lists */
-.adm-step-list {
+.adm-intro-text {
+  font-size: 0.94rem;
+  line-height: 1.65;
+  color: var(--adm-slate-700);
+  margin-bottom: 20px;
+}
+
+/* --- Visual Step Cards (Clean, High-Contrast) --- */
+.step-cards-grid {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  margin: 18px 0;
+  gap: 14px;
+  margin: 20px 0;
 }
-.adm-step-item {
+.step-card {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 18px 20px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1.5px solid var(--adm-slate-200);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  transition: all 0.15s ease-in-out;
+}
+.step-card:hover {
+  border-color: var(--adm-gold);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+.step-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--adm-green);
+  color: #ffffff;
+  font-size: 0.76rem;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.step-card-body {
+  flex: 1;
+}
+.step-card-title {
+  font-size: 0.96rem;
+  font-weight: 800;
+  color: var(--adm-slate-900);
+  margin-bottom: 4px;
+}
+.step-card-desc {
+  font-size: 0.9rem;
+  color: var(--adm-slate-700);
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* --- Action Badges (Highlight Key UI Buttons & Tabs) --- */
+.action-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+.action-badge-amber {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fde68a;
+}
+.action-badge-green {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #bbf7d0;
+}
+.action-badge-blue {
+  background: #dbeafe;
+  color: #1e40af;
+  border-color: #bfdbfe;
+}
+.action-badge-purple {
+  background: #f3e8ff;
+  color: #6b21a8;
+  border-color: #e9d5ff;
+}
+.action-badge-red {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+.action-badge-slate {
+  background: #f1f5f9;
+  color: #334155;
+  border-color: #e2e8f0;
+}
+
+/* --- Visual Callout Boxes --- */
+.callout-box {
+  padding: 16px 20px;
+  border-radius: 12px;
+  margin: 20px 0;
   display: flex;
   gap: 14px;
   align-items: flex-start;
-  padding: 14px 16px;
-  border-radius: 10px;
-  background: var(--adm-slate-50);
-  border: 1px solid var(--adm-slate-200);
+  font-size: 0.89rem;
+  line-height: 1.6;
 }
-.adm-step-num {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--adm-green);
-  color: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.82rem;
-  font-weight: 800;
+.callout-box i {
+  font-size: 1.15rem;
+  margin-top: 3px;
   flex-shrink: 0;
-  margin-top: 1px;
 }
-.adm-step-content {
-  flex: 1;
-}
-.adm-step-title {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--adm-slate-800);
+.callout-box strong {
+  display: block;
   margin-bottom: 3px;
-}
-.adm-step-desc {
-  font-size: 0.83rem;
-  color: var(--adm-slate-600);
-  margin: 0;
-  line-height: 1.5;
-}
-
-/* Callouts */
-.callout {
-  padding: 14px 18px;
-  border-radius: 10px;
-  margin: 16px 0;
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  font-size: 0.84rem;
-  line-height: 1.5;
-}
-.callout i {
-  font-size: 1.05rem;
-  margin-top: 2px;
-  flex-shrink: 0;
-}
-.callout-info {
-  background: #eff6ff;
-  border-left: 4px solid #3b82f6;
-  color: #1e40af;
-}
-.callout-warning {
-  background: #fffbeb;
-  border-left: 4px solid #f59e0b;
-  color: #92400e;
+  font-size: 0.92rem;
 }
 .callout-tip {
   background: #f0fdf4;
-  border-left: 4px solid #10b981;
-  color: #166534;
+  border: 1.5px solid #bbf7d0;
+  border-left: 5px solid #16a34a;
+  color: #14532d;
+}
+.callout-note {
+  background: #eff6ff;
+  border: 1.5px solid #bfdbfe;
+  border-left: 5px solid #2563eb;
+  color: #1e3a8a;
+}
+.callout-warning {
+  background: #fffbeb;
+  border: 1.5px solid #fde68a;
+  border-left: 5px solid #d97706;
+  color: #78350f;
 }
 .callout-purple {
   background: #faf5ff;
-  border-left: 4px solid #8b5cf6;
-  color: #5b21b6;
+  border: 1.5px solid #e9d5ff;
+  border-left: 5px solid #7c3aed;
+  color: #4c1d95;
 }
 
-/* Accordions */
+/* --- Accordions --- */
 .adm-accordion-item {
-  border: 1px solid var(--adm-slate-200);
+  border: 1.5px solid var(--adm-slate-200);
   border-radius: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   overflow: hidden;
+  background: #ffffff;
 }
 .adm-accordion-btn {
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 18px;
-  background: #fff;
+  padding: 15px 20px;
+  background: #ffffff;
   border: none;
-  font-size: 0.87rem;
+  font-size: 0.92rem;
   font-weight: 700;
-  color: var(--adm-slate-800);
+  color: var(--adm-slate-900);
   cursor: pointer;
   text-align: left;
   transition: background 0.15s;
@@ -463,7 +528,7 @@ include '../templates/header.php';
 }
 .adm-accordion-btn i.fa-chevron-down {
   transition: transform 0.2s;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   color: var(--adm-slate-600);
 }
 .adm-accordion-btn.active i.fa-chevron-down {
@@ -471,79 +536,30 @@ include '../templates/header.php';
 }
 .adm-accordion-body {
   display: none;
-  padding: 14px 18px;
+  padding: 16px 20px;
   background: var(--adm-slate-50);
   border-top: 1px solid var(--adm-slate-200);
-  font-size: 0.84rem;
-  line-height: 1.55;
+  font-size: 0.88rem;
+  line-height: 1.6;
   color: var(--adm-slate-700);
 }
 .adm-accordion-body.show {
   display: block;
 }
 
-/* Workflow Diagrams / Flowboxes */
-.workflow-box {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
-  margin: 16px 0;
-}
-.wf-node {
-  background: #fff;
-  border: 1.5px solid var(--adm-slate-200);
-  border-radius: 10px;
-  padding: 12px 14px;
-  position: relative;
-}
-.wf-node-step {
-  font-size: 0.68rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--adm-gold);
-  margin-bottom: 3px;
-}
-.wf-node-title {
-  font-size: 0.84rem;
-  font-weight: 700;
-  color: var(--adm-slate-800);
-  margin-bottom: 2px;
-}
-.wf-node-desc {
-  font-size: 0.74rem;
-  color: var(--adm-slate-600);
-  line-height: 1.4;
-  margin: 0;
-}
-
-/* Badges */
-.badge-pill {
-  display: inline-block;
-  padding: 2px 7px;
-  border-radius: 6px;
-  font-size: 0.72rem;
-  font-weight: 700;
-}
-.badge-gold   { background: var(--adm-gold-dim); color: #854d0e; }
-.badge-green  { background: #dcfce7; color: #166534; }
-.badge-blue   { background: #dbeafe; color: #1e40af; }
-.badge-purple { background: #f3e8ff; color: #6b21a8; }
-.badge-red    { background: #ffe4e6; color: #9f1239; }
-
-/* Empty Search State */
+/* Empty search container */
 #admSearchEmpty {
   display: none;
   text-align: center;
   padding: 50px 20px;
-  background: #fff;
-  border: 1px dashed var(--adm-slate-300);
+  background: #ffffff;
+  border: 2px dashed var(--adm-slate-300);
   border-radius: var(--adm-radius);
   color: var(--adm-slate-600);
 }
 </style>
 
-<div class="adm-docs-wrap container-fluid px-0">
+<div class="adm-manual-wrap container-fluid px-0">
 
   <!-- ================= HERO BANNER ================= -->
   <div class="adm-hero">
@@ -553,24 +569,24 @@ include '../templates/header.php';
       <span class="adm-hero-badge">Staff &amp; Admin</span>
     </div>
     <p class="adm-hero-sub">
-      Comprehensive operational guidelines for verifying parishioner profiles, processing requests, automated sacramental record logging, calendar slot locking, canonical registries, and analytics reporting.
+      A simple, step-by-step guide to help church staff and administrators verify new members, handle certificate and service requests, manage official church records, schedule events, and print reports.
     </p>
 
-    <!-- Search input -->
+    <!-- Quick Search -->
     <div class="adm-search-wrap">
       <i class="fas fa-search adm-search-icon"></i>
-      <input type="text" id="admSearchInput" class="adm-search-input" placeholder="Search operational steps, workflows, canonical records, calendar..." aria-label="Search Admin Manual">
+      <input type="text" id="admSearchInput" class="adm-search-input" placeholder="Search a topic or step (e.g., verify member, approve request, print PDF, calendar)..." aria-label="Search Admin Manual">
       <button type="button" id="admSearchClear" class="adm-search-clear" title="Clear search"><i class="fas fa-times"></i></button>
     </div>
 
     <!-- Quick Navigation Pills -->
     <div class="adm-quick-pills">
-      <span class="adm-pill" data-target="#adminModule1">Parishioner Verification</span>
-      <span class="adm-pill" data-target="#adminModule2">Request Workflows</span>
-      <span class="adm-pill" data-target="#adminModule3">Sacramental Registries</span>
-      <span class="adm-pill" data-target="#adminModule4">Master Calendar</span>
-      <span class="adm-pill" data-target="#adminModule5">Analytics &amp; PDF Reports</span>
-      <span class="adm-pill" data-target="#adminModule6">Security &amp; Audit Logs</span>
+      <span class="adm-pill" data-target="#module1">1. Member Verification</span>
+      <span class="adm-pill" data-target="#module2">2. Requests Workflow</span>
+      <span class="adm-pill" data-target="#module3">3. Official Church Records</span>
+      <span class="adm-pill" data-target="#module4">4. Schedule Calendar</span>
+      <span class="adm-pill" data-target="#module5">5. Analytics &amp; Reports</span>
+      <span class="adm-pill" data-target="#module6">6. Audit Logs</span>
     </div>
   </div>
 
@@ -581,44 +597,44 @@ include '../templates/header.php';
     <aside class="adm-toc-col">
       <div class="adm-toc-card">
         <div class="adm-toc-header">
-          <span>Operational Modules</span>
-          <i class="fas fa-shield-halved"></i>
+          <span>Manual Modules</span>
+          <i class="fas fa-bars-staggered"></i>
         </div>
         <ul class="adm-toc-list">
           <li class="adm-toc-item">
-            <a href="#adminModule1" class="adm-toc-link active">
-              <i class="fas fa-users-viewfinder"></i>
-              <span>1. Parishioner Verification</span>
+            <a href="#module1" class="adm-toc-link active">
+              <i class="fas fa-id-card"></i>
+              <span>1. Member Verification</span>
             </a>
           </li>
           <li class="adm-toc-item">
-            <a href="#adminModule2" class="adm-toc-link">
-              <i class="fas fa-diagram-project"></i>
+            <a href="#module2" class="adm-toc-link">
+              <i class="fas fa-inbox"></i>
               <span>2. Request Workflows</span>
             </a>
           </li>
           <li class="adm-toc-item">
-            <a href="#adminModule3" class="adm-toc-link">
+            <a href="#module3" class="adm-toc-link">
               <i class="fas fa-book-bible"></i>
-              <span>3. Sacramental Registries</span>
+              <span>3. Church Records</span>
             </a>
           </li>
           <li class="adm-toc-item">
-            <a href="#adminModule4" class="adm-toc-link">
+            <a href="#module4" class="adm-toc-link">
               <i class="fas fa-calendar-check"></i>
-              <span>4. Schedule &amp; Calendar</span>
+              <span>4. Schedule Calendar</span>
             </a>
           </li>
           <li class="adm-toc-item">
-            <a href="#adminModule5" class="adm-toc-link">
-              <i class="fas fa-chart-pie"></i>
+            <a href="#module5" class="adm-toc-link">
+              <i class="fas fa-chart-line"></i>
               <span>5. Analytics &amp; Reports</span>
             </a>
           </li>
           <li class="adm-toc-item">
-            <a href="#adminModule6" class="adm-toc-link">
-              <i class="fas fa-file-shield"></i>
-              <span>6. Security &amp; Audit Logs</span>
+            <a href="#module6" class="adm-toc-link">
+              <i class="fas fa-clipboard-list"></i>
+              <span>6. Audit Logs</span>
             </a>
           </li>
         </ul>
@@ -626,339 +642,409 @@ include '../templates/header.php';
         <!-- Direct Admin Tool Shortcuts -->
         <div class="adm-toc-shortcuts">
           <div class="adm-toc-header" style="padding-left:0; margin-bottom:8px;">
-            <span>Admin Tool Shortcuts</span>
+            <span>Go Directly To</span>
             <i class="fas fa-arrow-up-right-from-square"></i>
           </div>
+          <a href="<?php echo BASE_URL; ?>admin/parishioners.php" class="adm-shortcut-btn">
+            <span><i class="fas fa-users" style="margin-right:6px; color:var(--adm-green);"></i> Parishioners Page</span>
+            <i class="fas fa-chevron-right" style="font-size:0.7rem;"></i>
+          </a>
           <a href="<?php echo BASE_URL; ?>admin/request-workflow.php" class="adm-shortcut-btn">
             <span><i class="fas fa-inbox" style="margin-right:6px; color:var(--adm-blue);"></i> Request Workflow</span>
             <i class="fas fa-chevron-right" style="font-size:0.7rem;"></i>
           </a>
-          <a href="<?php echo BASE_URL; ?>admin/parishioners.php" class="adm-shortcut-btn">
-            <span><i class="fas fa-users" style="margin-right:6px; color:var(--adm-green);"></i> Parishioners Queue</span>
-            <i class="fas fa-chevron-right" style="font-size:0.7rem;"></i>
-          </a>
           <a href="<?php echo BASE_URL; ?>admin/sacramental-records.php" class="adm-shortcut-btn">
-            <span><i class="fas fa-book-bookmark" style="margin-right:6px; color:var(--adm-gold);"></i> Registry Books</span>
+            <span><i class="fas fa-book-bookmark" style="margin-right:6px; color:var(--adm-gold);"></i> Church Record Books</span>
             <i class="fas fa-chevron-right" style="font-size:0.7rem;"></i>
           </a>
           <a href="<?php echo BASE_URL; ?>admin/schedule.php" class="adm-shortcut-btn">
-            <span><i class="fas fa-calendar-days" style="margin-right:6px; color:var(--adm-teal);"></i> Master Schedule</span>
+            <span><i class="fas fa-calendar-days" style="margin-right:6px; color:var(--adm-teal);"></i> Schedule Calendar</span>
             <i class="fas fa-chevron-right" style="font-size:0.7rem;"></i>
           </a>
           <a href="<?php echo BASE_URL; ?>admin/reports.php" class="adm-shortcut-btn">
-            <span><i class="fas fa-chart-line" style="margin-right:6px; color:var(--adm-purple);"></i> Analytics &amp; Reports</span>
+            <span><i class="fas fa-chart-pie" style="margin-right:6px; color:var(--adm-purple);"></i> Analytics &amp; Reports</span>
             <i class="fas fa-chevron-right" style="font-size:0.7rem;"></i>
           </a>
         </div>
       </div>
     </aside>
 
-    <!-- RIGHT: Content Area -->
+    <!-- RIGHT: Content Sections -->
     <main class="adm-content-col">
 
       <!-- Empty Search State -->
       <div id="admSearchEmpty">
         <i class="fas fa-magnifying-glass" style="font-size:2.4rem; opacity:0.3; margin-bottom:12px;"></i>
-        <h5 style="font-weight:800; color:var(--adm-slate-800);">No administrative topics match your search</h5>
-        <p style="font-size:0.85rem; margin-bottom:14px;">Try searching for terms like "verification", "workflow", "sacramental records", "schedule", or "export".</p>
+        <h5 style="font-weight:800; color:var(--adm-slate-900);">No matching topics found</h5>
+        <p style="font-size:0.9rem; margin-bottom:14px;">Try searching for simple words like "approve", "request", "calendar", "records", or "print".</p>
         <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetAdmSearch()">Clear Search</button>
       </div>
 
       <!-- ================= MODULE 1 ================= -->
-      <section id="adminModule1" class="adm-card">
-        <div class="adm-card-header">
-          <div class="adm-card-meta">
-            <div class="adm-card-icon icon-gold">
-              <i class="fas fa-users-viewfinder"></i>
+      <section id="module1" class="adm-section-card">
+        <div class="adm-section-header">
+          <div class="adm-section-meta">
+            <div class="adm-section-icon icon-gold">
+              <i class="fas fa-id-card"></i>
             </div>
             <div>
-              <h2 class="adm-card-title">Module 1: Parishioner Management &amp; Verification</h2>
-              <p class="adm-card-sub">Validating OCR captures, managing account status, and canonical registration</p>
+              <h2 class="adm-section-title">Module 1: Member Verification (How to Approve Accounts)</h2>
+              <p class="adm-section-sub">Check ID photos and activate new parishioner accounts</p>
             </div>
           </div>
-          <span class="adm-card-tag">Census &amp; Profiles</span>
+          <span class="adm-section-tag">Member Profiles</span>
         </div>
 
-        <p style="font-size:0.87rem; line-height:1.6;">
-          All new accounts created through the registration portal start in <code>pending_verification</code> status. Parish staff must inspect the live-captured government ID image and confirm that the OCR-extracted details accurately reflect the registrant.
+        <p class="adm-intro-text">
+          When someone registers on TUGON, they take a live photo of their government ID card. Follow these simple steps to review their profile and approve their account.
         </p>
 
-        <!-- Step List -->
-        <div class="adm-step-list">
-          <div class="adm-step-item">
-            <div class="adm-step-num">1</div>
-            <div class="adm-step-content">
-              <div class="adm-step-title">Access the Verification Queue</div>
-              <p class="adm-step-desc">Open <a href="<?php echo BASE_URL; ?>admin/parishioners.php">Parishioners</a> and filter by status: <strong>Pending Verification</strong>. Users requiring review are highlighted with an amber clock badge.</p>
+        <!-- Visual Step Cards -->
+        <div class="step-cards-grid">
+          <div class="step-card">
+            <span class="step-badge">Step 1</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Go to the Parishioners Page</div>
+              <p class="step-card-desc">
+                Click <a href="<?php echo BASE_URL; ?>admin/parishioners.php"><strong>Parishioners</strong></a> in the menu. At the top of the list, click the <span class="action-badge action-badge-amber"><i class="fas fa-clock"></i> Pending Verification</span> tab to see everyone waiting for review.
+              </p>
             </div>
           </div>
 
-          <div class="adm-step-item">
-            <div class="adm-step-num">2</div>
-            <div class="adm-step-content">
-              <div class="adm-step-title">Examine the ID Inspection Modal</div>
-              <p class="adm-step-desc">Click <strong>View Details / Verify</strong>. The system displays the high-resolution live camera ID capture side-by-side with the registrant's name, birthdate, gender, address, and ID number.</p>
+          <div class="step-card">
+            <span class="step-badge">Step 2</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Open Member Details &amp; Compare ID Photo</div>
+              <p class="step-card-desc">
+                Click <span class="action-badge action-badge-blue">View Details</span> next to the person's name. Look at the ID photo on the screen and compare it with the full name, birthday, and address they typed in.
+              </p>
             </div>
           </div>
 
-          <div class="adm-step-item">
-            <div class="adm-step-num">3</div>
-            <div class="adm-step-content">
-              <div class="adm-step-title">Verification Approval or Flagging</div>
-              <p class="adm-step-desc">
-                If the details match: Click <strong><i class="fas fa-check"></i> Verify &amp; Activate Account</strong>. The user's status updates to <code>active</code>, sending an automated notification to their phone and email.<br>
-                If the image is blurry or mismatched: Click <strong>Flag Profile</strong> and supply remarks explaining why a re-capture is needed.
+          <div class="step-card">
+            <span class="step-badge">Step 3</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Approve or Reject the Account</div>
+              <p class="step-card-desc">
+                If the details match: Click <span class="action-badge action-badge-green"><i class="fas fa-check"></i> Approve</span>. Their account will immediately become <span class="action-badge action-badge-green">Active</span> and they will receive a confirmation text.<br>
+                If the photo is too dark, blurry, or does not match: Click <span class="action-badge action-badge-red"><i class="fas fa-times"></i> Reject / Flag</span> and write a short reason so the member knows to retake a clear photo.
               </p>
             </div>
           </div>
         </div>
 
-        <div class="callout callout-tip">
-          <i class="fas fa-user-shield"></i>
+        <!-- Tip Box -->
+        <div class="callout-box callout-tip">
+          <i class="fas fa-circle-check"></i>
           <div>
-            <strong>Role Hierarchies:</strong>
-            Only administrators with the <code>users.manage</code> permission can modify roles (e.g. promoting a verified parishioner to staff). Every role change is permanently recorded in the central audit ledger.
+            <strong>Helpful Tip:</strong>
+            Make sure the parishioner's full name and birthdate match their ID card exactly before clicking <strong>Approve</strong>. This keeps our church records accurate and protects members from identity mix-ups.
           </div>
         </div>
       </section>
 
       <!-- ================= MODULE 2 ================= -->
-      <section id="adminModule2" class="adm-card">
-        <div class="adm-card-header">
-          <div class="adm-card-meta">
-            <div class="adm-card-icon icon-blue">
-              <i class="fas fa-diagram-project"></i>
+      <section id="module2" class="adm-section-card">
+        <div class="adm-section-header">
+          <div class="adm-section-meta">
+            <div class="adm-section-icon icon-blue">
+              <i class="fas fa-inbox"></i>
             </div>
             <div>
-              <h2 class="adm-card-title">Module 2: Processing Service &amp; Certificate Requests</h2>
-              <p class="adm-card-sub">Request review queue, conditional views, and automated record/calendar sync</p>
+              <h2 class="adm-section-title">Module 2: Request Workflows (Handling Certificates &amp; Services)</h2>
+              <p class="adm-section-sub">Review certificate requests and approve baptism, wedding, or funeral bookings</p>
             </div>
           </div>
-          <span class="adm-card-tag">Request Processing</span>
+          <span class="adm-section-tag">Requests</span>
         </div>
 
-        <p style="font-size:0.87rem; line-height:1.6;">
-          The <a href="<?php echo BASE_URL; ?>admin/request-workflow.php">Request Workflow</a> module manages the complete lifecycle of sacramental certificates, mass intentions, blessings, and liturgy bookings.
+        <p class="adm-intro-text">
+          Parishioners submit requests online for sacramental certificates (Baptism, Confirmation, Marriage) and bookings for church services (Baptism, Wedding, Funeral, or Blessing).
         </p>
 
-        <!-- Lifecycle flow nodes -->
-        <div class="workflow-box">
-          <div class="wf-node">
-            <div class="wf-node-step">Stage 1</div>
-            <div class="wf-node-title">Submitted</div>
-            <p class="wf-node-desc">Request received from parishioner. Assigned a unique tracking code.</p>
+        <!-- Visual Step Cards -->
+        <div class="step-cards-grid">
+          <div class="step-card">
+            <span class="step-badge">Step 1</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Open the Requests Page</div>
+              <p class="step-card-desc">
+                Click <a href="<?php echo BASE_URL; ?>admin/request-workflow.php"><strong>Requests</strong></a> (or <em>Request Workflow</em>) in the sidebar menu to see all incoming applications.
+              </p>
+            </div>
           </div>
-          <div class="wf-node">
-            <div class="wf-node-step">Stage 2</div>
-            <div class="wf-node-title">Requirements Review</div>
-            <p class="wf-node-desc">Staff validates PSA certificates, sponsor lists, and investigation forms.</p>
+
+          <div class="step-card">
+            <span class="step-badge">Step 2</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Review the Submitted Details</div>
+              <p class="step-card-desc">
+                Click on the request to view it:
+                <br>&bull; <strong>For Certificates:</strong> Check the person's name, sacrament year, and attached birth certificate or ID.
+                <br>&bull; <strong>For Church Services (Baptism / Wedding / Funeral):</strong> Review the submitted form with parents, sponsors, and preferred dates.
+              </p>
+            </div>
           </div>
-          <div class="wf-node">
-            <div class="wf-node-step">Stage 3</div>
-            <div class="wf-node-title">In Processing</div>
-            <p class="wf-node-desc">Archival books retrieved. Certificate encoded and printed for sealing.</p>
-          </div>
-          <div class="wf-node">
-            <div class="wf-node-step">Stage 4</div>
-            <div class="wf-node-title">Completed / Ready</div>
-            <p class="wf-node-desc">Signed and dry-sealed. Automatic calendar lock &amp; sacramental record logging.</p>
+
+          <div class="step-card">
+            <span class="step-badge">Step 3</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Update the Request Status</div>
+              <p class="step-card-desc">
+                Change the status as you work on the request:
+                <br>&bull; <span class="action-badge action-badge-amber">Pending</span>: Newly received request, waiting for staff review.
+                <br>&bull; <span class="action-badge action-badge-blue">In Progress</span>: Staff is looking up physical church record books or printing the certificate.
+                <br>&bull; <span class="action-badge action-badge-green">Completed</span>: The certificate is signed and sealed, or the service is confirmed!
+                <br>&bull; <span class="action-badge action-badge-red">Rejected</span>: If required papers are missing or incorrect (always enter a helpful remark).
+              </p>
+            </div>
           </div>
         </div>
 
-        <!-- Conditional View Rules -->
-        <div class="docs-accordion-item">
-          <button type="button" class="adm-accordion-btn">
-            <span><i class="fas fa-sliders" style="margin-right:8px; color:var(--adm-teal);"></i> Conditional Interface Logic by Request Category</span>
-            <i class="fas fa-chevron-down"></i>
-          </button>
-          <div class="adm-accordion-body">
-            <ul class="docs-checklist">
-              <li><strong>Certificate Requests:</strong> Displays the <em>Release Certificate</em> card, <em>Payment Receipts</em> section, and <em>Certificates Released to Parishioner</em> history.</li>
-              <li><strong>Blessings &amp; Sacramental Services (Baptism, Wedding, Funeral):</strong> Hides certificate release cards and instead renders the dedicated <em>Submitted Application Form</em> card with sponsors, priest preference, and investigation sheets.</li>
-            </ul>
-          </div>
-        </div>
-
-        <!-- Automated Record & Calendar Generation Callout -->
-        <div class="callout callout-purple">
+        <!-- Automatic Record & Calendar Sync Callout -->
+        <div class="callout-box callout-purple">
           <i class="fas fa-wand-magic-sparkles"></i>
           <div>
-            <strong>Automated Canonical Pipeline:</strong><br>
-            When an admin marks a Sacramental Service (such as a Baptism, Wedding, or Funeral) as <strong>Completed</strong>:
+            <strong>Automatic Calendar &amp; Church Record Sync:</strong>
+            When you mark a service request (like Baptism, Wedding, or Funeral) as <span class="action-badge action-badge-green">Completed</span>:
             <ul style="margin: 6px 0 0; padding-left: 18px;">
-              <li><strong>Master Calendar Booking:</strong> The ceremony date, time, and location are automatically placed on the parish master schedule (<code>schedule_events</code>) and locked against conflicting events.</li>
-              <li><strong>Canonical Record Creation:</strong> The candidate, parents, minister, and registry details are automatically entered into the official Sacramental Records table (<code>baptism_records</code>, <code>marriage_records</code>, etc.).</li>
+              <li>The ceremony date and time are <strong>automatically added to the Parish Calendar</strong> so no other event can take that slot.</li>
+              <li>The details are <strong>automatically saved into our official Church Records</strong>!</li>
             </ul>
           </div>
         </div>
       </section>
 
       <!-- ================= MODULE 3 ================= -->
-      <section id="adminModule3" class="adm-card">
-        <div class="adm-card-header">
-          <div class="adm-card-meta">
-            <div class="adm-card-icon icon-green">
+      <section id="module3" class="adm-section-card">
+        <div class="adm-section-header">
+          <div class="adm-section-meta">
+            <div class="adm-section-icon icon-green">
               <i class="fas fa-book-bible"></i>
             </div>
             <div>
-              <h2 class="adm-card-title">Module 3: Sacramental Records &amp; Registry Books</h2>
-              <p class="adm-card-sub">Canonical registry archives, Book &amp; Page indexes, and read-only preservation</p>
+              <h2 class="adm-section-title">Module 3: Church Records (Baptism, Confirmation, Marriage &amp; Funeral)</h2>
+              <p class="adm-section-sub">Look up, add, and manage permanent church record books</p>
             </div>
           </div>
-          <span class="adm-card-tag">Canonical Archives</span>
+          <span class="adm-section-tag">Official Records</span>
         </div>
 
-        <p style="font-size:0.87rem; line-height:1.6;">
-          The <a href="<?php echo BASE_URL; ?>admin/sacramental-records.php">Sacramental Records</a> registry contains the historical Catholic sacramental ledgers of the parish:
+        <p class="adm-intro-text">
+          The <a href="<?php echo BASE_URL; ?>admin/sacramental-records.php"><strong>Sacramental Records</strong></a> page holds our parish's official historical church registers.
         </p>
 
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 16px;">
-          <div style="padding:10px 14px; background:var(--adm-slate-50); border:1px solid var(--adm-slate-200); border-radius:8px;">
-            <strong style="color:var(--adm-slate-800);"><i class="fas fa-water" style="color:var(--adm-blue); margin-right:6px;"></i> Libro de Bautismos</strong>
-            <div style="font-size:0.75rem; color:var(--adm-slate-600); margin-top:2px;">Baptismal register entries, godparents, and ministers.</div>
+        <!-- Visual Step Cards -->
+        <div class="step-cards-grid">
+          <div class="step-card">
+            <span class="step-badge">Step 1</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Go to Sacramental Records</div>
+              <p class="step-card-desc">
+                Click <a href="<?php echo BASE_URL; ?>admin/sacramental-records.php"><strong>Sacramental Records</strong></a> in the sidebar menu.
+              </p>
+            </div>
           </div>
-          <div style="padding:10px 14px; background:var(--adm-slate-50); border:1px solid var(--adm-slate-200); border-radius:8px;">
-            <strong style="color:var(--adm-slate-800);"><i class="fas fa-dove" style="color:var(--adm-gold); margin-right:6px;"></i> Libro de Confirmaciones</strong>
-            <div style="font-size:0.75rem; color:var(--adm-slate-600); margin-top:2px;">Confirmation register entries, bishops, and sponsors.</div>
+
+          <div class="step-card">
+            <span class="step-badge">Step 2</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Choose the Record Book</div>
+              <p class="step-card-desc">
+                Click the book you want to see:
+                <span class="action-badge action-badge-blue">Baptism</span>,
+                <span class="action-badge action-badge-amber">Confirmation</span>,
+                <span class="action-badge action-badge-green">Marriage</span>, or
+                <span class="action-badge action-badge-purple">Funeral</span>.
+              </p>
+            </div>
           </div>
-          <div style="padding:10px 14px; background:var(--adm-slate-50); border:1px solid var(--adm-slate-200); border-radius:8px;">
-            <strong style="color:var(--adm-slate-800);"><i class="fas fa-rings-wedding" style="color:var(--adm-teal); margin-right:6px;"></i> Libro de Matrimonios</strong>
-            <div style="font-size:0.75rem; color:var(--adm-slate-600); margin-top:2px;">Pre-nuptial inquiries, witnesses, and church wedding records.</div>
-          </div>
-          <div style="padding:10px 14px; background:var(--adm-slate-50); border:1px solid var(--adm-slate-200); border-radius:8px;">
-            <strong style="color:var(--adm-slate-800);"><i class="fas fa-cross" style="color:var(--adm-purple); margin-right:6px;"></i> Libro de Entierros</strong>
-            <div style="font-size:0.75rem; color:var(--adm-slate-600); margin-top:2px;">Burial, funeral, and Viaticum registry records.</div>
+
+          <div class="step-card">
+            <span class="step-badge">Step 3</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Search, View, or Add Entries</div>
+              <p class="step-card-desc">
+                Type a name into the search bar to find someone quickly. You can also search by Book Number, Page Number, or year. Click <strong>Add New Record</strong> to enter an older paper record into the digital system.
+              </p>
+            </div>
           </div>
         </div>
 
-        <div class="callout callout-warning">
+        <!-- Warning Callout -->
+        <div class="callout-box callout-warning">
           <i class="fas fa-lock"></i>
           <div>
-            <strong>Canonical Record Permanence Policy:</strong><br>
-            Canonical registers represent perpetual legal evidence under Canon Law. <strong>Sacramental records cannot be deleted</strong>. If an entry was created in error, it may only be marked as <code>archived</code> or appended with an official canonical note authorized by the Chancery / Diocese.
+            <strong>Church Records are Permanent:</strong>
+            Under Catholic Church rules, official church records cannot be deleted once created. If a mistake was made during encoding, edit the entry to correct it or mark it as archived.
           </div>
         </div>
       </section>
 
       <!-- ================= MODULE 4 ================= -->
-      <section id="adminModule4" class="adm-card">
-        <div class="adm-card-header">
-          <div class="adm-card-meta">
-            <div class="adm-card-icon icon-teal">
+      <section id="module4" class="adm-section-card">
+        <div class="adm-section-header">
+          <div class="adm-section-meta">
+            <div class="adm-section-icon icon-teal">
               <i class="fas fa-calendar-check"></i>
             </div>
             <div>
-              <h2 class="adm-card-title">Module 4: Schedule &amp; Calendar Management</h2>
-              <p class="adm-card-sub">Master parish liturgical calendar, mass intentions, and event conflict avoidance</p>
+              <h2 class="adm-section-title">Module 4: Schedule Calendar (Viewing &amp; Managing Events)</h2>
+              <p class="adm-section-sub">Oversee parish masses, blessings, and community events</p>
             </div>
           </div>
-          <span class="adm-card-tag">Liturgical Calendar</span>
+          <span class="adm-section-tag">Calendar</span>
         </div>
 
-        <p style="font-size:0.87rem; line-height:1.6;">
-          The <a href="<?php echo BASE_URL; ?>admin/schedule.php">Master Calendar</a> tracks all liturgical events, community masses, pastoral recollections, and confirmed sacramental bookings.
+        <p class="adm-intro-text">
+          The <a href="<?php echo BASE_URL; ?>admin/schedule.php"><strong>Schedule Calendar</strong></a> displays all upcoming parish masses, confirmed baptisms and weddings, and special feast day schedules in one place.
         </p>
 
-        <div class="adm-step-list">
-          <div class="adm-step-item">
-            <div class="adm-step-num"><i class="fas fa-plus"></i></div>
-            <div class="adm-step-content">
-              <div class="adm-step-title">Adding a New Liturgical Event</div>
-              <p class="adm-step-desc">Click <strong>Add Schedule / Event</strong>. Select event category (<em>Mass Schedule</em>, <em>Parish Event</em>, <em>Patronal Fiesta</em>, <em>Sacramental Activity</em>), specify the date and time span, and set visibility to <code>Public</code> so it appears on the parishioner calendar.</p>
+        <!-- Visual Step Cards -->
+        <div class="step-cards-grid">
+          <div class="step-card">
+            <span class="step-badge">Step 1</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Open the Schedule Calendar</div>
+              <p class="step-card-desc">
+                Click <a href="<?php echo BASE_URL; ?>admin/schedule.php"><strong>Schedule Calendar</strong></a> in the menu to view the monthly, weekly, or daily view.
+              </p>
             </div>
           </div>
 
-          <div class="adm-step-item">
-            <div class="adm-step-num"><i class="fas fa-ban"></i></div>
-            <div class="adm-step-content">
-              <div class="adm-step-title">Conflict Detection &amp; Prevention</div>
-              <p class="adm-step-desc">The system automatically blocks overlapping sacramental bookings for the same chapel or priest. If an administrator manually schedules an event on an already-occupied slot, a warning prompt appears.</p>
+          <div class="step-card">
+            <span class="step-badge">Step 2</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Add a Parish Mass or Event</div>
+              <p class="step-card-desc">
+                Click <span class="action-badge action-badge-green"><i class="fas fa-plus"></i> Add Event</span>. Enter the event title (e.g. <em>Sunday Mass</em> or <em>Fiesta Novena</em>), select the date and time, and set visibility to <strong>Public</strong> so parishioners can see it on their calendar.
+              </p>
+            </div>
+          </div>
+
+          <div class="step-card">
+            <span class="step-badge">Step 3</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Preventing Double Bookings</div>
+              <p class="step-card-desc">
+                The calendar automatically checks for schedule conflicts. If a time slot already has a confirmed wedding or baptism, the system will warn you so two events are never booked at the same time.
+              </p>
             </div>
           </div>
         </div>
       </section>
 
       <!-- ================= MODULE 5 ================= -->
-      <section id="adminModule5" class="adm-card">
-        <div class="adm-card-header">
-          <div class="adm-card-meta">
-            <div class="adm-card-icon icon-purple">
-              <i class="fas fa-chart-pie"></i>
+      <section id="module5" class="adm-section-card">
+        <div class="adm-section-header">
+          <div class="adm-section-meta">
+            <div class="adm-section-icon icon-purple">
+              <i class="fas fa-chart-line"></i>
             </div>
             <div>
-              <h2 class="adm-card-title">Module 5: Analytics &amp; Reports</h2>
-              <p class="adm-card-sub">Operational KPI metrics, dynamic chart analysis, and high-res PDF export</p>
+              <h2 class="adm-section-title">Module 5: Reports &amp; Statistics (Printing PDF Summaries)</h2>
+              <p class="adm-section-sub">Check monthly numbers and download official printed PDF reports</p>
             </div>
           </div>
-          <span class="adm-card-tag">Executive Reports</span>
+          <span class="adm-section-tag">Reports &amp; PDF</span>
         </div>
 
-        <p style="font-size:0.87rem; line-height:1.6;">
-          The <a href="<?php echo BASE_URL; ?>admin/reports.php">Analytics &amp; Reports</a> engine compiles real-time parish operational statistics, visual charts, and diocesan-compliant PDF/CSV exports.
+        <p class="adm-intro-text">
+          Use the <a href="<?php echo BASE_URL; ?>admin/reports.php"><strong>Analytics &amp; Reports</strong></a> page to review parish numbers and print official monthly reports for the Parish Priest or Diocese.
         </p>
 
-        <div class="docs-accordion-item">
-          <button type="button" class="adm-accordion-btn">
-            <span><i class="fas fa-chart-line" style="margin-right:8px; color:var(--adm-gold);"></i> Understanding the 4 Dynamic Charts</span>
-            <i class="fas fa-chevron-down"></i>
-          </button>
-          <div class="adm-accordion-body">
-            <ul class="docs-checklist">
-              <li><strong>Sacramental Records Administered:</strong> Full-width grouped bar chart tracking monthly volumes across Baptism, Confirmation, Communion, Marriage, and Funeral records over the last 12 months.</li>
-              <li><strong>Request Status Breakdown:</strong> Donut chart showing real-time proportions of requests in Pending, In Progress, Completed, and Rejected states.</li>
-              <li><strong>Most Requested Services:</strong> Horizontal bar chart detailing top volume service and certificate types.</li>
-              <li><strong>Parishioner Registration Growth:</strong> Area curve tracking new monthly account registrations.</li>
-            </ul>
+        <!-- Visual Step Cards -->
+        <div class="step-cards-grid">
+          <div class="step-card">
+            <span class="step-badge">Step 1</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Open Analytics &amp; Reports</div>
+              <p class="step-card-desc">
+                Click <a href="<?php echo BASE_URL; ?>admin/reports.php"><strong>Analytics &amp; Reports</strong></a> in the sidebar menu.
+              </p>
+            </div>
           </div>
-        </div>
 
-        <div class="callout callout-info">
-          <i class="fas fa-file-pdf"></i>
-          <div>
-            <strong>High-Resolution PDF Export Engine:</strong><br>
-            Clicking <strong>Export PDF</strong> captures all dynamic screen charts via high-res Base64 PNGs and renders them into an official, print-aligned A4 report featuring the Diocese of Kalookan letterhead, 15mm margins, KPI summary overview, and <code>page-break-inside: avoid</code> safeguards.
+          <div class="step-card">
+            <span class="step-badge">Step 2</span>
+            <div class="step-card-body">
+              <div class="step-card-title">View Monthly Charts and Numbers</div>
+              <p class="step-card-desc">
+                You will see cards and charts showing total registered parishioners, how many certificates were requested, and monthly sacrament numbers.
+              </p>
+            </div>
+          </div>
+
+          <div class="step-card">
+            <span class="step-badge">Step 3</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Print or Download an Official PDF</div>
+              <p class="step-card-desc">
+                Click <span class="action-badge action-badge-amber"><i class="fas fa-file-pdf"></i> Export PDF</span> at the top right. The system captures the charts on your screen and creates a beautiful, print-ready A4 PDF complete with our church letterhead and summary tables. You can also click <span class="action-badge action-badge-slate"><i class="fas fa-file-csv"></i> Export CSV</span> to download into Excel.
+              </p>
+            </div>
           </div>
         </div>
       </section>
 
       <!-- ================= MODULE 6 ================= -->
-      <section id="adminModule6" class="adm-card">
-        <div class="adm-card-header">
-          <div class="adm-card-meta">
-            <div class="adm-card-icon icon-amber">
-              <i class="fas fa-file-shield"></i>
+      <section id="module6" class="adm-section-card">
+        <div class="adm-section-header">
+          <div class="adm-section-meta">
+            <div class="adm-section-icon icon-amber">
+              <i class="fas fa-clipboard-list"></i>
             </div>
             <div>
-              <h2 class="adm-card-title">Module 6: Security, Audit Logs &amp; Best Practices</h2>
-              <p class="adm-card-sub">Tracking administrator operations, dry seal authentication, and data privacy</p>
+              <h2 class="adm-section-title">Module 6: Audit Logs (Tracking System Activity)</h2>
+              <p class="adm-section-sub">See who made changes, approved requests, or printed certificates</p>
             </div>
           </div>
-          <span class="adm-card-tag">Compliance</span>
+          <span class="adm-section-tag">History &amp; Security</span>
         </div>
 
-        <div class="adm-step-list">
-          <div class="adm-step-item">
-            <div class="adm-step-num"><i class="fas fa-list-check"></i></div>
-            <div class="adm-step-content">
-              <div class="adm-step-title">Audit Trail Monitoring</div>
-              <p class="adm-step-desc">Open <a href="<?php echo BASE_URL; ?>admin/audit-logs.php">Audit Logs</a> to inspect any administrative action (approvals, exports, user role changes, certificate releases). Every entry logs the actor's user ID, IP address, timestamp, and before/after values.</p>
+        <p class="adm-intro-text">
+          To maintain honesty, transparency, and security, TUGON keeps an automatic record of every action taken by church staff.
+        </p>
+
+        <!-- Visual Step Cards -->
+        <div class="step-cards-grid">
+          <div class="step-card">
+            <span class="step-badge">Step 1</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Go to Audit Logs</div>
+              <p class="step-card-desc">
+                Click <a href="<?php echo BASE_URL; ?>admin/audit-logs.php"><strong>Audit Logs</strong></a> in the menu.
+              </p>
             </div>
           </div>
 
-          <div class="adm-step-item">
-            <div class="adm-step-num"><i class="fas fa-stamp"></i></div>
-            <div class="adm-step-content">
-              <div class="adm-step-title">Certificate Dry Seal &amp; Signature Policy</div>
-              <p class="adm-step-desc">Printed certificates must bear the authentic handwritten signature of the Parish Priest or Parochial Vicar along with the embossed Parish Dry Seal over the signature line. Digital tracking codes on the document ensure authenticity can be validated at any time.</p>
+          <div class="step-card">
+            <span class="step-badge">Step 2</span>
+            <div class="step-card-body">
+              <div class="step-card-title">See the Full Activity History</div>
+              <p class="step-card-desc">
+                You will see a list showing which staff member approved a request, who edited a church record, who exported a report, and the exact date and time it happened.
+              </p>
             </div>
           </div>
 
-          <div class="adm-step-item">
-            <div class="adm-step-num"><i class="fas fa-user-lock"></i></div>
-            <div class="adm-step-content">
-              <div class="adm-step-title">Data Privacy Compliance (RA 10173)</div>
-              <p class="adm-step-desc">Parishioner records and uploaded government IDs must be handled with strict confidentiality. Never disclose parishioner contact numbers or residential addresses to third parties without explicit authorization.</p>
+          <div class="step-card">
+            <span class="step-badge">Step 3</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Filter and Search Logs</div>
+              <p class="step-card-desc">
+                You can filter by staff name or action type (e.g. <em>APPROVE_USER</em>, <em>EXPORT_REPORT</em>, <em>UPDATE_REQUEST</em>) anytime you need to double-check a transaction.
+              </p>
             </div>
+          </div>
+        </div>
+
+        <!-- Note Box -->
+        <div class="callout-box callout-note">
+          <i class="fas fa-shield-halved"></i>
+          <div>
+            <strong>Parish Privacy &amp; Data Protection:</strong>
+            Member phone numbers and government IDs are private. Never share parishioner contact information or personal documents with outside parties.
           </div>
         </div>
       </section>
@@ -974,7 +1060,7 @@ include '../templates/header.php';
   const searchInput = document.getElementById('admSearchInput');
   const searchClear = document.getElementById('admSearchClear');
   const emptyState  = document.getElementById('admSearchEmpty');
-  const cards       = Array.from(document.querySelectorAll('.adm-card'));
+  const cards       = Array.from(document.querySelectorAll('.adm-section-card'));
 
   function doAdmSearch() {
     const q = (searchInput.value || '').trim().toLowerCase();
@@ -1027,7 +1113,7 @@ include '../templates/header.php';
     }
   };
 
-  // Quick pills scroll
+  // Quick navigation pills
   document.querySelectorAll('.adm-pill').forEach(pill => {
     pill.addEventListener('click', function () {
       const targetId = this.getAttribute('data-target');
