@@ -67,84 +67,94 @@ include '../includes/breadcrumb.php';
 }
 
 /* --- Hero Banner --- */
+/* --- Enhanced Hero Banner --- */
 .usr-hero {
-  background: linear-gradient(135deg, #1e293b 0%, #2E3A2D 60%, #172a1e 100%);
-  border-radius: var(--usr-radius);
-  padding: 34px 38px;
-  color: #ffffff;
-  margin-bottom: 28px;
+  background: linear-gradient(135deg, #152219 0%, #1f3325 100%);
+  border-radius: 16px;
+  padding: 2.2rem 2.5rem;
+  color: #ffffff !important;
+  box-shadow: 0 10px 25px -5px rgba(21, 34, 25, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 2rem;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 4px 18px rgba(0,0,0,0.08);
 }
 .usr-hero::after {
   content: '';
   position: absolute;
   top: -40px;
   right: -40px;
-  width: 260px;
-  height: 260px;
-  background: radial-gradient(circle, rgba(200,155,60,0.22) 0%, rgba(200,155,60,0) 70%);
+  width: 280px;
+  height: 280px;
+  background: radial-gradient(circle, rgba(212, 163, 67, 0.18) 0%, rgba(212, 163, 67, 0) 70%);
   pointer-events: none;
 }
 .usr-hero-title {
-  font-size: 1.65rem;
+  font-size: 1.55rem;
   font-weight: 800;
-  letter-spacing: -0.02em;
-  margin-bottom: 8px;
+  color: #ffffff !important;
+  letter-spacing: -0.01em;
+  margin: 0;
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 .usr-hero-badge {
-  background: var(--usr-gold);
-  color: #1e293b;
+  background: #d4a343; /* Mission gold */
+  color: #1a1a1a;
   font-size: 0.72rem;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   padding: 4px 12px;
   border-radius: 20px;
   vertical-align: middle;
 }
-.usr-hero-sub {
-  font-size: 0.95rem;
-  color: rgba(255,255,255,0.88);
-  max-width: 720px;
-  margin-bottom: 22px;
-  line-height: 1.55;
+.usr-hero-sub,
+.usr-hero p {
+  color: #d1dcd4 !important; /* Soft light sage/white for high readability */
+  font-size: 0.94rem;
+  line-height: 1.65;
+  margin: 0.75rem 0 1.5rem 0;
+  max-width: 820px;
 }
 
-/* Search bar */
+/* Search Bar with Floating Style */
 .usr-search-wrap {
   position: relative;
-  max-width: 620px;
+  max-width: 740px;
+  margin-bottom: 1.35rem;
 }
 .usr-search-input {
   width: 100%;
-  padding: 13px 44px 13px 46px;
+  padding: 13px 46px 13px 46px;
   border-radius: 12px;
-  border: 1.5px solid rgba(255,255,255,0.18);
-  background: rgba(255,255,255,0.98);
-  font-size: 0.93rem;
-  color: var(--usr-slate-900);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: #ffffff;
+  font-size: 0.92rem;
+  color: #1f2937;
   outline: none;
-  box-shadow: 0 4px 18px rgba(0,0,0,0.12);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.10);
   transition: all 0.2s ease;
 }
 .usr-search-input:focus {
   background: #ffffff;
-  border-color: var(--usr-gold);
-  box-shadow: 0 0 0 4px rgba(200,155,60,0.30);
+  border-color: #d4a343;
+  box-shadow: 0 0 0 4px rgba(212, 163, 67, 0.32);
+}
+.usr-search-input::placeholder {
+  color: #9ca3af;
 }
 .usr-search-icon {
   position: absolute;
   left: 16px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--usr-slate-600);
+  color: #6b7280;
   font-size: 1rem;
   pointer-events: none;
+  opacity: 0.7;
 }
 .usr-search-clear {
   position: absolute;
@@ -153,37 +163,45 @@ include '../includes/breadcrumb.php';
   transform: translateY(-50%);
   background: transparent;
   border: none;
-  color: var(--usr-slate-600);
+  color: #6b7280;
   cursor: pointer;
   display: none;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
 }
+.usr-search-clear:hover {
+  color: #111827;
+}
+
+/* Quick Navigation Pills */
 .usr-quick-pills {
   display: flex;
-  gap: 8px;
+  gap: 0.55rem;
   flex-wrap: wrap;
-  margin-top: 14px;
+  margin-top: 0;
 }
 .usr-pill {
-  background: rgba(255,255,255,0.12);
-  color: #ffffff;
-  border: 1px solid rgba(255,255,255,0.18);
-  padding: 5px 13px;
-  border-radius: 20px;
-  font-size: 0.78rem;
+  background: rgba(255, 255, 255, 0.10);
+  color: #e5e7eb;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  padding: 0.45rem 1rem;
+  border-radius: 30px;
+  font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.2s ease;
+  user-select: none;
 }
-.usr-pill:hover,
+.usr-pill:hover {
+  background: rgba(255, 255, 255, 0.20);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.30);
+}
 .usr-pill.active {
-  background: var(--usr-gold);
-  color: #1e293b;
-  border-color: var(--usr-gold);
+  background: #d4a343;
+  color: #18281d;
   font-weight: 700;
-}
-.usr-pill.active {
-  box-shadow: 0 2px 8px rgba(200, 155, 60, 0.4);
+  border-color: #d4a343;
+  box-shadow: 0 2px 10px rgba(212, 163, 67, 0.35);
 }
 
 /* --- Layout Grid --- */
@@ -649,7 +667,7 @@ include '../includes/breadcrumb.php';
 
     <!-- Quick Navigation Pills -->
     <div class="usr-quick-pills">
-      <span class="usr-pill" data-target="#module1">1. Register with an ID</span>
+      <span class="usr-pill active" data-target="#module1">1. Register with an ID</span>
       <span class="usr-pill" data-target="#module2">2. Update Profile</span>
       <span class="usr-pill" data-target="#module3">3. Request Certificate</span>
       <span class="usr-pill" data-target="#module4">4. Book a Church Service</span>
