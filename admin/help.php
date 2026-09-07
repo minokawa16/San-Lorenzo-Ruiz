@@ -65,32 +65,22 @@ include '../templates/header.php';
 }
 
 /* --- Hero Banner --- */
-/* --- Enhanced Hero Banner --- */
+/* --- Clean Light Header Banner --- */
 .adm-hero {
-  background: linear-gradient(135deg, #152219 0%, #1f3325 100%);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   border-radius: 16px;
-  padding: 2.2rem 2.5rem;
-  color: #ffffff !important;
-  box-shadow: 0 10px 25px -5px rgba(21, 34, 25, 0.22);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 2rem 2.25rem;
+  color: #0f172a;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
   margin-bottom: 2rem;
   position: relative;
   overflow: hidden;
 }
-.adm-hero::after {
-  content: '';
-  position: absolute;
-  top: -40px;
-  right: -40px;
-  width: 280px;
-  height: 280px;
-  background: radial-gradient(circle, rgba(212, 163, 67, 0.18) 0%, rgba(212, 163, 67, 0) 70%);
-  pointer-events: none;
-}
 .adm-hero-title {
   font-size: 1.55rem;
-  font-weight: 800;
-  color: #ffffff !important;
+  font-weight: 700;
+  color: #0f172a !important;
   letter-spacing: -0.01em;
   margin: 0;
   display: flex;
@@ -98,11 +88,16 @@ include '../templates/header.php';
   gap: 12px;
   flex-wrap: wrap;
 }
+.adm-hero-title i {
+  color: #c9932b;
+  font-size: 1.45rem;
+}
 .adm-hero-badge {
-  background: #d4a343; /* Mission gold */
-  color: #1a1a1a;
+  background: #fef3c7; /* Light warm gold */
+  color: #92400e; /* Dark bronze */
+  border: 1px solid #fde68a;
   font-size: 0.72rem;
-  font-weight: 800;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   padding: 4px 12px;
@@ -111,14 +106,14 @@ include '../templates/header.php';
 }
 .adm-hero-sub,
 .adm-hero p {
-  color: #d1dcd4 !important; /* Soft light sage/white for high readability */
-  font-size: 0.94rem;
-  line-height: 1.65;
-  margin: 0.75rem 0 1.5rem 0;
-  max-width: 820px;
+  color: #475569 !important; /* Crisp, readable charcoal slate */
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin: 0.65rem 0 1.5rem 0;
+  max-width: 840px;
 }
 
-/* Search Bar with Floating Style */
+/* Search Bar with Floating Light Style */
 .adm-search-wrap {
   position: relative;
   max-width: 740px;
@@ -128,31 +123,30 @@ include '../templates/header.php';
   width: 100%;
   padding: 13px 46px 13px 46px;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  background: #f8fafc;
   font-size: 0.92rem;
-  color: #1f2937;
+  color: #0f172a;
   outline: none;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.10);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   transition: all 0.2s ease;
 }
 .adm-search-input:focus {
   background: #ffffff;
-  border-color: #d4a343;
-  box-shadow: 0 0 0 4px rgba(212, 163, 67, 0.32);
+  border-color: #c9932b;
+  box-shadow: 0 0 0 3px rgba(201, 147, 43, 0.25);
 }
 .adm-search-input::placeholder {
-  color: #9ca3af;
+  color: #64748b;
 }
 .adm-search-icon {
   position: absolute;
   left: 16px;
   top: 50%;
   transform: translateY(-50%);
-  color: #6b7280;
+  color: #64748b;
   font-size: 1rem;
   pointer-events: none;
-  opacity: 0.7;
 }
 .adm-search-clear {
   position: absolute;
@@ -161,16 +155,16 @@ include '../templates/header.php';
   transform: translateY(-50%);
   background: transparent;
   border: none;
-  color: #6b7280;
+  color: #64748b;
   cursor: pointer;
   display: none;
   font-size: 0.95rem;
 }
 .adm-search-clear:hover {
-  color: #111827;
+  color: #0f172a;
 }
 
-/* Quick Navigation Pills */
+/* Quick Navigation Pills for Light Background */
 .adm-quick-pills {
   display: flex;
   gap: 0.55rem;
@@ -178,9 +172,9 @@ include '../templates/header.php';
   margin-top: 0;
 }
 .adm-pill {
-  background: rgba(255, 255, 255, 0.10);
-  color: #e5e7eb;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #e2e8f0;
   padding: 0.45rem 1rem;
   border-radius: 30px;
   font-size: 0.8rem;
@@ -190,16 +184,16 @@ include '../templates/header.php';
   user-select: none;
 }
 .adm-pill:hover {
-  background: rgba(255, 255, 255, 0.20);
-  color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.30);
+  background: #e2e8f0;
+  color: #0f172a;
+  border-color: #cbd5e1;
 }
 .adm-pill.active {
-  background: #d4a343;
-  color: #18281d;
+  background: #c9932b; /* Parish gold */
+  color: #ffffff;
   font-weight: 700;
-  border-color: #d4a343;
-  box-shadow: 0 2px 10px rgba(212, 163, 67, 0.35);
+  border-color: #c9932b;
+  box-shadow: 0 2px 8px rgba(201, 147, 43, 0.32);
 }
 
 /* --- Layout Grid --- */
