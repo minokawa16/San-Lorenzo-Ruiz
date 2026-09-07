@@ -31,7 +31,7 @@ class SacramentalApprovalService {
     }
 
     /**
-     * Approves a sacramental service request within an atomic transaction.
+     * Approves a sacramental service request within an atomic transaction (legacy wrapper).
      *
      * @param int $requestId Request ID to approve
      * @param int $actorUserId Administrator or staff user ID
@@ -40,9 +40,26 @@ class SacramentalApprovalService {
      * @throws Throwable Rolls back transaction on any failure
      */
     public function approveRequest(int $requestId, int $actorUserId, array $options = []): array {
+        return $this->completeRequest($requestId, $actorUserId, array_merge(['target_status' => 'approved'], $options));
+    }
+
+    /**
+     * Completes a sacramental service request within an atomic transaction:
+     * 1. Updates status to 'completed' (or custom target status).
+     * 2. Registers or updates official sacramental records (Baptism, Marriage, Funeral).
+     * 3. Automatically inserts/locks the day and time in the Parish Calendar (schedule_events).
+     * 4. Dispatches notification to parishioner.
+     *
+     * @param int $requestId Request ID to complete
+     * @param int $actorUserId Administrator or staff user ID
+     * @param array $options Optional settings: admin_response, officiating_priest, target_status
+     * @return array Structured result
+     */
+    public function completeRequest(int $requestId, int $actorUserId, array $options = []): array {
         ensureSacramentalRecordViews($this->conn);
         ensureScheduleEventsTable($this->conn);
 
+        $targetStatus = !empty($options['target_status']) ? $options['target_status'] : 'completed';
         $adminResponse = trim((string) ($options['admin_response'] ?? ''));
         $officiatingPriest = trim((string) ($options['officiating_priest'] ?? $options['minister'] ?? ''));
         if ($officiatingPriest === '') {
@@ -72,27 +89,37 @@ class SacramentalApprovalService {
             }
 
             $currentStatus = RequestStateMachine::normalize((string) $request['status']);
-            $allowedFrom = ['pending', 'submitted', 'requirements_review', 'needs_information', 'processing', 'scheduled'];
-            if (!in_array($currentStatus, $allowedFrom, true) && $currentStatus !== 'approved') {
-                throw new DomainException("Request cannot be approved from '{$currentStatus}' status.");
+            $allowedFrom = ['pending', 'submitted', 'requirements_review', 'needs_information', 'processing', 'scheduled', 'approved', 'completed'];
+            if (!in_array($currentStatus, $allowedFrom, true)) {
+                throw new DomainException("Request cannot be transitioned to '{$targetStatus}' from '{$currentStatus}' status.");
             }
 
-            // 2. Validate calendar schedule conflict before approving
+            // 2. Validate calendar schedule conflict before completing (skip conflict if already has its own event)
             $calendarConflict = requestApprovalConflict($this->conn, $requestId);
             if ($calendarConflict['conflict']) {
-                throw new DomainException($calendarConflict['message']);
+                $chkEv = $this->conn->prepare("SELECT schedule_id FROM schedule_events WHERE source_type = 'request' AND source_id = ? LIMIT 1");
+                $hasOwnEvent = false;
+                if ($chkEv) {
+                    $chkEv->bind_param('i', $requestId);
+                    $chkEv->execute();
+                    $hasOwnEvent = (bool) $chkEv->get_result()->fetch_assoc();
+                    $chkEv->close();
+                }
+                if (!$hasOwnEvent) {
+                    throw new DomainException($calendarConflict['message']);
+                }
             }
 
-            // 3. Update Request status to 'approved'
+            // 3. Update Request status to target status
             $updStmt = $this->conn->prepare("
                 UPDATE requests 
-                SET status = 'approved', admin_response = ?, updated_at = NOW() 
+                SET status = ?, admin_response = ?, updated_at = NOW() 
                 WHERE request_id = ?
             ");
             if (!$updStmt) {
                 throw new RuntimeException("Failed to prepare request update statement: " . $this->conn->error);
             }
-            $updStmt->bind_param('si', $adminResponse, $requestId);
+            $updStmt->bind_param('ssi', $targetStatus, $adminResponse, $requestId);
             if (!$updStmt->execute()) {
                 $err = $updStmt->error;
                 $updStmt->close();
@@ -103,17 +130,17 @@ class SacramentalApprovalService {
             // Insert status history
             $histStmt = $this->conn->prepare("
                 INSERT INTO request_status_history (request_id, previous_status, new_status, actor_user_id, reason)
-                VALUES (?, ?, 'approved', ?, ?)
+                VALUES (?, ?, ?, ?, ?)
             ");
             if ($histStmt) {
-                $reasonText = $adminResponse !== '' ? $adminResponse : 'Request approved by parish administration.';
-                $histStmt->bind_param('isis', $requestId, $currentStatus, $actorUserId, $reasonText);
+                $reasonText = $adminResponse !== '' ? $adminResponse : "Request {$targetStatus} by parish administration.";
+                $histStmt->bind_param('issis', $requestId, $currentStatus, $targetStatus, $actorUserId, $reasonText);
                 $histStmt->execute();
                 $histStmt->close();
             }
 
             // Update local request array for downstream steps
-            $request['status'] = 'approved';
+            $request['status'] = $targetStatus;
             $request['admin_response'] = $adminResponse;
 
             // 4. Action 1: Transfer and populate service data into official Sacramental Records
@@ -126,16 +153,16 @@ class SacramentalApprovalService {
             $this->notifyParishionerOnApproval($request, $calendarEvent, $adminResponse);
 
             // 7. Audit log
-            createAuditLog($this->conn, $actorUserId, 'APPROVE_SACRAMENTAL_REQUEST', 'requests', $requestId);
+            createAuditLog($this->conn, $actorUserId, strtoupper($targetStatus) . '_SACRAMENTAL_REQUEST', 'requests', $requestId);
 
             // Commit atomic transaction
             $this->conn->commit();
 
             return [
                 'success' => true,
-                'message' => 'Sacramental request approved, official record registered, and calendar schedule locked.',
+                'message' => "Sacramental request marked as {$targetStatus}, official record registered, and calendar schedule locked.",
                 'request_id' => $requestId,
-                'status' => 'approved',
+                'status' => $targetStatus,
                 'sacramental_record' => $sacramentalRecord,
                 'calendar_event' => $calendarEvent
             ];
@@ -608,10 +635,9 @@ class SacramentalApprovalService {
         $formattedDate = date('F d, Y', strtotime($eventDate));
         $formattedTime = date('g:i A', strtotime($startTime));
 
-        // Exact message requirement:
-        // "Your request for [Service Type] on [Date] at [Time] has been approved and added to the official parish schedule."
-        $message = "Your request for {$serviceLabel} on {$formattedDate} at {$formattedTime} has been approved and added to the official parish schedule.";
-        $title = "Request Approved: {$serviceLabel}";
+        $statusWord = ($request['status'] ?? '') === 'completed' ? 'completed' : 'approved';
+        $message = "Your request for {$serviceLabel} on {$formattedDate} at {$formattedTime} has been {$statusWord} and added to the official parish schedule.";
+        $title = "Request " . ucfirst($statusWord) . ": {$serviceLabel}";
 
         // 1. Direct in-app notification insertion
         $ins = $this->conn->prepare("INSERT INTO notifications (user_id, notification_type, title, message, state, is_read) VALUES (?, 'request', ?, ?, 'unread', 0)");

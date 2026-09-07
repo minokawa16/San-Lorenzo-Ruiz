@@ -92,21 +92,49 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $error = 'Upload a released certificate or parish office file before marking this request completed.';
         } elseif ($status === 'completed' && $is_certificate && intval($current_payment_summary['total']) > 0 && intval($current_payment_summary['verified']) <= 0) {
             $error = 'A submitted payment receipt must be verified before marking this request completed.';
-        } elseif ($status === 'approved') {
+        } elseif ($status === 'completed' || $status === 'approved') {
             require_once __DIR__ . '/../services/SacramentalApprovalService.php';
-            try {
-                $sacramentalService = new SacramentalApprovalService($conn);
-                $approvalResult = $sacramentalService->approveRequest($request_id, (int)$_SESSION['user_id'], [
-                    'admin_response' => $admin_response
-                ]);
-                $request['status'] = 'approved';
-                $request['admin_response'] = $admin_response;
-                $success = 'Request approved successfully! Sacramental record registered and calendar schedule locked.';
-            } catch (Throwable $e) {
-                $error = $e->getMessage();
+            $is_sacramental_type = SacramentalApprovalService::isSacramentalRequestType($request_type);
+
+            if ($is_sacramental_type) {
+                try {
+                    $sacramentalService = new SacramentalApprovalService($conn);
+                    $completionResult = $sacramentalService->completeRequest($request_id, (int)$_SESSION['user_id'], [
+                        'admin_response' => $admin_response,
+                        'target_status' => 'completed'
+                    ]);
+                    $request['status'] = 'completed';
+                    $request['admin_response'] = $admin_response;
+                    $success = 'Request marked as completed! Sacramental record registered and calendar schedule updated.';
+                } catch (Throwable $e) {
+                    $error = $e->getMessage();
+                }
+            } else {
+                $stmt = $conn->prepare("UPDATE requests SET status = 'completed', admin_response = ?, updated_at = NOW() WHERE request_id = ?");
+                if ($stmt) {
+                    $stmt->bind_param('si', $admin_response, $request_id);
+                    if ($stmt->execute()) {
+                        createAuditLog($conn, $_SESSION['user_id'], 'UPDATE_REQUEST_STATUS', 'requests', $request_id);
+                        createRequestStatusNotification($conn, $request, 'completed', $admin_response);
+                        $request['status'] = 'completed';
+                        $request['admin_response'] = $admin_response;
+
+                        // Automatically sync day and time of event to calendar schedule
+                        $calSync = syncApprovedRequestToCalendar($conn, $request_id, (int)$_SESSION['user_id']);
+                        $calNotice = (!empty($calSync['success']) && !empty($calSync['message']) && str_contains($calSync['message'], 'skipped') === false)
+                            ? ' Event schedule automatically added to the parish calendar.'
+                            : '';
+                        $success = 'Request marked as completed!' . $calNotice;
+                    } else {
+                        $error = 'Unable to update request status.';
+                    }
+                    $stmt->close();
+                } else {
+                    $error = 'Unable to prepare request update.';
+                }
             }
         } else {
-            $stmt = $conn->prepare("UPDATE requests SET status = ?, admin_response = ? WHERE request_id = ?");
+            $stmt = $conn->prepare("UPDATE requests SET status = ?, admin_response = ?, updated_at = NOW() WHERE request_id = ?");
             if ($stmt) {
                 $stmt->bind_param('ssi', $status, $admin_response, $request_id);
                 if ($stmt->execute()) {
@@ -114,7 +142,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     createRequestStatusNotification($conn, $request, $status, $admin_response);
                     $request['status'] = $status;
                     $request['admin_response'] = $admin_response;
-                    $success = 'Request status updated.';
+                    $success = 'Request status updated to ' . ucfirst($status) . '.';
                 } else {
                     $error = 'Unable to update request status.';
                 }
@@ -641,7 +669,13 @@ $breadcrumbs = [
                             <div class="mb-3">
                                 <label class="form-label" for="status">Status</label>
                                 <select class="form-select" id="status" name="status" required>
-                                    <?php foreach (['pending', 'approved', 'processing', 'completed', 'rejected'] as $status): ?>
+                                    <?php 
+                                    $status_options = ['pending', 'processing', 'completed', 'rejected'];
+                                    if ($request['status'] === 'approved') {
+                                        $status_options = ['approved', 'pending', 'processing', 'completed', 'rejected'];
+                                    }
+                                    ?>
+                                    <?php foreach ($status_options as $status): ?>
                                         <option value="<?php echo e($status); ?>" <?php echo $request['status'] === $status ? 'selected' : ''; ?>><?php echo e(ucfirst($status)); ?></option>
                                     <?php endforeach; ?>
                                 </select>

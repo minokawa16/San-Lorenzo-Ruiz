@@ -115,16 +115,41 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
     $status = $conn->real_escape_string($_POST['status']);
     $admin_response = $conn->real_escape_string($_POST['admin_response']);
 
-    if ($status === 'approved') {
+    if ($status === 'completed' || $status === 'approved') {
         require_once __DIR__ . '/../services/SacramentalApprovalService.php';
-        try {
-            $sacramentalService = new SacramentalApprovalService($conn);
-            $approvalResult = $sacramentalService->approveRequest($request_id, (int)$_SESSION['user_id'], [
-                'admin_response' => $admin_response
-            ]);
-            $success = 'Request approved successfully! ' . (!empty($approvalResult['sacramental_record']['registered']) ? 'Sacramental record registered and calendar schedule locked.' : 'Calendar schedule locked.');
-        } catch (Throwable $e) {
-            $error = $e->getMessage();
+        $req_type_row = $conn->query("SELECT request_type FROM requests WHERE request_id = $request_id")->fetch_assoc();
+        $req_type = (string)($req_type_row['request_type'] ?? '');
+        $is_sacramental = SacramentalApprovalService::isSacramentalRequestType($req_type);
+
+        if ($is_sacramental) {
+            try {
+                $sacramentalService = new SacramentalApprovalService($conn);
+                $completionResult = $sacramentalService->completeRequest($request_id, (int)$_SESSION['user_id'], [
+                    'admin_response' => $admin_response,
+                    'target_status' => 'completed'
+                ]);
+                $success = 'Request marked as completed! ' . (!empty($completionResult['sacramental_record']['registered']) ? 'Sacramental record registered and calendar schedule locked.' : 'Calendar schedule locked.');
+            } catch (Throwable $e) {
+                $error = $e->getMessage();
+            }
+        } else {
+            $sql = "UPDATE requests SET status = 'completed', admin_response = '$admin_response', updated_at = NOW() WHERE request_id = $request_id";
+            if ($conn->query($sql)) {
+                $req_result = $conn->query("SELECT r.user_id, r.reference_number, r.request_type, u.email, u.fullname, COALESCE(np.email_enabled, 1) AS email_enabled
+                    FROM requests r
+                    JOIN users u ON r.user_id = u.id
+                    LEFT JOIN notification_preferences np ON np.user_id = u.id AND np.category = 'requests'
+                    WHERE r.request_id = $request_id");
+                $req_data = $req_result->fetch_assoc();
+                if ($req_data) {
+                    createRequestStatusNotification($conn, $req_data, 'completed', $admin_response);
+                }
+                createAuditLog($conn, $_SESSION['user_id'], 'UPDATE_REQUEST', 'requests', $request_id);
+                syncApprovedRequestToCalendar($conn, $request_id, (int)$_SESSION['user_id']);
+                $success = 'Request marked as completed and calendar schedule updated!';
+            } else {
+                $error = 'Error updating request: ' . $conn->error;
+            }
         }
     } else {
         $sql = "UPDATE requests SET status = '$status', admin_response = '$admin_response'

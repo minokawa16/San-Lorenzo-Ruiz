@@ -4,17 +4,18 @@ final class RequestStateMachine {
     public const STATES = ['draft','pending','submitted','requirements_review','needs_information','payment_required','payment_review','approved','scheduled','processing','ready_for_release','completed','rejected','cancelled'];
     private const TRANSITIONS = [
         'draft' => ['pending','submitted','cancelled'],
-        'pending' => ['requirements_review','needs_information','approved','rejected','cancelled'],
-        'submitted' => ['requirements_review','needs_information','approved','rejected','cancelled'],
-        'requirements_review' => ['needs_information','payment_required','approved','rejected'],
-        'needs_information' => ['pending','submitted','cancelled'],
+        'pending' => ['requirements_review','needs_information','completed','approved','rejected','cancelled'],
+        'submitted' => ['requirements_review','needs_information','completed','approved','rejected','cancelled'],
+        'requirements_review' => ['needs_information','payment_required','completed','approved','rejected'],
+        'needs_information' => ['pending','submitted','completed','cancelled'],
         'payment_required' => ['payment_review','cancelled'],
-        'payment_review' => ['approved','payment_required','rejected'],
-        'approved' => ['scheduled','processing','cancelled'],
-        'scheduled' => ['processing','cancelled'],
+        'payment_review' => ['completed','approved','payment_required','rejected'],
+        'approved' => ['scheduled','processing','completed','cancelled'],
+        'scheduled' => ['processing','completed','cancelled'],
         'processing' => ['ready_for_release','completed','rejected'],
         'ready_for_release' => ['completed'],
-        'completed' => [], 'rejected' => [], 'cancelled' => [],
+        'completed' => ['completed'],
+        'rejected' => [], 'cancelled' => [],
     ];
 
     public static function normalize(string $status): string { 

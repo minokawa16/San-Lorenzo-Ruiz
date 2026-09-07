@@ -2846,16 +2846,25 @@ function requestApprovalConflict($conn, $request_id) {
     }
 
     $description = (string) ($request['description'] ?? '');
-    $event_date = requestCalendarField($description, ['Date of Patronal Fiesta', 'Preferred date', 'Event date', 'Date']);
+    $event_date = requestCalendarField($description, [
+        'Date of Baptism', 'Date of Marriage', 'Wedding ceremony schedule', 'Date of Funeral',
+        'Date of Burial', 'Date of Patronal Fiesta', 'Service date', 'Preferred date', 'Event date', 'Date'
+    ]);
     if (!validDateValue($event_date)) {
-        return ['conflict' => true, 'message' => 'This request has no valid preferred date, so it cannot be approved into the calendar.'];
+        $ts = strtotime($event_date);
+        if ($ts !== false && $ts > 0) {
+            $event_date = date('Y-m-d', $ts);
+        }
+    }
+    if (!validDateValue($event_date)) {
+        return ['conflict' => true, 'message' => 'This request has no valid preferred date, so it cannot be scheduled into the calendar.'];
     }
 
     $start_time = normalizeRequestCalendarTime(requestCalendarField($description, ['Preferred time', 'Event time', 'Time']));
     return calendarSlotConflict($conn, $event_date, $start_time, null, 'request', $request_id);
 }
 
-// Request Calendar Sync - Converts approved service requests into calendar events.
+// Request Calendar Sync - Converts approved or completed service requests into calendar events.
 function syncApprovedRequestToCalendar($conn, $request_id, $admin_user_id) {
     if (!ensureScheduleEventsTable($conn)) {
         return ['success' => false, 'message' => 'Unable to prepare calendar table.'];
@@ -2876,7 +2885,9 @@ function syncApprovedRequestToCalendar($conn, $request_id, $admin_user_id) {
         'marriage_wedding_service',
         'funeral_mass',
         'anointing_of_the_sick',
-        'patronal_fiesta'
+        'patronal_fiesta',
+        'confirmation_service',
+        'first_communion_service'
     ];
 
     $request_id = intval($request_id);
@@ -2896,8 +2907,8 @@ function syncApprovedRequestToCalendar($conn, $request_id, $admin_user_id) {
     $request = $stmt->get_result()->fetch_assoc();
     $stmt->close();
 
-    if (!$request || $request['status'] !== 'approved') {
-        return ['success' => true, 'message' => 'Request is not approved; calendar sync skipped.'];
+    if (!$request || !in_array($request['status'], ['approved', 'completed'], true)) {
+        return ['success' => true, 'message' => 'Request is neither approved nor completed; calendar sync skipped.'];
     }
 
     if (!in_array($request['request_type'], $calendar_request_types, true)) {
@@ -2905,7 +2916,16 @@ function syncApprovedRequestToCalendar($conn, $request_id, $admin_user_id) {
     }
 
     $description = (string) ($request['description'] ?? '');
-    $event_date = requestCalendarField($description, ['Date of Patronal Fiesta', 'Preferred date', 'Event date', 'Date']);
+    $event_date = requestCalendarField($description, [
+        'Date of Baptism', 'Date of Marriage', 'Wedding ceremony schedule', 'Date of Funeral',
+        'Date of Burial', 'Date of Patronal Fiesta', 'Service date', 'Preferred date', 'Event date', 'Date'
+    ]);
+    if (!validDateValue($event_date)) {
+        $ts = strtotime($event_date);
+        if ($ts !== false && $ts > 0) {
+            $event_date = date('Y-m-d', $ts);
+        }
+    }
     if (!validDateValue($event_date)) {
         return ['success' => false, 'message' => 'Missing or invalid request date for calendar sync.'];
     }
@@ -2920,7 +2940,7 @@ function syncApprovedRequestToCalendar($conn, $request_id, $admin_user_id) {
     $type_label = ucfirst(str_replace('_', ' ', $request['request_type']));
     $title = $type_label . ' - ' . $request['fullname'];
     $blessing_request_types = ['house_blessing', 'car_blessing', 'vehicle_blessing', 'business_blessing', 'office_blessing', 'event_blessing', 'other_blessing'];
-    $service_request_types = ['baptism_service', 'marriage_wedding_service', 'funeral_mass', 'anointing_of_the_sick', 'patronal_fiesta'];
+    $service_request_types = ['baptism_service', 'marriage_wedding_service', 'funeral_mass', 'anointing_of_the_sick', 'patronal_fiesta', 'confirmation_service', 'first_communion_service'];
     $category = in_array($request['request_type'], $blessing_request_types, true) ? 'blessing' : (in_array($request['request_type'], $service_request_types, true) ? 'sacramental' : 'reservation');
     if ($request['request_type'] === 'patronal_fiesta') {
         $category = 'patronal_fiesta';

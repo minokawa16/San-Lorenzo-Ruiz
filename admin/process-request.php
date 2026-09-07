@@ -73,27 +73,38 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             throw new Exception('Invalid action');
         }
 
-        if ($action === 'approve') {
+        if ($action === 'complete' || $action === 'approve') {
             $sacramentalService = new SacramentalApprovalService($conn);
-            $approvalResult = $sacramentalService->approveRequest($request_id, (int)$_SESSION['user_id'], [
-                'admin_response' => $admin_response,
-                'officiating_priest' => $officiating_priest
-            ]);
+            $is_sacramental_type = SacramentalApprovalService::isSacramentalRequestType((string)($request['request_type'] ?? ''));
 
-            $success_message = 'Request approved successfully! User has been notified.';
-            if (!empty($approvalResult['sacramental_record']['registered'])) {
-                $recType = ucfirst($approvalResult['sacramental_record']['type'] ?? 'Sacramental');
-                $regNo = $approvalResult['sacramental_record']['registry_no'] ?? '';
-                $success_message .= " Official {$recType} record registered ({$regNo}) and parish calendar schedule locked.";
+            if ($is_sacramental_type) {
+                $completionResult = $sacramentalService->completeRequest($request_id, (int)$_SESSION['user_id'], [
+                    'admin_response' => $admin_response,
+                    'officiating_priest' => $officiating_priest,
+                    'target_status' => 'completed'
+                ]);
+
+                $success_message = 'Request completed successfully! User has been notified.';
+                if (!empty($completionResult['sacramental_record']['registered'])) {
+                    $recType = ucfirst($completionResult['sacramental_record']['type'] ?? 'Sacramental');
+                    $regNo = $completionResult['sacramental_record']['registry_no'] ?? '';
+                    $success_message .= " Official {$recType} record registered ({$regNo}) and parish calendar schedule locked.";
+                } else {
+                    $success_message .= ' Parish calendar schedule locked.';
+                }
+
+                $logger->info('Sacramental request completed via SacramentalApprovalService', [
+                    'request_id' => $request_id,
+                    'user_id' => $request['user_id'],
+                    'result' => $completionResult
+                ]);
             } else {
-                $success_message .= ' Parish calendar schedule locked.';
+                $workflow = new RequestService($conn);
+                $workflow->transition($request_id, 'completed', (int) $_SESSION['user_id'], $admin_response);
+                syncApprovedRequestToCalendar($conn, $request_id, (int)$_SESSION['user_id']);
+                createRequestStatusNotification($conn, $request, 'completed', $admin_response);
+                $success_message = 'Request completed and schedule added to the parish calendar! User has been notified.';
             }
-
-            $logger->info('Sacramental request approved via SacramentalApprovalService', [
-                'request_id' => $request_id,
-                'user_id' => $request['user_id'],
-                'result' => $approvalResult
-            ]);
 
             // Refresh request data
             $request = $db->selectOne($sql, 'i', [$request_id]);
@@ -633,10 +644,12 @@ $page_title = 'Review Request - #' . $request['reference_number'];
                                 <label for="status" class="form-label">Update Status</label>
                                 <select class="form-select" id="status" name="status" required>
                                     <option value="pending" <?php echo $request['status'] == 'pending' ? 'selected' : ''; ?>>Pending</option>
-                                    <option value="approved" <?php echo $request['status'] == 'approved' ? 'selected' : ''; ?>>Approved</option>
-                                    <option value="rejected" <?php echo $request['status'] == 'rejected' ? 'selected' : ''; ?>>Rejected</option>
+                                    <?php if ($request['status'] == 'approved'): ?>
+                                        <option value="approved" selected>Approved</option>
+                                    <?php endif; ?>
                                     <option value="processing" <?php echo $request['status'] == 'processing' ? 'selected' : ''; ?>>Processing</option>
                                     <option value="completed" <?php echo $request['status'] == 'completed' ? 'selected' : ''; ?>>Completed</option>
+                                    <option value="rejected" <?php echo $request['status'] == 'rejected' ? 'selected' : ''; ?>>Rejected</option>
                                 </select>
                             </div>
 
@@ -658,17 +671,14 @@ $page_title = 'Review Request - #' . $request['reference_number'];
                             <?php endif; ?>
 
                             <div class="d-grid gap-2">
-                                <button type="submit" name="action" value="approve" class="action-btn btn-approve" onclick="return confirm('Approve this request?');">
-                                    <i class="fas fa-check"></i> Approve Request
-                                </button>
-                                <button type="submit" name="action" value="reject" class="action-btn btn-reject" onclick="return confirm('Reject this request?');">
-                                    <i class="fas fa-times"></i> Reject Request
+                                <button type="submit" name="action" value="complete" class="action-btn btn-complete" onclick="return confirm('Mark this request as completed and sync schedule?');">
+                                    <i class="fas fa-circle-check"></i> Complete & Schedule
                                 </button>
                                 <button type="submit" name="action" value="request_more" class="action-btn btn-more-info" onclick="return confirm('Request more information?');">
                                     <i class="fas fa-question"></i> Request Info
                                 </button>
-                                <button type="submit" name="action" value="complete" class="action-btn btn-complete" onclick="return confirm('Mark as completed?');">
-                                    <i class="fas fa-flag-checkered"></i> Complete
+                                <button type="submit" name="action" value="reject" class="action-btn btn-reject" onclick="return confirm('Reject this request?');">
+                                    <i class="fas fa-times"></i> Reject Request
                                 </button>
                             </div>
                         </form>

@@ -40,7 +40,6 @@ $service_meta = [
 ];
 $baptism_requirements = [
     'chapel_recommendation' => 'Chapel Recommendation',
-    'latest_marriage_contract' => 'Latest Marriage Contract (if parents are married)',
     'marriage_certificate_receipt' => 'Latest Marriage Certificate / Marriage Contract Receipt',
     'marriage_certificate_photocopy' => 'Photocopy of Marriage Certificate (if married)',
     'live_birth_certificate' => 'Photocopy of Live Birth Certificate with Official Registry Number',
