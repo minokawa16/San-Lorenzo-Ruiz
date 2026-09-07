@@ -266,32 +266,6 @@ include '../templates/header.php';
 .adm-toc-link.active i {
   color: var(--adm-green-mid);
 }
-.adm-toc-shortcuts {
-  margin-top: 20px;
-  padding-top: 14px;
-  border-top: 1px solid var(--adm-slate-100);
-}
-.adm-shortcut-btn {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 9px 12px;
-  border-radius: 8px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  background: var(--adm-slate-50);
-  border: 1px solid var(--adm-slate-200);
-  color: var(--adm-slate-700);
-  text-decoration: none;
-  margin-bottom: 6px;
-  transition: all 0.15s;
-}
-.adm-shortcut-btn:hover {
-  background: var(--adm-gold-light);
-  border-color: var(--adm-gold);
-  color: var(--adm-green);
-}
 
 /* --- Content Section Cards (Tabbed View: Inactive Hidden) --- */
 .adm-section-card {
@@ -704,34 +678,6 @@ include '../templates/header.php';
             </a>
           </li>
         </ul>
-
-        <!-- Direct Admin Tool Shortcuts -->
-        <div class="adm-toc-shortcuts">
-          <div class="adm-toc-header" style="padding-left:0; margin-bottom:8px;">
-            <span>Go Directly To</span>
-            <i class="fas fa-arrow-up-right-from-square"></i>
-          </div>
-          <a href="<?php echo BASE_URL; ?>admin/parishioners.php" class="adm-shortcut-btn">
-            <span><i class="fas fa-users" style="margin-right:6px; color:var(--adm-green);"></i> Parishioners Page</span>
-            <i class="fas fa-chevron-right" style="font-size:0.7rem;"></i>
-          </a>
-          <a href="<?php echo BASE_URL; ?>admin/request-workflow.php" class="adm-shortcut-btn">
-            <span><i class="fas fa-inbox" style="margin-right:6px; color:var(--adm-blue);"></i> Request Workflow</span>
-            <i class="fas fa-chevron-right" style="font-size:0.7rem;"></i>
-          </a>
-          <a href="<?php echo BASE_URL; ?>admin/sacramental-records.php" class="adm-shortcut-btn">
-            <span><i class="fas fa-book-bookmark" style="margin-right:6px; color:var(--adm-gold);"></i> Church Record Books</span>
-            <i class="fas fa-chevron-right" style="font-size:0.7rem;"></i>
-          </a>
-          <a href="<?php echo BASE_URL; ?>admin/schedule.php" class="adm-shortcut-btn">
-            <span><i class="fas fa-calendar-days" style="margin-right:6px; color:var(--adm-teal);"></i> Schedule Calendar</span>
-            <i class="fas fa-chevron-right" style="font-size:0.7rem;"></i>
-          </a>
-          <a href="<?php echo BASE_URL; ?>admin/reports.php" class="adm-shortcut-btn">
-            <span><i class="fas fa-chart-pie" style="margin-right:6px; color:var(--adm-purple);"></i> Analytics &amp; Reports</span>
-            <i class="fas fa-chevron-right" style="font-size:0.7rem;"></i>
-          </a>
-        </div>
       </div>
     </aside>
 
