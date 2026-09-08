@@ -1285,6 +1285,26 @@ $breadcrumbs = [
 
 <style>
     .recovery-center { max-width: 1500px; margin: 0 auto; }
+    .btn-backup-brand {
+        background-color: #8b5a19 !important;
+        border-color: #8b5a19 !important;
+        color: #ffffff !important;
+        padding: 0.5rem 1.15rem;
+        border-radius: 8px;
+        transition: all 0.2s ease-in-out;
+    }
+    .btn-backup-brand:hover,
+    .btn-backup-brand:focus {
+        background-color: #704814 !important;
+        border-color: #704814 !important;
+        color: #ffffff !important;
+        box-shadow: 0 4px 12px rgba(139, 90, 25, 0.25);
+    }
+    .btn-backup-brand:active {
+        background-color: #5c3b10 !important;
+        border-color: #5c3b10 !important;
+        transform: translateY(1px);
+    }
     .recovery-hero { background: #fff; color: #101828; border: 1px solid #e4e7ec; border-top: 4px solid #d7ad43; border-radius: 8px; padding: 28px; display: grid; grid-template-columns: 1.5fr .8fr; gap: 24px; align-items: center; box-shadow: 0 12px 28px rgba(16, 24, 40, .06); }
     .recovery-hero h1 { font-size: clamp(1.6rem, 3vw, 2.35rem); margin: 0 0 10px; letter-spacing: 0; }
     .recovery-hero p { color: #667085; margin-bottom: 0; max-width: 760px; }
@@ -1518,18 +1538,24 @@ $breadcrumbs = [
     include '../includes/page_header.php';
     ?>
 
-    <section class="recovery-hero mb-3">
-        <div>
-            <h2 class="h5 m-0 font-weight-bold"><i class="fas fa-shield-halved"></i> Backup &amp; Recovery Hub</h2>
-            <p class="m-0 text-muted" style="font-size: 0.84rem;">Protection for sacramental records, user accounts, system configuration, uploaded files, and recovery logs.</p>
+    <div class="card border-0 shadow-sm rounded-4 mb-4">
+        <div class="card-body p-4 d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+            <div>
+                <h2 class="h5 m-0 font-weight-bold text-dark d-flex align-items-center gap-2">
+                    <i class="fas fa-shield-halved text-secondary"></i> Backup &amp; Recovery
+                </h2>
+                <p class="m-0 text-muted mt-1" style="font-size: 0.875rem;">Create and manage database backups to ensure parish records and data safety.</p>
+            </div>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <a href="settings.php?download_action=database_backup" class="btn btn-backup-brand fw-semibold d-inline-flex align-items-center gap-2" data-download-action>
+                    <i class="fas fa-cloud-arrow-down"></i> Backup Data
+                </a>
+                <a href="#recoveryWizard" class="btn btn-outline-secondary fw-semibold d-inline-flex align-items-center gap-2 px-3 py-2" style="border-radius: 8px;">
+                    <i class="fas fa-rotate-left"></i> Restore
+                </a>
+            </div>
         </div>
-        <div class="hero-actions">
-            <a href="settings.php?download_action=full_backup" class="btn btn-primary" data-download-action>
-                <i class="fas fa-box-archive me-1"></i> Complete System Backup
-            </a>
-            <a href="#recoveryWizard" class="btn btn-outline-primary"><i class="fas fa-life-ring me-1"></i> Emergency Recovery</a>
-        </div>
-    </section>
+    </div>
 
     <div id="backupAlertContainer">
         <?php if ($error): ?>
