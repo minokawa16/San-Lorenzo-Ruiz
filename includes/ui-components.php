@@ -50,18 +50,18 @@ function pdsBadge($label, $status = 'neutral', $icon = '') {
 }
 
 function pdsStatusClass($status) {
-    $status = strtolower((string) $status);
+    $status = strtolower(trim((string) $status));
     $map = [
-        'active' => 'approved',
-        'approved' => 'approved',
-        'completed' => 'completed',
-        'pending' => 'pending',
-        'submitted' => 'pending',
-        'processing' => 'neutral',
-        'rejected' => 'rejected',
-        'cancelled' => 'cancelled',
-        'canceled' => 'cancelled',
-        'archived' => 'neutral'
+        'pending'    => 'pending',
+        'submitted'  => 'pending',
+        'processing' => 'info',
+        'approved'   => 'info',
+        'completed'  => 'completed',
+        'rejected'   => 'rejected',
+        'cancelled'  => 'rejected',
+        'canceled'   => 'rejected',
+        'active'     => 'completed',
+        'archived'   => 'neutral'
     ];
     return 'pds-badge pds-badge-' . ($map[$status] ?? 'neutral');
 }

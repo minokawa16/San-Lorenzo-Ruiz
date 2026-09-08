@@ -74,9 +74,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $action = $_POST['action'] ?? '';
 
     if ($action === 'update_status') {
-        $status = $_POST['status'] ?? '';
+        $raw_status = trim((string)($_POST['status'] ?? ''));
+        $status = strtolower($raw_status);
         $admin_response = trim($_POST['admin_response'] ?? '');
-        $allowed_statuses = ['pending', 'approved', 'processing', 'completed', 'rejected'];
+        $allowed_statuses = ['pending', 'processing', 'completed', 'rejected'];
 
         $requirement_count = requestDocumentCount($conn, $request_id, 'requirement');
         $released_count = requestDocumentCount($conn, $request_id, 'released_certificate') + requestDocumentCount($conn, $request_id, 'admin_file');
@@ -87,14 +88,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $requires_supporting_docs = !in_array($request_type, $zero_requirement_services, true);
 
         if (!in_array($status, $allowed_statuses, true)) {
-            $error = 'Invalid request status.';
-        } elseif (in_array($status, ['approved', 'processing', 'completed'], true) && $requires_supporting_docs && $requirement_count <= 0) {
+            $error = 'Invalid request status. Allowed: Pending, Processing, Completed, Rejected.';
+        } elseif (in_array($status, ['processing', 'completed'], true) && $requires_supporting_docs && $requirement_count <= 0) {
             $error = 'This request cannot move forward until at least one supporting requirement is attached.';
         } elseif ($status === 'completed' && $is_certificate && $released_count <= 0 && $requires_supporting_docs) {
             $error = 'Upload a released certificate or parish office file before marking this request completed.';
         } elseif ($status === 'completed' && $is_certificate && intval($current_payment_summary['total']) > 0 && intval($current_payment_summary['verified']) <= 0) {
             $error = 'A submitted payment receipt must be verified before marking this request completed.';
-        } elseif ($status === 'completed' || $status === 'approved') {
+        } elseif ($status === 'completed') {
             require_once __DIR__ . '/../services/SacramentalApprovalService.php';
             $is_sacramental_type = SacramentalApprovalService::isSacramentalRequestType($request_type);
 
@@ -664,7 +665,7 @@ $breadcrumbs = [
                     </span>
                 </div>
                 <div class="d-flex align-items-center gap-2">
-                    <span class="badge bg-<?php echo getStatusBadgeClass($disp_status); ?> px-3 py-2 rounded-pill fs-6 fw-semibold text-uppercase">
+                    <span class="badge rounded-pill px-3 py-2 fs-6 fw-semibold text-uppercase <?php echo getStatusBadgeClass($disp_status); ?>">
                         <?php echo e(ucfirst(str_replace('_', ' ', $disp_status))); ?>
                     </span>
                 </div>
@@ -1207,34 +1208,15 @@ $breadcrumbs = [
                     <div class="row g-4 mb-4">
                         <!-- Status Dropdown -->
                         <div class="col-md-5">
-                            <label class="micro-label" for="status">Request Status</label>
-                            <?php
-                            $current_status_val = strtolower($request['status'] ?? 'pending');
-                            if ($current_status_val === 'submitted') {
-                                $current_status_val = 'pending';
-                            } elseif ($current_status_val === 'scheduled') {
-                                $current_status_val = 'approved';
-                            } elseif ($current_status_val === 'cancelled') {
-                                $current_status_val = 'rejected';
-                            }
-
-                            $workflow_statuses = [
-                                'pending'    => 'Pending',
-                                'processing' => 'Under Review',
-                                'approved'   => 'Approved / Scheduled',
-                                'completed'  => 'Completed',
-                                'rejected'   => 'Declined / Cancelled'
-                            ];
-                            ?>
+                            <label for="status" class="form-label fw-bold text-dark small text-uppercase">REQUEST STATUS</label>
                             <select class="form-select border-secondary-subtle py-2 fw-semibold" id="status" name="status" required>
-                                <?php foreach ($workflow_statuses as $val => $lbl): ?>
-                                    <option value="<?php echo e($val); ?>" <?php echo $current_status_val === $val ? 'selected' : ''; ?>>
-                                        <?php echo e($lbl); ?>
-                                    </option>
-                                <?php endforeach; ?>
+                                <option value="pending" <?php echo (strtolower($request['status'] ?? '') === 'pending') ? 'selected' : ''; ?>>Pending</option>
+                                <option value="processing" <?php echo (strtolower($request['status'] ?? '') === 'processing') ? 'selected' : ''; ?>>Processing</option>
+                                <option value="completed" <?php echo (strtolower($request['status'] ?? '') === 'completed') ? 'selected' : ''; ?>>Completed</option>
+                                <option value="rejected" <?php echo (strtolower($request['status'] ?? '') === 'rejected') ? 'selected' : ''; ?>>Rejected</option>
                             </select>
                             <div class="form-text text-muted small mt-2">
-                                Marking as <strong>Approved / Scheduled</strong> or <strong>Completed</strong> registers sacramental records and synchronizes calendar bookings.
+                                <i class="fas fa-info-circle me-1"></i> Changing this updates the parishioner's tracking status.
                             </div>
                         </div>
 

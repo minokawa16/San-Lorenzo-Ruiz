@@ -51,7 +51,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
     } catch(Throwable $e){$error=$e->getMessage();}
 } elseif (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '') === 'submit_payment') {
     requireValidCsrfToken();
-    if (!in_array($request['status'], ['approved', 'processing'], true)) {
+    if (!in_array(strtolower($request['status'] ?? ''), ['processing', 'approved'], true)) {
         $error = 'Payment receipts can be submitted after the parish office approves or starts processing the request.';
     } else {
         $payment = createRequestPayment(
@@ -364,10 +364,10 @@ $page_title = 'View Request';
                     <div class="d-flex justify-content-between align-items-center">
                         <h5 class="mb-0"><i class="fas fa-file-alt"></i> Request Details</h5>
                         <?php 
-                            $disp_status = strtolower($request['status']) === 'submitted' ? 'pending' : $request['status'];
+                            $disp_status = strtolower($request['status'] ?? 'pending');
                         ?>
-                        <span class="badge bg-<?php echo getStatusBadgeClass($disp_status); ?>">
-                            <?php echo e(ucfirst(str_replace('_', ' ', $disp_status))); ?>
+                        <span class="badge rounded-pill border px-3 py-1.5 fw-semibold <?php echo getStatusBadgeClass($disp_status); ?>">
+                            <?php echo e(ucfirst($disp_status)); ?>
                         </span>
                     </div>
                 </div>

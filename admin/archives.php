@@ -433,9 +433,9 @@ include '../templates/header.php';
                                         <td><?php echo e($request['fullname']); ?><br><small><?php echo e($request['email']); ?></small></td>
                                         <td><?php echo e(ucfirst(str_replace('_', ' ', $request['request_type']))); ?></td>
                                         <?php 
-                                            $disp_status = strtolower($request['status']) === 'submitted' ? 'pending' : $request['status'];
+                                            $disp_status = strtolower($request['status'] ?? 'pending');
                                         ?>
-                                        <td><span class="badge bg-<?php echo getStatusBadgeClass($disp_status); ?>"><?php echo e(ucfirst(str_replace('_', ' ', $disp_status))); ?></span></td>
+                                        <td><span class="badge rounded-pill border px-2.5 py-1 fw-semibold <?php echo getStatusBadgeClass($disp_status); ?>"><?php echo e(ucfirst($disp_status)); ?></span></td>
                                         <td><?php echo formatDateTime($request['deleted_at']); ?></td>
                                         <td>
                                             <form method="POST" class="d-inline" onsubmit="return confirm('Restore this request?');">

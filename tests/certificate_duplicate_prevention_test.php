@@ -90,31 +90,20 @@ try {
 
     certCheck(!empty($reqAfterCompleted['request_id']), 'New request is permitted after previous request reaches completed');
 
-    // Test 5: When marked cancelled, a new request is also ALLOWED
+    // Test 5: When marked rejected, a new request is also ALLOWED
     $reqAfterId = (int) $reqAfterCompleted['request_id'];
-    $conn->query("UPDATE requests SET status='cancelled' WHERE request_id = $reqAfterId");
+    $conn->query("UPDATE requests SET status='rejected' WHERE request_id = $reqAfterId");
 
     $key5 = hash('sha256', random_bytes(32));
-    $reqAfterCancelled = $service->create([
-        'request_type' => 'baptismal_certificate',
-        'description' => 'New request after previous was cancelled',
-        'record_holder_name' => $holder1
-    ], $userId, $key5);
-
-    certCheck(!empty($reqAfterCancelled['request_id']), 'New request is permitted after previous request reaches cancelled');
-
-    // Test 6: When marked rejected, a new request is also ALLOWED
-    $reqCancId = (int) $reqAfterCancelled['request_id'];
-    $conn->query("UPDATE requests SET status='rejected' WHERE request_id = $reqCancId");
-
-    $key6 = hash('sha256', random_bytes(32));
     $reqAfterRejected = $service->create([
         'request_type' => 'baptismal_certificate',
         'description' => 'New request after previous was rejected',
         'record_holder_name' => $holder1
-    ], $userId, $key6);
+    ], $userId, $key5);
 
     certCheck(!empty($reqAfterRejected['request_id']), 'New request is permitted after previous request reaches rejected');
+
+
 
 } finally {
     // Rollback test changes to preserve database clean state

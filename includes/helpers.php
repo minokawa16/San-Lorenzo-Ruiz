@@ -3216,25 +3216,24 @@ function getUserById($conn, $id) {
 
 // Get request status badge color
 function getStatusBadgeClass($status) {
-    $colors = [
-        'pending' => 'warning',
-        'submitted' => 'warning',
-        'requirements_review' => 'info',
-        'needs_information' => 'warning',
-        'payment_required' => 'warning',
-        'payment_review' => 'info',
-        'approved' => 'success',
-        'scheduled' => 'primary',
-        'processing' => 'info',
-        'ready_for_release' => 'primary',
-        'completed' => 'success',
-        'rejected' => 'danger',
-        'cancelled' => 'secondary',
-        'active' => 'success',
-        'inactive' => 'secondary',
-        'archived' => 'secondary'
-    ];
-    return $colors[$status] ?? 'secondary';
+    switch (strtolower(trim((string)$status))) {
+        case 'pending':
+        case 'submitted':
+            return 'bg-warning-subtle text-warning border border-warning-subtle';
+        case 'processing':
+        case 'approved':
+        case 'scheduled':
+        case 'under review':
+            return 'bg-info-subtle text-info border border-info-subtle';
+        case 'completed':
+            return 'bg-success-subtle text-success border border-success-subtle';
+        case 'rejected':
+        case 'cancelled':
+        case 'declined':
+            return 'bg-danger-subtle text-danger border border-danger-subtle';
+        default:
+            return 'bg-secondary-subtle text-secondary border border-secondary-subtle';
+    }
 }
 
 // Pagination helper

@@ -1,46 +1,44 @@
 <?php
 
 final class RequestStateMachine {
-    public const STATES = ['draft','pending','submitted','requirements_review','needs_information','payment_required','payment_review','approved','scheduled','processing','ready_for_release','completed','rejected','cancelled'];
+    public const STATES = ['pending', 'processing', 'completed', 'rejected'];
     private const TRANSITIONS = [
-        'draft' => ['pending','submitted','cancelled'],
-        'pending' => ['requirements_review','needs_information','completed','approved','rejected','cancelled'],
-        'submitted' => ['requirements_review','needs_information','completed','approved','rejected','cancelled'],
-        'requirements_review' => ['needs_information','payment_required','completed','approved','rejected'],
-        'needs_information' => ['pending','submitted','completed','cancelled'],
-        'payment_required' => ['payment_review','cancelled'],
-        'payment_review' => ['completed','approved','payment_required','rejected'],
-        'approved' => ['scheduled','processing','completed','cancelled'],
-        'scheduled' => ['processing','completed','cancelled'],
-        'processing' => ['ready_for_release','completed','rejected'],
-        'ready_for_release' => ['completed'],
-        'completed' => ['completed'],
-        'rejected' => [], 'cancelled' => [],
+        'pending'    => ['processing', 'completed', 'rejected'],
+        'processing' => ['completed', 'rejected', 'pending'],
+        'completed'  => ['processing'],
+        'rejected'   => ['pending', 'processing'],
     ];
 
     public static function normalize(string $status): string { 
         $s = strtolower(trim($status));
-        return $s === 'submitted' ? 'pending' : $s; 
+        return match ($s) {
+            'submitted', 'draft', 'needs_information', 'payment_required', 'requirements_review' => 'pending',
+            'approved', 'scheduled', 'ready_for_release', 'under review', 'payment_review'       => 'processing',
+            'cancelled', 'declined', 'declined / cancelled'                                      => 'rejected',
+            default => in_array($s, self::STATES, true) ? $s : 'pending',
+        };
     }
+
     public static function canTransition(string $from, string $to): bool { 
         $normTo = self::normalize($to);
         $normFrom = self::normalize($from);
-        return in_array($normTo, self::TRANSITIONS[$normFrom] ?? [], true) || in_array($to, self::TRANSITIONS[$normFrom] ?? [], true); 
+        if ($normFrom === $normTo) {
+            return true;
+        }
+        return in_array($normTo, self::TRANSITIONS[$normFrom] ?? [], true); 
     }
-    public static function requiresReason(string $to): bool { return in_array($to, ['rejected','needs_information','cancelled'], true); }
+
+    public static function requiresReason(string $to): bool { 
+        return self::normalize($to) === 'rejected'; 
+    }
+
     public static function nextAction(string $status): array {
         return match (self::normalize($status)) {
-            'pending','submitted','requirements_review' => ['required'=>true,'label'=>'The parish office is reviewing your requirements.','action'=>'Wait for review or respond to any request for information.'],
-            'needs_information' => ['required'=>true,'label'=>'Additional information is required.','action'=>'Upload the requested information or send a message.'],
-            'payment_required' => ['required'=>true,'label'=>'Payment is required.','action'=>'Submit payment through this request.'],
-            'payment_review' => ['required'=>false,'label'=>'Payment is under review.','action'=>'Wait for payment verification.'],
-            'approved','scheduled' => ['required'=>true,'label'=>'Your request is approved.','action'=>'Review the scheduled date or wait for processing.'],
-            'processing' => ['required'=>false,'label'=>'Your request is being processed.','action'=>'Wait for the parish office to complete processing.'],
-            'ready_for_release' => ['required'=>true,'label'=>'Your request is ready for release.','action'=>'Claim or collect the requested document/service.'],
-            'completed' => ['required'=>false,'label'=>'Request completed.','action'=>'No further action is required.'],
-            'rejected' => ['required'=>true,'label'=>'Request rejected.','action'=>'Review the reason and contact the parish office if correction is possible.'],
-            'cancelled' => ['required'=>false,'label'=>'Request cancelled.','action'=>'No further action is required.'],
-            default => ['required'=>true,'label'=>'Draft request.','action'=>'Complete and submit this request.'],
+            'pending'    => ['required' => true, 'label' => 'The parish office is reviewing your request and requirements.', 'action' => 'Wait for parish review or staff feedback.'],
+            'processing' => ['required' => false, 'label' => 'Your request is currently being processed.', 'action' => 'Wait for the parish office to complete verification or document issuance.'],
+            'completed'  => ['required' => false, 'label' => 'Request completed.', 'action' => 'No further action is required. Issued records are available.'],
+            'rejected'   => ['required' => true, 'label' => 'Request rejected.', 'action' => 'Review the admin remarks and contact the parish office if correction is possible.'],
+            default      => ['required' => true, 'label' => 'Pending review.', 'action' => 'Wait for staff review.'],
         };
     }
 }

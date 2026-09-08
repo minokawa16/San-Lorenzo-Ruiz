@@ -112,10 +112,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
     }
 } elseif (($_SERVER['REQUEST_METHOD'] ?? 'GET') == 'POST' && isset($_POST['request_id'])) {
     $request_id = intval($_POST['request_id']);
-    $status = $conn->real_escape_string($_POST['status']);
-    $admin_response = $conn->real_escape_string($_POST['admin_response']);
+    $status = strtolower(trim((string)($_POST['status'] ?? '')));
+    $admin_response = $conn->real_escape_string($_POST['admin_response'] ?? '');
+    $allowed_statuses = ['pending', 'processing', 'completed', 'rejected'];
 
-    if ($status === 'completed' || $status === 'approved') {
+    if (!in_array($status, $allowed_statuses, true)) {
+        $error = 'Invalid request status. Allowed: Pending, Processing, Completed, Rejected.';
+    } elseif ($status === 'completed') {
         require_once __DIR__ . '/../services/SacramentalApprovalService.php';
         $req_type_row = $conn->query("SELECT request_type FROM requests WHERE request_id = $request_id")->fetch_assoc();
         $req_type = (string)($req_type_row['request_type'] ?? '');
@@ -322,14 +325,14 @@ include '../templates/header.php';
                 <a href="?status=pending&type=<?php echo urlencode($type_filter); ?>&q=<?php echo urlencode($search); ?>" data-status="pending" class="pds-filter-tab <?php echo $status_filter == 'pending' ? 'active' : ''; ?>">
                     Pending
                 </a>
-                <a href="?status=approved&type=<?php echo urlencode($type_filter); ?>&q=<?php echo urlencode($search); ?>" data-status="approved" class="pds-filter-tab <?php echo $status_filter == 'approved' ? 'active' : ''; ?>">
-                    Approved
-                </a>
-                <a href="?status=rejected&type=<?php echo urlencode($type_filter); ?>&q=<?php echo urlencode($search); ?>" data-status="rejected" class="pds-filter-tab <?php echo $status_filter == 'rejected' ? 'active' : ''; ?>">
-                    Rejected
+                <a href="?status=processing&type=<?php echo urlencode($type_filter); ?>&q=<?php echo urlencode($search); ?>" data-status="processing" class="pds-filter-tab <?php echo $status_filter == 'processing' ? 'active' : ''; ?>">
+                    Processing
                 </a>
                 <a href="?status=completed&type=<?php echo urlencode($type_filter); ?>&q=<?php echo urlencode($search); ?>" data-status="completed" class="pds-filter-tab <?php echo $status_filter == 'completed' ? 'active' : ''; ?>">
                     Completed
+                </a>
+                <a href="?status=rejected&type=<?php echo urlencode($type_filter); ?>&q=<?php echo urlencode($search); ?>" data-status="rejected" class="pds-filter-tab <?php echo $status_filter == 'rejected' ? 'active' : ''; ?>">
+                    Rejected
                 </a>
             </div>
 
@@ -353,7 +356,7 @@ include '../templates/header.php';
                     <label for="requestStatusFilter" class="form-label">Status</label>
                     <select id="requestStatusFilter" class="form-select" name="status">
                         <option value="">All Statuses</option>
-                        <?php foreach (['pending', 'approved', 'rejected', 'processing', 'completed'] as $status_option): ?>
+                        <?php foreach (['pending', 'processing', 'completed', 'rejected'] as $status_option): ?>
                             <option value="<?php echo e($status_option); ?>" <?php echo $status_filter === $status_option ? 'selected' : ''; ?>>
                                 <?php echo e(ucfirst($status_option)); ?>
                             </option>

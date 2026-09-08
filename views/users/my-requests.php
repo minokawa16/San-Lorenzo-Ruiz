@@ -31,14 +31,11 @@
                     <select class="form-select" name="status" style="border-color: #E8E1D5; background: #FAF7F2;">
                         <option value="">All Statuses</option>
                         <?php
-                        $filter_options = $dropdown_statuses ?? ['pending', 'processing', 'completed', 'rejected'];
-                        if ($status_filter !== '' && !in_array($status_filter, $filter_options, true)) {
-                            $filter_options[] = $status_filter;
-                        }
+                        $filter_options = ['pending', 'processing', 'completed', 'rejected'];
                         ?>
                         <?php foreach ($filter_options as $status_option): ?>
                             <option value="<?php echo e($status_option); ?>" <?php echo $status_filter === $status_option ? 'selected' : ''; ?>>
-                                <?php echo e(ucfirst(str_replace('_', ' ', $status_option))); ?>
+                                <?php echo e(ucfirst($status_option)); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
@@ -81,10 +78,10 @@
                                     </td>
                                     <td class="py-3 px-3" data-label="Status">
                                         <?php 
-                                            $disp_status = strtolower($request['status']) === 'submitted' ? 'pending' : $request['status'];
+                                            $disp_status = strtolower($request['status'] ?? 'pending');
                                         ?>
-                                        <span class="badge bg-<?php echo getStatusBadgeClass($disp_status); ?> px-2 py-1" style="font-size: 0.78rem; font-weight: 600;">
-                                            <?php echo e(ucfirst(str_replace('_', ' ', $disp_status))); ?>
+                                        <span class="badge <?php echo getStatusBadgeClass($disp_status); ?> px-2.5 py-1.5" style="font-size: 0.78rem; font-weight: 600;">
+                                            <?php echo e(ucfirst($disp_status)); ?>
                                         </span>
                                     </td>
                                     <td class="py-3 px-3 text-muted" data-label="Date Requested" style="font-size: 0.88rem;">

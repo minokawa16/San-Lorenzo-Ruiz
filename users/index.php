@@ -567,9 +567,9 @@ $body_extra_class = $show_mobile_dashboard_features ? 'user-dashboard-feature-vi
                                         <td data-label="Request Type"><?php echo e(dashboardRequestLabel($request['request_type'])); ?></td>
                                         <td data-label="Date Submitted"><?php echo e(formatDate($request['date_requested'])); ?></td>
                                         <?php 
-                                            $disp_status = strtolower($request['status']) === 'submitted' ? 'pending' : $request['status'];
+                                            $disp_status = strtolower($request['status'] ?? 'pending');
                                         ?>
-                                        <td data-label="Status"><span class="badge bg-<?php echo e(getStatusBadgeClass($disp_status)); ?>"><?php echo e(ucfirst(str_replace('_', ' ', $disp_status))); ?></span></td>
+                                        <td data-label="Status"><span class="badge rounded-pill border px-2.5 py-1 fw-semibold <?php echo getStatusBadgeClass($disp_status); ?>"><?php echo e(ucfirst($disp_status)); ?></span></td>
                                         <td data-label="Action"><a class="btn btn-sm btn-outline-primary" href="view-request.php?id=<?php echo intval($request['request_id']); ?>">View Details</a></td>
                                     </tr>
                                 <?php endforeach; ?>

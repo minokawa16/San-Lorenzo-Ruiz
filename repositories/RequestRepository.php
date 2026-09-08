@@ -17,20 +17,11 @@ final class RequestRepository
         $params = [$userId];
 
         if ($status !== '') {
-            if ($status === 'pending') {
-                $where[] = "(status = 'pending' OR status = 'submitted' OR status = 'requirements_review' OR status = 'needs_information' OR status = 'payment_required' OR status = 'payment_review')";
-            } elseif ($status === 'approved') {
-                $where[] = "status = 'approved'";
-            } elseif ($status === 'processing') {
-                $where[] = "(status = 'processing' OR status = 'approved' OR status = 'scheduled' OR status = 'ready_for_release')";
-            } elseif ($status === 'cancelled') {
-                $where[] = "status = 'cancelled'";
-            } elseif ($status === 'rejected') {
-                $where[] = "(status = 'rejected' OR status = 'cancelled')";
-            } else {
+            $normStatus = strtolower(trim($status));
+            if (in_array($normStatus, ['pending', 'processing', 'completed', 'rejected'], true)) {
                 $where[] = 'status = ?';
                 $types .= 's';
-                $params[] = $status;
+                $params[] = $normStatus;
             }
         }
         if ($search !== '') {
