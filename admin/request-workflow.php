@@ -1,10 +1,11 @@
 <?php
 /**
- * Admin Request Workflow - Reviews requirements, verifies payments, and releases files.
+ * Admin Request Workflow - Top-to-bottom formal review workflow.
+ * Reviews requirements, inspects submitted application forms, verifies payments, and updates statuses.
  */
-include '../includes/session.php';
-include '../database/config.php';
-include '../includes/helpers.php';
+require_once '../includes/session.php';
+require_once '../database/config.php';
+require_once '../includes/helpers.php';
 
 requireAdmin();
 requirePermission('requests.manage');
@@ -21,9 +22,10 @@ $error = '';
 $success = '';
 
 $stmt = $conn->prepare("
-    SELECT r.*, u.fullname, u.email, u.phone_number
+    SELECT r.*, u.fullname, u.email, u.phone_number, staff.fullname AS assigned_staff_name
     FROM requests r
     JOIN users u ON u.id = r.user_id
+    LEFT JOIN users staff ON staff.id = r.assigned_to
     WHERE r.request_id = ?
     LIMIT 1
 ");
@@ -198,6 +200,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     }
 }
 
+// Fetch documents
 $documents = [];
 $stmt = $conn->prepare("SELECT * FROM request_documents WHERE request_id = ? AND deleted_at IS NULL ORDER BY uploaded_at DESC");
 if ($stmt) {
@@ -253,6 +256,9 @@ if ($res_stmt) {
     $res_stmt->close();
 }
 
+/**
+ * Parses full raw submission description into structured sections.
+ */
 if (!function_exists('parseSubmittedApplicationForm')) {
     function parseSubmittedApplicationForm(string $description): array {
         $lines = array_filter(array_map('trim', explode("\n", str_replace(["\r\n", "\r"], "\n", $description))), static fn($l) => $l !== '');
@@ -315,6 +321,143 @@ if (!function_exists('parseSubmittedApplicationForm')) {
     }
 }
 
+/**
+ * Extracts the 3 standardized formal church document sections:
+ * Section 1: Application Overview & Schedule
+ * Section 2: Applicant & Candidate Details
+ * Section 3: Special Remarks / Attached Documents
+ */
+if (!function_exists('extractFormalDocumentDetails')) {
+    function extractFormalDocumentDetails(array $request, ?array $linked_reservation, array $documents_by_type): array {
+        $desc = (string)($request['description'] ?? '');
+        $lines = array_filter(array_map('trim', explode("\n", str_replace(["\r\n", "\r"], "\n", $desc))), static fn($l) => $l !== '');
+
+        $kv = [];
+        $raw_remarks = [];
+        foreach ($lines as $line) {
+            if (preg_match('/^---.*---$/', $line) || preg_match('/^\d+\.\s*.*:?$/', $line)) {
+                continue;
+            }
+            if (str_contains($line, ':')) {
+                $parts = explode('|', $line);
+                foreach ($parts as $part) {
+                    if (str_contains($part, ':')) {
+                        [$k, $v] = explode(':', $part, 2);
+                        $key = strtolower(trim($k));
+                        $kv[$key] = trim($v);
+                    } else {
+                        $raw_remarks[] = trim($part);
+                    }
+                }
+            } else {
+                $raw_remarks[] = $line;
+            }
+        }
+
+        // Section 1: Application Overview & Schedule
+        $prefDate = $linked_reservation['event_date'] ?? null;
+        if (!$prefDate) {
+            $prefDate = $kv['preferred date'] ?? $kv['date of baptism'] ?? $kv['date of marriage'] ?? $kv['wedding date'] ?? $kv['date of patronal fiesta'] ?? null;
+        }
+        $displayDate = $prefDate ? formatDate($prefDate) : formatDate($request['date_requested']);
+
+        $prefTime = $linked_reservation['event_time'] ?? null;
+        if (!$prefTime) {
+            $prefTime = $kv['preferred time'] ?? null;
+        }
+        $displayTime = $prefTime ? date('h:i A', strtotime($prefTime)) : 'Regular Parish Hours / TBA';
+
+        $assignedPriest = $request['assigned_staff_name'] ?? null;
+        if (!$assignedPriest) {
+            $assignedPriest = $kv['assigned priest'] ?? $kv['priest'] ?? $kv['minister'] ?? $kv['celebrant'] ?? 'Parish Priest / Assigned Minister';
+        }
+
+        $venue = $kv['location'] ?? $kv['venue'] ?? null;
+        if (!$venue) {
+            $rawType = strtolower(trim((string)($request['request_type'] ?? '')));
+            $venue = str_contains($rawType, 'certif') ? 'San Lorenzo Ruiz Parish Office' : 'San Lorenzo Ruiz Parish Church / Chapel';
+        }
+
+        // Section 2: Applicant & Candidate Details
+        $candidateName = !empty($request['record_holder_name']) ? $request['record_holder_name'] : null;
+        $rawType = strtolower(trim((string)($request['request_type'] ?? '')));
+        $isMarriage = str_contains($rawType, 'marriage') || str_contains($rawType, 'wedding');
+
+        if ($isMarriage && (!empty($kv['full name']) || !empty($kv['groom'])) && (!empty($kv['full maiden name']) || !empty($kv['bride']))) {
+            $groom = $kv['full name'] ?? $kv['groom'] ?? 'Groom';
+            $bride = $kv['full maiden name'] ?? $kv['bride'] ?? 'Bride';
+            $candidateName = $groom . ' & ' . $bride . ' (Couple)';
+
+            $fatherName = (!empty($kv['father']) ? $kv['father'] : 'N/A');
+            if (preg_match('/Groom.*?Father:\s*([^\|\n]+)/i', $desc, $gm) && preg_match('/Bride.*?Father:\s*([^\|\n]+)/i', $desc, $bm)) {
+                $fatherName = 'Groom: ' . trim($gm[1]) . ' | Bride: ' . trim($bm[1]);
+            }
+            $motherName = (!empty($kv['mother']) ? $kv['mother'] : 'N/A');
+            if (preg_match('/Groom.*?Mother:\s*([^\|\n]+)/i', $desc, $gm) && preg_match('/Bride.*?Mother:\s*([^\|\n]+)/i', $desc, $bm)) {
+                $motherName = 'Groom: ' . trim($gm[1]) . ' | Bride: ' . trim($bm[1]);
+            }
+        } else {
+            if (!$candidateName) {
+                $candidateName = $kv['name of child'] ?? $kv['child\'s name'] ?? $kv['full name'] ?? $kv['full maiden name'] ?? $kv['record holder name'] ?? $request['fullname'];
+            }
+            $fatherName = $kv['father'] ?? $kv['father\'s name'] ?? 'Not specified / N/A';
+            $motherName = $kv['mother'] ?? $kv['mother\'s maiden name'] ?? $kv['mother\'s name'] ?? 'Not specified / N/A';
+        }
+
+        $contactInfo = [
+            'name'  => $request['fullname'],
+            'email' => $request['email'],
+            'phone' => !empty($request['phone_number']) ? $request['phone_number'] : 'None on file'
+        ];
+
+        // Section 3: Special Remarks / Attached Documents
+        $remarks = $kv['details'] ?? $kv['purpose'] ?? $kv['requested blessing'] ?? null;
+        if (!$remarks && !empty($raw_remarks)) {
+            $remarks = implode('; ', $raw_remarks);
+        }
+        if (!$remarks || strtolower($remarks) === 'none') {
+            $remarks = 'No special remarks or instructions provided.';
+        }
+
+        $reqDocs = [];
+        foreach ($documents_by_type['requirement'] ?? [] as $doc) {
+            $reqDocs[] = [
+                'id'        => (int)$doc['document_id'],
+                'name'      => !empty($doc['requirement_name']) ? $doc['requirement_name'] : $doc['original_name'],
+                'file_name' => $doc['original_name'],
+                'size'      => formatFileSize($doc['file_size'])
+            ];
+        }
+
+        return [
+            'schedule' => [
+                'preferred_date'  => $displayDate,
+                'preferred_time'  => $displayTime,
+                'assigned_priest' => $assignedPriest,
+                'venue'           => $venue
+            ],
+            'candidate' => [
+                'candidate_name' => $candidateName,
+                'father_name'    => $fatherName,
+                'mother_name'    => $motherName,
+                'contact'        => $contactInfo
+            ],
+            'remarks_documents' => [
+                'remarks'      => $remarks,
+                'requirements' => $reqDocs
+            ]
+        ];
+    }
+}
+
+$formalDetails = extractFormalDocumentDetails($request, $linked_reservation, $documents_by_type);
+$parsedSections = parseSubmittedApplicationForm((string)($request['description'] ?? ''));
+
+$disp_status = strtolower($request['status'] ?? 'pending');
+if ($disp_status === 'submitted') {
+    $disp_status = 'pending';
+}
+
 $page_title = 'Request Workflow';
 $breadcrumbs = [
     'Dashboard' => 'dashboard.php',
@@ -325,6 +468,109 @@ $breadcrumbs = [
 <?php include '../templates/header.php'; ?>
 
 <style>
+/* --- Workflow Layout & Document Presentation Styles --- */
+.workflow-wrap {
+    max-width: 1040px;
+    margin: 0 auto;
+}
+
+/* Micro Typography for Administrative Metadata */
+.micro-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748b;
+    margin-bottom: 0.25rem;
+    display: block;
+}
+
+.meta-value {
+    color: #0f172a;
+    font-weight: 600;
+    word-break: break-word;
+}
+
+/* Official Printable Church Document Container */
+.formal-document-container {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+    position: relative;
+    overflow: hidden;
+}
+
+.formal-doc-header {
+    background: #f8fafc;
+    border-bottom: 2px solid #e2e8f0;
+    padding: 1.15rem 1.75rem;
+}
+
+.formal-doc-body {
+    padding: 2rem 2.25rem;
+}
+
+.formal-section-title {
+    font-size: 0.92rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #1e293b;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 0.65rem;
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.formal-inset-card {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 1.25rem 1.5rem;
+}
+
+.formal-doc-footer {
+    border-top: 1px dashed #cbd5e1;
+    margin-top: 2rem;
+    padding-top: 1.25rem;
+    text-align: center;
+    font-size: 0.8rem;
+    color: #64748b;
+    font-style: italic;
+}
+
+/* Parish Primary Button (Deep Golden Brown / Amber Tone) */
+.btn-parish-gold {
+    background-color: #8c6225 !important;
+    border-color: #8c6225 !important;
+    color: #ffffff !important;
+    font-weight: 600;
+    padding: 0.65rem 1.85rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(140, 98, 37, 0.25);
+    transition: all 0.2s ease-in-out;
+}
+
+.btn-parish-gold:hover,
+.btn-parish-gold:focus,
+.btn-parish-gold:active {
+    background-color: #734f1d !important;
+    border-color: #734f1d !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(115, 79, 29, 0.35);
+    transform: translateY(-1px);
+}
+
+/* Document Toggle Button */
+.btn-toggle-doc {
+    transition: all 0.2s ease-in-out;
+    border-width: 1.5px;
+}
+
+/* Requirements list helpers */
 .requirement-review-list .min-w-0 {
     min-width: 0;
 }
@@ -334,8 +580,42 @@ $breadcrumbs = [
     overflow-wrap: anywhere;
 }
 
-.requirement-review-list .btn {
-    min-width: 82px;
+/* Clean Form Controls */
+.form-control,
+.form-select {
+    border-color: #cbd5e1;
+    border-radius: 8px;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: #8c6225;
+    box-shadow: 0 0 0 0.2rem rgba(140, 98, 37, 0.15);
+}
+
+/* Print Optimization */
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    #submittedFormCollapse,
+    #submittedFormCollapse * {
+        visibility: visible;
+    }
+    #submittedFormCollapse {
+        display: block !important;
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+    .no-print {
+        display: none !important;
+    }
 }
 </style>
 
@@ -356,406 +636,675 @@ $breadcrumbs = [
     include '../includes/page_header.php';
     ?>
 
-    <?php if ($error): ?>
-        <div class="alert alert-danger"><?php echo e($error); ?></div>
-    <?php endif; ?>
-    <?php if ($success): ?>
-        <div class="alert alert-success"><?php echo e($success); ?></div>
-    <?php endif; ?>
+    <div class="workflow-wrap pb-5">
+        <?php if ($error): ?>
+            <div class="alert alert-danger shadow-sm mb-4 d-flex align-items-center gap-2">
+                <i class="fas fa-exclamation-circle fs-5"></i>
+                <div><?php echo e($error); ?></div>
+            </div>
+        <?php endif; ?>
+        <?php if ($success): ?>
+            <div class="alert alert-success shadow-sm mb-4 d-flex align-items-center gap-2">
+                <i class="fas fa-check-circle fs-5"></i>
+                <div><?php echo e($success); ?></div>
+            </div>
+        <?php endif; ?>
 
-    <div class="row g-4">
-        <div class="col-lg-8">
-            <!-- Request Summary Header Card -->
-            <div class="card mb-4 shadow-sm">
-                <div class="card-header d-flex justify-content-between align-items-center bg-white py-3">
-                    <div class="d-flex align-items-center gap-2 flex-wrap">
-                        <h5 class="mb-0"><i class="fas fa-route text-primary me-2"></i>Request <?php echo e($request['reference_number']); ?></h5>
-                        <span class="badge bg-<?php echo $category_badges[$request_category] ?? 'secondary'; ?> text-uppercase"><?php echo e($category_labels[$request_category] ?? 'Request'); ?></span>
-                    </div>
-                    <?php 
-                        $disp_status = strtolower($request['status']) === 'submitted' ? 'pending' : $request['status'];
-                    ?>
-                    <span class="badge bg-<?php echo getStatusBadgeClass($disp_status); ?> px-3 py-2 fs-6"><?php echo e(ucfirst(str_replace('_', ' ', $disp_status))); ?></span>
+        <!-- ========================================================= -->
+        <!-- 1. TOP OVERVIEW CARD (Summary Metadata + Expandable Toggle) -->
+        <!-- ========================================================= -->
+        <div class="card mb-4 shadow-sm border-0 rounded-3 overflow-hidden">
+            <div class="card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <span class="badge bg-light text-dark border font-monospace px-2.5 py-1.5 fs-6 fw-bold">
+                        <i class="fas fa-receipt me-1 text-primary"></i><?php echo e($request['reference_number']); ?>
+                    </span>
+                    <span class="badge bg-<?php echo $category_badges[$request_category] ?? 'secondary'; ?>-subtle text-<?php echo $category_badges[$request_category] ?? 'secondary'; ?> border border-<?php echo $category_badges[$request_category] ?? 'secondary'; ?>-subtle text-uppercase fw-semibold px-2.5 py-1">
+                        <?php echo e($category_labels[$request_category] ?? 'Parish Request'); ?>
+                    </span>
                 </div>
-                <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-md-4">
-                            <div class="text-muted small">Parishioner</div>
-                            <strong><?php echo e($request['fullname']); ?></strong>
-                            <div class="small text-muted"><?php echo e($request['email']); ?></div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="text-muted small">Request Type</div>
-                            <strong><?php echo e(ucfirst(str_replace('_', ' ', $request['request_type']))); ?></strong>
-                            <div class="small text-muted"><?php echo e($category_labels[$request_category] ?? 'Service'); ?></div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="text-muted small">Date Requested</div>
-                            <strong><?php echo e(formatDate($request['date_requested'])); ?></strong>
-                            <div class="small text-muted"><?php echo date('h:i A', strtotime($request['date_requested'])); ?></div>
-                        </div>
-                    </div>
-                    <?php if ($is_certificate): ?>
-                    <div class="border rounded p-3 bg-light mt-3">
-                        <div class="small text-muted text-uppercase fw-semibold mb-1">Purpose / Notes</div>
-                        <?php echo nl2br(e($request['description'] ?: 'No description or purpose provided.')); ?>
-                    </div>
-                    <?php endif; ?>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-<?php echo getStatusBadgeClass($disp_status); ?> px-3 py-2 rounded-pill fs-6 fw-semibold text-uppercase">
+                        <?php echo e(ucfirst(str_replace('_', ' ', $disp_status))); ?>
+                    </span>
                 </div>
             </div>
 
-            <!-- Submitted Application Form Card (Only for Blessings & Sacramental Services) -->
-            <?php if (!$is_certificate): ?>
-            <?php $parsedSections = parseSubmittedApplicationForm((string)($request['description'] ?? '')); ?>
-            <div class="card mb-4 shadow-sm">
-                <div class="card-header d-flex justify-content-between align-items-center bg-white py-3">
-                    <h5 class="mb-0 text-dark">
-                        <i class="fas fa-clipboard-list text-primary me-2"></i> Submitted Application Form
-                    </h5>
-                    <span class="badge bg-<?php echo $category_badges[$request_category] ?? 'primary'; ?> text-uppercase">
-                        <?php echo e($category_labels[$request_category] ?? 'Application'); ?>
-                    </span>
+            <div class="card-body p-4">
+                <!-- Metadata Grid -->
+                <div class="row g-4">
+                    <div class="col-6 col-md-3">
+                        <span class="micro-label">Tracking Reference</span>
+                        <div class="meta-value font-monospace text-primary">
+                            <?php echo e($request['reference_number']); ?>
+                        </div>
+                    </div>
+
+                    <div class="col-6 col-md-3">
+                        <span class="micro-label">Service Name</span>
+                        <div class="meta-value">
+                            <?php echo e(ucfirst(str_replace('_', ' ', $request['request_type']))); ?>
+                        </div>
+                    </div>
+
+                    <div class="col-6 col-md-3">
+                        <span class="micro-label">Category Badge</span>
+                        <div>
+                            <span class="badge bg-<?php echo $category_badges[$request_category] ?? 'secondary'; ?> text-uppercase">
+                                <?php echo e($category_labels[$request_category] ?? 'Request'); ?>
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="col-6 col-md-3">
+                        <span class="micro-label">Service Type</span>
+                        <div class="meta-value">
+                            <?php echo e($category_labels[$request_category] ?? 'Standard Service'); ?>
+                        </div>
+                    </div>
+
+                    <div class="col-6 col-md-3">
+                        <span class="micro-label">Parishioner Name</span>
+                        <div class="meta-value">
+                            <?php echo e($request['fullname']); ?>
+                        </div>
+                    </div>
+
+                    <div class="col-6 col-md-3">
+                        <span class="micro-label">Email Address</span>
+                        <div class="meta-value text-secondary text-truncate" title="<?php echo e($request['email']); ?>">
+                            <?php echo e($request['email']); ?>
+                        </div>
+                    </div>
+
+                    <div class="col-6 col-md-3">
+                        <span class="micro-label">Date/Time Requested</span>
+                        <div class="meta-value">
+                            <?php echo formatDate($request['date_requested']); ?>
+                            <span class="text-muted small fw-normal d-block"><?php echo date('h:i A', strtotime($request['date_requested'])); ?></span>
+                        </div>
+                    </div>
+
+                    <div class="col-6 col-md-3">
+                        <span class="micro-label">Contact Number</span>
+                        <div class="meta-value">
+                            <?php if (!empty($request['phone_number'])): ?>
+                                <a href="tel:<?php echo e($request['phone_number']); ?>" class="text-decoration-none fw-semibold">
+                                    <i class="fas fa-phone small me-1"></i><?php echo e($request['phone_number']); ?>
+                                </a>
+                            <?php else: ?>
+                                <span class="text-muted fw-normal">None provided</span>
+                            <?php endif; ?>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body">
+
+                <!-- Primary Toggle Button Bar -->
+                <div class="mt-4 pt-3 border-top d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <button class="btn btn-outline-primary btn-toggle-doc px-4 py-2 fw-semibold d-inline-flex align-items-center gap-2" 
+                            type="button" 
+                            id="toggleApplicationFormBtn" 
+                            data-bs-toggle="collapse" 
+                            data-bs-target="#submittedFormCollapse" 
+                            aria-expanded="false" 
+                            aria-controls="submittedFormCollapse">
+                        <i class="fas fa-file-invoice" id="toggleIcon"></i>
+                        <span id="toggleText">View Submitted Application Form</span>
+                        <i class="fas fa-chevron-down ms-1 small" id="toggleChevron"></i>
+                    </button>
+
+                    <div class="d-flex align-items-center gap-2">
+                        <?php if (!empty($request['phone_number'])): ?>
+                            <a href="tel:<?php echo e($request['phone_number']); ?>" class="btn btn-sm btn-light border text-secondary" title="Call Parishioner">
+                                <i class="fas fa-phone me-1 text-primary"></i> Call
+                            </a>
+                        <?php endif; ?>
+                        <a href="mailto:<?php echo e($request['email']); ?>?subject=Parish%20Request%20<?php echo e($request['reference_number']); ?>" class="btn btn-sm btn-light border text-secondary" title="Email Parishioner">
+                            <i class="fas fa-envelope me-1 text-primary"></i> Email
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================================= -->
+        <!-- 2. COLLAPSIBLE FORMAL BOX: "SUBMITTED APPLICATION FORM"   -->
+        <!-- (Hidden/collapsed by default until toggled open)          -->
+        <!-- ========================================================= -->
+        <div class="collapse mb-4" id="submittedFormCollapse">
+            <div class="formal-document-container">
+                <!-- Neutral Gray Header Border with Title and Reference Tracking Badge -->
+                <div class="formal-doc-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fas fa-scroll text-secondary fs-5"></i>
+                        <h5 class="mb-0 fw-bold text-dark text-uppercase tracking-wider" style="font-size: 1.05rem; letter-spacing: 0.04em;">
+                            Submitted Application Form
+                        </h5>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 no-print">
+                        <span class="badge bg-white text-secondary border font-monospace px-2.5 py-1.5">
+                            REF: <?php echo e($request['reference_number']); ?>
+                        </span>
+                        <button type="button" class="btn btn-sm btn-light border" onclick="window.print()" title="Print this formal document">
+                            <i class="fas fa-print me-1"></i> Print
+                        </button>
+                    </div>
+                </div>
+
+                <div class="formal-doc-body">
+                    <!-- Subtle Institution Header -->
+                    <div class="text-center mb-4 pb-3 border-bottom">
+                        <h6 class="text-uppercase fw-bold text-secondary mb-1" style="letter-spacing: 0.1em; font-size: 0.85rem;">
+                            San Lorenzo Ruiz Mission Station
+                        </h6>
+                        <div class="text-muted small">Parish Administrative Document &bull; Electronic Service Filing</div>
+                    </div>
+
                     <?php if ($linked_reservation): ?>
-                    <div class="alert alert-info d-flex align-items-center gap-3 mb-4 py-3 px-3 border-0 shadow-sm">
+                    <div class="alert alert-info d-flex align-items-center gap-3 mb-4 py-3 px-3 border-0 shadow-sm rounded-3">
                         <div class="rounded-circle bg-white text-info p-2 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px; flex-shrink: 0;">
                             <i class="fas fa-calendar-check fa-lg"></i>
                         </div>
                         <div>
                             <strong class="d-block text-dark">Parish Schedule Reservation Linked</strong>
                             <div class="small text-muted mt-1">
-                                Event Date: <strong class="text-dark"><?php echo formatDate($linked_reservation['event_date']); ?></strong>
+                                Scheduled Date: <strong class="text-dark"><?php echo formatDate($linked_reservation['event_date']); ?></strong>
                                 <?php if (!empty($linked_reservation['event_time'])): ?>
                                     at <strong class="text-dark"><?php echo e(date('h:i A', strtotime($linked_reservation['event_time']))); ?></strong>
                                 <?php endif; ?>
-                                &bull; Status: <span class="badge bg-<?php echo $linked_reservation['status'] === 'approved' ? 'success' : 'warning text-dark'; ?> ms-1"><?php echo e(ucfirst($linked_reservation['status'])); ?></span>
+                                &bull; Reservation Status: <span class="badge bg-<?php echo $linked_reservation['status'] === 'approved' ? 'success' : 'warning text-dark'; ?> ms-1"><?php echo e(ucfirst($linked_reservation['status'])); ?></span>
                             </div>
                         </div>
                     </div>
                     <?php endif; ?>
 
-                    <?php if (empty($parsedSections)): ?>
-                        <div class="text-muted p-3 bg-light rounded text-center">No application details provided.</div>
-                    <?php else: ?>
+                    <!-- Section 1: Application Overview & Schedule -->
+                    <div class="mb-4">
+                        <div class="formal-section-title">
+                            <i class="fas fa-calendar-day text-primary"></i>
+                            Section 1: Application Overview & Schedule
+                        </div>
                         <div class="row g-3">
-                            <?php foreach ($parsedSections as $secTitle => $secItems): ?>
-                                <div class="col-12">
-                                    <div class="border rounded p-3 bg-light">
-                                        <h6 class="text-primary fw-bold mb-3 border-bottom pb-2 d-flex align-items-center gap-2">
-                                            <i class="fas fa-check-circle text-primary small"></i>
-                                            <?php echo e($secTitle); ?>
-                                        </h6>
-                                        <div class="row g-3">
-                                            <?php foreach ($secItems as $item): ?>
-                                                <?php if ($item['type'] === 'field'): ?>
-                                                    <div class="col-sm-6">
-                                                        <div class="small text-muted text-uppercase fw-semibold" style="font-size: 0.72rem; letter-spacing: 0.04em;">
-                                                            <?php echo e($item['label']); ?>
-                                                        </div>
-                                                        <div class="fw-bold text-dark text-break mt-1">
-                                                            <?php echo e($item['value']); ?>
-                                                        </div>
+                            <div class="col-12 col-sm-6 col-md-3">
+                                <span class="micro-label">Preferred Date</span>
+                                <div class="meta-value">
+                                    <?php echo e($formalDetails['schedule']['preferred_date']); ?>
+                                </div>
+                            </div>
+                            <div class="col-12 col-sm-6 col-md-3">
+                                <span class="micro-label">Preferred Time</span>
+                                <div class="meta-value">
+                                    <?php echo e($formalDetails['schedule']['preferred_time']); ?>
+                                </div>
+                            </div>
+                            <div class="col-12 col-sm-6 col-md-3">
+                                <span class="micro-label">Assigned Priest / Minister</span>
+                                <div class="meta-value">
+                                    <?php echo e($formalDetails['schedule']['assigned_priest']); ?>
+                                </div>
+                            </div>
+                            <div class="col-12 col-sm-6 col-md-3">
+                                <span class="micro-label">Venue / Location</span>
+                                <div class="meta-value">
+                                    <?php echo e($formalDetails['schedule']['venue']); ?>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 2: Applicant & Candidate Details -->
+                    <div class="mb-4">
+                        <div class="formal-section-title">
+                            <i class="fas fa-id-card text-primary"></i>
+                            Section 2: Applicant & Candidate Details
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-12 col-sm-6 col-md-3">
+                                <span class="micro-label">Candidate Full Name</span>
+                                <div class="meta-value text-primary fw-bold">
+                                    <?php echo e($formalDetails['candidate']['candidate_name']); ?>
+                                </div>
+                            </div>
+                            <div class="col-12 col-sm-6 col-md-3">
+                                <span class="micro-label">Father's Name</span>
+                                <div class="meta-value">
+                                    <?php echo e($formalDetails['candidate']['father_name']); ?>
+                                </div>
+                            </div>
+                            <div class="col-12 col-sm-6 col-md-3">
+                                <span class="micro-label">Mother's Maiden Name</span>
+                                <div class="meta-value">
+                                    <?php echo e($formalDetails['candidate']['mother_name']); ?>
+                                </div>
+                            </div>
+                            <div class="col-12 col-sm-6 col-md-3">
+                                <span class="micro-label">Contact Information</span>
+                                <div class="meta-value small">
+                                    <div><strong><?php echo e($formalDetails['candidate']['contact']['name']); ?></strong></div>
+                                    <div class="text-secondary"><?php echo e($formalDetails['candidate']['contact']['email']); ?></div>
+                                    <div class="text-muted"><?php echo e($formalDetails['candidate']['contact']['phone']); ?></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 3: Special Remarks / Attached Documents in a subtle bordered inset card -->
+                    <div class="mb-3">
+                        <div class="formal-section-title">
+                            <i class="fas fa-paperclip text-primary"></i>
+                            Section 3: Special Remarks / Attached Documents
+                        </div>
+                        <div class="formal-inset-card">
+                            <div class="row g-3">
+                                <div class="col-12 col-md-7">
+                                    <span class="micro-label">Special Remarks &amp; Instructions</span>
+                                    <div class="text-dark small lh-base">
+                                        <?php echo nl2br(e($formalDetails['remarks_documents']['remarks'])); ?>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-md-5 border-start-md ps-md-4">
+                                    <span class="micro-label">Attached Supporting Documents</span>
+                                    <?php if (empty($formalDetails['remarks_documents']['requirements'])): ?>
+                                        <div class="small text-muted fst-italic">No requirement documents attached yet.</div>
+                                    <?php else: ?>
+                                        <div class="d-flex flex-column gap-2 mt-1">
+                                            <?php foreach ($formalDetails['remarks_documents']['requirements'] as $reqDoc): ?>
+                                                <div class="d-flex align-items-center justify-content-between p-2 bg-white rounded border small">
+                                                    <div class="text-truncate me-2" title="<?php echo e($reqDoc['name']); ?>">
+                                                        <i class="fas fa-file-check text-success me-1"></i>
+                                                        <strong><?php echo e($reqDoc['name']); ?></strong>
+                                                        <span class="text-muted small ms-1">(<?php echo e($reqDoc['size']); ?>)</span>
                                                     </div>
-                                                <?php else: ?>
-                                                    <div class="col-12">
-                                                        <div class="alert alert-light border py-2 px-3 mb-0 small text-secondary">
-                                                            <i class="fas fa-info-circle me-1 text-muted"></i>
-                                                            <?php echo e($item['text']); ?>
-                                                        </div>
-                                                    </div>
-                                                <?php endif; ?>
+                                                    <a href="../request-document.php?id=<?php echo (int)$reqDoc['id']; ?>" class="btn btn-sm btn-outline-primary py-0 px-2" target="_blank" rel="noopener">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                </div>
                                             <?php endforeach; ?>
                                         </div>
-                                    </div>
+                                    <?php endif; ?>
                                 </div>
-                            <?php endforeach; ?>
-                        </div>
-                    <?php endif; ?>
-
-                    <div class="mt-3 pt-2 border-top d-flex justify-content-between align-items-center flex-wrap gap-2">
-                        <small class="text-muted"><i class="fas fa-shield-halved me-1"></i> Form submitted by parishioner &bull; <?php echo formatDate($request['date_requested']); ?></small>
-                        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#rawSubmissionCollapse" aria-expanded="false">
-                            <i class="fas fa-code me-1"></i> Toggle Raw Text
-                        </button>
-                    </div>
-                    <div class="collapse mt-2" id="rawSubmissionCollapse">
-                        <div class="card card-body bg-light small font-monospace text-secondary p-3">
-                            <?php echo nl2br(e($request['description'] ?: 'No raw submission text.')); ?>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <?php endif; ?>
-
-            <!-- Parishioner Requirements Card -->
-            <div class="card mb-4 shadow-sm">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-paperclip"></i> Parishioner Requirements</h5>
-                </div>
-                <div class="card-body">
-                    <?php if (empty($documents_by_type['requirement'])): ?>
-                        <div class="text-muted">No requirement files submitted.</div>
-                    <?php else: ?>
-                        <div class="list-group requirement-review-list">
-                            <?php foreach ($documents_by_type['requirement'] as $document): ?>
-                                <?php $requirement_label = trim((string) ($document['requirement_name'] ?? '')); ?>
-                                <div class="list-group-item d-flex flex-wrap justify-content-between align-items-center gap-3">
-                                    <div class="min-w-0">
-                                        <strong><?php echo e($requirement_label !== '' ? $requirement_label : $document['original_name']); ?></strong>
-                                        <div class="text-muted small">
-                                            <i class="fas fa-file"></i>
-                                            <?php echo e($document['original_name']); ?>
-                                            <span class="mx-1">&bull;</span>
-                                            <?php echo e(formatFileSize($document['file_size'])); ?>
-                                        </div>
-                                    </div>
-                                    <a class="btn btn-sm btn-outline-primary" href="../request-document.php?id=<?php echo intval($document['document_id']); ?>" target="_blank" rel="noopener">
-                                        <i class="fas fa-eye"></i> View
-                                    </a>
-                                </div>
-                            <?php endforeach; ?>
-                        </div>
-                    <?php endif; ?>
-                </div>
-            </div>
-
-            <!-- Payment Receipts Card (Only for Certificate Requests) -->
-            <?php if ($is_certificate): ?>
-            <div class="card mb-4 shadow-sm">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="fas fa-receipt me-2"></i> Payment Receipts</h5>
-                    <span class="badge bg-success">Verified: PHP <?php echo number_format($payment_summary['verified_amount'], 2); ?></span>
-                </div>
-                <div class="card-body">
-                    <?php if (empty($payments) && empty($documents_by_type['payment_receipt'])): ?>
-                        <div class="text-muted">No payment receipts submitted.</div>
-                    <?php else: ?>
-                        <?php foreach ($payments as $payment): ?>
-                            <?php
-                            $badge_map = [
-                                'pending' => ['class' => 'warning text-dark', 'icon' => 'fa-clock', 'label' => 'Pending Verification'],
-                                'verified' => ['class' => 'success', 'icon' => 'fa-circle-check', 'label' => 'Verified'],
-                                'rejected' => ['class' => 'danger', 'icon' => 'fa-circle-xmark', 'label' => 'Rejected']
-                            ];
-                            $curr_badge = $badge_map[$payment['status']] ?? ['class' => 'secondary', 'icon' => 'fa-info-circle', 'label' => ucfirst($payment['status'])];
-                            ?>
-                            <div class="border rounded p-3 mb-3 bg-light shadow-sm">
-                                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2 pb-2 border-bottom">
-                                    <div>
-                                        <div class="d-flex align-items-center gap-2">
-                                            <span class="fs-5 fw-bold text-dark">PHP <?php echo number_format(floatval($payment['amount']), 2); ?></span>
-                                            <span class="badge bg-primary text-uppercase font-monospace"><?php echo e($payment['payment_method']); ?></span>
-                                        </div>
-                                        <div class="small text-muted mt-1">
-                                            <?php if (!empty($payment['reference_number'])): ?>
-                                                <span class="me-2"><i class="fas fa-hashtag me-1"></i>Ref: <strong><?php echo e($payment['reference_number']); ?></strong></span>
-                                            <?php endif; ?>
-                                            <?php if (!empty($payment['created_at'])): ?>
-                                                <span><i class="fas fa-calendar-alt me-1"></i>Submitted: <?php echo formatDate($payment['created_at']); ?></span>
-                                            <?php endif; ?>
-                                        </div>
-                                    </div>
-                                    <span class="badge bg-<?php echo e($curr_badge['class']); ?> px-2 py-1">
-                                        <i class="fas <?php echo e($curr_badge['icon']); ?> me-1"></i><?php echo e($curr_badge['label']); ?>
-                                    </span>
-                                </div>
-
-                                <?php if (!empty($payment['notes'])): ?>
-                                    <div class="small p-2 bg-white rounded border mb-2 text-secondary">
-                                        <i class="fas fa-comment-dots me-1 text-muted"></i><strong>Parishioner Note:</strong> <?php echo e($payment['notes']); ?>
-                                    </div>
-                                <?php endif; ?>
-
-                                <?php if (!empty($payment['receipt_document_id'])): ?>
-                                    <div class="mb-3">
-                                        <a class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-2" href="../request-document.php?id=<?php echo intval($payment['receipt_document_id']); ?>" target="_blank" rel="noopener">
-                                            <i class="fas fa-file-invoice"></i>
-                                            <span>View Receipt (<?php echo e($payment['original_name'] ?: 'Receipt File'); ?><?php echo !empty($payment['file_size']) ? ' • ' . formatFileSize($payment['file_size']) : ''; ?>)</span>
-                                            <i class="fas fa-arrow-up-right-from-square small"></i>
-                                        </a>
-                                    </div>
-                                <?php endif; ?>
-
-                                <form method="POST" class="row g-2 align-items-center pt-2 border-top">
-                                    <?php echo csrfInput(); ?>
-                                    <input type="hidden" name="action" value="verify_payment">
-                                    <input type="hidden" name="request_id" value="<?php echo intval($request_id); ?>">
-                                    <input type="hidden" name="payment_id" value="<?php echo intval($payment['payment_id']); ?>">
-                                    <div class="col-md-3">
-                                        <label class="form-label small text-muted mb-1 d-block">Status</label>
-                                        <select class="form-select form-select-sm" name="payment_status" required>
-                                            <option value="pending" <?php echo $payment['status'] === 'pending' ? 'selected' : ''; ?>>Pending</option>
-                                            <option value="verified" <?php echo $payment['status'] === 'verified' ? 'selected' : ''; ?>>Verified</option>
-                                            <option value="rejected" <?php echo $payment['status'] === 'rejected' ? 'selected' : ''; ?>>Rejected</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label small text-muted mb-1 d-block">Admin Remarks</label>
-                                        <input type="text" class="form-control form-control-sm" name="admin_remarks" value="<?php echo e($payment['admin_remarks'] ?? ''); ?>" placeholder="Admin remarks">
-                                    </div>
-                                    <div class="col-md-3 d-flex align-items-end">
-                                        <button type="submit" class="btn btn-sm btn-primary w-100 mt-auto">
-                                            <i class="fas fa-check-double me-1"></i> Update Status
-                                        </button>
-                                    </div>
-                                </form>
                             </div>
-                        <?php endforeach; ?>
+                        </div>
+                    </div>
 
-                        <?php
-                        $linked_doc_ids = array_filter(array_column($payments, 'receipt_document_id'));
-                        $orphan_receipts = array_filter($documents_by_type['payment_receipt'] ?? [], function($doc) use ($linked_doc_ids) {
-                            return !in_array((int)$doc['document_id'], $linked_doc_ids, true);
-                        });
+                    <!-- Additional Canonical Details (Investigation Sheets / Witnesses / Sponsors) -->
+                    <?php if (!empty($parsedSections)): ?>
+                        <?php 
+                        // Filter out sections already summarized if desired, or present additional canonical details
+                        $extraSections = array_filter($parsedSections, function($sec) {
+                            $lower = strtolower($sec);
+                            return !str_contains($lower, 'overview');
+                        }, ARRAY_FILTER_USE_KEY);
                         ?>
-                        <?php if (!empty($orphan_receipts)): ?>
-                            <h6 class="text-muted mt-3 mb-2 small fw-bold text-uppercase">Other Uploaded Receipt Attachments</h6>
-                            <div class="list-group">
-                                <?php foreach ($orphan_receipts as $doc): ?>
-                                    <div class="list-group-item d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <i class="fas fa-paperclip text-muted me-2"></i>
-                                            <strong><?php echo e($doc['original_name']); ?></strong>
-                                            <small class="text-muted ms-2">(<?php echo formatFileSize($doc['file_size']); ?> • <?php echo formatDate($doc['uploaded_at']); ?>)</small>
-                                        </div>
-                                        <a class="btn btn-sm btn-outline-primary" href="../request-document.php?id=<?php echo intval($doc['document_id']); ?>" target="_blank" rel="noopener">
-                                            <i class="fas fa-eye me-1"></i> View
-                                        </a>
+                        <?php if (!empty($extraSections)): ?>
+                            <div class="mt-4 pt-3 border-top">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h6 class="text-muted fw-bold text-uppercase small mb-0" style="letter-spacing: 0.05em;">
+                                        <i class="fas fa-list-check me-1 text-primary"></i> Canonical Investigation &amp; Detailed Records
+                                    </h6>
+                                    <button class="btn btn-sm btn-light border text-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#canonicalSheetsCollapse" aria-expanded="false">
+                                        <i class="fas fa-layer-group me-1"></i> Toggle Canonical Details
+                                    </button>
+                                </div>
+                                <div class="collapse" id="canonicalSheetsCollapse">
+                                    <div class="row g-3">
+                                        <?php foreach ($extraSections as $secTitle => $secItems): ?>
+                                            <div class="col-12">
+                                                <div class="p-3 bg-light rounded-3 border">
+                                                    <div class="fw-bold text-dark border-bottom pb-2 mb-3 small d-flex align-items-center gap-2">
+                                                        <i class="fas fa-circle-dot text-primary small"></i>
+                                                        <?php echo e($secTitle); ?>
+                                                    </div>
+                                                    <div class="row g-2">
+                                                        <?php foreach ($secItems as $item): ?>
+                                                            <?php if ($item['type'] === 'field'): ?>
+                                                                <div class="col-sm-6">
+                                                                    <span class="micro-label"><?php echo e($item['label']); ?></span>
+                                                                    <div class="small fw-semibold text-dark text-break">
+                                                                        <?php echo e($item['value']); ?>
+                                                                    </div>
+                                                                </div>
+                                                            <?php else: ?>
+                                                                <div class="col-12">
+                                                                    <div class="small text-secondary bg-white p-2 rounded border">
+                                                                        <?php echo e($item['text']); ?>
+                                                                    </div>
+                                                                </div>
+                                                            <?php endif; ?>
+                                                        <?php endforeach; ?>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        <?php endforeach; ?>
                                     </div>
-                                <?php endforeach; ?>
+                                </div>
                             </div>
                         <?php endif; ?>
                     <?php endif; ?>
-                </div>
-            </div>
 
-            <!-- Certificates Released Card (Only for Certificate Requests) -->
-            <div class="card shadow-sm">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-file-circle-check"></i> Certificates Released to Parishioner</h5>
-                </div>
-                <div class="card-body">
-                    <?php $released_files = array_merge($documents_by_type['released_certificate'], $documents_by_type['admin_file']); ?>
-                    <?php if (empty($released_files)): ?>
-                        <div class="text-muted">No certificates released yet.</div>
-                    <?php else: ?>
-                        <div class="list-group">
-                            <?php foreach ($released_files as $document): ?>
-                                <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" href="../request-document.php?id=<?php echo intval($document['document_id']); ?>" target="_blank">
-                                    <span><i class="fas fa-file-arrow-down"></i> <?php echo e($document['original_name']); ?></span>
-                                    <small><?php echo e(formatFileSize($document['file_size'])); ?></small>
-                                </a>
-                            <?php endforeach; ?>
+                    <!-- Raw Submission Collapsible -->
+                    <div class="mt-3 text-end no-print">
+                        <button class="btn btn-sm btn-link text-muted text-decoration-none" type="button" data-bs-toggle="collapse" data-bs-target="#rawSubmissionCollapse" aria-expanded="false">
+                            <i class="fas fa-code me-1"></i> Toggle Raw Form Text
+                        </button>
+                        <div class="collapse mt-2 text-start" id="rawSubmissionCollapse">
+                            <div class="card card-body bg-light small font-monospace text-secondary p-3 border">
+                                <?php echo nl2br(e($request['description'] ?: 'No raw submission text.')); ?>
+                            </div>
                         </div>
-                    <?php endif; ?>
+                    </div>
+
+                    <!-- Formal Document Footer Text -->
+                    <div class="formal-doc-footer">
+                        Submitted electronically via Parish Portal &bull; Reference: <?php echo e($request['reference_number']); ?> &bull; Date Requested: <?php echo formatDate($request['date_requested']); ?>
+                    </div>
                 </div>
             </div>
-            <?php endif; ?>
         </div>
 
-        <div class="col-lg-4">
-            <div class="sticky-top" style="top: 1.5rem; z-index: 10;">
-                <!-- Review Status Card (Always visible) -->
-                <div class="card mb-4 shadow-sm">
-                    <div class="card-header">
-                        <h5 class="mb-0"><i class="fas fa-clipboard-check"></i> Review Status</h5>
-                    </div>
-                    <div class="card-body">
-                        <form method="POST">
-                            <?php echo csrfInput(); ?>
-                            <input type="hidden" name="action" value="update_status">
-                            <input type="hidden" name="request_id" value="<?php echo intval($request_id); ?>">
-                            <div class="mb-3">
-                                <label class="form-label" for="status">Status</label>
-                                <select class="form-select" id="status" name="status" required>
-                                    <?php 
-                                    $status_options = ['pending', 'processing', 'completed', 'rejected'];
-                                    if ($request['status'] === 'approved') {
-                                        $status_options = ['approved', 'pending', 'processing', 'completed', 'rejected'];
-                                    }
-                                    ?>
-                                    <?php foreach ($status_options as $status): ?>
-                                        <option value="<?php echo e($status); ?>" <?php echo $request['status'] === $status ? 'selected' : ''; ?>><?php echo e(ucfirst($status)); ?></option>
-                                    <?php endforeach; ?>
-                                </select>
+        <!-- ========================================================= -->
+        <!-- SUPPORTING REQUIREMENTS, RECEIPTS & RELEASES (Preserved)  -->
+        <!-- ========================================================= -->
+        
+        <!-- Parishioner Requirements List -->
+        <?php if (!empty($documents_by_type['requirement'])): ?>
+        <div class="card mb-4 shadow-sm border-0 rounded-3">
+            <div class="card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold text-dark">
+                    <i class="fas fa-folder-open text-primary me-2"></i> Parishioner Uploaded Requirements
+                </h6>
+                <span class="badge bg-secondary-subtle text-secondary border">
+                    <?php echo count($documents_by_type['requirement']); ?> Document(s) Attached
+                </span>
+            </div>
+            <div class="card-body p-4">
+                <div class="list-group requirement-review-list">
+                    <?php foreach ($documents_by_type['requirement'] as $document): ?>
+                        <?php $requirement_label = trim((string) ($document['requirement_name'] ?? '')); ?>
+                        <div class="list-group-item d-flex flex-wrap justify-content-between align-items-center gap-3 border rounded-3 mb-2 p-3">
+                            <div class="min-w-0">
+                                <strong class="d-block text-dark"><?php echo e($requirement_label !== '' ? $requirement_label : $document['original_name']); ?></strong>
+                                <div class="text-muted small mt-1">
+                                    <i class="fas fa-file me-1"></i> <?php echo e($document['original_name']); ?>
+                                    <span class="mx-1">&bull;</span>
+                                    <?php echo e(formatFileSize($document['file_size'])); ?>
+                                    <span class="mx-1">&bull;</span>
+                                    Uploaded <?php echo formatDate($document['uploaded_at']); ?>
+                                </div>
                             </div>
-                            <div class="mb-3">
-                                <label class="form-label" for="admin_response">Admin Response</label>
-                                <textarea class="form-control" id="admin_response" name="admin_response" rows="4"><?php echo e($request['admin_response'] ?? ''); ?></textarea>
-                            </div>
-                            <button type="submit" class="btn btn-primary w-100">Update Request</button>
-                        </form>
-                    </div>
+                            <a class="btn btn-sm btn-outline-primary px-3 fw-semibold" href="../request-document.php?id=<?php echo intval($document['document_id']); ?>" target="_blank" rel="noopener">
+                                <i class="fas fa-eye me-1"></i> View File
+                            </a>
+                        </div>
+                    <?php endforeach; ?>
                 </div>
+            </div>
+        </div>
+        <?php endif; ?>
 
-                <!-- Release Certificate Card (Only for Certificate Requests) -->
-                <?php if ($is_certificate): ?>
-                <div class="card shadow-sm">
-                    <div class="card-header">
-                        <h5 class="mb-0"><i class="fas fa-upload"></i> Release Certificate</h5>
-                    </div>
-                    <div class="card-body">
-                        <form method="POST" enctype="multipart/form-data">
+        <!-- Payment Receipts (For Certificate Requests) -->
+        <?php if ($is_certificate): ?>
+        <div class="card mb-4 shadow-sm border-0 rounded-3">
+            <div class="card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <h6 class="mb-0 fw-bold text-dark">
+                    <i class="fas fa-receipt text-primary me-2"></i> Payment Receipts &amp; Verification
+                </h6>
+                <span class="badge bg-success px-2.5 py-1.5">
+                    Verified Total: PHP <?php echo number_format($payment_summary['verified_amount'], 2); ?>
+                </span>
+            </div>
+            <div class="card-body p-4">
+                <?php if (empty($payments) && empty($documents_by_type['payment_receipt'])): ?>
+                    <div class="text-muted small fst-italic">No payment receipts submitted yet.</div>
+                <?php else: ?>
+                    <?php foreach ($payments as $payment): ?>
+                        <?php
+                        $badge_map = [
+                            'pending' => ['class' => 'warning text-dark', 'icon' => 'fa-clock', 'label' => 'Pending Verification'],
+                            'verified' => ['class' => 'success', 'icon' => 'fa-circle-check', 'label' => 'Verified'],
+                            'rejected' => ['class' => 'danger', 'icon' => 'fa-circle-xmark', 'label' => 'Rejected']
+                        ];
+                        $curr_badge = $badge_map[$payment['status']] ?? ['class' => 'secondary', 'icon' => 'fa-info-circle', 'label' => ucfirst($payment['status'])];
+                        ?>
+                        <div class="border rounded-3 p-3 mb-3 bg-light-subtle shadow-sm">
+                            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2 pb-2 border-bottom">
+                                <div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="fs-5 fw-bold text-dark">PHP <?php echo number_format(floatval($payment['amount']), 2); ?></span>
+                                        <span class="badge bg-primary text-uppercase font-monospace"><?php echo e($payment['payment_method']); ?></span>
+                                    </div>
+                                    <div class="small text-muted mt-1">
+                                        <?php if (!empty($payment['reference_number'])): ?>
+                                            <span class="me-2"><i class="fas fa-hashtag me-1"></i>Ref: <strong><?php echo e($payment['reference_number']); ?></strong></span>
+                                        <?php endif; ?>
+                                        <?php if (!empty($payment['created_at'])): ?>
+                                            <span><i class="fas fa-calendar-alt me-1"></i>Submitted: <?php echo formatDate($payment['created_at']); ?></span>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                                <span class="badge bg-<?php echo e($curr_badge['class']); ?> px-2.5 py-1.5">
+                                    <i class="fas <?php echo e($curr_badge['icon']); ?> me-1"></i><?php echo e($curr_badge['label']); ?>
+                                </span>
+                            </div>
+
+                            <?php if (!empty($payment['notes'])): ?>
+                                <div class="small p-2 bg-white rounded border mb-2 text-secondary">
+                                    <i class="fas fa-comment-dots me-1 text-muted"></i><strong>Parishioner Note:</strong> <?php echo e($payment['notes']); ?>
+                                </div>
+                            <?php endif; ?>
+
+                            <?php if (!empty($payment['receipt_document_id'])): ?>
+                                <div class="mb-3">
+                                    <a class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-2" href="../request-document.php?id=<?php echo intval($payment['receipt_document_id']); ?>" target="_blank" rel="noopener">
+                                        <i class="fas fa-file-invoice"></i>
+                                        <span>View Receipt (<?php echo e($payment['original_name'] ?: 'Receipt File'); ?><?php echo !empty($payment['file_size']) ? ' &bull; ' . formatFileSize($payment['file_size']) : ''; ?>)</span>
+                                        <i class="fas fa-arrow-up-right-from-square small"></i>
+                                    </a>
+                                </div>
+                            <?php endif; ?>
+
+                            <form method="POST" class="row g-2 align-items-center pt-2 border-top">
+                                <?php echo csrfInput(); ?>
+                                <input type="hidden" name="action" value="verify_payment">
+                                <input type="hidden" name="request_id" value="<?php echo intval($request_id); ?>">
+                                <input type="hidden" name="payment_id" value="<?php echo intval($payment['payment_id']); ?>">
+                                <div class="col-md-3">
+                                    <span class="micro-label">Status</span>
+                                    <select class="form-select form-select-sm" name="payment_status" required>
+                                        <option value="pending" <?php echo $payment['status'] === 'pending' ? 'selected' : ''; ?>>Pending</option>
+                                        <option value="verified" <?php echo $payment['status'] === 'verified' ? 'selected' : ''; ?>>Verified</option>
+                                        <option value="rejected" <?php echo $payment['status'] === 'rejected' ? 'selected' : ''; ?>>Rejected</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <span class="micro-label">Admin Remarks</span>
+                                    <input type="text" class="form-control form-control-sm" name="admin_remarks" value="<?php echo e($payment['admin_remarks'] ?? ''); ?>" placeholder="Enter verification note or reference check">
+                                </div>
+                                <div class="col-md-3 d-flex align-items-end">
+                                    <button type="submit" class="btn btn-sm btn-primary w-100 mt-auto">
+                                        <i class="fas fa-check-double me-1"></i> Update Payment
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <!-- Release Certificate Card (For Certificate Requests) -->
+        <div class="card mb-4 shadow-sm border-0 rounded-3">
+            <div class="card-header bg-white py-3 px-4 border-bottom">
+                <h6 class="mb-0 fw-bold text-dark">
+                    <i class="fas fa-file-export text-primary me-2"></i> Certificate Issuance &amp; Releases
+                </h6>
+            </div>
+            <div class="card-body p-4">
+                <div class="row g-4">
+                    <div class="col-lg-6">
+                        <span class="micro-label mb-2">Upload Generated / Signed Certificate</span>
+                        <form method="POST" enctype="multipart/form-data" class="border rounded-3 p-3 bg-light-subtle">
                             <?php echo csrfInput(); ?>
                             <input type="hidden" name="action" value="upload_release">
                             <input type="hidden" name="request_id" value="<?php echo intval($request_id); ?>">
                             <div class="mb-3">
-                                <label class="form-label" for="release_file">File</label>
-                                <input type="file" class="form-control" id="release_file" name="release_file" accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,image/jpeg,image/png,image/gif,application/pdf,text/plain" required>
+                                <label class="form-label small text-muted mb-1" for="release_file">Select Certificate Document (PDF or Image)</label>
+                                <input type="file" class="form-control form-control-sm" id="release_file" name="release_file" accept=".jpg,.jpeg,.png,.pdf" required>
                             </div>
-                            <button type="submit" class="btn btn-success w-100">Release to Parishioner</button>
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" name="mark_completed" id="mark_completed" value="1" checked>
+                                <label class="form-check-label small" for="mark_completed">
+                                    Automatically mark this certificate request as <strong>Completed</strong> upon upload
+                                </label>
+                            </div>
+                            <button type="submit" class="btn btn-sm btn-success w-100 fw-semibold">
+                                <i class="fas fa-cloud-arrow-up me-1"></i> Release File to Parishioner
+                            </button>
                         </form>
                     </div>
-                </div>
-                <?php else: ?>
-                <!-- Applicant Summary & Actions (For Blessings & Sacramental Services) -->
-                <div class="card shadow-sm">
-                    <div class="card-header bg-white py-3">
-                        <h6 class="mb-0 fw-bold text-dark"><i class="fas fa-user-check me-2 text-primary"></i> Applicant Summary</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="d-flex align-items-center gap-3 mb-3">
-                            <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold fs-5" style="width: 46px; height: 46px; flex-shrink: 0;">
-                                <?php echo strtoupper(substr($request['fullname'] ?? 'P', 0, 1)); ?>
+                    <div class="col-lg-6">
+                        <span class="micro-label mb-2">Previously Released Files</span>
+                        <?php $released_files = array_merge($documents_by_type['released_certificate'], $documents_by_type['admin_file']); ?>
+                        <?php if (empty($released_files)): ?>
+                            <div class="text-muted small fst-italic p-3 bg-light-subtle border rounded-3">No certificates released yet.</div>
+                        <?php else: ?>
+                            <div class="list-group">
+                                <?php foreach ($released_files as $document): ?>
+                                    <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center rounded-2 mb-1 border" href="../request-document.php?id=<?php echo intval($document['document_id']); ?>" target="_blank">
+                                        <div class="text-truncate me-2">
+                                            <i class="fas fa-file-circle-check text-success me-2"></i>
+                                            <span class="fw-semibold"><?php echo e($document['original_name']); ?></span>
+                                        </div>
+                                        <small class="text-muted"><?php echo e(formatFileSize($document['file_size'])); ?></small>
+                                    </a>
+                                <?php endforeach; ?>
                             </div>
-                            <div class="min-w-0">
-                                <strong class="d-block text-dark text-truncate"><?php echo e($request['fullname']); ?></strong>
-                                <span class="small text-muted text-break"><?php echo e($request['email']); ?></span>
-                            </div>
-                        </div>
-                        <ul class="list-unstyled small mb-3 border-top pt-2">
-                            <?php if (!empty($request['phone_number'])): ?>
-                            <li class="py-2 d-flex justify-content-between border-bottom">
-                                <span class="text-muted"><i class="fas fa-phone me-1"></i> Phone:</span>
-                                <a href="tel:<?php echo e($request['phone_number']); ?>" class="fw-bold text-decoration-none"><?php echo e($request['phone_number']); ?></a>
-                            </li>
-                            <?php endif; ?>
-                            <li class="py-2 d-flex justify-content-between border-bottom">
-                                <span class="text-muted"><i class="fas fa-hashtag me-1"></i> Reference:</span>
-                                <span class="font-monospace fw-bold"><?php echo e($request['reference_number']); ?></span>
-                            </li>
-                            <li class="py-2 d-flex justify-content-between">
-                                <span class="text-muted"><i class="fas fa-calendar-alt me-1"></i> Submitted:</span>
-                                <span><?php echo formatDate($request['date_requested']); ?></span>
-                            </li>
-                        </ul>
-                        <div class="d-grid gap-2">
-                            <?php if (!empty($request['phone_number'])): ?>
-                            <a href="tel:<?php echo e($request['phone_number']); ?>" class="btn btn-sm btn-outline-primary">
-                                <i class="fas fa-phone me-1"></i> Call Parishioner
-                            </a>
-                            <?php endif; ?>
-                            <a href="mailto:<?php echo e($request['email']); ?>?subject=Parish%20Request%20<?php echo e($request['reference_number']); ?>" class="btn btn-sm btn-outline-secondary">
-                                <i class="fas fa-envelope me-1"></i> Email Parishioner
-                            </a>
-                        </div>
+                        <?php endif; ?>
                     </div>
                 </div>
-                <?php endif; ?>
             </div>
         </div>
+        <?php endif; ?>
+
+        <!-- ========================================================= -->
+        <!-- 3. BOTTOM ACTION SECTION: "REVIEW STATUS & UPDATES"        -->
+        <!-- (Positioned directly beneath the form / review items)      -->
+        <!-- ========================================================= -->
+        <div class="card shadow-sm border-0 rounded-3 overflow-hidden">
+            <div class="card-header bg-white py-3 px-4 border-bottom">
+                <h5 class="mb-0 fw-bold text-dark d-flex align-items-center gap-2">
+                    <i class="fas fa-clipboard-check text-primary"></i>
+                    Review Status &amp; Updates
+                </h5>
+            </div>
+
+            <div class="card-body p-4">
+                <form method="POST" id="reviewStatusForm">
+                    <?php echo csrfInput(); ?>
+                    <input type="hidden" name="action" value="update_status">
+                    <input type="hidden" name="request_id" value="<?php echo intval($request_id); ?>">
+
+                    <div class="row g-4 mb-4">
+                        <!-- Status Dropdown -->
+                        <div class="col-md-5">
+                            <label class="micro-label" for="status">Request Status</label>
+                            <?php
+                            $current_status_val = strtolower($request['status'] ?? 'pending');
+                            if ($current_status_val === 'submitted') {
+                                $current_status_val = 'pending';
+                            } elseif ($current_status_val === 'scheduled') {
+                                $current_status_val = 'approved';
+                            } elseif ($current_status_val === 'cancelled') {
+                                $current_status_val = 'rejected';
+                            }
+
+                            $workflow_statuses = [
+                                'pending'    => 'Pending',
+                                'processing' => 'Under Review',
+                                'approved'   => 'Approved / Scheduled',
+                                'completed'  => 'Completed',
+                                'rejected'   => 'Declined / Cancelled'
+                            ];
+                            ?>
+                            <select class="form-select border-secondary-subtle py-2 fw-semibold" id="status" name="status" required>
+                                <?php foreach ($workflow_statuses as $val => $lbl): ?>
+                                    <option value="<?php echo e($val); ?>" <?php echo $current_status_val === $val ? 'selected' : ''; ?>>
+                                        <?php echo e($lbl); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div class="form-text text-muted small mt-2">
+                                Marking as <strong>Approved / Scheduled</strong> or <strong>Completed</strong> registers sacramental records and synchronizes calendar bookings.
+                            </div>
+                        </div>
+
+                        <!-- Admin Response / Remarks Textarea -->
+                        <div class="col-md-7">
+                            <label class="micro-label" for="admin_response">Admin Response / Remarks</label>
+                            <textarea class="form-control border-secondary-subtle" 
+                                      id="admin_response" 
+                                      name="admin_response" 
+                                      rows="4" 
+                                      placeholder="Enter remarks, preparation instructions, or scheduled venue reminders sent back to the parishioner..."><?php echo e($request['admin_response'] ?? ''); ?></textarea>
+                            <div class="form-text text-muted small mt-2">
+                                <i class="fas fa-bell me-1"></i> This response is included in the parishioner's email and portal notification.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bottom Action Bar -->
+                    <div class="pt-3 border-top d-flex flex-column flex-sm-row justify-content-between align-items-stretch align-items-sm-center gap-3">
+                        <a href="manage-requests.php" class="btn btn-outline-secondary px-4 py-2 fw-semibold d-inline-flex align-items-center justify-content-center gap-2">
+                            <i class="fas fa-arrow-left"></i>
+                            <span>Back to Requests</span>
+                        </a>
+
+                        <button type="submit" class="btn btn-parish-gold d-inline-flex align-items-center justify-content-center gap-2">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Update Request</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const formCollapse = document.getElementById('submittedFormCollapse');
+    const toggleBtn = document.getElementById('toggleApplicationFormBtn');
+    const toggleText = document.getElementById('toggleText');
+    const toggleIcon = document.getElementById('toggleIcon');
+    const toggleChevron = document.getElementById('toggleChevron');
+
+    if (formCollapse && toggleBtn && toggleText) {
+        formCollapse.addEventListener('show.bs.collapse', function () {
+            toggleText.textContent = 'Hide Application Form';
+            if (toggleIcon) {
+                toggleIcon.className = 'fas fa-folder-open';
+            }
+            if (toggleChevron) {
+                toggleChevron.className = 'fas fa-chevron-up ms-1 small';
+            }
+            toggleBtn.classList.remove('btn-outline-primary');
+            toggleBtn.classList.add('btn-primary');
+        });
+
+        formCollapse.addEventListener('hide.bs.collapse', function () {
+            toggleText.textContent = 'View Submitted Application Form';
+            if (toggleIcon) {
+                toggleIcon.className = 'fas fa-file-invoice';
+            }
+            if (toggleChevron) {
+                toggleChevron.className = 'fas fa-chevron-down ms-1 small';
+            }
+            toggleBtn.classList.remove('btn-primary');
+            toggleBtn.classList.add('btn-outline-primary');
+        });
+    }
+});
+</script>
 
 <?php include '../templates/footer.php'; ?>
