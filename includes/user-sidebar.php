@@ -79,6 +79,10 @@ $is_primary_user_dashboard = $is_user_dashboard_page && (($_GET['view'] ?? '') !
       <i class="fas fa-bullhorn"></i>
       <span><?php echo e(t('nav.announcements', 'Announcements')); ?></span>
     </a>
+    <a href="<?php echo BASE_URL; ?>users/organization.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'organization.php') ? 'active' : ''; ?>" data-tooltip="Parish Leadership">
+      <i class="fas fa-sitemap"></i>
+      <span>Parish Leadership</span>
+    </a>
     <a href="<?php echo BASE_URL; ?>users/notifications.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'notifications.php') ? 'active' : ''; ?>" data-tooltip="<?php echo e(t('nav.notifications', 'Notifications')); ?>">
       <i class="fas fa-bell"></i>
       <span><?php echo e(t('nav.notifications', 'Notifications')); ?></span>

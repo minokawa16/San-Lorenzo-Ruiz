@@ -40,6 +40,10 @@
       <i class="fas fa-users"></i>
       <span>Manage Parishioners</span>
     </a>
+    <a href="<?php echo BASE_URL; ?>admin/organization.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'organization.php') ? 'active' : ''; ?>" data-tooltip="Parish Organization">
+      <i class="fas fa-sitemap"></i>
+      <span>Parish Organization</span>
+    </a>
     <?php endif; ?>
     <?php if (hasPermission('registrations.verify')): ?>
     <a href="<?php echo BASE_URL; ?>admin/verify-registrations.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'verify-registrations.php') ? 'active' : ''; ?>" data-tooltip="<?php echo e(t('nav.verify_registrations', 'Verify Registrations')); ?>">
