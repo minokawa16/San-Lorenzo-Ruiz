@@ -279,32 +279,6 @@ include '../includes/breadcrumb.php';
 .usr-toc-link.active i {
   color: var(--usr-green-mid);
 }
-.usr-toc-shortcuts {
-  margin-top: 20px;
-  padding-top: 14px;
-  border-top: 1px solid var(--usr-slate-100);
-}
-.usr-shortcut-btn {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 9px 12px;
-  border-radius: 8px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  background: var(--usr-slate-50);
-  border: 1px solid var(--usr-slate-200);
-  color: var(--usr-slate-700);
-  text-decoration: none;
-  margin-bottom: 6px;
-  transition: all 0.15s;
-}
-.usr-shortcut-btn:hover {
-  background: var(--usr-gold-light);
-  border-color: var(--usr-gold);
-  color: var(--usr-green);
-}
 
 /* --- Content Section Cards (Tabbed View: Inactive Hidden) --- */
 .usr-section-card {
@@ -717,30 +691,6 @@ include '../includes/breadcrumb.php';
             </a>
           </li>
         </ul>
-
-        <!-- Direct Parishioner Shortcuts -->
-        <div class="usr-toc-shortcuts">
-          <div class="usr-toc-header" style="padding-left:0; margin-bottom:8px;">
-            <span>Quick Shortcuts</span>
-            <i class="fas fa-arrow-up-right-from-square"></i>
-          </div>
-          <a href="<?php echo BASE_URL; ?>users/request-certificate.php" class="usr-shortcut-btn">
-            <span><i class="fas fa-file-invoice" style="margin-right:6px; color:var(--usr-gold);"></i> Request Certificate</span>
-            <i class="fas fa-chevron-right" style="font-size:0.7rem;"></i>
-          </a>
-          <a href="<?php echo BASE_URL; ?>users/request-service.php" class="usr-shortcut-btn">
-            <span><i class="fas fa-calendar-plus" style="margin-right:6px; color:var(--usr-teal);"></i> Book Service</span>
-            <i class="fas fa-chevron-right" style="font-size:0.7rem;"></i>
-          </a>
-          <a href="<?php echo BASE_URL; ?>users/my-requests.php" class="usr-shortcut-btn">
-            <span><i class="fas fa-list-check" style="margin-right:6px; color:var(--usr-blue);"></i> Track My Requests</span>
-            <i class="fas fa-chevron-right" style="font-size:0.7rem;"></i>
-          </a>
-          <a href="<?php echo BASE_URL; ?>users/view-schedule.php" class="usr-shortcut-btn">
-            <span><i class="fas fa-calendar-days" style="margin-right:6px; color:var(--usr-green);"></i> Parish Calendar</span>
-            <i class="fas fa-chevron-right" style="font-size:0.7rem;"></i>
-          </a>
-        </div>
       </div>
     </aside>
 
