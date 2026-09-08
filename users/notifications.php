@@ -1583,7 +1583,7 @@ $body_extra_class = 'user-notifications-page';
                                     'schedule' => 'fa-clock',
                                     'account' => 'fa-shield-halved',
                                     'ai' => 'fa-wand-magic-sparkles',
-                                    'archived' => 'fa-trash-can',
+                                    'archived' => 'fa-box-archive',
                                 ];
                             ?>
                             <i class="notification-category-action fas <?php echo e($category_action_icons[$category_key] ?? 'fa-chevron-right'); ?>" aria-hidden="true"></i>
@@ -1704,12 +1704,6 @@ $body_extra_class = 'user-notifications-page';
                                             <input type="hidden" name="notification_id" value="<?php echo intval($notification['notification_id']); ?>">
                                             <button type="submit" class="notification-icon-btn" title="Archive" aria-label="Archive"><i class="fas fa-box-archive"></i></button>
                                         </form>
-                                        <form method="POST" class="d-inline mb-0" onsubmit="return confirm('Delete this notification?');">
-                                            <?php echo csrfInput(); ?>
-                                            <input type="hidden" name="action" value="delete_notification">
-                                            <input type="hidden" name="notification_id" value="<?php echo intval($notification['notification_id']); ?>">
-                                            <button type="submit" class="notification-icon-btn danger" title="Delete" aria-label="Delete"><i class="fas fa-trash-can"></i></button>
-                                        </form>
                                     </div>
                                 </article>
 
@@ -1747,7 +1741,7 @@ $body_extra_class = 'user-notifications-page';
                                     </div>
                                     <div class="detail-panel-card">
                                         <h3>Action History</h3>
-                                        <p class="mb-0">Available actions are shown on the notification card: view, mark as read, archive, and delete.</p>
+                                        <p class="mb-0">Available actions are shown on the notification card: view, mark as read, and archive.</p>
                                     </div>
                                 </aside>
                             <?php endforeach; ?>
