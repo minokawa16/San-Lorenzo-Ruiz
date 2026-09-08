@@ -326,6 +326,214 @@ final class OrganizationService
     }
 
     /**
+     * Direct fill-in-the-blank update for a position occupant.
+     * No dropdowns needed: simply type the full name to assign or leave empty to vacate.
+     */
+    public function setOccupantDirect(int $positionId, string $occupantName, int $actorId): bool
+    {
+        $pos = $this->getPosition($positionId);
+        if (!$pos) {
+            throw new DomainException('Target position not found.');
+        }
+
+        $name = trim($occupantName);
+
+        // If blank, vacate the position
+        if ($name === '') {
+            $stmt = $this->db->prepare('UPDATE position_assignments SET is_active = 0, end_date = CURRENT_DATE() WHERE position_id = ? AND is_active = 1');
+            $stmt->bind_param('i', $positionId);
+            $ok = $stmt->execute();
+            $stmt->close();
+
+            writeAuditLog(
+                $this->db,
+                $actorId,
+                'VACATE_ORG_POSITION',
+                'org_positions',
+                $positionId,
+                null,
+                ['is_vacant' => true],
+                'organization',
+                null,
+                null,
+                "Vacated position: {$pos['title']}.",
+                'ACCOUNTS',
+                'INFO',
+                'org_positions',
+                $positionId
+            );
+
+            return $ok;
+        }
+
+        // Find or create member by full name
+        $stmt = $this->db->prepare('SELECT member_id FROM org_members WHERE full_name = ? LIMIT 1');
+        $stmt->bind_param('s', $name);
+        $stmt->execute();
+        $memRow = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        if ($memRow) {
+            $memberId = (int)$memRow['member_id'];
+        } else {
+            $prefix = '';
+            if (preg_match('/^(Rev\.\s*Fr\.|Fr\.|Father)\s+/i', $name)) {
+                $prefix = 'Rev. Fr.';
+            } elseif (preg_match('/^(Bro\.|Brother)\s+/i', $name)) {
+                $prefix = 'Bro.';
+            } elseif (preg_match('/^(Sis\.|Sister)\s+/i', $name)) {
+                $prefix = 'Sis.';
+            }
+
+            $stmt = $this->db->prepare('INSERT INTO org_members (title_prefix, full_name, status) VALUES (?, ?, "active")');
+            $stmt->bind_param('ss', $prefix, $name);
+            $stmt->execute();
+            $memberId = $stmt->insert_id;
+            $stmt->close();
+        }
+
+        // Retire previous active assignments for this position
+        $stmt = $this->db->prepare('UPDATE position_assignments SET is_active = 0, end_date = CURRENT_DATE() WHERE position_id = ? AND is_active = 1');
+        $stmt->bind_param('i', $positionId);
+        $stmt->execute();
+        $stmt->close();
+
+        // Create new active assignment
+        $startDate = date('Y-m-d');
+        $notes = 'Direct name entry';
+        $stmt = $this->db->prepare('
+            INSERT INTO position_assignments (position_id, member_id, start_date, is_active, notes, assigned_by)
+            VALUES (?, ?, ?, 1, ?, ?)
+        ');
+        $stmt->bind_param('iissi', $positionId, $memberId, $startDate, $notes, $actorId);
+        $stmt->execute();
+        $newAssignmentId = $stmt->insert_id;
+        $stmt->close();
+
+        writeAuditLog(
+            $this->db,
+            $actorId,
+            'ASSIGN_ORG_POSITION',
+            'position_assignments',
+            $newAssignmentId,
+            null,
+            ['position_id' => $positionId, 'name' => $name],
+            'organization',
+            null,
+            null,
+            "Appointed '{$name}' to '{$pos['title']}'.",
+            'ACCOUNTS',
+            'INFO',
+            'org_positions',
+            $positionId
+        );
+
+        return true;
+    }
+
+    /**
+     * Add a new Assistant Priest (Parochial Vicar) card slot (Rank 2).
+     */
+    public function addAssistantPriest(string $occupantName, int $actorId): int
+    {
+        $q = $this->db->query("SELECT MAX(display_order) AS m FROM org_positions WHERE rank_level = 2");
+        $maxOrder = $q ? (int)($q->fetch_assoc()['m'] ?? 0) : 0;
+        $displayOrder = $maxOrder + 1;
+
+        $title = 'Parochial Vicar';
+        $rankLevel = 2;
+        $isSystemRole = 0; // Additional vicars can be removed
+        $maxOccupants = 1;
+        $desc = 'Assistant Pastoral & Liturgical Ministry';
+        $status = 'active';
+
+        $stmt = $this->db->prepare('
+            INSERT INTO org_positions (title, rank_level, display_order, is_system_role, max_occupants, description, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ');
+        $stmt->bind_param('siiiiss', $title, $rankLevel, $displayOrder, $isSystemRole, $maxOccupants, $desc, $status);
+        $stmt->execute();
+        $newId = $stmt->insert_id;
+        $stmt->close();
+
+        if (trim($occupantName) !== '') {
+            $this->setOccupantDirect($newId, $occupantName, $actorId);
+        }
+
+        writeAuditLog(
+            $this->db,
+            $actorId,
+            'ADD_ASSISTANT_PRIEST',
+            'org_positions',
+            $newId,
+            null,
+            ['title' => $title, 'display_order' => $displayOrder],
+            'organization',
+            null,
+            null,
+            "Added an Assistant Priest (Parochial Vicar) position card.",
+            'SYSTEM',
+            'INFO',
+            'org_positions',
+            $newId
+        );
+
+        return $newId;
+    }
+
+    /**
+     * Remove an additional Assistant Priest card slot.
+     * Guardrail: The primary core vicar (is_system_role = 1) cannot be deleted.
+     */
+    public function removeAssistantPriest(int $positionId, int $actorId): bool
+    {
+        $pos = $this->getPosition($positionId);
+        if (!$pos) {
+            throw new DomainException('Position not found.');
+        }
+
+        if ((int)$pos['rank_level'] !== 2) {
+            throw new DomainException('Target position is not an Assistant Priest role.');
+        }
+
+        if ((int)$pos['is_system_role'] === 1) {
+            throw new DomainException('The primary Assistant Priest role is a fixed system position. You can vacate it, but not delete it.');
+        }
+
+        // Deactivate assignments
+        $stmt = $this->db->prepare('UPDATE position_assignments SET is_active = 0, end_date = CURRENT_DATE() WHERE position_id = ?');
+        $stmt->bind_param('i', $positionId);
+        $stmt->execute();
+        $stmt->close();
+
+        // Mark archived
+        $stmt = $this->db->prepare("UPDATE org_positions SET status = 'archived' WHERE position_id = ?");
+        $stmt->bind_param('i', $positionId);
+        $ok = $stmt->execute();
+        $stmt->close();
+
+        writeAuditLog(
+            $this->db,
+            $actorId,
+            'REMOVE_ASSISTANT_PRIEST',
+            'org_positions',
+            $positionId,
+            null,
+            ['status' => 'archived'],
+            'organization',
+            null,
+            null,
+            "Removed additional Assistant Priest position #{$positionId}.",
+            'SYSTEM',
+            'WARNING',
+            'org_positions',
+            $positionId
+        );
+
+        return $ok;
+    }
+
+    /**
      * Create a dynamic ministry role (Rank 5 only).
      */
     public function createMinistryRole(

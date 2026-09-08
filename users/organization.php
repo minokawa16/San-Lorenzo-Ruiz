@@ -521,13 +521,14 @@ include __DIR__ . '/../includes/back_button.php';
             <span class="org-tier-tag"><i class="fas fa-church"></i> Rank 2 &bull; Parochial Vicar</span>
         </div>
 
+        <div class="org-vicar-wrap" style="display: flex; justify-content: center; gap: 1.25rem; flex-wrap: wrap; width: 100%;">
         <?php 
         $t2Positions = $tree['tier2'];
         foreach ($t2Positions as $t2):
             $t2Occupants = $t2['occupants'] ?? [];
             $t2Vacant = empty($t2Occupants);
         ?>
-        <div class="org-card org-card-rank2 <?php echo $t2Vacant ? 'org-card-vacant' : ''; ?>">
+        <div class="org-card org-card-rank2 <?php echo $t2Vacant ? 'org-card-vacant' : ''; ?>" style="flex: 1 1 320px; max-width: 440px;">
             <div class="org-card-header">
                 <span class="org-role-badge badge-teal"><i class="fas fa-cross"></i> Parochial Vicar</span>
                 <span class="org-status-badge <?php echo $t2Vacant ? 'status-vacant' : 'status-active'; ?>">
@@ -579,6 +580,7 @@ include __DIR__ . '/../includes/back_button.php';
             <?php endif; ?>
         </div>
         <?php endforeach; ?>
+        </div>
 
         <!-- Connector Stem 2 -> 3 -->
         <div class="org-connector-vertical"></div>
