@@ -1,14 +1,16 @@
 <?php
 /**
  * Parish Organizational Hierarchy Management
- * Minimalist, professional executive dashboard with direct fill-in-the-blank inputs,
- * fixed action button alignment, and dynamic Assistant Priest management.
+ * Redesigned as a true family-tree flowchart organizational chart with
+ * thin 1.5px brass connector lines, rank seal badges (1, 2, 3, 4),
+ * compact 220px cards, inline rename/assignment, and responsive collapse.
  */
 
 require_once __DIR__ . '/../includes/session.php';
 require_once __DIR__ . '/../database/config.php';
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../services/OrganizationService.php';
+require_once __DIR__ . '/../includes/components/org-chart-component.php';
 
 requireLogin();
 requireAdmin();
@@ -113,826 +115,346 @@ foreach ($allPositions as $p) {
     }
 }
 
+// =========================================================================
+// BUILD DYNAMIC HIERARCHY TREE DATA FOR COMPONENT
+// STRUCTURE:
+// Root: Parish Priest (Rank 1)
+// Tier 2 (children of Priest): Assistant Priest(s), Parish Secretary
+// Tier 3 (children of Parish Secretary): PPC President, PPC Vice President, PPC Secretary, PPC Treasurer
+// Tier 4 (children of Council / PPC President): Ministry Coordinators
+// =========================================================================
+
+// Root: Parish Priest
+$priestOccupant = $tree['tier1']['occupants'][0]['full_name'] ?? '';
+$priestVacant = empty($priestOccupant);
+
+$tier2Children = [];
+
+// Assistant Priest(s)
+if (!empty($tree['tier2'])) {
+    foreach ($tree['tier2'] as $t2) {
+        $t2Occ = $t2['occupants'][0]['full_name'] ?? '';
+        $t2Vac = empty($t2Occ);
+        $tier2Children[] = [
+            'id' => (int)$t2['position_id'],
+            'role' => $t2['title'],
+            'name' => $t2Occ,
+            'status' => $t2Vac ? 'Vacant' : 'Active',
+            'is_vacant' => $t2Vac,
+            'rank' => 2,
+            'description' => 'Parochial Vicar',
+            'is_system_role' => !empty($t2['is_system_role']),
+            'can_vacate' => !$t2Vac,
+            'can_remove' => empty($t2['is_system_role']),
+            'children' => []
+        ];
+    }
+}
+
+// Parish Secretary
+$t3 = $tree['tier3'];
+$t3Occ = $t3['occupants'][0]['full_name'] ?? '';
+$t3Vac = empty($t3Occ);
+
+// Tier 3: Children of Parish Secretary (PPC Executive Officers)
+$ppcChildren = [];
+if (!empty($tree['tier4'])) {
+    $firstPpc = true;
+    foreach ($tree['tier4'] as $p4) {
+        $p4Occ = $p4['occupants'][0]['full_name'] ?? '';
+        $p4Vac = empty($p4Occ);
+        
+        // Attach Tier 4 Dynamic Ministries under PPC President
+        $ministryChildren = [];
+        $isPresident = (stripos($p4['title'], 'President') !== false && stripos($p4['title'], 'Vice') === false) || $firstPpc;
+        if ($isPresident && !empty($tree['tier5'])) {
+            $firstPpc = false;
+            foreach ($tree['tier5'] as $p5) {
+                $p5Occ = $p5['occupants'][0]['full_name'] ?? '';
+                $p5Vac = empty($p5Occ);
+                $ministryChildren[] = [
+                    'id' => (int)$p5['position_id'],
+                    'role' => $p5['title'],
+                    'name' => $p5Occ,
+                    'status' => $p5Vac ? 'Vacant' : 'Active',
+                    'is_vacant' => $p5Vac,
+                    'rank' => 4,
+                    'description' => 'Ministry Coordinator',
+                    'is_system_role' => false,
+                    'is_custom_ministry' => true,
+                    'can_vacate' => !$p5Vac,
+                    'children' => []
+                ];
+            }
+        }
+
+        $ppcChildren[] = [
+            'id' => (int)$p4['position_id'],
+            'role' => $p4['title'],
+            'name' => $p4Occ,
+            'status' => $p4Vac ? 'Vacant' : 'Active',
+            'is_vacant' => $p4Vac,
+            'rank' => 3,
+            'description' => 'Council Officer',
+            'is_system_role' => true,
+            'can_vacate' => !$p4Vac,
+            'children' => $ministryChildren
+        ];
+    }
+}
+
+// Add Parish Secretary to Tier 2 with PPC Officers as its children
+$tier2Children[] = [
+    'id' => (int)$t3['position_id'],
+    'role' => $t3['title'],
+    'name' => $t3Occ,
+    'status' => $t3Vac ? 'Vacant' : 'Active',
+    'is_vacant' => $t3Vac,
+    'rank' => 2,
+    'description' => 'Chancery & Parish Office Operations',
+    'is_system_role' => true,
+    'can_vacate' => !$t3Vac,
+    'children' => $ppcChildren
+];
+
+// Root Node
+$orgChartTree = [
+    'id' => (int)$tree['tier1']['position_id'],
+    'role' => $tree['tier1']['title'],
+    'name' => $priestOccupant,
+    'status' => $priestVacant ? 'Vacant' : 'Active',
+    'is_vacant' => $priestVacant,
+    'rank' => 1,
+    'description' => 'Canonical Head & Pastor',
+    'is_system_role' => true,
+    'can_vacate' => !$priestVacant,
+    'children' => $tier2Children
+];
+
 include __DIR__ . '/../templates/header.php';
 ?>
 
 <style>
-/* --- Minimalist Executive Dashboard Theme --- */
-.org-executive-wrap {
-    max-width: 1320px;
-    margin: 0 auto 3rem auto;
-    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-    color: #0f172a;
+/* Page-level layout styles for admin organization */
+.parish-admin-org-page {
+    background-color: #FAF8F3;
+    min-height: calc(100vh - 70px);
+    margin: -1.5rem -1.5rem 0 -1.5rem;
+    padding: 2rem 1.5rem 4rem 1.5rem;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    color: #16233A;
 }
 
-/* Header & Controls */
-.exec-header {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 1.5rem 1.75rem;
-    margin-bottom: 2rem;
+.org-admin-header {
+    max-width: 1240px;
+    margin: 0 auto 2rem auto;
+    background: #FFFFFF;
+    border: 1px solid #E5E0D8;
+    border-radius: 10px;
+    padding: 1.25rem 1.75rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
     gap: 1.25rem;
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
 }
 
-.exec-title {
-    font-size: 1.375rem;
+.org-admin-title {
+    font-family: 'Fraunces', 'Playfair Display', Georgia, serif;
+    font-size: 1.5rem;
     font-weight: 700;
-    color: #0f172a;
-    letter-spacing: -0.02em;
+    color: #16233A;
     margin: 0 0 0.25rem 0;
+    letter-spacing: -0.01em;
 }
 
-.exec-subtitle {
-    font-size: 0.875rem;
-    color: #64748b;
+.org-admin-subtitle {
+    font-size: 0.85rem;
+    color: #5A6779;
     margin: 0;
 }
 
-.exec-metrics-bar {
+.org-admin-metrics {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.6rem;
     flex-wrap: wrap;
 }
 
-.exec-metric-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.35rem 0.75rem;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: #475569;
-}
-
-.exec-metric-tag strong {
-    color: #0f172a;
-}
-
-/* Tiers & Grid Layout */
-.exec-tier-section {
-    margin-bottom: 2.25rem;
-}
-
-.exec-tier-heading {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.85rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid #f1f5f9;
-}
-
-.exec-tier-title {
-    font-size: 0.8125rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: #475569;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.exec-tier-title span.rank-badge {
-    background: #e2e8f0;
-    color: #334155;
-    padding: 0.15rem 0.45rem;
-    border-radius: 4px;
-    font-size: 0.75rem;
-}
-
-.exec-btn-add {
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: #0f172a;
-    background: #f8fafc;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
-    padding: 0.35rem 0.75rem;
+.org-metric-pill {
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
+    padding: 0.35rem 0.7rem;
+    background: #FAF8F3;
+    border: 1px solid #E5E0D8;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #5A6779;
+}
+
+.org-metric-pill strong {
+    color: #16233A;
+}
+
+.btn-org-cta {
+    background: #FAF8F3;
+    color: #16233A;
+    border: 1px solid #DCD5C9;
+    border-radius: 6px;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
     cursor: pointer;
+    text-decoration: none;
     transition: all 0.15s ease;
 }
 
-.exec-btn-add:hover {
-    background: #f1f5f9;
-    border-color: #94a3b8;
+.btn-org-cta:hover {
+    background: #FFFFFF;
+    border-color: #A9812E;
+    color: #A9812E;
 }
 
-/* Standardized Executive Cards */
-.exec-card-grid {
-    display: grid;
-    gap: 1rem;
-    width: 100%;
+.btn-org-cta-primary {
+    background: #16233A;
+    color: #FFFFFF;
+    border: 1px solid #16233A;
 }
 
-.grid-single-center {
-    display: flex;
-    justify-content: center;
+.btn-org-cta-primary:hover {
+    background: #243552;
+    border-color: #243552;
+    color: #FFFFFF;
 }
 
-.grid-single-center .exec-card {
-    width: 100%;
-    max-width: 520px;
-}
-
-.grid-cols-multi {
-    grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
-}
-
-.exec-card {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
+.new-vicar-drawer {
+    max-width: 1240px;
+    margin: 0 auto 1.5rem auto;
+    background: #FFFFFF;
+    border: 1px solid #E5E0D8;
     border-radius: 10px;
-    padding: 1.15rem 1.25rem;
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    min-height: 165px; /* Fixed height for reliable alignment */
-    transition: border-color 0.15s, box-shadow 0.15s;
-}
-
-.exec-card:hover {
-    border-color: #cbd5e1;
-    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
-}
-
-.exec-card-vacant {
-    background: #fafbfc;
-    border-style: dashed;
-}
-
-/* Card Header */
-.exec-card-header {
-    margin-bottom: 0.75rem;
-    padding-right: 5rem; /* Room for pinned action buttons */
-}
-
-.exec-card-role {
-    font-size: 0.9375rem;
-    font-weight: 700;
-    color: #0f172a;
-    line-height: 1.3;
-    margin-bottom: 0.25rem;
-}
-
-.exec-status-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    padding: 0.15rem 0.5rem;
-    border-radius: 4px;
-}
-
-.status-tag-active {
-    background: #f0fdf4;
-    color: #166534;
-    border: 1px solid #bbf7d0;
-}
-
-.status-tag-active::before {
-    content: '';
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: #16a34a;
-}
-
-.status-tag-vacant {
-    background: #f1f5f9;
-    color: #64748b;
-    border: 1px solid #e2e8f0;
-}
-
-/* Pinned Action Controls (Top-Right of EVERY card) */
-.exec-card-pinned-actions {
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-}
-
-.btn-exec-ghost {
-    background: transparent;
-    border: none;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: #64748b;
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.15s;
-}
-
-.btn-exec-ghost:hover {
-    background: #f1f5f9;
-    color: #0f172a;
-}
-
-.btn-exec-vacate {
-    color: #94a3b8;
-}
-
-.btn-exec-vacate:hover {
-    background: #fef2f2;
-    color: #dc2626;
-}
-
-.btn-exec-remove {
-    color: #94a3b8;
-}
-
-.btn-exec-remove:hover {
-    background: #fef2f2;
-    color: #dc2626;
-}
-
-/* Card Body & Direct Input */
-.exec-card-body {
-    flex-grow: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-}
-
-.exec-occupant-name {
-    font-size: 1rem;
-    font-weight: 600;
-    color: #1e293b;
-    margin-bottom: 0.15rem;
-}
-
-.exec-occupant-desc {
-    font-size: 0.8125rem;
-    color: #64748b;
-}
-
-/* Direct Fill-in-the-Blank Input Form */
-.exec-direct-input-form {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    margin-top: 0.35rem;
-}
-
-.exec-input-text {
-    flex-grow: 1;
-    font-size: 0.875rem;
-    padding: 0.45rem 0.65rem;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
-    color: #0f172a;
-    background: #ffffff;
-    outline: none;
-    transition: border-color 0.15s, box-shadow 0.15s;
-}
-
-.exec-input-text:focus {
-    border-color: #0f172a;
-    box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.08);
-}
-
-.exec-btn-save {
-    background: #0f172a;
-    color: #ffffff;
-    border: none;
-    font-size: 0.8125rem;
-    font-weight: 600;
-    padding: 0.45rem 0.8rem;
-    border-radius: 6px;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: background 0.15s;
-}
-
-.exec-btn-save:hover {
-    background: #1e293b;
-}
-
-.exec-btn-edit-toggle {
-    font-size: 0.775rem;
-    color: #64748b;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 4px;
-    padding: 0.2rem 0.5rem;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    margin-top: 0.4rem;
-    align-self: flex-start;
-}
-
-.exec-btn-edit-toggle:hover {
-    background: #f1f5f9;
-    color: #0f172a;
-}
-
-/* Tree Connectors */
-.exec-connector-stem {
-    width: 2px;
-    height: 24px;
-    background: #e2e8f0;
-    margin: 0 auto;
+    padding: 1.25rem 1.5rem;
 }
 </style>
 
-<div class="org-executive-wrap">
+<div class="parish-admin-org-page">
 
     <!-- Flash Messages -->
     <?php if (!empty($success)): ?>
-        <div class="alert alert-success alert-dismissible fade show rounded-3 border-0 shadow-sm mb-3 py-2 px-3 small" role="alert">
+        <div class="alert alert-success alert-dismissible fade show rounded-3 border-0 shadow-sm mb-3 py-2 px-3 small mx-auto" style="max-width: 1240px;" role="alert">
             <i class="fas fa-check-circle me-1.5 text-success"></i> <?php echo e($success); ?>
             <button type="button" class="btn-close py-2" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     <?php endif; ?>
 
     <?php if (!empty($error)): ?>
-        <div class="alert alert-danger alert-dismissible fade show rounded-3 border-0 shadow-sm mb-3 py-2 px-3 small" role="alert">
+        <div class="alert alert-danger alert-dismissible fade show rounded-3 border-0 shadow-sm mb-3 py-2 px-3 small mx-auto" style="max-width: 1240px;" role="alert">
             <i class="fas fa-circle-exclamation me-1.5 text-danger"></i> <?php echo e($error); ?>
             <button type="button" class="btn-close py-2" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     <?php endif; ?>
 
-    <!-- Minimalist Executive Header -->
-    <div class="exec-header">
+    <!-- Executive Administration Top Header -->
+    <div class="org-admin-header">
         <div>
-            <h1 class="exec-title">Parish Organizational Hierarchy</h1>
-            <p class="exec-subtitle">Executive governance and apostolic leadership directory with direct name editing.</p>
+            <h1 class="org-admin-title">Parish Organizational Hierarchy</h1>
+            <p class="org-admin-subtitle">Family-tree flowchart chart with brass connector lines, rank seals, and inline editing.</p>
         </div>
-        <div class="exec-metrics-bar">
-            <div class="exec-metric-tag">
-                <span>Ranks:</span> <strong>5 Tiers</strong>
+        <div class="org-admin-metrics">
+            <div class="org-metric-pill">
+                <span>Ranks:</span> <strong>4 Tiers</strong>
             </div>
-            <div class="exec-metric-tag">
+            <div class="org-metric-pill">
                 <span>Active:</span> <strong><?php echo $assignedCount; ?></strong>
             </div>
-            <div class="exec-metric-tag">
+            <div class="org-metric-pill">
                 <span>Vacant:</span> <strong><?php echo $vacantCount; ?></strong>
             </div>
-            <a href="<?php echo BASE_URL; ?>users/organization.php" class="exec-btn-add ms-2" target="_blank" title="View Public Page">
-                <i class="fas fa-external-link me-1"></i> Public View
+            <button type="button" class="btn-org-cta" onclick="toggleNewVicarDrawer()">
+                <i class="fas fa-user-plus"></i> Add Assistant Priest
+            </button>
+            <button type="button" class="btn-org-cta" onclick="openMinistryModal(0, '', '')">
+                <i class="fas fa-plus"></i> Add Ministry Role
+            </button>
+            <a href="<?php echo BASE_URL; ?>users/organization.php" class="btn-org-cta ms-1" target="_blank" title="Public Directory View">
+                <i class="fas fa-arrow-up-right-from-square"></i> Public
             </a>
         </div>
     </div>
 
-    <!-- ================= RANK 1: PARISH PRIEST ================= -->
-    <div class="exec-tier-section">
-        <div class="exec-tier-heading">
-            <div class="exec-tier-title">
-                <span class="rank-badge">Rank 1</span> Parish Priest (Pastoral & Canonical Head)
-            </div>
-        </div>
-
-        <?php 
-        $t1 = $tree['tier1'];
-        $t1Occ = $t1['occupants'][0]['full_name'] ?? '';
-        $t1Vac = empty($t1Occ);
-        ?>
-        <div class="grid-single-center">
-            <div class="exec-card <?php echo $t1Vac ? 'exec-card-vacant' : ''; ?>" id="card-pos-<?php echo (int)$t1['position_id']; ?>">
-                
-                <!-- Fixed Top-Right Pinned Action -->
-                <div class="exec-card-pinned-actions">
-                    <?php if (!$t1Vac): ?>
-                        <form method="POST" class="m-0" onsubmit="return confirm('Clear and vacate this position?');">
-                            <?php echo csrfInput(); ?>
-                            <input type="hidden" name="action" value="vacate_position">
-                            <input type="hidden" name="position_id" value="<?php echo (int)$t1['position_id']; ?>">
-                            <button type="submit" class="btn-exec-ghost btn-exec-vacate" title="Vacate position">
-                                <i class="fas fa-user-xmark me-1"></i> Vacate
-                            </button>
-                        </form>
-                    <?php endif; ?>
-                </div>
-
-                <!-- Header -->
-                <div class="exec-card-header">
-                    <div class="exec-card-role"><?php echo e($t1['title']); ?></div>
-                    <span class="exec-status-tag <?php echo $t1Vac ? 'status-tag-vacant' : 'status-tag-active'; ?>">
-                        <?php echo $t1Vac ? 'Vacant' : 'Active'; ?>
-                    </span>
-                </div>
-
-                <!-- Body / Direct Input -->
-                <div class="exec-card-body">
-                    <?php if (!$t1Vac): ?>
-                        <div id="display-<?php echo (int)$t1['position_id']; ?>">
-                            <div class="exec-occupant-name"><?php echo e($t1Occ); ?></div>
-                            <div class="exec-occupant-desc">Canonical Head & Pastor</div>
-                            <button type="button" class="exec-btn-edit-toggle" onclick="toggleEdit(<?php echo (int)$t1['position_id']; ?>)">
-                                <i class="fas fa-pencil"></i> Edit Name
-                            </button>
-                        </div>
-                    <?php endif; ?>
-
-                    <form method="POST" class="exec-direct-input-form" id="form-<?php echo (int)$t1['position_id']; ?>" style="<?php echo !$t1Vac ? 'display: none;' : ''; ?>">
-                        <?php echo csrfInput(); ?>
-                        <input type="hidden" name="action" value="set_occupant_direct">
-                        <input type="hidden" name="position_id" value="<?php echo (int)$t1['position_id']; ?>">
-                        <input type="text" name="occupant_name" value="<?php echo e($t1Occ); ?>" class="exec-input-text" placeholder="Enter priest full name (e.g. Rev. Fr. Alberto Cahilig, OMI)" required autofocus>
-                        <button type="submit" class="exec-btn-save">Save</button>
-                        <?php if (!$t1Vac): ?>
-                            <button type="button" class="btn-exec-ghost" onclick="toggleEdit(<?php echo (int)$t1['position_id']; ?>)">Cancel</button>
-                        <?php endif; ?>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="exec-connector-stem"></div>
-
-    <!-- ================= RANK 2: ASSISTANT PRIESTS ================= -->
-    <div class="exec-tier-section">
-        <div class="exec-tier-heading">
-            <div class="exec-tier-title">
-                <span class="rank-badge">Rank 2</span> Assistant Priests (Parochial Vicars)
-            </div>
-            <button type="button" class="exec-btn-add" onclick="toggleNewVicarForm()">
-                <i class="fas fa-plus"></i> Add Assistant Priest
+    <!-- Add New Assistant Priest Inline Drawer (Hidden by default) -->
+    <div id="newVicarDrawer" class="new-vicar-drawer" style="display: none;">
+        <form method="POST" class="d-flex align-items-center gap-3 flex-wrap m-0">
+            <?php echo csrfInput(); ?>
+            <input type="hidden" name="action" value="add_assistant_priest">
+            <span class="fw-bold small text-uppercase text-secondary" style="letter-spacing: 0.05em;">New Assistant Priest:</span>
+            <input type="text" 
+                   name="occupant_name" 
+                   class="org-inline-input" 
+                   placeholder="Enter priest full name (e.g. Rev. Fr. Mark Anthony Santos, OMI)" 
+                   style="max-width: 440px;" 
+                   required>
+            <button type="submit" class="btn-org-cta btn-org-cta-primary">
+                <i class="fas fa-check"></i> Create Slot
             </button>
-        </div>
-
-        <!-- Add New Assistant Priest Inline Row (Hidden by default) -->
-        <div id="newVicarRow" style="display: none; margin-bottom: 1rem;">
-            <form method="POST" class="p-3 bg-white border border-slate-300 rounded-3 shadow-sm d-flex align-items-center gap-2">
-                <?php echo csrfInput(); ?>
-                <input type="hidden" name="action" value="add_assistant_priest">
-                <span class="text-xs fw-bold text-uppercase text-secondary">New Vicar:</span>
-                <input type="text" name="occupant_name" class="exec-input-text" placeholder="Enter Assistant Priest full name (or leave blank to create vacant slot)" style="max-width: 480px;">
-                <button type="submit" class="exec-btn-save">Create Slot</button>
-                <button type="button" class="btn-exec-ghost" onclick="toggleNewVicarForm()">Cancel</button>
-            </form>
-        </div>
-
-        <div class="exec-card-grid grid-cols-multi">
-            <?php 
-            $t2Positions = $tree['tier2'];
-            foreach ($t2Positions as $t2):
-                $t2Id = (int)$t2['position_id'];
-                $t2Occ = $t2['occupants'][0]['full_name'] ?? '';
-                $t2Vac = empty($t2Occ);
-                $isAdditionalVicar = empty($t2['is_system_role']);
-            ?>
-            <div class="exec-card <?php echo $t2Vac ? 'exec-card-vacant' : ''; ?>" id="card-pos-<?php echo $t2Id; ?>">
-                
-                <!-- Fixed Top-Right Pinned Action -->
-                <div class="exec-card-pinned-actions">
-                    <?php if (!$t2Vac): ?>
-                        <form method="POST" class="m-0" onsubmit="return confirm('Clear and vacate this position?');">
-                            <?php echo csrfInput(); ?>
-                            <input type="hidden" name="action" value="vacate_position">
-                            <input type="hidden" name="position_id" value="<?php echo $t2Id; ?>">
-                            <button type="submit" class="btn-exec-ghost btn-exec-vacate" title="Vacate position">
-                                <i class="fas fa-user-xmark me-1"></i> Vacate
-                            </button>
-                        </form>
-                    <?php endif; ?>
-
-                    <?php if ($isAdditionalVicar): ?>
-                        <form method="POST" class="m-0" onsubmit="return confirm('Remove this extra Assistant Priest slot?');">
-                            <?php echo csrfInput(); ?>
-                            <input type="hidden" name="action" value="remove_assistant_priest">
-                            <input type="hidden" name="position_id" value="<?php echo $t2Id; ?>">
-                            <button type="submit" class="btn-exec-ghost btn-exec-remove" title="Remove slot">
-                                <i class="fas fa-trash-can"></i>
-                            </button>
-                        </form>
-                    <?php endif; ?>
-                </div>
-
-                <!-- Header -->
-                <div class="exec-card-header">
-                    <div class="exec-card-role"><?php echo e($t2['title']); ?></div>
-                    <span class="exec-status-tag <?php echo $t2Vac ? 'status-tag-vacant' : 'status-tag-active'; ?>">
-                        <?php echo $t2Vac ? 'Vacant' : 'Active'; ?>
-                    </span>
-                </div>
-
-                <!-- Body / Direct Input -->
-                <div class="exec-card-body">
-                    <?php if (!$t2Vac): ?>
-                        <div id="display-<?php echo $t2Id; ?>">
-                            <div class="exec-occupant-name"><?php echo e($t2Occ); ?></div>
-                            <div class="exec-occupant-desc">Parochial Vicar</div>
-                            <button type="button" class="exec-btn-edit-toggle" onclick="toggleEdit(<?php echo $t2Id; ?>)">
-                                <i class="fas fa-pencil"></i> Edit Name
-                            </button>
-                        </div>
-                    <?php endif; ?>
-
-                    <form method="POST" class="exec-direct-input-form" id="form-<?php echo $t2Id; ?>" style="<?php echo !$t2Vac ? 'display: none;' : ''; ?>">
-                        <?php echo csrfInput(); ?>
-                        <input type="hidden" name="action" value="set_occupant_direct">
-                        <input type="hidden" name="position_id" value="<?php echo $t2Id; ?>">
-                        <input type="text" name="occupant_name" value="<?php echo e($t2Occ); ?>" class="exec-input-text" placeholder="Enter Assistant Priest name" required>
-                        <button type="submit" class="exec-btn-save">Save</button>
-                        <?php if (!$t2Vac): ?>
-                            <button type="button" class="btn-exec-ghost" onclick="toggleEdit(<?php echo $t2Id; ?>)">Cancel</button>
-                        <?php endif; ?>
-                    </form>
-                </div>
-            </div>
-            <?php endforeach; ?>
-        </div>
+            <button type="button" class="btn-org-cta" onclick="toggleNewVicarDrawer()">Cancel</button>
+        </form>
     </div>
 
-    <div class="exec-connector-stem"></div>
-
-    <!-- ================= RANK 3: PARISH SECRETARY ================= -->
-    <div class="exec-tier-section">
-        <div class="exec-tier-heading">
-            <div class="exec-tier-title">
-                <span class="rank-badge">Rank 3</span> Parish Secretary (Office & Chancery Operations)
-            </div>
-        </div>
-
-        <?php 
-        $t3 = $tree['tier3'];
-        $t3Id = (int)$t3['position_id'];
-        $t3Occ = $t3['occupants'][0]['full_name'] ?? '';
-        $t3Vac = empty($t3Occ);
-        ?>
-        <div class="grid-single-center">
-            <div class="exec-card <?php echo $t3Vac ? 'exec-card-vacant' : ''; ?>" id="card-pos-<?php echo $t3Id; ?>">
-                
-                <!-- Fixed Top-Right Pinned Action -->
-                <div class="exec-card-pinned-actions">
-                    <?php if (!$t3Vac): ?>
-                        <form method="POST" class="m-0" onsubmit="return confirm('Clear and vacate this position?');">
-                            <?php echo csrfInput(); ?>
-                            <input type="hidden" name="action" value="vacate_position">
-                            <input type="hidden" name="position_id" value="<?php echo $t3Id; ?>">
-                            <button type="submit" class="btn-exec-ghost btn-exec-vacate" title="Vacate position">
-                                <i class="fas fa-user-xmark me-1"></i> Vacate
-                            </button>
-                        </form>
-                    <?php endif; ?>
-                </div>
-
-                <!-- Header -->
-                <div class="exec-card-header">
-                    <div class="exec-card-role"><?php echo e($t3['title']); ?></div>
-                    <span class="exec-status-tag <?php echo $t3Vac ? 'status-tag-vacant' : 'status-tag-active'; ?>">
-                        <?php echo $t3Vac ? 'Vacant' : 'Active'; ?>
-                    </span>
-                </div>
-
-                <!-- Body / Direct Input -->
-                <div class="exec-card-body">
-                    <?php if (!$t3Vac): ?>
-                        <div id="display-<?php echo $t3Id; ?>">
-                            <div class="exec-occupant-name"><?php echo e($t3Occ); ?></div>
-                            <div class="exec-occupant-desc">Chancery Administration & Office Head</div>
-                            <button type="button" class="exec-btn-edit-toggle" onclick="toggleEdit(<?php echo $t3Id; ?>)">
-                                <i class="fas fa-pencil"></i> Edit Name
-                            </button>
-                        </div>
-                    <?php endif; ?>
-
-                    <form method="POST" class="exec-direct-input-form" id="form-<?php echo $t3Id; ?>" style="<?php echo !$t3Vac ? 'display: none;' : ''; ?>">
-                        <?php echo csrfInput(); ?>
-                        <input type="hidden" name="action" value="set_occupant_direct">
-                        <input type="hidden" name="position_id" value="<?php echo $t3Id; ?>">
-                        <input type="text" name="occupant_name" value="<?php echo e($t3Occ); ?>" class="exec-input-text" placeholder="Enter Secretary full name" required>
-                        <button type="submit" class="exec-btn-save">Save</button>
-                        <?php if (!$t3Vac): ?>
-                            <button type="button" class="btn-exec-ghost" onclick="toggleEdit(<?php echo $t3Id; ?>)">Cancel</button>
-                        <?php endif; ?>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="exec-connector-stem"></div>
-
-    <!-- ================= RANK 4: PPC EXECUTIVE BOARD ================= -->
-    <div class="exec-tier-section">
-        <div class="exec-tier-heading">
-            <div class="exec-tier-title">
-                <span class="rank-badge">Rank 4</span> Parish Pastoral Council (PPC) Executive Board
-            </div>
-        </div>
-
-        <div class="exec-card-grid grid-cols-multi">
-            <?php 
-            foreach ($tree['tier4'] as $p4):
-                $p4Id = (int)$p4['position_id'];
-                $p4Occ = $p4['occupants'][0]['full_name'] ?? '';
-                $p4Vac = empty($p4Occ);
-            ?>
-            <div class="exec-card <?php echo $p4Vac ? 'exec-card-vacant' : ''; ?>" id="card-pos-<?php echo $p4Id; ?>">
-                
-                <!-- Fixed Top-Right Pinned Action -->
-                <div class="exec-card-pinned-actions">
-                    <?php if (!$p4Vac): ?>
-                        <form method="POST" class="m-0" onsubmit="return confirm('Clear and vacate this position?');">
-                            <?php echo csrfInput(); ?>
-                            <input type="hidden" name="action" value="vacate_position">
-                            <input type="hidden" name="position_id" value="<?php echo $p4Id; ?>">
-                            <button type="submit" class="btn-exec-ghost btn-exec-vacate" title="Vacate position">
-                                <i class="fas fa-user-xmark me-1"></i> Vacate
-                            </button>
-                        </form>
-                    <?php endif; ?>
-                </div>
-
-                <!-- Header -->
-                <div class="exec-card-header">
-                    <div class="exec-card-role"><?php echo e($p4['title']); ?></div>
-                    <span class="exec-status-tag <?php echo $p4Vac ? 'status-tag-vacant' : 'status-tag-active'; ?>">
-                        <?php echo $p4Vac ? 'Vacant' : 'Active'; ?>
-                    </span>
-                </div>
-
-                <!-- Body / Direct Input -->
-                <div class="exec-card-body">
-                    <?php if (!$p4Vac): ?>
-                        <div id="display-<?php echo $p4Id; ?>">
-                            <div class="exec-occupant-name"><?php echo e($p4Occ); ?></div>
-                            <div class="exec-occupant-desc">Council Officer</div>
-                            <button type="button" class="exec-btn-edit-toggle" onclick="toggleEdit(<?php echo $p4Id; ?>)">
-                                <i class="fas fa-pencil"></i> Edit Name
-                            </button>
-                        </div>
-                    <?php endif; ?>
-
-                    <form method="POST" class="exec-direct-input-form" id="form-<?php echo $p4Id; ?>" style="<?php echo !$p4Vac ? 'display: none;' : ''; ?>">
-                        <?php echo csrfInput(); ?>
-                        <input type="hidden" name="action" value="set_occupant_direct">
-                        <input type="hidden" name="position_id" value="<?php echo $p4Id; ?>">
-                        <input type="text" name="occupant_name" value="<?php echo e($p4Occ); ?>" class="exec-input-text" placeholder="Enter officer full name" required>
-                        <button type="submit" class="exec-btn-save">Save</button>
-                        <?php if (!$p4Vac): ?>
-                            <button type="button" class="btn-exec-ghost" onclick="toggleEdit(<?php echo $p4Id; ?>)">Cancel</button>
-                        <?php endif; ?>
-                    </form>
-                </div>
-            </div>
-            <?php endforeach; ?>
-        </div>
-    </div>
-
-    <div class="exec-connector-stem"></div>
-
-    <!-- ================= RANK 5: MINISTRY COORDINATORS ================= -->
-    <div class="exec-tier-section">
-        <div class="exec-tier-heading">
-            <div class="exec-tier-title">
-                <span class="rank-badge">Rank 5</span> Ministry Coordinators (Dynamic Apostolates)
-            </div>
-            <button type="button" class="exec-btn-add" onclick="openMinistryModal(0, '', '')">
-                <i class="fas fa-plus"></i> Add Ministry Role
-            </button>
-        </div>
-
-        <div class="exec-card-grid grid-cols-multi">
-            <?php 
-            foreach ($tree['tier5'] as $p5):
-                $p5Id = (int)$p5['position_id'];
-                $p5Occ = $p5['occupants'][0]['full_name'] ?? '';
-                $p5Vac = empty($p5Occ);
-            ?>
-            <div class="exec-card <?php echo $p5Vac ? 'exec-card-vacant' : ''; ?>" id="card-pos-<?php echo $p5Id; ?>">
-                
-                <!-- Fixed Top-Right Pinned Action -->
-                <div class="exec-card-pinned-actions">
-                    <?php if (!$p5Vac): ?>
-                        <form method="POST" class="m-0" onsubmit="return confirm('Clear and vacate this position?');">
-                            <?php echo csrfInput(); ?>
-                            <input type="hidden" name="action" value="vacate_position">
-                            <input type="hidden" name="position_id" value="<?php echo $p5Id; ?>">
-                            <button type="submit" class="btn-exec-ghost btn-exec-vacate" title="Vacate position">
-                                <i class="fas fa-user-xmark me-1"></i> Vacate
-                            </button>
-                        </form>
-                    <?php endif; ?>
-
-                    <button type="button" class="btn-exec-ghost" onclick="openMinistryModal(<?php echo $p5Id; ?>, '<?php echo addslashes($p5['title']); ?>', '<?php echo addslashes($p5Occ); ?>')" title="Rename Ministry">
-                        <i class="fas fa-gear"></i>
-                    </button>
-
-                    <form method="POST" class="m-0" onsubmit="return confirm('Archive this custom ministry role?');">
-                        <?php echo csrfInput(); ?>
-                        <input type="hidden" name="action" value="archive_ministry">
-                        <input type="hidden" name="position_id" value="<?php echo $p5Id; ?>">
-                        <button type="submit" class="btn-exec-ghost btn-exec-remove" title="Archive Role">
-                            <i class="fas fa-trash-can"></i>
-                        </button>
-                    </form>
-                </div>
-
-                <!-- Header -->
-                <div class="exec-card-header">
-                    <div class="exec-card-role"><?php echo e($p5['title']); ?></div>
-                    <span class="exec-status-tag <?php echo $p5Vac ? 'status-tag-vacant' : 'status-tag-active'; ?>">
-                        <?php echo $p5Vac ? 'Vacant' : 'Active'; ?>
-                    </span>
-                </div>
-
-                <!-- Body / Direct Input -->
-                <div class="exec-card-body">
-                    <?php if (!$p5Vac): ?>
-                        <div id="display-<?php echo $p5Id; ?>">
-                            <div class="exec-occupant-name"><?php echo e($p5Occ); ?></div>
-                            <div class="exec-occupant-desc">Ministry Coordinator</div>
-                            <button type="button" class="exec-btn-edit-toggle" onclick="toggleEdit(<?php echo $p5Id; ?>)">
-                                <i class="fas fa-pencil"></i> Edit Coordinator
-                            </button>
-                        </div>
-                    <?php endif; ?>
-
-                    <form method="POST" class="exec-direct-input-form" id="form-<?php echo $p5Id; ?>" style="<?php echo !$p5Vac ? 'display: none;' : ''; ?>">
-                        <?php echo csrfInput(); ?>
-                        <input type="hidden" name="action" value="set_occupant_direct">
-                        <input type="hidden" name="position_id" value="<?php echo $p5Id; ?>">
-                        <input type="text" name="occupant_name" value="<?php echo e($p5Occ); ?>" class="exec-input-text" placeholder="Enter coordinator full name" required>
-                        <button type="submit" class="exec-btn-save">Save</button>
-                        <?php if (!$p5Vac): ?>
-                            <button type="button" class="btn-exec-ghost" onclick="toggleEdit(<?php echo $p5Id; ?>)">Cancel</button>
-                        <?php endif; ?>
-                    </form>
-                </div>
-            </div>
-            <?php endforeach; ?>
-        </div>
-    </div>
+    <!-- ================================================================= -->
+    <!-- RENDER DYNAMIC PARISH ORGANIZATIONAL CHART COMPONENT -->
+    <!-- ================================================================= -->
+    <?php 
+    renderParishOrgChart($orgChartTree, [
+        'editable' => true,
+        'csrf_token' => generateCsrfToken()
+    ]); 
+    ?>
 
 </div>
 
-<!-- Minimalist Ministry Modal (One input for title, one for coordinator) -->
+<!-- Minimalist Ministry Modal for Custom Apostolates -->
 <div class="modal fade" id="ministryModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-sm">
-        <form method="POST" class="modal-content rounded-3 border-0 shadow">
+        <form method="POST" class="modal-content rounded-3 border-0 shadow" style="border-radius: 10px;">
             <?php echo csrfInput(); ?>
             <input type="hidden" name="action" value="save_ministry">
             <input type="hidden" name="position_id" id="modalMinistryPosId" value="0">
 
-            <div class="modal-header border-0 pb-0">
-                <h6 class="modal-title fw-bold" id="modalMinistryTitle">Ministry Coordinator Role</h6>
+            <div class="modal-header border-0 pb-0 pt-3 px-3">
+                <h6 class="modal-title fw-bold" id="modalMinistryTitle" style="font-family: 'Fraunces', 'Playfair Display', serif; color: #16233A;">Ministry Coordinator Role</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body py-3">
+            <div class="modal-body py-3 px-3">
                 <div class="mb-2.5">
-                    <label class="form-label text-xs fw-bold text-uppercase text-secondary">Ministry Name</label>
-                    <input type="text" name="title" id="inputMinistryName" class="exec-input-text w-100" required placeholder="e.g. Ministry of Ushers">
+                    <label class="form-label text-xs fw-bold text-uppercase text-secondary" style="letter-spacing: 0.05em;">Ministry Name</label>
+                    <input type="text" name="title" id="inputMinistryName" class="org-inline-input w-100" required placeholder="e.g. Ministry of Greeters & Ushers">
                 </div>
-                <div>
-                    <label class="form-label text-xs fw-bold text-uppercase text-secondary">Coordinator Name (Optional)</label>
-                    <input type="text" name="occupant_name" id="inputMinistryCoordinator" class="exec-input-text w-100" placeholder="Enter coordinator name">
+                <div class="mt-2">
+                    <label class="form-label text-xs fw-bold text-uppercase text-secondary" style="letter-spacing: 0.05em;">Coordinator Name (Optional)</label>
+                    <input type="text" name="occupant_name" id="inputMinistryCoordinator" class="org-inline-input w-100" placeholder="Enter coordinator name">
                 </div>
             </div>
-            <div class="modal-footer border-0 pt-0">
-                <button type="button" class="btn-exec-ghost" data-bs-dismiss="modal">Cancel</button>
-                <button type="submit" class="exec-btn-save">Save Role</button>
+            <div class="modal-footer border-0 pt-0 pb-3 px-3">
+                <button type="button" class="btn-org-cancel" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn-org-save">Save Role</button>
             </div>
         </form>
     </div>
 </div>
 
 <script>
-function toggleEdit(posId) {
-    var display = document.getElementById('display-' + posId);
-    var form = document.getElementById('form-' + posId);
-    if (!display || !form) return;
-
-    if (form.style.display === 'none') {
-        display.style.display = 'none';
-        form.style.display = 'flex';
-        var input = form.querySelector('input[name="occupant_name"]');
-        if (input) input.focus();
-    } else {
-        form.style.display = 'none';
-        display.style.display = 'block';
-    }
-}
-
-function toggleNewVicarForm() {
-    var row = document.getElementById('newVicarRow');
-    if (!row) return;
-    row.style.display = (row.style.display === 'none' || row.style.display === '') ? 'block' : 'none';
-    if (row.style.display === 'block') {
-        var inp = row.querySelector('input[name="occupant_name"]');
+function toggleNewVicarDrawer() {
+    var drawer = document.getElementById('newVicarDrawer');
+    if (!drawer) return;
+    drawer.style.display = (drawer.style.display === 'none' || drawer.style.display === '') ? 'block' : 'none';
+    if (drawer.style.display === 'block') {
+        var inp = drawer.querySelector('input[name="occupant_name"]');
         if (inp) inp.focus();
     }
 }
