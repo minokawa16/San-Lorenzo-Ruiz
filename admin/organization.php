@@ -1,9 +1,15 @@
 <?php
 /**
  * Parish Organizational Hierarchy Management
- * Redesigned as a true family-tree flowchart organizational chart with
- * thin 1.5px brass connector lines, rank seal badges (1, 2, 3, 4),
- * compact 220px cards, inline rename/assignment, and responsive collapse.
+ * Redesigned as a true 5-tier vertical hierarchy flowchart:
+ * - Level 1: Parish Priest (Top Tier)
+ * - Level 2: Assistant Priests (Directly below Level 1)
+ * - Level 3: Secretary & Finance (Directly below Level 2)
+ * - Level 4: PPC Officers (Directly below Level 3, branching horizontally)
+ * - Level 5: Ministry Coordinators (Directly below Level 4, branching horizontally)
+ *
+ * Connected with 1.5px brass lines, rank badges (2, 3, 4, 5),
+ * compact 220px cards, inline editing, and responsive collapse.
  */
 
 require_once __DIR__ . '/../includes/session.php';
@@ -116,119 +122,156 @@ foreach ($allPositions as $p) {
 }
 
 // =========================================================================
-// BUILD DYNAMIC HIERARCHY TREE DATA FOR COMPONENT
-// STRUCTURE:
-// Root: Parish Priest (Rank 1)
-// Tier 2 (children of Priest): Assistant Priest(s), Parish Secretary
-// Tier 3 (children of Parish Secretary): PPC President, PPC Vice President, PPC Secretary, PPC Treasurer
-// Tier 4 (children of Council / PPC President): Ministry Coordinators
+// BUILD STRICT 5-TIER HIERARCHY TREE DATA FOR COMPONENT
+// 1. Level 1 (Top Tier): Parish Priest
+// 2. Level 2: Assistant Priests (Directly below Level 1)
+// 3. Level 3: Secretary & Finance (Directly below Level 2)
+// 4. Level 4: PPC Officers (Directly below Level 3, branching horizontally)
+// 5. Level 5 (Bottom Tier): Ministry Coordinators (Directly below Level 4)
 // =========================================================================
 
-// Root: Parish Priest
+// Level 1: Parish Priest
 $priestOccupant = $tree['tier1']['occupants'][0]['full_name'] ?? '';
 $priestVacant = empty($priestOccupant);
+$priestPosId = (int)($tree['tier1']['position_id'] ?? 1);
 
-$tier2Children = [];
+$level1Nodes = [
+    [
+        'id' => $priestPosId,
+        'level' => 1,
+        'role' => $tree['tier1']['title'] ?? 'Parish Priest',
+        'name' => $priestOccupant,
+        'status' => $priestVacant ? 'Vacant' : 'Active',
+        'is_vacant' => $priestVacant,
+        'description' => 'Canonical Head & Pastor',
+        'is_system_role' => true,
+        'can_vacate' => !$priestVacant,
+        'parentId' => null
+    ]
+];
 
-// Assistant Priest(s)
+// Level 2: Assistant Priests (Parochial Vicars)
+$level2Nodes = [];
 if (!empty($tree['tier2'])) {
     foreach ($tree['tier2'] as $t2) {
         $t2Occ = $t2['occupants'][0]['full_name'] ?? '';
         $t2Vac = empty($t2Occ);
-        $tier2Children[] = [
+        $level2Nodes[] = [
             'id' => (int)$t2['position_id'],
+            'level' => 2,
             'role' => $t2['title'],
             'name' => $t2Occ,
             'status' => $t2Vac ? 'Vacant' : 'Active',
             'is_vacant' => $t2Vac,
-            'rank' => 2,
             'description' => 'Parochial Vicar',
             'is_system_role' => !empty($t2['is_system_role']),
             'can_vacate' => !$t2Vac,
             'can_remove' => empty($t2['is_system_role']),
-            'children' => []
+            'parentId' => $priestPosId
         ];
     }
 }
 
-// Parish Secretary
+// Level 3: Secretary & Finance
 $t3 = $tree['tier3'];
 $t3Occ = $t3['occupants'][0]['full_name'] ?? '';
 $t3Vac = empty($t3Occ);
+$secPosId = (int)($t3['position_id'] ?? 3);
+$parentForSecretary = !empty($level2Nodes) ? (int)$level2Nodes[0]['id'] : $priestPosId;
 
-// Tier 3: Children of Parish Secretary (PPC Executive Officers)
-$ppcChildren = [];
+$level3Nodes = [
+    [
+        'id' => $secPosId,
+        'level' => 3,
+        'role' => $t3['title'] ?? 'Parish Secretary',
+        'name' => $t3Occ,
+        'status' => $t3Vac ? 'Vacant' : 'Active',
+        'is_vacant' => $t3Vac,
+        'description' => 'Chancery & Office Operations',
+        'is_system_role' => true,
+        'can_vacate' => !$t3Vac,
+        'parentId' => $parentForSecretary
+    ]
+];
+
+// Level 4: PPC Officers (branching horizontally directly below Level 3)
+$level4Nodes = [];
+$ppcPresId = null;
 if (!empty($tree['tier4'])) {
-    $firstPpc = true;
     foreach ($tree['tier4'] as $p4) {
         $p4Occ = $p4['occupants'][0]['full_name'] ?? '';
         $p4Vac = empty($p4Occ);
-        
-        // Attach Tier 4 Dynamic Ministries under PPC President
-        $ministryChildren = [];
-        $isPresident = (stripos($p4['title'], 'President') !== false && stripos($p4['title'], 'Vice') === false) || $firstPpc;
-        if ($isPresident && !empty($tree['tier5'])) {
-            $firstPpc = false;
-            foreach ($tree['tier5'] as $p5) {
-                $p5Occ = $p5['occupants'][0]['full_name'] ?? '';
-                $p5Vac = empty($p5Occ);
-                $ministryChildren[] = [
-                    'id' => (int)$p5['position_id'],
-                    'role' => $p5['title'],
-                    'name' => $p5Occ,
-                    'status' => $p5Vac ? 'Vacant' : 'Active',
-                    'is_vacant' => $p5Vac,
-                    'rank' => 4,
-                    'description' => 'Ministry Coordinator',
-                    'is_system_role' => false,
-                    'is_custom_ministry' => true,
-                    'can_vacate' => !$p5Vac,
-                    'children' => []
-                ];
-            }
+        $p4Id = (int)$p4['position_id'];
+        if ($ppcPresId === null && stripos($p4['title'], 'President') !== false && stripos($p4['title'], 'Vice') === false) {
+            $ppcPresId = $p4Id;
         }
-
-        $ppcChildren[] = [
-            'id' => (int)$p4['position_id'],
+        $level4Nodes[] = [
+            'id' => $p4Id,
+            'level' => 4,
             'role' => $p4['title'],
             'name' => $p4Occ,
             'status' => $p4Vac ? 'Vacant' : 'Active',
             'is_vacant' => $p4Vac,
-            'rank' => 3,
             'description' => 'Council Officer',
             'is_system_role' => true,
             'can_vacate' => !$p4Vac,
-            'children' => $ministryChildren
+            'parentId' => $secPosId
+        ];
+    }
+}
+if ($ppcPresId === null && !empty($level4Nodes)) {
+    $ppcPresId = (int)$level4Nodes[0]['id'];
+}
+
+// Level 5: Ministry Coordinators (branching horizontally directly below Level 4)
+$level5Nodes = [];
+if (!empty($tree['tier5'])) {
+    foreach ($tree['tier5'] as $p5) {
+        $p5Occ = $p5['occupants'][0]['full_name'] ?? '';
+        $p5Vac = empty($p5Occ);
+        $level5Nodes[] = [
+            'id' => (int)$p5['position_id'],
+            'level' => 5,
+            'role' => $p5['title'],
+            'name' => $p5Occ,
+            'status' => $p5Vac ? 'Vacant' : 'Active',
+            'is_vacant' => $p5Vac,
+            'description' => 'Ministry Coordinator',
+            'is_system_role' => false,
+            'is_custom_ministry' => true,
+            'can_vacate' => !$p5Vac,
+            'parentId' => $ppcPresId
         ];
     }
 }
 
-// Add Parish Secretary to Tier 2 with PPC Officers as its children
-$tier2Children[] = [
-    'id' => (int)$t3['position_id'],
-    'role' => $t3['title'],
-    'name' => $t3Occ,
-    'status' => $t3Vac ? 'Vacant' : 'Active',
-    'is_vacant' => $t3Vac,
-    'rank' => 2,
-    'description' => 'Chancery & Parish Office Operations',
-    'is_system_role' => true,
-    'can_vacate' => !$t3Vac,
-    'children' => $ppcChildren
-];
-
-// Root Node
-$orgChartTree = [
-    'id' => (int)$tree['tier1']['position_id'],
-    'role' => $tree['tier1']['title'],
-    'name' => $priestOccupant,
-    'status' => $priestVacant ? 'Vacant' : 'Active',
-    'is_vacant' => $priestVacant,
-    'rank' => 1,
-    'description' => 'Canonical Head & Pastor',
-    'is_system_role' => true,
-    'can_vacate' => !$priestVacant,
-    'children' => $tier2Children
+// Assemble the 5-tier map
+$orgChart5Tier = [
+    1 => [
+        'tier_title' => 'Parish Priest',
+        'level' => 1,
+        'nodes' => $level1Nodes
+    ],
+    2 => [
+        'tier_title' => 'Assistant Priests',
+        'level' => 2,
+        'nodes' => $level2Nodes
+    ],
+    3 => [
+        'tier_title' => 'Secretary & Finance',
+        'level' => 3,
+        'nodes' => $level3Nodes
+    ],
+    4 => [
+        'tier_title' => 'PPC Officers',
+        'level' => 4,
+        'nodes' => $level4Nodes
+    ],
+    5 => [
+        'tier_title' => 'Ministry Coordinators',
+        'level' => 5,
+        'nodes' => $level5Nodes
+    ]
 ];
 
 include __DIR__ . '/../templates/header.php';
@@ -363,11 +406,11 @@ include __DIR__ . '/../templates/header.php';
     <div class="org-admin-header">
         <div>
             <h1 class="org-admin-title">Parish Organizational Hierarchy</h1>
-            <p class="org-admin-subtitle">Family-tree flowchart chart with brass connector lines, rank seals, and inline editing.</p>
+            <p class="org-admin-subtitle">Strict 5-tier vertical hierarchy flowchart with brass connector lines, rank badges, and inline editing.</p>
         </div>
         <div class="org-admin-metrics">
             <div class="org-metric-pill">
-                <span>Ranks:</span> <strong>4 Tiers</strong>
+                <span>Ranks:</span> <strong>5 Tiers</strong>
             </div>
             <div class="org-metric-pill">
                 <span>Active:</span> <strong><?php echo $assignedCount; ?></strong>
@@ -407,10 +450,10 @@ include __DIR__ . '/../templates/header.php';
     </div>
 
     <!-- ================================================================= -->
-    <!-- RENDER DYNAMIC PARISH ORGANIZATIONAL CHART COMPONENT -->
+    <!-- RENDER STRICT 5-TIER ORGANIZATIONAL CHART COMPONENT -->
     <!-- ================================================================= -->
     <?php 
-    renderParishOrgChart($orgChartTree, [
+    renderParishOrgChart5Tier($orgChart5Tier, [
         'editable' => true,
         'csrf_token' => generateCsrfToken()
     ]); 

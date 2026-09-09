@@ -2,23 +2,29 @@
 /**
  * Parish Organizational Chart Component
  *
- * Reusable, dynamic hierarchical organizational chart component.
- * Renders nested <ul>/<li> structures with pure CSS flowchart connector lines,
- * brass rank seals, compact 220px cards, inline direct editing, and responsive
- * collapse below 900px.
+ * Enforces a strict 5-tier vertical hierarchy:
+ * 1. Level 1: Parish Priest (Top Tier)
+ *    ── [Badge 2] ──
+ * 2. Level 2: Assistant Priests (Parochial Vicars)
+ *    ── [Badge 3] ──
+ * 3. Level 3: Secretary & Finance (Parish Secretary, Chancery, Office Operations, Finance)
+ *    ── [Badge 4] ──
+ * 4. Level 4: PPC Officers (Parish Pastoral Council: President, VP, Secretary, Treasurer)
+ *    ── [Badge 5] ──
+ * 5. Level 5: Ministry Coordinators (Commissions, Youth, Catechesis, Greeters & Ushers, etc.)
  *
  * Visual Palette:
  * - Text: Deep navy (#16233A)
  * - Page Background: Warm ivory (#FAF8F3)
- * - Cards: Crisp white (#FFFFFF), 1px hairline border, 10px radius
- * - Connectors & Seals: Brass/Gold (#A9812E)
+ * - Cards: Crisp white (#FFFFFF), 1px hairline border, 10px radius, compact 220px width
+ * - Connectors & Rank Seals: Brass/Gold (#A9812E family)
  * - Active Status: Sage green (#3F7D58)
  * - Vacant Status: Muted grey (#64748B)
  */
 
 if (!function_exists('renderParishOrgChartStyles')) {
     /**
-     * Output the component's embedded CSS styles (guarded to render once).
+     * Output component CSS (guarded to render once).
      */
     function renderParishOrgChartStyles(): void
     {
@@ -52,11 +58,11 @@ if (!function_exists('renderParishOrgChartStyles')) {
             --org-font-sans: 'Inter', system-ui, -apple-system, sans-serif;
         }
 
-        /* --- Tree Chart Flowchart Canvas --- */
+        /* Flowchart Canvas */
         .parish-org-flowchart {
             width: 100%;
             margin: 0 auto;
-            padding: 1.5rem 0.5rem;
+            padding: 1rem 0.5rem 2rem 0.5rem;
             overflow-x: auto;
             overflow-y: visible;
             box-sizing: border-box;
@@ -64,64 +70,133 @@ if (!function_exists('renderParishOrgChartStyles')) {
             justify-content: center;
         }
 
-        .parish-org-chart-wrap {
-            display: inline-block;
+        .parish-5tier-tree {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
             margin: 0 auto;
             text-align: center;
         }
 
-        /* Base UL / LI for pure CSS family-tree flowchart */
-        .org-tree-root,
-        .org-tree-root ul {
-            list-style: none;
-            margin: 0;
-            padding: 0;
+        /* Tier Rows */
+        .org-tier-row {
+            width: 100%;
             display: flex;
             justify-content: center;
-            position: relative;
-        }
-
-        .org-tree-item {
-            list-style: none;
-            position: relative;
-            display: flex;
-            flex-direction: column;
             align-items: center;
-            padding: 0 16px;
-            box-sizing: border-box;
+            position: relative;
         }
 
-        /* Horizontal branches of children */
-        .org-children-tier {
+        .org-tier-cards-single {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1.25rem;
+        }
+
+        /* Horizontal rail for multi-card tiers (Level 4 & Level 5) */
+        .org-tier-rail-wrap {
+            position: relative;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+        }
+
+        .org-tier-cards-rail {
             display: flex;
             justify-content: center;
             align-items: flex-start;
-            padding-top: 24px;
+            list-style: none;
             margin: 0;
+            padding: 0;
             position: relative;
         }
 
-        /* Vertical stem drop from parent card down to child rail */
-        .org-stem-connector {
+        .org-rail-branch-card {
             position: relative;
-            width: 100%;
-            height: 38px;
+            padding: 24px 10px 0 10px;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
-            z-index: 2;
+            list-style: none;
+            box-sizing: border-box;
         }
 
-        .org-stem-connector::before {
+        /* Horizontal rail connecting child cards */
+        .org-rail-branch-card::before,
+        .org-rail-branch-card::after {
             content: '';
             position: absolute;
             top: 0;
-            bottom: 0;
+            width: 50%;
+            height: 24px;
+            border-top: var(--org-line-width) solid var(--org-brass);
+            box-sizing: border-box;
+        }
+
+        .org-rail-branch-card::before {
+            left: 0;
+        }
+
+        .org-rail-branch-card::after {
+            right: 0;
+            border-left: var(--org-line-width) solid var(--org-brass);
+        }
+
+        /* First child: no rail to left, rounded top-left corner (8px radius) */
+        .org-rail-branch-card:first-child::before {
+            display: none;
+        }
+        .org-rail-branch-card:first-child::after {
             left: 50%;
+            right: 0;
+            width: 50%;
+            border-top-left-radius: 8px;
+            border-left: var(--org-line-width) solid var(--org-brass);
+        }
+
+        /* Last child: no rail to right, rounded top-right corner (8px radius) */
+        .org-rail-branch-card:last-child::after {
+            display: none;
+        }
+        .org-rail-branch-card:last-child:not(:first-child)::before {
+            right: 50%;
+            left: 0;
+            width: 50%;
+            border-top-right-radius: 8px;
+            border-right: var(--org-line-width) solid var(--org-brass);
+        }
+
+        /* Single child in rail: straight vertical line */
+        .org-rail-branch-card:only-child::before {
+            display: none;
+        }
+        .org-rail-branch-card:only-child::after {
+            left: 50%;
+            right: auto;
+            width: 0;
+            border-top: none;
+            border-left: var(--org-line-width) solid var(--org-brass);
+            border-radius: 0;
+        }
+
+        /* Vertical Connector Transition with Rank Seal Badge */
+        .org-tier-connector-stem {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 48px;
+            position: relative;
+            margin: 0 auto;
+            z-index: 2;
+        }
+
+        .org-stem-line-top,
+        .org-stem-line-bottom {
             width: 0;
             border-left: var(--org-line-width) solid var(--org-brass);
-            transform: translateX(-0.75px);
-            z-index: 1;
+            height: 12px;
         }
 
         /* Small circular rank seal badge on connector line */
@@ -144,69 +219,7 @@ if (!function_exists('renderParishOrgChartStyles')) {
             line-height: 1;
             user-select: none;
             cursor: default;
-        }
-
-        /* Horizontal rail above child cards */
-        .org-children-tier > .org-tree-item {
-            position: relative;
-            padding: 24px 14px 0 14px;
-        }
-
-        .org-children-tier > .org-tree-item::before,
-        .org-children-tier > .org-tree-item::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            width: 50%;
-            height: 24px;
-            border-top: var(--org-line-width) solid var(--org-brass);
-            box-sizing: border-box;
-        }
-
-        .org-children-tier > .org-tree-item::before {
-            left: 0;
-        }
-
-        .org-children-tier > .org-tree-item::after {
-            right: 0;
-            border-left: var(--org-line-width) solid var(--org-brass);
-        }
-
-        /* First child: no rail to the left, rounded top-left corner into vertical drop */
-        .org-children-tier > .org-tree-item:first-child::before {
-            display: none;
-        }
-        .org-children-tier > .org-tree-item:first-child::after {
-            left: 50%;
-            right: 0;
-            width: 50%;
-            border-top-left-radius: 8px;
-            border-left: var(--org-line-width) solid var(--org-brass);
-        }
-
-        /* Last child: no rail to the right, rounded top-right corner into vertical drop */
-        .org-children-tier > .org-tree-item:last-child::after {
-            display: none;
-        }
-        .org-children-tier > .org-tree-item:last-child::before {
-            right: 50%;
-            left: 0;
-            width: 50%;
-            border-top-right-radius: 8px;
-            border-right: var(--org-line-width) solid var(--org-brass);
-        }
-
-        /* Single child: straight vertical drop, no rail */
-        .org-children-tier > .org-tree-item:only-child::before {
-            display: none;
-        }
-        .org-children-tier > .org-tree-item:only-child::after {
-            left: 50%;
-            right: auto;
-            width: 0;
-            border-top: none;
-            border-left: var(--org-line-width) solid var(--org-brass);
-            border-radius: 0;
+            flex-shrink: 0;
         }
 
         /* --- THE ORG CARD --- */
@@ -492,15 +505,13 @@ if (!function_exists('renderParishOrgChartStyles')) {
                 display: block;
             }
 
-            .parish-org-chart-wrap {
+            .parish-5tier-tree {
                 display: block;
                 width: 100%;
                 text-align: left;
             }
 
-            .org-tree-root,
-            .org-tree-root ul,
-            .org-children-tier {
+            .org-tier-row {
                 display: flex;
                 flex-direction: column;
                 align-items: flex-start;
@@ -509,40 +520,44 @@ if (!function_exists('renderParishOrgChartStyles')) {
                 width: 100%;
             }
 
-            /* Left-indented one step per tier with vertical continuous line */
-            .org-children-tier {
-                padding-left: 24px;
-                margin-left: 18px;
-                border-left: var(--org-line-width) solid var(--org-brass);
-                position: relative;
-            }
+            /* Indent one step per tier */
+            .org-tier-1 { padding-left: 0; }
+            .org-tier-2 { padding-left: 20px; border-left: var(--org-line-width) solid var(--org-brass); margin-left: 14px; }
+            .org-tier-3 { padding-left: 20px; border-left: var(--org-line-width) solid var(--org-brass); margin-left: 14px; }
+            .org-tier-4 { padding-left: 20px; border-left: var(--org-line-width) solid var(--org-brass); margin-left: 14px; }
+            .org-tier-5 { padding-left: 20px; border-left: var(--org-line-width) solid var(--org-brass); margin-left: 14px; }
 
-            .org-tree-item {
-                display: flex;
+            .org-tier-cards-single,
+            .org-tier-cards-rail {
                 flex-direction: column;
                 align-items: flex-start;
-                padding: 10px 0;
                 width: 100%;
             }
 
+            .org-rail-branch-card {
+                padding: 10px 0;
+                width: 100%;
+                align-items: flex-start;
+            }
+
             /* Remove horizontal branching rails */
-            .org-children-tier > .org-tree-item::before,
-            .org-children-tier > .org-tree-item::after {
+            .org-rail-branch-card::before,
+            .org-rail-branch-card::after {
                 display: none !important;
             }
 
             /* Horizontal branch tick from vertical line to card */
-            .org-children-tier > .org-tree-item {
+            .org-rail-branch-card {
                 position: relative;
             }
 
-            .org-children-tier > .org-tree-item::before {
+            .org-rail-branch-card::before {
                 display: block !important;
                 content: '';
                 position: absolute;
-                top: 32px;
-                left: -24px;
-                width: 24px;
+                top: 28px;
+                left: -20px;
+                width: 20px;
                 height: 0;
                 border-top: var(--org-line-width) solid var(--org-brass) !important;
                 border-left: none !important;
@@ -550,24 +565,20 @@ if (!function_exists('renderParishOrgChartStyles')) {
                 border-radius: 0 !important;
             }
 
-            /* Vertical stem connector on mobile */
-            .org-stem-connector {
-                height: 24px;
-                width: auto;
-                margin-left: 18px;
+            /* Connector badges on mobile */
+            .org-tier-connector-stem {
+                height: 32px;
+                margin: 6px 0 6px 3px;
+                flex-direction: row;
+                gap: 8px;
                 align-self: flex-start;
             }
 
-            .org-stem-connector::before {
-                left: 0;
-                border-left: var(--org-line-width) solid var(--org-brass);
+            .org-stem-line-top,
+            .org-stem-line-bottom {
+                display: none;
             }
 
-            .org-rank-seal {
-                margin-left: -12px;
-            }
-
-            /* Flexible card on mobile */
             .org-card {
                 width: 100%;
                 max-width: 320px;
@@ -581,7 +592,7 @@ if (!function_exists('renderParishOrgChartStyles')) {
 
 if (!function_exists('renderParishOrgChartScripts')) {
     /**
-     * Output the component's embedded JavaScript (guarded to render once).
+     * Output component JavaScript (guarded to render once).
      */
     function renderParishOrgChartScripts(): void
     {
@@ -618,68 +629,6 @@ if (!function_exists('renderParishOrgChartScripts')) {
     }
 }
 
-if (!function_exists('renderParishOrgChart')) {
-    /**
-     * Entry point to render the entire organizational tree.
-     *
-     * @param array $rootNode Hierarchical tree data starting from Root.
-     * @param array $options Configuration options (e.g. editable, csrf_token).
-     */
-    function renderParishOrgChart(array $rootNode, array $options = []): void
-    {
-        renderParishOrgChartStyles();
-        ?>
-        <div class="parish-org-flowchart">
-            <div class="parish-org-chart-wrap" id="parishOrgChart">
-                <ul class="org-tree-root">
-                    <?php renderOrgNode($rootNode, $options); ?>
-                </ul>
-            </div>
-        </div>
-        <?php
-        renderParishOrgChartScripts();
-    }
-}
-
-if (!function_exists('renderOrgNode')) {
-    /**
-     * Recursively render a single tree node (card + connector + children).
-     *
-     * @param array $node Node data array.
-     * @param array $options Configuration options.
-     */
-    function renderOrgNode(array $node, array $options = []): void
-    {
-        $children = $node['children'] ?? [];
-        $hasChildren = !empty($children);
-        $rank = (int)($node['rank'] ?? 1);
-        $nextRank = $hasChildren ? ((int)($children[0]['rank'] ?? ($rank + 1))) : ($rank + 1);
-        ?>
-        <li class="org-tree-item" data-rank="<?php echo $rank; ?>" data-node-id="<?php echo (int)($node['id'] ?? 0); ?>">
-            
-            <?php renderOrgCard($node, $options); ?>
-
-            <?php if ($hasChildren): ?>
-                <!-- Vertical Stem Drop with Rank Seal Badge -->
-                <div class="org-stem-connector">
-                    <span class="org-rank-seal" title="Tier <?php echo $nextRank; ?> Hierarchy Rank">
-                        <?php echo $nextRank; ?>
-                    </span>
-                </div>
-
-                <!-- Child Subtree Branches -->
-                <ul class="org-children-tier" data-tier-rank="<?php echo $nextRank; ?>">
-                    <?php foreach ($children as $child): ?>
-                        <?php renderOrgNode($child, $options); ?>
-                    <?php endforeach; ?>
-                </ul>
-            <?php endif; ?>
-
-        </li>
-        <?php
-    }
-}
-
 if (!function_exists('renderOrgCard')) {
     /**
      * Render the compact 220px card for an organizational seat.
@@ -690,12 +639,12 @@ if (!function_exists('renderOrgCard')) {
     function renderOrgCard(array $node, array $options = []): void
     {
         $id = (int)($node['id'] ?? 0);
+        $level = (int)($node['level'] ?? ($node['rank'] ?? 1));
         $role = trim((string)($node['role'] ?? ''));
         $name = trim((string)($node['name'] ?? ''));
         $desc = trim((string)($node['description'] ?? ''));
         $isVacant = !empty($node['is_vacant']) || empty($name);
         $status = $isVacant ? 'Vacant' : ($node['status'] ?? 'Active');
-        $rank = (int)($node['rank'] ?? 1);
         $isSystemRole = !empty($node['is_system_role']);
         $canVacate = !empty($node['can_vacate']) && !$isVacant;
         $canRemove = !empty($node['can_remove']);
@@ -706,6 +655,7 @@ if (!function_exists('renderOrgCard')) {
         <div class="org-card <?php echo $isVacant ? 'is-vacant' : 'is-active'; ?>" 
              id="card-pos-<?php echo $id; ?>" 
              data-pos-id="<?php echo $id; ?>"
+             data-level="<?php echo $level; ?>"
              data-role="<?php echo htmlspecialchars($role, ENT_QUOTES, 'UTF-8'); ?>">
             
             <!-- Card Header: Role Label & Status Pill -->
@@ -837,5 +787,139 @@ if (!function_exists('renderOrgCard')) {
 
         </div>
         <?php
+    }
+}
+
+if (!function_exists('renderParishOrgChart5Tier')) {
+    /**
+     * Render the strict 5-tier vertical hierarchy org chart.
+     *
+     * @param array $tiers Map of levels: [1 => [...], 2 => [...], 3 => [...], 4 => [...], 5 => [...]]
+     * @param array $options Options (editable, csrf_token, etc.)
+     */
+    function renderParishOrgChart5Tier(array $tiers, array $options = []): void
+    {
+        renderParishOrgChartStyles();
+        ?>
+        <div class="parish-org-flowchart">
+            <div class="parish-5tier-tree" id="parishOrgChart">
+
+                <!-- ================= LEVEL 1: PARISH PRIEST ================= -->
+                <?php $l1Nodes = $tiers[1]['nodes'] ?? ($tiers[1] ?? []); ?>
+                <div class="org-tier-row org-tier-1" data-tier="1">
+                    <div class="org-tier-cards-single">
+                        <?php foreach ($l1Nodes as $n1): ?>
+                            <?php renderOrgCard($n1, $options); ?>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+
+                <!-- CONNECTOR BADGE 2: Between Level 1 and Level 2 -->
+                <div class="org-tier-connector-stem">
+                    <div class="org-stem-line-top"></div>
+                    <span class="org-rank-seal" title="Level 2 Hierarchy">2</span>
+                    <div class="org-stem-line-bottom"></div>
+                </div>
+
+                <!-- ================= LEVEL 2: ASSISTANT PRIESTS ================= -->
+                <?php $l2Nodes = $tiers[2]['nodes'] ?? ($tiers[2] ?? []); ?>
+                <div class="org-tier-row org-tier-2" data-tier="2">
+                    <div class="org-tier-cards-single">
+                        <?php foreach ($l2Nodes as $n2): ?>
+                            <?php renderOrgCard($n2, $options); ?>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+
+                <!-- CONNECTOR BADGE 3: Between Level 2 and Level 3 -->
+                <div class="org-tier-connector-stem">
+                    <div class="org-stem-line-top"></div>
+                    <span class="org-rank-seal" title="Level 3 Hierarchy">3</span>
+                    <div class="org-stem-line-bottom"></div>
+                </div>
+
+                <!-- ================= LEVEL 3: SECRETARY & FINANCE ================= -->
+                <?php $l3Nodes = $tiers[3]['nodes'] ?? ($tiers[3] ?? []); ?>
+                <div class="org-tier-row org-tier-3" data-tier="3">
+                    <div class="org-tier-cards-single">
+                        <?php foreach ($l3Nodes as $n3): ?>
+                            <?php renderOrgCard($n3, $options); ?>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+
+                <!-- CONNECTOR BADGE 4: Between Level 3 and Level 4 -->
+                <div class="org-tier-connector-stem">
+                    <div class="org-stem-line-top"></div>
+                    <span class="org-rank-seal" title="Level 4 Hierarchy">4</span>
+                    <div class="org-stem-line-bottom"></div>
+                </div>
+
+                <!-- ================= LEVEL 4: PPC OFFICERS ================= -->
+                <?php $l4Nodes = $tiers[4]['nodes'] ?? ($tiers[4] ?? []); ?>
+                <div class="org-tier-row org-tier-4" data-tier="4">
+                    <div class="org-tier-rail-wrap">
+                        <ul class="org-tier-cards-rail">
+                            <?php foreach ($l4Nodes as $n4): ?>
+                                <li class="org-rail-branch-card">
+                                    <?php renderOrgCard($n4, $options); ?>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- CONNECTOR BADGE 5: Between Level 4 and Level 5 -->
+                <div class="org-tier-connector-stem">
+                    <div class="org-stem-line-top"></div>
+                    <span class="org-rank-seal" title="Level 5 Hierarchy">5</span>
+                    <div class="org-stem-line-bottom"></div>
+                </div>
+
+                <!-- ================= LEVEL 5: MINISTRY COORDINATORS ================= -->
+                <?php $l5Nodes = $tiers[5]['nodes'] ?? ($tiers[5] ?? []); ?>
+                <div class="org-tier-row org-tier-5" data-tier="5">
+                    <div class="org-tier-rail-wrap">
+                        <ul class="org-tier-cards-rail">
+                            <?php foreach ($l5Nodes as $n5): ?>
+                                <li class="org-rail-branch-card">
+                                    <?php renderOrgCard($n5, $options); ?>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        <?php
+        renderParishOrgChartScripts();
+    }
+}
+
+if (!function_exists('renderParishOrgChart')) {
+    /**
+     * General entry point. Automatically routes 5-tier maps or nested tree roots.
+     */
+    function renderParishOrgChart(array $data, array $options = []): void
+    {
+        // If structured by tier keys (1..5)
+        if (isset($data[1]) || isset($data['level1'])) {
+            $tiers = [];
+            for ($lvl = 1; $lvl <= 5; $lvl++) {
+                $tiers[$lvl] = $data[$lvl] ?? ($data['level' . $lvl] ?? []);
+            }
+            renderParishOrgChart5Tier($tiers, $options);
+            return;
+        }
+
+        // Default single root node wrapper
+        renderParishOrgChart5Tier([
+            1 => [$data],
+            2 => $data['children'] ?? [],
+            3 => [],
+            4 => [],
+            5 => []
+        ], $options);
     }
 }
