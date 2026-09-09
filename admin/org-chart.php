@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Parish Organizational Chart
  *
@@ -33,47 +33,49 @@ $page_title = 'Parish Org Chart';
 // =========================================================================
 $org_nodes = [
 
-    // == LEVEL 1 ===========================================================
+    // == LEVEL 1: Parish Priest ============================================
     [
-        'id'        => 'pastor',
+        'id'        => 'parish-priest',
         'level'     => 1,
-        'title'     => 'Pastor / Parish Priest',
-        'name'      => 'Rev. Fr. Edward Tembo',
-        'sub_title' => 'Canonical Head & Administrator',
+        'title'     => 'Parish Priest',
+        'name'      => 'Rev. Fr. Alberto Cahilig, OMI',
+        'sub_title' => 'Canonical Head & Pastor',
         'photo'     => null,
         'icon'      => 'fa-cross',
         'sub_items' => [
+            'Oblates of Mary Immaculate',
             'Canonical Head of Parish',
-            'Parish Administrator',
             'Sacramental Ministry',
         ],
         'parent'    => null,
-        'children'  => ['pastoral-council', 'finance-council', 'admin-staff'],
+        'children'  => ['assistant-priests'],
     ],
 
-    // == LEVEL 2 ===========================================================
+    // == LEVEL 2: Assistant Priests ========================================
     [
-        'id'        => 'pastoral-council',
+        'id'        => 'assistant-priests',
         'level'     => 2,
-        'title'     => 'Pastoral Council',
-        'name'      => 'Advisory Body',
-        'sub_title' => 'Parish Governance & Planning',
+        'title'     => 'Assistant Priests / Parochial Vicars',
+        'name'      => 'Fr. Alvin Vicente C. Barreto, OMI',
+        'sub_title' => 'Fr. Mark Anthony Santos, OMI',
         'photo'     => null,
-        'icon'      => 'fa-people-group',
+        'icon'      => 'fa-user-tie',
         'sub_items' => [
-            'Parish Advisory',
-            'Strategic Planning',
-            'Community Relations',
+            'Parochial Vicars',
+            'Sacramental Assistance',
+            'Pastoral Support',
         ],
-        'parent'    => 'pastor',
-        'children'  => ['ministry-leaders'],
+        'parent'    => 'parish-priest',
+        'children'  => ['finance-council', 'parish-secretary'],
     ],
+
+    // == LEVEL 3: Finance Council & Parish Secretary =======================
     [
         'id'        => 'finance-council',
-        'level'     => 2,
+        'level'     => 3,
         'title'     => 'Finance Council',
-        'name'      => 'Budget & Finance Committee',
-        'sub_title' => 'Financial Stewardship',
+        'name'      => 'Engr. Ricardo Valenzuela',
+        'sub_title' => 'Finance Council Chairperson',
         'photo'     => null,
         'icon'      => 'fa-coins',
         'sub_items' => [
@@ -81,112 +83,112 @@ $org_nodes = [
             'Financial Reporting',
             'Resource Stewardship',
         ],
-        'parent'    => 'pastor',
+        'parent'    => 'assistant-priests',
         'children'  => [],
     ],
     [
-        'id'        => 'admin-staff',
-        'level'     => 2,
-        'title'     => 'Admin Staff',
-        'name'      => 'Administrative Office',
-        'sub_title' => 'Parish Operations',
+        'id'        => 'parish-secretary',
+        'level'     => 3,
+        'title'     => 'Parish Secretary',
+        'name'      => 'Mrs. Clara Soriano',
+        'sub_title' => 'Administrative Secretary',
         'photo'     => null,
-        'icon'      => 'fa-building',
+        'icon'      => 'fa-user-pen',
         'sub_items' => [
-            'Secretary',
-            'Bookkeeper',
-            'Maintenance Team',
+            'Administrative Records',
+            'Certificate Processing',
+            'Office Management',
         ],
-        'parent'    => 'pastor',
-        'children'  => ['communications-team'],
+        'parent'    => 'assistant-priests',
+        'children'  => ['ppc-officers'],
     ],
 
-    // == LEVEL 3 ===========================================================
+    // == LEVEL 4: PPC Officers =============================================
     [
-        'id'        => 'ministry-leaders',
-        'level'     => 3,
-        'title'     => 'Ministry Leaders',
-        'name'      => 'Ministry Coordination Team',
-        'sub_title' => 'Under Pastoral Council',
-        'photo'     => null,
-        'icon'      => 'fa-hands-praying',
-        'sub_items' => [
-            'Liturgical',
-            'Education',
-            'Outreach',
-        ],
-        'parent'    => 'pastoral-council',
-        'children'  => ['liturgical-ministries', 'faith-formation', 'parish-outreach'],
-    ],
-    [
-        'id'        => 'communications-team',
-        'level'     => 3,
-        'title'     => 'Communications Team',
-        'name'      => 'Parish Communications',
-        'sub_title' => 'Under Admin Staff',
-        'photo'     => null,
-        'icon'      => 'fa-bullhorn',
-        'sub_items' => [
-            'Website Management',
-            'Parish Bulletin',
-        ],
-        'parent'    => 'admin-staff',
-        'children'  => [],
-    ],
-
-    // == LEVEL 4 ===========================================================
-    [
-        'id'        => 'liturgical-ministries',
+        'id'        => 'ppc-officers',
         'level'     => 4,
-        'title'     => 'Liturgical Ministries',
-        'name'      => 'Worship & Liturgy',
-        'sub_title' => 'Under Ministry Leaders',
+        'title'     => 'PPC Officers',
+        'name'      => 'Dr. Bernardo Santos',
+        'sub_title' => 'PPC Lay President',
+        'photo'     => null,
+        'icon'      => 'fa-people-group',
+        'sub_items' => [
+            'Parish Pastoral Council',
+            'Lay Leadership',
+            'Ministry Coordination',
+        ],
+        'parent'    => 'parish-secretary',
+        'children'  => ['liturgical-ministry', 'faith-formation', 'social-action', 'socom'],
+    ],
+
+    // == LEVEL 5: Ministry Coordinators ====================================
+    [
+        'id'        => 'liturgical-ministry',
+        'level'     => 5,
+        'title'     => 'Liturgical Ministry',
+        'name'      => 'Bro. Francis Ramos',
+        'sub_title' => 'Liturgical Coordinator',
         'photo'     => null,
         'icon'      => 'fa-book-open',
         'sub_items' => [
-            'Lectors',
-            'EMHCs',
+            'Lectors & EMHCs',
             'Altar Servers',
-            'Ushers',
+            'Choir & Music',
         ],
-        'parent'    => 'ministry-leaders',
+        'parent'    => 'ppc-officers',
         'children'  => [],
     ],
     [
         'id'        => 'faith-formation',
-        'level'     => 4,
+        'level'     => 5,
         'title'     => 'Faith Formation / CCD',
-        'name'      => 'Religious Education',
-        'sub_title' => 'Under Ministry Leaders',
+        'name'      => 'Sr. Teresa Reyes, RVM',
+        'sub_title' => 'CCD & Religious Ed. Coordinator',
         'photo'     => null,
         'icon'      => 'fa-graduation-cap',
         'sub_items' => [
             'Catechists',
             'First Communion / Confirmation',
-            'Youth Ministry (YFC)',
+            'Youth Ministry',
             'RCIA Program',
         ],
-        'parent'    => 'ministry-leaders',
+        'parent'    => 'ppc-officers',
         'children'  => [],
     ],
     [
-        'id'        => 'parish-outreach',
-        'level'     => 4,
-        'title'     => 'Parish Outreach & Events',
-        'name'      => 'Community Ministry',
-        'sub_title' => 'Under Ministry Leaders',
+        'id'        => 'social-action',
+        'level'     => 5,
+        'title'     => 'Social Action & Outreach',
+        'name'      => 'Bro. Gabriel Mendoza',
+        'sub_title' => 'Social Action Coordinator',
         'photo'     => null,
         'icon'      => 'fa-hand-holding-heart',
         'sub_items' => [
-            'Volunteers',
-            'Fundraisers',
-            'Community Programs',
-            'Feast Days / Fiestas',
+            'Community Outreach',
+            'Livelihood Programs',
+            'Charitable Works',
         ],
-        'parent'    => 'ministry-leaders',
+        'parent'    => 'ppc-officers',
+        'children'  => [],
+    ],
+    [
+        'id'        => 'socom',
+        'level'     => 5,
+        'title'     => 'Social Communications',
+        'name'      => 'Bro. John Paul Dizon',
+        'sub_title' => 'SoCom Coordinator',
+        'photo'     => null,
+        'icon'      => 'fa-bullhorn',
+        'sub_items' => [
+            'Parish Website',
+            'Parish Bulletin',
+            'Social Media',
+        ],
+        'parent'    => 'ppc-officers',
         'children'  => [],
     ],
 ];
+
 
 // Build lookup and level groups
 $nodes_by_id    = [];
@@ -274,7 +276,7 @@ include __DIR__ . '/../templates/header.php';
 .orgchart-scroll-outer::-webkit-scrollbar-thumb { background:var(--gold); border-radius:3px; }
 
 /* Chart container */
-.orgchart-container { position:relative; min-width:860px; width:100%; }
+.orgchart-container { position:relative; min-width:980px; width:100%; }
 
 #orgConnectorSvg {
     position:absolute; top:0; left:0; width:100%; height:100%;
@@ -284,9 +286,10 @@ include __DIR__ . '/../templates/header.php';
 /* Level rows */
 .orgchart-level { display:flex; justify-content:center; align-items:flex-start; position:relative; z-index:2; }
 .orgchart-level + .orgchart-level { margin-top:68px; }
-.orgchart-level-2 { gap:28px; }
-.orgchart-level-3 { gap:80px; }
-.orgchart-level-4 { gap:18px; }
+.orgchart-level-2 { gap:0; }          /* single card — no gap */
+.orgchart-level-3 { gap:60px; }       /* Finance Council + Parish Secretary */
+.orgchart-level-4 { gap:0; }          /* single card: PPC Officers */
+.orgchart-level-5 { gap:14px; }       /* 4 ministry coordinators */
 
 /* Org card */
 .org-card {
