@@ -10,12 +10,31 @@ include '../includes/CertificateTemplateManager.php';
 requireAdmin();
 requirePermission('certificates.manage');
 
+if ((!isset($_SESSION['certificate_data']) || !isset($_SESSION['cert_type'])) && isset($_GET['id'])) {
+    $rec_id = intval($_GET['id']);
+    $rec_type = $_GET['type'] ?? 'baptism';
+    if ($rec_type === 'baptism' || $rec_type === 'baptism_certification') {
+        $stmt = $conn->prepare("SELECT * FROM baptism_records WHERE baptism_id = ?");
+        if ($stmt) {
+            $stmt->bind_param('i', $rec_id);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            if ($res && $res->num_rows > 0) {
+                unset($_SESSION['manual_certificate']);
+                $_SESSION['certificate_data'] = $res->fetch_assoc();
+                $_SESSION['cert_type'] = $rec_type;
+            }
+            $stmt->close();
+        }
+    }
+}
+
 if (!isset($_SESSION['certificate_data']) || !isset($_SESSION['cert_type'])) {
     header('Location: certificate-generator.php');
     exit;
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_certificate_details') {
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_certificate_details') {
     requireValidCsrfToken();
     if (isset($_POST['purpose'])) {
         $_SESSION['certificate_data']['purpose'] = trim((string)$_POST['purpose']);
@@ -236,6 +255,18 @@ $parents = splitParents($data['parents'] ?? '');
 $sponsors = splitSponsors($data['godparents'] ?? ($data['sponsors'] ?? ''));
 $father_name = trim((string) ($data['father_name'] ?? '')) ?: $parents['father'];
 $mother_name = trim((string) ($data['mother_name'] ?? '')) ?: $parents['mother'];
+$father_birth_place = trim((string) ($data['father_birth_place'] ?? ($data['father_birthplace'] ?? '')));
+$mother_birth_place = trim((string) ($data['mother_birth_place'] ?? ($data['mother_birthplace'] ?? '')));
+if (!$father_birth_place && !empty($data['remarks'])) {
+    if (preg_match('/father(?:\'s)?\s*birthplace\s*[:\-]\s*([^\|\n\r;]+)/i', $data['remarks'], $m)) {
+        $father_birth_place = trim($m[1]);
+    }
+}
+if (!$mother_birth_place && !empty($data['remarks'])) {
+    if (preg_match('/mother(?:\'s)?\s*birthplace\s*[:\-]\s*([^\|\n\r;]+)/i', $data['remarks'], $m)) {
+        $mother_birth_place = trim($m[1]);
+    }
+}
 $godfather = trim((string) ($data['godfather'] ?? '')) ?: $sponsors['godfather'];
 $godmother = trim((string) ($data['godmother'] ?? '')) ?: $sponsors['godmother'];
 $volume_no = trim((string) ($data['volume_no'] ?? '')) ?: (trim((string) ($data['book_no'] ?? '')) ?: (trim((string) ($data['folio'] ?? '')) ?: 'N/A'));
@@ -358,8 +389,14 @@ $layout_certificate_subtitle = layoutCssValue($layout_text['certificate_subtitle
 $layout_body_text = layoutCssValue($layout_text['body_text'] ?? '', '');
 $layout_footer_text = layoutCssValue($layout_text['footer_text'] ?? '', 'Unauthorized alteration invalidates this certificate.');
 $layout_watermark_text = layoutCssValue($layout_text['watermark_text'] ?? '', 'OFFICIAL PARISH DOCUMENT');
-$layout_priest_name = layoutCssValue($data['parish_priest'] ?? '', layoutCssValue($layout_text['priest_name'] ?? '', 'REV. FR. ROGELIO C. CAALIM, OMJ'));
-$layout_priest_position = layoutCssValue($layout_text['priest_position'] ?? '', 'Parish Priest');
+$layout_priest_name = layoutCssValue($data['parish_priest'] ?? '', layoutCssValue($layout_text['priest_name'] ?? '', 'REV. FR. HERIBERTO C. VILLAS, O.M.I.'));
+$signatory_title = trim((string)($data['priest_position'] ?? ($data['signatory_title'] ?? '')));
+if (!$signatory_title && !empty($data['remarks'])) {
+    if (preg_match('/(?:title|signatory title|position)\s*[:\-]\s*([^\|\n\r;]+)/i', $data['remarks'], $m)) {
+        $signatory_title = trim($m[1]);
+    }
+}
+$layout_priest_position = layoutCssValue($signatory_title, layoutCssValue($layout_text['priest_position'] ?? '', 'Priest-in-Charge'));
 $layout_secretary_name = layoutCssValue($data['parish_secretary'] ?? '', layoutCssValue($layout_text['secretary_name'] ?? '', 'PARISH SECRETARY'));
 $layout_secretary_position = layoutCssValue($layout_text['secretary_position'] ?? '', 'Parish Secretary');
 if (strcasecmp($layout_priest_position, 'Mission Station Priest') === 0) {
@@ -368,6 +405,7 @@ if (strcasecmp($layout_priest_position, 'Mission Station Priest') === 0) {
 if (strcasecmp($layout_secretary_position, 'Signature / Parish Stamp') === 0) {
     $layout_secretary_position = 'Parish Secretary';
 }
+$show_secretary_sign = !empty($data['parish_secretary']) || (!empty($layout_text['secretary_name']) && $layout_text['secretary_name'] !== 'PARISH SECRETARY' && $layout_text['secretary_name'] !== '');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -513,6 +551,9 @@ if (strcasecmp($layout_secretary_position, 'Signature / Parish Stamp') === 0) {
         .qr-row { display: flex; align-items: center; justify-content: flex-end; gap: 2mm; margin-top: 1.5mm; }
         .seal-area { width: 22mm; height: 14mm; border: 1px dashed #777; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 6.6px; color: #555; margin-left: auto; }
         .signature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7mm; margin-top: 4mm; align-items: end; }
+        .signature-grid.single-signature { display: flex; justify-content: flex-end; }
+        .signature-grid.single-signature .signature { min-width: 58mm; text-align: center; }
+        .seal-signature-row.single-signature { grid-template-columns: 20mm 1fr; }
         .signature { text-align: center; font-size: 7.5px; }
         .signature-line { border-bottom: 1px solid #111; padding-bottom: .35mm; font-weight: 900; min-height: 0; line-height: 1.15; }
         .signature span { display: block; font-size: 6.8px; color: #333; font-weight: 500; margin-top: .3mm; }
@@ -676,10 +717,22 @@ if (strcasecmp($layout_secretary_position, 'Signature / Parish Stamp') === 0) {
                                 <span class="prompt">Child of</span>
                                 <span class="fill"><?php echo e($father_name); ?></span>
                             </div>
+                            <?php if (!empty($father_birth_place)): ?>
+                            <div class="form-line">
+                                <span class="prompt">Father's Birthplace:</span>
+                                <span class="fill"><?php echo e($father_birth_place); ?></span>
+                            </div>
+                            <?php endif; ?>
                             <div class="form-line">
                                 <span class="prompt">and</span>
                                 <span class="fill"><?php echo e($mother_name); ?></span>
                             </div>
+                            <?php if (!empty($mother_birth_place)): ?>
+                            <div class="form-line">
+                                <span class="prompt">Mother's Birthplace:</span>
+                                <span class="fill"><?php echo e($mother_birth_place); ?></span>
+                            </div>
+                            <?php endif; ?>
                             <div class="form-line">
                                 <span class="prompt">born on the</span>
                                 <span class="fill small"><?php echo e($birth_day); ?></span>
@@ -710,7 +763,7 @@ if (strcasecmp($layout_secretary_position, 'Signature / Parish Stamp') === 0) {
                             </div>
                             <div class="form-line">
                                 <span class="prompt">the Sponsors being</span>
-                                <span class="fill"><?php echo e(trim($godfather . ' / ' . $godmother, " /\t\n\r\0\x0B") ?: 'N/A'); ?></span>
+                                <span class="fill"><?php echo e(!empty($data['godparents']) ? $data['godparents'] : (trim($godfather . ' / ' . $godmother, " /\t\n\r\0\x0B") ?: 'N/A')); ?></span>
                             </div>
                             <div class="form-line">
                                 <span class="prompt">at</span>
@@ -746,18 +799,20 @@ if (strcasecmp($layout_secretary_position, 'Signature / Parish Stamp') === 0) {
                             <?php endif; ?>
                         </div>
 
-                        <div class="seal-signature-row">
+                        <div class="seal-signature-row<?php echo !$show_secretary_sign ? ' single-signature' : ''; ?>">
                             <div class="official-seal-area"><?php echo layoutImageTag($certificate_layout_settings, 'official_seal', 'certificate-logo', 'Official seal') ?: 'Official<br>Parish Seal<br>Dry Seal'; ?></div>
                             <div class="certified-block">
                                 <div class="certified-label">Certified Correct:</div>
                                 <div class="certified-line"><?php echo layoutImageTag($certificate_layout_settings, 'priest_signature', 'certificate-logo', 'Priest signature') . e($layout_priest_name); ?></div>
                                 <span><?php echo e($layout_priest_position); ?></span>
                             </div>
+                            <?php if ($show_secretary_sign): ?>
                             <div class="certified-block">
                                 <div class="certified-label">By Authority:</div>
                                 <div class="certified-line"><?php echo layoutImageTag($certificate_layout_settings, 'secretary_signature', 'certificate-logo', 'Secretary signature') . e($layout_secretary_name); ?></div>
                                 <span><?php echo e($layout_secretary_position); ?></span>
                             </div>
+                            <?php endif; ?>
                         </div>
                     <?php else: ?>
                         <div class="recipient"><?php echo e($data['fullname'] ?? 'N/A'); ?></div>
@@ -775,7 +830,13 @@ if (strcasecmp($layout_secretary_position, 'Signature / Parish Stamp') === 0) {
                             <div class="label">Book No.:</div><div class="value"><?php echo e($volume_no); ?></div>
                             <div class="label">Page No.:</div><div class="value"><?php echo e($page_no); ?></div>
                             <div class="label">Father:</div><div class="value"><?php echo e($father_name); ?></div>
+                            <?php if (!empty($father_birth_place)): ?>
+                                <div class="label">Father's Birthplace:</div><div class="value"><?php echo e($father_birth_place); ?></div>
+                            <?php endif; ?>
                             <div class="label">Mother:</div><div class="value"><?php echo e($mother_name); ?></div>
+                            <?php if (!empty($mother_birth_place)): ?>
+                                <div class="label">Mother's Birthplace:</div><div class="value"><?php echo e($mother_birth_place); ?></div>
+                            <?php endif; ?>
                             <div class="label">Residence:</div><div class="value"><?php echo e($data['parent_address'] ?? $data['parish_address'] ?? 'N/A'); ?></div>
                         </div>
 
@@ -818,15 +879,17 @@ if (strcasecmp($layout_secretary_position, 'Signature / Parish Stamp') === 0) {
                             </div>
                         </div>
 
-                        <div class="signature-grid">
+                        <div class="signature-grid<?php echo !$show_secretary_sign ? ' single-signature' : ''; ?>">
                             <div class="signature">
                                 <div class="signature-line"><?php echo layoutImageTag($certificate_layout_settings, 'priest_signature', 'certificate-logo', 'Priest signature') . e($layout_priest_name); ?></div>
                                 <span><?php echo e($layout_priest_position); ?></span>
                             </div>
+                            <?php if ($show_secretary_sign): ?>
                             <div class="signature">
                                 <div class="signature-line"><?php echo layoutImageTag($certificate_layout_settings, 'secretary_signature', 'certificate-logo', 'Secretary signature') . e($layout_secretary_name); ?></div>
                                 <span><?php echo e($layout_secretary_position); ?></span>
                             </div>
+                            <?php endif; ?>
                         </div>
                     <?php endif; ?>
                 </div>

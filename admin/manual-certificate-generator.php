@@ -30,7 +30,9 @@ $field_labels = [
     'residence' => 'Residence / Address',
     'parents' => "Parents' Names",
     'father_name' => "Father's Name",
+    'father_birth_place' => "Father's Birthplace",
     'mother_name' => "Mother's Name",
+    'mother_birth_place' => "Mother's Birthplace",
     'godparents' => 'Sponsors / Godparents',
     'godfather' => 'Godfather',
     'godmother' => 'Godmother',
@@ -77,12 +79,14 @@ $field_labels = [
     'cause_of_death' => 'Cause of Death',
     'place_of_burial' => 'Place of Burial',
     'minister' => 'Officiating Minister',
-    'registry_no' => 'Registry Number'
+    'registry_no' => 'Registry Number',
+    'signatory' => 'Official Signatory',
+    'signatory_title' => 'Signatory Title'
 ];
 
 $fields_by_type = [
-    'baptism' => ['fullname', 'birth_date', 'birth_place', 'father_name', 'mother_name', 'parents', 'residence', 'baptism_date', 'ceremony_place', 'parish_name', 'priest', 'godfather', 'godmother', 'volume_no', 'page_no', 'entry_no', 'certificate_number', 'date_issued', 'purpose', 'remarks'],
-    'baptism_certification' => ['fullname', 'birth_date', 'birth_place', 'father_name', 'mother_name', 'parents', 'residence', 'baptism_date', 'ceremony_place', 'parish_name', 'priest', 'godfather', 'godmother', 'volume_no', 'page_no', 'entry_no', 'certificate_number', 'date_issued', 'purpose', 'remarks'],
+    'baptism' => ['fullname', 'birth_date', 'birth_place', 'father_name', 'father_birth_place', 'mother_name', 'mother_birth_place', 'parents', 'residence', 'baptism_date', 'ceremony_place', 'parish_name', 'priest', 'godfather', 'godmother', 'volume_no', 'page_no', 'entry_no', 'certificate_number', 'date_issued', 'signatory', 'signatory_title', 'purpose', 'remarks'],
+    'baptism_certification' => ['fullname', 'birth_date', 'birth_place', 'father_name', 'father_birth_place', 'mother_name', 'mother_birth_place', 'parents', 'residence', 'baptism_date', 'ceremony_place', 'parish_name', 'priest', 'godfather', 'godmother', 'volume_no', 'page_no', 'entry_no', 'certificate_number', 'date_issued', 'signatory', 'signatory_title', 'purpose', 'remarks'],
     'confirmation' => ['fullname', 'birth_date', 'birth_place', 'parents', 'residence', 'sponsor', 'confirmation_date', 'ceremony_place', 'parish_name', 'bishop_priest', 'record_reference', 'volume_no', 'page_no', 'entry_no', 'certificate_number', 'date_issued', 'purpose', 'remarks'],
     'confirmation_certification' => ['fullname', 'birth_date', 'birth_place', 'father_name', 'mother_name', 'parents', 'residence', 'confirmation_date', 'ceremony_place', 'parish_name', 'bishop_priest', 'sponsor', 'volume_no', 'page_no', 'entry_no', 'certificate_number', 'date_issued', 'purpose', 'remarks'],
     'communion' => ['fullname', 'birth_date', 'birth_place', 'parents', 'residence', 'sponsor', 'communion_date', 'ceremony_place', 'parish_name', 'priest', 'record_reference', 'volume_no', 'page_no', 'entry_no', 'certificate_number', 'date_issued', 'purpose', 'remarks'],
@@ -171,6 +175,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $manual_data['godparents'] = trim(($manual_data['godfather'] ?? '') . ' / ' . ($manual_data['godmother'] ?? ''), " /\t\n\r\0\x0B");
             $manual_data['book_no'] = $manual_data['volume_no'] ?? '';
             $manual_data['registry_no'] = $manual_data['entry_no'] ?? '';
+            if (!empty($manual_data['signatory'])) {
+                $manual_data['parish_priest'] = $manual_data['signatory'];
+            }
+            if (!empty($manual_data['signatory_title'])) {
+                $manual_data['priest_position'] = $manual_data['signatory_title'];
+            }
         }
         if ($selected_type === 'confirmation' || $selected_type === 'confirmation_certification') {
             $manual_data['baptismal_place'] = $manual_data['birth_place'] ?? '';
