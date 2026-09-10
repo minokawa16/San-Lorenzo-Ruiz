@@ -34,6 +34,9 @@ function generateReferenceNumber() {
 
 // Escape Output Function - Documents this helper's role in the parish management workflow.
 function e($data) {
+    if (is_array($data)) {
+        return htmlspecialchars(implode(', ', $data), ENT_QUOTES, 'UTF-8');
+    }
     return htmlspecialchars((string) $data, ENT_QUOTES, 'UTF-8');
 }
 

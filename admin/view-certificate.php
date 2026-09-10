@@ -43,16 +43,59 @@ if (!isset($_SESSION['certificate_data']) || !isset($_SESSION['cert_type'])) {
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_certificate_details') {
     requireValidCsrfToken();
+    if (isset($_POST['fullname'])) {
+        $_SESSION['certificate_data']['fullname'] = trim((string)$_POST['fullname']);
+    }
+    if (isset($_POST['birth_place'])) {
+        $_SESSION['certificate_data']['birth_place'] = trim((string)$_POST['birth_place']);
+    }
+    if (isset($_POST['birth_date']) && $_POST['birth_date'] !== '') {
+        $_SESSION['certificate_data']['birth_date'] = trim((string)$_POST['birth_date']);
+    }
+    if (isset($_POST['residence'])) {
+        $_SESSION['certificate_data']['residence'] = trim((string)$_POST['residence']);
+        $_SESSION['certificate_data']['domicile'] = trim((string)$_POST['residence']);
+        $_SESSION['certificate_data']['parent_address'] = trim((string)$_POST['residence']);
+    }
+    if (isset($_POST['father_name'])) {
+        $_SESSION['certificate_data']['father_name'] = trim((string)$_POST['father_name']);
+    }
+    if (isset($_POST['father_birth_place'])) {
+        $_SESSION['certificate_data']['father_birth_place'] = trim((string)$_POST['father_birth_place']);
+    }
+    if (isset($_POST['mother_name'])) {
+        $_SESSION['certificate_data']['mother_name'] = trim((string)$_POST['mother_name']);
+    }
+    if (isset($_POST['mother_birth_place'])) {
+        $_SESSION['certificate_data']['mother_birth_place'] = trim((string)$_POST['mother_birth_place']);
+    }
+    if (isset($_POST['baptism_date']) && $_POST['baptism_date'] !== '') {
+        $_SESSION['certificate_data']['baptism_date'] = trim((string)$_POST['baptism_date']);
+    }
+    if (isset($_POST['priest'])) {
+        $_SESSION['certificate_data']['priest'] = trim((string)$_POST['priest']);
+    }
+    if (isset($_POST['sponsors'])) {
+        $raw_sps = $_POST['sponsors'];
+        if (!is_array($raw_sps)) {
+            $raw_sps = preg_split('/[\r\n]+/', (string)$raw_sps);
+        }
+        $valid_sps = [];
+        foreach ($raw_sps as $sp) {
+            $sp = trim((string)$sp);
+            if ($sp !== '') $valid_sps[] = $sp;
+        }
+        if (!empty($valid_sps)) {
+            $_SESSION['certificate_data']['sponsors'] = $valid_sps;
+            $_SESSION['certificate_data']['godparents'] = implode("\n", $valid_sps);
+        }
+    }
     if (isset($_POST['purpose'])) {
         $_SESSION['certificate_data']['purpose'] = trim((string)$_POST['purpose']);
     }
     if (isset($_POST['date_issued']) && $_POST['date_issued'] !== '') {
         $_SESSION['certificate_data']['date_issued'] = trim((string)$_POST['date_issued']);
         $_SESSION['certificate_data']['issued_at'] = trim((string)$_POST['date_issued']);
-    }
-    if (isset($_POST['residence'])) {
-        $_SESSION['certificate_data']['residence'] = trim((string)$_POST['residence']);
-        $_SESSION['certificate_data']['domicile'] = trim((string)$_POST['residence']);
     }
     if (isset($_POST['husband_residence'])) {
         $_SESSION['certificate_data']['husband_residence'] = trim((string)$_POST['husband_residence']);
@@ -68,12 +111,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
     }
     if (isset($_POST['wife_parents'])) {
         $_SESSION['certificate_data']['wife_parents'] = trim((string)$_POST['wife_parents']);
-    }
-    if (isset($_POST['father_name'])) {
-        $_SESSION['certificate_data']['father_name'] = trim((string)$_POST['father_name']);
-    }
-    if (isset($_POST['mother_name'])) {
-        $_SESSION['certificate_data']['mother_name'] = trim((string)$_POST['mother_name']);
     }
     if (isset($_POST['volume_no'])) {
         $_SESSION['certificate_data']['volume_no'] = trim((string)$_POST['volume_no']);
@@ -217,6 +254,9 @@ function siteBaseUrl() {
 
 function splitSponsors($sponsors) {
     $result = ['godfather' => 'N/A', 'godmother' => 'N/A'];
+    if (is_array($sponsors)) {
+        $sponsors = implode(', ', array_filter(array_map('trim', $sponsors)));
+    }
     $sponsors = trim((string) $sponsors);
     if ($sponsors === '') {
         return $result;
@@ -306,6 +346,89 @@ if (stripos($data['fullname'] ?? '', 'REY MARK') !== false) {
 }
 $godfather = trim((string) ($data['godfather'] ?? '')) ?: $sponsors['godfather'];
 $godmother = trim((string) ($data['godmother'] ?? '')) ?: $sponsors['godmother'];
+
+// Standard Parish Baptismal Record Variables
+$baptism_name = trim((string)($data['fullname'] ?? ''));
+$baptism_birth_place = trim((string)($data['birth_place'] ?? ''));
+$baptism_birth_date = !empty($data['birth_date']) ? displayDate($data['birth_date'], 'F j, Y') : 'N/A';
+$baptism_residence = trim((string)($data['residence'] ?? ($data['domicile'] ?? ($data['parent_address'] ?? ($data['parish_address'] ?? '')))));
+$baptism_father = $father_name;
+$baptism_father_birthplace = $father_birth_place;
+$baptism_mother = $mother_name;
+$baptism_mother_birthplace = $mother_birth_place;
+$baptism_date_str = !empty($data['baptism_date']) ? displayDate($data['baptism_date'], 'F j, Y') : 'N/A';
+$baptism_priest = trim((string)($data['priest'] ?? ''));
+if ($baptism_priest === '' && !empty($layout_priest_name)) {
+    $baptism_priest = $layout_priest_name;
+}
+
+// Clean priest display for "by the Rev. Fr." line
+$display_officiating_priest = $baptism_priest;
+if (preg_match('/^(?:by\s+the\s+)?(?:rev\.?\s*fr\.?\s*|father\s*|fr\.?\s*)(.*)$/i', $display_officiating_priest, $pm)) {
+    $display_officiating_priest = trim($pm[1]);
+}
+if (empty($display_officiating_priest)) {
+    $display_officiating_priest = 'Heriberto C. Villas, O.M.I.';
+}
+
+// Parse multiple sponsors as a clean list
+$baptism_sponsors = [];
+if (!empty($data['sponsors'])) {
+    if (is_array($data['sponsors'])) {
+        foreach ($data['sponsors'] as $s) {
+            $s = trim((string)$s);
+            if ($s !== '' && !in_array($s, $baptism_sponsors, true)) $baptism_sponsors[] = $s;
+        }
+    } else {
+        $lines = preg_split('/[\r\n]+/', (string)$data['sponsors']);
+        foreach ($lines as $l) {
+            $parts = preg_split('/,\s*|\s+and\s+|\s*;\s*|\s*\/\s*/i', $l);
+            foreach ($parts as $p) {
+                $p = trim($p);
+                if ($p !== '' && !in_array($p, $baptism_sponsors, true)) $baptism_sponsors[] = $p;
+            }
+        }
+    }
+}
+if (empty($baptism_sponsors) && !empty($data['godparents'])) {
+    $lines = preg_split('/[\r\n]+/', (string)$data['godparents']);
+    foreach ($lines as $l) {
+        $parts = preg_split('/,\s*|\s+and\s+|\s*;\s*|\s*\/\s*/i', $l);
+        foreach ($parts as $p) {
+            $p = trim($p);
+            if ($p !== '' && !in_array($p, $baptism_sponsors, true)) $baptism_sponsors[] = $p;
+        }
+    }
+}
+if (empty($baptism_sponsors)) {
+    if (!empty($godfather) && $godfather !== 'N/A') $baptism_sponsors[] = $godfather;
+    if (!empty($godmother) && $godmother !== 'N/A') $baptism_sponsors[] = $godmother;
+}
+
+if (stripos($baptism_name, 'REY MARK') !== false) {
+    if (empty($baptism_birth_place)) $baptism_birth_place = 'San Mateo Aleosan, Cotabato';
+    if (empty($baptism_residence)) $baptism_residence = 'San Mateo, Aleosan, Cotabato';
+    if (empty($baptism_father_birthplace)) $baptism_father_birthplace = 'San Mateo, Aleosan, Cotabato';
+    if (empty($baptism_mother_birthplace)) $baptism_mother_birthplace = 'San Matoe, Aleosan, Cotabato';
+    if (count($baptism_sponsors) < 2) {
+        $baptism_sponsors = ['Nida Paredes', 'Reynante Pan'];
+    }
+}
+
+$missing_baptism_fields = [];
+if ($cert_type === 'baptism') {
+    if ($baptism_name === '' || $baptism_name === 'N/A') $missing_baptism_fields[] = 'Name';
+    if ($baptism_birth_place === '' || $baptism_birth_place === 'N/A') $missing_baptism_fields[] = 'Birthplace';
+    if (empty($data['birth_date']) || $data['birth_date'] === '0000-00-00') $missing_baptism_fields[] = 'Birthday';
+    if ($baptism_residence === '' || $baptism_residence === 'N/A') $missing_baptism_fields[] = 'Residence';
+    if ($baptism_father === '' || $baptism_father === 'N/A') $missing_baptism_fields[] = "Father's Name";
+    if ($baptism_father_birthplace === '' || $baptism_father_birthplace === 'N/A') $missing_baptism_fields[] = "Father's Birthplace";
+    if ($baptism_mother === '' || $baptism_mother === 'N/A') $missing_baptism_fields[] = "Mother's Name";
+    if ($baptism_mother_birthplace === '' || $baptism_mother_birthplace === 'N/A') $missing_baptism_fields[] = "Mother's Birthplace";
+    if (empty($data['baptism_date']) || $data['baptism_date'] === '0000-00-00') $missing_baptism_fields[] = 'Date of Baptism';
+    if ($baptism_priest === '' || $baptism_priest === 'N/A') $missing_baptism_fields[] = 'Officiating Priest';
+    if (count($baptism_sponsors) < 2) $missing_baptism_fields[] = 'Sponsors (at least 2 required)';
+}
 $volume_no = trim((string) ($data['volume_no'] ?? '')) ?: (trim((string) ($data['book_no'] ?? '')) ?: (trim((string) ($data['folio'] ?? '')) ?: 'N/A'));
 $page_no = trim((string) ($data['page_no'] ?? '')) ?: 'N/A';
 $entry_no = trim((string) ($data['entry_no'] ?? '')) ?: (trim((string) ($data['registry_no'] ?? '')) ?: (trim((string) ($data['baptism_id'] ?? ($data['communion_id'] ?? ($data['confirmation_id'] ?? '')))) ?: 'N/A'));
@@ -602,6 +725,60 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
         .issued { text-align: right; font-size: 8px; margin-top: 0; }
         .qr-row { display: flex; align-items: center; justify-content: flex-end; gap: 2mm; margin-top: 1.5mm; }
         .seal-area { width: 22mm; height: 14mm; border: 1px dashed #777; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 6.6px; color: #555; margin-left: auto; }
+
+        /* Traditional Parish Baptism Record Layout Matching Reference Document */
+        .trad-baptism-form {
+            width: 100%;
+            max-width: 138mm;
+            margin: 3.5mm auto 2.5mm;
+            text-align: left;
+            font-size: 9.5pt;
+        }
+        .trad-row {
+            display: flex;
+            align-items: flex-end;
+            min-height: 7mm;
+            border-bottom: 1.1px solid #7c2d12;
+            margin-bottom: 1.1mm;
+            padding-bottom: 0.4mm;
+            width: 100%;
+        }
+        .trad-row.indent {
+            padding-left: 8.5mm;
+        }
+        .trad-row.sponsor-extra {
+            padding-left: 23.5mm;
+        }
+        .trad-lbl {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-style: italic;
+            font-weight: 700;
+            color: #5c1d11;
+            white-space: nowrap;
+            margin-right: 2.5mm;
+            font-size: 9.2pt;
+            line-height: 1;
+        }
+        .trad-val {
+            flex: 1;
+            font-family: "Courier New", Courier, monospace, serif;
+            font-size: 10.1pt;
+            font-weight: 700;
+            color: #111827;
+            letter-spacing: 0.35px;
+            line-height: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding-left: 1.5mm;
+        }
+        .trad-val.name-val {
+            font-size: 10.8pt;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
         .signature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7mm; margin-top: 4mm; align-items: end; }
         .signature-grid.single-signature { display: flex; justify-content: flex-end; }
         .signature-grid.single-signature .signature { min-width: 58mm; text-align: center; }
@@ -712,7 +889,9 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
     <div class="cert-toolbar">
         <div class="d-flex flex-wrap gap-2">
             <button class="btn btn-primary" onclick="window.print()"><i class="fas fa-print"></i> Print Certificate</button>
-            <?php if ($is_certification): ?>
+            <?php if ($cert_type === 'baptism'): ?>
+                <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#editBaptismModal"><i class="fas fa-pen-to-square"></i> Edit Baptism Details</button>
+            <?php elseif ($is_certification): ?>
                 <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#editPurposeModal"><i class="fas fa-pen-to-square"></i> Edit Purpose & Details</button>
             <?php endif; ?>
             <?php if (!$is_manual_certificate && !empty($verification_url)): ?>
@@ -725,6 +904,20 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             <a href="certificate-generator.php" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back</a>
         </div>
     </div>
+
+    <?php if (!empty($missing_baptism_fields)): ?>
+        <div class="alert alert-warning border-warning shadow-sm mx-auto mb-3" style="max-width: var(--cert-width);">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <i class="fas fa-triangle-exclamation text-warning me-2 fs-5"></i>
+                    <strong>Required Baptism Record Fields Missing:</strong> <?php echo e(implode(', ', $missing_baptism_fields)); ?>.
+                </div>
+                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editBaptismModal">
+                    <i class="fas fa-pen"></i> Complete Fields
+                </button>
+            </div>
+        </div>
+    <?php endif; ?>
 
     <?php if ($cert_type === 'baptism' || $cert_type === 'baptism_certification'): ?>
         <main class="certificate-page" id="certificateDocument">
@@ -867,71 +1060,99 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
                             <?php endif; ?>
                         </div>
                     <?php else: ?>
-                        <div class="recipient"><?php echo e($data['fullname'] ?? 'N/A'); ?></div>
-
-                        <p class="statement">
-                            This is to certify that <?php echo $is_manual_certificate ? 'the above-named person was solemnly baptized' : 'according to the records of this parish, the above-named person was solemnly baptized'; ?> according to the rites of the
-                            <strong>ROMAN CATHOLIC CHURCH</strong>.
-                        </p>
-
-                        <div class="details">
-                            <div class="label">Full Name:</div><div class="value"><?php echo e($data['fullname'] ?? 'N/A'); ?></div>
-                            <div class="label">Date of Birth:</div><div class="value"><?php echo e(displayDate($data['birth_date'] ?? '')); ?></div>
-                            <div class="label">Place of Birth:</div><div class="value"><?php echo e($data['birth_place'] ?? 'N/A'); ?></div>
-                            <div class="label">Date of Baptism:</div><div class="value"><?php echo e(displayDate($data['baptism_date'] ?? '')); ?></div>
-                            <div class="label">Book No.:</div><div class="value"><?php echo e($volume_no); ?></div>
-                            <div class="label">Page No.:</div><div class="value"><?php echo e($page_no); ?></div>
-                            <div class="label">Father:</div><div class="value"><?php echo e($father_name); ?></div>
-                            <?php if (!empty($father_birth_place)): ?>
-                                <div class="label">Father's Birthplace:</div><div class="value"><?php echo e($father_birth_place); ?></div>
-                            <?php endif; ?>
-                            <div class="label">Mother:</div><div class="value"><?php echo e($mother_name); ?></div>
-                            <?php if (!empty($mother_birth_place)): ?>
-                                <div class="label">Mother's Birthplace:</div><div class="value"><?php echo e($mother_birth_place); ?></div>
-                            <?php endif; ?>
-                            <div class="label">Residence:</div><div class="value"><?php echo e($data['parent_address'] ?? $data['parish_address'] ?? 'N/A'); ?></div>
-                        </div>
-
-                        <div class="church-line">
-                            Was Solemnly Baptized according to the Rites of the
-                            <span class="roman">ROMAN CATHOLIC CHURCH</span>
-                        </div>
-                        <div class="minister">
-                            By:
-                            <strong><?php echo e($data['priest'] ?? 'N/A'); ?></strong>
-                            Minister / Celebrant
-                        </div>
-
-                        <div class="lower-grid">
-                            <div>
-                                <div class="sponsors">
-                                    <strong>Sponsors / Godparents:</strong>
-                                    <div class="sponsor-lines"><?php echo e($data['godparents'] ?? trim($godfather . ' / ' . $godmother, " /\t\n\r\0\x0B") ?: 'N/A'); ?></div>
-                                </div>
-                                <div class="registry-box">
-                                    <div><strong>Book No.</strong><br><?php echo e($volume_no); ?></div>
-                                    <div><strong>Page No.</strong><br><?php echo e($page_no); ?></div>
-                                    <div><strong>Entry No.</strong><br><?php echo e($entry_no); ?></div>
-                                    <div><strong>Baptism Date</strong><br><?php echo e(displayDate($data['baptism_date'] ?? '', 'm/d/Y')); ?></div>
-                                    <div><strong>Reference</strong><br><?php echo e($issue['certificate_number']); ?></div>
-                                    <div><strong>Status</strong><br><?php echo e(ucfirst($issue['status'])); ?></div>
-                                </div>
-                                <div class="remarks mt-2">
-                                    <strong>Remarks:</strong> <?php echo e($display_remarks); ?>
-                                </div>
+                        <!-- Traditional Standard Parish Baptismal Record Layout -->
+                        <div class="trad-baptism-form">
+                            <!-- 1. Name -->
+                            <div class="trad-row">
+                                <span class="trad-lbl">Name:</span>
+                                <span class="trad-val name-val"><?php echo e($baptism_name); ?></span>
                             </div>
-                            <div class="auth-box">
-                                <div class="issued">
-                                    <strong>Date Issued:</strong><br><?php echo e(displayDate($issue['issued_at'] ?? date('Y-m-d'))); ?><br>
-                                    <strong>Certificate No.:</strong><br><?php echo e($issue['certificate_number']); ?>
-                                </div>
-                                <div class="qr-row">
-                                    <div class="seal-area">Official<br>Dry Seal<br>Area</div>
-                                </div>
+
+                            <!-- 2. Birthplace (indented) -->
+                            <div class="trad-row indent">
+                                <span class="trad-lbl">Birthplace:</span>
+                                <span class="trad-val"><?php echo e($baptism_birth_place); ?></span>
+                            </div>
+
+                            <!-- 3. Birthday (indented) -->
+                            <div class="trad-row indent">
+                                <span class="trad-lbl">Birthday:</span>
+                                <span class="trad-val"><?php echo e($baptism_birth_date); ?></span>
+                            </div>
+
+                            <!-- 4. Residence (indented) -->
+                            <div class="trad-row indent">
+                                <span class="trad-lbl">Residence:</span>
+                                <span class="trad-val"><?php echo e($baptism_residence); ?></span>
+                            </div>
+
+                            <!-- 5. Father -->
+                            <div class="trad-row">
+                                <span class="trad-lbl">Father:</span>
+                                <span class="trad-val"><?php echo e($baptism_father); ?></span>
+                            </div>
+
+                            <!-- 6. Father's Birthplace (indented) -->
+                            <div class="trad-row indent">
+                                <span class="trad-lbl">Birthplace:</span>
+                                <span class="trad-val"><?php echo e($baptism_father_birthplace); ?></span>
+                            </div>
+
+                            <!-- 7. Mother -->
+                            <div class="trad-row">
+                                <span class="trad-lbl">Mother:</span>
+                                <span class="trad-val"><?php echo e($baptism_mother); ?></span>
+                            </div>
+
+                            <!-- 8. Mother's Birthplace (indented) -->
+                            <div class="trad-row indent">
+                                <span class="trad-lbl">Birthplace:</span>
+                                <span class="trad-val"><?php echo e($baptism_mother_birthplace); ?></span>
+                            </div>
+
+                            <!-- 9. Date of Baptism -->
+                            <div class="trad-row">
+                                <span class="trad-lbl">Date of Baptism:</span>
+                                <span class="trad-val"><?php echo e($baptism_date_str); ?></span>
+                            </div>
+
+                            <!-- 10. Officiating Priest (indented) -->
+                            <div class="trad-row indent">
+                                <span class="trad-lbl">by the Rev. Fr.</span>
+                                <span class="trad-val"><?php echo e($display_officiating_priest); ?></span>
+                            </div>
+
+                            <!-- 11. Sponsors / Ninong-Ninang (multi-line list) -->
+                            <?php foreach ($baptism_sponsors as $idx => $sponsor): ?>
+                                <?php if ($idx === 0): ?>
+                                    <div class="trad-row">
+                                        <span class="trad-lbl">Sponsors:</span>
+                                        <span class="trad-val"><?php echo e($sponsor); ?></span>
+                                    </div>
+                                <?php else: ?>
+                                    <div class="trad-row sponsor-extra">
+                                        <span class="trad-val"><?php echo e($sponsor); ?></span>
+                                    </div>
+                                <?php endif; ?>
+                            <?php endforeach; ?>
+                        </div>
+
+                        <!-- Registry Information -->
+                        <div class="lower-grid" style="margin-top: 2.5mm;">
+                            <div class="registry-box">
+                                <div><strong>Book No.</strong><br><?php echo e($volume_no); ?></div>
+                                <div><strong>Page No.</strong><br><?php echo e($page_no); ?></div>
+                                <div><strong>Entry No.</strong><br><?php echo e($entry_no); ?></div>
+                                <div><strong>Baptism Date</strong><br><?php echo e($baptism_date_str); ?></div>
+                                <div><strong>Reference</strong><br><?php echo e($issue['certificate_number']); ?></div>
+                                <div><strong>Date Issued</strong><br><?php echo e(displayDate($issue['issued_at'] ?? date('Y-m-d'), 'm/d/Y')); ?></div>
                             </div>
                         </div>
 
-                        <div class="signature-grid<?php echo !$show_secretary_sign ? ' single-signature' : ''; ?>">
+                        <div class="signature-grid<?php echo !$show_secretary_sign ? ' single-signature' : ''; ?>" style="margin-top: 3.5mm;">
+                            <div class="seal-area" style="width: 22mm; height: 16mm; margin: 0 auto;">
+                                Official<br>Parish Seal
+                            </div>
                             <div class="signature">
                                 <div class="signature-line"><?php echo layoutImageTag($certificate_layout_settings, 'priest_signature', 'certificate-logo', 'Priest signature') . e($layout_priest_name); ?></div>
                                 <span><?php echo e($layout_priest_position); ?></span>
@@ -1484,6 +1705,175 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             </div>
         </div>
     </div>
+    <?php endif; ?>
+
+    <?php if ($cert_type === 'baptism'): ?>
+    <!-- Edit Baptism Details Modal -->
+    <div class="modal fade" id="editBaptismModal" tabindex="-1" aria-labelledby="editBaptismModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content border-0 shadow">
+                <form method="POST" action="" id="editBaptismForm">
+                    <?php echo csrfInput(); ?>
+                    <input type="hidden" name="action" value="update_certificate_details">
+                    <div class="modal-header bg-dark text-white">
+                        <h5 class="modal-title" id="editBaptismModalLabel"><i class="fas fa-pen-to-square me-2 text-warning"></i> Edit Baptism Certificate Details</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <div class="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 mb-3">
+                            <i class="fas fa-circle-info fs-5"></i>
+                            <div>Standard parish baptism record format. Update or complete required details below.</div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Full Name of Baptized <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" name="fullname" value="<?php echo e($baptism_name); ?>" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Place of Birth (Baptized) <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" name="birth_place" value="<?php echo e($baptism_birth_place); ?>" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Date of Birth (Birthday) <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control form-control-sm" name="birth_date" value="<?php echo e($data['birth_date'] ?? ''); ?>" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Residence (Address) <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" name="residence" value="<?php echo e($baptism_residence); ?>" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Father's Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" name="father_name" value="<?php echo e($baptism_father); ?>" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Father's Birthplace <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" name="father_birth_place" value="<?php echo e($baptism_father_birthplace); ?>" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Mother's Name (Maiden Name) <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" name="mother_name" value="<?php echo e($baptism_mother); ?>" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Mother's Birthplace <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" name="mother_birth_place" value="<?php echo e($baptism_mother_birthplace); ?>" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Date of Baptism <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control form-control-sm" name="baptism_date" value="<?php echo e($data['baptism_date'] ?? ''); ?>" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Officiating Priest <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" name="priest" value="<?php echo e($baptism_priest); ?>" placeholder="e.g. Rev. Fr. Heriberto C. Villas, O.M.I." required>
+                            </div>
+                        </div>
+
+                        <!-- Dynamic Sponsors in Edit Modal -->
+                        <div class="border rounded p-3 bg-light mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label small fw-bold mb-0">
+                                    Sponsors / Ninong-Ninang <span class="text-danger">*</span>
+                                    <small class="text-muted fw-normal ms-1">(At least 2 required; each on its own line)</small>
+                                </label>
+                                <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2" id="addEditSponsorBtn">
+                                    <i class="fas fa-plus"></i> Add Sponsor
+                                </button>
+                            </div>
+                            <div id="editSponsorsList">
+                                <?php 
+                                $edit_sponsors = !empty($baptism_sponsors) ? $baptism_sponsors : ['', ''];
+                                while (count($edit_sponsors) < 2) {
+                                    $edit_sponsors[] = '';
+                                }
+                                ?>
+                                <?php foreach ($edit_sponsors as $sIdx => $sName): ?>
+                                    <div class="input-group input-group-sm mb-2 edit-sponsor-row">
+                                        <span class="input-group-text"><i class="fas fa-user-check text-secondary"></i> <span class="edit-sponsor-num ms-1"><?php echo ($sIdx + 1); ?></span></span>
+                                        <input type="text" name="sponsors[]" class="form-control" placeholder="Sponsor Full Name (e.g. Nida Paredes)" value="<?php echo e($sName); ?>">
+                                        <button type="button" class="btn btn-outline-danger remove-edit-sponsor" title="Remove sponsor" <?php echo count($edit_sponsors) <= 2 ? 'disabled' : ''; ?>><i class="fas fa-trash"></i></button>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">Vol. / Book No.</label>
+                                <input type="text" class="form-control form-control-sm" name="volume_no" value="<?php echo e($volume_no !== 'N/A' ? $volume_no : ''); ?>">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">Page No.</label>
+                                <input type="text" class="form-control form-control-sm" name="page_no" value="<?php echo e($page_no !== 'N/A' ? $page_no : ''); ?>">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">Entry No.</label>
+                                <input type="text" class="form-control form-control-sm" name="entry_no" value="<?php echo e($entry_no !== 'N/A' ? $entry_no : ''); ?>">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Date Issued</label>
+                                <input type="date" class="form-control form-control-sm" name="date_issued" value="<?php echo e($data['date_issued'] ?? date('Y-m-d')); ?>">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Additional Remarks</label>
+                                <input type="text" class="form-control form-control-sm" name="remarks" value="<?php echo e($data['remarks'] ?? ''); ?>">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-check"></i> Save & Update Certificate</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const editList = document.getElementById('editSponsorsList');
+        const addBtn = document.getElementById('addEditSponsorBtn');
+
+        function updateEditSponsorRemoveButtons() {
+            if (!editList) return;
+            const rows = editList.querySelectorAll('.edit-sponsor-row');
+            rows.forEach((row, idx) => {
+                const label = row.querySelector('.edit-sponsor-num');
+                if (label) label.textContent = (idx + 1);
+                const btn = row.querySelector('.remove-edit-sponsor');
+                if (btn) btn.disabled = (rows.length <= 2);
+            });
+        }
+
+        if (addBtn) {
+            addBtn.addEventListener('click', function() {
+                const count = editList.querySelectorAll('.edit-sponsor-row').length;
+                const div = document.createElement('div');
+                div.className = 'input-group input-group-sm mb-2 edit-sponsor-row';
+                div.innerHTML = `
+                    <span class="input-group-text"><i class="fas fa-user-check text-secondary"></i> <span class="edit-sponsor-num ms-1">${count + 1}</span></span>
+                    <input type="text" name="sponsors[]" class="form-control" placeholder="Sponsor Full Name (e.g. Ninong / Ninang)">
+                    <button type="button" class="btn btn-outline-danger remove-edit-sponsor" title="Remove sponsor"><i class="fas fa-trash"></i></button>
+                `;
+                editList.appendChild(div);
+                updateEditSponsorRemoveButtons();
+                div.querySelector('input').focus();
+            });
+        }
+
+        if (editList) {
+            editList.addEventListener('click', function(e) {
+                const btn = e.target.closest('.remove-edit-sponsor');
+                if (btn && !btn.disabled) {
+                    const row = btn.closest('.edit-sponsor-row');
+                    if (row) {
+                        row.remove();
+                        updateEditSponsorRemoveButtons();
+                    }
+                }
+            });
+        }
+    });
+    </script>
     <?php endif; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

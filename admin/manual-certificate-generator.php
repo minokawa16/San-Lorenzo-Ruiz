@@ -2,9 +2,9 @@
 /**
  * Manual Certificate Generator - Creates certificate previews from temporary manual input only.
  */
-include '../includes/session.php';
-include '../database/config.php';
-include '../includes/helpers.php';
+require_once '../includes/session.php';
+require_once '../database/config.php';
+require_once '../includes/helpers.php';
 
 requireAdmin();
 requirePermission('certificates.manage');
@@ -85,8 +85,8 @@ $field_labels = [
 ];
 
 $fields_by_type = [
-    'baptism' => ['fullname', 'birth_date', 'birth_place', 'father_name', 'father_birth_place', 'mother_name', 'mother_birth_place', 'parents', 'residence', 'baptism_date', 'ceremony_place', 'parish_name', 'priest', 'godfather', 'godmother', 'volume_no', 'page_no', 'entry_no', 'certificate_number', 'date_issued', 'signatory', 'signatory_title', 'purpose', 'remarks'],
-    'baptism_certification' => ['fullname', 'birth_date', 'birth_place', 'father_name', 'father_birth_place', 'mother_name', 'mother_birth_place', 'parents', 'residence', 'baptism_date', 'ceremony_place', 'parish_name', 'priest', 'godfather', 'godmother', 'volume_no', 'page_no', 'entry_no', 'certificate_number', 'date_issued', 'signatory', 'signatory_title', 'purpose', 'remarks'],
+    'baptism' => ['fullname', 'birth_place', 'birth_date', 'residence', 'father_name', 'father_birth_place', 'mother_name', 'mother_birth_place', 'baptism_date', 'ceremony_place', 'parish_name', 'priest', 'volume_no', 'page_no', 'entry_no', 'certificate_number', 'date_issued', 'signatory', 'signatory_title', 'purpose', 'remarks'],
+    'baptism_certification' => ['fullname', 'birth_place', 'birth_date', 'residence', 'father_name', 'father_birth_place', 'mother_name', 'mother_birth_place', 'baptism_date', 'ceremony_place', 'parish_name', 'priest', 'volume_no', 'page_no', 'entry_no', 'certificate_number', 'date_issued', 'signatory', 'signatory_title', 'purpose', 'remarks'],
     'confirmation' => ['fullname', 'birth_date', 'birth_place', 'parents', 'residence', 'sponsor', 'confirmation_date', 'ceremony_place', 'parish_name', 'bishop_priest', 'record_reference', 'volume_no', 'page_no', 'entry_no', 'certificate_number', 'date_issued', 'purpose', 'remarks'],
     'confirmation_certification' => ['fullname', 'birth_date', 'birth_place', 'father_name', 'mother_name', 'parents', 'residence', 'confirmation_date', 'ceremony_place', 'parish_name', 'bishop_priest', 'sponsor', 'volume_no', 'page_no', 'entry_no', 'certificate_number', 'date_issued', 'purpose', 'remarks'],
     'communion' => ['fullname', 'birth_date', 'birth_place', 'parents', 'residence', 'sponsor', 'communion_date', 'ceremony_place', 'parish_name', 'priest', 'record_reference', 'volume_no', 'page_no', 'entry_no', 'certificate_number', 'date_issued', 'purpose', 'remarks'],
@@ -98,8 +98,8 @@ $fields_by_type = [
 ];
 
 $required_by_type = [
-    'baptism' => ['fullname', 'baptism_date', 'priest', 'date_issued'],
-    'baptism_certification' => ['fullname', 'baptism_date', 'priest', 'date_issued'],
+    'baptism' => ['fullname', 'birth_place', 'birth_date', 'residence', 'father_name', 'father_birth_place', 'mother_name', 'mother_birth_place', 'baptism_date', 'priest', 'date_issued'],
+    'baptism_certification' => ['fullname', 'birth_place', 'birth_date', 'residence', 'father_name', 'father_birth_place', 'mother_name', 'mother_birth_place', 'baptism_date', 'priest', 'date_issued'],
     'confirmation' => ['fullname', 'confirmation_date', 'bishop_priest', 'date_issued'],
     'confirmation_certification' => ['fullname', 'confirmation_date', 'bishop_priest', 'date_issued'],
     'communion' => ['fullname', 'communion_date', 'priest', 'date_issued'],
@@ -129,6 +129,21 @@ $form_data['parish_name'] = $form_data['parish_name'] ?: 'San Lorenzo Ruiz Missi
 $form_data['ceremony_place'] = $form_data['ceremony_place'] ?: 'Aleosan, Cotabato';
 $error = '';
 
+$initial_sponsors = [];
+if (!empty($_POST['sponsors']) && is_array($_POST['sponsors'])) {
+    $initial_sponsors = $_POST['sponsors'];
+} elseif (!empty($editing_data['sponsors']) && is_array($editing_data['sponsors'])) {
+    $initial_sponsors = $editing_data['sponsors'];
+} elseif (!empty($editing_data['godparents'])) {
+    $initial_sponsors = preg_split('/[\r\n]+/', (string)$editing_data['godparents']);
+}
+$initial_sponsors = array_values(array_filter(array_map('trim', (array)$initial_sponsors)));
+if (count($initial_sponsors) < 2) {
+    while (count($initial_sponsors) < 2) {
+        $initial_sponsors[] = '';
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     requireValidCsrfToken();
     $missing = [];
@@ -138,8 +153,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    $valid_sponsors = [];
+    if ($selected_type === 'baptism' || $selected_type === 'baptism_certification') {
+        $raw_sponsors = $_POST['sponsors'] ?? [];
+        if (!is_array($raw_sponsors)) {
+            $raw_sponsors = preg_split('/[\r\n]+/', (string)$raw_sponsors);
+        }
+        foreach ($raw_sponsors as $sp) {
+            $sp = trim((string)$sp);
+            if ($sp !== '') {
+                $valid_sponsors[] = $sp;
+            }
+        }
+        if (count($valid_sponsors) < 2) {
+            $missing[] = 'Sponsors / Ninong-Ninang (at least 2 required)';
+        }
+    }
+
     if (!empty($missing)) {
-        $error = 'Please complete required fields: ' . implode(', ', $missing) . '.';
+        $error = 'Please complete all required fields before generating: ' . implode(', ', $missing) . '.';
     } else {
         $manual_data = [];
         foreach ($fields_by_type[$selected_type] as $field) {
@@ -169,10 +201,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $manual_data['registry_no'] = $manual_data['entry_no'] ?? ($manual_data['record_reference'] ?? '');
         }
         if ($selected_type === 'baptism' || $selected_type === 'baptism_certification') {
+            $manual_data['sponsors'] = $valid_sponsors;
+            $manual_data['godparents'] = implode("\n", $valid_sponsors);
             if (empty($manual_data['parents'])) {
                 $manual_data['parents'] = trim(($manual_data['father_name'] ?? '') . ' / ' . ($manual_data['mother_name'] ?? ''), " /\t\n\r\0\x0B");
             }
-            $manual_data['godparents'] = trim(($manual_data['godfather'] ?? '') . ' / ' . ($manual_data['godmother'] ?? ''), " /\t\n\r\0\x0B");
             $manual_data['book_no'] = $manual_data['volume_no'] ?? '';
             $manual_data['registry_no'] = $manual_data['entry_no'] ?? '';
             if (!empty($manual_data['signatory'])) {
@@ -282,6 +315,28 @@ include '../templates/header.php';
                             </select>
                         </div>
 
+                        <!-- Dynamic Sponsors for Baptism Records -->
+                        <div class="manual-field full" id="baptismSponsorsWrapper" style="<?php echo ($selected_type === 'baptism' || $selected_type === 'baptism_certification') ? '' : 'display:none;'; ?>">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label mb-0 fw-bold">
+                                    Sponsors / Ninong-Ninang <span class="text-danger">*</span>
+                                    <small class="text-muted fw-normal ms-2">(At least 2 required; each on its own line on the certificate)</small>
+                                </label>
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="addBaptismSponsorBtn">
+                                    <i class="fas fa-plus"></i> Add Sponsor
+                                </button>
+                            </div>
+                            <div id="baptismSponsorsList">
+                                <?php foreach ($initial_sponsors as $idx => $sp): ?>
+                                    <div class="input-group mb-2 sponsor-row">
+                                        <span class="input-group-text"><i class="fas fa-user-check text-secondary"></i> <span class="sponsor-num ms-1"><?php echo ($idx + 1); ?></span></span>
+                                        <input type="text" name="sponsors[]" class="form-control baptism-sponsor-input" placeholder="Sponsor Full Name (e.g. Nida Paredes)" value="<?php echo e($sp); ?>">
+                                        <button type="button" class="btn btn-outline-danger remove-sponsor-btn" title="Remove sponsor" <?php echo count($initial_sponsors) <= 2 ? 'disabled' : ''; ?>><i class="fas fa-trash"></i></button>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+
                         <?php foreach ($field_labels as $field => $label): ?>
                             <?php
                                 $is_long = in_array($field, ['parents', 'godparents', 'sponsors', 'remarks', 'purpose', 'record_reference', 'husband_parents', 'wife_parents', 'cause_of_death'], true);
@@ -320,11 +375,59 @@ include '../templates/header.php';
         const typeSelect = document.getElementById('cert_type');
         const form = document.getElementById('manualCertificateForm');
         const generateButton = document.getElementById('generateManualBtn');
+        const baptismSponsorsWrapper = document.getElementById('baptismSponsorsWrapper');
+        const baptismSponsorsList = document.getElementById('baptismSponsorsList');
+        const addBaptismSponsorBtn = document.getElementById('addBaptismSponsorBtn');
+
+        function updateSponsorRemoveButtons() {
+            const rows = baptismSponsorsList.querySelectorAll('.sponsor-row');
+            rows.forEach((row, i) => {
+                const numSpan = row.querySelector('.sponsor-num');
+                if (numSpan) numSpan.textContent = (i + 1);
+                const rmBtn = row.querySelector('.remove-sponsor-btn');
+                if (rmBtn) rmBtn.disabled = (rows.length <= 2);
+            });
+        }
+
+        if (addBaptismSponsorBtn) {
+            addBaptismSponsorBtn.addEventListener('click', function() {
+                const count = baptismSponsorsList.querySelectorAll('.sponsor-row').length + 1;
+                const row = document.createElement('div');
+                row.className = 'input-group mb-2 sponsor-row';
+                row.innerHTML = `
+                    <span class="input-group-text"><i class="fas fa-user-check text-secondary"></i> <span class="sponsor-num ms-1">${count}</span></span>
+                    <input type="text" name="sponsors[]" class="form-control baptism-sponsor-input" placeholder="Sponsor Full Name (e.g. Ninong / Ninang)">
+                    <button type="button" class="btn btn-outline-danger remove-sponsor-btn" title="Remove sponsor"><i class="fas fa-trash"></i></button>
+                `;
+                baptismSponsorsList.appendChild(row);
+                updateSponsorRemoveButtons();
+                row.querySelector('input').focus();
+            });
+        }
+
+        if (baptismSponsorsList) {
+            baptismSponsorsList.addEventListener('click', function(e) {
+                const btn = e.target.closest('.remove-sponsor-btn');
+                if (btn && !btn.disabled) {
+                    const row = btn.closest('.sponsor-row');
+                    if (row) {
+                        row.remove();
+                        updateSponsorRemoveButtons();
+                    }
+                }
+            });
+        }
 
         function updateManualFields() {
             const type = typeSelect.value;
+            const isBaptism = (type === 'baptism' || type === 'baptism_certification');
             const visibleFields = new Set(fieldsByType[type] || []);
             const requiredFields = new Set(requiredByType[type] || []);
+
+            if (baptismSponsorsWrapper) {
+                baptismSponsorsWrapper.style.display = isBaptism ? '' : 'none';
+                baptismSponsorsWrapper.querySelectorAll('input').forEach(i => i.disabled = !isBaptism);
+            }
 
             document.querySelectorAll('[data-field]').forEach((wrapper) => {
                 const field = wrapper.getAttribute('data-field');
@@ -342,8 +445,53 @@ include '../templates/header.php';
             });
         }
 
+        form.addEventListener('submit', function(e) {
+            const type = typeSelect.value;
+            if (type === 'baptism' || type === 'baptism_certification') {
+                const requiredList = [
+                    { id: 'fullname', label: 'Full Name' },
+                    { id: 'birth_place', label: 'Birthplace' },
+                    { id: 'birth_date', label: 'Birthday' },
+                    { id: 'residence', label: 'Residence' },
+                    { id: 'father_name', label: "Father's Name" },
+                    { id: 'father_birth_place', label: "Father's Birthplace" },
+                    { id: 'mother_name', label: "Mother's Name" },
+                    { id: 'mother_birth_place', label: "Mother's Birthplace" },
+                    { id: 'baptism_date', label: 'Date of Baptism' },
+                    { id: 'priest', label: 'Officiating Priest' },
+                    { id: 'date_issued', label: 'Date Issued' }
+                ];
+
+                let missing = [];
+                requiredList.forEach(f => {
+                    const el = document.getElementById(f.id);
+                    if (!el || !el.value.trim()) {
+                        missing.push(f.label);
+                        if (el) el.classList.add('is-invalid');
+                    } else {
+                        if (el) el.classList.remove('is-invalid');
+                    }
+                });
+
+                const sponsorInputs = Array.from(document.querySelectorAll('#baptismSponsorsList input[name="sponsors[]"]'))
+                    .map(i => i.value.trim())
+                    .filter(v => v.length > 0);
+
+                if (sponsorInputs.length < 2) {
+                    missing.push('At least 2 Sponsors (Ninong-Ninang)');
+                }
+
+                if (missing.length > 0) {
+                    e.preventDefault();
+                    alert('Cannot generate certificate. Every required field must be completed:\n\n• ' + missing.join('\n• '));
+                    return false;
+                }
+            }
+        });
+
         typeSelect.addEventListener('change', updateManualFields);
         updateManualFields();
+        updateSponsorRemoveButtons();
     </script>
     </div><!-- /.manual-shell -->
 </div>
