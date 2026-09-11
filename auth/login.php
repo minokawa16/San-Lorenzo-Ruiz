@@ -913,6 +913,9 @@ $action_notifications = function_exists('consumeActionNotifications') ? consumeA
             color: var(--tugon-auth-text) !important;
             box-shadow: none !important;
             backdrop-filter: blur(12px) !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            animation: none !important;
         }
 
         .auth-glass-card.auth-login-card::before {

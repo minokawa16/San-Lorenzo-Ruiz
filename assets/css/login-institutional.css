@@ -255,6 +255,9 @@ body.auth-cinematic-page .auth-glass-card.auth-login-card {
     color: var(--login-ink) !important;
     box-shadow: none !important;
     backdrop-filter: none !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    animation: none !important;
 }
 
 body.auth-cinematic-page .auth-glass-card.auth-login-card::before,
