@@ -1498,7 +1498,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const docId = button.getAttribute('data-doc-id');
             if (!docId) return;
 
-            if (currentDocId === docId && previewModalEl.classList.contains('show')) {
+            // Strict deduplication: if already loading or loaded this doc, do not re-run
+            if (currentDocId === docId) {
                 return;
             }
             currentDocId = docId;
@@ -1533,12 +1534,19 @@ document.addEventListener('DOMContentLoaded', function () {
             if (errorBox) errorBox.style.display = 'none';
             if (fallbackBox) fallbackBox.style.display = 'none';
             if (imgContainer) imgContainer.style.display = 'none';
-            if (imgElement) {
-                imgElement.style.display = 'none';
-                imgElement.src = '';
-            }
             if (pdfContainer) pdfContainer.style.display = 'none';
-            if (pdfFrame) pdfFrame.src = 'about:blank';
+
+            if (imgElement) {
+                imgElement.onload = null;
+                imgElement.onerror = null;
+                imgElement.style.display = 'none';
+                imgElement.removeAttribute('src');
+            }
+            if (pdfFrame) {
+                pdfFrame.onload = null;
+                pdfFrame.onerror = null;
+                pdfFrame.src = 'about:blank';
+            }
 
             const previewUrl = '../request-document.php?id=' + encodeURIComponent(docId);
             const downloadUrl = '../request-document.php?id=' + encodeURIComponent(docId) + '&download=1';
@@ -1553,7 +1561,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (fallbackFileName) fallbackFileName.textContent = docFile || 'Attached Document';
 
             const ext = (docFile.split('.').pop() || '').toLowerCase();
-            const isImage = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'svg'].includes(ext) || (docMime && docMime.startsWith('image/'));
+            const isImage = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'svg', 'ico', 'tif', 'tiff'].includes(ext) || (docMime && docMime.startsWith('image/'));
             const isPdf = ext === 'pdf' || docMime === 'application/pdf';
 
             if (isImage) {
@@ -1561,9 +1569,28 @@ document.addEventListener('DOMContentLoaded', function () {
                     imgContainer.style.display = 'flex';
                     imgElement.onload = function () {
                         if (loader) loader.style.display = 'none';
+                        if (errorBox) errorBox.style.display = 'none';
+                        if (fallbackBox) fallbackBox.style.display = 'none';
+                        if (imgContainer) imgContainer.style.display = 'flex';
                         imgElement.style.display = 'block';
                     };
                     imgElement.onerror = function () {
+                        // Native in-browser viewer fallback via iframe
+                        if (pdfContainer && pdfFrame) {
+                            if (imgContainer) imgContainer.style.display = 'none';
+                            pdfContainer.style.display = 'block';
+                            pdfFrame.onload = function () {
+                                if (loader) loader.style.display = 'none';
+                                if (errorBox) errorBox.style.display = 'none';
+                            };
+                            pdfFrame.onerror = function () {
+                                if (loader) loader.style.display = 'none';
+                                if (pdfContainer) pdfContainer.style.display = 'none';
+                                if (errorBox) errorBox.style.display = 'block';
+                            };
+                            pdfFrame.src = previewUrl;
+                            return;
+                        }
                         if (loader) loader.style.display = 'none';
                         if (imgContainer) imgContainer.style.display = 'none';
                         if (errorBox) errorBox.style.display = 'block';
@@ -1578,6 +1605,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     pdfFrame.onload = function () {
                         frameLoaded = true;
                         if (loader) loader.style.display = 'none';
+                        if (errorBox) errorBox.style.display = 'none';
                     };
                     pdfFrame.onerror = function () {
                         if (loader) loader.style.display = 'none';
@@ -1590,7 +1618,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         if (!frameLoaded && loader) {
                             loader.style.display = 'none';
                         }
-                    }, 3000);
+                    }, 3500);
                 }
             } else {
                 if (loader) loader.style.display = 'none';
@@ -1628,10 +1656,14 @@ document.addEventListener('DOMContentLoaded', function () {
             const imgElement = document.getElementById('docPreviewImage');
             const pdfFrame = document.getElementById('docPreviewPdfFrame');
             if (imgElement) {
-                imgElement.src = '';
+                imgElement.onload = null;
+                imgElement.onerror = null;
+                imgElement.removeAttribute('src');
                 imgElement.style.display = 'none';
             }
             if (pdfFrame) {
+                pdfFrame.onload = null;
+                pdfFrame.onerror = null;
                 pdfFrame.src = 'about:blank';
             }
         });

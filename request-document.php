@@ -45,10 +45,37 @@ if (!$can_manage_requests && !$owns_request) {
     exit('Access denied.');
 }
 
-$base_dir = realpath(__DIR__ . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'request_requirements');
 $raw_rel_path = ltrim(str_replace(['\\', '/'], DIRECTORY_SEPARATOR, (string)$document['file_path']), DIRECTORY_SEPARATOR);
-$file_path = realpath(__DIR__ . DIRECTORY_SEPARATOR . $raw_rel_path);
-if (!$base_dir || !$file_path || !str_starts_with($file_path, $base_dir . DIRECTORY_SEPARATOR) || !is_file($file_path)) {
+
+$candidate_roots = array_filter([
+    dirname(__DIR__),
+    __DIR__,
+    rtrim((string)(getenv('TUGON_DATA_DIR') ?: ''), '/\\'),
+    rtrim((string)(getenv('RAILWAY_VOLUME_MOUNT_PATH') ?: ''), '/\\'),
+    sys_get_temp_dir(),
+]);
+
+$file_path = null;
+if (is_file((string)$document['file_path'])) {
+    $file_path = realpath((string)$document['file_path']);
+}
+
+if (!$file_path) {
+    foreach ($candidate_roots as $root) {
+        $test_path = $root . DIRECTORY_SEPARATOR . $raw_rel_path;
+        if (is_file($test_path)) {
+            $file_path = realpath($test_path);
+            break;
+        }
+        $sub_test = $root . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'request_requirements' . DIRECTORY_SEPARATOR . basename($raw_rel_path);
+        if (is_file($sub_test)) {
+            $file_path = realpath($sub_test);
+            break;
+        }
+    }
+}
+
+if (!$file_path || !is_file($file_path)) {
     http_response_code(404);
     exit('Document file not found.');
 }
