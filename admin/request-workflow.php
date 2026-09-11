@@ -946,6 +946,8 @@ $breadcrumbs = [
                                                 <div class="d-flex align-items-center gap-1 flex-shrink-0">
                                                     <button type="button" 
                                                             class="btn btn-sm btn-outline-primary py-1 px-2.5 btn-preview-doc fw-semibold"
+                                                            data-bs-toggle="modal"
+                                                            data-bs-target="#documentPreviewModal"
                                                             data-doc-id="<?php echo (int)$reqDoc['id']; ?>"
                                                             data-doc-name="<?php echo e($reqDoc['name']); ?>"
                                                             data-doc-file="<?php echo e($reqDoc['file_name']); ?>"
@@ -1102,6 +1104,8 @@ $breadcrumbs = [
                                 <div class="mb-3 d-flex align-items-center gap-2">
                                     <button type="button" 
                                             class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-2 btn-preview-doc"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#documentPreviewModal"
                                             data-doc-id="<?php echo intval($payment['receipt_document_id']); ?>"
                                             data-doc-name="Payment Receipt - <?php echo e($payment['reference_number'] ?: 'Ref #' . $payment['payment_id']); ?>"
                                             data-doc-file="<?php echo e($payment['original_name'] ?: 'receipt'); ?>"
@@ -1256,6 +1260,8 @@ $breadcrumbs = [
                                         <div class="d-flex align-items-center gap-1 flex-shrink-0">
                                             <button type="button" 
                                                     class="btn btn-sm btn-outline-primary py-1 px-2 btn-preview-doc"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#documentPreviewModal"
                                                     data-doc-id="<?php echo intval($document['document_id']); ?>"
                                                     data-doc-name="<?php echo e($document['original_name']); ?>"
                                                     data-doc-file="<?php echo e($document['original_name']); ?>"
@@ -1382,133 +1388,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 
-// Document Viewer Controller
-(function () {
-    const previewModalEl = document.getElementById('documentPreviewModal');
-    if (!previewModalEl) return;
-
-    const modalLabel = document.getElementById('docPreviewModalLabel');
-    const modalMeta = document.getElementById('docPreviewMeta');
-    const externalBtn = document.getElementById('docPreviewExternalBtn');
-    const downloadBtn = document.getElementById('docPreviewDownloadBtn');
-    const errorDownloadBtn = document.getElementById('docPreviewErrorDownloadBtn');
-    const fallbackDownloadBtn = document.getElementById('docPreviewFallbackDownloadBtn');
-    const fallbackFileName = document.getElementById('docPreviewFallbackFileName');
-    
-    const loader = document.getElementById('docPreviewLoader');
-    const errorBox = document.getElementById('docPreviewError');
-    const fallbackBox = document.getElementById('docPreviewFallback');
-    const imgContainer = document.getElementById('docPreviewImageContainer');
-    const imgElement = document.getElementById('docPreviewImage');
-    const pdfContainer = document.getElementById('docPreviewPdfContainer');
-    const pdfFrame = document.getElementById('docPreviewPdfFrame');
-
-    let pdfTimeout = null;
-
-    function resetViewer() {
-        if (pdfTimeout) {
-            clearTimeout(pdfTimeout);
-            pdfTimeout = null;
-        }
-        if (loader) loader.style.display = 'block';
-        if (errorBox) errorBox.style.display = 'none';
-        if (fallbackBox) fallbackBox.style.display = 'none';
-        if (imgContainer) imgContainer.style.display = 'none';
-        if (imgElement) {
-            imgElement.style.display = 'none';
-            imgElement.src = '';
-        }
-        if (pdfContainer) pdfContainer.style.display = 'none';
-        if (pdfFrame) pdfFrame.src = 'about:blank';
-    }
-
-    function openDocumentPreview(docId, docName, docFile, docSize, docMime) {
-        resetViewer();
-
-        const previewUrl = '../request-document.php?id=' + encodeURIComponent(docId);
-        const downloadUrl = '../request-document.php?id=' + encodeURIComponent(docId) + '&download=1';
-
-        if (modalLabel) modalLabel.textContent = docName || 'Document Preview';
-        if (modalMeta) modalMeta.textContent = (docFile || 'Document file') + (docSize ? ' • ' + docSize : '');
-        
-        if (externalBtn) externalBtn.href = previewUrl;
-        if (downloadBtn) downloadBtn.href = downloadUrl;
-        if (errorDownloadBtn) errorDownloadBtn.href = downloadUrl;
-        if (fallbackDownloadBtn) fallbackDownloadBtn.href = downloadUrl;
-        if (fallbackFileName) fallbackFileName.textContent = docFile || 'Attached Document';
-
-        const ext = (docFile.split('.').pop() || '').toLowerCase();
-        const isImage = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'svg'].includes(ext) || (docMime && docMime.startsWith('image/'));
-        const isPdf = ext === 'pdf' || docMime === 'application/pdf';
-
-        if (window.bootstrap && window.bootstrap.Modal) {
-            const modalInstance = bootstrap.Modal.getOrCreateInstance(previewModalEl);
-            modalInstance.show();
-        }
-
-        if (isImage) {
-            if (imgContainer && imgElement) {
-                imgContainer.style.display = 'flex';
-                imgElement.onload = function () {
-                    if (loader) loader.style.display = 'none';
-                    imgElement.style.display = 'block';
-                };
-                imgElement.onerror = function () {
-                    if (loader) loader.style.display = 'none';
-                    if (imgContainer) imgContainer.style.display = 'none';
-                    if (errorBox) errorBox.style.display = 'block';
-                };
-                imgElement.src = previewUrl;
-            }
-        } else if (isPdf) {
-            if (pdfContainer && pdfFrame) {
-                pdfContainer.style.display = 'block';
-                let frameLoaded = false;
-
-                pdfFrame.onload = function () {
-                    frameLoaded = true;
-                    if (loader) loader.style.display = 'none';
-                };
-                pdfFrame.onerror = function () {
-                    if (loader) loader.style.display = 'none';
-                    if (pdfContainer) pdfContainer.style.display = 'none';
-                    if (errorBox) errorBox.style.display = 'block';
-                };
-                pdfFrame.src = previewUrl;
-
-                pdfTimeout = setTimeout(function () {
-                    if (!frameLoaded && loader) {
-                        loader.style.display = 'none';
-                    }
-                }, 3000);
-            }
-        } else {
-            if (loader) loader.style.display = 'none';
-            if (fallbackBox) fallbackBox.style.display = 'block';
-        }
-    }
-
-    document.addEventListener('click', function (e) {
-        const btn = e.target.closest('.btn-preview-doc');
-        if (btn) {
-            e.preventDefault();
-            const docId = btn.getAttribute('data-doc-id');
-            const docName = btn.getAttribute('data-doc-name') || '';
-            const docFile = btn.getAttribute('data-doc-file') || '';
-            const docSize = btn.getAttribute('data-doc-size') || '';
-            const docMime = (btn.getAttribute('data-doc-mime') || '').toLowerCase();
-            openDocumentPreview(docId, docName, docFile, docSize, docMime);
-        }
-    });
-
-    previewModalEl.addEventListener('hidden.bs.modal', function () {
-        resetViewer();
-    });
-})();
-</script>
-
 <!-- Supporting Document Preview Modal -->
-<div class="modal fade" id="documentPreviewModal" tabindex="-1" aria-labelledby="docPreviewModalLabel" aria-hidden="true">
+<div class="modal fade" id="documentPreviewModal" tabindex="-1" aria-labelledby="docPreviewModalLabel" aria-hidden="true" style="z-index: 1060;">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content border-0 shadow-lg" style="border-radius: 12px; overflow: hidden;">
             <div class="modal-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
@@ -1597,5 +1478,160 @@ document.addEventListener('DOMContentLoaded', function () {
         </div>
     </div>
 </div>
+
+<script>
+// Document Viewer Controller
+(function () {
+    let pdfTimeout = null;
+
+    function initDocViewer() {
+        const previewModalEl = document.getElementById('documentPreviewModal');
+        if (!previewModalEl) return;
+
+        function renderDocPreview(button) {
+            if (!button) return;
+            const docId = button.getAttribute('data-doc-id');
+            if (!docId) return;
+
+            const docName = button.getAttribute('data-doc-name') || 'Document Preview';
+            const docFile = button.getAttribute('data-doc-file') || '';
+            const docSize = button.getAttribute('data-doc-size') || '';
+            const docMime = (button.getAttribute('data-doc-mime') || '').toLowerCase();
+
+            const modalLabel = document.getElementById('docPreviewModalLabel');
+            const modalMeta = document.getElementById('docPreviewMeta');
+            const externalBtn = document.getElementById('docPreviewExternalBtn');
+            const downloadBtn = document.getElementById('docPreviewDownloadBtn');
+            const errorDownloadBtn = document.getElementById('docPreviewErrorDownloadBtn');
+            const fallbackDownloadBtn = document.getElementById('docPreviewFallbackDownloadBtn');
+            const fallbackFileName = document.getElementById('docPreviewFallbackFileName');
+            
+            const loader = document.getElementById('docPreviewLoader');
+            const errorBox = document.getElementById('docPreviewError');
+            const fallbackBox = document.getElementById('docPreviewFallback');
+            const imgContainer = document.getElementById('docPreviewImageContainer');
+            const imgElement = document.getElementById('docPreviewImage');
+            const pdfContainer = document.getElementById('docPreviewPdfContainer');
+            const pdfFrame = document.getElementById('docPreviewPdfFrame');
+
+            if (pdfTimeout) {
+                clearTimeout(pdfTimeout);
+                pdfTimeout = null;
+            }
+
+            if (loader) loader.style.display = 'block';
+            if (errorBox) errorBox.style.display = 'none';
+            if (fallbackBox) fallbackBox.style.display = 'none';
+            if (imgContainer) imgContainer.style.display = 'none';
+            if (imgElement) {
+                imgElement.style.display = 'none';
+                imgElement.src = '';
+            }
+            if (pdfContainer) pdfContainer.style.display = 'none';
+            if (pdfFrame) pdfFrame.src = 'about:blank';
+
+            const previewUrl = '../request-document.php?id=' + encodeURIComponent(docId);
+            const downloadUrl = '../request-document.php?id=' + encodeURIComponent(docId) + '&download=1';
+
+            if (modalLabel) modalLabel.textContent = docName;
+            if (modalMeta) modalMeta.textContent = (docFile || 'Document file') + (docSize ? ' • ' + docSize : '');
+            
+            if (externalBtn) externalBtn.href = previewUrl;
+            if (downloadBtn) downloadBtn.href = downloadUrl;
+            if (errorDownloadBtn) errorDownloadBtn.href = downloadUrl;
+            if (fallbackDownloadBtn) fallbackDownloadBtn.href = downloadUrl;
+            if (fallbackFileName) fallbackFileName.textContent = docFile || 'Attached Document';
+
+            const ext = (docFile.split('.').pop() || '').toLowerCase();
+            const isImage = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'svg'].includes(ext) || (docMime && docMime.startsWith('image/'));
+            const isPdf = ext === 'pdf' || docMime === 'application/pdf';
+
+            if (isImage) {
+                if (imgContainer && imgElement) {
+                    imgContainer.style.display = 'flex';
+                    imgElement.onload = function () {
+                        if (loader) loader.style.display = 'none';
+                        imgElement.style.display = 'block';
+                    };
+                    imgElement.onerror = function () {
+                        if (loader) loader.style.display = 'none';
+                        if (imgContainer) imgContainer.style.display = 'none';
+                        if (errorBox) errorBox.style.display = 'block';
+                    };
+                    imgElement.src = previewUrl;
+                }
+            } else if (isPdf) {
+                if (pdfContainer && pdfFrame) {
+                    pdfContainer.style.display = 'block';
+                    let frameLoaded = false;
+
+                    pdfFrame.onload = function () {
+                        frameLoaded = true;
+                        if (loader) loader.style.display = 'none';
+                    };
+                    pdfFrame.onerror = function () {
+                        if (loader) loader.style.display = 'none';
+                        if (pdfContainer) pdfContainer.style.display = 'none';
+                        if (errorBox) errorBox.style.display = 'block';
+                    };
+                    pdfFrame.src = previewUrl;
+
+                    pdfTimeout = setTimeout(function () {
+                        if (!frameLoaded && loader) {
+                            loader.style.display = 'none';
+                        }
+                    }, 3000);
+                }
+            } else {
+                if (loader) loader.style.display = 'none';
+                if (fallbackBox) fallbackBox.style.display = 'block';
+            }
+        }
+
+        // Bootstrap show.bs.modal listener
+        previewModalEl.addEventListener('show.bs.modal', function (event) {
+            renderDocPreview(event.relatedTarget);
+        });
+
+        // Global click listener for .btn-preview-doc
+        document.addEventListener('click', function (e) {
+            const btn = e.target.closest('.btn-preview-doc');
+            if (btn) {
+                renderDocPreview(btn);
+                if (window.bootstrap && window.bootstrap.Modal) {
+                    try {
+                        const modalInstance = bootstrap.Modal.getOrCreateInstance(previewModalEl);
+                        modalInstance.show();
+                    } catch (err) {
+                        console.warn('Bootstrap modal show failed:', err);
+                    }
+                }
+            }
+        });
+
+        previewModalEl.addEventListener('hidden.bs.modal', function () {
+            if (pdfTimeout) {
+                clearTimeout(pdfTimeout);
+                pdfTimeout = null;
+            }
+            const imgElement = document.getElementById('docPreviewImage');
+            const pdfFrame = document.getElementById('docPreviewPdfFrame');
+            if (imgElement) {
+                imgElement.src = '';
+                imgElement.style.display = 'none';
+            }
+            if (pdfFrame) {
+                pdfFrame.src = 'about:blank';
+            }
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initDocViewer);
+    } else {
+        initDocViewer();
+    }
+})();
+</script>
 
 <?php include '../templates/footer.php'; ?>
