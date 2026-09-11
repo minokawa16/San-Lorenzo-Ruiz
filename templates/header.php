@@ -256,7 +256,7 @@ if (isLoggedIn()) {
                         <p><?php echo e($user_header_description); ?></p>
                     </div>
                     <div class="mobile-dashboard-brand" aria-hidden="true">
-                        <strong><span>San Lorenzo Ruiz</span><em>Mission Station</em></strong>
+                        <strong><span>TUGON</span><em>San Lorenzo Ruiz Mission Station</em></strong>
                         <small>Welcome back, <?php echo e($header_user_first_name); ?></small>
                     </div>
                 </div>

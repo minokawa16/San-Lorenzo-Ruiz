@@ -470,7 +470,8 @@ if (!function_exists('extractFormalDocumentDetails')) {
                 'id'        => (int)$doc['document_id'],
                 'name'      => !empty($doc['requirement_name']) ? $doc['requirement_name'] : $doc['original_name'],
                 'file_name' => $doc['original_name'],
-                'size'      => formatFileSize($doc['file_size'])
+                'size'      => formatFileSize($doc['file_size']),
+                'mime'      => $doc['mime_type'] ?? ''
             ];
         }
 
@@ -933,42 +934,48 @@ $breadcrumbs = [
                         </div>
                     </div>
 
-                    <!-- Section 3: Special Remarks / Attached Documents in a subtle bordered inset card -->
+                    <!-- Section 3: Attached Supporting Documents -->
                     <div class="mb-3">
                         <div class="formal-section-title">
                             <i class="fas fa-paperclip text-primary"></i>
-                            Section 3: Special Remarks / Attached Documents
+                            Section 3: Attached Supporting Documents
                         </div>
                         <div class="formal-inset-card">
-                            <div class="row g-3">
-                                <div class="col-12 col-md-7">
-                                    <span class="micro-label">Special Remarks &amp; Instructions</span>
-                                    <div class="text-dark small lh-base">
-                                        <?php echo nl2br(e($formalDetails['remarks_documents']['remarks'])); ?>
-                                    </div>
-                                </div>
-                                <div class="col-12 col-md-5 border-start-md ps-md-4">
-                                    <span class="micro-label">Attached Supporting Documents</span>
-                                    <?php if (empty($formalDetails['remarks_documents']['requirements'])): ?>
-                                        <div class="small text-muted fst-italic">No requirement documents attached yet.</div>
-                                    <?php else: ?>
-                                        <div class="d-flex flex-column gap-2 mt-1">
-                                            <?php foreach ($formalDetails['remarks_documents']['requirements'] as $reqDoc): ?>
-                                                <div class="d-flex align-items-center justify-content-between p-2 bg-white rounded border small">
-                                                    <div class="text-truncate me-2" title="<?php echo e($reqDoc['name']); ?>">
-                                                        <i class="fas fa-file-check text-success me-1"></i>
-                                                        <strong><?php echo e($reqDoc['name']); ?></strong>
-                                                        <span class="text-muted small ms-1">(<?php echo e($reqDoc['size']); ?>)</span>
-                                                    </div>
-                                                    <a href="../request-document.php?id=<?php echo (int)$reqDoc['id']; ?>" class="btn btn-sm btn-outline-primary py-0 px-2" target="_blank" rel="noopener">
-                                                        <i class="fas fa-eye"></i>
+                            <span class="micro-label mb-2 d-block">Attached Supporting Documents</span>
+                            <?php if (empty($formalDetails['remarks_documents']['requirements'])): ?>
+                                <div class="small text-muted fst-italic py-1">No requirement documents attached yet.</div>
+                            <?php else: ?>
+                                <div class="row g-2.5">
+                                    <?php foreach ($formalDetails['remarks_documents']['requirements'] as $reqDoc): ?>
+                                        <div class="col-12 col-md-6">
+                                            <div class="d-flex align-items-center justify-content-between p-2.5 bg-white rounded-3 border small h-100 shadow-none">
+                                                <div class="text-truncate me-2" title="<?php echo e($reqDoc['name']); ?>">
+                                                    <i class="fas fa-file-check text-success me-1.5"></i>
+                                                    <strong class="text-dark"><?php echo e($reqDoc['name']); ?></strong>
+                                                    <span class="text-muted small ms-1">(<?php echo e($reqDoc['size']); ?>)</span>
+                                                </div>
+                                                <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                                                    <button type="button" 
+                                                            class="btn btn-sm btn-outline-primary py-1 px-2.5 btn-preview-doc fw-semibold"
+                                                            data-doc-id="<?php echo (int)$reqDoc['id']; ?>"
+                                                            data-doc-name="<?php echo e($reqDoc['name']); ?>"
+                                                            data-doc-file="<?php echo e($reqDoc['file_name']); ?>"
+                                                            data-doc-size="<?php echo e($reqDoc['size']); ?>"
+                                                            data-doc-mime="<?php echo e($reqDoc['mime'] ?? ''); ?>">
+                                                        <i class="fas fa-eye me-1"></i> View
+                                                    </button>
+                                                    <a href="../request-document.php?id=<?php echo (int)$reqDoc['id']; ?>&download=1" 
+                                                       class="btn btn-sm btn-outline-secondary py-1 px-2" 
+                                                       title="Download File" 
+                                                       download>
+                                                        <i class="fas fa-download"></i>
                                                     </a>
                                                 </div>
-                                            <?php endforeach; ?>
+                                            </div>
                                         </div>
-                                    <?php endif; ?>
+                                    <?php endforeach; ?>
                                 </div>
-                            </div>
+                            <?php endif; ?>
                         </div>
                     </div>
 
@@ -1077,9 +1084,23 @@ $breadcrumbs = [
                                     Uploaded <?php echo formatDate($document['uploaded_at']); ?>
                                 </div>
                             </div>
-                            <a class="btn btn-sm btn-outline-primary px-3 fw-semibold" href="../request-document.php?id=<?php echo intval($document['document_id']); ?>" target="_blank" rel="noopener">
-                                <i class="fas fa-eye me-1"></i> View File
-                            </a>
+                            <div class="d-flex align-items-center gap-2">
+                                <button type="button" 
+                                        class="btn btn-sm btn-outline-primary px-3 fw-semibold btn-preview-doc"
+                                        data-doc-id="<?php echo intval($document['document_id']); ?>"
+                                        data-doc-name="<?php echo e($requirement_label !== '' ? $requirement_label : $document['original_name']); ?>"
+                                        data-doc-file="<?php echo e($document['original_name']); ?>"
+                                        data-doc-size="<?php echo e(formatFileSize($document['file_size'])); ?>"
+                                        data-doc-mime="<?php echo e($document['mime_type'] ?? ''); ?>">
+                                    <i class="fas fa-eye me-1"></i> View File
+                                </button>
+                                <a href="../request-document.php?id=<?php echo intval($document['document_id']); ?>&download=1" 
+                                   class="btn btn-sm btn-outline-secondary px-2.5 py-1.5" 
+                                   title="Download File" 
+                                   download>
+                                    <i class="fas fa-download"></i>
+                                </a>
+                            </div>
                         </div>
                     <?php endforeach; ?>
                 </div>
@@ -1139,11 +1160,22 @@ $breadcrumbs = [
                             <?php endif; ?>
 
                             <?php if (!empty($payment['receipt_document_id'])): ?>
-                                <div class="mb-3">
-                                    <a class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-2" href="../request-document.php?id=<?php echo intval($payment['receipt_document_id']); ?>" target="_blank" rel="noopener">
+                                <div class="mb-3 d-flex align-items-center gap-2">
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-2 btn-preview-doc"
+                                            data-doc-id="<?php echo intval($payment['receipt_document_id']); ?>"
+                                            data-doc-name="Payment Receipt - <?php echo e($payment['reference_number'] ?: 'Ref #' . $payment['payment_id']); ?>"
+                                            data-doc-file="<?php echo e($payment['original_name'] ?: 'receipt'); ?>"
+                                            data-doc-size="<?php echo !empty($payment['file_size']) ? formatFileSize($payment['file_size']) : ''; ?>"
+                                            data-doc-mime="<?php echo e($payment['mime_type'] ?? ''); ?>">
                                         <i class="fas fa-file-invoice"></i>
                                         <span>View Receipt (<?php echo e($payment['original_name'] ?: 'Receipt File'); ?><?php echo !empty($payment['file_size']) ? ' &bull; ' . formatFileSize($payment['file_size']) : ''; ?>)</span>
-                                        <i class="fas fa-arrow-up-right-from-square small"></i>
+                                    </button>
+                                    <a class="btn btn-sm btn-outline-secondary" 
+                                       href="../request-document.php?id=<?php echo intval($payment['receipt_document_id']); ?>&download=1" 
+                                       title="Download Receipt" 
+                                       download>
+                                        <i class="fas fa-download"></i>
                                     </a>
                                 </div>
                             <?php endif; ?>
@@ -1276,13 +1308,31 @@ $breadcrumbs = [
                         <?php else: ?>
                             <div class="list-group">
                                 <?php foreach ($released_files as $document): ?>
-                                    <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center rounded-2 mb-1 border" href="../request-document.php?id=<?php echo intval($document['document_id']); ?>" target="_blank">
+                                    <div class="list-group-item d-flex justify-content-between align-items-center rounded-2 mb-1 border p-2 bg-white">
                                         <div class="text-truncate me-2">
                                             <i class="fas fa-file-circle-check text-success me-2"></i>
-                                            <span class="fw-semibold"><?php echo e($document['original_name']); ?></span>
+                                            <span class="fw-semibold small text-dark"><?php echo e($document['original_name']); ?></span>
+                                            <small class="text-muted ms-1">(<?php echo e(formatFileSize($document['file_size'])); ?>)</small>
                                         </div>
-                                        <small class="text-muted"><?php echo e(formatFileSize($document['file_size'])); ?></small>
-                                    </a>
+                                        <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-outline-primary py-1 px-2 btn-preview-doc"
+                                                    data-doc-id="<?php echo intval($document['document_id']); ?>"
+                                                    data-doc-name="<?php echo e($document['original_name']); ?>"
+                                                    data-doc-file="<?php echo e($document['original_name']); ?>"
+                                                    data-doc-size="<?php echo e(formatFileSize($document['file_size'])); ?>"
+                                                    data-doc-mime="<?php echo e($document['mime_type'] ?? ''); ?>"
+                                                    title="Preview File">
+                                                <i class="fas fa-eye me-1"></i> View
+                                            </button>
+                                            <a class="btn btn-sm btn-outline-secondary py-1 px-2" 
+                                               href="../request-document.php?id=<?php echo intval($document['document_id']); ?>&download=1" 
+                                               title="Download File" 
+                                               download>
+                                                <i class="fas fa-download"></i>
+                                            </a>
+                                        </div>
+                                    </div>
                                 <?php endforeach; ?>
                             </div>
                         <?php endif; ?>
@@ -1392,6 +1442,221 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 });
+
+// Document Viewer Controller
+(function () {
+    const previewModalEl = document.getElementById('documentPreviewModal');
+    if (!previewModalEl) return;
+
+    const modalLabel = document.getElementById('docPreviewModalLabel');
+    const modalMeta = document.getElementById('docPreviewMeta');
+    const externalBtn = document.getElementById('docPreviewExternalBtn');
+    const downloadBtn = document.getElementById('docPreviewDownloadBtn');
+    const errorDownloadBtn = document.getElementById('docPreviewErrorDownloadBtn');
+    const fallbackDownloadBtn = document.getElementById('docPreviewFallbackDownloadBtn');
+    const fallbackFileName = document.getElementById('docPreviewFallbackFileName');
+    
+    const loader = document.getElementById('docPreviewLoader');
+    const errorBox = document.getElementById('docPreviewError');
+    const fallbackBox = document.getElementById('docPreviewFallback');
+    const imgContainer = document.getElementById('docPreviewImageContainer');
+    const imgElement = document.getElementById('docPreviewImage');
+    const pdfContainer = document.getElementById('docPreviewPdfContainer');
+    const pdfFrame = document.getElementById('docPreviewPdfFrame');
+
+    let pdfTimeout = null;
+
+    function resetViewer() {
+        if (pdfTimeout) {
+            clearTimeout(pdfTimeout);
+            pdfTimeout = null;
+        }
+        if (loader) loader.style.display = 'block';
+        if (errorBox) errorBox.style.display = 'none';
+        if (fallbackBox) fallbackBox.style.display = 'none';
+        if (imgContainer) imgContainer.style.display = 'none';
+        if (imgElement) {
+            imgElement.style.display = 'none';
+            imgElement.src = '';
+        }
+        if (pdfContainer) pdfContainer.style.display = 'none';
+        if (pdfFrame) pdfFrame.src = 'about:blank';
+    }
+
+    function openDocumentPreview(docId, docName, docFile, docSize, docMime) {
+        resetViewer();
+
+        const previewUrl = '../request-document.php?id=' + encodeURIComponent(docId);
+        const downloadUrl = '../request-document.php?id=' + encodeURIComponent(docId) + '&download=1';
+
+        if (modalLabel) modalLabel.textContent = docName || 'Document Preview';
+        if (modalMeta) modalMeta.textContent = (docFile || 'Document file') + (docSize ? ' • ' + docSize : '');
+        
+        if (externalBtn) externalBtn.href = previewUrl;
+        if (downloadBtn) downloadBtn.href = downloadUrl;
+        if (errorDownloadBtn) errorDownloadBtn.href = downloadUrl;
+        if (fallbackDownloadBtn) fallbackDownloadBtn.href = downloadUrl;
+        if (fallbackFileName) fallbackFileName.textContent = docFile || 'Attached Document';
+
+        const ext = (docFile.split('.').pop() || '').toLowerCase();
+        const isImage = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'svg'].includes(ext) || (docMime && docMime.startsWith('image/'));
+        const isPdf = ext === 'pdf' || docMime === 'application/pdf';
+
+        if (window.bootstrap && window.bootstrap.Modal) {
+            const modalInstance = bootstrap.Modal.getOrCreateInstance(previewModalEl);
+            modalInstance.show();
+        }
+
+        if (isImage) {
+            if (imgContainer && imgElement) {
+                imgContainer.style.display = 'flex';
+                imgElement.onload = function () {
+                    if (loader) loader.style.display = 'none';
+                    imgElement.style.display = 'block';
+                };
+                imgElement.onerror = function () {
+                    if (loader) loader.style.display = 'none';
+                    if (imgContainer) imgContainer.style.display = 'none';
+                    if (errorBox) errorBox.style.display = 'block';
+                };
+                imgElement.src = previewUrl;
+            }
+        } else if (isPdf) {
+            if (pdfContainer && pdfFrame) {
+                pdfContainer.style.display = 'block';
+                let frameLoaded = false;
+
+                pdfFrame.onload = function () {
+                    frameLoaded = true;
+                    if (loader) loader.style.display = 'none';
+                };
+                pdfFrame.onerror = function () {
+                    if (loader) loader.style.display = 'none';
+                    if (pdfContainer) pdfContainer.style.display = 'none';
+                    if (errorBox) errorBox.style.display = 'block';
+                };
+                pdfFrame.src = previewUrl;
+
+                pdfTimeout = setTimeout(function () {
+                    if (!frameLoaded && loader) {
+                        loader.style.display = 'none';
+                    }
+                }, 3000);
+            }
+        } else {
+            if (loader) loader.style.display = 'none';
+            if (fallbackBox) fallbackBox.style.display = 'block';
+        }
+    }
+
+    document.addEventListener('click', function (e) {
+        const btn = e.target.closest('.btn-preview-doc');
+        if (btn) {
+            e.preventDefault();
+            const docId = btn.getAttribute('data-doc-id');
+            const docName = btn.getAttribute('data-doc-name') || '';
+            const docFile = btn.getAttribute('data-doc-file') || '';
+            const docSize = btn.getAttribute('data-doc-size') || '';
+            const docMime = (btn.getAttribute('data-doc-mime') || '').toLowerCase();
+            openDocumentPreview(docId, docName, docFile, docSize, docMime);
+        }
+    });
+
+    previewModalEl.addEventListener('hidden.bs.modal', function () {
+        resetViewer();
+    });
+})();
 </script>
+
+<!-- Supporting Document Preview Modal -->
+<div class="modal fade" id="documentPreviewModal" tabindex="-1" aria-labelledby="docPreviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 12px; overflow: hidden;">
+            <div class="modal-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2 text-truncate me-3">
+                    <div class="p-2 rounded bg-primary-subtle text-primary flex-shrink-0">
+                        <i class="fas fa-file-lines fa-lg"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <h5 class="modal-title fw-bold text-dark mb-0 text-truncate" id="docPreviewModalLabel">Document Preview</h5>
+                        <div class="text-muted small text-truncate" id="docPreviewMeta">Loading document details...</div>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                    <a id="docPreviewExternalBtn" href="#" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary d-none d-sm-inline-flex align-items-center gap-1.5" title="Open in new tab">
+                        <i class="fas fa-arrow-up-right-from-square"></i>
+                        <span>Open Tab</span>
+                    </a>
+                    <a id="docPreviewDownloadBtn" href="#" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1.5 fw-semibold" download title="Download file to device">
+                        <i class="fas fa-download"></i>
+                        <span>Download</span>
+                    </a>
+                    <button type="button" class="btn-close ms-2" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+            </div>
+            <div class="modal-body p-0 position-relative d-flex flex-column align-items-center justify-content-center" style="min-height: 520px; background-color: #0f172a10;">
+                
+                <!-- Loading State -->
+                <div id="docPreviewLoader" class="text-center py-5">
+                    <div class="spinner-border text-primary mb-3" role="status" style="width: 3.2rem; height: 3.2rem;">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <div class="fw-bold text-dark fs-6">Loading Document Content...</div>
+                    <div class="text-muted small mt-1">Retrieving and verifying the file stream.</div>
+                </div>
+
+                <!-- Error State -->
+                <div id="docPreviewError" class="text-center py-5 px-4" style="display: none;">
+                    <div class="mb-3 text-danger">
+                        <i class="fas fa-triangle-exclamation fa-3x"></i>
+                    </div>
+                    <h5 class="fw-bold text-dark mb-2">Unable to Render Preview</h5>
+                    <p id="docPreviewErrorMessage" class="text-secondary small mb-4" style="max-width: 480px; margin: 0 auto;">
+                        The browser could not display this document directly. You can still download the file to inspect it securely on your device.
+                    </p>
+                    <a id="docPreviewErrorDownloadBtn" href="#" class="btn btn-primary px-4 py-2 fw-semibold d-inline-flex align-items-center gap-2" download>
+                        <i class="fas fa-download"></i>
+                        <span>Download Document</span>
+                    </a>
+                </div>
+
+                <!-- Fallback Container (for non-previewable formats like .docx, .zip, etc.) -->
+                <div id="docPreviewFallback" class="text-center py-5 px-4" style="display: none;">
+                    <div class="mb-3 text-secondary">
+                        <i class="fas fa-file-arrow-down fa-3x text-primary"></i>
+                    </div>
+                    <h5 class="fw-bold text-dark mb-1">In-Browser Preview Not Available</h5>
+                    <p class="text-muted small mb-3" style="max-width: 460px; margin: 0 auto;">
+                        This file format cannot be rendered directly inside the browser. Use the download button below to view the file on your device.
+                    </p>
+                    <div class="badge bg-light text-dark border px-3 py-2 mb-4 font-monospace" id="docPreviewFallbackFileName">filename.ext</div>
+                    <div>
+                        <a id="docPreviewFallbackDownloadBtn" href="#" class="btn btn-primary px-4 py-2 fw-semibold d-inline-flex align-items-center gap-2" download>
+                            <i class="fas fa-download"></i>
+                            <span>Download File</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Image Viewer Container -->
+                <div id="docPreviewImageContainer" class="w-100 h-100 p-3 text-center d-flex align-items-center justify-content-center overflow-auto" style="display: none;">
+                    <img id="docPreviewImage" src="" alt="Document Preview" class="img-fluid rounded shadow-sm" style="max-height: 76vh; max-width: 100%; object-fit: contain; display: none;">
+                </div>
+
+                <!-- PDF Viewer Container -->
+                <div id="docPreviewPdfContainer" class="w-100 h-100" style="display: none;">
+                    <iframe id="docPreviewPdfFrame" src="about:blank" class="w-100 border-0" style="height: 78vh; min-height: 520px; display: block;" title="Document PDF Preview"></iframe>
+                </div>
+
+            </div>
+            <div class="modal-footer bg-white border-top py-2.5 px-4 d-flex justify-content-between align-items-center">
+                <div class="text-muted small">
+                    <i class="fas fa-shield-halved text-success me-1"></i> Verified authenticated document stream
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary px-3" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <?php include '../templates/footer.php'; ?>
