@@ -13,8 +13,8 @@
     --login-border: #e6e0d4;
 }
 
-html,
-body.auth-cinematic-page {
+html {
+    background-color: #1f1c17 !important;
     min-height: 100%;
 }
 
@@ -26,9 +26,14 @@ body.auth-cinematic-page {
     overflow-x: hidden !important;
     color: var(--login-ink) !important;
     font-family: "Inter", "Segoe UI", sans-serif !important;
+    background-color: #1f1c17 !important;
     background:
         linear-gradient(rgba(24, 22, 18, 0.56), rgba(24, 22, 18, 0.66)),
-        url("../../church%20image.png") center center / cover no-repeat fixed !important;
+        url("../../church%20image.png") center center / cover no-repeat fixed,
+        url("../img/san-lorenzo-landing.jpg") center center / cover no-repeat fixed,
+        #1f1c17 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
 }
 
 body.auth-cinematic-page::before,
@@ -51,6 +56,8 @@ body.auth-cinematic-page .auth-login-screen {
     border-radius: 22px !important;
     background: var(--login-ivory) !important;
     box-shadow: 0 20px 60px rgba(40, 38, 33, 0.12) !important;
+    opacity: 1 !important;
+    visibility: visible !important;
 }
 
 body.auth-cinematic-page .auth-login-side {
@@ -592,25 +599,28 @@ body.auth-cinematic-page #checkStatusForm {
 }
 
 @keyframes institutionalFadeIn {
-    from { opacity: 0; }
+    from { opacity: 1; }
     to { opacity: 1; }
 }
 
 @keyframes institutionalRise {
-    from { opacity: 0; transform: translateY(10px); }
+    from { opacity: 1; transform: translateY(6px); }
     to { opacity: 1; transform: translateY(0); }
 }
 
 body.auth-cinematic-page .auth-login-side {
-    animation: institutionalFadeIn 420ms ease-out both !important;
+    opacity: 1 !important;
+    visibility: visible !important;
 }
 
 body.auth-cinematic-page .auth-side-logo {
-    animation: institutionalRise 460ms 80ms ease-out both !important;
+    opacity: 1 !important;
+    visibility: visible !important;
 }
 
 body.auth-cinematic-page .auth-login-card > * {
-    animation: institutionalRise 420ms 120ms ease-out both !important;
+    opacity: 1 !important;
+    visibility: visible !important;
 }
 
 @media (max-width: 900px) {
@@ -716,12 +726,15 @@ body.auth-cinematic-page .auth-login-card > * {
 }
 
 @media (prefers-reduced-motion: reduce) {
+    body.auth-cinematic-page,
     body.auth-cinematic-page *,
     body.auth-cinematic-page *::before,
     body.auth-cinematic-page *::after {
         animation: none !important;
         scroll-behavior: auto !important;
         transition-duration: 0.01ms !important;
+        opacity: 1 !important;
+        visibility: visible !important;
     }
 }
 

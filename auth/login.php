@@ -46,9 +46,11 @@ if ($csrf_error !== '') {
 }
 
 if (isset($_GET['session']) && $_GET['session'] === 'expired') {
+    $error = 'Your session has expired. Please log in again to continue.';
     queueActionNotification('Session expired. Please log in again.', 'warning');
 }
 if (isset($_GET['error']) && $_GET['error'] === 'forbidden') {
+    $error = 'Access denied. Please sign in with an authorized parish account.';
     queueActionNotification('Access denied. Please log in with an authorized account.', 'error');
 }
 
@@ -112,13 +114,22 @@ $action_notifications = function_exists('consumeActionNotifications') ? consumeA
             --login-muted: #52686B;
         }
 
+        html {
+            background-color: #1f1c17 !important;
+        }
+
         body.auth-cinematic-page {
+            background-color: #1f1c17 !important;
             background:
                 linear-gradient(90deg, rgba(8, 115, 154, 0.38), rgba(32, 50, 56, 0.14) 45%, rgba(32, 50, 56, 0.58)),
                 linear-gradient(180deg, rgba(8, 115, 154, 0.12), rgba(32, 50, 56, 0.62)),
-                url("../church%20image.png") center center / cover no-repeat fixed !important;
+                url("../church%20image.png") center center / cover no-repeat fixed,
+                url("../assets/img/san-lorenzo-landing.jpg") center center / cover no-repeat fixed,
+                #1f1c17 !important;
             color: var(--login-text) !important;
             font-family: "Inter", "Segoe UI", Arial, sans-serif !important;
+            opacity: 1 !important;
+            visibility: visible !important;
         }
 
         body.auth-cinematic-page::before {
@@ -665,12 +676,16 @@ $action_notifications = function_exists('consumeActionNotifications') ? consumeA
             place-items: center !important;
             padding: clamp(18px, 3vw, 36px) !important;
             overflow-x: hidden !important;
+            background-color: #1f1c17 !important;
             background:
                 linear-gradient(90deg, rgba(47, 42, 36, 0.74) 0%, rgba(47, 42, 36, 0.34) 43%, rgba(25, 22, 19, 0.82) 100%),
                 linear-gradient(180deg, rgba(47, 42, 36, 0.18), rgba(47, 42, 36, 0.6)),
-                url("../church%20image.png") center center / cover no-repeat fixed !important;
+                url("../church%20image.png") center center / cover no-repeat fixed,
+                url("../assets/img/san-lorenzo-landing.jpg") center center / cover no-repeat fixed,
+                #1f1c17 !important;
             color: var(--tugon-auth-text) !important;
-            animation: authPageFade 420ms ease both !important;
+            opacity: 1 !important;
+            visibility: visible !important;
         }
 
         body.auth-cinematic-page::before {
@@ -703,7 +718,8 @@ $action_notifications = function_exists('consumeActionNotifications') ? consumeA
             background: rgba(255, 255, 255, 0.82) !important;
             box-shadow: var(--tugon-auth-shadow) !important;
             backdrop-filter: blur(18px) saturate(130%) !important;
-            animation: authCardRise 460ms ease both !important;
+            opacity: 1 !important;
+            visibility: visible !important;
         }
 
         .auth-login-side {
@@ -1138,14 +1154,14 @@ $action_notifications = function_exists('consumeActionNotifications') ? consumeA
         }
 
         @keyframes authPageFade {
-            from { opacity: 0; }
+            from { opacity: 1; }
             to { opacity: 1; }
         }
 
         @keyframes authCardRise {
             from {
-                opacity: 0;
-                transform: translateY(22px) scale(0.985);
+                opacity: 1;
+                transform: translateY(12px) scale(0.99);
             }
             to {
                 opacity: 1;
@@ -1155,8 +1171,8 @@ $action_notifications = function_exists('consumeActionNotifications') ? consumeA
 
         @keyframes authLogoFade {
             from {
-                opacity: 0;
-                transform: translateY(10px);
+                opacity: 1;
+                transform: translateY(6px);
             }
             to {
                 opacity: 1;

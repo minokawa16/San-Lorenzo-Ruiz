@@ -82,7 +82,8 @@
         background: rgba(255, 255, 255, 0.96) !important;
         box-shadow: 0 8px 30px rgba(40, 35, 25, 0.08) !important;
         backdrop-filter: none !important;
-        animation: authMobileEnter 380ms ease both !important;
+        opacity: 1 !important;
+        visibility: visible !important;
     }
 
     /* Compact parish identity: the only part of the desktop side panel kept on login. */
@@ -833,7 +834,7 @@
     }
 
     @keyframes authMobileEnter {
-        from { opacity: 0; transform: translateY(10px); }
+        from { opacity: 1; transform: translateY(6px); }
         to { opacity: 1; transform: translateY(0); }
     }
 }
