@@ -1387,6 +1387,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 });
+</script>
 
 <!-- Supporting Document Preview Modal -->
 <div class="modal fade" id="documentPreviewModal" tabindex="-1" aria-labelledby="docPreviewModalLabel" aria-hidden="true" style="z-index: 1060;">
@@ -1483,15 +1484,24 @@ document.addEventListener('DOMContentLoaded', function () {
 // Document Viewer Controller
 (function () {
     let pdfTimeout = null;
+    let initialized = false;
+    let currentDocId = null;
 
     function initDocViewer() {
+        if (initialized) return;
         const previewModalEl = document.getElementById('documentPreviewModal');
         if (!previewModalEl) return;
+        initialized = true;
 
         function renderDocPreview(button) {
             if (!button) return;
             const docId = button.getAttribute('data-doc-id');
             if (!docId) return;
+
+            if (currentDocId === docId && previewModalEl.classList.contains('show')) {
+                return;
+            }
+            currentDocId = docId;
 
             const docName = button.getAttribute('data-doc-name') || 'Document Preview';
             const docFile = button.getAttribute('data-doc-file') || '';
@@ -1610,6 +1620,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         previewModalEl.addEventListener('hidden.bs.modal', function () {
+            currentDocId = null;
             if (pdfTimeout) {
                 clearTimeout(pdfTimeout);
                 pdfTimeout = null;
@@ -1631,6 +1642,7 @@ document.addEventListener('DOMContentLoaded', function () {
     } else {
         initDocViewer();
     }
+    window.addEventListener('load', initDocViewer);
 })();
 </script>
 
