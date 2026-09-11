@@ -107,6 +107,4 @@ try {
 } catch (Exception $e) {
     $response['message'] = 'Error: ' . $e->getMessage();
 }
-
 echo json_encode($response);
-?>

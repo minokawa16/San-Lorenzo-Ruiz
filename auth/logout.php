@@ -8,5 +8,4 @@ require_once '../includes/auth.php';
 $logoutUserId=(int)($_SESSION['user_id']??0);
 if($logoutUserId>0){createAuditLog($conn,$logoutUserId,'LOGOUT','users',$logoutUserId);}
 logoutUser();
-?>
 

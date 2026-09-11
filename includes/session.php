@@ -7,6 +7,10 @@
  * <?php include '../includes/session.php'; ?>
  */
 
+if (ob_get_level() === 0) {
+    ob_start();
+}
+
 if (!defined('SESSION_TIMEOUT')) {
     $security_config = __DIR__ . '/../config/security.php';
     if (is_file($security_config)) {

@@ -94,5 +94,3 @@ if (!$conn->set_charset('utf8mb4')) {
 // TUGON's authoritative civil timezone for parish schedules.
 date_default_timezone_set('Asia/Manila');
 $conn->query("SET time_zone = '+08:00'");
-
-?>

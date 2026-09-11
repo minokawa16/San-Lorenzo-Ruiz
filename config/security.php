@@ -192,4 +192,3 @@ $ALLOWED_ORIGINS = $isProduction
 if (!in_array($_SERVER['HTTP_ORIGIN'] ?? '', $ALLOWED_ORIGINS, true)) {
     // Set to empty array in production
 }
-?>

@@ -24,8 +24,14 @@ if ($conn->connect_error) {
     die("Database connection failed: " . $conn->connect_error);
 }
 
-// If already logged in, redirect to appropriate dashboard
-// Check if session variables actually exist (not just the array)
+$hasExplicitAuthError = (isset($_GET['session']) && $_GET['session'] === 'expired')
+    || (isset($_GET['error']) && $_GET['error'] === 'forbidden');
+
+if ($hasExplicitAuthError) {
+    clearAuthenticationSession();
+}
+
+// If already logged in and not arriving due to an auth error, redirect to appropriate dashboard
 if (isLoggedIn()) {
     header('Location: ' . getUserDashboardURL(), true, 302);
     exit;

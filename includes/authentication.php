@@ -354,8 +354,8 @@ function authenticationRequestIsJson(): bool {
 }
 
 function denyAuthentication(string $message = 'Authentication is required.', int $status = 401): void {
-    http_response_code($status);
     if (authenticationRequestIsJson()) {
+        http_response_code($status);
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode(['success' => false, 'error' => $message]);
         exit;

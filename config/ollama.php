@@ -28,4 +28,3 @@ defineOllamaConstant('OLLAMA_TIMEOUT', max(10, intval(getenv('OLLAMA_TIMEOUT') ?
 defineOllamaConstant('OLLAMA_TEMPERATURE', floatval(getenv('OLLAMA_TEMPERATURE') ?: 0.2));
 defineOllamaConstant('OLLAMA_NUM_PREDICT', intval(getenv('OLLAMA_NUM_PREDICT') ?: 700));
 defineOllamaConstant('OLLAMA_MAX_HISTORY_MESSAGES', max(2, intval(getenv('OLLAMA_MAX_HISTORY_MESSAGES') ?: 8)));
-?>
