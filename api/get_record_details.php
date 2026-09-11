@@ -104,6 +104,7 @@ try {
                     'entry_no' => $row['entry_no'] ?? '',
                     'remarks' => $row['remarks'] ?? '',
                 ];
+                $response['active_priests'] = getActivePriestsRoster($conn);
             } else {
                 $response['error'] = 'Record not found';
             }

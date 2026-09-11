@@ -194,6 +194,8 @@ $confirmation_count = $conn->query("SELECT COUNT(*) as count FROM confirmation_r
 $marriage_count = $conn->query("SELECT COUNT(*) as count FROM marriage_records WHERE status='active'")->fetch_assoc()['count'];
 $funeral_count = $conn->query("SELECT COUNT(*) as count FROM funeral_records WHERE status='active'")->fetch_assoc()['count'];
 
+$active_priests = getActivePriestsRoster($conn);
+
 $page_title = 'Certificate Generator';
 $breadcrumbs = [
     'Dashboard' => 'dashboard.php',
@@ -204,6 +206,55 @@ include '../templates/header.php';
 ?>
 
 <style>
+    /* Modal Viewport Capping & Sticky Layout (max-height: 85vh) */
+    #generateModal .modal-dialog {
+        max-height: 85vh;
+        margin: 1.75rem auto;
+        display: flex;
+        flex-direction: column;
+    }
+    #generateModal .modal-content {
+        max-height: 85vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        border-radius: 12px;
+    }
+    #generateModal .modal-header {
+        position: sticky;
+        top: 0;
+        z-index: 1055;
+        flex-shrink: 0;
+    }
+    #generateModal #generatorRecordForm {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        max-height: calc(85vh - 60px);
+        margin: 0;
+    }
+    #generateModal .modal-body {
+        overflow-y: auto;
+        flex: 1 1 auto;
+        max-height: calc(85vh - 135px);
+        padding: 1.25rem 1.5rem;
+    }
+    #generateModal .modal-footer {
+        position: sticky;
+        bottom: 0;
+        z-index: 1055;
+        flex-shrink: 0;
+        background: #f8fafc;
+        border-top: 1px solid #e2e8f0;
+    }
+    .priest-select-highlight {
+        border: 2px solid #d97706 !important;
+        background-color: #fffdf5 !important;
+        font-weight: 600;
+        color: #78350f !important;
+        box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.14) !important;
+    }
+
     .pds-cert-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -475,8 +526,25 @@ include '../templates/header.php';
                                 <input type="date" class="form-control form-control-sm" name="override_baptism_date" id="override_baptism_date">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label small fw-bold">Officiating Priest <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control form-control-sm" name="override_priest" id="override_priest" placeholder="e.g. Rev. Fr. Heriberto C. Villas, O.M.I.">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label class="form-label small fw-bold mb-0">
+                                        Officiating Priest <span class="text-danger">*</span>
+                                    </label>
+                                    <span class="badge bg-warning text-dark py-0 px-1" style="font-size: 0.68rem; letter-spacing: 0.02em;">
+                                        <i class="fas fa-hand-pointer me-1"></i> Secretary Assigned
+                                    </span>
+                                </div>
+                                <select class="form-select form-select-sm priest-select-highlight" name="override_priest" id="override_priest" required>
+                                    <option value="">-- Select Officiating Priest --</option>
+                                    <?php foreach ($active_priests as $p): ?>
+                                        <option value="<?php echo e($p['name']); ?>" <?php echo (!empty($p['is_default'])) ? 'data-default="1"' : ''; ?>>
+                                            <?php echo e($p['name']); ?> (<?php echo e($p['title']); ?>)
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <div class="form-text text-muted small" style="font-size: 0.75rem;">
+                                    Assigned manually by secretary. Never carried over from parishioner requests.
+                                </div>
                             </div>
                         </div>
 
@@ -510,7 +578,8 @@ include '../templates/header.php';
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const modal = document.getElementById('generateModal');
+    const modalEl = document.getElementById('generateModal');
+    const bsModal = new bootstrap.Modal(modalEl);
     const select = document.getElementById('record_id');
     const certTypeInput = document.getElementById('cert_type');
     const baptismFields = document.getElementById('baptismFieldsContainer');
@@ -545,7 +614,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const newRow = createSponsorRow('', count);
             sponsorsList.appendChild(newRow);
             updateModalSponsorRemoveButtons();
-            newRow.querySelector('input').focus();
+            
+            // Auto-scroll newly added sponsor row into view
+            newRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            const inp = newRow.querySelector('input');
+            if (inp) inp.focus();
         });
     }
 
@@ -562,10 +635,10 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    modal.addEventListener('show.bs.modal', function(e) {
+    modalEl.addEventListener('show.bs.modal', function(e) {
         const button = e.relatedTarget;
-        const certType = button.getAttribute('data-cert-type');
-        const recordType = button.getAttribute('data-record-type') || certType;
+        const certType = button ? button.getAttribute('data-cert-type') : (certTypeInput.value || 'baptism');
+        const recordType = (button ? button.getAttribute('data-record-type') : '') || certType;
         certTypeInput.value = certType;
         
         const isBaptism = (certType === 'baptism' || certType === 'baptism_certification');
@@ -575,10 +648,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Reset inputs
         if (isBaptism) {
-            ['override_fullname', 'override_birth_place', 'override_birth_date', 'override_residence', 'override_father_name', 'override_father_birth_place', 'override_mother_name', 'override_mother_birth_place', 'override_baptism_date', 'override_priest'].forEach(id => {
+            ['override_fullname', 'override_birth_place', 'override_birth_date', 'override_residence', 'override_father_name', 'override_father_birth_place', 'override_mother_name', 'override_mother_birth_place', 'override_baptism_date'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.value = '';
             });
+            const priestSelect = document.getElementById('override_priest');
+            if (priestSelect) {
+                priestSelect.value = '';
+                const defOpt = priestSelect.querySelector('option[data-default="1"]');
+                if (defOpt) priestSelect.value = defOpt.value;
+            }
             sponsorsList.innerHTML = '';
         }
 
@@ -595,6 +674,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         option.textContent = record.name;
                         select.appendChild(option);
                     });
+
+                    // If auto-selected record exists
+                    if (modalEl.dataset.pendingRecordId) {
+                        select.value = modalEl.dataset.pendingRecordId;
+                        delete modalEl.dataset.pendingRecordId;
+                        select.dispatchEvent(new Event('change'));
+                    }
                 } else {
                     select.innerHTML = '<option value="">No records available</option>';
                 }
@@ -624,7 +710,35 @@ document.addEventListener('DOMContentLoaded', function() {
                     document.getElementById('override_mother_name').value = d.mother_name || '';
                     document.getElementById('override_mother_birth_place').value = d.mother_birth_place || '';
                     document.getElementById('override_baptism_date').value = d.baptism_date || '';
-                    document.getElementById('override_priest').value = d.priest || '';
+
+                    // Officiating Priest assignment:
+                    // If the sacramental record already has a priest on file, preselect it (or append if not in active roster)
+                    const priestSelect = document.getElementById('override_priest');
+                    if (priestSelect) {
+                        const recPriest = (d.priest || '').trim();
+                        if (recPriest) {
+                            let matchFound = false;
+                            for (let opt of priestSelect.options) {
+                                if (opt.value.toLowerCase().trim() === recPriest.toLowerCase().trim()) {
+                                    priestSelect.value = opt.value;
+                                    matchFound = true;
+                                    break;
+                                }
+                            }
+                            if (!matchFound) {
+                                const newOpt = document.createElement('option');
+                                newOpt.value = recPriest;
+                                newOpt.textContent = recPriest + ' (From Sacramental Record)';
+                                priestSelect.appendChild(newOpt);
+                                priestSelect.value = recPriest;
+                            }
+                        } else {
+                            const defOpt = priestSelect.querySelector('option[data-default="1"]');
+                            if (defOpt) {
+                                priestSelect.value = defOpt.value;
+                            }
+                        }
+                    }
 
                     sponsorsList.innerHTML = '';
                     const sps = (Array.isArray(d.sponsors) && d.sponsors.length >= 2) ? d.sponsors : ['', ''];
@@ -680,6 +794,16 @@ document.addEventListener('DOMContentLoaded', function() {
             return false;
         }
     });
+
+    // Auto-open modal if record_id and cert_type are passed via URL query
+    const urlParams = new URLSearchParams(window.location.search);
+    const qCertType = urlParams.get('cert_type');
+    const qRecordId = urlParams.get('record_id');
+    if (qCertType && qRecordId) {
+        certTypeInput.value = qCertType;
+        modalEl.dataset.pendingRecordId = qRecordId;
+        bsModal.show();
+    }
 });
 </script>
 

@@ -257,6 +257,50 @@ if ($res_stmt) {
     $res_stmt->close();
 }
 
+$baptism_meta = null;
+if ($is_certificate && (str_contains($raw_type, 'baptism') || str_contains($raw_type, 'bapt'))) {
+    if (preg_match('/<!--BAPTISM_RECORD_META:(.*?)-->/s', (string)($request['description'] ?? ''), $bm)) {
+        $baptism_meta = json_decode(trim($bm[1]), true);
+    }
+    
+    // If not matched or missing matched_baptism_id, attempt lookup by Name + Birthday + Date of Baptism
+    if (!$baptism_meta || empty($baptism_meta['matched_baptism_id'])) {
+        $check_name = trim((string)($request['record_holder_name'] ?? ''));
+        $bDate = $baptism_meta['birth_date'] ?? null;
+        $bapDate = $baptism_meta['baptism_date'] ?? null;
+        if (!$bDate && preg_match('/Birthday\s*[:\-]\s*(\d{4}-\d{2}-\d{2})/i', (string)($request['description'] ?? ''), $dm)) {
+            $bDate = $dm[1];
+        }
+        if (!$bapDate && preg_match('/Date of Baptism\s*[:\-]\s*(\d{4}-\d{2}-\d{2})/i', (string)($request['description'] ?? ''), $dm)) {
+            $bapDate = $dm[1];
+        }
+
+        if ($check_name !== '' && $bDate && $bapDate) {
+            $f_stmt = $conn->prepare("SELECT baptism_id, fullname, birth_date, baptism_date, book_no, page_no, entry_no, priest, godparents 
+                FROM baptism_records 
+                WHERE LOWER(TRIM(fullname)) = LOWER(TRIM(?)) 
+                  AND birth_date = ? 
+                  AND baptism_date = ? 
+                LIMIT 1");
+            if ($f_stmt) {
+                $f_stmt->bind_param('sss', $check_name, $bDate, $bapDate);
+                $f_stmt->execute();
+                $found_rec = $f_stmt->get_result()->fetch_assoc();
+                $f_stmt->close();
+                if ($found_rec) {
+                    if (!$baptism_meta) $baptism_meta = [];
+                    $baptism_meta['matched_baptism_id'] = (int)$found_rec['baptism_id'];
+                    $baptism_meta['book_no'] = $found_rec['book_no'];
+                    $baptism_meta['page_no'] = $found_rec['page_no'];
+                    $baptism_meta['entry_no'] = $found_rec['entry_no'];
+                    $baptism_meta['priest'] = $found_rec['priest'];
+                }
+            }
+        }
+    }
+}
+
+
 /**
  * Parses full raw submission description into structured sections.
  */
@@ -1132,6 +1176,67 @@ $breadcrumbs = [
                 <?php endif; ?>
             </div>
         </div>
+
+        <?php if ($is_certificate && (str_contains($raw_type, 'baptism') || str_contains($raw_type, 'bapt'))): ?>
+        <!-- Sacramental Registry Record Cross-Check Card -->
+        <div class="card mb-4 shadow-sm border-0 rounded-3 overflow-hidden" style="border-left: 5px solid #0284c7 !important;">
+            <div class="card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fas fa-water text-primary fs-5"></i>
+                    <h6 class="mb-0 fw-bold text-dark text-uppercase tracking-wider">
+                        Sacramental Registry Record Cross-Check
+                    </h6>
+                </div>
+                <?php if (!empty($baptism_meta['matched_baptism_id'])): ?>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1">
+                        <i class="fas fa-check-circle me-1"></i> Registry Record Matched
+                    </span>
+                <?php else: ?>
+                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2.5 py-1">
+                        <i class="fas fa-search me-1"></i> Manual Archive Lookup Required
+                    </span>
+                <?php endif; ?>
+            </div>
+            <div class="card-body p-4">
+                <?php if (!empty($baptism_meta['matched_baptism_id'])): ?>
+                    <div class="alert alert-success d-flex align-items-center justify-content-between flex-wrap gap-3 mb-0 p-3 rounded-3" style="background: #f0fdf4; border: 1px solid #bbf7d0;">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="text-success fs-3"><i class="fas fa-circle-check"></i></div>
+                            <div>
+                                <strong class="text-dark d-block" style="font-size: 1rem;">Matched Sacramental Record #<?php echo intval($baptism_meta['matched_baptism_id']); ?> on File</strong>
+                                <span class="text-secondary small">
+                                    Book: <strong><?php echo e($baptism_meta['book_no'] ?: 'N/A'); ?></strong> &bull; 
+                                    Page: <strong><?php echo e($baptism_meta['page_no'] ?: 'N/A'); ?></strong> &bull; 
+                                    Entry: <strong><?php echo e($baptism_meta['entry_no'] ?: 'N/A'); ?></strong>
+                                    <?php if (!empty($baptism_meta['priest'])): ?>
+                                        &bull; Recorded Priest: <em><?php echo e($baptism_meta['priest']); ?></em>
+                                    <?php endif; ?>
+                                </span>
+                            </div>
+                        </div>
+                        <a href="certificate-generator.php?cert_type=baptism&record_id=<?php echo intval($baptism_meta['matched_baptism_id']); ?>" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-2 px-3 py-2 fw-semibold" style="border-radius: 8px;">
+                            <i class="fas fa-file-signature"></i>
+                            <span>Generate Certificate</span>
+                        </a>
+                    </div>
+                <?php else: ?>
+                    <div class="alert alert-warning d-flex align-items-center justify-content-between flex-wrap gap-3 mb-0 p-3 rounded-3" style="background: #fffbeb; border: 1px solid #fef3c7;">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="text-warning fs-3"><i class="fas fa-triangle-exclamation"></i></div>
+                            <div>
+                                <strong class="text-dark d-block">No Exact Registry Match Found Automatically</strong>
+                                <span class="text-secondary small">The parishioner's submitted Name, Birthday, and Date of Baptism did not match an existing active entry. Search the parish archives or open Certificate Generator to select a record.</span>
+                            </div>
+                        </div>
+                        <a href="certificate-generator.php?cert_type=baptism" class="btn btn-sm btn-outline-warning text-dark d-inline-flex align-items-center gap-2 px-3 py-2 fw-semibold" style="border-radius: 8px;">
+                            <i class="fas fa-search"></i>
+                            <span>Search Records in Generator</span>
+                        </a>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php endif; ?>
 
         <!-- Release Certificate Card (For Certificate Requests) -->
         <div class="card mb-4 shadow-sm border-0 rounded-3">

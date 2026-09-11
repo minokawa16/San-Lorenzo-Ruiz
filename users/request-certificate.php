@@ -151,10 +151,51 @@ function certificateLabel($value, $labels = []) {
         $record_holder_name = trim((string) ($_SESSION['fullname'] ?? ''));
     }
 
+    $is_baptism = in_array($request_type, ['baptismal_certificate', 'baptism_certification', 'baptism'], true);
+
+    // Collect baptism sacramental fields
+    $birth_place = trim((string) ($_POST['birth_place'] ?? ''));
+    $birth_date = trim((string) ($_POST['birth_date'] ?? ''));
+    $residence = trim((string) ($_POST['residence'] ?? ''));
+    $father_name = trim((string) ($_POST['father_name'] ?? ''));
+    $father_birth_place = trim((string) ($_POST['father_birth_place'] ?? ''));
+    $mother_name = trim((string) ($_POST['mother_name'] ?? ''));
+    $mother_birth_place = trim((string) ($_POST['mother_birth_place'] ?? ''));
+    $baptism_date = trim((string) ($_POST['baptism_date'] ?? ''));
+
+    // Collect and sanitize sponsors
+    $raw_sponsors = $_POST['sponsors'] ?? [];
+    if (!is_array($raw_sponsors)) {
+        $raw_sponsors = preg_split('/[\r\n]+/', (string) $raw_sponsors);
+    }
+    $valid_sponsors = [];
+    foreach ($raw_sponsors as $sp) {
+        $sp = trim((string) $sp);
+        if ($sp !== '' && !in_array($sp, $valid_sponsors, true)) {
+            $valid_sponsors[] = $sp;
+        }
+    }
+
+    $baptism_missing = [];
+    if ($is_baptism) {
+        if ($record_holder_name === '') $baptism_missing[] = 'Full Name of Baptized Person';
+        if ($birth_place === '') $baptism_missing[] = 'Birthplace';
+        if ($birth_date === '') $baptism_missing[] = 'Birthday';
+        if ($residence === '') $baptism_missing[] = 'Residence / Address';
+        if ($father_name === '') $baptism_missing[] = "Father's Name";
+        if ($father_birth_place === '') $baptism_missing[] = "Father's Birthplace";
+        if ($mother_name === '') $baptism_missing[] = "Mother's Maiden Name";
+        if ($mother_birth_place === '') $baptism_missing[] = "Mother's Birthplace";
+        if ($baptism_date === '') $baptism_missing[] = 'Date of Baptism';
+        if (count($valid_sponsors) < 2) $baptism_missing[] = 'At least 2 Sponsors (Ninong-Ninang)';
+    }
+
     if (!array_key_exists($request_type, $certificate_types)) {
         $error = 'Please select a certificate type.';
     } elseif ($record_holder_name === '') {
         $error = 'Please provide the full legal name of the person named on the certificate.';
+    } elseif ($is_baptism && !empty($baptism_missing)) {
+        $error = 'Please complete all required fields for the baptismal record: ' . implode(', ', $baptism_missing) . '.';
     } elseif (!array_key_exists($purpose, $certificate_purposes)) {
         $error = 'Please select the purpose of your certificate request.';
     } elseif ($purpose === 'others' && $purpose_other === '') {
@@ -170,6 +211,62 @@ function certificateLabel($value, $labels = []) {
             'Required document: ' . $certificate_required_document,
             'Purpose: ' . $purpose_description
         ];
+
+        // If baptism, search/match against baptism_records registry by Name + Birthday + Date of Baptism
+        $matched_record = null;
+        if ($is_baptism) {
+            $match_stmt = $conn->prepare("SELECT baptism_id, fullname, birth_date, baptism_date, book_no, page_no, entry_no, priest, godparents 
+                FROM baptism_records 
+                WHERE LOWER(TRIM(fullname)) = LOWER(TRIM(?)) 
+                  AND birth_date = ? 
+                  AND baptism_date = ? 
+                LIMIT 1");
+            if ($match_stmt) {
+                $match_stmt->bind_param('sss', $record_holder_name, $birth_date, $baptism_date);
+                $match_stmt->execute();
+                $matched_record = $match_stmt->get_result()->fetch_assoc();
+                $match_stmt->close();
+            }
+
+            $description_parts[] = "\n--- SACRAMENTAL RECORD OF BAPTISM ---";
+            $description_parts[] = 'Full Name: ' . $record_holder_name;
+            $description_parts[] = 'Birthplace: ' . $birth_place;
+            $description_parts[] = 'Birthday: ' . $birth_date;
+            $description_parts[] = 'Residence: ' . $residence;
+            $description_parts[] = "Father's Name: " . $father_name;
+            $description_parts[] = "Father's Birthplace: " . $father_birth_place;
+            $description_parts[] = "Mother's Name: " . $mother_name;
+            $description_parts[] = "Mother's Birthplace: " . $mother_birth_place;
+            $description_parts[] = 'Date of Baptism: ' . $baptism_date;
+            $description_parts[] = 'Sponsors: ' . implode('; ', $valid_sponsors);
+
+            if ($matched_record) {
+                $bookRef = "Book " . ($matched_record['book_no'] ?: 'N/A') . ", Page " . ($matched_record['page_no'] ?: 'N/A') . ", Entry " . ($matched_record['entry_no'] ?: 'N/A');
+                $description_parts[] = "\n[MATCHED_SACRAMENTAL_RECORD: #" . intval($matched_record['baptism_id']) . " (" . $bookRef . ")]";
+            } else {
+                $description_parts[] = "\n[REGISTRY_MATCH: NO_EXACT_MATCH_ON_FILE]";
+            }
+
+            $meta_payload = [
+                'is_baptism' => true,
+                'fullname' => $record_holder_name,
+                'birth_place' => $birth_place,
+                'birth_date' => $birth_date,
+                'residence' => $residence,
+                'father_name' => $father_name,
+                'father_birth_place' => $father_birth_place,
+                'mother_name' => $mother_name,
+                'mother_birth_place' => $mother_birth_place,
+                'baptism_date' => $baptism_date,
+                'sponsors' => $valid_sponsors,
+                'matched_baptism_id' => $matched_record ? intval($matched_record['baptism_id']) : null,
+                'book_no' => $matched_record['book_no'] ?? null,
+                'page_no' => $matched_record['page_no'] ?? null,
+                'entry_no' => $matched_record['entry_no'] ?? null,
+            ];
+            $description_parts[] = '<!--BAPTISM_RECORD_META:' . json_encode($meta_payload) . '-->';
+        }
+
         $description = implode("\n", $description_parts);
         try {
             $idempotency_key = trim((string) ($_POST['idempotency_key'] ?? ''));
@@ -1861,6 +1958,80 @@ if ($stmt) {
                         <input type="text" class="form-control request-form-control" id="record_holder_name" name="record_holder_name" value="<?php echo e($_POST['record_holder_name'] ?? $_SESSION['fullname'] ?? ''); ?>" placeholder="Full legal name as it appears in parish sacramental records" required>
                         <div class="form-text text-muted"><i class="fas fa-info-circle"></i> If requesting your own certificate, keep your name. If requesting for your child, spouse, or relative, enter their full legal name.</div>
                     </div>
+
+                    <!-- Dedicated Baptism Sacramental Record Fields (maps 1:1 with official baptism record; priest omitted) -->
+                    <div id="baptismSacramentalFields" class="col-12 mt-3 pt-3 border-top" style="<?php echo (in_array(($_POST['request_type'] ?? ''), ['baptismal_certificate', 'baptism_certification', 'baptism'], true)) ? '' : 'display: none;'; ?>">
+                        <div class="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 mb-3 rounded-3" style="background: #eef7fc; border: 1px solid #b9e2fe;">
+                            <i class="fas fa-water text-primary fs-5"></i>
+                            <div>
+                                <strong class="text-dark">Canonical Sacramental Record Details (Baptism)</strong>
+                                <div class="text-secondary">Please enter the exact details as registered in church books. All 10 fields below and at least 2 sponsors are required for record verification.</div>
+                            </div>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="birth_place" class="form-label">Place of Birth (City / Municipality, Province) <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control request-form-control baptism-req-input" id="birth_place" name="birth_place" value="<?php echo e($_POST['birth_place'] ?? ''); ?>" placeholder="e.g. Quezon City, Metro Manila">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="birth_date" class="form-label">Date of Birth (Birthday) <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control request-form-control baptism-req-input" id="birth_date" name="birth_date" value="<?php echo e($_POST['birth_date'] ?? ''); ?>">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="residence" class="form-label">Current Residence / Address <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control request-form-control baptism-req-input" id="residence" name="residence" value="<?php echo e($_POST['residence'] ?? ''); ?>" placeholder="e.g. 123 Sampaguita St., Brgy. Common, QC">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="baptism_date" class="form-label">Date of Baptism <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control request-form-control baptism-req-input" id="baptism_date" name="baptism_date" value="<?php echo e($_POST['baptism_date'] ?? ''); ?>">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="father_name" class="form-label">Father's Full Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control request-form-control baptism-req-input" id="father_name" name="father_name" value="<?php echo e($_POST['father_name'] ?? ''); ?>" placeholder="Full legal name of father">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="father_birth_place" class="form-label">Father's Place of Birth <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control request-form-control baptism-req-input" id="father_birth_place" name="father_birth_place" value="<?php echo e($_POST['father_birth_place'] ?? ''); ?>" placeholder="e.g. Manila">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="mother_name" class="form-label">Mother's Maiden Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control request-form-control baptism-req-input" id="mother_name" name="mother_name" value="<?php echo e($_POST['mother_name'] ?? ''); ?>" placeholder="Complete maiden name before marriage">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="mother_birth_place" class="form-label">Mother's Place of Birth <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control request-form-control baptism-req-input" id="mother_birth_place" name="mother_birth_place" value="<?php echo e($_POST['mother_birth_place'] ?? ''); ?>" placeholder="e.g. Malolos, Bulacan">
+                            </div>
+                        </div>
+
+                        <!-- Dynamic Multi-Sponsors Container -->
+                        <div class="border rounded-3 p-3 bg-light mt-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                                <div>
+                                    <label class="form-label fw-bold mb-0">Sponsors / Ninong &amp; Ninang <span class="text-danger">*</span></label>
+                                    <small class="text-muted d-block" style="font-size: 0.8rem;">List each sponsor individually. At least 2 sponsors are required.</small>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="addParishionerSponsorBtn">
+                                    <i class="fas fa-plus me-1"></i> Add Sponsor
+                                </button>
+                            </div>
+                            <div id="parishionerSponsorsList">
+                                <?php 
+                                    $posted_sponsors = $_POST['sponsors'] ?? ['', ''];
+                                    if (!is_array($posted_sponsors) || count($posted_sponsors) < 2) {
+                                        $posted_sponsors = ['', ''];
+                                    }
+                                    foreach ($posted_sponsors as $idx => $spVal): 
+                                ?>
+                                    <div class="input-group input-group-sm mb-2 parishioner-sponsor-row">
+                                        <span class="input-group-text"><i class="fas fa-user-check text-secondary"></i> <span class="sponsor-num ms-1"><?php echo ($idx + 1); ?></span></span>
+                                        <input type="text" name="sponsors[]" class="form-control parishioner-sponsor-input" placeholder="Full name of sponsor (e.g. Maria Santos)" value="<?php echo e($spVal); ?>">
+                                        <button type="button" class="btn btn-outline-danger remove-parishioner-sponsor" title="Remove sponsor" <?php echo count($posted_sponsors) <= 2 ? 'disabled' : ''; ?>><i class="fas fa-trash"></i></button>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -1959,6 +2130,22 @@ if ($stmt) {
             updatePurposeField();
         }
 
+        function isBaptismType(type) {
+            return (type === 'baptismal_certificate' || type === 'baptism_certification' || type === 'baptism');
+        }
+
+        function toggleBaptismFields(type) {
+            const isBap = isBaptismType(type);
+            const container = document.getElementById('baptismSacramentalFields');
+            if (container) {
+                container.style.display = isBap ? 'block' : 'none';
+            }
+            const inputs = document.querySelectorAll('.baptism-req-input');
+            inputs.forEach(function(inp) {
+                inp.required = isBap;
+            });
+        }
+
         function setCertificateType(value) {
             if (!value) return;
             radios.forEach(function(radio) {
@@ -1970,6 +2157,57 @@ if ($stmt) {
             if (select && certificateLabels[value]) {
                 select.value = certificateLabels[value];
             }
+            toggleBaptismFields(value);
+        }
+
+        const sponsorsList = document.getElementById('parishionerSponsorsList');
+        const addSponsorBtn = document.getElementById('addParishionerSponsorBtn');
+
+        function updateParishionerSponsorButtons() {
+            if (!sponsorsList) return;
+            const rows = sponsorsList.querySelectorAll('.parishioner-sponsor-row');
+            rows.forEach(function(row, idx) {
+                const label = row.querySelector('.sponsor-num');
+                if (label) label.textContent = (idx + 1);
+                const btn = row.querySelector('.remove-parishioner-sponsor');
+                if (btn) btn.disabled = (rows.length <= 2);
+            });
+        }
+
+        function createParishionerSponsorRow(val, idx) {
+            const div = document.createElement('div');
+            div.className = 'input-group input-group-sm mb-2 parishioner-sponsor-row';
+            div.innerHTML = `
+                <span class="input-group-text"><i class="fas fa-user-check text-secondary"></i> <span class="sponsor-num ms-1">${idx + 1}</span></span>
+                <input type="text" name="sponsors[]" class="form-control parishioner-sponsor-input" placeholder="Full name of sponsor (e.g. Maria Santos)" value="${val || ''}">
+                <button type="button" class="btn btn-outline-danger remove-parishioner-sponsor" title="Remove sponsor"><i class="fas fa-trash"></i></button>
+            `;
+            return div;
+        }
+
+        if (addSponsorBtn && sponsorsList) {
+            addSponsorBtn.addEventListener('click', function() {
+                const count = sponsorsList.querySelectorAll('.parishioner-sponsor-row').length;
+                const newRow = createParishionerSponsorRow('', count);
+                sponsorsList.appendChild(newRow);
+                updateParishionerSponsorButtons();
+                const inp = newRow.querySelector('input');
+                if (inp) inp.focus();
+            });
+        }
+
+        if (sponsorsList) {
+            sponsorsList.addEventListener('click', function(e) {
+                const btn = e.target.closest('.remove-parishioner-sponsor');
+                if (btn && !btn.disabled) {
+                    const row = btn.closest('.parishioner-sponsor-row');
+                    if (row) {
+                        row.remove();
+                        updateParishionerSponsorButtons();
+                    }
+                }
+            });
+            updateParishionerSponsorButtons();
         }
 
         if (select) {
@@ -2000,6 +2238,12 @@ if ($stmt) {
                     setCertificateType(mobileSelect.value);
                 }
             });
+        }
+
+        // Initialize baptism toggle based on active selection
+        const initialType = (document.querySelector('input[name="request_type"]:checked') || {}).value || (mobileSelect ? mobileSelect.value : '');
+        if (initialType) {
+            toggleBaptismFields(initialType);
         }
 
         function renderFiles(files) {
@@ -2082,6 +2326,48 @@ if ($stmt) {
                     alert('Please provide the full legal name of the person named on the certificate.');
                     recordHolderInput.focus();
                     return false;
+                }
+
+                if (isBaptismType(selectedType)) {
+                    const bapFields = [
+                        { id: 'record_holder_name', label: 'Full Name of Baptized Person' },
+                        { id: 'birth_place', label: 'Place of Birth' },
+                        { id: 'birth_date', label: 'Date of Birth (Birthday)' },
+                        { id: 'residence', label: 'Current Residence / Address' },
+                        { id: 'baptism_date', label: 'Date of Baptism' },
+                        { id: 'father_name', label: "Father's Full Name" },
+                        { id: 'father_birth_place', label: "Father's Birthplace" },
+                        { id: 'mother_name', label: "Mother's Maiden Name" },
+                        { id: 'mother_birth_place', label: "Mother's Birthplace" },
+                    ];
+
+                    let missing = [];
+                    let firstMissingEl = null;
+                    bapFields.forEach(function(f) {
+                        const el = document.getElementById(f.id);
+                        if (!el || !el.value.trim()) {
+                            missing.push(f.label);
+                            if (!firstMissingEl && el) firstMissingEl = el;
+                        }
+                    });
+
+                    const spInputs = Array.from(sponsorsList ? sponsorsList.querySelectorAll('input[name="sponsors[]"]') : [])
+                        .map(i => i.value.trim())
+                        .filter(v => v.length > 0);
+
+                    if (spInputs.length < 2) {
+                        missing.push('At least 2 Sponsors / Ninong-Ninang');
+                        if (!firstMissingEl && sponsorsList) {
+                            firstMissingEl = sponsorsList.querySelector('input');
+                        }
+                    }
+
+                    if (missing.length > 0) {
+                        event.preventDefault();
+                        alert('Please complete all required fields for the baptismal record:\n\n• ' + missing.join('\n• '));
+                        if (firstMissingEl) firstMissingEl.focus();
+                        return false;
+                    }
                 }
 
                 if (mobileVal && (!checkedRadio || checkedRadio.value !== mobileVal)) {

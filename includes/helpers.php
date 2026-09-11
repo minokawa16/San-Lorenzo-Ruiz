@@ -3273,4 +3273,87 @@ function getCurrentUserId() {
     return isset($_SESSION['user_id']) ? intval($_SESSION['user_id']) : null;
 }
 
+/**
+ * Retrieves the active roster of parish priests for sacramental record assignment.
+ * Queries active clergy from org_members, and provides canonical defaults if not present.
+ *
+ * @param mysqli $conn
+ * @return array<int, array{name: string, title: string, is_default: bool}>
+ */
+function getActivePriestsRoster($conn): array {
+    $roster = [];
+    $seenNames = [];
+
+    // Query active members whose title_prefix or bio indicates clergy
+    if ($conn instanceof mysqli) {
+        $sql = "SELECT m.member_id, m.title_prefix, m.full_name, m.bio, p.title AS position_title
+                FROM org_members m
+                LEFT JOIN position_assignments pa ON pa.member_id = m.member_id AND pa.is_active = 1
+                LEFT JOIN org_positions p ON p.position_id = pa.position_id
+                WHERE m.status = 'active'
+                  AND (m.title_prefix LIKE '%Fr%' OR m.title_prefix LIKE '%Rev%' OR m.full_name LIKE '%Fr.%' OR m.bio LIKE '%Priest%' OR m.bio LIKE '%Vicar%')
+                ORDER BY CASE 
+                    WHEN p.title LIKE '%Parish Priest%' THEN 1
+                    WHEN p.title LIKE '%Vicar%' THEN 2
+                    ELSE 3
+                END, m.member_id ASC";
+        $res = @$conn->query($sql);
+        if ($res) {
+            while ($row = $res->fetch_assoc()) {
+                $prefix = trim((string)($row['title_prefix'] ?? ''));
+                $rawName = trim((string)($row['full_name'] ?? ''));
+                if ($rawName === '') continue;
+
+                if (stripos($rawName, 'Rev. Fr.') === 0 || stripos($rawName, 'Fr.') === 0) {
+                    $formattedName = $rawName;
+                } else {
+                    $prefixStr = $prefix !== '' ? $prefix : 'Rev. Fr.';
+                    $formattedName = $prefixStr . ' ' . $rawName;
+                }
+
+                $title = trim((string)($row['position_title'] ?? ''));
+                if ($title === '') {
+                    if (stripos((string)$row['bio'], 'Parish Priest') !== false) {
+                        $title = 'Parish Priest';
+                    } elseif (stripos((string)$row['bio'], 'Vicar') !== false) {
+                        $title = 'Parochial Vicar';
+                    } else {
+                        $title = 'Assisting Clergy';
+                    }
+                }
+
+                $cleanKey = strtolower(preg_replace('/[^a-z]/', '', $formattedName));
+                if (!isset($seenNames[$cleanKey])) {
+                    $seenNames[$cleanKey] = true;
+                    $roster[] = [
+                        'name' => $formattedName,
+                        'title' => $title,
+                        'is_default' => (stripos($title, 'Parish Priest') !== false)
+                    ];
+                }
+            }
+        }
+    }
+
+    // Canonical defaults ensuring active mission station priests are always available
+    $defaults = [
+        ['name' => 'Rev. Fr. Alberto G. Cahilig, O.M.I.', 'title' => 'Parish Priest', 'is_default' => true],
+        ['name' => 'Rev. Fr. Alvin Vicente C. Barretto, O.M.I.', 'title' => 'Parochial Vicar', 'is_default' => false],
+        ['name' => 'Rev. Fr. Mark Anthony Santos, O.M.I.', 'title' => 'Parochial Vicar', 'is_default' => false],
+        ['name' => 'Rev. Fr. Gabriel Reyes, O.M.I.', 'title' => 'Assisting Priest', 'is_default' => false],
+        ['name' => 'Rev. Fr. Heriberto C. Villas, O.M.I.', 'title' => 'Historical / Former Parish Priest', 'is_default' => false],
+    ];
+
+    foreach ($defaults as $def) {
+        $cleanKey = strtolower(preg_replace('/[^a-z]/', '', $def['name']));
+        if (!isset($seenNames[$cleanKey])) {
+            $seenNames[$cleanKey] = true;
+            $roster[] = $def;
+        }
+    }
+
+    return $roster;
+}
+
 ?>
+
