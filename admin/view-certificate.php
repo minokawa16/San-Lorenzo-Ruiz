@@ -729,44 +729,49 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
         /* Traditional Parish Baptism Record Layout Matching Reference Document */
         .trad-baptism-form {
             width: 100%;
-            max-width: 138mm;
-            margin: 3.5mm auto 2.5mm;
+            max-width: 124mm;
+            margin: 6mm auto 0;
             text-align: left;
             font-size: 9.5pt;
         }
         .trad-row {
             display: flex;
-            align-items: flex-end;
+            align-items: baseline;
             min-height: 7mm;
-            border-bottom: 1.1px solid #7c2d12;
-            margin-bottom: 1.1mm;
-            padding-bottom: 0.4mm;
+            border-bottom: 1px solid #852219;
+            margin-bottom: 4.2mm;
+            padding-bottom: 1.2px;
             width: 100%;
+            box-sizing: border-box;
         }
         .trad-row.indent {
-            padding-left: 8.5mm;
+            margin-left: 9mm;
+            width: calc(100% - 9mm);
+            padding-left: 0;
         }
         .trad-row.sponsor-extra {
-            padding-left: 23.5mm;
+            margin-left: 21mm;
+            width: calc(100% - 21mm);
+            padding-left: 0;
         }
         .trad-lbl {
             font-family: Georgia, 'Times New Roman', serif;
             font-style: italic;
             font-weight: 700;
-            color: #5c1d11;
+            color: #852219;
             white-space: nowrap;
             margin-right: 2.5mm;
-            font-size: 9.2pt;
-            line-height: 1;
+            font-size: 9.6pt;
+            line-height: 1.15;
         }
         .trad-val {
             flex: 1;
             font-family: "Courier New", Courier, monospace, serif;
-            font-size: 10.1pt;
+            font-size: 10.2pt;
             font-weight: 700;
             color: #111827;
             letter-spacing: 0.35px;
-            line-height: 1;
+            line-height: 1.15;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -925,7 +930,9 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
                 <?php echo $certificate_template_layer; ?>
                 <?php echo layoutImageTag($certificate_layout_settings, 'watermark', 'layout-watermark-image', 'Certificate watermark'); ?>
                 <div class="watermark-text"><?php echo e($layout_watermark_text); ?></div>
-                <div class="certificate-number"><?php echo e($issue['certificate_number']); ?></div>
+                <?php if ($cert_type !== 'baptism' && $issue['certificate_number'] !== 'PREVIEW - NOT ISSUED'): ?>
+                    <div class="certificate-number"><?php echo e($issue['certificate_number']); ?></div>
+                <?php endif; ?>
                 <div class="cert-content">
                     <header class="cert-header">
                         <div class="certificate-logo-slot">
@@ -1137,36 +1144,24 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
                             <?php endforeach; ?>
                         </div>
 
-                        <!-- Registry Information -->
-                        <div class="lower-grid" style="margin-top: 2.5mm;">
-                            <div class="registry-box">
-                                <div><strong>Book No.</strong><br><?php echo e($volume_no); ?></div>
-                                <div><strong>Page No.</strong><br><?php echo e($page_no); ?></div>
-                                <div><strong>Entry No.</strong><br><?php echo e($entry_no); ?></div>
-                                <div><strong>Baptism Date</strong><br><?php echo e($baptism_date_str); ?></div>
-                                <div><strong>Reference</strong><br><?php echo e($issue['certificate_number']); ?></div>
-                                <div><strong>Date Issued</strong><br><?php echo e(displayDate($issue['issued_at'] ?? date('Y-m-d'), 'm/d/Y')); ?></div>
-                            </div>
-                        </div>
-
-                        <div class="signature-grid<?php echo !$show_secretary_sign ? ' single-signature' : ''; ?>" style="margin-top: 3.5mm;">
-                            <div class="seal-area" style="width: 22mm; height: 16mm; margin: 0 auto;">
+                        <div class="signature-grid<?php echo !$show_secretary_sign ? ' single-signature' : ''; ?>" style="max-width: 124mm; margin: 10mm auto 0; padding: 0 1mm;">
+                            <div class="seal-area" style="width: 24mm; height: 24mm; border: 1px dashed #852219; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 7.5px; color: #852219; margin: 0 auto 0 2mm;">
                                 Official<br>Parish Seal
                             </div>
-                            <div class="signature">
-                                <div class="signature-line"><?php echo layoutImageTag($certificate_layout_settings, 'priest_signature', 'certificate-logo', 'Priest signature') . e($layout_priest_name); ?></div>
-                                <span><?php echo e($layout_priest_position); ?></span>
+                            <div class="signature" style="min-width: 58mm;">
+                                <div class="signature-line" style="border-bottom: 1px solid #852219;"><?php echo layoutImageTag($certificate_layout_settings, 'priest_signature', 'certificate-logo', 'Priest signature') . e($layout_priest_name); ?></div>
+                                <span style="font-size: 7.5pt; font-style: italic; color: #852219; font-family: Georgia, serif; font-weight: 600; margin-top: 1mm;"><?php echo e($layout_priest_position); ?></span>
                             </div>
                             <?php if ($show_secretary_sign): ?>
-                            <div class="signature">
-                                <div class="signature-line"><?php echo layoutImageTag($certificate_layout_settings, 'secretary_signature', 'certificate-logo', 'Secretary signature') . e($layout_secretary_name); ?></div>
-                                <span><?php echo e($layout_secretary_position); ?></span>
+                            <div class="signature" style="min-width: 58mm;">
+                                <div class="signature-line" style="border-bottom: 1px solid #852219;"><?php echo layoutImageTag($certificate_layout_settings, 'secretary_signature', 'certificate-logo', 'Secretary signature') . e($layout_secretary_name); ?></div>
+                                <span style="font-size: 7.5pt; font-style: italic; color: #852219; font-family: Georgia, serif; font-weight: 600; margin-top: 1mm;"><?php echo e($layout_secretary_position); ?></span>
                             </div>
                             <?php endif; ?>
                         </div>
                     <?php endif; ?>
                 </div>
-                <?php if (!$is_manual_certificate): ?>
+                <?php if (!$is_manual_certificate && $cert_type !== 'baptism'): ?>
                     <div class="verification-code">
                         <span>Verify: <?php echo e($verification_url); ?></span>
                         <span>Unauthorized alteration invalidates this certificate.</span>
