@@ -31,7 +31,6 @@ $is_primary_user_dashboard = $is_user_dashboard_page && (($_GET['view'] ?? '') !
     </div>
     <div class="brand-text">
       <div class="brand-title">TUGON</div>
-      <div class="brand-subtitle">San Lorenzo Ruiz Mission Station</div>
     </div>
     <button class="sidebar-toggle" id="sidebarToggle" type="button" data-user-sidebar-toggle aria-controls="userSidebar" aria-expanded="false" aria-label="Toggle navigation">
       <i class="fas fa-bars"></i>

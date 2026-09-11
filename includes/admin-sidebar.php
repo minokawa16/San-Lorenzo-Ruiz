@@ -148,7 +148,6 @@ html body .admin-sidebar.collapsed .nav-section-submenu {
     </div>
     <div class="brand-text">
       <div class="brand-title">TUGON</div>
-      <div class="brand-subtitle">San Lorenzo Ruiz Mission Station</div>
     </div>
     <button class="sidebar-toggle" id="adminSidebarToggle" type="button" data-admin-sidebar-toggle aria-controls="adminSidebar" aria-expanded="false" aria-label="Toggle navigation">
       <i class="fas fa-bars"></i>

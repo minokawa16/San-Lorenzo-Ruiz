@@ -159,6 +159,7 @@ html body .user-sidebar .sidebar-brand .brand-text {
     display: flex !important;
     flex: 1 1 auto !important;
     flex-direction: column !important;
+    justify-content: center !important;
     gap: 0px !important;
     min-width: 0 !important;
     transition: opacity 0.2s ease, visibility 0.2s ease !important;
@@ -168,10 +169,10 @@ html body .admin-sidebar .sidebar-brand .brand-title,
 html body .user-sidebar .sidebar-brand .brand-title {
     color: var(--admin-sidebar-text) !important;
     font-family: "Inter", "Segoe UI", Arial, sans-serif !important;
-    font-size: 0.85rem !important;
+    font-size: 1.15rem !important;
     font-weight: 800 !important;
-    line-height: 1.15 !important;
-    letter-spacing: 0.5px !important;
+    line-height: 1.2 !important;
+    letter-spacing: 1.2px !important;
     white-space: nowrap !important;
 }
 

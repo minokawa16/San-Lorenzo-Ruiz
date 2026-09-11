@@ -143,6 +143,7 @@ html body .user-sidebar .sidebar-brand .brand-text {
 display: flex !important;
 flex: 1 1 auto !important;
 flex-direction: column !important;
+justify-content: center !important;
 gap: 0px !important;
 min-width: 0 !important;
 transition: opacity 0.2s ease, visibility 0.2s ease !important;
@@ -151,10 +152,10 @@ html body .admin-sidebar .sidebar-brand .brand-title,
 html body .user-sidebar .sidebar-brand .brand-title {
 color: var(--admin-sidebar-text) !important;
 font-family: "Inter", "Segoe UI", Arial, sans-serif !important;
-font-size: 0.85rem !important;
+font-size: 1.15rem !important;
 font-weight: 800 !important;
-line-height: 1.15 !important;
-letter-spacing: 0.5px !important;
+line-height: 1.2 !important;
+letter-spacing: 1.2px !important;
 white-space: nowrap !important;
 }
 html body .admin-sidebar .sidebar-brand .brand-subtitle,
@@ -345,6 +346,91 @@ pointer-events: auto !important;
 html body .nav-collapsible.open .nav-toggle .toggle-icon {
 transform: rotate(-180deg) !important;
 color: var(--admin-sidebar-gold) !important;
+}
+html body .admin-sidebar .nav-accordion-section {
+display: flex !important;
+flex-direction: column !important;
+width: 100% !important;
+margin-bottom: 2px !important;
+}
+html body .admin-sidebar .nav-section-accordion-header {
+display: flex !important;
+align-items: center !important;
+justify-content: space-between !important;
+width: 100% !important;
+background: transparent !important;
+border: none !important;
+padding: 8px 10px 8px 8px !important;
+margin: 6px 0 2px 0 !important;
+color: rgba(216, 216, 216, 0.7) !important;
+font-family: "Inter", "Segoe UI", Arial, sans-serif !important;
+font-size: 0.63rem !important;
+font-weight: 700 !important;
+line-height: 1.2 !important;
+letter-spacing: 0.08em !important;
+text-transform: uppercase !important;
+text-align: left !important;
+cursor: pointer !important;
+border-radius: 6px !important;
+transition: color 0.18s ease, background 0.18s ease !important;
+user-select: none !important;
+box-sizing: border-box !important;
+}
+html body .admin-sidebar .nav-section-accordion-header:hover {
+color: var(--admin-sidebar-text, #ffffff) !important;
+background: rgba(255, 255, 255, 0.04) !important;
+}
+html body .admin-sidebar .nav-section-accordion-header:focus-visible {
+outline: 1px solid var(--admin-sidebar-gold, #c89b3c) !important;
+outline-offset: 1px !important;
+}
+html body .admin-sidebar .nav-section-title {
+flex-grow: 1 !important;
+white-space: nowrap !important;
+overflow: hidden !important;
+text-overflow: ellipsis !important;
+}
+html body .admin-sidebar .nav-accordion-arrow {
+font-size: 0.65rem !important;
+color: rgba(200, 155, 60, 0.7) !important;
+transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s ease !important;
+flex-shrink: 0 !important;
+margin-left: 8px !important;
+}
+html body .admin-sidebar .nav-section-accordion-header:hover .nav-accordion-arrow {
+color: var(--admin-sidebar-gold, #c89b3c) !important;
+}
+html body .admin-sidebar .nav-accordion-section.open > .nav-section-accordion-header .nav-accordion-arrow,
+html body .admin-sidebar .nav-section-accordion-header[aria-expanded="true"] .nav-accordion-arrow {
+transform: rotate(-180deg) !important;
+color: var(--admin-sidebar-gold, #c89b3c) !important;
+}
+html body .admin-sidebar .nav-section-submenu {
+display: flex !important;
+flex-direction: column !important;
+gap: 2px !important;
+max-height: 0 !important;
+overflow: hidden !important;
+opacity: 0 !important;
+transition: max-height 0.28s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.22s ease-in-out !important;
+pointer-events: none !important;
+}
+html body .admin-sidebar .nav-accordion-section.open > .nav-section-submenu,
+html body .admin-sidebar .nav-section-accordion-header[aria-expanded="true"] + .nav-section-submenu {
+max-height: 450px !important;
+opacity: 1 !important;
+pointer-events: auto !important;
+padding-top: 2px !important;
+padding-bottom: 4px !important;
+}
+html body .admin-sidebar.collapsed .nav-section-accordion-header {
+display: none !important;
+}
+html body .admin-sidebar.collapsed .nav-section-submenu {
+max-height: none !important;
+opacity: 1 !important;
+overflow: visible !important;
+pointer-events: auto !important;
 }
 html body .nav-submenu .sublink {
 padding-left: 28px !important;
@@ -3465,8 +3551,8 @@ border: 1px solid rgba(255, 255, 255, 0.18);
 }
 @keyframes authFadeUp {
 from {
-opacity: 0;
-transform: translateY(22px) scale(0.98);
+opacity: 1;
+transform: translateY(12px) scale(0.99);
 }
 to {
 opacity: 1;
