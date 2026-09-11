@@ -798,17 +798,6 @@ $breadcrumbs = [
                         <span id="toggleText">View Submitted Application Form</span>
                         <i class="fas fa-chevron-down ms-1 small" id="toggleChevron"></i>
                     </button>
-
-                    <div class="d-flex align-items-center gap-2">
-                        <?php if (!empty($request['phone_number'])): ?>
-                            <a href="tel:<?php echo e($request['phone_number']); ?>" class="btn btn-sm btn-light border text-secondary" title="Call Parishioner">
-                                <i class="fas fa-phone me-1 text-primary"></i> Call
-                            </a>
-                        <?php endif; ?>
-                        <a href="mailto:<?php echo e($request['email']); ?>?subject=Parish%20Request%20<?php echo e($request['reference_number']); ?>" class="btn btn-sm btn-light border text-secondary" title="Email Parishioner">
-                            <i class="fas fa-envelope me-1 text-primary"></i> Email
-                        </a>
-                    </div>
                 </div>
             </div>
         </div>
@@ -1055,59 +1044,9 @@ $breadcrumbs = [
         </div>
 
         <!-- ========================================================= -->
-        <!-- SUPPORTING REQUIREMENTS, RECEIPTS & RELEASES (Preserved)  -->
+        <!-- RECEIPTS & RELEASES                                       -->
         <!-- ========================================================= -->
         
-        <!-- Parishioner Requirements List -->
-        <?php if (!empty($documents_by_type['requirement'])): ?>
-        <div class="card mb-4 shadow-sm border-0 rounded-3">
-            <div class="card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between align-items-center">
-                <h6 class="mb-0 fw-bold text-dark">
-                    <i class="fas fa-folder-open text-primary me-2"></i> Parishioner Uploaded Requirements
-                </h6>
-                <span class="badge bg-secondary-subtle text-secondary border">
-                    <?php echo count($documents_by_type['requirement']); ?> Document(s) Attached
-                </span>
-            </div>
-            <div class="card-body p-4">
-                <div class="list-group requirement-review-list">
-                    <?php foreach ($documents_by_type['requirement'] as $document): ?>
-                        <?php $requirement_label = trim((string) ($document['requirement_name'] ?? '')); ?>
-                        <div class="list-group-item d-flex flex-wrap justify-content-between align-items-center gap-3 border rounded-3 mb-2 p-3">
-                            <div class="min-w-0">
-                                <strong class="d-block text-dark"><?php echo e($requirement_label !== '' ? $requirement_label : $document['original_name']); ?></strong>
-                                <div class="text-muted small mt-1">
-                                    <i class="fas fa-file me-1"></i> <?php echo e($document['original_name']); ?>
-                                    <span class="mx-1">&bull;</span>
-                                    <?php echo e(formatFileSize($document['file_size'])); ?>
-                                    <span class="mx-1">&bull;</span>
-                                    Uploaded <?php echo formatDate($document['uploaded_at']); ?>
-                                </div>
-                            </div>
-                            <div class="d-flex align-items-center gap-2">
-                                <button type="button" 
-                                        class="btn btn-sm btn-outline-primary px-3 fw-semibold btn-preview-doc"
-                                        data-doc-id="<?php echo intval($document['document_id']); ?>"
-                                        data-doc-name="<?php echo e($requirement_label !== '' ? $requirement_label : $document['original_name']); ?>"
-                                        data-doc-file="<?php echo e($document['original_name']); ?>"
-                                        data-doc-size="<?php echo e(formatFileSize($document['file_size'])); ?>"
-                                        data-doc-mime="<?php echo e($document['mime_type'] ?? ''); ?>">
-                                    <i class="fas fa-eye me-1"></i> View File
-                                </button>
-                                <a href="../request-document.php?id=<?php echo intval($document['document_id']); ?>&download=1" 
-                                   class="btn btn-sm btn-outline-secondary px-2.5 py-1.5" 
-                                   title="Download File" 
-                                   download>
-                                    <i class="fas fa-download"></i>
-                                </a>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-        </div>
-        <?php endif; ?>
-
         <!-- Payment Receipts (For Certificate Requests) -->
         <?php if ($is_certificate): ?>
         <div class="card mb-4 shadow-sm border-0 rounded-3">
