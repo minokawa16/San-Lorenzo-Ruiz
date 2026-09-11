@@ -51,13 +51,18 @@ if ($csrf_error !== '') {
     $error = $csrf_error;
 }
 
-if (isset($_GET['session']) && $_GET['session'] === 'expired') {
-    $error = 'Your session has expired. Please log in again to continue.';
-    queueActionNotification('Session expired. Please log in again.', 'warning');
-}
-if (isset($_GET['error']) && $_GET['error'] === 'forbidden') {
-    $error = 'Access denied. Please sign in with an authorized parish account.';
-    queueActionNotification('Access denied. Please log in with an authorized account.', 'error');
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    if (isset($_GET['session']) && $_GET['session'] === 'expired') {
+        $error = 'Your session has expired. Please log in again to continue.';
+        queueActionNotification('Session expired. Please log in again.', 'warning');
+    }
+    if (isset($_GET['error']) && $_GET['error'] === 'forbidden') {
+        $error = 'Access denied. Please sign in with an authorized parish account.';
+        queueActionNotification('Access denied. Please log in with an authorized account.', 'error');
+    }
+    if (isset($_GET['notice']) && $_GET['notice'] === 'login_required') {
+        $status_notice = 'Please sign in to access your parish account.';
+    }
 }
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
@@ -1397,34 +1402,34 @@ $action_notifications = function_exists('consumeActionNotifications') ? consumeA
             </div>
 
             <?php if ($error): ?>
-                <div class="alert alert-danger alert-dismissible fade show auth-message" role="alert">
+                <div class="alert alert-danger alert-dismissible fade show auth-message" data-no-toast="true" role="alert">
                     <i class="fas fa-exclamation-circle"></i> <?php echo e($error); ?>
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             <?php endif; ?>
 
             <?php if ($notice): ?>
-                <div class="alert alert-success alert-dismissible fade show auth-message" role="alert">
+                <div class="alert alert-success alert-dismissible fade show auth-message" data-no-toast="true" role="alert">
                     <i class="fas fa-check-circle"></i> <?php echo e($notice); ?>
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             <?php endif; ?>
 
             <?php if ($status_error): ?>
-                <div class="alert alert-danger alert-dismissible fade show auth-message" role="alert">
+                <div class="alert alert-danger alert-dismissible fade show auth-message" data-no-toast="true" role="alert">
                     <i class="fas fa-circle-exclamation"></i> <?php echo e($status_error); ?>
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             <?php endif; ?>
 
             <?php if ($status_notice): ?>
-                <div class="alert alert-info alert-dismissible fade show auth-message" role="status">
+                <div class="alert alert-info alert-dismissible fade show auth-message" data-no-toast="true" role="status">
                     <i class="fas fa-circle-info"></i> <?php echo e($status_notice); ?>
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             <?php endif; ?>
 
-            <form method="POST" action="" class="auth-form">
+            <form method="POST" action="login.php" class="auth-form">
                 <?php echo csrfInput(); ?>
                 <input type="hidden" name="form_action" value="login">
                 <div class="auth-field">

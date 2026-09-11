@@ -1,5 +1,6 @@
 <?php
 
+require_once dirname(__DIR__) . '/config/app.php';
 require_once __DIR__ . '/validation.php';
 require_once __DIR__ . '/permissions.php';
 
@@ -360,7 +361,11 @@ function denyAuthentication(string $message = 'Authentication is required.', int
         echo json_encode(['success' => false, 'error' => $message]);
         exit;
     }
-    header('Location: ' . BASE_URL . 'auth/login.php?error=forbidden', true, 302);
+    if ($status === 403) {
+        header('Location: ' . BASE_URL . 'auth/login.php?error=forbidden', true, 302);
+    } else {
+        header('Location: ' . BASE_URL . 'auth/login.php', true, 302);
+    }
     exit;
 }
 
@@ -406,9 +411,17 @@ function requirePermission($permission, $redirect = null): void {
         if (authenticationRequestIsJson()) {
             denyAuthentication('You are not authorized to perform this action.', 403);
         }
+        if ($redirect) {
+            header('Location: ' . $redirect, true, 302);
+            exit;
+        }
+        if (isLoggedIn()) {
+            queueActionNotification('Access denied. You do not have permission to access that area.', 'error');
+            header('Location: ' . getUserDashboardURL(), true, 302);
+            exit;
+        }
         http_response_code(403);
-        echo 'Access denied.';
-        exit;
+        denyAuthentication('You are not authorized to perform this action.', 403);
     }
 }
 

@@ -42,6 +42,9 @@ function userRoleKeys($userId = null, $connection = null) {
     $connection = $connection instanceof mysqli ? $connection : permissionConnection();
     $userId = (int) ($userId ?? ($_SESSION['user_id'] ?? 0));
     if (!$connection || $userId <= 0) {
+        if (!empty($_SESSION['role_keys']) && is_array($_SESSION['role_keys'])) {
+            return $_SESSION['role_keys'];
+        }
         if (!empty($_SESSION['role'])) {
             return [databaseRoleKey($_SESSION['role'])];
         }
