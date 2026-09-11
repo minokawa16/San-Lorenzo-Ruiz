@@ -744,15 +744,11 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             width: 100%;
             box-sizing: border-box;
         }
-        .trad-row.indent {
-            margin-left: 9mm;
-            width: calc(100% - 9mm);
-            padding-left: 0;
+        .trad-row.indent .trad-lbl {
+            margin-left: 8.5mm;
         }
-        .trad-row.sponsor-extra {
+        .trad-row.sponsor-extra .trad-val {
             margin-left: 21mm;
-            width: calc(100% - 21mm);
-            padding-left: 0;
         }
         .trad-lbl {
             font-family: Georgia, 'Times New Roman', serif;
