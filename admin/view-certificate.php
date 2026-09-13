@@ -413,21 +413,21 @@ $page_title = $layout_certificate_title;
     <style>
         :root {
             --ink: #151515;
-            --cert-width: 152.4mm;
-            --cert-height: 228.6mm;
+            --cert-width: 6.5in; /* 165.1mm - Half of Long Bond Paper (8.5in x 13in cut in half) */
+            --cert-height: 8.5in; /* 215.9mm */
             --line: #bfa15f;
             --accent-line: #bfa15f;
         }
         *, *::before, *::after { box-sizing: border-box; }
         body { background: #eef1f5; color: var(--ink); margin: 0; padding: 0; }
-        .cert-toolbar { max-width: 820px; margin: 18px auto; display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+        .cert-toolbar { max-width: var(--cert-width); margin: 18px auto; display: flex; justify-content: space-between; gap: 12px; align-items: center; }
         
         .certificate-page {
             width: var(--cert-width);
             height: var(--cert-height);
             margin: 0 auto 24px;
             background: #ffffff;
-            padding: 4mm;
+            padding: 3.5mm;
             box-shadow: 0 18px 42px rgba(15, 23, 42, .18);
             overflow: hidden;
             box-sizing: border-box;
@@ -569,24 +569,24 @@ $page_title = $layout_certificate_title;
         /* Flowing Certification Paragraph */
         .simple-cert-intro {
             font-family: Georgia, 'Times New Roman', serif;
-            font-size: 9pt;
+            font-size: 8.8pt;
             font-weight: 700;
             color: #852219;
             letter-spacing: 2px;
             text-transform: uppercase;
             text-align: center;
-            margin: 8mm auto 6mm;
+            margin: 5mm auto 4.5mm;
         }
 
         .simple-cert-name {
             font-family: 'EB Garamond', Georgia, 'Times New Roman', serif;
-            font-size: 18pt;
+            font-size: 17pt;
             font-weight: 700;
             font-style: italic;
             color: #1e3a8a;
             text-align: center;
-            margin-bottom: 7mm;
-            line-height: 1.3;
+            margin-bottom: 5.5mm;
+            line-height: 1.25;
         }
         .simple-cert-name.underline {
             text-decoration: underline;
@@ -595,17 +595,17 @@ $page_title = $layout_certificate_title;
 
         .simple-cert-body {
             font-family: Georgia, 'Times New Roman', serif;
-            font-size: 11pt;
-            line-height: 2.3;
+            font-size: 10.8pt;
+            line-height: 2.15;
             color: #222222;
             text-align: center;
-            max-width: 130mm;
+            max-width: 138mm;
             margin: 0 auto;
         }
 
         .simple-cert-fill {
             font-family: 'EB Garamond', Georgia, 'Times New Roman', serif;
-            font-size: 12.5pt;
+            font-size: 12.2pt;
             font-weight: 700;
             font-style: italic;
             color: #1e3a8a;
@@ -618,17 +618,17 @@ $page_title = $layout_certificate_title;
         /* Footer: Seal bottom-left and Priest Signature bottom-right */
         .simple-cert-footer {
             position: absolute;
-            bottom: 14mm;
-            left: 14mm;
-            right: 14mm;
+            bottom: 10mm;
+            left: 12mm;
+            right: 12mm;
             display: flex;
             justify-content: space-between;
             align-items: flex-end;
         }
 
         .simple-cert-seal {
-            width: 26mm;
-            height: 26mm;
+            width: 24mm;
+            height: 24mm;
             border: 1.2px dashed #8c733e;
             border-radius: 50%;
             display: flex;
@@ -636,14 +636,14 @@ $page_title = $layout_certificate_title;
             justify-content: center;
             text-align: center;
             font-family: Georgia, 'Times New Roman', serif;
-            font-size: 7pt;
+            font-size: 6.8pt;
             color: #8c733e;
             line-height: 1.2;
-            padding: 2mm;
+            padding: 1.5mm;
         }
 
         .simple-cert-sign {
-            min-width: 68mm;
+            min-width: 65mm;
             text-align: center;
         }
 
@@ -672,7 +672,7 @@ $page_title = $layout_certificate_title;
         }
 
         @page {
-            size: 6in 9in;
+            size: 6.5in 8.5in;
             margin: 0;
         }
 

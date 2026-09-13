@@ -109,7 +109,7 @@ $simple_text_fields = [
     .editor-panel .panel-head { padding: 14px 16px; border-bottom: 1px solid rgba(15,23,42,.1); font-weight: 800; }
     .editor-panel .panel-body { padding: 16px; }
     .editor-preview-wrap { overflow: auto; padding: 18px; background: #e8edf3; border-radius: 8px; }
-    .editor-canvas { width: 152.4mm; height: 228.6mm; position: relative; margin: 0 auto; background: #fff; box-shadow: 0 18px 44px rgba(15,23,42,.22); overflow: hidden; font-family: "Times New Roman", serif; color: #151515; }
+    .editor-canvas { width: 6.5in; height: 8.5in; position: relative; margin: 0 auto; background: #fff; box-shadow: 0 18px 44px rgba(15,23,42,.22); overflow: hidden; font-family: "Times New Roman", serif; color: #151515; }
     .editor-border { position: absolute; inset: 4mm; border: 2px double #111; pointer-events: none; }
     .editor-corner { position: absolute; width: 18mm; height: 18mm; border-color: #111; border-style: solid; pointer-events: none; }
     .editor-corner.tl { left: 8mm; top: 8mm; border-width: 1px 0 0 1px; }
