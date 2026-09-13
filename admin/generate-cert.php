@@ -44,6 +44,7 @@ switch($cert_type) {
     case 'marriage_certification':
         $sql = "SELECT * FROM marriage_records WHERE marriage_id = $record_id AND status = 'active'";
         break;
+    case 'funeral':
     case 'funeral_certification':
         $sql = "SELECT * FROM funeral_records WHERE funeral_id = $record_id AND status = 'active'";
         break;

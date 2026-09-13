@@ -20,6 +20,28 @@ if ($id <= 0 || empty($type)) {
 }
 
 try {
+    $parseParents = function($r) {
+        $f = trim((string)($r['father_name'] ?? ''));
+        $m = trim((string)($r['mother_name'] ?? ''));
+        if (empty($f) || empty($m)) {
+            $pStr = trim((string)($r['parents'] ?? ''));
+            if (preg_match('/father\s*[:\-]\s*(.+?)(?:\s*(?:mother|and)\s*[:\-]\s*|\s+\/\s+)(.+)$/i', $pStr, $pm)) {
+                if (empty($f)) $f = trim($pm[1]);
+                if (empty($m)) $m = trim($pm[2]);
+            } else {
+                $parts = preg_split('/\s+(?:and|&)\s+|\s*\/\s*|\s*,\s*/i', $pStr);
+                $parts = array_values(array_filter(array_map('trim', $parts)));
+                if (count($parts) >= 2) {
+                    if (empty($f)) $f = $parts[0];
+                    if (empty($m)) $m = $parts[1];
+                } elseif (count($parts) === 1 && empty($f)) {
+                    $f = $parts[0];
+                }
+            }
+        }
+        return [$f, $m];
+    };
+
     if ($type === 'baptism' || $type === 'baptism_certification') {
         $stmt = $conn->prepare("SELECT * FROM baptism_records WHERE baptism_id = ? AND status = 'active' LIMIT 1");
         if ($stmt) {
@@ -28,28 +50,9 @@ try {
             $row = $stmt->get_result()->fetch_assoc();
             $stmt->close();
             if ($row) {
-                // Parse parents if separate columns are empty
-                $fatherName = trim((string)($row['father_name'] ?? ''));
-                $motherName = trim((string)($row['mother_name'] ?? ''));
+                list($fatherName, $motherName) = $parseParents($row);
                 $fatherBirthplace = trim((string)($row['father_birth_place'] ?? ''));
                 $motherBirthplace = trim((string)($row['mother_birth_place'] ?? ''));
-
-                if (empty($fatherName) || empty($motherName)) {
-                    $parents = trim((string)($row['parents'] ?? ''));
-                    if (preg_match('/father\s*[:\-]\s*(.+?)(?:\s*(?:mother|and)\s*[:\-]\s*|\s+\/\s+)(.+)$/i', $parents, $m)) {
-                        if (empty($fatherName)) $fatherName = trim($m[1]);
-                        if (empty($motherName)) $motherName = trim($m[2]);
-                    } else {
-                        $parts = preg_split('/\s+(?:and|&)\s+|\s*\/\s*|\s*,\s*/i', $parents);
-                        $parts = array_values(array_filter(array_map('trim', $parts)));
-                        if (count($parts) >= 2) {
-                            if (empty($fatherName)) $fatherName = $parts[0];
-                            if (empty($motherName)) $motherName = $parts[1];
-                        } elseif (count($parts) === 1 && empty($fatherName)) {
-                            $fatherName = $parts[0];
-                        }
-                    }
-                }
 
                 if (empty($fatherBirthplace) && !empty($row['remarks'])) {
                     if (preg_match('/father(?:\'s)?\s*birthplace\s*[:\-]\s*([^\|\n\r;]+)/i', $row['remarks'], $m)) {
@@ -117,7 +120,7 @@ try {
             $row = $stmt->get_result()->fetch_assoc();
             $stmt->close();
             if ($row) {
-                // Fetch signers from roster if not stored
+                list($fatherName, $motherName) = $parseParents($row);
                 $signers = getFirstCommunionSigners($conn, $row);
                 $response['success'] = true;
                 $response['data'] = [
@@ -126,6 +129,8 @@ try {
                     'communion_date'        => $row['communion_date'] ?? '',
                     'domicile'              => $row['domicile'] ?? '',
                     'parents'               => $row['parents'] ?? '',
+                    'father_name'           => $fatherName,
+                    'mother_name'           => $motherName,
                     'priest'                => $row['priest'] ?? ($row['parish_priest'] ?? ''),
                     'catechist_coordinator' => $row['catechist_coordinator'] ?? $signers['catechist_coordinator'],
                     'principal'             => $row['principal'] ?? $signers['principal'],
@@ -145,6 +150,7 @@ try {
             $row = $stmt->get_result()->fetch_assoc();
             $stmt->close();
             if ($row) {
+                list($fatherName, $motherName) = $parseParents($row);
                 $response['success'] = true;
                 $response['data'] = [
                     'id'                => (int)$row['confirmation_id'],
@@ -152,6 +158,8 @@ try {
                     'confirmation_name' => $row['confirmation_name'] ?? '',
                     'confirmation_date' => $row['confirmation_date'] ?? '',
                     'parents'           => $row['parents'] ?? '',
+                    'father_name'       => $fatherName,
+                    'mother_name'       => $motherName,
                     'sponsor'           => $row['sponsor'] ?? '',
                     'bishop_priest'     => $row['bishop_priest'] ?? ($row['parish_priest'] ?? ''),
                     'book_no'           => $row['book_no'] ?? '',
@@ -196,10 +204,14 @@ try {
             $row = $stmt->get_result()->fetch_assoc();
             $stmt->close();
             if ($row) {
+                list($fatherName, $motherName) = $parseParents($row);
                 $response['success'] = true;
                 $response['data'] = [
                     'id'             => (int)$row['funeral_id'],
                     'deceased_name'  => $row['deceased_name'] ?? '',
+                    'father_name'    => $fatherName,
+                    'mother_name'    => $motherName,
+                    'parents'        => $row['parents'] ?? '',
                     'date_of_burial' => $row['date_of_burial'] ?? '',
                     'place_of_burial'=> $row['place_of_burial'] ?? '',
                     'minister'       => $row['minister'] ?? '',
