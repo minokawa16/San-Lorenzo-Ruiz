@@ -137,53 +137,132 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $stmt->close();
         }
     } elseif ($cert_type == 'communion' || $cert_type == 'first_communion_certification') {
-        $sql = "SELECT * FROM first_communion_records WHERE communion_id = $record_id";
-        $result = $conn->query($sql);
-        
-        if ($result->num_rows > 0) {
-            $record = $result->fetch_assoc();
-            unset($_SESSION['manual_certificate']);
-            $_SESSION['certificate_data'] = $record;
-            $_SESSION['cert_type'] = $cert_type;
-            header('Location: view-certificate.php');
-            exit;
-        }
-    } elseif ($cert_type == 'confirmation' || $cert_type == 'confirmation_certification') {
-        $sql = "SELECT * FROM confirmation_records WHERE confirmation_id = $record_id";
-        $result = $conn->query($sql);
-        
-        if ($result->num_rows > 0) {
-            $record = $result->fetch_assoc();
-            unset($_SESSION['manual_certificate']);
-            $_SESSION['certificate_data'] = $record;
-            $_SESSION['cert_type'] = $cert_type;
-            header('Location: view-certificate.php');
-            exit;
-        }
-    } elseif ($cert_type == 'marriage' || $cert_type == 'marriage_certification') {
-        $sql = "SELECT * FROM marriage_records WHERE marriage_id = $record_id";
-        $result = $conn->query($sql);
-
-        if ($result->num_rows > 0) {
-            $record = $result->fetch_assoc();
-            unset($_SESSION['manual_certificate']);
-            $_SESSION['certificate_data'] = $record;
-            $_SESSION['cert_type'] = $cert_type;
-            header('Location: view-certificate.php');
-            exit;
-        }
-    } elseif ($cert_type == 'funeral_certification') {
-        $sql = "SELECT * FROM funeral_records WHERE funeral_id = $record_id";
-        $result = $conn->query($sql);
-
+        $stmt = $conn->prepare("SELECT * FROM first_communion_records WHERE communion_id = ? AND status='active'");
+        if ($stmt) { $stmt->bind_param('i', $record_id); $stmt->execute(); $result = $stmt->get_result(); $stmt->close(); }
         if ($result && $result->num_rows > 0) {
             $record = $result->fetch_assoc();
-            unset($_SESSION['manual_certificate']);
-            $_SESSION['certificate_data'] = $record;
-            $_SESSION['cert_type'] = $cert_type;
-            header('Location: view-certificate.php');
-            exit;
-        }
+            // Apply overrides from form
+            $ov_fullname      = trim($_POST['override_fullname'] ?? '');
+            $ov_comm_date     = trim($_POST['override_communion_date'] ?? '');
+            $ov_domicile      = trim($_POST['override_domicile'] ?? '');
+            $ov_parents       = trim($_POST['override_parents'] ?? '');
+            $ov_priest        = trim($_POST['override_priest'] ?? '');
+            $ov_catechist     = trim($_POST['override_catechist_coordinator'] ?? '');
+            $ov_principal     = trim($_POST['override_principal'] ?? '');
+            if ($ov_fullname)  $record['fullname']              = $ov_fullname;
+            if ($ov_comm_date) $record['communion_date']        = $ov_comm_date;
+            if ($ov_domicile)  $record['domicile']              = $ov_domicile;
+            if ($ov_parents)   $record['parents']               = $ov_parents;
+            if ($ov_priest)    $record['priest'] = $record['parish_priest'] = $ov_priest;
+            if ($ov_catechist) $record['catechist_coordinator'] = $ov_catechist;
+            if ($ov_principal) $record['principal']             = $ov_principal;
+            $missing = [];
+            if (empty($record['fullname']))      $missing[] = "Recipient's Full Name";
+            if (empty($record['communion_date'])) $missing[] = 'Date of First Communion';
+            if (!empty($missing)) {
+                $error = 'Cannot generate certificate. Required fields are missing: ' . implode(', ', $missing) . '. Please complete the form below.';
+            } else {
+                $signers = getFirstCommunionSigners($conn, $record);
+                if (empty($record['catechist_coordinator'])) $record['catechist_coordinator'] = $signers['catechist_coordinator'];
+                if (empty($record['parish_priest']))          $record['parish_priest']          = $signers['parish_priest'];
+                if (empty($record['principal']))              $record['principal']              = $signers['principal'];
+                unset($_SESSION['manual_certificate']);
+                $_SESSION['certificate_data'] = $record;
+                $_SESSION['cert_type'] = $cert_type;
+                header('Location: view-certificate.php');
+                exit;
+            }
+        } else { $error = 'Communion record not found or inactive.'; }
+    } elseif ($cert_type == 'confirmation' || $cert_type == 'confirmation_certification') {
+        $stmt = $conn->prepare("SELECT * FROM confirmation_records WHERE confirmation_id = ? AND status='active'");
+        if ($stmt) { $stmt->bind_param('i', $record_id); $stmt->execute(); $result = $stmt->get_result(); $stmt->close(); }
+        if ($result && $result->num_rows > 0) {
+            $record = $result->fetch_assoc();
+            $ov_fullname     = trim($_POST['override_fullname'] ?? '');
+            $ov_conf_name    = trim($_POST['override_confirmation_name'] ?? '');
+            $ov_conf_date    = trim($_POST['override_confirmation_date'] ?? '');
+            $ov_parents      = trim($_POST['override_parents'] ?? '');
+            $ov_sponsor      = trim($_POST['override_sponsor'] ?? '');
+            $ov_priest       = trim($_POST['override_priest'] ?? '');
+            if ($ov_fullname)  $record['fullname']           = $ov_fullname;
+            if ($ov_conf_name) $record['confirmation_name']  = $ov_conf_name;
+            if ($ov_conf_date) $record['confirmation_date']  = $ov_conf_date;
+            if ($ov_parents)   $record['parents']            = $ov_parents;
+            if ($ov_sponsor)   $record['sponsor']            = $ov_sponsor;
+            if ($ov_priest)    $record['bishop_priest'] = $record['parish_priest'] = $ov_priest;
+            $missing = [];
+            if (empty($record['fullname']))           $missing[] = 'Full Name';
+            if (empty($record['confirmation_date']))  $missing[] = 'Date of Confirmation';
+            if (empty($record['bishop_priest']) && empty($record['parish_priest'])) $missing[] = 'Officiating Priest';
+            if (!empty($missing)) {
+                $error = 'Cannot generate certificate. Required fields are missing: ' . implode(', ', $missing) . '.';
+            } else {
+                unset($_SESSION['manual_certificate']);
+                $_SESSION['certificate_data'] = $record;
+                $_SESSION['cert_type'] = $cert_type;
+                header('Location: view-certificate.php');
+                exit;
+            }
+        } else { $error = 'Confirmation record not found or inactive.'; }
+    } elseif ($cert_type == 'marriage' || $cert_type == 'marriage_certification') {
+        $stmt = $conn->prepare("SELECT * FROM marriage_records WHERE marriage_id = ? AND status='active'");
+        if ($stmt) { $stmt->bind_param('i', $record_id); $stmt->execute(); $result = $stmt->get_result(); $stmt->close(); }
+        if ($result && $result->num_rows > 0) {
+            $record = $result->fetch_assoc();
+            $ov_husband     = trim($_POST['override_husband_name'] ?? '');
+            $ov_wife        = trim($_POST['override_wife_name'] ?? '');
+            $ov_wed_date    = trim($_POST['override_wedding_date'] ?? '');
+            $ov_wed_loc     = trim($_POST['override_wedding_location'] ?? '');
+            $ov_priest      = trim($_POST['override_priest'] ?? '');
+            $ov_h_residence = trim($_POST['override_husband_residence'] ?? '');
+            $ov_w_residence = trim($_POST['override_wife_residence'] ?? '');
+            if ($ov_husband)     $record['husband_name']        = $ov_husband;
+            if ($ov_wife)        $record['wife_name']           = $ov_wife;
+            if ($ov_wed_date)    $record['wedding_date']        = $ov_wed_date;
+            if ($ov_wed_loc)     $record['wedding_location']    = $ov_wed_loc;
+            if ($ov_priest)      $record['officiating_priest'] = $record['parish_priest'] = $ov_priest;
+            if ($ov_h_residence) $record['husband_residence']   = $ov_h_residence;
+            if ($ov_w_residence) $record['wife_residence']      = $ov_w_residence;
+            $missing = [];
+            if (empty($record['husband_name'])) $missing[] = "Husband's Name";
+            if (empty($record['wife_name']))    $missing[] = "Wife's Name";
+            if (empty($record['wedding_date'])) $missing[] = 'Date of Wedding';
+            if (!empty($missing)) {
+                $error = 'Cannot generate certificate. Required fields are missing: ' . implode(', ', $missing) . '.';
+            } else {
+                unset($_SESSION['manual_certificate']);
+                $_SESSION['certificate_data'] = $record;
+                $_SESSION['cert_type'] = $cert_type;
+                header('Location: view-certificate.php');
+                exit;
+            }
+        } else { $error = 'Marriage record not found or inactive.'; }
+    } elseif ($cert_type == 'funeral_certification') {
+        $stmt = $conn->prepare("SELECT * FROM funeral_records WHERE funeral_id = ? AND status='active'");
+        if ($stmt) { $stmt->bind_param('i', $record_id); $stmt->execute(); $result = $stmt->get_result(); $stmt->close(); }
+        if ($result && $result->num_rows > 0) {
+            $record = $result->fetch_assoc();
+            $ov_deceased     = trim($_POST['override_deceased_name'] ?? '');
+            $ov_burial_date  = trim($_POST['override_date_of_burial'] ?? '');
+            $ov_burial_place = trim($_POST['override_place_of_burial'] ?? '');
+            $ov_priest       = trim($_POST['override_priest'] ?? '');
+            if ($ov_deceased)     $record['deceased_name']   = $ov_deceased;
+            if ($ov_burial_date)  $record['date_of_burial']  = $ov_burial_date;
+            if ($ov_burial_place) $record['place_of_burial'] = $ov_burial_place;
+            if ($ov_priest)       $record['minister']        = $ov_priest;
+            $missing = [];
+            if (empty($record['deceased_name']))  $missing[] = 'Deceased Name';
+            if (empty($record['date_of_burial'])) $missing[] = 'Date of Burial';
+            if (!empty($missing)) {
+                $error = 'Cannot generate certificate. Required fields are missing: ' . implode(', ', $missing) . '.';
+            } else {
+                unset($_SESSION['manual_certificate']);
+                $_SESSION['certificate_data'] = $record;
+                $_SESSION['cert_type'] = $cert_type;
+                header('Location: view-certificate.php');
+                exit;
+            }
+        } else { $error = 'Funeral record not found or inactive.'; }
     }
 }
 
@@ -206,44 +285,40 @@ include '../templates/header.php';
 ?>
 
 <style>
-    /* Modal Viewport Capping & Sticky Layout (max-height: 85vh) */
+    /* Modal Viewport Capping — uses flex layout so the footer is always visible and clickable */
     #generateModal .modal-dialog {
-        max-height: 85vh;
-        margin: 1.75rem auto;
+        max-height: 90vh;
+        margin: 1.5rem auto;
         display: flex;
         flex-direction: column;
     }
     #generateModal .modal-content {
-        max-height: 85vh;
+        max-height: 90vh;
         display: flex;
         flex-direction: column;
         overflow: hidden;
         border-radius: 12px;
     }
     #generateModal .modal-header {
-        position: sticky;
-        top: 0;
-        z-index: 1055;
         flex-shrink: 0;
+        z-index: 1055;
     }
+    /* Form uses flex so body scrolls and footer sticks — NO overflow:hidden on form */
     #generateModal #generatorRecordForm {
         display: flex;
         flex-direction: column;
-        overflow: hidden;
-        max-height: calc(85vh - 60px);
+        flex: 1 1 auto;
+        min-height: 0;
         margin: 0;
     }
     #generateModal .modal-body {
         overflow-y: auto;
         flex: 1 1 auto;
-        max-height: calc(85vh - 135px);
         padding: 1.25rem 1.5rem;
     }
     #generateModal .modal-footer {
-        position: sticky;
-        bottom: 0;
-        z-index: 1055;
         flex-shrink: 0;
+        z-index: 1055;
         background: #f8fafc;
         border-top: 1px solid #e2e8f0;
     }
@@ -564,6 +639,182 @@ include '../templates/header.php';
                             </div>
                         </div>
                     </div>
+
+                    <!-- First Communion Fields -->
+                    <div id="communionFieldsContainer" style="display:none;">
+                        <div class="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 mb-3">
+                            <i class="fas fa-circle-info fs-5"></i>
+                            <div>First Communion record. Verify and complete all required fields. <strong>Full Name</strong> and <strong>Date of First Communion</strong> are required.</div>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-md-12">
+                                <label class="form-label small fw-bold">Full Name of Communicant <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" name="override_fullname" id="com_override_fullname">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Date of First Communion <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control form-control-sm" name="override_communion_date" id="com_override_communion_date">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Domicile / Address</label>
+                                <input type="text" class="form-control form-control-sm" name="override_domicile" id="com_override_domicile">
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label small fw-bold">Parents</label>
+                                <input type="text" class="form-control form-control-sm" name="override_parents" id="com_override_parents" placeholder="e.g. Juan Dela Cruz and Maria Santos">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Catechist Coordinator</label>
+                                <input type="text" class="form-control form-control-sm" name="override_catechist_coordinator" id="com_override_catechist" placeholder="e.g. Sis. Lourdes Fernandez">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Principal</label>
+                                <input type="text" class="form-control form-control-sm" name="override_principal" id="com_override_principal" placeholder="e.g. Principal Name">
+                            </div>
+                            <div class="col-md-12">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label class="form-label small fw-bold mb-0">Officiating Priest <span class="text-danger">*</span></label>
+                                    <span class="badge bg-warning text-dark py-0 px-1" style="font-size:0.68rem;"><i class="fas fa-hand-pointer me-1"></i> Secretary Assigned</span>
+                                </div>
+                                <select class="form-select form-select-sm priest-select-highlight" name="override_priest" id="com_override_priest">
+                                    <option value="">-- Select Officiating Priest --</option>
+                                    <?php foreach ($active_priests as $p): ?>
+                                        <option value="<?php echo e($p['name']); ?>" <?php echo (!empty($p['is_default'])) ? 'data-default="1"' : ''; ?>>
+                                            <?php echo e($p['name']); ?> (<?php echo e($p['title']); ?>)
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Confirmation Fields -->
+                    <div id="confirmationFieldsContainer" style="display:none;">
+                        <div class="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 mb-3">
+                            <i class="fas fa-circle-info fs-5"></i>
+                            <div>Confirmation record. Verify all fields. <strong>Full Name</strong>, <strong>Date of Confirmation</strong>, and <strong>Officiating Priest</strong> are required.</div>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Full Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" name="override_fullname" id="conf_override_fullname">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Confirmation Name</label>
+                                <input type="text" class="form-control form-control-sm" name="override_confirmation_name" id="conf_override_confirmation_name">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Date of Confirmation <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control form-control-sm" name="override_confirmation_date" id="conf_override_confirmation_date">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Sponsor</label>
+                                <input type="text" class="form-control form-control-sm" name="override_sponsor" id="conf_override_sponsor" placeholder="Sponsor Name">
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label small fw-bold">Parents</label>
+                                <input type="text" class="form-control form-control-sm" name="override_parents" id="conf_override_parents" placeholder="e.g. Juan Dela Cruz and Maria Santos">
+                            </div>
+                            <div class="col-md-12">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label class="form-label small fw-bold mb-0">Officiating Bishop / Priest <span class="text-danger">*</span></label>
+                                    <span class="badge bg-warning text-dark py-0 px-1" style="font-size:0.68rem;"><i class="fas fa-hand-pointer me-1"></i> Secretary Assigned</span>
+                                </div>
+                                <select class="form-select form-select-sm priest-select-highlight" name="override_priest" id="conf_override_priest">
+                                    <option value="">-- Select Officiating Priest --</option>
+                                    <?php foreach ($active_priests as $p): ?>
+                                        <option value="<?php echo e($p['name']); ?>" <?php echo (!empty($p['is_default'])) ? 'data-default="1"' : ''; ?>>
+                                            <?php echo e($p['name']); ?> (<?php echo e($p['title']); ?>)
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Marriage Fields -->
+                    <div id="marriageFieldsContainer" style="display:none;">
+                        <div class="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 mb-3">
+                            <i class="fas fa-circle-info fs-5"></i>
+                            <div>Marriage record. <strong>Husband's Name</strong>, <strong>Wife's Name</strong>, and <strong>Date of Wedding</strong> are required.</div>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Husband's Full Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" name="override_husband_name" id="mar_override_husband_name">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Wife's Full Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" name="override_wife_name" id="mar_override_wife_name">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Date of Wedding <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control form-control-sm" name="override_wedding_date" id="mar_override_wedding_date">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Wedding Location</label>
+                                <input type="text" class="form-control form-control-sm" name="override_wedding_location" id="mar_override_wedding_location" placeholder="e.g. San Lorenzo Ruiz Mission Station">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Husband's Residence</label>
+                                <input type="text" class="form-control form-control-sm" name="override_husband_residence" id="mar_override_husband_residence">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Wife's Residence</label>
+                                <input type="text" class="form-control form-control-sm" name="override_wife_residence" id="mar_override_wife_residence">
+                            </div>
+                            <div class="col-md-12">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label class="form-label small fw-bold mb-0">Officiating Priest <span class="text-danger">*</span></label>
+                                    <span class="badge bg-warning text-dark py-0 px-1" style="font-size:0.68rem;"><i class="fas fa-hand-pointer me-1"></i> Secretary Assigned</span>
+                                </div>
+                                <select class="form-select form-select-sm priest-select-highlight" name="override_priest" id="mar_override_priest">
+                                    <option value="">-- Select Officiating Priest --</option>
+                                    <?php foreach ($active_priests as $p): ?>
+                                        <option value="<?php echo e($p['name']); ?>" <?php echo (!empty($p['is_default'])) ? 'data-default="1"' : ''; ?>>
+                                            <?php echo e($p['name']); ?> (<?php echo e($p['title']); ?>)
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Funeral Fields -->
+                    <div id="funeralFieldsContainer" style="display:none;">
+                        <div class="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 mb-3">
+                            <i class="fas fa-circle-info fs-5"></i>
+                            <div>Funeral record. <strong>Deceased Name</strong> and <strong>Date of Burial</strong> are required.</div>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-md-12">
+                                <label class="form-label small fw-bold">Deceased's Full Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" name="override_deceased_name" id="fun_override_deceased_name">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Date of Burial <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control form-control-sm" name="override_date_of_burial" id="fun_override_date_of_burial">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Place of Burial</label>
+                                <input type="text" class="form-control form-control-sm" name="override_place_of_burial" id="fun_override_place_of_burial">
+                            </div>
+                            <div class="col-md-12">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label class="form-label small fw-bold mb-0">Officiating Priest <span class="text-danger">*</span></label>
+                                    <span class="badge bg-warning text-dark py-0 px-1" style="font-size:0.68rem;"><i class="fas fa-hand-pointer me-1"></i> Secretary Assigned</span>
+                                </div>
+                                <select class="form-select form-select-sm priest-select-highlight" name="override_priest" id="fun_override_priest">
+                                    <option value="">-- Select Officiating Priest --</option>
+                                    <?php foreach ($active_priests as $p): ?>
+                                        <option value="<?php echo e($p['name']); ?>" <?php echo (!empty($p['is_default'])) ? 'data-default="1"' : ''; ?>>
+                                            <?php echo e($p['name']); ?> (<?php echo e($p['title']); ?>)
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer bg-light">
                     <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
@@ -635,35 +886,113 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Track which field containers exist
+    const communionFields     = document.getElementById('communionFieldsContainer');
+    const confirmationFields  = document.getElementById('confirmationFieldsContainer');
+    const marriageFields      = document.getElementById('marriageFieldsContainer');
+    const funeralFields       = document.getElementById('funeralFieldsContainer');
+
+    function hideAllFieldContainers() {
+        [baptismFields, communionFields, confirmationFields, marriageFields, funeralFields]
+            .forEach(el => { if (el) el.style.display = 'none'; });
+    }
+
+    function setDefaultPriest(selectEl) {
+        if (!selectEl) return;
+        const defOpt = selectEl.querySelector('option[data-default="1"]');
+        if (defOpt) selectEl.value = defOpt.value;
+        else if (selectEl.options.length > 1) selectEl.selectedIndex = 1;
+    }
+
+    function setPriestValue(selectEl, priestName) {
+        if (!selectEl || !priestName) return;
+        let found = false;
+        for (let opt of selectEl.options) {
+            if (opt.value.toLowerCase().trim() === priestName.toLowerCase().trim()) {
+                selectEl.value = opt.value;
+                found = true;
+                break;
+            }
+        }
+        if (!found && priestName) {
+            const newOpt = document.createElement('option');
+            newOpt.value = priestName;
+            newOpt.textContent = priestName + ' (From Record)';
+            selectEl.appendChild(newOpt);
+            selectEl.value = priestName;
+        }
+    }
+
     modalEl.addEventListener('show.bs.modal', function(e) {
         const button = e.relatedTarget;
         const certType = button ? button.getAttribute('data-cert-type') : (certTypeInput.value || 'baptism');
         const recordType = (button ? button.getAttribute('data-record-type') : '') || certType;
         certTypeInput.value = certType;
-        
-        const isBaptism = (certType === 'baptism' || certType === 'baptism_certification');
-        if (baptismFields) {
-            baptismFields.style.display = isBaptism ? 'block' : 'none';
-        }
 
-        // Reset inputs
+        const isBaptism      = (certType === 'baptism' || certType === 'baptism_certification');
+        const isCommunion    = (certType === 'communion' || certType === 'first_communion_certification');
+        const isConfirmation = (certType === 'confirmation' || certType === 'confirmation_certification');
+        const isMarriage     = (certType === 'marriage' || certType === 'marriage_certification');
+        const isFuneral      = (certType === 'funeral_certification');
+
+        hideAllFieldContainers();
+        if (isBaptism      && baptismFields)      baptismFields.style.display = 'block';
+        if (isCommunion    && communionFields)    communionFields.style.display = 'block';
+        if (isConfirmation && confirmationFields) confirmationFields.style.display = 'block';
+        if (isMarriage     && marriageFields)     marriageFields.style.display = 'block';
+        if (isFuneral      && funeralFields)      funeralFields.style.display = 'block';
+
+        // Reset baptism-specific inputs
         if (isBaptism) {
-            ['override_fullname', 'override_birth_place', 'override_birth_date', 'override_residence', 'override_father_name', 'override_father_birth_place', 'override_mother_name', 'override_mother_birth_place', 'override_baptism_date'].forEach(id => {
+            ['override_fullname','override_birth_place','override_birth_date','override_residence',
+             'override_father_name','override_father_birth_place','override_mother_name',
+             'override_mother_birth_place','override_baptism_date'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.value = '';
             });
-            const priestSelect = document.getElementById('override_priest');
-            if (priestSelect) {
-                priestSelect.value = '';
-                const defOpt = priestSelect.querySelector('option[data-default="1"]');
-                if (defOpt) priestSelect.value = defOpt.value;
-            }
+            setDefaultPriest(document.getElementById('override_priest'));
             sponsorsList.innerHTML = '';
+        }
+        // Reset communion inputs
+        if (isCommunion) {
+            ['com_override_fullname','com_override_communion_date','com_override_domicile',
+             'com_override_parents','com_override_catechist','com_override_principal'].forEach(id => {
+                const el = document.getElementById(id); if (el) el.value = '';
+            });
+            setDefaultPriest(document.getElementById('com_override_priest'));
+        }
+        // Reset confirmation inputs
+        if (isConfirmation) {
+            ['conf_override_fullname','conf_override_confirmation_name','conf_override_confirmation_date',
+             'conf_override_sponsor','conf_override_parents'].forEach(id => {
+                const el = document.getElementById(id); if (el) el.value = '';
+            });
+            setDefaultPriest(document.getElementById('conf_override_priest'));
+        }
+        // Reset marriage inputs
+        if (isMarriage) {
+            ['mar_override_husband_name','mar_override_wife_name','mar_override_wedding_date',
+             'mar_override_wedding_location','mar_override_husband_residence','mar_override_wife_residence'].forEach(id => {
+                const el = document.getElementById(id); if (el) el.value = '';
+            });
+            setDefaultPriest(document.getElementById('mar_override_priest'));
+        }
+        // Reset funeral inputs
+        if (isFuneral) {
+            ['fun_override_deceased_name','fun_override_date_of_burial','fun_override_place_of_burial'].forEach(id => {
+                const el = document.getElementById(id); if (el) el.value = '';
+            });
+            setDefaultPriest(document.getElementById('fun_override_priest'));
         }
 
         select.innerHTML = '<option>Loading...</option>';
-        
-        fetch('../api/get_records.php?type=' + recordType)
+        const apiRecordType = (recordType === 'baptism_certification') ? 'baptism'
+            : (recordType === 'first_communion_certification' || recordType === 'communion') ? 'communion'
+            : (recordType === 'confirmation_certification') ? 'confirmation'
+            : (recordType === 'marriage_certification') ? 'marriage'
+            : (recordType === 'funeral_certification') ? 'funeral'
+            : recordType;
+        fetch('../api/get_records.php?type=' + apiRecordType)
             .then(response => response.json())
             .then(data => {
                 select.innerHTML = '<option value="">-- Select a record --</option>';
@@ -674,8 +1003,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         option.textContent = record.name;
                         select.appendChild(option);
                     });
-
-                    // If auto-selected record exists
                     if (modalEl.dataset.pendingRecordId) {
                         select.value = modalEl.dataset.pendingRecordId;
                         delete modalEl.dataset.pendingRecordId;
@@ -685,22 +1012,38 @@ document.addEventListener('DOMContentLoaded', function() {
                     select.innerHTML = '<option value="">No records available</option>';
                 }
             })
-            .catch(error => {
-                console.error('Error loading records:', error);
+            .catch(err => {
+                console.error('Error loading records:', err);
                 select.innerHTML = '<option value="">Error loading records</option>';
             });
     });
 
     select.addEventListener('change', function() {
         const certType = certTypeInput.value;
-        const isBaptism = (certType === 'baptism' || certType === 'baptism_certification');
-        if (!isBaptism || !this.value) return;
+        const recId = this.value;
+        if (!recId) return;
 
-        fetch('../api/get_record_details.php?type=baptism&id=' + this.value)
+        const isBaptism      = (certType === 'baptism' || certType === 'baptism_certification');
+        const isCommunion    = (certType === 'communion' || certType === 'first_communion_certification');
+        const isConfirmation = (certType === 'confirmation' || certType === 'confirmation_certification');
+        const isMarriage     = (certType === 'marriage' || certType === 'marriage_certification');
+        const isFuneral      = (certType === 'funeral_certification');
+
+        const apiType = isBaptism ? 'baptism'
+            : isCommunion ? 'communion'
+            : isConfirmation ? 'confirmation'
+            : isMarriage ? 'marriage'
+            : isFuneral ? 'funeral'
+            : '';
+        if (!apiType) return;
+
+        fetch('../api/get_record_details.php?type=' + apiType + '&id=' + recId)
             .then(res => res.json())
             .then(res => {
-                if (res.success && res.data) {
-                    const d = res.data;
+                if (!res.success || !res.data) return;
+                const d = res.data;
+
+                if (isBaptism) {
                     document.getElementById('override_fullname').value = d.fullname || '';
                     document.getElementById('override_birth_place').value = d.birth_place || '';
                     document.getElementById('override_birth_date').value = d.birth_date || '';
@@ -710,42 +1053,48 @@ document.addEventListener('DOMContentLoaded', function() {
                     document.getElementById('override_mother_name').value = d.mother_name || '';
                     document.getElementById('override_mother_birth_place').value = d.mother_birth_place || '';
                     document.getElementById('override_baptism_date').value = d.baptism_date || '';
-
-                    // Officiating Priest assignment:
-                    // If the sacramental record already has a priest on file, preselect it (or append if not in active roster)
-                    const priestSelect = document.getElementById('override_priest');
-                    if (priestSelect) {
-                        const recPriest = (d.priest || '').trim();
-                        if (recPriest) {
-                            let matchFound = false;
-                            for (let opt of priestSelect.options) {
-                                if (opt.value.toLowerCase().trim() === recPriest.toLowerCase().trim()) {
-                                    priestSelect.value = opt.value;
-                                    matchFound = true;
-                                    break;
-                                }
-                            }
-                            if (!matchFound) {
-                                const newOpt = document.createElement('option');
-                                newOpt.value = recPriest;
-                                newOpt.textContent = recPriest + ' (From Sacramental Record)';
-                                priestSelect.appendChild(newOpt);
-                                priestSelect.value = recPriest;
-                            }
-                        } else {
-                            const defOpt = priestSelect.querySelector('option[data-default="1"]');
-                            if (defOpt) {
-                                priestSelect.value = defOpt.value;
-                            }
-                        }
-                    }
-
+                    const ps = document.getElementById('override_priest');
+                    d.priest ? setPriestValue(ps, d.priest) : setDefaultPriest(ps);
                     sponsorsList.innerHTML = '';
                     const sps = (Array.isArray(d.sponsors) && d.sponsors.length >= 2) ? d.sponsors : ['', ''];
-                    sps.forEach((sp, idx) => {
-                        sponsorsList.appendChild(createSponsorRow(sp, idx));
-                    });
+                    sps.forEach((sp, idx) => sponsorsList.appendChild(createSponsorRow(sp, idx)));
                     updateModalSponsorRemoveButtons();
+                } else if (isCommunion) {
+                    const fld = id => document.getElementById(id);
+                    if (fld('com_override_fullname'))       fld('com_override_fullname').value = d.fullname || '';
+                    if (fld('com_override_communion_date')) fld('com_override_communion_date').value = d.communion_date || '';
+                    if (fld('com_override_domicile'))       fld('com_override_domicile').value = d.domicile || '';
+                    if (fld('com_override_parents'))        fld('com_override_parents').value = d.parents || '';
+                    if (fld('com_override_catechist'))      fld('com_override_catechist').value = d.catechist_coordinator || '';
+                    if (fld('com_override_principal'))      fld('com_override_principal').value = d.principal || '';
+                    const cp = document.getElementById('com_override_priest');
+                    d.priest ? setPriestValue(cp, d.priest) : setDefaultPriest(cp);
+                } else if (isConfirmation) {
+                    const fld = id => document.getElementById(id);
+                    if (fld('conf_override_fullname'))           fld('conf_override_fullname').value = d.fullname || '';
+                    if (fld('conf_override_confirmation_name'))  fld('conf_override_confirmation_name').value = d.confirmation_name || '';
+                    if (fld('conf_override_confirmation_date'))  fld('conf_override_confirmation_date').value = d.confirmation_date || '';
+                    if (fld('conf_override_parents'))            fld('conf_override_parents').value = d.parents || '';
+                    if (fld('conf_override_sponsor'))            fld('conf_override_sponsor').value = d.sponsor || '';
+                    const cp = document.getElementById('conf_override_priest');
+                    d.bishop_priest ? setPriestValue(cp, d.bishop_priest) : setDefaultPriest(cp);
+                } else if (isMarriage) {
+                    const fld = id => document.getElementById(id);
+                    if (fld('mar_override_husband_name'))       fld('mar_override_husband_name').value = d.husband_name || '';
+                    if (fld('mar_override_wife_name'))          fld('mar_override_wife_name').value = d.wife_name || '';
+                    if (fld('mar_override_wedding_date'))       fld('mar_override_wedding_date').value = d.wedding_date || '';
+                    if (fld('mar_override_wedding_location'))   fld('mar_override_wedding_location').value = d.wedding_location || '';
+                    if (fld('mar_override_husband_residence'))  fld('mar_override_husband_residence').value = d.husband_residence || '';
+                    if (fld('mar_override_wife_residence'))     fld('mar_override_wife_residence').value = d.wife_residence || '';
+                    const mp = document.getElementById('mar_override_priest');
+                    d.officiating_priest ? setPriestValue(mp, d.officiating_priest) : setDefaultPriest(mp);
+                } else if (isFuneral) {
+                    const fld = id => document.getElementById(id);
+                    if (fld('fun_override_deceased_name'))   fld('fun_override_deceased_name').value = d.deceased_name || '';
+                    if (fld('fun_override_date_of_burial'))  fld('fun_override_date_of_burial').value = d.date_of_burial || '';
+                    if (fld('fun_override_place_of_burial')) fld('fun_override_place_of_burial').value = d.place_of_burial || '';
+                    const fp = document.getElementById('fun_override_priest');
+                    d.minister ? setPriestValue(fp, d.minister) : setDefaultPriest(fp);
                 }
             })
             .catch(err => console.error('Error fetching record details:', err));
@@ -753,44 +1102,57 @@ document.addEventListener('DOMContentLoaded', function() {
 
     form.addEventListener('submit', function(e) {
         const certType = certTypeInput.value;
-        const isBaptism = (certType === 'baptism' || certType === 'baptism_certification');
-        if (!isBaptism) return;
+        const recId = select.value;
+        if (!recId) { e.preventDefault(); alert('Please select a record first.'); return false; }
 
-        const requiredFields = [
-            { id: 'override_fullname', label: 'Full Name' },
-            { id: 'override_birth_place', label: 'Birthplace' },
-            { id: 'override_birth_date', label: 'Birthday' },
-            { id: 'override_residence', label: 'Residence' },
-            { id: 'override_father_name', label: "Father's Name" },
-            { id: 'override_father_birth_place', label: "Father's Birthplace" },
-            { id: 'override_mother_name', label: "Mother's Name" },
-            { id: 'override_mother_birth_place', label: "Mother's Birthplace" },
-            { id: 'override_baptism_date', label: 'Date of Baptism' },
-            { id: 'override_priest', label: 'Officiating Priest' }
-        ];
+        const isBaptism      = (certType === 'baptism' || certType === 'baptism_certification');
+        const isCommunion    = (certType === 'communion' || certType === 'first_communion_certification');
+        const isConfirmation = (certType === 'confirmation' || certType === 'confirmation_certification');
+        const isMarriage     = (certType === 'marriage' || certType === 'marriage_certification');
+        const isFuneral      = (certType === 'funeral_certification');
 
         let missing = [];
-        requiredFields.forEach(f => {
-            const el = document.getElementById(f.id);
-            if (!el || !el.value.trim()) {
-                missing.push(f.label);
-                if (el) el.classList.add('is-invalid');
-            } else {
-                if (el) el.classList.remove('is-invalid');
-            }
-        });
 
-        const sps = Array.from(sponsorsList.querySelectorAll('input[name="override_sponsors[]"]'))
-            .map(i => i.value.trim())
-            .filter(v => v.length > 0);
-
-        if (sps.length < 2) {
-            missing.push('At least 2 Sponsors (Ninong-Ninang)');
+        if (isBaptism) {
+            const bReq = [
+                { id: 'override_fullname', label: 'Full Name' },
+                { id: 'override_birth_place', label: 'Birthplace' },
+                { id: 'override_birth_date', label: 'Birthday' },
+                { id: 'override_residence', label: 'Residence' },
+                { id: 'override_father_name', label: "Father's Name" },
+                { id: 'override_father_birth_place', label: "Father's Birthplace" },
+                { id: 'override_mother_name', label: "Mother's Name" },
+                { id: 'override_mother_birth_place', label: "Mother's Birthplace" },
+                { id: 'override_baptism_date', label: 'Date of Baptism' },
+                { id: 'override_priest', label: 'Officiating Priest' }
+            ];
+            bReq.forEach(f => {
+                const el = document.getElementById(f.id);
+                if (!el || !el.value.trim()) { missing.push(f.label); if (el) el.classList.add('is-invalid'); }
+                else if (el) el.classList.remove('is-invalid');
+            });
+            const sps = Array.from(sponsorsList.querySelectorAll('input[name="override_sponsors[]"]'))
+                .map(i => i.value.trim()).filter(v => v.length > 0);
+            if (sps.length < 2) missing.push('At least 2 Sponsors (Ninong-Ninang)');
+        } else if (isCommunion) {
+            if (!document.getElementById('com_override_fullname')?.value.trim()) missing.push("Recipient's Full Name");
+            if (!document.getElementById('com_override_communion_date')?.value.trim()) missing.push('Date of First Communion');
+        } else if (isConfirmation) {
+            if (!document.getElementById('conf_override_fullname')?.value.trim()) missing.push('Full Name');
+            if (!document.getElementById('conf_override_confirmation_date')?.value.trim()) missing.push('Date of Confirmation');
+            if (!document.getElementById('conf_override_priest')?.value.trim()) missing.push('Officiating Priest');
+        } else if (isMarriage) {
+            if (!document.getElementById('mar_override_husband_name')?.value.trim()) missing.push("Husband's Name");
+            if (!document.getElementById('mar_override_wife_name')?.value.trim()) missing.push("Wife's Name");
+            if (!document.getElementById('mar_override_wedding_date')?.value.trim()) missing.push('Date of Wedding');
+        } else if (isFuneral) {
+            if (!document.getElementById('fun_override_deceased_name')?.value.trim()) missing.push('Deceased Name');
+            if (!document.getElementById('fun_override_date_of_burial')?.value.trim()) missing.push('Date of Burial');
         }
 
         if (missing.length > 0) {
             e.preventDefault();
-            alert('Cannot generate certificate. Every required field must be complete:\n\n• ' + missing.join('\n• '));
+            alert('Cannot generate certificate. Required fields are missing:\n\n• ' + missing.join('\n• '));
             return false;
         }
     });

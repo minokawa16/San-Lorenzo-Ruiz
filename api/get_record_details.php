@@ -109,6 +109,108 @@ try {
                 $response['error'] = 'Record not found';
             }
         }
+    } elseif ($type === 'communion' || $type === 'first_communion_certification') {
+        $stmt = $conn->prepare("SELECT * FROM first_communion_records WHERE communion_id = ? AND status='active' LIMIT 1");
+        if ($stmt) {
+            $stmt->bind_param('i', $id);
+            $stmt->execute();
+            $row = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            if ($row) {
+                // Fetch signers from roster if not stored
+                $signers = getFirstCommunionSigners($conn, $row);
+                $response['success'] = true;
+                $response['data'] = [
+                    'id'                    => (int)$row['communion_id'],
+                    'fullname'              => $row['fullname'] ?? '',
+                    'communion_date'        => $row['communion_date'] ?? '',
+                    'domicile'              => $row['domicile'] ?? '',
+                    'parents'               => $row['parents'] ?? '',
+                    'priest'                => $row['priest'] ?? ($row['parish_priest'] ?? ''),
+                    'catechist_coordinator' => $row['catechist_coordinator'] ?? $signers['catechist_coordinator'],
+                    'principal'             => $row['principal'] ?? $signers['principal'],
+                    'book_no'               => $row['book_no'] ?? '',
+                    'page_no'               => $row['page_no'] ?? '',
+                    'entry_no'              => $row['entry_no'] ?? '',
+                ];
+            } else {
+                $response['error'] = 'Record not found';
+            }
+        }
+    } elseif ($type === 'confirmation' || $type === 'confirmation_certification') {
+        $stmt = $conn->prepare("SELECT * FROM confirmation_records WHERE confirmation_id = ? AND status='active' LIMIT 1");
+        if ($stmt) {
+            $stmt->bind_param('i', $id);
+            $stmt->execute();
+            $row = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            if ($row) {
+                $response['success'] = true;
+                $response['data'] = [
+                    'id'                => (int)$row['confirmation_id'],
+                    'fullname'          => $row['fullname'] ?? '',
+                    'confirmation_name' => $row['confirmation_name'] ?? '',
+                    'confirmation_date' => $row['confirmation_date'] ?? '',
+                    'parents'           => $row['parents'] ?? '',
+                    'sponsor'           => $row['sponsor'] ?? '',
+                    'bishop_priest'     => $row['bishop_priest'] ?? ($row['parish_priest'] ?? ''),
+                    'book_no'           => $row['book_no'] ?? '',
+                    'page_no'           => $row['page_no'] ?? '',
+                    'entry_no'          => $row['entry_no'] ?? '',
+                ];
+            } else {
+                $response['error'] = 'Record not found';
+            }
+        }
+    } elseif ($type === 'marriage' || $type === 'marriage_certification') {
+        $stmt = $conn->prepare("SELECT * FROM marriage_records WHERE marriage_id = ? AND status='active' LIMIT 1");
+        if ($stmt) {
+            $stmt->bind_param('i', $id);
+            $stmt->execute();
+            $row = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            if ($row) {
+                $response['success'] = true;
+                $response['data'] = [
+                    'id'                 => (int)$row['marriage_id'],
+                    'husband_name'       => $row['husband_name'] ?? '',
+                    'wife_name'          => $row['wife_name'] ?? '',
+                    'wedding_date'       => $row['wedding_date'] ?? '',
+                    'wedding_location'   => $row['wedding_location'] ?? '',
+                    'husband_residence'  => $row['husband_residence'] ?? '',
+                    'wife_residence'     => $row['wife_residence'] ?? '',
+                    'officiating_priest' => $row['officiating_priest'] ?? ($row['parish_priest'] ?? ''),
+                    'book_no'            => $row['book_no'] ?? '',
+                    'page_no'            => $row['page_no'] ?? '',
+                    'entry_no'           => $row['entry_no'] ?? '',
+                ];
+            } else {
+                $response['error'] = 'Record not found';
+            }
+        }
+    } elseif ($type === 'funeral' || $type === 'funeral_certification') {
+        $stmt = $conn->prepare("SELECT * FROM funeral_records WHERE funeral_id = ? AND status='active' LIMIT 1");
+        if ($stmt) {
+            $stmt->bind_param('i', $id);
+            $stmt->execute();
+            $row = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            if ($row) {
+                $response['success'] = true;
+                $response['data'] = [
+                    'id'             => (int)$row['funeral_id'],
+                    'deceased_name'  => $row['deceased_name'] ?? '',
+                    'date_of_burial' => $row['date_of_burial'] ?? '',
+                    'place_of_burial'=> $row['place_of_burial'] ?? '',
+                    'minister'       => $row['minister'] ?? '',
+                    'book_no'        => $row['book_no'] ?? '',
+                    'page_no'        => $row['page_no'] ?? '',
+                    'entry_no'       => $row['entry_no'] ?? '',
+                ];
+            } else {
+                $response['error'] = 'Record not found';
+            }
+        }
     } else {
         $response['error'] = 'Unsupported record type';
     }
