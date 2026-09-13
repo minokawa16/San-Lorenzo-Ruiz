@@ -1250,7 +1250,7 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
 <body>
     <div class="cert-toolbar">
         <div class="d-flex flex-wrap gap-2">
-            <button class="btn btn-primary" onclick="printCertificate()" <?php if (!empty($missing_baptism_fields) || !empty($missing_communion_fields)) echo 'disabled title="Generation blocked: complete required fields before printing"'; ?>><i class="fas fa-print"></i> Print Certificate</button>
+            <button class="btn btn-primary" id="btnPrintCertificate" onclick="printCertificate()"><i class="fas fa-print"></i> Print Certificate</button>
             <?php if ($cert_type === 'baptism'): ?>
                 <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#editBaptismModal"><i class="fas fa-pen-to-square"></i> Edit Baptism Details</button>
             <?php elseif ($is_communion_cert): ?>

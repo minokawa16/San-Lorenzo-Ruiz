@@ -3417,10 +3417,26 @@ function getFirstCommunionSigners($conn, $data = []) {
 
     // 3. Principal fallback
     if ($principal === '' && $conn) {
-        $s_query = "SELECT setting_value FROM system_settings WHERE setting_key IN ('parish.principal', 'parish_principal', 'principal_name') LIMIT 1";
+        $s_query = "SELECT setting_value FROM system_settings WHERE setting_key IN ('parish.principal', 'parish_principal', 'principal_name', 'catechism_principal') LIMIT 1";
         $res = @$conn->query($s_query);
         if ($res && $row = $res->fetch_assoc()) {
             $principal = trim((string)$row['setting_value']);
+        }
+    }
+    // Secondary fallback: check org_members for a principal role
+    if ($principal === '' && $conn) {
+        $p2_query = "SELECT om.title_prefix, om.full_name
+                     FROM position_assignments pa
+                     JOIN org_members om ON pa.member_id = om.member_id
+                     JOIN org_positions op ON pa.position_id = op.position_id
+                     WHERE pa.is_active = 1
+                       AND (op.role_code = 'PRINCIPAL' OR op.title LIKE '%Principal%')
+                     LIMIT 1";
+        $res2 = @$conn->query($p2_query);
+        if ($res2 && $row2 = $res2->fetch_assoc()) {
+            $pfx = trim((string)($row2['title_prefix'] ?? ''));
+            $pnm = trim((string)($row2['full_name'] ?? ''));
+            $principal = ($pfx !== '' ? $pfx . ' ' : '') . $pnm;
         }
     }
 
