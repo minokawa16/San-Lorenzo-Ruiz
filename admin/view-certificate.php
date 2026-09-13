@@ -1687,9 +1687,17 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             align-items: flex-end;
         }
         .conf-val-cname {
-            flex-grow: 1;
+            width: 96mm;
+            flex-grow: 0;
+            flex-shrink: 0;
+            margin-left: 1.5mm;
             text-align: left;
-            padding-left: 3mm;
+            padding-left: 2.5mm;
+            padding-right: 2mm;
+            box-sizing: border-box;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         /* Indented Parents & Godparents with aligned columns and even rhythm */
