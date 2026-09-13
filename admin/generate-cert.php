@@ -31,6 +31,8 @@ switch($cert_type) {
         $sql = "SELECT * FROM baptism_records WHERE baptism_id = $record_id AND status = 'active'";
         break;
     case 'communion':
+    case 'first_communion':
+    case 'first_communion_certificate':
     case 'first_communion_certification':
         $sql = "SELECT * FROM first_communion_records WHERE communion_id = $record_id AND status = 'active'";
         break;
@@ -56,6 +58,20 @@ $result = $conn->query($sql);
 if ($result && $result->num_rows > 0) {
     $record = $result->fetch_assoc();
     unset($_SESSION['manual_certificate']);
+
+    if (in_array($cert_type, ['communion', 'first_communion', 'first_communion_certificate', 'first_communion_certification'], true)) {
+        $signers = getFirstCommunionSigners($conn, $record);
+        if (empty($record['catechist_coordinator'])) {
+            $record['catechist_coordinator'] = $signers['catechist_coordinator'];
+        }
+        if (empty($record['parish_priest'])) {
+            $record['parish_priest'] = $signers['parish_priest'];
+        }
+        if (empty($record['principal'])) {
+            $record['principal'] = $signers['principal'];
+        }
+    }
+
     $_SESSION['certificate_data'] = $record;
     $_SESSION['cert_type'] = $cert_type;
     

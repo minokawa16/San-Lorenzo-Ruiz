@@ -3355,5 +3355,81 @@ function getActivePriestsRoster($conn): array {
     return $roster;
 }
 
+/**
+ * Retrieve First Communion signers dynamically from record data and parish roster.
+ * Signers: Catechist Coordinator, Parish Priest, Principal.
+ *
+ * @param mysqli $conn
+ * @param array $data
+ * @return array Associative array with 'catechist_coordinator', 'parish_priest', and 'principal'
+ */
+function getFirstCommunionSigners($conn, $data = []) {
+    $catechist = trim((string)($data['catechist_coordinator'] ?? ''));
+    $priest = trim((string)($data['parish_priest'] ?? ($data['priest'] ?? '')));
+    $principal = trim((string)($data['principal'] ?? ''));
+
+    // 1. Catechist Coordinator fallback
+    if ($catechist === '' && $conn) {
+        $c_query = "SELECT om.title_prefix, om.full_name 
+                    FROM position_assignments pa
+                    JOIN org_members om ON pa.member_id = om.member_id
+                    JOIN org_positions op ON pa.position_id = op.position_id
+                    WHERE pa.is_active = 1 
+                      AND (op.role_code = 'MIN_CATECHESIS' OR op.title LIKE '%Catechis%' OR om.bio LIKE '%Catechist%')
+                    LIMIT 1";
+        $res = @$conn->query($c_query);
+        if ($res && $row = $res->fetch_assoc()) {
+            $prefix = trim((string)($row['title_prefix'] ?? ''));
+            $fullName = trim((string)($row['full_name'] ?? ''));
+            $catechist = ($prefix !== '' ? $prefix . ' ' : '') . $fullName;
+        } else {
+            $m_query = "SELECT title_prefix, full_name FROM org_members WHERE (bio LIKE '%Head Catechist%' OR bio LIKE '%Catechist%') AND status = 'active' LIMIT 1";
+            $res2 = @$conn->query($m_query);
+            if ($res2 && $row2 = $res2->fetch_assoc()) {
+                $prefix = trim((string)($row2['title_prefix'] ?? ''));
+                $fullName = trim((string)($row2['full_name'] ?? ''));
+                $catechist = ($prefix !== '' ? $prefix . ' ' : '') . $fullName;
+            }
+        }
+        if ($catechist === '') {
+            $catechist = 'Sis. Lourdes Fernandez';
+        }
+    }
+
+    // 2. Parish Priest fallback
+    if ($priest === '' && $conn) {
+        $p_query = "SELECT om.title_prefix, om.full_name 
+                    FROM position_assignments pa
+                    JOIN org_members om ON pa.member_id = om.member_id
+                    JOIN org_positions op ON pa.position_id = op.position_id
+                    WHERE pa.is_active = 1 
+                      AND (op.role_code = 'PARISH_PRIEST' OR op.title LIKE '%Parish Priest%')
+                    LIMIT 1";
+        $res = @$conn->query($p_query);
+        if ($res && $row = $res->fetch_assoc()) {
+            $prefix = trim((string)($row['title_prefix'] ?? ''));
+            $fullName = trim((string)($row['full_name'] ?? ''));
+            $priest = ($prefix !== '' ? $prefix . ' ' : '') . $fullName;
+        } else {
+            $priest = 'Rev. Fr. Alberto Cahilig, OMI';
+        }
+    }
+
+    // 3. Principal fallback
+    if ($principal === '' && $conn) {
+        $s_query = "SELECT setting_value FROM system_settings WHERE setting_key IN ('parish.principal', 'parish_principal', 'principal_name') LIMIT 1";
+        $res = @$conn->query($s_query);
+        if ($res && $row = $res->fetch_assoc()) {
+            $principal = trim((string)$row['setting_value']);
+        }
+    }
+
+    return [
+        'catechist_coordinator' => $catechist,
+        'parish_priest' => $priest,
+        'principal' => $principal,
+    ];
+}
+
 ?>
 

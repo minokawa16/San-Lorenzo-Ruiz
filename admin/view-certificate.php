@@ -2,10 +2,10 @@
 /**
  * Certificate Preview Module - Renders generated sacramental certificates for review, printing, and verification.
  */
-include '../includes/session.php';
-include '../database/config.php';
-include '../includes/helpers.php';
-include '../includes/CertificateTemplateManager.php';
+require_once __DIR__ . '/../includes/session.php';
+require_once __DIR__ . '/../database/config.php';
+require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../includes/CertificateTemplateManager.php';
 
 requireAdmin();
 requirePermission('certificates.manage');
@@ -15,6 +15,19 @@ if (isset($_GET['id'])) {
     $rec_type = $_GET['type'] ?? 'baptism';
     if ($rec_type === 'baptism' || $rec_type === 'baptism_certification') {
         $stmt = $conn->prepare("SELECT * FROM baptism_records WHERE baptism_id = ?");
+        if ($stmt) {
+            $stmt->bind_param('i', $rec_id);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            if ($res && $res->num_rows > 0) {
+                unset($_SESSION['manual_certificate']);
+                $_SESSION['certificate_data'] = $res->fetch_assoc();
+                $_SESSION['cert_type'] = $rec_type;
+            }
+            $stmt->close();
+        }
+    } elseif (in_array($rec_type, ['communion', 'first_communion', 'first_communion_certificate', 'first_communion_certification'], true)) {
+        $stmt = $conn->prepare("SELECT * FROM first_communion_records WHERE communion_id = ?");
         if ($stmt) {
             $stmt->bind_param('i', $rec_id);
             $stmt->execute();
@@ -126,6 +139,38 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
     if (isset($_POST['remarks'])) {
         $_SESSION['certificate_data']['remarks'] = trim((string)$_POST['remarks']);
     }
+    if (isset($_POST['communion_date']) && $_POST['communion_date'] !== '') {
+        $_SESSION['certificate_data']['communion_date'] = trim((string)$_POST['communion_date']);
+    }
+    if (isset($_POST['parish_name'])) {
+        $_SESSION['certificate_data']['parish_name'] = trim((string)$_POST['parish_name']);
+    }
+    if (isset($_POST['parish_address'])) {
+        $_SESSION['certificate_data']['parish_address'] = trim((string)$_POST['parish_address']);
+    }
+    if (isset($_POST['catechist_coordinator'])) {
+        $_SESSION['certificate_data']['catechist_coordinator'] = trim((string)$_POST['catechist_coordinator']);
+    }
+    if (isset($_POST['parish_priest'])) {
+        $_SESSION['certificate_data']['parish_priest'] = trim((string)$_POST['parish_priest']);
+    }
+    if (isset($_POST['principal'])) {
+        $_SESSION['certificate_data']['principal'] = trim((string)$_POST['principal']);
+    }
+    $c_rec_id = intval($_SESSION['certificate_data']['communion_id'] ?? 0);
+    if ($c_rec_id > 0) {
+        $c_fname = $_SESSION['certificate_data']['fullname'] ?? '';
+        $c_cdate = !empty($_SESSION['certificate_data']['communion_date']) ? $_SESSION['certificate_data']['communion_date'] : null;
+        $c_ppriest = $_SESSION['certificate_data']['parish_priest'] ?? '';
+        $c_ccat = $_SESSION['certificate_data']['catechist_coordinator'] ?? '';
+        $c_cprin = $_SESSION['certificate_data']['principal'] ?? '';
+        $up_c_stmt = $conn->prepare("UPDATE first_communion_records SET fullname=?, communion_date=?, parish_priest=?, catechist_coordinator=?, principal=? WHERE communion_id=?");
+        if ($up_c_stmt) {
+            $up_c_stmt->bind_param("sssssi", $c_fname, $c_cdate, $c_ppriest, $c_ccat, $c_cprin, $c_rec_id);
+            $up_c_stmt->execute();
+            $up_c_stmt->close();
+        }
+    }
     header('Location: view-certificate.php');
     exit;
 }
@@ -156,6 +201,21 @@ if (empty($_SESSION['manual_certificate'])) {
                 $_SESSION['certificate_data'] = $data;
             }
         }
+    } elseif (in_array($cert_type, ['communion', 'first_communion', 'first_communion_certificate'], true)) {
+        $cid = intval($data['communion_id'] ?? 0);
+        if ($cid > 0) {
+            $r_stmt = $conn->prepare("SELECT * FROM first_communion_records WHERE communion_id = ?");
+            if ($r_stmt) {
+                $r_stmt->bind_param('i', $cid);
+                $r_stmt->execute();
+                $fresh = $r_stmt->get_result()->fetch_assoc();
+                $r_stmt->close();
+                if ($fresh) {
+                    $data = array_merge($data, $fresh);
+                    $_SESSION['certificate_data'] = $data;
+                }
+            }
+        }
     }
 }
 $is_manual_certificate = !empty($_SESSION['manual_certificate']);
@@ -165,9 +225,17 @@ $is_confirmation_certification = $cert_type === 'confirmation_certification';
 $is_first_communion_certification = $cert_type === 'first_communion_certification';
 $is_funeral_certification = $cert_type === 'funeral_certification';
 $is_certification = $is_baptism_certification || $is_marriage_certification || $is_confirmation_certification || $is_first_communion_certification || $is_funeral_certification;
+$is_communion_cert = in_array($cert_type, ['communion', 'first_communion', 'first_communion_certificate'], true);
 
 // Ensure Certificate Schema Function - Documents this helper's role in the parish management workflow.
+if (!function_exists('ensureCertificateSchema')) {
 function ensureCertificateSchema($conn) {
+    if (!schemaColumnExists($conn, 'first_communion_records', 'catechist_coordinator')) {
+        @$conn->query("ALTER TABLE first_communion_records ADD COLUMN catechist_coordinator VARCHAR(255) NULL AFTER parish_priest");
+    }
+    if (!schemaColumnExists($conn, 'first_communion_records', 'principal')) {
+        @$conn->query("ALTER TABLE first_communion_records ADD COLUMN principal VARCHAR(255) NULL AFTER catechist_coordinator");
+    }
     return requireSchemaColumns($conn, 'certificate_issuances', [
         'certificate_id', 'certificate_type', 'record_table', 'record_id',
         'template_id', 'layout_snapshot', 'certificate_number', 'verification_code',
@@ -176,10 +244,15 @@ function ensureCertificateSchema($conn) {
         && ensureCertificateTemplateSchema($conn)
         && requireSchemaColumns($conn, 'baptism_records', [
             'book_no', 'page_no', 'entry_no'
-        ], 'baptism certificate registry');
+        ], 'baptism certificate registry')
+        && requireSchemaColumns($conn, 'first_communion_records', [
+            'catechist_coordinator', 'principal'
+        ], 'first communion signers');
+}
 }
 
 // Certificate Record Meta Function - Documents this helper's role in the parish management workflow.
+if (!function_exists('certificateRecordMeta')) {
 function certificateRecordMeta($cert_type) {
     if ($cert_type === 'baptism') {
         return ['table' => 'baptism_records', 'id' => 'baptism_id', 'prefix' => 'BAP', 'title' => 'CERTIFICATE OF BAPTISM'];
@@ -187,8 +260,8 @@ function certificateRecordMeta($cert_type) {
     if ($cert_type === 'baptism_certification') {
         return ['table' => 'baptism_records', 'id' => 'baptism_id', 'prefix' => 'BCF', 'title' => 'CERTIFICATION OF BAPTISM'];
     }
-    if ($cert_type === 'communion') {
-        return ['table' => 'first_communion_records', 'id' => 'communion_id', 'prefix' => 'COM', 'title' => 'FIRST HOLY COMMUNION CERTIFICATE'];
+    if (in_array($cert_type, ['communion', 'first_communion', 'first_communion_certificate'], true)) {
+        return ['table' => 'first_communion_records', 'id' => 'communion_id', 'prefix' => 'COM', 'title' => 'FIRST HOLY COMMUNION'];
     }
     if ($cert_type === 'first_communion_certification') {
         return ['table' => 'first_communion_records', 'id' => 'communion_id', 'prefix' => 'FCF', 'title' => 'CERTIFICATION OF FIRST HOLY COMMUNION'];
@@ -210,8 +283,10 @@ function certificateRecordMeta($cert_type) {
     }
     return ['table' => 'confirmation_records', 'id' => 'confirmation_id', 'prefix' => 'CON', 'title' => 'CONFIRMATION CERTIFICATE'];
 }
+}
 
 // Display Date Function - Documents this helper's role in the parish management workflow.
+if (!function_exists('displayDate')) {
 function displayDate($value, $format = 'F d, Y') {
     if (empty($value) || $value === '0000-00-00') {
         return 'N/A';
@@ -219,8 +294,10 @@ function displayDate($value, $format = 'F d, Y') {
     $time = strtotime($value);
     return $time ? date($format, $time) : 'N/A';
 }
+}
 
 // Split Parents Function - Documents this helper's role in the parish management workflow.
+if (!function_exists('splitParents')) {
 function splitParents($parents) {
     $result = ['father' => 'N/A', 'mother' => 'N/A'];
     $parents = trim((string) $parents);
@@ -244,14 +321,18 @@ function splitParents($parents) {
     }
     return $result;
 }
+}
 
 // Site Base URL Function - Documents this helper's role in the parish management workflow.
+if (!function_exists('siteBaseUrl')) {
 function siteBaseUrl() {
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
     return appUrl();
 }
+}
 
+if (!function_exists('splitSponsors')) {
 function splitSponsors($sponsors) {
     $result = ['godfather' => 'N/A', 'godmother' => 'N/A'];
     if (is_array($sponsors)) {
@@ -278,7 +359,9 @@ function splitSponsors($sponsors) {
     }
     return $result;
 }
+}
 
+if (!function_exists('certificateAssetUrl')) {
 function certificateAssetUrl($relative_path, $fallback = '') {
     $root = dirname(__DIR__);
     $path = $root . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $relative_path);
@@ -286,6 +369,7 @@ function certificateAssetUrl($relative_path, $fallback = '') {
         return '../' . str_replace('\\', '/', $relative_path);
     }
     return $fallback;
+}
 }
 
 $meta = certificateRecordMeta($cert_type);
@@ -429,6 +513,47 @@ if ($cert_type === 'baptism') {
     if ($baptism_priest === '' || $baptism_priest === 'N/A') $missing_baptism_fields[] = 'Officiating Priest';
     if (count($baptism_sponsors) < 2) $missing_baptism_fields[] = 'Sponsors (at least 2 required)';
 }
+
+$communion_parish_name = trim((string)($data['parish_name'] ?? 'San Lorenzo Ruiz Mission Station'));
+$communion_parish_address = trim((string)($data['parish_address'] ?? 'Aleosan, Cotabato'));
+
+if ($is_communion_cert) {
+    $c_signers = getFirstCommunionSigners($conn, $data);
+    if (empty($data['catechist_coordinator'])) {
+        $data['catechist_coordinator'] = $c_signers['catechist_coordinator'];
+    }
+    if (empty($data['parish_priest'])) {
+        $data['parish_priest'] = $c_signers['parish_priest'];
+    }
+    if (empty($data['principal'])) {
+        $data['principal'] = $c_signers['principal'];
+    }
+}
+
+$missing_communion_fields = [];
+if ($is_communion_cert) {
+    if (empty($data['fullname']) || trim((string)$data['fullname']) === '' || $data['fullname'] === 'N/A') {
+        $missing_communion_fields[] = "Recipient's Full Name";
+    }
+    if (empty($data['communion_date']) || $data['communion_date'] === '0000-00-00') {
+        $missing_communion_fields[] = 'Date of First Communion';
+    }
+    if (empty($communion_parish_name)) {
+        $missing_communion_fields[] = 'Parish / Mission Station Name';
+    }
+    if (empty($communion_parish_address)) {
+        $missing_communion_fields[] = 'Parish Address';
+    }
+    if (empty($data['catechist_coordinator']) || trim((string)$data['catechist_coordinator']) === '') {
+        $missing_communion_fields[] = 'Parish Catechist Coordinator';
+    }
+    if (empty($data['parish_priest']) || trim((string)$data['parish_priest']) === '') {
+        $missing_communion_fields[] = 'Parish Priest';
+    }
+    if (empty($data['principal']) || trim((string)$data['principal']) === '') {
+        $missing_communion_fields[] = 'Principal';
+    }
+}
 $volume_no = trim((string) ($data['volume_no'] ?? '')) ?: (trim((string) ($data['book_no'] ?? '')) ?: (trim((string) ($data['folio'] ?? '')) ?: 'N/A'));
 $page_no = trim((string) ($data['page_no'] ?? '')) ?: 'N/A';
 $entry_no = trim((string) ($data['entry_no'] ?? '')) ?: (trim((string) ($data['registry_no'] ?? '')) ?: (trim((string) ($data['baptism_id'] ?? ($data['communion_id'] ?? ($data['confirmation_id'] ?? '')))) ?: 'N/A'));
@@ -444,10 +569,11 @@ $baptism_timestamp = strtotime($data['baptism_date'] ?? '');
 $baptism_day = $baptism_timestamp ? date('jS', $baptism_timestamp) : 'N/A';
 $baptism_month = $baptism_timestamp ? date('F', $baptism_timestamp) : 'N/A';
 $baptism_year = $baptism_timestamp ? date('Y', $baptism_timestamp) : 'N/A';
-$communion_timestamp = strtotime($data['communion_date'] ?? '');
+$communion_timestamp = !empty($data['communion_date']) ? strtotime($data['communion_date']) : null;
 $communion_day = $communion_timestamp ? date('jS', $communion_timestamp) : 'N/A';
 $communion_month = $communion_timestamp ? date('F', $communion_timestamp) : 'N/A';
 $communion_year = $communion_timestamp ? date('Y', $communion_timestamp) : 'N/A';
+$communion_month_year = $communion_timestamp ? date('F Y', $communion_timestamp) : 'N/A';
 $confirmation_timestamp = strtotime($data['confirmation_date'] ?? '');
 $confirmation_day = $confirmation_timestamp ? date('jS', $confirmation_timestamp) : 'N/A';
 $confirmation_month = $confirmation_timestamp ? date('F', $confirmation_timestamp) : 'N/A';
@@ -492,13 +618,16 @@ $certificate_backgrounds = [
 $certificate_background = $certificate_backgrounds[$cert_type] ?? $parish_logo;
 $certificate_template = null;
 
+if (!function_exists('certificateTemplateFileUrl')) {
 function certificateTemplateFileUrl($template) {
     if (!$template) {
         return '';
     }
     return 'certificate-template-file.php?id=' . intval($template['template_id']);
 }
+}
 
+if (!function_exists('renderCertificateTemplateLayer')) {
 function renderCertificateTemplateLayer($template, $fallback_url, $cert_type) {
     $class_type = e($cert_type);
     if ($template) {
@@ -512,14 +641,18 @@ function renderCertificateTemplateLayer($template, $fallback_url, $cert_type) {
     }
     return '<img class="certificate-design-bg ' . $class_type . '" src="' . e($fallback_url) . '" alt="" aria-hidden="true">';
 }
+}
 $certificate_template_layer = renderCertificateTemplateLayer($certificate_template, $certificate_background, $cert_type);
 $certificate_template_is_pdf = $certificate_template && $certificate_template['mime_type'] === 'application/pdf';
 
+if (!function_exists('layoutCssValue')) {
 function layoutCssValue($value, $fallback = '') {
     $value = trim((string) $value);
     return $value !== '' ? $value : $fallback;
 }
+}
 
+if (!function_exists('layoutElementStyle')) {
 function layoutElementStyle($settings, $key) {
     $pos = $settings['elements'][$key] ?? null;
     if (!$pos) {
@@ -527,13 +660,16 @@ function layoutElementStyle($settings, $key) {
     }
     return 'left:' . floatval($pos['x']) . 'mm;top:' . floatval($pos['y']) . 'mm;width:' . floatval($pos['w']) . 'mm;height:' . floatval($pos['h']) . 'mm;opacity:' . floatval($pos['opacity']) . ';transform:rotate(' . floatval($pos['rotate']) . 'deg);';
 }
+}
 
+if (!function_exists('layoutImageTag')) {
 function layoutImageTag($settings, $key, $class, $alt) {
     $path = $settings['images'][$key] ?? '';
     if ($path === '') {
         return '';
     }
     return '<img class="' . e($class) . '" src="' . e(certificateLayoutAssetUrl($path)) . '" alt="' . e($alt) . '">';
+}
 }
 
 $layout_font_weight = !empty($layout_typography['bold']) ? '700' : layoutCssValue($layout_typography['font_weight'] ?? '', '700');
@@ -590,14 +726,17 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
     <title><?php echo e($page_title); ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Alex+Brush&family=Cinzel:wght@600;700;800&family=EB+Garamond:ital,wght@0,400..700;1,400..700&family=Pinyon+Script&display=swap" rel="stylesheet">
     <style>
         :root {
             --ink: <?php echo e(layoutCssValue($layout_typography['font_color'] ?? '', '#151515')); ?>;
             --muted: #4c4c4c;
             --line: <?php echo e($layout_border_color); ?>;
             --accent-line: <?php echo e($layout_border_color); ?>;
-            --cert-width: 152.4mm;
-            --cert-height: 228.6mm;
+            --cert-width: <?php echo $is_communion_cert ? '279.4mm' : '152.4mm'; ?>;
+            --cert-height: <?php echo $is_communion_cert ? '215.9mm' : '228.6mm'; ?>;
             --layout-font-family: "<?php echo e(layoutCssValue($layout_typography['font_family'] ?? '', 'Times New Roman')); ?>", Georgia, serif;
             --layout-font-size: <?php echo floatval($layout_typography['font_size'] ?? 8.5); ?>pt;
             --layout-font-weight: <?php echo e($layout_font_weight); ?>;
@@ -868,18 +1007,240 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
         .confirmation-left-line, .confirmation-right-line { position: absolute; top: 60mm; bottom: 19mm; width: 1px; background: #1f2933; opacity: .75; }
         .confirmation-left-line { left: 5mm; }
         .confirmation-right-line { right: 5mm; }
-        @page { size: 6in 9in; margin: 0; }
+        /* First Communion Landscape Certificate Styles */
+        .communion-page {
+            width: var(--cert-width);
+            height: var(--cert-height);
+            margin: 0 auto 24px;
+            background: #ffffff;
+            padding: 5mm;
+            box-shadow: 0 18px 42px rgba(15, 23, 42, .18);
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        .communion-sheet {
+            width: 100%;
+            height: 100%;
+            border: 2px solid #222;
+            position: relative;
+            padding: 3.5mm;
+            background: #ffffff;
+            box-sizing: border-box;
+        }
+        .communion-inner-frame {
+            width: 100%;
+            height: 100%;
+            border: 1px solid #333;
+            position: relative;
+            box-sizing: border-box;
+            background: #ffffff;
+            overflow: hidden;
+        }
+        .communion-corner {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            z-index: 10;
+        }
+        .communion-corner.tl { top: -2px; left: -2px; }
+        .communion-corner.tr { top: -2px; right: -2px; }
+        .communion-corner.bl { bottom: -2px; left: -2px; }
+        .communion-corner.br { bottom: -2px; right: -2px; }
+
+        .communion-left-art {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 95mm;
+            height: 100%;
+            background-image: url('../assets/img/certificates/first-communion-art.png');
+            background-repeat: no-repeat;
+            background-position: left 2mm top 2mm;
+            background-size: contain;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .communion-center-content {
+            position: relative;
+            z-index: 5;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 8mm;
+            padding-left: 55mm; /* Space for grapevine on left */
+            padding-right: 15mm;
+            text-align: center;
+            color: #1a1a1a;
+            box-sizing: border-box;
+        }
+
+        .communion-motto {
+            font-family: 'Pinyon Script', 'Alex Brush', cursive;
+            font-size: 38pt;
+            font-weight: 500;
+            color: #1a1a1a;
+            line-height: 1;
+            margin-bottom: 5mm;
+            letter-spacing: 0.5px;
+        }
+
+        .communion-recipient-box {
+            width: 100%;
+            max-width: 155mm;
+            margin-bottom: 3.5mm;
+        }
+        .communion-recipient-underline {
+            display: inline-block;
+            min-width: 110mm;
+            border-bottom: 1.5px solid #222;
+            padding-bottom: 1.5mm;
+            margin-bottom: 1.5mm;
+        }
+        .communion-name {
+            font-family: 'EB Garamond', 'Times New Roman', serif;
+            font-size: 22pt;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            color: #111;
+        }
+        .communion-sublabel {
+            font-family: 'EB Garamond', 'Times New Roman', serif;
+            font-size: 14pt;
+            font-weight: 600;
+            color: #333;
+            letter-spacing: 0.5px;
+        }
+
+        .communion-heading {
+            font-family: 'Cinzel', 'Times New Roman', serif;
+            font-size: 24pt;
+            font-weight: 800;
+            letter-spacing: 3px;
+            color: #181818;
+            margin-bottom: 4mm;
+            margin-top: 1mm;
+        }
+
+        .communion-date-row {
+            font-family: 'EB Garamond', 'Times New Roman', serif;
+            font-size: 13.5pt;
+            font-style: italic;
+            color: #222;
+            margin-bottom: 3mm;
+            width: 100%;
+            max-width: 160mm;
+            line-height: 1.4;
+        }
+        .communion-date-row .communion-data-fill {
+            display: inline-block;
+            border-bottom: 1px solid #222;
+            font-style: normal;
+            font-weight: 700;
+            padding: 0 4mm;
+            min-width: 22mm;
+            text-align: center;
+        }
+
+        .communion-location-row {
+            font-family: 'EB Garamond', 'Times New Roman', serif;
+            font-size: 13.5pt;
+            font-style: italic;
+            color: #222;
+            margin-bottom: 3mm;
+            width: 100%;
+            max-width: 160mm;
+            line-height: 1.4;
+        }
+        .communion-location-row .communion-data-fill {
+            display: inline-block;
+            border-bottom: 1px solid #222;
+            font-style: normal;
+            font-weight: 700;
+            padding: 0 5mm;
+            min-width: 85mm;
+            text-align: center;
+        }
+
+        .communion-parish-block {
+            margin-bottom: 5mm;
+            line-height: 1.25;
+        }
+        .communion-parish-title {
+            font-family: 'Pinyon Script', 'Alex Brush', cursive;
+            font-size: 26pt;
+            color: #1a1a1a;
+        }
+        .communion-parish-subtitle {
+            font-family: 'Pinyon Script', 'Alex Brush', cursive;
+            font-size: 21pt;
+            color: #2c2c2c;
+        }
+
+        .communion-signers-section {
+            width: 100%;
+            max-width: 155mm;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            margin-top: auto;
+            margin-bottom: 3mm;
+            padding-right: 5mm;
+            box-sizing: border-box;
+        }
+        .communion-signer-box {
+            width: 90mm;
+            text-align: center;
+            margin-bottom: 4mm;
+        }
+        .communion-signer-name {
+            min-height: 8.5mm;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            font-family: 'EB Garamond', 'Times New Roman', serif;
+            font-size: 11pt;
+            font-weight: 700;
+            color: #111;
+            padding-bottom: 1mm;
+        }
+        .communion-signer-line {
+            width: 100%;
+            border-bottom: 1px solid #222;
+            margin-bottom: 1mm;
+        }
+        .communion-signer-position {
+            font-family: 'EB Garamond', 'Times New Roman', serif;
+            font-size: 10.5pt;
+            font-weight: 600;
+            color: #333;
+        }
+
+        @page {
+            <?php if ($is_communion_cert): ?>
+            size: landscape;
+            margin: 0;
+            <?php else: ?>
+            size: 6in 9in;
+            margin: 0;
+            <?php endif; ?>
+        }
         @media print {
             html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; width: 100% !important; height: auto !important; }
-            .cert-toolbar, .cert-toolbar *, .alert, .alert-warning, .btn, button, nav, footer { display: none !important; visibility: hidden !important; height: 0 !important; margin: 0 !important; padding: 0 !important; border: 0 !important; }
+            .cert-toolbar, .cert-toolbar *, .alert, .alert-warning, .alert-danger, .alert-success, .btn, button, nav, footer { display: none !important; visibility: hidden !important; height: 0 !important; margin: 0 !important; padding: 0 !important; border: 0 !important; }
             .certificate-page { width: var(--cert-width) !important; height: var(--cert-height) !important; margin: 0 auto !important; padding: 0 !important; box-shadow: none !important; page-break-before: avoid !important; page-break-after: avoid !important; page-break-inside: avoid !important; break-inside: avoid !important; transform: none !important; }
             .certificate-sheet { height: 100% !important; page-break-inside: avoid !important; break-inside: avoid !important; }
+            .communion-page { width: 100vw !important; height: 100vh !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; page-break-before: avoid !important; page-break-after: avoid !important; page-break-inside: avoid !important; break-inside: avoid !important; transform: none !important; }
+            .communion-sheet { height: 100% !important; page-break-inside: avoid !important; break-inside: avoid !important; }
             .simple-preview { width: var(--cert-width) !important; min-height: var(--cert-height) !important; margin: 0 auto !important; box-shadow: none !important; page-break-before: avoid !important; page-break-after: avoid !important; page-break-inside: avoid !important; break-inside: avoid !important; }
             .confirmation-page { width: var(--cert-width) !important; height: var(--cert-height) !important; margin: 0 auto !important; padding: 0 !important; box-shadow: none !important; page-break-before: avoid !important; page-break-after: avoid !important; }
             .confirmation-sheet { height: 100%; }
         }
         @media (max-width: 900px) {
             .certificate-page, .simple-preview { transform: none; width: var(--cert-width); max-width: none; margin-left: 12px; margin-right: 12px; }
+            .communion-page { transform: scale(.7); transform-origin: top center; margin-bottom: -60mm; }
             .confirmation-page { transform: scale(.82); transform-origin: top center; margin-bottom: -35mm; }
             .cert-toolbar { padding: 0 14px; align-items: flex-start; flex-direction: column; }
         }
@@ -889,9 +1250,11 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
 <body>
     <div class="cert-toolbar">
         <div class="d-flex flex-wrap gap-2">
-            <button class="btn btn-primary" onclick="window.print()"><i class="fas fa-print"></i> Print Certificate</button>
+            <button class="btn btn-primary" onclick="printCertificate()" <?php if (!empty($missing_baptism_fields) || !empty($missing_communion_fields)) echo 'disabled title="Generation blocked: complete required fields before printing"'; ?>><i class="fas fa-print"></i> Print Certificate</button>
             <?php if ($cert_type === 'baptism'): ?>
                 <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#editBaptismModal"><i class="fas fa-pen-to-square"></i> Edit Baptism Details</button>
+            <?php elseif ($is_communion_cert): ?>
+                <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#editCommunionModal"><i class="fas fa-pen-to-square"></i> Edit Communion Details</button>
             <?php elseif ($is_certification): ?>
                 <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#editPurposeModal"><i class="fas fa-pen-to-square"></i> Edit Purpose & Details</button>
             <?php endif; ?>
@@ -905,6 +1268,32 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             <a href="certificate-generator.php" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back</a>
         </div>
     </div>
+
+    <?php if ($is_communion_cert && !empty($missing_communion_fields)): ?>
+        <div class="alert alert-danger border-danger shadow-sm mx-auto mb-3" style="max-width: var(--cert-width);">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <i class="fas fa-ban text-danger me-2 fs-5"></i>
+                    <strong>Certificate Generation Blocked:</strong> Missing required First Communion fields: <?php echo e(implode(', ', $missing_communion_fields)); ?>.
+                </div>
+                <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#editCommunionModal">
+                    <i class="fas fa-pen"></i> Complete Missing Data
+                </button>
+            </div>
+        </div>
+    <?php elseif ($is_communion_cert): ?>
+        <div class="alert alert-success border-success shadow-sm mx-auto mb-3 py-2" style="max-width: var(--cert-width); font-size: 0.88rem;">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <i class="fas fa-check-circle text-success me-2"></i>
+                    All required First Communion fields verified and ready for official printing.
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#editCommunionModal">
+                    <i class="fas fa-edit"></i> Edit Details
+                </button>
+            </div>
+        </div>
+    <?php endif; ?>
 
     <?php if (!empty($missing_baptism_fields)): ?>
         <div class="alert alert-warning border-warning shadow-sm mx-auto mb-3" style="max-width: var(--cert-width);">
@@ -1165,106 +1554,92 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
                 <?php endif; ?>
             </section>
         </main>
-    <?php elseif ($cert_type === 'communion'): ?>
-        <main class="certificate-page" id="certificateDocument">
-            <section class="certificate-sheet">
-                <?php echo $certificate_template_layer; ?>
-                <?php echo layoutImageTag($certificate_layout_settings, 'watermark', 'layout-watermark-image', 'Certificate watermark'); ?>
-                <div class="watermark-text"><?php echo e($layout_watermark_text); ?></div>
-                <div class="certificate-number"><?php echo e($issue['certificate_number']); ?></div>
-                <div class="cert-content">
-                    <header class="cert-header">
-                        <div class="certificate-logo-slot">
-                            <?php if ($archdiocese_logo): ?>
-                                <img class="certificate-logo archdiocese-logo" src="<?php echo e($archdiocese_logo); ?>" alt="Official Archdiocese of Cotabato crest">
-                            <?php endif; ?>
-                        </div>
-                        <div>
-                            <div class="parish"><?php echo e(strtoupper($layout_church_title)); ?></div>
-                            <div class="diocese"><?php echo e(strtoupper($layout_diocese_name)); ?></div>
-                            <div class="parish"><?php echo e(strtoupper($display_parish_name)); ?></div>
-                            <div class="location"><?php echo e(strtoupper($display_ceremony_place)); ?></div>
-                            <div class="cert-title"><?php echo e($layout_certificate_title); ?></div>
-                            <div class="cert-subline"><?php echo e($layout_certificate_subtitle); ?></div>
-                        </div>
-                        <div class="certificate-logo-slot">
-                            <img class="certificate-logo" src="<?php echo e($mission_logo); ?>" alt="San Lorenzo Ruiz Mission Station logo">
-                        </div>
-                    </header>
+    <?php elseif ($is_communion_cert): ?>
+        <main class="certificate-page communion-page" id="certificateDocument">
+            <section class="communion-sheet">
+                <!-- Corner Ornaments (Nested Squares) -->
+                <svg class="communion-corner tl" viewBox="0 0 32 32" aria-hidden="true">
+                    <rect x="2" y="2" width="28" height="28" fill="#fff" stroke="#222" stroke-width="1.5"/>
+                    <rect x="6" y="6" width="20" height="20" fill="#fff" stroke="#222" stroke-width="1"/>
+                    <rect x="10" y="10" width="12" height="12" fill="#222"/>
+                </svg>
+                <svg class="communion-corner tr" viewBox="0 0 32 32" aria-hidden="true">
+                    <rect x="2" y="2" width="28" height="28" fill="#fff" stroke="#222" stroke-width="1.5"/>
+                    <rect x="6" y="6" width="20" height="20" fill="#fff" stroke="#222" stroke-width="1"/>
+                    <rect x="10" y="10" width="12" height="12" fill="#222"/>
+                </svg>
+                <svg class="communion-corner bl" viewBox="0 0 32 32" aria-hidden="true">
+                    <rect x="2" y="2" width="28" height="28" fill="#fff" stroke="#222" stroke-width="1.5"/>
+                    <rect x="6" y="6" width="20" height="20" fill="#fff" stroke="#222" stroke-width="1"/>
+                    <rect x="10" y="10" width="12" height="12" fill="#222"/>
+                </svg>
+                <svg class="communion-corner br" viewBox="0 0 32 32" aria-hidden="true">
+                    <rect x="2" y="2" width="28" height="28" fill="#fff" stroke="#222" stroke-width="1.5"/>
+                    <rect x="6" y="6" width="20" height="20" fill="#fff" stroke="#222" stroke-width="1"/>
+                    <rect x="10" y="10" width="12" height="12" fill="#222"/>
+                </svg>
 
-                    <div class="recipient"><?php echo e($data['fullname'] ?? 'N/A'); ?></div>
+                <div class="communion-inner-frame">
+                    <!-- Left Artwork: Grapevine & Chalice with Bread -->
+                    <div class="communion-left-art" aria-hidden="true"></div>
 
-                    <p class="statement">
-                        This is to certify that <?php echo $is_manual_certificate ? 'the above-named person received First Holy Communion' : 'according to the records of this parish, the above-named person received First Holy Communion'; ?> according to the rite of the
-                        <strong>ROMAN CATHOLIC CHURCH</strong>.
-                    </p>
+                    <!-- Center & Right Content Flow -->
+                    <div class="communion-center-content">
+                        <!-- Top Line: Fixed Motto -->
+                        <div class="communion-motto">I am the Bread of Life</div>
 
-                    <div class="details">
-                        <div class="label">Full Name:</div><div class="value"><?php echo e($data['fullname'] ?? 'N/A'); ?></div>
-                        <div class="label">Date of Birth:</div><div class="value"><?php echo e(displayDate($data['birth_date'] ?? '')); ?></div>
-                        <div class="label">Date of First Communion:</div><div class="value"><?php echo e(displayDate($data['communion_date'] ?? '')); ?></div>
-                        <div class="label">Place:</div><div class="value"><?php echo e($display_parish_name . ', ' . $display_ceremony_place); ?></div>
-                        <div class="label">Parents:</div><div class="value"><?php echo e($data['parents'] ?? 'N/A'); ?></div>
-                        <div class="label">Residence:</div><div class="value"><?php echo e($data['domicile'] ?? 'N/A'); ?></div>
-                        <div class="label">Baptismal Date:</div><div class="value"><?php echo e(displayDate($data['baptismal_date'] ?? '')); ?></div>
-                        <div class="label">Baptismal Place:</div><div class="value"><?php echo e($data['baptismal_place'] ?? 'N/A'); ?></div>
-                    </div>
-
-                    <div class="church-line">
-                        Received First Holy Communion according to the Rite of the
-                        <span class="roman">ROMAN CATHOLIC CHURCH</span>
-                    </div>
-                    <div class="minister">
-                        Minister:
-                        <strong><?php echo e($data['priest'] ?? 'N/A'); ?></strong>
-                    </div>
-
-                    <div class="lower-grid">
-                        <div>
-                            <div class="sponsors">
-                                <strong>Sponsor:</strong>
-                                <div class="sponsor-lines"><?php echo e($data['sponsor'] ?? 'N/A'); ?></div>
+                        <!-- Recipient Full Name & Title -->
+                        <div class="communion-recipient-box">
+                            <div class="communion-recipient-underline">
+                                <span class="communion-name"><?php echo e($data['fullname'] ?? ''); ?></span>
                             </div>
-                            <div class="registry-box">
-                                <div><strong>Book/Folio</strong><br><?php echo e($volume_no); ?></div>
-                                <div><strong>Page No.</strong><br><?php echo e($page_no); ?></div>
-                                <div><strong>Entry No.</strong><br><?php echo e($entry_no); ?></div>
-                                <div><strong>Communion Date</strong><br><?php echo e(displayDate($data['communion_date'] ?? '', 'm/d/Y')); ?></div>
-                                <div><strong>Reference</strong><br><?php echo e($issue['certificate_number']); ?></div>
-                                <div><strong>Status</strong><br><?php echo e(ucfirst($issue['status'])); ?></div>
-                            </div>
-                            <div class="remarks mt-2">
-                                <strong>Remarks:</strong> <?php echo e($data['remarks'] ?? 'Issued for parish record purposes.'); ?>
-                            </div>
+                            <div class="communion-sublabel">First Communicant</div>
                         </div>
-                        <div class="auth-box">
-                            <div class="issued">
-                                <strong>Date Issued:</strong><br><?php echo e(displayDate($issue['issued_at'] ?? date('Y-m-d'))); ?><br>
-                                <strong>Certificate No.:</strong><br><?php echo e($issue['certificate_number']); ?>
-                            </div>
-                            <div class="qr-row">
-                                <div class="seal-area">Official<br>Dry Seal<br>Area</div>
-                            </div>
-                        </div>
-                    </div>
 
-                    <div class="signature-grid">
-                        <div class="signature">
-                            <div class="signature-line"><?php echo layoutImageTag($certificate_layout_settings, 'priest_signature', 'certificate-logo', 'Priest signature') . e($layout_priest_name); ?></div>
-                            <span><?php echo e($layout_priest_position); ?></span>
+                        <!-- Title Line: Fixed Heading -->
+                        <h1 class="communion-heading">FIRST HOLY COMMUNION</h1>
+
+                        <!-- Date Line -->
+                        <div class="communion-date-row">
+                            on the <span class="communion-data-fill communion-fill-day"><?php echo e($communion_day); ?></span> day of <span class="communion-data-fill communion-fill-month" style="min-width: 48mm;"><?php echo e($communion_month_year); ?></span>
                         </div>
-                        <div class="signature">
-                            <div class="signature-line"><?php echo layoutImageTag($certificate_layout_settings, 'secretary_signature', 'certificate-logo', 'Secretary signature') . e($layout_secretary_name); ?></div>
-                            <span><?php echo e($layout_secretary_position); ?></span>
+
+                        <!-- Location Line -->
+                        <div class="communion-location-row">
+                            in <span class="communion-data-fill communion-fill-loc"><?php echo e($communion_parish_name); ?></span>
+                        </div>
+
+                        <!-- Parish Full Name & Address Line in Script -->
+                        <div class="communion-parish-block">
+                            <div class="communion-parish-title"><?php echo e($communion_parish_name); ?></div>
+                            <div class="communion-parish-subtitle"><?php echo e($communion_parish_address); ?></div>
+                        </div>
+
+                        <!-- Three Signer Lines at Bottom Right -->
+                        <div class="communion-signers-section">
+                            <!-- 1. Parish Catechist Coordinator -->
+                            <div class="communion-signer-box">
+                                <div class="communion-signer-name"><?php echo e($data['catechist_coordinator'] ?? ''); ?></div>
+                                <div class="communion-signer-line"></div>
+                                <div class="communion-signer-position">Parish Catechist Coordinator</div>
+                            </div>
+
+                            <!-- 2. Parish Priest -->
+                            <div class="communion-signer-box">
+                                <div class="communion-signer-name"><?php echo e($data['parish_priest'] ?? ''); ?></div>
+                                <div class="communion-signer-line"></div>
+                                <div class="communion-signer-position">Parish Priest</div>
+                            </div>
+
+                            <!-- 3. Principal -->
+                            <div class="communion-signer-box">
+                                <div class="communion-signer-name"><?php echo e($data['principal'] ?? ''); ?></div>
+                                <div class="communion-signer-line"></div>
+                                <div class="communion-signer-position">Principal</div>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <?php if (!$is_manual_certificate): ?>
-                    <div class="verification-code">
-                        <span>Verify: <?php echo e($verification_url); ?></span>
-                        <span>Unauthorized alteration invalidates this certificate.</span>
-                    </div>
-                <?php endif; ?>
             </section>
         </main>
     <?php elseif (in_array($cert_type, ['marriage_certification', 'first_communion_certification', 'confirmation_certification', 'funeral_certification'], true)): ?>
@@ -1698,6 +2073,71 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
     </div>
     <?php endif; ?>
 
+    <?php if ($is_communion_cert): ?>
+    <!-- Edit First Communion Details Modal -->
+    <div class="modal fade" id="editCommunionModal" tabindex="-1" aria-labelledby="editCommunionModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content border-0 shadow">
+                <form method="POST" action="" id="editCommunionForm">
+                    <?php echo csrfInput(); ?>
+                    <input type="hidden" name="action" value="update_certificate_details">
+                    <div class="modal-header bg-dark text-white">
+                        <h5 class="modal-title" id="editCommunionModalLabel"><i class="fas fa-pen-to-square me-2 text-warning"></i> Edit First Communion Certificate Details</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <div class="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 mb-3">
+                            <i class="fas fa-circle-info fs-5"></i>
+                            <div>All 7 required fields must be complete before the First Communion certificate can be officially generated and printed.</div>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-12">
+                                <label class="form-label fw-bold small">Recipient's Full Name (First Communicant) <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="fullname" value="<?php echo e($data['fullname'] ?? ''); ?>" placeholder="e.g. Rey Mark C. Cavañas" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Date of First Communion <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" name="communion_date" value="<?php echo e($data['communion_date'] ?? ''); ?>" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Parish / Mission Station Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="parish_name" value="<?php echo e($communion_parish_name); ?>" required>
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label fw-bold small">Parish Full Address <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="parish_address" value="<?php echo e($communion_parish_address); ?>" placeholder="e.g. Aleosan, Cotabato" required>
+                            </div>
+
+                            <div class="col-12"><hr class="my-2"></div>
+                            <div class="col-12">
+                                <h6 class="fw-bold small text-muted text-uppercase mb-2"><i class="fas fa-signature me-1"></i> Authorized Signers (Parish Roster)</h6>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">Parish Catechist Coordinator <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="catechist_coordinator" value="<?php echo e($data['catechist_coordinator'] ?? ''); ?>" placeholder="e.g. Sis. Lourdes Fernandez" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">Parish Priest <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="parish_priest" value="<?php echo e($data['parish_priest'] ?? ''); ?>" placeholder="e.g. Rev. Fr. Alberto Cahilig, OMI" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">Principal <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="principal" value="<?php echo e($data['principal'] ?? ''); ?>" placeholder="e.g. Principal Name" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-check"></i> Save & Update Certificate</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <?php if ($cert_type === 'baptism'): ?>
     <!-- Edit Baptism Details Modal -->
     <div class="modal fade" id="editBaptismModal" tabindex="-1" aria-labelledby="editBaptismModalLabel" aria-hidden="true">
@@ -1867,6 +2307,29 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
     </script>
     <?php endif; ?>
 
+    <script>
+    function printCertificate() {
+        <?php if ($is_communion_cert && !empty($missing_communion_fields)): ?>
+        alert("Cannot generate or print certificate. Please complete all required First Communion fields first:\n\n- " + <?php echo json_encode(implode("\n- ", $missing_communion_fields)); ?>);
+        const communionModalEl = document.getElementById('editCommunionModal');
+        if (communionModalEl) {
+            const modal = bootstrap.Modal.getOrCreateInstance(communionModalEl);
+            modal.show();
+        }
+        return;
+        <?php endif; ?>
+        <?php if (!empty($missing_baptism_fields)): ?>
+        alert("Cannot generate or print certificate. Please complete all required Baptism fields first:\n\n- " + <?php echo json_encode(implode("\n- ", $missing_baptism_fields)); ?>);
+        const baptismModalEl = document.getElementById('editBaptismModal');
+        if (baptismModalEl) {
+            const modal = bootstrap.Modal.getOrCreateInstance(baptismModalEl);
+            modal.show();
+        }
+        return;
+        <?php endif; ?>
+        window.print();
+    }
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

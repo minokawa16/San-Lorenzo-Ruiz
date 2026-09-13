@@ -29,7 +29,7 @@ final class SacramentalRecordService
             'name' => ['fullname'], 'birth' => ['birth_date'], 'event' => 'communion_date',
             'required' => ['fullname','birth_date','communion_date','parents','priest'],
             'request_types' => ['first_communion_certificate','first_communion_certification'],
-            'fields' => ['request_id','registry_no','book_no','page_no','entry_no','fullname','birth_date','communion_date','domicile','parents','sponsor','priest','folio','baptismal_date','baptismal_place','remarks','parish_priest','parish_secretary'],
+            'fields' => ['request_id','registry_no','book_no','page_no','entry_no','fullname','birth_date','communion_date','domicile','parents','sponsor','priest','folio','baptismal_date','baptismal_place','remarks','parish_priest','parish_secretary','catechist_coordinator','principal'],
         ],
         'marriage' => [
             'table' => 'marriage_records', 'id' => 'marriage_id',

@@ -54,10 +54,16 @@ function communion_column_exists($conn, $column_name) {
 }
 
 function ensure_first_communion_record_book_schema($conn) {
+    if (!communion_column_exists($conn, 'catechist_coordinator')) {
+        @$conn->query("ALTER TABLE first_communion_records ADD COLUMN catechist_coordinator VARCHAR(255) NULL AFTER parish_priest");
+    }
+    if (!communion_column_exists($conn, 'principal')) {
+        @$conn->query("ALTER TABLE first_communion_records ADD COLUMN principal VARCHAR(255) NULL AFTER catechist_coordinator");
+    }
     return requireSchemaColumns($conn, 'first_communion_records', [
         'request_id', 'registry_no', 'domicile', 'parents', 'folio',
         'baptismal_date', 'baptismal_place', 'remarks', 'parish_priest',
-        'parish_secretary'
+        'parish_secretary', 'catechist_coordinator', 'principal'
     ], 'first communion records');
 }
 
@@ -762,6 +768,8 @@ include '../templates/header.php';
                                             'remarks' => $record['remarks'] ?? '',
                                             'parish_priest' => $record['parish_priest'] ?? '',
                                             'parish_secretary' => $record['parish_secretary'] ?? '',
+                                            'catechist_coordinator' => $record['catechist_coordinator'] ?? '',
+                                            'principal' => $record['principal'] ?? '',
                                             'status' => $record['status'] ?? 'active',
                                             'request_id' => $record['request_id'] ?? '',
                                             'book_no' => $record['book_no'] ?? '', 'page_no' => $record['page_no'] ?? '', 'entry_no' => $record['entry_no'] ?? ''
@@ -786,6 +794,12 @@ include '../templates/header.php';
                                         </td>
                                         <td>
                                             <div class="action-buttons">
+                                                <a href="generate-cert.php?type=communion&id=<?php echo (int)$record['communion_id']; ?>" class="action-btn" style="background:#1e3a8a;color:#fff;text-decoration:none;padding:6px 11px;border-radius:5px;display:inline-flex;align-items:center;gap:5px;font-size:0.8rem;font-weight:600;" title="Generate First Communion Certificate">
+                                                    <i class="fas fa-certificate"></i> Cert
+                                                </a>
+                                                <button type="button" class="action-btn" style="background:#f59e0b;color:#fff;border:none;padding:6px 11px;border-radius:5px;display:inline-flex;align-items:center;gap:5px;font-size:0.8rem;font-weight:600;cursor:pointer;" onclick='openEditModal(<?php echo js_value($record_payload); ?>)'>
+                                                    <i class="fas fa-edit"></i> Edit
+                                                </button>
                                                 <button class="action-btn btn-delete" onclick="confirmArchive(<?php echo $record['communion_id']; ?>)">
                                                     <i class="fas fa-archive"></i> Archive
                                                 </button>
@@ -924,6 +938,16 @@ include '../templates/header.php';
                             <label>Parish Secretary</label>
                             <input type="text" id="parishSecretary" name="parish_secretary" placeholder="Name printed above Parish Secretary">
                         </div>
+
+                        <div class="form-group">
+                            <label>Catechist Coordinator</label>
+                            <input type="text" id="catechistCoordinator" name="catechist_coordinator" placeholder="e.g. Sis. Lourdes Fernandez">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Principal</label>
+                            <input type="text" id="principalName" name="principal" placeholder="School Principal Name">
+                        </div>
                         <div class="form-group full-width"><label>Correction reason (required when editing)</label><textarea name="correction_reason" minlength="5"></textarea></div>
                     </div>
                 </div>
@@ -973,6 +997,8 @@ include '../templates/header.php';
             document.getElementById('bookNo').value = '';
             document.getElementById('pageNo').value = '';
             document.getElementById('entryNo').value = '';
+            document.getElementById('catechistCoordinator').value = '';
+            document.getElementById('principalName').value = '';
             document.getElementById('modalTitle').textContent = 'Add First Communion Record';
             document.getElementById('recordModal').classList.add('show');
             document.body.classList.add('modal-open');
@@ -997,6 +1023,8 @@ include '../templates/header.php';
             document.getElementById('remarks').value = record.remarks || '';
             document.getElementById('parishPriest').value = record.parish_priest || '';
             document.getElementById('parishSecretary').value = record.parish_secretary || '';
+            document.getElementById('catechistCoordinator').value = record.catechist_coordinator || '';
+            document.getElementById('principalName').value = record.principal || '';
             document.getElementById('recordStatus').value = record.status || 'active';
             document.getElementById('requestId').value = record.request_id || '';
             document.getElementById('actionInput').value = 'edit';
