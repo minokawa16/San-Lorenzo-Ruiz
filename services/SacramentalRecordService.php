@@ -13,7 +13,7 @@ final class SacramentalRecordService
         'baptism' => [
             'table' => 'baptism_records', 'id' => 'baptism_id',
             'name' => ['fullname'], 'birth' => ['birth_date'], 'event' => 'baptism_date',
-            'required' => ['fullname','birth_date','birth_place','parents','baptism_date','godparents','priest'],
+            'required' => ['fullname','birth_date','birth_place','parents','baptism_date','godparents','priest','parish_priest'],
             'request_types' => ['baptism_service','baptismal_certificate','baptism_certification'],
             'fields' => ['request_id','registry_no','book_no','page_no','entry_no','fullname','birth_date','birth_place','birth_status','parents','parent_address','baptism_date','godparents','parish_address','priest','remarks','parish_priest','parish_secretary'],
         ],

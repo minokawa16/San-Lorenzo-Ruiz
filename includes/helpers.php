@@ -3557,3 +3557,160 @@ function getFirstCommunionSigners($conn, $data = []) {
         'principal' => $principal,
     ];
 }
+
+/**
+ * Retrieves the roster of priests for the parish from org hierarchy, settings, and historical records.
+ *
+ * @param mysqli|null $conn Database connection
+ * @return array Array of distinct priest names (e.g. "Rev. Fr. Alberto Cahilig, OMI")
+ */
+function getParishPriestRoster($conn = null) {
+    global $conn;
+    $db = $conn;
+    $roster = [];
+
+    // 1. From org_members / position_assignments (active parish clergy)
+    if ($db) {
+        $q = "SELECT om.title_prefix, om.full_name, op.role_code 
+              FROM position_assignments pa
+              JOIN org_members om ON pa.member_id = om.member_id
+              JOIN org_positions op ON pa.position_id = op.position_id
+              WHERE pa.is_active = 1 
+                AND (op.role_code IN ('PARISH_PRIEST', 'PAROCHIAL_VICAR', 'CLERGY', 'PRIEST', 'MINISTER') 
+                     OR op.title LIKE '%Priest%' 
+                     OR op.title LIKE '%Vicar%'
+                     OR om.title_prefix LIKE '%Fr%'
+                     OR om.title_prefix LIKE '%Rev%')
+              ORDER BY (op.role_code = 'PARISH_PRIEST') DESC, om.full_name ASC";
+        $res = @$db->query($q);
+        if ($res) {
+            while ($row = $res->fetch_assoc()) {
+                $pfx = trim((string)($row['title_prefix'] ?? ''));
+                $name = trim((string)($row['full_name'] ?? ''));
+                $full = ($pfx !== '' ? $pfx . ' ' : '') . $name;
+                if ($full !== '') $roster[] = $full;
+            }
+        }
+    }
+
+    // 2. Default canonical parish priests
+    $canonical = [
+        'Rev. Fr. Alberto Cahilig, OMI',
+        'Rev. Fr. Mark Anthony Santos, OMI',
+        'Rev. Fr. Heriberto C. Villas, O.M.I.'
+    ];
+    foreach ($canonical as $c) {
+        $roster[] = $c;
+    }
+
+    // 3. System settings
+    if ($db) {
+        $res = @$db->query("SELECT setting_value FROM system_settings WHERE setting_key IN ('parish_priest', 'parish_priest_name')");
+        if ($res) {
+            while ($row = $res->fetch_assoc()) {
+                $val = trim((string)($row['setting_value'] ?? ''));
+                if ($val !== '' && strtolower($val) !== 'rev. fr. parish priest' && strtolower($val) !== 'n/a') {
+                    $roster[] = $val;
+                }
+            }
+        }
+    }
+
+    // 4. Distinct historical priests from records
+    if ($db) {
+        $res = @$db->query("SELECT DISTINCT priest FROM baptism_records WHERE priest IS NOT NULL AND priest != '' AND priest NOT LIKE '%Parish Priest%' AND priest NOT LIKE '%Test%'");
+        if ($res) {
+            while ($row = $res->fetch_assoc()) {
+                $p = trim((string)$row['priest']);
+                if ($p !== '') $roster[] = $p;
+            }
+        }
+    }
+
+    // Normalize & deduplicate while preserving professional casing and title
+    $unique = [];
+    $seen = [];
+    foreach ($roster as $item) {
+        $norm = preg_replace('/^(rev\s*\.?\s*fr\s*\.?\s*|fr\s*\.?\s*|father\s+)/i', '', $item);
+        $norm = strtolower(preg_replace('/[^a-z0-9]/', '', $norm));
+        if ($norm === '' || isset($seen[$norm])) continue;
+        $seen[$norm] = true;
+        $unique[] = $item;
+    }
+
+    return $unique;
+}
+
+/**
+ * Returns the current Parish Priest name.
+ *
+ * @param mysqli|null $conn Database connection
+ * @return string Parish priest full name
+ */
+function getParishPriestName($conn = null) {
+    global $conn;
+    $db = $conn;
+    if ($db) {
+        $p_query = "SELECT om.title_prefix, om.full_name 
+                    FROM position_assignments pa
+                    JOIN org_members om ON pa.member_id = om.member_id
+                    JOIN org_positions op ON pa.position_id = op.position_id
+                    WHERE pa.is_active = 1 
+                      AND (op.role_code = 'PARISH_PRIEST' OR op.title LIKE '%Parish Priest%')
+                    LIMIT 1";
+        $res = @$db->query($p_query);
+        if ($res && $row = $res->fetch_assoc()) {
+            $prefix = trim((string)($row['title_prefix'] ?? ''));
+            $fullName = trim((string)($row['full_name'] ?? ''));
+            $priest = ($prefix !== '' ? $prefix . ' ' : '') . $fullName;
+            if ($priest !== '') return $priest;
+        }
+
+        $s_query = "SELECT setting_value FROM system_settings WHERE setting_key IN ('parish_priest', 'parish_priest_name') LIMIT 1";
+        $res = @$db->query($s_query);
+        if ($res && $row = $res->fetch_assoc()) {
+            $val = trim((string)($row['setting_value'] ?? ''));
+            if ($val !== '' && strtolower($val) !== 'rev. fr. parish priest') {
+                return $val;
+            }
+        }
+    }
+    return 'Rev. Fr. Alberto Cahilig, OMI';
+}
+
+/**
+ * Formats parent information for the Baptismal Registry by stripping address annotations.
+ * E.g. "Father: Creatine (Origin/Residence: aleosan, cotabato) | Mother: Jai Cantor (Origin/Residence: aleosan, cotabato)"
+ * becomes "Father: Creatine | Mother: Jai Cantor".
+ *
+ * @param string|null $parents
+ * @return string
+ */
+function format_baptism_parents($parents) {
+    if (empty($parents) || $parents === 'N/A') return 'N/A';
+    // Remove (Origin/Residence: ...) or (Origin: ...) or (Residence: ...)
+    $cleaned = preg_replace('/\s*\(\s*(?:Origin\s*\/?\s*Residence|Origin|Residence)[^)]*\)/i', '', $parents);
+    // Also remove generic parenthetical address containing common location terms
+    $cleaned = preg_replace('/\s*\([^)]*(?:aleosan|cotabato|city|province|brgy|barangay|poblacion|st\.|street)[^)]*\)/i', '', $cleaned);
+    $cleaned = preg_replace('/\s+/', ' ', $cleaned);
+    $cleaned = trim($cleaned);
+    return !empty($cleaned) ? $cleaned : 'N/A';
+}
+
+/**
+ * Formats sponsors/godparents for the Baptismal Registry by stripping address annotations.
+ * E.g. "Ninong: lee (aleosan, cotabato) | Ninang: elle, REI (aleosan, cotabato)"
+ * becomes "Ninong: lee | Ninang: elle, REI".
+ *
+ * @param string|null $godparents
+ * @return string
+ */
+function format_baptism_sponsors($godparents) {
+    if (empty($godparents) || $godparents === 'N/A') return 'N/A';
+    // Remove (aleosan, cotabato) or any address in parentheses following sponsor names
+    $cleaned = preg_replace('/\s*\([^)]+\)/', '', $godparents);
+    $cleaned = preg_replace('/\s+/', ' ', $cleaned);
+    $cleaned = trim($cleaned);
+    return !empty($cleaned) ? $cleaned : 'N/A';
+}
+

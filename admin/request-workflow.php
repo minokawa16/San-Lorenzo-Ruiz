@@ -102,8 +102,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             if ($is_sacramental_type) {
                 try {
                     $sacramentalService = new SacramentalApprovalService($conn);
+                    $officiating_priest = trim($_POST['officiating_priest'] ?? $_POST['minister'] ?? '');
+                    $parish_priest = trim($_POST['parish_priest'] ?? '');
                     $completionResult = $sacramentalService->completeRequest($request_id, (int)$_SESSION['user_id'], [
                         'admin_response' => $admin_response,
+                        'officiating_priest' => $officiating_priest,
+                        'parish_priest' => $parish_priest,
                         'target_status' => 'completed'
                     ]);
                     $request['status'] = 'completed';
@@ -1333,6 +1337,34 @@ $breadcrumbs = [
                                 <i class="fas fa-bell me-1"></i> This response is included in the parishioner's email and portal notification.
                             </div>
                         </div>
+
+                        <?php if ($is_sacramental): 
+                            $priest_roster = getParishPriestRoster($conn);
+                            $default_parish_priest = getParishPriestName($conn);
+                        ?>
+                            <div class="col-md-6">
+                                <label for="workflow_minister" class="micro-label">Minister / Officiating Priest <span class="text-danger">*</span></label>
+                                <select class="form-select border-secondary-subtle py-2 fw-semibold" id="workflow_minister" name="officiating_priest">
+                                    <option value="">-- Select Minister (Who performed baptism) --</option>
+                                    <?php foreach ($priest_roster as $p_opt): ?>
+                                        <option value="<?php echo htmlspecialchars($p_opt); ?>"><?php echo htmlspecialchars($p_opt); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <div class="form-text text-muted small mt-1">Required when marking sacramental request completed.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="workflow_parish_priest" class="micro-label">Parish Priest <span class="text-danger">*</span></label>
+                                <select class="form-select border-secondary-subtle py-2 fw-semibold" id="workflow_parish_priest" name="parish_priest">
+                                    <option value="">-- Select Parish Priest --</option>
+                                    <?php foreach ($priest_roster as $p_opt): ?>
+                                        <option value="<?php echo htmlspecialchars($p_opt); ?>" <?php echo ($p_opt === $default_parish_priest) ? 'selected' : ''; ?>>
+                                            <?php echo htmlspecialchars($p_opt); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <div class="form-text text-muted small mt-1">Confirmed canonical Parish Priest for official registry.</div>
+                            </div>
+                        <?php endif; ?>
                     </div>
 
                     <!-- Bottom Action Bar -->

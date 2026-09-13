@@ -64,13 +64,15 @@ if ($requestId <= 0) {
 
 $adminResponse = trim((string) ($input['admin_response'] ?? $input['remarks'] ?? ''));
 $officiatingPriest = trim((string) ($input['officiating_priest'] ?? $input['minister'] ?? ''));
+$parishPriest = trim((string) ($input['parish_priest'] ?? ''));
 $actorUserId = intval($_SESSION['user_id'] ?? 0);
 
 try {
     $service = new SacramentalApprovalService($conn);
     $result = $service->approveRequest($requestId, $actorUserId, [
         'admin_response' => $adminResponse,
-        'officiating_priest' => $officiatingPriest
+        'officiating_priest' => $officiatingPriest,
+        'parish_priest' => $parishPriest
     ]);
 
     http_response_code(200);

@@ -62,9 +62,7 @@ class SacramentalApprovalService {
         $targetStatus = !empty($options['target_status']) ? $options['target_status'] : 'completed';
         $adminResponse = trim((string) ($options['admin_response'] ?? ''));
         $officiatingPriest = trim((string) ($options['officiating_priest'] ?? $options['minister'] ?? ''));
-        if ($officiatingPriest === '') {
-            $officiatingPriest = $this->getDefaultOfficiatingPriest();
-        }
+        $parishPriest = trim((string) ($options['parish_priest'] ?? ''));
 
         $this->conn->begin_transaction();
         try {
@@ -92,6 +90,31 @@ class SacramentalApprovalService {
             $allowedFrom = ['pending', 'submitted', 'requirements_review', 'needs_information', 'processing', 'scheduled', 'approved', 'completed'];
             if (!in_array($currentStatus, $allowedFrom, true)) {
                 throw new DomainException("Request cannot be transitioned to '{$targetStatus}' from '{$currentStatus}' status.");
+            }
+
+            // Enforce Minister and Parish Priest assignment before marking sacramental requests Approved or Completed
+            $isSacramental = self::isSacramentalRequestType((string) ($request['request_type'] ?? ''));
+            $enforcePriests = !empty($options['enforce_priest_assignment']);
+            if ($isSacramental && in_array($targetStatus, ['approved', 'completed'], true)) {
+                if ($officiatingPriest === '' || strcasecmp($officiatingPriest, 'Rev. Fr. Parish Priest') === 0 || strcasecmp($officiatingPriest, 'N/A') === 0) {
+                    if ($enforcePriests) {
+                        throw new DomainException('Minister / Officiating Priest must be assigned before marking the sacramental record as ' . ucfirst($targetStatus) . '.');
+                    }
+                    $officiatingPriest = $this->getDefaultOfficiatingPriest();
+                }
+                if ($parishPriest === '' || strcasecmp($parishPriest, 'N/A') === 0) {
+                    if ($enforcePriests) {
+                        throw new DomainException('Parish Priest must be confirmed and assigned before marking the sacramental record as ' . ucfirst($targetStatus) . '.');
+                    }
+                    $parishPriest = function_exists('getParishPriestName') ? getParishPriestName($this->conn) : $this->getDefaultOfficiatingPriest();
+                }
+            } else {
+                if ($officiatingPriest === '') {
+                    $officiatingPriest = $this->getDefaultOfficiatingPriest();
+                }
+                if ($parishPriest === '') {
+                    $parishPriest = function_exists('getParishPriestName') ? getParishPriestName($this->conn) : $this->getDefaultOfficiatingPriest();
+                }
             }
 
             // 2. Validate calendar schedule conflict before completing (skip conflict if already has its own event)
@@ -144,7 +167,9 @@ class SacramentalApprovalService {
             $request['admin_response'] = $adminResponse;
 
             // 4. Action 1: Transfer and populate service data into official Sacramental Records
-            $sacramentalRecord = $this->populateSacramentalRecord($request, $officiatingPriest, $actorUserId);
+            $sacramentalRecord = $this->populateSacramentalRecord($request, $officiatingPriest, $actorUserId, array_merge($options, [
+                'parish_priest' => $parishPriest
+            ]));
 
             // 5. Action 2: Insert and lock scheduled event into Parish Calendar
             $calendarEvent = $this->populateParishCalendarEvent($request, $sacramentalRecord, $actorUserId);
@@ -192,13 +217,17 @@ class SacramentalApprovalService {
     /**
      * Extracts structured fields and populates the official Sacramental Record table.
      */
-    public function populateSacramentalRecord(array $request, string $officiatingPriest, int $actorUserId): array {
+    public function populateSacramentalRecord(array $request, string $officiatingPriest, int $actorUserId, array $options = []): array {
         $requestType = strtolower(trim((string) ($request['request_type'] ?? '')));
         $description = (string) ($request['description'] ?? '');
         $requestId = intval($request['request_id']);
+        $parishPriest = trim((string) ($options['parish_priest'] ?? ''));
+        if ($parishPriest === '') {
+            $parishPriest = function_exists('getParishPriestName') ? getParishPriestName($this->conn) : $this->getDefaultOfficiatingPriest();
+        }
 
         if ($requestType === 'baptism_service' || $requestType === 'baptism') {
-            return $this->populateBaptismRecord($requestId, $description, $request, $officiatingPriest);
+            return $this->populateBaptismRecord($requestId, $description, $request, $officiatingPriest, $parishPriest);
         }
 
         if ($requestType === 'marriage_wedding_service' || $requestType === 'marriage') {
@@ -219,7 +248,10 @@ class SacramentalApprovalService {
     /**
      * Populates baptism_records / sacramental_records_baptism.
      */
-    private function populateBaptismRecord(int $requestId, string $desc, array $request, string $priest): array {
+    private function populateBaptismRecord(int $requestId, string $desc, array $request, string $priest, string $parishPriest = ''): array {
+        if ($parishPriest === '') {
+            $parishPriest = function_exists('getParishPriestName') ? getParishPriestName($this->conn) : $this->getDefaultOfficiatingPriest();
+        }
         $parsed = $this->parseBaptismDescription($desc, $request);
 
         // Check if a record already exists for this request_id
@@ -238,11 +270,11 @@ class SacramentalApprovalService {
                 UPDATE baptism_records
                 SET fullname = ?, birth_date = ?, birth_place = ?, birth_status = ?,
                     baptism_date = ?, parents = ?, parent_address = ?, godparents = ?,
-                    priest = ?, remarks = ?, status = ?, updated_at = NOW()
+                    priest = ?, parish_priest = ?, remarks = ?, status = ?, updated_at = NOW()
                 WHERE baptism_id = ?
             ");
             $upd->bind_param(
-                'sssssssssssi',
+                'ssssssssssssi',
                 $parsed['fullname'],
                 $parsed['birth_date'],
                 $parsed['birth_place'],
@@ -252,6 +284,7 @@ class SacramentalApprovalService {
                 $parsed['parent_address'],
                 $parsed['godparents'],
                 $priest,
+                $parishPriest,
                 $parsed['remarks'],
                 $status,
                 $recordId
@@ -261,11 +294,11 @@ class SacramentalApprovalService {
         } else {
             $ins = $this->conn->prepare("
                 INSERT INTO baptism_records 
-                (request_id, registry_no, fullname, birth_date, birth_place, birth_status, baptism_date, parents, parent_address, godparents, priest, remarks, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (request_id, registry_no, fullname, birth_date, birth_place, birth_status, baptism_date, parents, parent_address, godparents, priest, parish_priest, remarks, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
             $ins->bind_param(
-                'issssssssssss',
+                'isssssssssssss',
                 $requestId,
                 $registryNo,
                 $parsed['fullname'],
@@ -277,6 +310,7 @@ class SacramentalApprovalService {
                 $parsed['parent_address'],
                 $parsed['godparents'],
                 $priest,
+                $parishPriest,
                 $parsed['remarks'],
                 $status
             );
@@ -720,6 +754,9 @@ class SacramentalApprovalService {
         $motherOrigin = $this->extractField($desc, ['Mother Place of Origin', "Mother's Place of Origin", 'Mother Origin']);
 
         $parents = trim(($fatherName ? "Father: {$fatherName}" : "") . ($motherName ? " | Mother: {$motherName}" : ""));
+        if (function_exists('format_baptism_parents')) {
+            $parents = format_baptism_parents($parents);
+        }
         $parentAddress = trim(($fatherOrigin ? "Father Origin: {$fatherOrigin}" : "") . ($motherOrigin ? " | Mother Origin: {$motherOrigin}" : ""));
 
         $maleSponsor = $this->extractField($desc, ['Principal Male Sponsor (Ninong)', 'Male Sponsor', 'Ninong']);
@@ -731,6 +768,9 @@ class SacramentalApprovalService {
             ($femaleSponsor ? " | Ninang: {$femaleSponsor}" : "") .
             ($additionalSponsors ? " | {$additionalSponsors}" : "")
         );
+        if (function_exists('format_baptism_sponsors')) {
+            $godparents = format_baptism_sponsors($godparents);
+        }
 
         $details = $this->extractField($desc, ['Details', 'Additional Details']);
 

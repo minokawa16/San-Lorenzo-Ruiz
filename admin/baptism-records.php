@@ -680,6 +680,18 @@ include '../templates/header.php';
             letter-spacing: -0.01em;
         }
 
+        .person-baptized-link {
+            text-decoration: none;
+            color: inherit;
+            display: inline-block;
+            transition: color 0.15s ease;
+        }
+
+        .person-baptized-link:hover .person-baptized-name {
+            color: #B9863A !important;
+            text-decoration: underline;
+        }
+
         .entry-no-pill {
             display: inline-block;
             background: #F1F5F9;
@@ -1258,20 +1270,18 @@ include '../templates/header.php';
                 <table class="formal-records-table">
                     <thead>
                         <tr>
-                            <th style="width: 90px;">Book No.</th>
-                            <th style="width: 80px;">Page No.</th>
-                            <th style="width: 70px;">Year</th>
-                            <th style="width: 110px;">Date Baptized</th>
-                            <th style="width: 170px;">Person Baptized</th>
-                            <th style="width: 110px;">Birth</th>
-                            <th style="width: 160px;">Parents</th>
-                            <th style="width: 150px;">Sponsors</th>
-                            <th style="width: 140px;">Minister</th>
-                            <th style="width: 150px;">Parish Priest</th>
+                            <th style="width: 70px; text-align: center;">Year</th>
+                            <th style="width: 115px;">Date Baptized</th>
+                            <th style="width: 190px;">Person Baptized</th>
+                            <th style="width: 115px;">Birth</th>
+                            <th style="width: 200px;">Parents</th>
+                            <th style="width: 210px;">Sponsors</th>
+                            <th style="width: 160px;">Minister</th>
+                            <th style="width: 160px;">Parish Priest</th>
                             <th style="width: 140px;">Secretary</th>
-                            <th style="width: 110px;">Remarks</th>
-                            <th style="width: 85px; text-align: center;">Status</th>
-                            <th style="width: 130px; text-align: center;">Actions</th>
+                            <th style="width: 120px;">Remarks</th>
+                            <th style="width: 90px; text-align: center;">Status</th>
+                            <th style="width: 110px; text-align: center;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1303,20 +1313,7 @@ include '../templates/header.php';
                                     $is_archived = strtolower($record['status'] ?? '') === 'archived';
                                 ?>
                                 <tr>
-                                    <td>
-                                        <span class="book-page-badge">
-                                            Bk. <?php echo htmlspecialchars($record['book_no'] ?: '-'); ?>
-                                        </span>
-                                        <?php if (!empty($record['entry_no'])): ?>
-                                            <span class="entry-no-pill">Entry #<?php echo htmlspecialchars($record['entry_no']); ?></span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td>
-                                        <span class="book-page-badge">
-                                            Pg. <?php echo htmlspecialchars($record['page_no'] ?: '-'); ?>
-                                        </span>
-                                    </td>
-                                    <td>
+                                    <td style="text-align: center;">
                                         <span style="font-weight: 700; color: #1E293B;">
                                             <?php echo !empty($record['baptism_date']) ? date('Y', strtotime($record['baptism_date'])) : '-'; ?>
                                         </span>
@@ -1325,7 +1322,9 @@ include '../templates/header.php';
                                         <span class="date-baptized-badge"><?php echo format_baptism_record_date($record['baptism_date'], 'M d, Y'); ?></span>
                                     </td>
                                     <td>
-                                        <strong class="person-baptized-name"><?php echo htmlspecialchars($record['fullname']); ?></strong>
+                                        <a href="javascript:void(0)" onclick='openEditModal(<?php echo js_value($record_payload); ?>)' class="person-baptized-link" title="Click to review / edit this record">
+                                            <strong class="person-baptized-name"><?php echo htmlspecialchars($record['fullname']); ?></strong>
+                                        </a>
                                         <?php if (!empty($record['registry_no'])): ?>
                                             <span class="meta-subtitle"><i class="fas fa-hashtag"></i> Reg: <?php echo htmlspecialchars($record['registry_no']); ?></span>
                                         <?php endif; ?>
@@ -1336,22 +1335,32 @@ include '../templates/header.php';
                                         </span>
                                     </td>
                                     <td>
-                                        <div style="font-weight: 600; color: #1E293B;"><?php echo htmlspecialchars($record['parents'] ?? 'N/A'); ?></div>
+                                        <div style="font-weight: 600; color: #1E293B; word-break: break-word;"><?php echo htmlspecialchars(format_baptism_parents($record['parents'] ?? 'N/A')); ?></div>
                                     </td>
                                     <td>
-                                        <div style="font-weight: 600; color: #1E293B;"><?php echo htmlspecialchars($record['godparents'] ?? 'N/A'); ?></div>
+                                        <div style="font-weight: 600; color: #1E293B; word-break: break-word;"><?php echo htmlspecialchars(format_baptism_sponsors($record['godparents'] ?? 'N/A')); ?></div>
                                     </td>
                                     <td>
-                                        <div style="font-weight: 600; color: #1E293B;"><?php echo htmlspecialchars($record['priest'] ?? 'N/A'); ?></div>
+                                        <div style="font-weight: 600; color: #1E293B; word-break: break-word;">
+                                            <?php 
+                                            $minister_display = trim((string)($record['priest'] ?? ''));
+                                            echo htmlspecialchars(!empty($minister_display) && strcasecmp($minister_display, 'Rev. Fr. Parish Priest') !== 0 ? $minister_display : 'N/A'); 
+                                            ?>
+                                        </div>
                                     </td>
                                     <td>
-                                        <div style="font-weight: 600; color: #1E293B;"><?php echo htmlspecialchars($record['parish_priest'] ?: 'N/A'); ?></div>
+                                        <div style="font-weight: 600; color: #1E293B; word-break: break-word;">
+                                            <?php 
+                                            $pp_display = trim((string)($record['parish_priest'] ?? ''));
+                                            echo htmlspecialchars(!empty($pp_display) ? $pp_display : 'N/A'); 
+                                            ?>
+                                        </div>
                                     </td>
                                     <td>
-                                        <div style="font-weight: 600; color: #1E293B;"><?php echo htmlspecialchars($record['parish_secretary'] ?: 'N/A'); ?></div>
+                                        <div style="font-weight: 600; color: #1E293B; word-break: break-word;"><?php echo htmlspecialchars($record['parish_secretary'] ?: 'N/A'); ?></div>
                                     </td>
                                     <td>
-                                        <span style="font-size: 0.82rem; color: #64748B;"><?php echo htmlspecialchars($record['remarks'] ?: '-'); ?></span>
+                                        <span style="font-size: 0.82rem; color: #64748B; word-break: break-word;"><?php echo htmlspecialchars($record['remarks'] ?: '-'); ?></span>
                                     </td>
                                     <td style="text-align: center;">
                                         <span class="badge-status <?php echo $is_archived ? 'badge-status-archived' : 'badge-status-active'; ?>">
@@ -1386,7 +1395,7 @@ include '../templates/header.php';
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="14">
+                                <td colspan="12">
                                     <div class="registry-empty-state">
                                         <div class="registry-empty-icon"><i class="fas fa-book-open"></i></div>
                                         <h3>No Baptism Records Found</h3>
@@ -1554,15 +1563,28 @@ include '../templates/header.php';
                         <h5>5. Ministers & Administration</h5>
                     </div>
                     <div class="form-grid">
-                        <div class="form-group full-width">
+                        <div class="form-group">
                             <label for="priestName">Officiating Minister / Priest <span class="required-mark">*</span></label>
-                            <input type="text" id="priestName" name="priest" required placeholder="Rev. Fr. Name">
+                            <select id="priestName" name="priest" required style="width: 100%; height: 42px; border: 1px solid #CBD5E1; border-radius: 7px; padding: 0 10px; font-size: 0.9rem; background: #FAF8F5;">
+                                <option value="">-- Select Officiating Minister --</option>
+                                <?php 
+                                $modal_priest_roster = getParishPriestRoster($conn);
+                                foreach ($modal_priest_roster as $p_opt): 
+                                ?>
+                                    <option value="<?php echo htmlspecialchars($p_opt); ?>"><?php echo htmlspecialchars($p_opt); ?></option>
+                                <?php endforeach; ?>
+                            </select>
                         </div>
                         <div class="form-group">
-                            <label for="parishPriest">Parish Priest</label>
-                            <input type="text" id="parishPriest" name="parish_priest" placeholder="Name printed above Parish Priest">
+                            <label for="parishPriest">Parish Priest <span class="required-mark">*</span></label>
+                            <select id="parishPriest" name="parish_priest" required style="width: 100%; height: 42px; border: 1px solid #CBD5E1; border-radius: 7px; padding: 0 10px; font-size: 0.9rem; background: #FAF8F5;">
+                                <option value="">-- Select Parish Priest --</option>
+                                <?php foreach ($modal_priest_roster as $p_opt): ?>
+                                    <option value="<?php echo htmlspecialchars($p_opt); ?>"><?php echo htmlspecialchars($p_opt); ?></option>
+                                <?php endforeach; ?>
+                            </select>
                         </div>
-                        <div class="form-group">
+                        <div class="form-group full-width">
                             <label for="parishSecretary">Parish Secretary</label>
                             <input type="text" id="parishSecretary" name="parish_secretary" placeholder="Name printed above Parish Secretary">
                         </div>
@@ -1649,6 +1671,31 @@ include '../templates/header.php';
     <script src="../assets/js/components.js"></script>
     <script src="../assets/js/main.js"></script>
     <script>
+        function setSelectValueOrAdd(selectId, val) {
+            const sel = document.getElementById(selectId);
+            if (!sel) return;
+            const cleanVal = (val || '').trim();
+            if (!cleanVal || cleanVal === 'N/A' || cleanVal.toLowerCase() === 'rev. fr. parish priest') {
+                sel.value = '';
+                return;
+            }
+            let found = false;
+            for (let i = 0; i < sel.options.length; i++) {
+                if (sel.options[i].value.toLowerCase() === cleanVal.toLowerCase()) {
+                    sel.selectedIndex = i;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found && cleanVal) {
+                const opt = document.createElement('option');
+                opt.value = cleanVal;
+                opt.textContent = cleanVal;
+                opt.selected = true;
+                sel.appendChild(opt);
+            }
+        }
+
         // Open Add Modal Function
         function openAddModal() {
             document.getElementById('recordForm').reset();
@@ -1659,6 +1706,8 @@ include '../templates/header.php';
             document.getElementById('entryNo').value = '';
             document.getElementById('bookNo').value = '';
             document.getElementById('pageNo').value = '';
+            document.getElementById('priestName').value = '';
+            document.getElementById('parishPriest').value = '';
             document.getElementById('modalTitle').textContent = 'Add Baptism Record';
             const reasonGroup = document.getElementById('correctionReasonGroup');
             if (reasonGroup) {
@@ -1687,14 +1736,14 @@ include '../templates/header.php';
             document.getElementById('baptismDate').value = record.baptism_date || '';
             document.getElementById('godparents').value = record.godparents || '';
             document.getElementById('parishAddress').value = record.parish_address || '';
-            document.getElementById('priestName').value = record.priest || '';
+            setSelectValueOrAdd('priestName', record.priest || '');
             document.getElementById('remarks').value = record.remarks || '';
-            document.getElementById('parishPriest').value = record.parish_priest || '';
+            setSelectValueOrAdd('parishPriest', record.parish_priest || '');
             document.getElementById('parishSecretary').value = record.parish_secretary || '';
             document.getElementById('recordStatus').value = record.status || 'active';
             document.getElementById('requestId').value = record.request_id || '';
             document.getElementById('actionInput').value = 'edit';
-            document.getElementById('modalTitle').textContent = 'Edit Baptism Record';
+            document.getElementById('modalTitle').textContent = 'Review & Edit Baptism Record';
             const reasonGroup = document.getElementById('correctionReasonGroup');
             if (reasonGroup) {
                 reasonGroup.style.display = 'block';
@@ -1704,6 +1753,24 @@ include '../templates/header.php';
             document.getElementById('recordModal').classList.add('show');
             document.body.classList.add('modal-open');
         }
+
+        // Validation on form submission
+        document.getElementById('recordForm').addEventListener('submit', function(e) {
+            const minister = (document.getElementById('priestName').value || '').trim();
+            const parishPriest = (document.getElementById('parishPriest').value || '').trim();
+            if (!minister || minister === 'Rev. Fr. Parish Priest' || minister === 'N/A') {
+                e.preventDefault();
+                alert('Please select an Officiating Minister / Priest from the roster.');
+                document.getElementById('priestName').focus();
+                return false;
+            }
+            if (!parishPriest || parishPriest === 'N/A') {
+                e.preventDefault();
+                alert('Please select / confirm a Parish Priest from the roster.');
+                document.getElementById('parishPriest').focus();
+                return false;
+            }
+        });
 
         // Close Modal Function
         function closeModal() {

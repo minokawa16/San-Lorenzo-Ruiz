@@ -67,21 +67,34 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $admin_response = trim($_POST['admin_response'] ?? '');
         $new_status = trim($_POST['status'] ?? '');
         $officiating_priest = trim($_POST['officiating_priest'] ?? $_POST['minister'] ?? '');
+        $parish_priest = trim($_POST['parish_priest'] ?? '');
 
         // Validate action
         if (!in_array($action, ['approve', 'reject', 'request_more', 'complete', 'remark'])) {
             throw new Exception('Invalid action');
         }
 
+        $is_sacramental_type = SacramentalApprovalService::isSacramentalRequestType((string)($request['request_type'] ?? ''));
+
+        // Enforce Minister and Parish Priest selection for sacramental approvals
+        if ($is_sacramental_type && ($action === 'complete' || $action === 'approve' || in_array($new_status, ['approved', 'completed'], true))) {
+            if ($officiating_priest === '' || strcasecmp($officiating_priest, 'Rev. Fr. Parish Priest') === 0 || strcasecmp($officiating_priest, 'N/A') === 0) {
+                throw new Exception('Please assign the Minister / Officiating Priest who performed the baptism before completing or approving this record.');
+            }
+            if ($parish_priest === '' || strcasecmp($parish_priest, 'N/A') === 0) {
+                throw new Exception('Please confirm and assign the Parish Priest for the official record before completing or approving.');
+            }
+        }
+
         if ($action === 'complete' || $action === 'approve') {
             $sacramentalService = new SacramentalApprovalService($conn);
-            $is_sacramental_type = SacramentalApprovalService::isSacramentalRequestType((string)($request['request_type'] ?? ''));
 
             if ($is_sacramental_type) {
                 $completionResult = $sacramentalService->completeRequest($request_id, (int)$_SESSION['user_id'], [
                     'admin_response' => $admin_response,
                     'officiating_priest' => $officiating_priest,
-                    'target_status' => 'completed'
+                    'parish_priest' => $parish_priest,
+                    'target_status' => $new_status === 'approved' ? 'approved' : 'completed'
                 ]);
 
                 $success_message = 'Request completed successfully! User has been notified.';
@@ -667,16 +680,48 @@ $page_title = 'Review Request - #' . $request['reference_number'];
                             <?php 
                             $is_sacramental_form = SacramentalApprovalService::isSacramentalRequestType((string)($request['request_type'] ?? ''));
                             if ($is_sacramental_form): 
+                                $priest_roster = getParishPriestRoster($conn);
+                                $default_parish_priest = getParishPriestName($conn);
                             ?>
-                                <div class="mb-3">
-                                    <label for="officiating_priest" class="form-label">Officiating Priest / Minister</label>
-                                    <input type="text" class="form-control" id="officiating_priest" name="officiating_priest" placeholder="e.g. Rev. Fr. Parish Priest" value="<?php echo htmlspecialchars(getParishPriestName()); ?>">
-                                    <small class="text-muted">Assigned priest for sacramental record and calendar</small>
+                                <div class="mb-3" id="ministerSelectGroup">
+                                    <label for="officiating_priest" class="form-label fw-bold">
+                                        Minister / Officiating Priest <span class="text-danger">*</span>
+                                    </label>
+                                    <select class="form-select" id="officiating_priest" name="officiating_priest">
+                                        <option value="">-- Select Minister (Who performed baptism) --</option>
+                                        <?php foreach ($priest_roster as $p_opt): ?>
+                                            <option value="<?php echo htmlspecialchars($p_opt); ?>">
+                                                <?php echo htmlspecialchars($p_opt); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <small class="text-muted">Select the priest who officiated the sacrament</small>
+                                    <div class="invalid-feedback d-none text-danger small mt-1" id="ministerError">
+                                        <i class="fas fa-circle-exclamation me-1"></i> Minister must be selected before approval or completion.
+                                    </div>
+                                </div>
+
+                                <div class="mb-3" id="parishPriestSelectGroup">
+                                    <label for="parish_priest" class="form-label fw-bold">
+                                        Parish Priest <span class="text-danger">*</span>
+                                    </label>
+                                    <select class="form-select" id="parish_priest" name="parish_priest">
+                                        <option value="">-- Select Parish Priest --</option>
+                                        <?php foreach ($priest_roster as $p_opt): ?>
+                                            <option value="<?php echo htmlspecialchars($p_opt); ?>" <?php echo ($p_opt === $default_parish_priest) ? 'selected' : ''; ?>>
+                                                <?php echo htmlspecialchars($p_opt); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <small class="text-muted">Confirm the Parish Priest for official registry signing</small>
+                                    <div class="invalid-feedback d-none text-danger small mt-1" id="parishPriestError">
+                                        <i class="fas fa-circle-exclamation me-1"></i> Parish Priest must be assigned before approval or completion.
+                                    </div>
                                 </div>
                             <?php endif; ?>
 
                             <div class="d-grid gap-2">
-                                <button type="submit" name="action" value="complete" class="action-btn btn-complete" onclick="return confirm('Mark this request as completed and sync schedule?');">
+                                <button type="submit" name="action" value="complete" class="action-btn btn-complete" onclick="return validateSacramentalPriests('complete');">
                                     <i class="fas fa-circle-check"></i> Complete & Schedule
                                 </button>
                                 <button type="submit" name="action" value="request_more" class="action-btn btn-more-info" onclick="return confirm('Request more information?');">
@@ -687,6 +732,50 @@ $page_title = 'Review Request - #' . $request['reference_number'];
                                 </button>
                             </div>
                         </form>
+
+                        <script>
+                        function validateSacramentalPriests(actionType) {
+                            const isSacramental = <?php echo $is_sacramental_form ? 'true' : 'false'; ?>;
+                            const statusSelect = document.getElementById('status');
+                            const targetStatus = statusSelect ? statusSelect.value : '';
+
+                            if (isSacramental && (actionType === 'complete' || targetStatus === 'completed' || targetStatus === 'approved')) {
+                                const ministerEl = document.getElementById('officiating_priest');
+                                const parishPriestEl = document.getElementById('parish_priest');
+                                const ministerErr = document.getElementById('ministerError');
+                                const parishPriestErr = document.getElementById('parishPriestError');
+
+                                let hasError = false;
+
+                                if (ministerEl && (!ministerEl.value.trim() || ministerEl.value === 'Rev. Fr. Parish Priest')) {
+                                    ministerEl.classList.add('is-invalid');
+                                    if (ministerErr) ministerErr.classList.remove('d-none');
+                                    ministerEl.focus();
+                                    hasError = true;
+                                } else {
+                                    if (ministerEl) ministerEl.classList.remove('is-invalid');
+                                    if (ministerErr) ministerErr.classList.add('d-none');
+                                }
+
+                                if (parishPriestEl && !parishPriestEl.value.trim()) {
+                                    parishPriestEl.classList.add('is-invalid');
+                                    if (parishPriestErr) parishPriestErr.classList.remove('d-none');
+                                    if (!hasError) parishPriestEl.focus();
+                                    hasError = true;
+                                } else {
+                                    if (parishPriestEl) parishPriestEl.classList.remove('is-invalid');
+                                    if (parishPriestErr) parishPriestErr.classList.add('d-none');
+                                }
+
+                                if (hasError) {
+                                    alert('Both Minister and Parish Priest must be assigned before marking this record as Approved or Completed.');
+                                    return false;
+                                }
+                            }
+
+                            return confirm('Mark this request as ' + (actionType === 'complete' ? 'completed and sync schedule' : actionType) + '?');
+                        }
+                        </script>
                     </div>
                 </div>
 

@@ -77,7 +77,8 @@ $bapRequestId = $conn->insert_id;
 
 $bapResult = $service->approveRequest($bapRequestId, $testAdminId, [
     'admin_response' => 'Baptism requirements verified and approved.',
-    'officiating_priest' => 'Rev. Fr. Mariano Test'
+    'officiating_priest' => 'Rev. Fr. Mariano Test',
+    'parish_priest' => 'Rev. Fr. Alberto Cahilig, OMI'
 ]);
 
 assertCondition($bapResult['success'] === true, '2a. Baptism approval service returned success');
@@ -96,6 +97,7 @@ assertCondition($bapRecord['baptism_date'] === $bapDate, '2e. Baptism date mappe
 assertCondition(str_contains($bapRecord['parents'], 'Roberto Test Dela Cruz'), '2f. Father name mapped into parents: ' . ($bapRecord['parents'] ?? ''));
 assertCondition(str_contains($bapRecord['godparents'], 'Juan Dela Cruz'), '2g. Sponsors mapped into godparents: ' . ($bapRecord['godparents'] ?? ''));
 assertCondition($bapRecord['priest'] === 'Rev. Fr. Mariano Test', '2h. Officiating priest mapped correctly: ' . ($bapRecord['priest'] ?? ''));
+assertCondition($bapRecord['parish_priest'] === 'Rev. Fr. Alberto Cahilig, OMI', '2h-2. Parish priest mapped correctly: ' . ($bapRecord['parish_priest'] ?? ''));
 
 // Check schedule_events row
 $bapSchedStmt = $conn->prepare("SELECT * FROM schedule_events WHERE source_type = 'request' AND source_id = ?");
