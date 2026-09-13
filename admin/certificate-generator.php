@@ -28,9 +28,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $record = $res->fetch_assoc();
             $stmt->close();
             
+            // Collect overrides or fallback to record values
             $fullname = trim($_POST['override_fullname'] ?? ($record['fullname'] ?? ''));
+            $birth_place = trim($_POST['override_birth_place'] ?? ($record['birth_place'] ?? ''));
+            $birth_date = trim($_POST['override_birth_date'] ?? ($record['birth_date'] ?? ''));
+            $residence = trim($_POST['override_residence'] ?? ($record['parent_address'] ?? ($record['parish_address'] ?? '')));
             $father_name = trim($_POST['override_father_name'] ?? ($record['father_name'] ?? ''));
+            $father_birth_place = trim($_POST['override_father_birth_place'] ?? ($record['father_birth_place'] ?? ''));
             $mother_name = trim($_POST['override_mother_name'] ?? ($record['mother_name'] ?? ''));
+            $mother_birth_place = trim($_POST['override_mother_birth_place'] ?? ($record['mother_birth_place'] ?? ''));
             $baptism_date = trim($_POST['override_baptism_date'] ?? ($record['baptism_date'] ?? ''));
             $priest = trim($_POST['override_priest'] ?? ($record['priest'] ?? ''));
 
@@ -52,27 +58,71 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 }
             }
 
-            // Validation: Exactly the essential facts per sacrament
+            // Fallback parsing for parent birthplaces from remarks if still blank
+            if (empty($father_birth_place) && !empty($record['remarks'])) {
+                if (preg_match('/father(?:\'s)?\s*birthplace\s*[:\-]\s*([^\|\n\r;]+)/i', $record['remarks'], $m)) {
+                    $father_birth_place = trim($m[1]);
+                }
+            }
+            if (empty($mother_birth_place) && !empty($record['remarks'])) {
+                if (preg_match('/mother(?:\'s)?\s*birthplace\s*[:\-]\s*([^\|\n\r;]+)/i', $record['remarks'], $m)) {
+                    $mother_birth_place = trim($m[1]);
+                }
+            }
+
+            // Collect sponsors
+            $raw_sponsors = $_POST['override_sponsors'] ?? [];
+            if (!is_array($raw_sponsors)) {
+                $raw_sponsors = preg_split('/[\r\n]+/', (string)$raw_sponsors);
+            }
+            $valid_sponsors = [];
+            foreach ($raw_sponsors as $s) {
+                $s = trim((string)$s);
+                if ($s !== '') $valid_sponsors[] = $s;
+            }
+            if (empty($valid_sponsors) && !empty($record['godparents'])) {
+                $parts = preg_split('/,\s*|\s+and\s+|\s*;\s*|\s*\/\s*|[\r\n]+/i', (string)$record['godparents']);
+                foreach ($parts as $p) {
+                    $p = trim($p);
+                    if ($p !== '' && !in_array($p, $valid_sponsors, true)) $valid_sponsors[] = $p;
+                }
+            }
+
+            // Validation: Every required field must be complete before generating
             $missing = [];
-            if ($fullname === '') $missing[] = 'Full Name of Baptized';
+            if ($fullname === '') $missing[] = 'Full Name';
+            if ($birth_place === '') $missing[] = 'Birthplace';
+            if ($birth_date === '') $missing[] = 'Birthday';
+            if ($residence === '') $missing[] = 'Residence';
             if ($father_name === '') $missing[] = "Father's Name";
+            if ($father_birth_place === '') $missing[] = "Father's Birthplace";
             if ($mother_name === '') $missing[] = "Mother's Name";
-            if ($baptism_date === '' || $baptism_date === '0000-00-00') $missing[] = 'Date of Baptism';
+            if ($mother_birth_place === '') $missing[] = "Mother's Birthplace";
+            if ($baptism_date === '') $missing[] = 'Date of Baptism';
             if ($priest === '') $missing[] = 'Officiating Priest';
+            if (count($valid_sponsors) < 2) $missing[] = 'At least 2 Sponsors (Ninong-Ninang)';
 
             if (!empty($missing)) {
-                $error = 'Cannot generate certificate. Required fields are missing: ' . implode(', ', $missing) . '. Please complete them in the form below.';
+                $error = 'Cannot generate certificate. Required fields are missing: ' . implode(', ', $missing) . '. Please fill them in the form below.';
             } else {
                 $record['fullname'] = $fullname;
+                $record['birth_place'] = $birth_place;
+                $record['birth_date'] = $birth_date;
+                $record['residence'] = $residence;
+                $record['parent_address'] = $residence;
                 $record['father_name'] = $father_name;
+                $record['father_birth_place'] = $father_birth_place;
                 $record['mother_name'] = $mother_name;
+                $record['mother_birth_place'] = $mother_birth_place;
                 $record['baptism_date'] = $baptism_date;
                 $record['priest'] = $priest;
+                $record['sponsors'] = $valid_sponsors;
+                $record['godparents'] = implode("\n", $valid_sponsors);
 
-                // Persist updated fields into baptism_records
-                $up = $conn->prepare("UPDATE baptism_records SET fullname = ?, father_name = ?, mother_name = ?, baptism_date = ?, priest = ? WHERE baptism_id = ?");
+                // Persist any updated parent birthplaces or residence into baptism_records
+                $up = $conn->prepare("UPDATE baptism_records SET father_name = IF(father_name IS NULL OR father_name = '', ?, father_name), father_birth_place = IF(father_birth_place IS NULL OR father_birth_place = '', ?, father_birth_place), mother_name = IF(mother_name IS NULL OR mother_name = '', ?, mother_name), mother_birth_place = IF(mother_birth_place IS NULL OR mother_birth_place = '', ?, mother_birth_place), parent_address = IF(parent_address IS NULL OR parent_address = '', ?, parent_address) WHERE baptism_id = ?");
                 if ($up) {
-                    $up->bind_param('sssssi', $fullname, $father_name, $mother_name, $baptism_date, $priest, $record_id);
+                    $up->bind_param('sssssi', $father_name, $father_birth_place, $mother_name, $mother_birth_place, $residence, $record_id);
                     $up->execute();
                     $up->close();
                 }
@@ -85,61 +135,37 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
         } else {
             $stmt->close();
-            $error = 'Baptism record not found or inactive.';
         }
     } elseif ($cert_type == 'communion' || $cert_type == 'first_communion_certification') {
         $stmt = $conn->prepare("SELECT * FROM first_communion_records WHERE communion_id = ? AND (status='active' OR status IS NULL OR status='')");
         if ($stmt) { $stmt->bind_param('i', $record_id); $stmt->execute(); $result = $stmt->get_result(); $stmt->close(); }
         if ($result && $result->num_rows > 0) {
             $record = $result->fetch_assoc();
-            $ov_fullname  = trim($_POST['com_override_fullname'] ?? ($_POST['override_fullname'] ?? ($record['fullname'] ?? '')));
-            $ov_father    = trim($_POST['com_override_father_name'] ?? ($_POST['override_father_name'] ?? ($record['father_name'] ?? '')));
-            $ov_mother    = trim($_POST['com_override_mother_name'] ?? ($_POST['override_mother_name'] ?? ($record['mother_name'] ?? '')));
-            $ov_comm_date = trim($_POST['override_communion_date'] ?? ($record['communion_date'] ?? ''));
-            $ov_priest    = trim($_POST['com_override_priest'] ?? ($_POST['override_priest'] ?? ($record['priest'] ?? ($record['parish_priest'] ?? ''))));
-
-            // Fallback parsing for parents if still blank
-            if (empty($ov_father) || empty($ov_mother)) {
-                $parents = trim((string)($record['parents'] ?? ''));
-                if (preg_match('/father\s*[:\-]\s*(.+?)(?:\s*(?:mother|and)\s*[:\-]\s*|\s+\/\s+)(.+)$/i', $parents, $m)) {
-                    if (empty($ov_father)) $ov_father = trim($m[1]);
-                    if (empty($ov_mother)) $ov_mother = trim($m[2]);
-                } else {
-                    $parts = preg_split('/\s+(?:and|&)\s+|\s*\/\s*|\s*,\s*/i', $parents);
-                    $parts = array_values(array_filter(array_map('trim', $parts)));
-                    if (count($parts) >= 2) {
-                        if (empty($ov_father)) $ov_father = $parts[0];
-                        if (empty($ov_mother)) $ov_mother = $parts[1];
-                    } elseif (count($parts) === 1 && empty($ov_father)) {
-                        $ov_father = $parts[0];
-                    }
-                }
-            }
-
+            // Apply overrides from form (supporting both scoped and generic names)
+            $ov_fullname      = trim($_POST['com_override_fullname'] ?? ($_POST['override_fullname'] ?? ''));
+            $ov_comm_date     = trim($_POST['override_communion_date'] ?? '');
+            $ov_domicile      = trim($_POST['override_domicile'] ?? '');
+            $ov_parents       = trim($_POST['com_override_parents'] ?? ($_POST['override_parents'] ?? ''));
+            $ov_priest        = trim($_POST['com_override_priest'] ?? ($_POST['override_priest'] ?? ''));
+            $ov_catechist     = trim($_POST['override_catechist_coordinator'] ?? '');
+            $ov_principal     = trim($_POST['override_principal'] ?? '');
+            if ($ov_fullname)  $record['fullname']              = $ov_fullname;
+            if ($ov_comm_date) $record['communion_date']        = $ov_comm_date;
+            if ($ov_domicile)  $record['domicile']              = $ov_domicile;
+            if ($ov_parents)   $record['parents']               = $ov_parents;
+            if ($ov_priest)    $record['priest'] = $record['parish_priest'] = $ov_priest;
+            if ($ov_catechist) $record['catechist_coordinator'] = $ov_catechist;
+            if ($ov_principal) $record['principal']             = $ov_principal;
             $missing = [];
-            if ($ov_fullname === '') $missing[] = "Recipient's Full Name";
-            if ($ov_father === '') $missing[] = "Father's Name";
-            if ($ov_mother === '') $missing[] = "Mother's Name";
-            if ($ov_comm_date === '' || $ov_comm_date === '0000-00-00') $missing[] = 'Date of First Communion';
-            if ($ov_priest === '') $missing[] = 'Officiating Priest';
-
+            if (empty($record['fullname']))      $missing[] = "Recipient's Full Name";
+            if (empty($record['communion_date'])) $missing[] = 'Date of First Communion';
             if (!empty($missing)) {
-                $error = 'Cannot generate certificate. Required fields are missing: ' . implode(', ', $missing) . '. Please complete them in the form below.';
+                $error = 'Cannot generate certificate. Required fields are missing: ' . implode(', ', $missing) . '. Please complete the form below.';
             } else {
-                $record['fullname'] = $ov_fullname;
-                $record['father_name'] = $ov_father;
-                $record['mother_name'] = $ov_mother;
-                $record['communion_date'] = $ov_comm_date;
-                $record['priest'] = $ov_priest;
-
-                // Persist into database
-                $up = $conn->prepare("UPDATE first_communion_records SET fullname=?, father_name=?, mother_name=?, communion_date=?, priest=? WHERE communion_id=?");
-                if ($up) {
-                    $up->bind_param('sssssi', $ov_fullname, $ov_father, $ov_mother, $ov_comm_date, $ov_priest, $record_id);
-                    $up->execute();
-                    $up->close();
-                }
-
+                $signers = getFirstCommunionSigners($conn, $record);
+                if (empty($record['catechist_coordinator'])) $record['catechist_coordinator'] = $signers['catechist_coordinator'];
+                if (empty($record['parish_priest']))          $record['parish_priest']          = $signers['parish_priest'];
+                if (empty($record['principal']))              $record['principal']              = $signers['principal'];
                 unset($_SESSION['manual_certificate']);
                 $_SESSION['certificate_data'] = $record;
                 $_SESSION['cert_type'] = $cert_type;
@@ -152,54 +178,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         if ($stmt) { $stmt->bind_param('i', $record_id); $stmt->execute(); $result = $stmt->get_result(); $stmt->close(); }
         if ($result && $result->num_rows > 0) {
             $record = $result->fetch_assoc();
-            $ov_fullname  = trim($_POST['conf_override_fullname'] ?? ($_POST['override_fullname'] ?? ($record['fullname'] ?? '')));
-            $ov_father    = trim($_POST['conf_override_father_name'] ?? ($_POST['override_father_name'] ?? ($record['father_name'] ?? '')));
-            $ov_mother    = trim($_POST['conf_override_mother_name'] ?? ($_POST['override_mother_name'] ?? ($record['mother_name'] ?? '')));
-            $ov_conf_date = trim($_POST['override_confirmation_date'] ?? ($record['confirmation_date'] ?? ''));
-            $ov_priest    = trim($_POST['conf_override_priest'] ?? ($_POST['override_priest'] ?? ($record['bishop_priest'] ?? ($record['parish_priest'] ?? ''))));
-
-            // Fallback parsing for parents if still blank
-            if (empty($ov_father) || empty($ov_mother)) {
-                $parents = trim((string)($record['parents'] ?? ''));
-                if (preg_match('/father\s*[:\-]\s*(.+?)(?:\s*(?:mother|and)\s*[:\-]\s*|\s+\/\s+)(.+)$/i', $parents, $m)) {
-                    if (empty($ov_father)) $ov_father = trim($m[1]);
-                    if (empty($ov_mother)) $ov_mother = trim($m[2]);
-                } else {
-                    $parts = preg_split('/\s+(?:and|&)\s+|\s*\/\s*|\s*,\s*/i', $parents);
-                    $parts = array_values(array_filter(array_map('trim', $parts)));
-                    if (count($parts) >= 2) {
-                        if (empty($ov_father)) $ov_father = $parts[0];
-                        if (empty($ov_mother)) $ov_mother = $parts[1];
-                    } elseif (count($parts) === 1 && empty($ov_father)) {
-                        $ov_father = $parts[0];
-                    }
-                }
-            }
-
+            $ov_fullname     = trim($_POST['conf_override_fullname'] ?? ($_POST['override_fullname'] ?? ''));
+            $ov_conf_name    = trim($_POST['override_confirmation_name'] ?? '');
+            $ov_conf_date    = trim($_POST['override_confirmation_date'] ?? '');
+            $ov_parents      = trim($_POST['conf_override_parents'] ?? ($_POST['override_parents'] ?? ''));
+            $ov_sponsor      = trim($_POST['override_sponsor'] ?? '');
+            $ov_priest       = trim($_POST['conf_override_priest'] ?? ($_POST['override_priest'] ?? ''));
+            if ($ov_fullname)  $record['fullname']           = $ov_fullname;
+            if ($ov_conf_name) $record['confirmation_name']  = $ov_conf_name;
+            if ($ov_conf_date) $record['confirmation_date']  = $ov_conf_date;
+            if ($ov_parents)   $record['parents']            = $ov_parents;
+            if ($ov_sponsor)   $record['sponsor']            = $ov_sponsor;
+            if ($ov_priest)    $record['bishop_priest'] = $record['parish_priest'] = $ov_priest;
             $missing = [];
-            if ($ov_fullname === '') $missing[] = 'Full Name';
-            if ($ov_father === '') $missing[] = "Father's Name";
-            if ($ov_mother === '') $missing[] = "Mother's Name";
-            if ($ov_conf_date === '' || $ov_conf_date === '0000-00-00') $missing[] = 'Date of Confirmation';
-            if ($ov_priest === '') $missing[] = 'Confirming Minister / Priest';
-
+            if (empty($record['fullname']))           $missing[] = 'Full Name';
+            if (empty($record['confirmation_date']))  $missing[] = 'Date of Confirmation';
+            if (empty($record['bishop_priest']) && empty($record['parish_priest'])) $missing[] = 'Officiating Priest';
             if (!empty($missing)) {
-                $error = 'Cannot generate certificate. Required fields are missing: ' . implode(', ', $missing) . '. Please complete them in the form below.';
+                $error = 'Cannot generate certificate. Required fields are missing: ' . implode(', ', $missing) . '.';
             } else {
-                $record['fullname'] = $ov_fullname;
-                $record['father_name'] = $ov_father;
-                $record['mother_name'] = $ov_mother;
-                $record['confirmation_date'] = $ov_conf_date;
-                $record['bishop_priest'] = $ov_priest;
-
-                // Persist into database
-                $up = $conn->prepare("UPDATE confirmation_records SET fullname=?, father_name=?, mother_name=?, confirmation_date=?, bishop_priest=? WHERE confirmation_id=?");
-                if ($up) {
-                    $up->bind_param('sssssi', $ov_fullname, $ov_father, $ov_mother, $ov_conf_date, $ov_priest, $record_id);
-                    $up->execute();
-                    $up->close();
-                }
-
                 unset($_SESSION['manual_certificate']);
                 $_SESSION['certificate_data'] = $record;
                 $_SESSION['cert_type'] = $cert_type;
@@ -212,33 +209,27 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         if ($stmt) { $stmt->bind_param('i', $record_id); $stmt->execute(); $result = $stmt->get_result(); $stmt->close(); }
         if ($result && $result->num_rows > 0) {
             $record = $result->fetch_assoc();
-            $ov_husband  = trim($_POST['override_husband_name'] ?? ($record['husband_name'] ?? ''));
-            $ov_wife     = trim($_POST['override_wife_name'] ?? ($record['wife_name'] ?? ''));
-            $ov_wed_date = trim($_POST['override_wedding_date'] ?? ($record['wedding_date'] ?? ''));
-            $ov_priest   = trim($_POST['mar_override_priest'] ?? ($_POST['override_priest'] ?? ($record['officiating_priest'] ?? ($record['parish_priest'] ?? ''))));
-
+            $ov_husband     = trim($_POST['override_husband_name'] ?? '');
+            $ov_wife        = trim($_POST['override_wife_name'] ?? '');
+            $ov_wed_date    = trim($_POST['override_wedding_date'] ?? '');
+            $ov_wed_loc     = trim($_POST['override_wedding_location'] ?? '');
+            $ov_priest      = trim($_POST['mar_override_priest'] ?? ($_POST['override_priest'] ?? ''));
+            $ov_h_residence = trim($_POST['override_husband_residence'] ?? '');
+            $ov_w_residence = trim($_POST['override_wife_residence'] ?? '');
+            if ($ov_husband)     $record['husband_name']        = $ov_husband;
+            if ($ov_wife)        $record['wife_name']           = $ov_wife;
+            if ($ov_wed_date)    $record['wedding_date']        = $ov_wed_date;
+            if ($ov_wed_loc)     $record['wedding_location']    = $ov_wed_loc;
+            if ($ov_priest)      $record['officiating_priest'] = $record['parish_priest'] = $ov_priest;
+            if ($ov_h_residence) $record['husband_residence']   = $ov_h_residence;
+            if ($ov_w_residence) $record['wife_residence']      = $ov_w_residence;
             $missing = [];
-            if ($ov_husband === '') $missing[] = "Groom's Full Name";
-            if ($ov_wife === '') $missing[] = "Bride's Full Name";
-            if ($ov_wed_date === '' || $ov_wed_date === '0000-00-00') $missing[] = 'Date of Marriage';
-            if ($ov_priest === '') $missing[] = 'Officiating Priest';
-
+            if (empty($record['husband_name'])) $missing[] = "Husband's Name";
+            if (empty($record['wife_name']))    $missing[] = "Wife's Name";
+            if (empty($record['wedding_date'])) $missing[] = 'Date of Wedding';
             if (!empty($missing)) {
-                $error = 'Cannot generate certificate. Required fields are missing: ' . implode(', ', $missing) . '. Please complete them in the form below.';
+                $error = 'Cannot generate certificate. Required fields are missing: ' . implode(', ', $missing) . '.';
             } else {
-                $record['husband_name'] = $ov_husband;
-                $record['wife_name'] = $ov_wife;
-                $record['wedding_date'] = $ov_wed_date;
-                $record['officiating_priest'] = $ov_priest;
-
-                // Persist into database
-                $up = $conn->prepare("UPDATE marriage_records SET husband_name=?, wife_name=?, wedding_date=?, officiating_priest=? WHERE marriage_id=?");
-                if ($up) {
-                    $up->bind_param('ssssi', $ov_husband, $ov_wife, $ov_wed_date, $ov_priest, $record_id);
-                    $up->execute();
-                    $up->close();
-                }
-
                 unset($_SESSION['manual_certificate']);
                 $_SESSION['certificate_data'] = $record;
                 $_SESSION['cert_type'] = $cert_type;
@@ -246,59 +237,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 exit;
             }
         } else { $error = 'Marriage record not found or inactive.'; }
-    } elseif ($cert_type == 'funeral' || $cert_type == 'funeral_certification') {
+    } elseif ($cert_type == 'funeral_certification') {
         $stmt = $conn->prepare("SELECT * FROM funeral_records WHERE funeral_id = ? AND (status='active' OR status IS NULL OR status='')");
         if ($stmt) { $stmt->bind_param('i', $record_id); $stmt->execute(); $result = $stmt->get_result(); $stmt->close(); }
         if ($result && $result->num_rows > 0) {
             $record = $result->fetch_assoc();
-            $ov_deceased    = trim($_POST['override_deceased_name'] ?? ($record['deceased_name'] ?? ''));
-            $ov_father      = trim($_POST['fun_override_father_name'] ?? ($_POST['override_father_name'] ?? ($record['father_name'] ?? '')));
-            $ov_mother      = trim($_POST['fun_override_mother_name'] ?? ($_POST['override_mother_name'] ?? ($record['mother_name'] ?? '')));
-            $ov_burial_date = trim($_POST['override_date_of_burial'] ?? ($record['date_of_burial'] ?? ''));
-            $ov_priest      = trim($_POST['fun_override_priest'] ?? ($_POST['override_priest'] ?? ($record['minister'] ?? ($record['parish_priest'] ?? ''))));
-
-            // Fallback parsing for parents if still blank
-            if (empty($ov_father) || empty($ov_mother)) {
-                $parents = trim((string)($record['parents'] ?? ''));
-                if (preg_match('/father\s*[:\-]\s*(.+?)(?:\s*(?:mother|and)\s*[:\-]\s*|\s+\/\s+)(.+)$/i', $parents, $m)) {
-                    if (empty($ov_father)) $ov_father = trim($m[1]);
-                    if (empty($ov_mother)) $ov_mother = trim($m[2]);
-                } else {
-                    $parts = preg_split('/\s+(?:and|&)\s+|\s*\/\s*|\s*,\s*/i', $parents);
-                    $parts = array_values(array_filter(array_map('trim', $parts)));
-                    if (count($parts) >= 2) {
-                        if (empty($ov_father)) $ov_father = $parts[0];
-                        if (empty($ov_mother)) $ov_mother = $parts[1];
-                    } elseif (count($parts) === 1 && empty($ov_father)) {
-                        $ov_father = $parts[0];
-                    }
-                }
-            }
-
+            $ov_deceased     = trim($_POST['override_deceased_name'] ?? '');
+            $ov_burial_date  = trim($_POST['override_date_of_burial'] ?? '');
+            $ov_burial_place = trim($_POST['override_place_of_burial'] ?? '');
+            $ov_priest       = trim($_POST['fun_override_priest'] ?? ($_POST['override_priest'] ?? ''));
+            if ($ov_deceased)     $record['deceased_name']   = $ov_deceased;
+            if ($ov_burial_date)  $record['date_of_burial']  = $ov_burial_date;
+            if ($ov_burial_place) $record['place_of_burial'] = $ov_burial_place;
+            if ($ov_priest)       $record['minister']        = $ov_priest;
             $missing = [];
-            if ($ov_deceased === '') $missing[] = 'Full Name of the Deceased';
-            if ($ov_father === '') $missing[] = "Father's Name";
-            if ($ov_mother === '') $missing[] = "Mother's Name";
-            if ($ov_burial_date === '' || $ov_burial_date === '0000-00-00') $missing[] = 'Date of Burial/Funeral Rites';
-            if ($ov_priest === '') $missing[] = 'Officiating Priest';
-
+            if (empty($record['deceased_name']))  $missing[] = 'Deceased Name';
+            if (empty($record['date_of_burial'])) $missing[] = 'Date of Burial';
             if (!empty($missing)) {
-                $error = 'Cannot generate certificate. Required fields are missing: ' . implode(', ', $missing) . '. Please complete them in the form below.';
+                $error = 'Cannot generate certificate. Required fields are missing: ' . implode(', ', $missing) . '.';
             } else {
-                $record['deceased_name'] = $ov_deceased;
-                $record['father_name'] = $ov_father;
-                $record['mother_name'] = $ov_mother;
-                $record['date_of_burial'] = $ov_burial_date;
-                $record['minister'] = $ov_priest;
-
-                // Persist into database
-                $up = $conn->prepare("UPDATE funeral_records SET deceased_name=?, father_name=?, mother_name=?, date_of_burial=?, minister=? WHERE funeral_id=?");
-                if ($up) {
-                    $up->bind_param('sssssi', $ov_deceased, $ov_father, $ov_mother, $ov_burial_date, $ov_priest, $record_id);
-                    $up->execute();
-                    $up->close();
-                }
-
                 unset($_SESSION['manual_certificate']);
                 $_SESSION['certificate_data'] = $record;
                 $_SESSION['cert_type'] = $cert_type;
@@ -603,25 +560,45 @@ include '../templates/header.php';
                     <div id="baptismFieldsContainer" style="display: none;">
                         <div class="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 mb-3">
                             <i class="fas fa-circle-info fs-5"></i>
-                            <div>Baptismal Certification. All 5 essential fields below are required before generating.</div>
+                            <div>Standard parish baptism record format. Verify and complete all required fields below. All fields must be filled before generating the certificate.</div>
                         </div>
 
                         <div class="row g-2">
-                            <div class="col-md-12">
+                            <div class="col-md-6">
                                 <label class="form-label small fw-bold">Full Name of Baptized <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control form-control-sm" name="override_fullname" id="override_fullname" required>
+                                <input type="text" class="form-control form-control-sm" name="override_fullname" id="override_fullname">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Place of Birth <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" name="override_birth_place" id="override_birth_place">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Date of Birth <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control form-control-sm" name="override_birth_date" id="override_birth_date">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Residence / Address <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" name="override_residence" id="override_residence">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label small fw-bold">Father's Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control form-control-sm" name="override_father_name" id="override_father_name" required>
+                                <input type="text" class="form-control form-control-sm" name="override_father_name" id="override_father_name">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label small fw-bold">Mother's Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control form-control-sm" name="override_mother_name" id="override_mother_name" required>
+                                <label class="form-label small fw-bold">Father's Birthplace <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" name="override_father_birth_place" id="override_father_birth_place">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Mother's Name (including maiden name) <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" name="override_mother_name" id="override_mother_name">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Mother's Birthplace <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" name="override_mother_birth_place" id="override_mother_birth_place">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label small fw-bold">Date of Baptism <span class="text-danger">*</span></label>
-                                <input type="date" class="form-control form-control-sm" name="override_baptism_date" id="override_baptism_date" required>
+                                <input type="date" class="form-control form-control-sm" name="override_baptism_date" id="override_baptism_date">
                             </div>
                             <div class="col-md-6">
                                 <div class="d-flex justify-content-between align-items-center mb-1">
@@ -632,7 +609,7 @@ include '../templates/header.php';
                                         <i class="fas fa-hand-pointer me-1"></i> Secretary Assigned
                                     </span>
                                 </div>
-                                <select class="form-select form-select-sm priest-select-highlight" name="override_priest" id="override_priest" required>
+                                <select class="form-select form-select-sm priest-select-highlight" name="override_priest" id="override_priest">
                                     <option value="">-- Select Officiating Priest --</option>
                                     <?php foreach ($active_priests as $p): ?>
                                         <option value="<?php echo e($p['name']); ?>" <?php echo (!empty($p['is_default'])) ? 'data-default="1"' : ''; ?>>
@@ -640,6 +617,25 @@ include '../templates/header.php';
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
+                                <div class="form-text text-muted small" style="font-size: 0.75rem;">
+                                    Assigned manually by secretary. Never carried over from parishioner requests.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Dynamic Multi-Sponsors List -->
+                        <div class="border rounded p-3 bg-light mt-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label small fw-bold mb-0">
+                                    Sponsors / Ninong-Ninang <span class="text-danger">*</span>
+                                    <small class="text-muted fw-normal ms-1">(At least 2 required; each on its own line)</small>
+                                </label>
+                                <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2" id="addModalSponsorBtn">
+                                    <i class="fas fa-plus"></i> Add Sponsor
+                                </button>
+                            </div>
+                            <div id="modalSponsorsList">
+                                <!-- Dynamically populated sponsor inputs -->
                             </div>
                         </div>
                     </div>
@@ -648,31 +644,39 @@ include '../templates/header.php';
                     <div id="communionFieldsContainer" style="display:none;">
                         <div class="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 mb-3">
                             <i class="fas fa-circle-info fs-5"></i>
-                            <div>First Communion Certification. All 5 essential fields below are required before generating.</div>
+                            <div>First Communion record. Verify and complete all required fields. <strong>Full Name</strong> and <strong>Date of First Communion</strong> are required.</div>
                         </div>
                         <div class="row g-2">
                             <div class="col-md-12">
                                 <label class="form-label small fw-bold">Full Name of Communicant <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control form-control-sm" name="com_override_fullname" id="com_override_fullname" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label small fw-bold">Father's Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control form-control-sm" name="com_override_father_name" id="com_override_father_name" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label small fw-bold">Mother's Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control form-control-sm" name="com_override_mother_name" id="com_override_mother_name" required>
+                                <input type="text" class="form-control form-control-sm" name="com_override_fullname" id="com_override_fullname">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label small fw-bold">Date of First Communion <span class="text-danger">*</span></label>
-                                <input type="date" class="form-control form-control-sm" name="override_communion_date" id="com_override_communion_date" required>
+                                <input type="date" class="form-control form-control-sm" name="override_communion_date" id="com_override_communion_date">
                             </div>
                             <div class="col-md-6">
+                                <label class="form-label small fw-bold">Domicile / Address</label>
+                                <input type="text" class="form-control form-control-sm" name="override_domicile" id="com_override_domicile">
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label small fw-bold">Parents</label>
+                                <input type="text" class="form-control form-control-sm" name="com_override_parents" id="com_override_parents" placeholder="e.g. Juan Dela Cruz and Maria Santos">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Catechist Coordinator</label>
+                                <input type="text" class="form-control form-control-sm" name="override_catechist_coordinator" id="com_override_catechist" placeholder="e.g. Sis. Lourdes Fernandez">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Principal</label>
+                                <input type="text" class="form-control form-control-sm" name="override_principal" id="com_override_principal" placeholder="e.g. Principal Name">
+                            </div>
+                            <div class="col-md-12">
                                 <div class="d-flex justify-content-between align-items-center mb-1">
                                     <label class="form-label small fw-bold mb-0">Officiating Priest <span class="text-danger">*</span></label>
                                     <span class="badge bg-warning text-dark py-0 px-1" style="font-size:0.68rem;"><i class="fas fa-hand-pointer me-1"></i> Secretary Assigned</span>
                                 </div>
-                                <select class="form-select form-select-sm priest-select-highlight" name="com_override_priest" id="com_override_priest" required>
+                                <select class="form-select form-select-sm priest-select-highlight" name="com_override_priest" id="com_override_priest">
                                     <option value="">-- Select Officiating Priest --</option>
                                     <?php foreach ($active_priests as $p): ?>
                                         <option value="<?php echo e($p['name']); ?>" <?php echo (!empty($p['is_default'])) ? 'data-default="1"' : ''; ?>>
@@ -688,32 +692,36 @@ include '../templates/header.php';
                     <div id="confirmationFieldsContainer" style="display:none;">
                         <div class="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 mb-3">
                             <i class="fas fa-circle-info fs-5"></i>
-                            <div>Confirmation Certification. All 5 essential fields below are required before generating.</div>
+                            <div>Confirmation record. Verify all fields. <strong>Full Name</strong>, <strong>Date of Confirmation</strong>, and <strong>Officiating Priest</strong> are required.</div>
                         </div>
                         <div class="row g-2">
-                            <div class="col-md-12">
-                                <label class="form-label small fw-bold">Full Name of Confirmed <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control form-control-sm" name="conf_override_fullname" id="conf_override_fullname" required>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Full Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" name="conf_override_fullname" id="conf_override_fullname">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label small fw-bold">Father's Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control form-control-sm" name="conf_override_father_name" id="conf_override_father_name" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label small fw-bold">Mother's Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control form-control-sm" name="conf_override_mother_name" id="conf_override_mother_name" required>
+                                <label class="form-label small fw-bold">Confirmation Name</label>
+                                <input type="text" class="form-control form-control-sm" name="override_confirmation_name" id="conf_override_confirmation_name">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label small fw-bold">Date of Confirmation <span class="text-danger">*</span></label>
-                                <input type="date" class="form-control form-control-sm" name="override_confirmation_date" id="conf_override_confirmation_date" required>
+                                <input type="date" class="form-control form-control-sm" name="override_confirmation_date" id="conf_override_confirmation_date">
                             </div>
                             <div class="col-md-6">
+                                <label class="form-label small fw-bold">Sponsor</label>
+                                <input type="text" class="form-control form-control-sm" name="override_sponsor" id="conf_override_sponsor" placeholder="Sponsor Name">
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label small fw-bold">Parents</label>
+                                <input type="text" class="form-control form-control-sm" name="conf_override_parents" id="conf_override_parents" placeholder="e.g. Juan Dela Cruz and Maria Santos">
+                            </div>
+                            <div class="col-md-12">
                                 <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <label class="form-label small fw-bold mb-0">Confirming Minister / Priest <span class="text-danger">*</span></label>
+                                    <label class="form-label small fw-bold mb-0">Officiating Bishop / Priest <span class="text-danger">*</span></label>
                                     <span class="badge bg-warning text-dark py-0 px-1" style="font-size:0.68rem;"><i class="fas fa-hand-pointer me-1"></i> Secretary Assigned</span>
                                 </div>
-                                <select class="form-select form-select-sm priest-select-highlight" name="conf_override_priest" id="conf_override_priest" required>
-                                    <option value="">-- Select Officiating Minister --</option>
+                                <select class="form-select form-select-sm priest-select-highlight" name="conf_override_priest" id="conf_override_priest">
+                                    <option value="">-- Select Officiating Priest --</option>
                                     <?php foreach ($active_priests as $p): ?>
                                         <option value="<?php echo e($p['name']); ?>" <?php echo (!empty($p['is_default'])) ? 'data-default="1"' : ''; ?>>
                                             <?php echo e($p['name']); ?> (<?php echo e($p['title']); ?>)
@@ -728,27 +736,39 @@ include '../templates/header.php';
                     <div id="marriageFieldsContainer" style="display:none;">
                         <div class="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 mb-3">
                             <i class="fas fa-circle-info fs-5"></i>
-                            <div>Marriage Certification. All 4 essential fields below are required before generating.</div>
+                            <div>Marriage record. <strong>Husband's Name</strong>, <strong>Wife's Name</strong>, and <strong>Date of Wedding</strong> are required.</div>
                         </div>
                         <div class="row g-2">
                             <div class="col-md-6">
-                                <label class="form-label small fw-bold">Groom's Full Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control form-control-sm" name="override_husband_name" id="mar_override_husband_name" required>
+                                <label class="form-label small fw-bold">Husband's Full Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" name="override_husband_name" id="mar_override_husband_name">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label small fw-bold">Bride's Full Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control form-control-sm" name="override_wife_name" id="mar_override_wife_name" required>
+                                <label class="form-label small fw-bold">Wife's Full Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" name="override_wife_name" id="mar_override_wife_name">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label small fw-bold">Date of Marriage <span class="text-danger">*</span></label>
-                                <input type="date" class="form-control form-control-sm" name="override_wedding_date" id="mar_override_wedding_date" required>
+                                <label class="form-label small fw-bold">Date of Wedding <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control form-control-sm" name="override_wedding_date" id="mar_override_wedding_date">
                             </div>
                             <div class="col-md-6">
+                                <label class="form-label small fw-bold">Wedding Location</label>
+                                <input type="text" class="form-control form-control-sm" name="override_wedding_location" id="mar_override_wedding_location" placeholder="e.g. San Lorenzo Ruiz Mission Station">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Husband's Residence</label>
+                                <input type="text" class="form-control form-control-sm" name="override_husband_residence" id="mar_override_husband_residence">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Wife's Residence</label>
+                                <input type="text" class="form-control form-control-sm" name="override_wife_residence" id="mar_override_wife_residence">
+                            </div>
+                            <div class="col-md-12">
                                 <div class="d-flex justify-content-between align-items-center mb-1">
                                     <label class="form-label small fw-bold mb-0">Officiating Priest <span class="text-danger">*</span></label>
                                     <span class="badge bg-warning text-dark py-0 px-1" style="font-size:0.68rem;"><i class="fas fa-hand-pointer me-1"></i> Secretary Assigned</span>
                                 </div>
-                                <select class="form-select form-select-sm priest-select-highlight" name="mar_override_priest" id="mar_override_priest" required>
+                                <select class="form-select form-select-sm priest-select-highlight" name="mar_override_priest" id="mar_override_priest">
                                     <option value="">-- Select Officiating Priest --</option>
                                     <?php foreach ($active_priests as $p): ?>
                                         <option value="<?php echo e($p['name']); ?>" <?php echo (!empty($p['is_default'])) ? 'data-default="1"' : ''; ?>>
@@ -764,31 +784,27 @@ include '../templates/header.php';
                     <div id="funeralFieldsContainer" style="display:none;">
                         <div class="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 mb-3">
                             <i class="fas fa-circle-info fs-5"></i>
-                            <div>Funeral / Burial Certification. All 5 essential fields below are required before generating.</div>
+                            <div>Funeral record. <strong>Deceased Name</strong> and <strong>Date of Burial</strong> are required.</div>
                         </div>
                         <div class="row g-2">
                             <div class="col-md-12">
-                                <label class="form-label small fw-bold">Full Name of the Deceased <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control form-control-sm" name="override_deceased_name" id="fun_override_deceased_name" required>
+                                <label class="form-label small fw-bold">Deceased's Full Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" name="override_deceased_name" id="fun_override_deceased_name">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label small fw-bold">Father's Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control form-control-sm" name="fun_override_father_name" id="fun_override_father_name" required>
+                                <label class="form-label small fw-bold">Date of Burial <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control form-control-sm" name="override_date_of_burial" id="fun_override_date_of_burial">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label small fw-bold">Mother's Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control form-control-sm" name="fun_override_mother_name" id="fun_override_mother_name" required>
+                                <label class="form-label small fw-bold">Place of Burial</label>
+                                <input type="text" class="form-control form-control-sm" name="override_place_of_burial" id="fun_override_place_of_burial">
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label small fw-bold">Date of Burial / Funeral Rites <span class="text-danger">*</span></label>
-                                <input type="date" class="form-control form-control-sm" name="override_date_of_burial" id="fun_override_date_of_burial" required>
-                            </div>
-                            <div class="col-md-6">
+                            <div class="col-md-12">
                                 <div class="d-flex justify-content-between align-items-center mb-1">
                                     <label class="form-label small fw-bold mb-0">Officiating Priest <span class="text-danger">*</span></label>
                                     <span class="badge bg-warning text-dark py-0 px-1" style="font-size:0.68rem;"><i class="fas fa-hand-pointer me-1"></i> Secretary Assigned</span>
                                 </div>
-                                <select class="form-select form-select-sm priest-select-highlight" name="fun_override_priest" id="fun_override_priest" required>
+                                <select class="form-select form-select-sm priest-select-highlight" name="fun_override_priest" id="fun_override_priest">
                                     <option value="">-- Select Officiating Priest --</option>
                                     <?php foreach ($active_priests as $p): ?>
                                         <option value="<?php echo e($p['name']); ?>" <?php echo (!empty($p['is_default'])) ? 'data-default="1"' : ''; ?>>
@@ -940,34 +956,44 @@ document.addEventListener('DOMContentLoaded', function() {
         else if (isFuneral)      setActiveContainer(funeralFields);
         else                     setActiveContainer(null);
 
-        // Reset inputs
+        // Reset baptism-specific inputs
         if (isBaptism) {
-            ['override_fullname','override_father_name','override_mother_name','override_baptism_date'].forEach(id => {
+            ['override_fullname','override_birth_place','override_birth_date','override_residence',
+             'override_father_name','override_father_birth_place','override_mother_name',
+             'override_mother_birth_place','override_baptism_date'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.value = '';
             });
             setDefaultPriest(document.getElementById('override_priest'));
+            sponsorsList.innerHTML = '';
         }
+        // Reset communion inputs
         if (isCommunion) {
-            ['com_override_fullname','com_override_father_name','com_override_mother_name','com_override_communion_date'].forEach(id => {
+            ['com_override_fullname','com_override_communion_date','com_override_domicile',
+             'com_override_parents','com_override_catechist','com_override_principal'].forEach(id => {
                 const el = document.getElementById(id); if (el) el.value = '';
             });
             setDefaultPriest(document.getElementById('com_override_priest'));
         }
+        // Reset confirmation inputs
         if (isConfirmation) {
-            ['conf_override_fullname','conf_override_father_name','conf_override_mother_name','conf_override_confirmation_date'].forEach(id => {
+            ['conf_override_fullname','conf_override_confirmation_name','conf_override_confirmation_date',
+             'conf_override_sponsor','conf_override_parents'].forEach(id => {
                 const el = document.getElementById(id); if (el) el.value = '';
             });
             setDefaultPriest(document.getElementById('conf_override_priest'));
         }
+        // Reset marriage inputs
         if (isMarriage) {
-            ['mar_override_husband_name','mar_override_wife_name','mar_override_wedding_date'].forEach(id => {
+            ['mar_override_husband_name','mar_override_wife_name','mar_override_wedding_date',
+             'mar_override_wedding_location','mar_override_husband_residence','mar_override_wife_residence'].forEach(id => {
                 const el = document.getElementById(id); if (el) el.value = '';
             });
             setDefaultPriest(document.getElementById('mar_override_priest'));
         }
+        // Reset funeral inputs
         if (isFuneral) {
-            ['fun_override_deceased_name','fun_override_father_name','fun_override_mother_name','fun_override_date_of_burial'].forEach(id => {
+            ['fun_override_deceased_name','fun_override_date_of_burial','fun_override_place_of_burial'].forEach(id => {
                 const el = document.getElementById(id); if (el) el.value = '';
             });
             setDefaultPriest(document.getElementById('fun_override_priest'));
@@ -1015,7 +1041,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const isCommunion    = (certType === 'communion' || certType === 'first_communion_certification');
         const isConfirmation = (certType === 'confirmation' || certType === 'confirmation_certification');
         const isMarriage     = (certType === 'marriage' || certType === 'marriage_certification');
-        const isFuneral      = (certType === 'funeral' || certType === 'funeral_certification');
+        const isFuneral      = (certType === 'funeral_certification');
 
         const apiType = isBaptism ? 'baptism'
             : isCommunion ? 'communion'
@@ -1030,40 +1056,57 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(res => {
                 if (!res.success || !res.data) return;
                 const d = res.data;
-                const fld = id => document.getElementById(id);
 
                 if (isBaptism) {
-                    if (fld('override_fullname'))     fld('override_fullname').value = d.fullname || '';
-                    if (fld('override_father_name'))  fld('override_father_name').value = d.father_name || '';
-                    if (fld('override_mother_name'))  fld('override_mother_name').value = d.mother_name || '';
-                    if (fld('override_baptism_date')) fld('override_baptism_date').value = d.baptism_date || '';
+                    document.getElementById('override_fullname').value = d.fullname || '';
+                    document.getElementById('override_birth_place').value = d.birth_place || '';
+                    document.getElementById('override_birth_date').value = d.birth_date || '';
+                    document.getElementById('override_residence').value = d.residence || '';
+                    document.getElementById('override_father_name').value = d.father_name || '';
+                    document.getElementById('override_father_birth_place').value = d.father_birth_place || '';
+                    document.getElementById('override_mother_name').value = d.mother_name || '';
+                    document.getElementById('override_mother_birth_place').value = d.mother_birth_place || '';
+                    document.getElementById('override_baptism_date').value = d.baptism_date || '';
                     const ps = document.getElementById('override_priest');
                     d.priest ? setPriestValue(ps, d.priest) : setDefaultPriest(ps);
+                    sponsorsList.innerHTML = '';
+                    const sps = (Array.isArray(d.sponsors) && d.sponsors.length >= 2) ? d.sponsors : ['', ''];
+                    sps.forEach((sp, idx) => sponsorsList.appendChild(createSponsorRow(sp, idx)));
+                    updateModalSponsorRemoveButtons();
                 } else if (isCommunion) {
-                    if (fld('com_override_fullname'))    fld('com_override_fullname').value = d.fullname || '';
-                    if (fld('com_override_father_name')) fld('com_override_father_name').value = d.father_name || '';
-                    if (fld('com_override_mother_name')) fld('com_override_mother_name').value = d.mother_name || '';
+                    const fld = id => document.getElementById(id);
+                    if (fld('com_override_fullname'))       fld('com_override_fullname').value = d.fullname || '';
                     if (fld('com_override_communion_date')) fld('com_override_communion_date').value = d.communion_date || '';
+                    if (fld('com_override_domicile'))       fld('com_override_domicile').value = d.domicile || '';
+                    if (fld('com_override_parents'))        fld('com_override_parents').value = d.parents || '';
+                    if (fld('com_override_catechist'))      fld('com_override_catechist').value = d.catechist_coordinator || '';
+                    if (fld('com_override_principal'))      fld('com_override_principal').value = d.principal || '';
                     const cp = document.getElementById('com_override_priest');
                     d.priest ? setPriestValue(cp, d.priest) : setDefaultPriest(cp);
                 } else if (isConfirmation) {
-                    if (fld('conf_override_fullname'))    fld('conf_override_fullname').value = d.fullname || '';
-                    if (fld('conf_override_father_name')) fld('conf_override_father_name').value = d.father_name || '';
-                    if (fld('conf_override_mother_name')) fld('conf_override_mother_name').value = d.mother_name || '';
-                    if (fld('conf_override_confirmation_date')) fld('conf_override_confirmation_date').value = d.confirmation_date || '';
+                    const fld = id => document.getElementById(id);
+                    if (fld('conf_override_fullname'))           fld('conf_override_fullname').value = d.fullname || '';
+                    if (fld('conf_override_confirmation_name'))  fld('conf_override_confirmation_name').value = d.confirmation_name || '';
+                    if (fld('conf_override_confirmation_date'))  fld('conf_override_confirmation_date').value = d.confirmation_date || '';
+                    if (fld('conf_override_parents'))            fld('conf_override_parents').value = d.parents || '';
+                    if (fld('conf_override_sponsor'))            fld('conf_override_sponsor').value = d.sponsor || '';
                     const cp = document.getElementById('conf_override_priest');
                     d.bishop_priest ? setPriestValue(cp, d.bishop_priest) : setDefaultPriest(cp);
                 } else if (isMarriage) {
-                    if (fld('mar_override_husband_name')) fld('mar_override_husband_name').value = d.husband_name || '';
-                    if (fld('mar_override_wife_name'))    fld('mar_override_wife_name').value = d.wife_name || '';
-                    if (fld('mar_override_wedding_date')) fld('mar_override_wedding_date').value = d.wedding_date || '';
+                    const fld = id => document.getElementById(id);
+                    if (fld('mar_override_husband_name'))       fld('mar_override_husband_name').value = d.husband_name || '';
+                    if (fld('mar_override_wife_name'))          fld('mar_override_wife_name').value = d.wife_name || '';
+                    if (fld('mar_override_wedding_date'))       fld('mar_override_wedding_date').value = d.wedding_date || '';
+                    if (fld('mar_override_wedding_location'))   fld('mar_override_wedding_location').value = d.wedding_location || '';
+                    if (fld('mar_override_husband_residence'))  fld('mar_override_husband_residence').value = d.husband_residence || '';
+                    if (fld('mar_override_wife_residence'))     fld('mar_override_wife_residence').value = d.wife_residence || '';
                     const mp = document.getElementById('mar_override_priest');
                     d.officiating_priest ? setPriestValue(mp, d.officiating_priest) : setDefaultPriest(mp);
                 } else if (isFuneral) {
-                    if (fld('fun_override_deceased_name')) fld('fun_override_deceased_name').value = d.deceased_name || '';
-                    if (fld('fun_override_father_name'))   fld('fun_override_father_name').value = d.father_name || '';
-                    if (fld('fun_override_mother_name'))   fld('fun_override_mother_name').value = d.mother_name || '';
-                    if (fld('fun_override_date_of_burial')) fld('fun_override_date_of_burial').value = d.date_of_burial || '';
+                    const fld = id => document.getElementById(id);
+                    if (fld('fun_override_deceased_name'))   fld('fun_override_deceased_name').value = d.deceased_name || '';
+                    if (fld('fun_override_date_of_burial'))  fld('fun_override_date_of_burial').value = d.date_of_burial || '';
+                    if (fld('fun_override_place_of_burial')) fld('fun_override_place_of_burial').value = d.place_of_burial || '';
                     const fp = document.getElementById('fun_override_priest');
                     d.minister ? setPriestValue(fp, d.minister) : setDefaultPriest(fp);
                 }
@@ -1080,49 +1123,61 @@ document.addEventListener('DOMContentLoaded', function() {
         const isCommunion    = (certType === 'communion' || certType === 'first_communion_certification');
         const isConfirmation = (certType === 'confirmation' || certType === 'confirmation_certification');
         const isMarriage     = (certType === 'marriage' || certType === 'marriage_certification');
-        const isFuneral      = (certType === 'funeral' || certType === 'funeral_certification');
+        const isFuneral      = (certType === 'funeral_certification');
 
         let missing = [];
 
-        function checkField(id, label) {
-            const el = document.getElementById(id);
-            if (!el || !el.value.trim() || el.value === '0000-00-00') {
-                missing.push(label);
-                if (el) el.classList.add('is-invalid');
-            } else if (el) {
-                el.classList.remove('is-invalid');
-            }
-        }
-
         if (isBaptism) {
-            checkField('override_fullname', 'Full Name of Baptized');
-            checkField('override_father_name', "Father's Name");
-            checkField('override_mother_name', "Mother's Name");
-            checkField('override_baptism_date', 'Date of Baptism');
-            checkField('override_priest', 'Officiating Priest');
+            const bReq = [
+                { id: 'override_fullname', label: 'Full Name' },
+                { id: 'override_birth_place', label: 'Birthplace' },
+                { id: 'override_birth_date', label: 'Birthday' },
+                { id: 'override_residence', label: 'Residence' },
+                { id: 'override_father_name', label: "Father's Name" },
+                { id: 'override_father_birth_place', label: "Father's Birthplace" },
+                { id: 'override_mother_name', label: "Mother's Name" },
+                { id: 'override_mother_birth_place', label: "Mother's Birthplace" },
+                { id: 'override_baptism_date', label: 'Date of Baptism' },
+                { id: 'override_priest', label: 'Officiating Priest' }
+            ];
+            bReq.forEach(f => {
+                const el = document.getElementById(f.id);
+                if (!el || !el.value.trim()) { missing.push(f.label); if (el) el.classList.add('is-invalid'); }
+                else if (el) el.classList.remove('is-invalid');
+            });
+            const sps = Array.from(sponsorsList.querySelectorAll('input[name="override_sponsors[]"]'))
+                .map(i => i.value.trim()).filter(v => v.length > 0);
+            if (sps.length < 2) missing.push('At least 2 Sponsors (Ninong-Ninang)');
         } else if (isCommunion) {
-            checkField('com_override_fullname', "Recipient's Full Name");
-            checkField('com_override_father_name', "Father's Name");
-            checkField('com_override_mother_name', "Mother's Name");
-            checkField('com_override_communion_date', 'Date of First Communion');
-            checkField('com_override_priest', 'Officiating Priest');
+            if (!document.getElementById('com_override_fullname')?.value.trim()) missing.push("Recipient's Full Name");
+            if (!document.getElementById('com_override_communion_date')?.value.trim()) missing.push('Date of First Communion');
         } else if (isConfirmation) {
-            checkField('conf_override_fullname', 'Full Name of Confirmed');
-            checkField('conf_override_father_name', "Father's Name");
-            checkField('conf_override_mother_name', "Mother's Name");
-            checkField('conf_override_confirmation_date', 'Date of Confirmation');
-            checkField('conf_override_priest', 'Confirming Minister / Priest');
+            const elName = document.getElementById('conf_override_fullname');
+            const elDate = document.getElementById('conf_override_confirmation_date');
+            const elPriest = document.getElementById('conf_override_priest');
+            if (!elName || !elName.value.trim()) { missing.push('Full Name'); if (elName) elName.classList.add('is-invalid'); }
+            else if (elName) elName.classList.remove('is-invalid');
+            if (!elDate || !elDate.value.trim()) { missing.push('Date of Confirmation'); if (elDate) elDate.classList.add('is-invalid'); }
+            else if (elDate) elDate.classList.remove('is-invalid');
+            if (!elPriest || !elPriest.value.trim()) { missing.push('Officiating Priest'); if (elPriest) elPriest.classList.add('is-invalid'); }
+            else if (elPriest) elPriest.classList.remove('is-invalid');
         } else if (isMarriage) {
-            checkField('mar_override_husband_name', "Groom's Full Name");
-            checkField('mar_override_wife_name', "Bride's Full Name");
-            checkField('mar_override_wedding_date', 'Date of Marriage');
-            checkField('mar_override_priest', 'Officiating Priest');
+            const elH = document.getElementById('mar_override_husband_name');
+            const elW = document.getElementById('mar_override_wife_name');
+            const elD = document.getElementById('mar_override_wedding_date');
+            if (!elH || !elH.value.trim()) { missing.push("Husband's Name"); if (elH) elH.classList.add('is-invalid'); }
+            else if (elH) elH.classList.remove('is-invalid');
+            if (!elW || !elW.value.trim()) { missing.push("Wife's Name"); if (elW) elW.classList.add('is-invalid'); }
+            else if (elW) elW.classList.remove('is-invalid');
+            if (!elD || !elD.value.trim()) { missing.push('Date of Wedding'); if (elD) elD.classList.add('is-invalid'); }
+            else if (elD) elD.classList.remove('is-invalid');
         } else if (isFuneral) {
-            checkField('fun_override_deceased_name', 'Full Name of the Deceased');
-            checkField('fun_override_father_name', "Father's Name");
-            checkField('fun_override_mother_name', "Mother's Name");
-            checkField('fun_override_date_of_burial', 'Date of Burial / Funeral Rites');
-            checkField('fun_override_priest', 'Officiating Priest');
+            const elDec = document.getElementById('fun_override_deceased_name');
+            const elBur = document.getElementById('fun_override_date_of_burial');
+            if (!elDec || !elDec.value.trim()) { missing.push('Deceased Name'); if (elDec) elDec.classList.add('is-invalid'); }
+            else if (elDec) elDec.classList.remove('is-invalid');
+            if (!elBur || !elBur.value.trim()) { missing.push('Date of Burial'); if (elBur) elBur.classList.add('is-invalid'); }
+            else if (elBur) elBur.classList.remove('is-invalid');
         }
 
         if (missing.length > 0) {
