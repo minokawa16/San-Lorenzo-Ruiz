@@ -33,6 +33,50 @@ if (isset($_GET['id'])) {
             $stmt->execute();
             $res = $stmt->get_result();
             if ($res && $res->num_rows > 0) {
+                $rec = $res->fetch_assoc();
+                $signers = getFirstCommunionSigners($conn, $rec);
+                if (empty($rec['catechist_coordinator'])) $rec['catechist_coordinator'] = $signers['catechist_coordinator'];
+                if (empty($rec['parish_priest']))          $rec['parish_priest']          = $signers['parish_priest'];
+                if (empty($rec['principal']))              $rec['principal']              = $signers['principal'];
+                unset($_SESSION['manual_certificate']);
+                $_SESSION['certificate_data'] = $rec;
+                $_SESSION['cert_type'] = $rec_type;
+            }
+            $stmt->close();
+        }
+    } elseif (in_array($rec_type, ['confirmation', 'confirmation_certification'], true)) {
+        $stmt = $conn->prepare("SELECT * FROM confirmation_records WHERE confirmation_id = ?");
+        if ($stmt) {
+            $stmt->bind_param('i', $rec_id);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            if ($res && $res->num_rows > 0) {
+                unset($_SESSION['manual_certificate']);
+                $_SESSION['certificate_data'] = $res->fetch_assoc();
+                $_SESSION['cert_type'] = $rec_type;
+            }
+            $stmt->close();
+        }
+    } elseif (in_array($rec_type, ['marriage', 'marriage_certification'], true)) {
+        $stmt = $conn->prepare("SELECT * FROM marriage_records WHERE marriage_id = ?");
+        if ($stmt) {
+            $stmt->bind_param('i', $rec_id);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            if ($res && $res->num_rows > 0) {
+                unset($_SESSION['manual_certificate']);
+                $_SESSION['certificate_data'] = $res->fetch_assoc();
+                $_SESSION['cert_type'] = $rec_type;
+            }
+            $stmt->close();
+        }
+    } elseif (in_array($rec_type, ['funeral', 'funeral_certification'], true)) {
+        $stmt = $conn->prepare("SELECT * FROM funeral_records WHERE funeral_id = ?");
+        if ($stmt) {
+            $stmt->bind_param('i', $rec_id);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            if ($res && $res->num_rows > 0) {
                 unset($_SESSION['manual_certificate']);
                 $_SESSION['certificate_data'] = $res->fetch_assoc();
                 $_SESSION['cert_type'] = $rec_type;

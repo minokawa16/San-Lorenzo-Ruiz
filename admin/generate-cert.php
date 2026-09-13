@@ -86,7 +86,7 @@ if ($result && $result->num_rows > 0) {
         $desc, 'CERTIFICATES', 'INFO'
     );
     
-    header('Location: view-certificate.php');
+    header('Location: view-certificate.php?id=' . $record_id . '&type=' . urlencode($cert_type));
     exit;
 } else {
     $_SESSION['error'] = 'Record not found or inactive';
