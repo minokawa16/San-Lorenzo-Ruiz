@@ -413,8 +413,8 @@ $page_title = $layout_certificate_title;
     <style>
         :root {
             --ink: #151515;
-            --cert-width: 6.5in; /* 165.1mm - Half of Long Bond Paper (8.5in x 13in cut in half) */
-            --cert-height: 8.5in; /* 215.9mm */
+            --cert-width: 8.5in; /* 215.9mm - Half of Long Bond Paper (8.5in x 13in cut in half: 8.5in wide x 6.5in tall) */
+            --cert-height: 6.5in; /* 165.1mm */
             --line: #bfa15f;
             --accent-line: #bfa15f;
         }
@@ -427,7 +427,7 @@ $page_title = $layout_certificate_title;
             height: var(--cert-height);
             margin: 0 auto 24px;
             background: #ffffff;
-            padding: 3.5mm;
+            padding: 3mm;
             box-shadow: 0 18px 42px rgba(15, 23, 42, .18);
             overflow: hidden;
             box-sizing: border-box;
@@ -436,28 +436,28 @@ $page_title = $layout_certificate_title;
         .certificate-sheet {
             height: 100%;
             border: 2px solid #bfa15f;
-            padding: 5mm 6mm 6mm;
+            padding: 4mm 6mm 5mm;
             position: relative;
             overflow: hidden;
             box-shadow: inset 0 0 0 1mm rgba(0, 0, 0, .03);
             background:
-                linear-gradient(var(--accent-line), var(--accent-line)) left 4mm top 4mm / 18mm 1px no-repeat,
-                linear-gradient(var(--accent-line), var(--accent-line)) left 4mm top 4mm / 1px 18mm no-repeat,
-                linear-gradient(var(--accent-line), var(--accent-line)) right 4mm top 4mm / 18mm 1px no-repeat,
-                linear-gradient(var(--accent-line), var(--accent-line)) right 4mm top 4mm / 1px 18mm no-repeat,
-                linear-gradient(var(--accent-line), var(--accent-line)) left 4mm bottom 4mm / 18mm 1px no-repeat,
-                linear-gradient(var(--accent-line), var(--accent-line)) left 4mm bottom 4mm / 1px 18mm no-repeat,
-                linear-gradient(var(--accent-line), var(--accent-line)) right 4mm bottom 4mm / 18mm 1px no-repeat,
-                linear-gradient(var(--accent-line), var(--accent-line)) right 4mm bottom 4mm / 1px 18mm no-repeat,
+                linear-gradient(var(--accent-line), var(--accent-line)) left 3mm top 3mm / 15mm 1px no-repeat,
+                linear-gradient(var(--accent-line), var(--accent-line)) left 3mm top 3mm / 1px 15mm no-repeat,
+                linear-gradient(var(--accent-line), var(--accent-line)) right 3mm top 3mm / 15mm 1px no-repeat,
+                linear-gradient(var(--accent-line), var(--accent-line)) right 3mm top 3mm / 1px 15mm no-repeat,
+                linear-gradient(var(--accent-line), var(--accent-line)) left 3mm bottom 3mm / 15mm 1px no-repeat,
+                linear-gradient(var(--accent-line), var(--accent-line)) left 3mm bottom 3mm / 1px 15mm no-repeat,
+                linear-gradient(var(--accent-line), var(--accent-line)) right 3mm bottom 3mm / 15mm 1px no-repeat,
+                linear-gradient(var(--accent-line), var(--accent-line)) right 3mm bottom 3mm / 1px 15mm no-repeat,
                 #ffffff;
         }
         .certificate-sheet::before {
             content: "";
             position: absolute;
-            inset: 2.4mm;
+            inset: 2mm;
             border: 1px solid var(--line);
             outline: 1px solid rgba(0, 0, 0, .15);
-            outline-offset: 1.2mm;
+            outline-offset: 1mm;
             pointer-events: none;
             z-index: 2;
         }
@@ -465,9 +465,9 @@ $page_title = $layout_certificate_title;
         .certificate-design-bg {
             position: absolute;
             left: 50%;
-            top: 55%;
-            width: 104mm;
-            height: 150mm;
+            top: 50%;
+            width: 120mm;
+            height: 120mm;
             transform: translate(-50%, -50%);
             object-fit: contain;
             object-position: center;
@@ -489,8 +489,8 @@ $page_title = $layout_certificate_title;
             align-items: center;
             gap: 2mm;
             text-align: center;
-            margin-bottom: 3mm;
-            min-height: 25mm;
+            margin-bottom: 2mm;
+            min-height: 22mm;
         }
 
         .certificate-logo-slot {
@@ -499,39 +499,39 @@ $page_title = $layout_certificate_title;
             justify-content: center;
         }
         .certificate-logo {
-            width: 19mm;
-            height: 19mm;
+            width: 17mm;
+            height: 17mm;
             object-fit: contain;
             display: block;
         }
         .certificate-logo.archdiocese-logo {
-            width: 21mm;
-            height: 21mm;
+            width: 19mm;
+            height: 19mm;
         }
 
         .church-title {
             font-family: Arial, sans-serif;
-            font-size: 7pt;
+            font-size: 6.8pt;
             font-weight: 600;
             color: #475569;
             letter-spacing: 0.8px;
             text-transform: uppercase;
-            margin-bottom: 1.5px;
+            margin-bottom: 1px;
             line-height: 1.1;
         }
         .diocese-title {
             font-family: Georgia, 'Times New Roman', serif;
-            font-size: 11pt;
+            font-size: 10.5pt;
             font-weight: 800;
             color: #1e3a8a;
             letter-spacing: 0.5px;
             text-transform: uppercase;
-            margin-bottom: 2px;
+            margin-bottom: 1.5px;
             line-height: 1.15;
         }
         .parish-title {
             font-family: Arial, sans-serif;
-            font-size: 7.2pt;
+            font-size: 7pt;
             font-weight: 600;
             color: #334155;
             letter-spacing: 0.5px;
@@ -541,51 +541,51 @@ $page_title = $layout_certificate_title;
         }
         .location-title {
             font-family: Arial, sans-serif;
-            font-size: 6.8pt;
+            font-size: 6.5pt;
             font-weight: 500;
             color: #475569;
             letter-spacing: 0.5px;
             text-transform: uppercase;
-            margin-bottom: 2.5mm;
+            margin-bottom: 1.5mm;
             line-height: 1.1;
         }
         .cert-main-heading {
             font-family: Georgia, 'Times New Roman', serif;
-            font-size: 14pt;
+            font-size: 13.5pt;
             font-weight: 700;
             color: #852219;
             letter-spacing: 1.4px;
             text-transform: uppercase;
             line-height: 1.15;
-            margin-bottom: 1.8mm;
+            margin-bottom: 1.5mm;
         }
         .cert-title-divider {
-            width: 76mm;
+            width: 90mm;
             height: 1.2px;
             background: #8c733e;
-            margin: 0 auto 5mm;
+            margin: 0 auto 3mm;
         }
 
         /* Flowing Certification Paragraph */
         .simple-cert-intro {
             font-family: Georgia, 'Times New Roman', serif;
-            font-size: 8.8pt;
+            font-size: 8.5pt;
             font-weight: 700;
             color: #852219;
             letter-spacing: 2px;
             text-transform: uppercase;
             text-align: center;
-            margin: 5mm auto 4.5mm;
+            margin: 3mm auto 2.5mm;
         }
 
         .simple-cert-name {
             font-family: 'EB Garamond', Georgia, 'Times New Roman', serif;
-            font-size: 17pt;
+            font-size: 16.5pt;
             font-weight: 700;
             font-style: italic;
             color: #1e3a8a;
             text-align: center;
-            margin-bottom: 5.5mm;
+            margin-bottom: 3.5mm;
             line-height: 1.25;
         }
         .simple-cert-name.underline {
@@ -596,16 +596,16 @@ $page_title = $layout_certificate_title;
         .simple-cert-body {
             font-family: Georgia, 'Times New Roman', serif;
             font-size: 10.8pt;
-            line-height: 2.15;
+            line-height: 2.1;
             color: #222222;
             text-align: center;
-            max-width: 138mm;
+            max-width: 172mm;
             margin: 0 auto;
         }
 
         .simple-cert-fill {
             font-family: 'EB Garamond', Georgia, 'Times New Roman', serif;
-            font-size: 12.2pt;
+            font-size: 12pt;
             font-weight: 700;
             font-style: italic;
             color: #1e3a8a;
@@ -618,17 +618,17 @@ $page_title = $layout_certificate_title;
         /* Footer: Seal bottom-left and Priest Signature bottom-right */
         .simple-cert-footer {
             position: absolute;
-            bottom: 10mm;
-            left: 12mm;
-            right: 12mm;
+            bottom: 6mm;
+            left: 10mm;
+            right: 10mm;
             display: flex;
             justify-content: space-between;
             align-items: flex-end;
         }
 
         .simple-cert-seal {
-            width: 24mm;
-            height: 24mm;
+            width: 22mm;
+            height: 22mm;
             border: 1.2px dashed #8c733e;
             border-radius: 50%;
             display: flex;
@@ -636,21 +636,21 @@ $page_title = $layout_certificate_title;
             justify-content: center;
             text-align: center;
             font-family: Georgia, 'Times New Roman', serif;
-            font-size: 6.8pt;
+            font-size: 6.5pt;
             color: #8c733e;
             line-height: 1.2;
             padding: 1.5mm;
         }
 
         .simple-cert-sign {
-            min-width: 65mm;
+            min-width: 68mm;
             text-align: center;
         }
 
         .simple-cert-sign-line {
             border-top: 1.2px solid #222222;
             width: 100%;
-            margin-bottom: 2mm;
+            margin-bottom: 1.5mm;
         }
 
         .simple-cert-priest-name {
@@ -672,7 +672,7 @@ $page_title = $layout_certificate_title;
         }
 
         @page {
-            size: 6.5in 8.5in;
+            size: 8.5in 6.5in;
             margin: 0;
         }
 
