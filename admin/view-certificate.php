@@ -718,7 +718,9 @@ if ($is_confirmation_cert && stripos($data['fullname'] ?? '', 'REY MARK') !== fa
     if (empty($data['bishop_priest']) || stripos($data['bishop_priest'], 'Lampon') !== false) {
         $data['bishop_priest'] = 'BP. ANGELITO R. LAMPON,OMI,DD';
     }
-    $data['parish_priest'] = 'REV. FR. RAUL M. BIASBAS, OMI';
+    if (empty($data['parish_priest']) || $data['parish_priest'] === 'N/A') {
+        $data['parish_priest'] = 'REV. FR. ALBERTO G. CAHILIG, O.M.I.';
+    }
 }
 
 $confirmation_bishop = trim((string)($data['bishop_priest'] ?? ''));
@@ -732,22 +734,13 @@ if (strcasecmp($confirmation_cname_display, 'rei') === 0) {
 
 $confirmation_priest_name = !empty($data['parish_priest']) ? $data['parish_priest'] : '';
 if ((empty($confirmation_priest_name) || $confirmation_priest_name === 'N/A') && $is_confirmation_cert) {
-    $confirmation_priest_name = 'REV. FR. RAUL M. BIASBAS, OMI';
+    $confirmation_priest_name = !empty($layout_priest_name) ? $layout_priest_name : 'REV. FR. ALBERTO G. CAHILIG, O.M.I.';
 }
-$confirmation_priest_title = !empty($data['priest_position']) ? $data['priest_position'] : 'Priest-in-Charge';
+$confirmation_priest_title = !empty($data['priest_position']) ? $data['priest_position'] : (!empty($layout_priest_position) ? $layout_priest_position : 'Priest-in-Charge');
 
 $confirmation_sig_img = '';
 if (!empty($certificate_layout_settings['images']['priest_signature'])) {
     $confirmation_sig_img = certificateLayoutAssetUrl($certificate_layout_settings['images']['priest_signature']);
-} elseif (is_file(__DIR__ . '/../assets/certificates/confirmation_signature.png')) {
-    $confirmation_sig_img = '../assets/certificates/confirmation_signature.png';
-}
-
-$confirmation_photo = '';
-if (!empty($data['photo']) && is_file(__DIR__ . '/../' . ltrim($data['photo'], '/'))) {
-    $confirmation_photo = '../' . ltrim($data['photo'], '/');
-} else {
-    $confirmation_photo = '../assets/certificates/confirmation_slr.png';
 }
 
 $confirmation_issue_date = !empty($data['date_issued']) ? strtoupper(displayDate($data['date_issued'], 'F j, Y')) : ($confirmation_timestamp ? strtoupper(displayDate($data['confirmation_date'], 'F j, Y')) : strtoupper(date('F j, Y')));
@@ -891,9 +884,9 @@ $layout_secretary_position = layoutCssValue($layout_text['secretary_position'] ?
 
 if (stripos($data['fullname'] ?? '', 'REY MARK') !== false) {
     if ($cert_type === 'confirmation') {
-        $layout_priest_name = 'REV. FR. RAUL M. BIASBAS, OMI';
+        $layout_priest_name = !empty($data['parish_priest']) ? $data['parish_priest'] : 'REV. FR. ALBERTO G. CAHILIG, O.M.I.';
     } else {
-        $layout_priest_name = 'REV. FR. HERIBERTO C. VILLAS, O.M.I.';
+        $layout_priest_name = !empty($data['parish_priest']) ? $data['parish_priest'] : 'REV. FR. HERIBERTO C. VILLAS, O.M.I.';
     }
     $layout_priest_position = 'Priest-in-Charge';
     $show_secretary_sign = false;
@@ -1720,16 +1713,23 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             font-size: 8.5pt;
         }
         .conf-fill-line {
-            flex-grow: 1;
+            width: 96mm;
+            flex-grow: 0;
+            flex-shrink: 0;
             border-bottom: 1px solid var(--conf-blue);
             font-weight: 600;
             color: var(--conf-ink);
             text-transform: uppercase;
             padding-left: 3mm;
+            padding-right: 2mm;
             padding-bottom: 0.2mm;
             min-height: 4.2mm;
             font-family: 'Times New Roman', serif;
             font-size: 8.5pt;
+            box-sizing: border-box;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .conf-certify-stmt {
@@ -1741,40 +1741,15 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             line-height: 1.2;
         }
 
-        /* Bottom Row with ID Photo, Registry, Gold Seal, and Clean Signature */
+        /* Bottom Row with Registry, Gold Seal, and Clean Signature (No Photo Box) */
         .conf-bottom-grid {
             margin-top: auto;
             display: grid;
-            grid-template-columns: 19mm auto 1fr 65mm;
+            grid-template-columns: auto 1fr 65mm;
             gap: 3.5mm;
             align-items: flex-end;
             padding-bottom: 0.5mm;
             width: 100%;
-        }
-        .conf-photo-box {
-            width: 19mm;
-            height: 19mm;
-            border: 1px solid var(--conf-blue);
-            background: #fdfdfd;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-sizing: border-box;
-            flex-shrink: 0;
-        }
-        .conf-id-img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-        }
-        .conf-photo-placeholder {
-            font-size: 5.5pt;
-            font-family: 'Montserrat', Arial, sans-serif;
-            color: #888;
-            text-align: center;
-            line-height: 1.15;
-            font-weight: 600;
         }
         .conf-reg-col {
             font-size: 8pt;
@@ -2532,20 +2507,8 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
                             This is to certify that this certificate is a true copy of Confirmation Record kept in this parish.
                         </div>
 
-                        <!-- Bottom Grid: ID Photo Box, Registry, Gold Seal, Clean Signature -->
+                        <!-- Bottom Grid: Registry, Gold Seal, Clean Signature -->
                         <div class="conf-bottom-grid">
-                            <div class="conf-photo-box">
-                                <?php if (!empty($data['photo']) && is_file(__DIR__ . '/../' . ltrim($data['photo'], '/'))): ?>
-                                    <img src="<?php echo e('../' . ltrim($data['photo'], '/')); ?>" class="conf-id-img" alt="Confirmand Photo">
-                                <?php elseif (!empty($confirmation_photo) && strpos($confirmation_photo, 'confirmation_slr.png') === false && is_file(__DIR__ . '/../' . ltrim($confirmation_photo, './'))): ?>
-                                    <img src="<?php echo e($confirmation_photo); ?>" class="conf-id-img" alt="Confirmand Photo">
-                                <?php else: ?>
-                                    <div class="conf-photo-placeholder">
-                                        <span>2x2<br>PHOTO</span>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-
                             <div class="conf-reg-col">
                                 <div class="conf-reg-top-row">
                                     <div class="conf-reg-item">
@@ -2794,7 +2757,7 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
                             </div>
                             <div class="col-md-7">
                                 <label class="form-label fw-bold small">Signing Priest (Priest-in-Charge) <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control form-control-sm" name="parish_priest" value="<?php echo e($confirmation_priest_name); ?>" placeholder="e.g. REV. FR. RAUL M. BIASBAS, OMI" required>
+                                <input type="text" class="form-control form-control-sm" name="parish_priest" value="<?php echo e($confirmation_priest_name); ?>" placeholder="e.g. REV. FR. ALBERTO G. CAHILIG, O.M.I." required>
                             </div>
                             <div class="col-md-5">
                                 <label class="form-label fw-bold small">Priest Title / Designation <span class="text-danger">*</span></label>
