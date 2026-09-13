@@ -78,7 +78,7 @@ if ($search !== '') {
     $types .= 'ssss';
 }
 
-$sql = "SELECT id, fullname, phone_number, email, chapel_district, address, birthdate, id_number_encrypted, status, valid_id_path, valid_id_back_path, valid_id_original_name, face_image_path, face_verification_status, rejection_reason, created_at
+$sql = "SELECT id, fullname, phone_number, email, chapel_district, address, birthdate, id_number_encrypted, status, valid_id_path, valid_id_back_path, valid_id_original_name, face_image_path, face_verification_status, rejection_reason, created_at, profile_picture
         FROM users
         $where
         ORDER BY created_at DESC";
@@ -169,7 +169,7 @@ include '../templates/header.php';
                     <div class="verification-record">
                         <div class="verification-info-panel">
                             <div class="verification-card-header">
-                                <div class="verification-avatar"><?php echo strtoupper(substr($user['fullname'], 0, 1)); ?></div>
+                                <?php echo renderUserAvatar($user, 48, 'verification-avatar'); ?>
                                 <div>
                                     <span class="record-label">Parishioner Registration</span>
                                     <h3><?php echo e($user['fullname']); ?></h3>

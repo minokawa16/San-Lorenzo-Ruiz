@@ -223,6 +223,8 @@ $request_select = "
         r.status AS status,
         r.date_requested AS submitted_at,
         r.admin_response AS admin_note,
+        u.id AS user_id,
+        u.profile_picture,
         u.fullname,
         u.email,
         NULL AS phone_number,
@@ -250,6 +252,8 @@ $reservation_select = "
         r.status AS status,
         r.created_at AS submitted_at,
         r.admin_notes AS admin_note,
+        u.id AS user_id,
+        u.profile_picture,
         u.fullname,
         u.email,
         u.phone_number,
@@ -403,7 +407,15 @@ include '../templates/header.php';
                                 ?>
                                 <tr>
                                     <td><strong><?php echo $request['reference_number']; ?></strong></td>
-                                    <td><?php echo sanitize($request['fullname']); ?><br><small><?php echo $request['email']; ?></small></td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <?php echo renderUserAvatar($request, 32); ?>
+                                            <div>
+                                                <div><strong><?php echo sanitize($request['fullname']); ?></strong></div>
+                                                <small class="text-muted"><?php echo $request['email']; ?></small>
+                                            </div>
+                                        </div>
+                                    </td>
                                     <td>
                                         <?php echo e($type_label); ?><br>
                                         <span class="pds-inline-tag"><?php echo e($category_label); ?></span>

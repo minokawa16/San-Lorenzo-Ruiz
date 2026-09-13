@@ -181,7 +181,9 @@ if (isLoggedIn()) {
         }
     }
     if (!empty($_SESSION['profile_picture'])) {
-        $header_avatar_url = BASE_URL . ltrim($_SESSION['profile_picture'], '/');
+        $header_avatar_url = function_exists('getUserAvatarUrl')
+            ? getUserAvatarUrl((int)$_SESSION['user_id'], (string)$_SESSION['profile_picture'])
+            : BASE_URL . ltrim($_SESSION['profile_picture'], '/');
     }
 }
 ?>

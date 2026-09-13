@@ -37,7 +37,7 @@ if ($request_id === 0) {
 }
 
 // Fetch request details
-$sql = "SELECT r.*, u.id as user_id, u.fullname, u.email, u.phone_number, u.chapel_district, u.created_at as user_created_at
+$sql = "SELECT r.*, u.id as user_id, u.fullname, u.email, u.phone_number, u.chapel_district, u.created_at as user_created_at, u.profile_picture
         FROM requests r 
         JOIN users u ON r.user_id = u.id 
         WHERE r.request_id = ? AND r.deleted_at IS NULL
@@ -448,9 +448,7 @@ $page_title = 'Review Request - #' . $request['reference_number'];
         <div class="header-section">
             <div class="row align-items-center">
                 <div class="col-auto">
-                    <div class="user-avatar">
-                        <i class="fas fa-user"></i>
-                    </div>
+                    <?php echo renderUserAvatar($request, 54, 'shadow-sm'); ?>
                 </div>
                 <div class="col">
                     <h2 class="mb-0" style="color: #1E3A5F;">
@@ -556,6 +554,13 @@ $page_title = 'Review Request - #' . $request['reference_number'];
                         </h5>
                     </div>
                     <div class="card-body">
+                        <div class="d-flex align-items-center gap-3 mb-3 pb-3 border-bottom">
+                            <?php echo renderUserAvatar($request, 44); ?>
+                            <div>
+                                <div class="fw-bold text-dark fs-6"><?php echo htmlspecialchars($request['fullname']); ?></div>
+                                <small class="text-muted"><?php echo htmlspecialchars($request['email']); ?></small>
+                            </div>
+                        </div>
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="info-block">

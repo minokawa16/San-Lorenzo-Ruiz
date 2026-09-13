@@ -1941,6 +1941,117 @@ function ensureAvatarUploadDirectory(): string {
     return $dir;
 }
 
+/**
+ * Get canonical avatar stream URL for a user
+ *
+ * @param array|int|string $user_or_id
+ * @param string|null $profile_picture
+ * @return string
+ */
+function getUserAvatarUrl($user_or_id, ?string $profile_picture = null): string {
+    $user_id = 0;
+    $pic = $profile_picture;
+    if (is_array($user_or_id)) {
+        $user_id = intval($user_or_id['id'] ?? $user_or_id['user_id'] ?? 0);
+        if ($pic === null) {
+            $pic = (string)($user_or_id['profile_picture'] ?? '');
+        }
+    } else {
+        $user_id = intval($user_or_id);
+    }
+
+    if ($user_id <= 0) {
+        return '';
+    }
+
+    $baseUrl = defined('BASE_URL') ? BASE_URL : '/';
+    $url = rtrim($baseUrl, '/') . '/avatar.php?id=' . $user_id;
+
+    if (!empty($pic)) {
+        $v = substr(md5($pic), 0, 8);
+        $url .= '&v=' . $v;
+    }
+
+    return $url;
+}
+
+/**
+ * Check if a user has an active uploaded avatar profile picture
+ *
+ * @param array|int $user_or_id
+ * @return bool
+ */
+function hasUserAvatar($user_or_id): bool {
+    if (is_array($user_or_id)) {
+        return !empty($user_or_id['profile_picture']);
+    }
+    $user_id = intval($user_or_id);
+    if ($user_id <= 0) return false;
+
+    static $cache = [];
+    if (isset($cache[$user_id])) return $cache[$user_id];
+
+    $conn = $GLOBALS['conn'] ?? null;
+    if ($conn instanceof mysqli) {
+        $stmt = $conn->prepare("SELECT profile_picture FROM users WHERE id = ? LIMIT 1");
+        if ($stmt) {
+            $stmt->bind_param('i', $user_id);
+            $stmt->execute();
+            $row = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            return $cache[$user_id] = !empty($row['profile_picture']);
+        }
+    }
+    return false;
+}
+
+/**
+ * Render standard user avatar HTML (photo with initials fallback)
+ * Single source of truth for both parishioner and admin views.
+ *
+ * @param array|int|string $user User array or user ID
+ * @param int $size Avatar diameter in pixels (default 40)
+ * @param string $extraClass Additional CSS classes
+ * @param string $extraStyle Additional CSS styles
+ * @return string HTML markup
+ */
+function renderUserAvatar($user, int $size = 40, string $extraClass = '', string $extraStyle = ''): string {
+    $fullname = 'User';
+    $user_id = 0;
+    $pic = '';
+
+    if (is_array($user)) {
+        $user_id = intval($user['id'] ?? $user['user_id'] ?? 0);
+        $fullname = trim((string)($user['fullname'] ?? $user['full_name'] ?? $user['first_name'] ?? 'User'));
+        $pic = (string)($user['profile_picture'] ?? '');
+    } else {
+        $user_id = intval($user);
+    }
+
+    $initial = strtoupper(substr($fullname !== '' ? $fullname : 'U', 0, 1));
+    $fontSize = max(10, (int)round($size * 0.42));
+    $avatarUrl = getUserAvatarUrl($user, $pic);
+
+    $classAttr = 'parish-user-avatar d-inline-flex align-items-center justify-content-center flex-shrink-0 text-decoration-none ' . htmlspecialchars($extraClass, ENT_QUOTES, 'UTF-8');
+    $styleBase = "width: {$size}px; height: {$size}px; min-width: {$size}px; min-height: {$size}px; border-radius: 50%; overflow: hidden; position: relative; " . $extraStyle;
+
+    if (!empty($pic)) {
+        $imgStyle = "width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;";
+        $fallbackStyle = "width: 100%; height: 100%; display: none; align-items: center; justify-content: center; background: linear-gradient(135deg, #2E3A2D, #1d251d); color: #c89b3c; font-weight: 700; font-size: {$fontSize}px; border: 1.5px solid #c89b3c;";
+
+        return '<span class="' . trim($classAttr) . '" style="' . $styleBase . '" title="' . htmlspecialchars($fullname, ENT_QUOTES, 'UTF-8') . '">' .
+            '<img src="' . htmlspecialchars($avatarUrl, ENT_QUOTES, 'UTF-8') . '" alt="' . htmlspecialchars($fullname, ENT_QUOTES, 'UTF-8') . '" style="' . $imgStyle . '" onerror="this.style.display=\'none\'; this.nextElementSibling.style.display=\'flex\';">' .
+            '<span style="' . $fallbackStyle . '">' . htmlspecialchars($initial, ENT_QUOTES, 'UTF-8') . '</span>' .
+            '</span>';
+    }
+
+    $fallbackStyle = "width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #2E3A2D, #1d251d); color: #c89b3c; font-weight: 700; font-size: {$fontSize}px; border: 1.5px solid #c89b3c;";
+    return '<span class="' . trim($classAttr) . '" style="' . $styleBase . '" title="' . htmlspecialchars($fullname, ENT_QUOTES, 'UTF-8') . '">' .
+        '<span style="' . $fallbackStyle . '">' . htmlspecialchars($initial, ENT_QUOTES, 'UTF-8') . '</span>' .
+        '</span>';
+}
+
+
 // ID Type Detection - Determines human-readable government ID type from user verification metadata
 function detectUserIdType(array $user): string {
     if (!empty($user['id_type'])) {

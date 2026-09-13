@@ -156,7 +156,12 @@ $breadcrumbs = [
                             <?php foreach ($parishioners as $parishioner): ?>
                                 <?php $modal_id = 'parishionerModal' . intval($parishioner['id']); ?>
                                 <tr>
-                                    <td><strong><?php echo e($parishioner['fullname']); ?></strong></td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <?php echo renderUserAvatar($parishioner, 34); ?>
+                                            <strong><?php echo e($parishioner['fullname']); ?></strong>
+                                        </div>
+                                    </td>
                                     <td><?php echo e($parishioner['email'] ?: '—'); ?></td>
                                     <td><?php echo e($parishioner['phone_number'] ?: '—'); ?></td>
                                     <td>
@@ -198,10 +203,16 @@ $breadcrumbs = [
                         <div class="modal-dialog modal-xl modal-dialog-scrollable">
                             <div class="modal-content rounded-4 border-0 shadow">
                                 <div class="modal-header bg-light">
-                                    <h5 class="modal-title fw-bold text-dark" id="<?php echo e($modal_id); ?>Label">
-                                        <i class="fas fa-user-circle me-2 text-success"></i><?php echo e($parishioner['fullname']); ?>
-                                    </h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" data-stable-modal-close aria-label="Close"></button>
+                                    <div class="d-flex align-items-center gap-3">
+                                        <?php echo renderUserAvatar($parishioner, 44); ?>
+                                        <div>
+                                            <h5 class="modal-title fw-bold text-dark mb-0" id="<?php echo e($modal_id); ?>Label">
+                                                <?php echo e($parishioner['fullname']); ?>
+                                            </h5>
+                                            <small class="text-muted"><?php echo e($parishioner['email'] ?: 'No email on record'); ?></small>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal" data-stable-modal-close aria-label="Close"></button>
                                 </div>
                                 <div class="modal-body p-4">
                                     <div class="row g-4">

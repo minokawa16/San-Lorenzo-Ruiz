@@ -22,7 +22,7 @@ $error = '';
 $success = '';
 
 $stmt = $conn->prepare("
-    SELECT r.*, u.fullname, u.email, u.phone_number, staff.fullname AS assigned_staff_name
+    SELECT r.*, u.fullname, u.email, u.phone_number, u.profile_picture, staff.fullname AS assigned_staff_name
     FROM requests r
     JOIN users u ON u.id = r.user_id
     LEFT JOIN users staff ON staff.id = r.assigned_to
@@ -751,8 +751,9 @@ $breadcrumbs = [
 
                     <div class="col-6 col-md-3">
                         <span class="micro-label">Parishioner Name</span>
-                        <div class="meta-value">
-                            <?php echo e($request['fullname']); ?>
+                        <div class="meta-value d-flex align-items-center gap-2">
+                            <?php echo renderUserAvatar($request, 28); ?>
+                            <span><?php echo e($request['fullname']); ?></span>
                         </div>
                     </div>
 

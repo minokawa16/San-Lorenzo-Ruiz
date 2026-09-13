@@ -606,7 +606,7 @@ $admin_avatar_letter = strtoupper(substr($admin_display_name, 0, 1));
                             <tr class="parish-user-row" data-name="<?php echo strtolower(e($user['fullname'])); ?>" data-email="<?php echo strtolower(e($user['email'])); ?>" data-phone="<?php echo strtolower(e($user['phone_number'] ?? '')); ?>">
                                 <td data-label="NAME">
                                     <div class="parish-user-cell">
-                                        <span class="parish-user-avatar"><?php echo htmlspecialchars($name_initial); ?></span>
+                                        <?php echo renderUserAvatar($user, 32); ?>
                                         <span class="parish-user-name"><?php echo sanitize($user['fullname']); ?></span>
                                     </div>
                                 </td>
@@ -678,10 +678,16 @@ $admin_avatar_letter = strtoupper(substr($admin_display_name, 0, 1));
                     <div class="modal-dialog modal-lg modal-dialog-scrollable">
                         <div class="modal-content rounded-4 border-0 shadow">
                             <div class="modal-header bg-light">
-                                <h5 class="modal-title fw-bold text-dark">
-                                    <i class="fas fa-user-circle me-2 text-success"></i><?php echo e($user['fullname']); ?>
-                                </h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" data-stable-modal-close aria-label="Close parishioner details"></button>
+                                <div class="d-flex align-items-center gap-3">
+                                    <?php echo renderUserAvatar($user, 44); ?>
+                                    <div>
+                                        <h5 class="modal-title fw-bold text-dark mb-0">
+                                            <?php echo e($user['fullname']); ?>
+                                        </h5>
+                                        <small class="text-muted"><?php echo e($user['email'] ?: 'No email on record'); ?></small>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal" data-stable-modal-close aria-label="Close parishioner details"></button>
                             </div>
                             <div class="modal-body p-4">
                                 <div class="row g-4">

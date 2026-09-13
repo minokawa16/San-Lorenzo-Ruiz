@@ -135,22 +135,24 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
                 } elseif (!@getimagesize($file['tmp_name'])) {
                     $error = 'The uploaded file is not a valid image.';
                 } else {
-                    $upload_dir = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'avatars';
-                    if (!is_dir($upload_dir)) {
-                        @mkdir($upload_dir, 0755, true);
-                    }
+                    $upload_dir = ensureAvatarUploadDirectory();
                     $ext = $allowed_mimes[$mime];
                     $filename = 'avatar_' . $user_id . '_' . bin2hex(random_bytes(8)) . '.' . $ext;
                     $target_file = $upload_dir . DIRECTORY_SEPARATOR . $filename;
 
-                    if (move_uploaded_file($file['tmp_name'], $target_file)) {
+                    $saved = @move_uploaded_file($file['tmp_name'], $target_file);
+                    if (!$saved && php_sapi_name() === 'cli' && file_exists($file['tmp_name'])) {
+                        $saved = @copy($file['tmp_name'], $target_file);
+                    }
+
+                    if ($saved) {
                         $new_avatar_path = 'uploads/avatars/' . $filename;
 
                         // Delete old custom avatar if it was stored in uploads/avatars/
                         $old_avatar = (string)($user['profile_picture'] ?? '');
                         if (!empty($old_avatar) && strpos($old_avatar, 'uploads/avatars/') === 0) {
                             $old_file_path = dirname(__DIR__) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $old_avatar);
-                            if (is_file($old_file_path)) {
+                            if (is_file($old_file_path) && realpath($old_file_path) !== realpath($target_file)) {
                                 @unlink($old_file_path);
                             }
                         }
@@ -313,7 +315,8 @@ $profile_first_name = $profile_first_name_parts[0] ?? ($is_admin ? 'Admin' : 'Pa
 $profile_initial = strtoupper(substr($profile_first_name, 0, 1));
 $profile_district = trim((string) ($user['chapel_district'] ?? ''));
 $profile_member_since = !empty($user['created_at']) ? date('M Y', strtotime($user['created_at'])) : 'N/A';
-$profile_avatar_url = !empty($user['profile_picture']) ? BASE_URL . ltrim($user['profile_picture'], '/') : '';
+$profile_has_avatar = !empty($user['profile_picture']);
+$profile_avatar_url = $profile_has_avatar ? getUserAvatarUrl($user) : '';
 
 // Identity Verification Metadata
 $detected_id_type = detectUserIdType($user);
@@ -333,8 +336,9 @@ $page_title = $is_admin ? 'Profile Settings' : 'My Profile';
     </div>
     <div class="profile-mobile-identity">
         <span class="profile-mobile-avatar" style="overflow: hidden; padding: 0;">
-            <?php if (!empty($profile_avatar_url)): ?>
-                <img src="<?php echo e($profile_avatar_url); ?>" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+            <?php if ($profile_has_avatar): ?>
+                <img src="<?php echo e($profile_avatar_url); ?>" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                <span style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center;"><?php echo e($profile_initial); ?></span>
             <?php else: ?>
                 <?php echo e($profile_initial); ?>
             <?php endif; ?>
@@ -398,11 +402,11 @@ $page_title = $is_admin ? 'Profile Settings' : 'My Profile';
                         <div class="profile-avatar-section text-center mb-4 pb-3 border-bottom" style="border-color: #f1ede5 !important;">
                             <div class="avatar-wrapper d-inline-block position-relative mb-2">
                                 <div class="avatar-preview-box rounded-circle shadow" style="width: 124px; height: 124px; border: 3.5px solid #c89b3c; overflow: hidden; background: linear-gradient(135deg, #2E3A2D, #1d251d); display: flex; align-items: center; justify-content: center; margin: 0 auto; box-shadow: 0 8px 20px rgba(46, 58, 45, 0.15) !important;">
-                                    <?php if (!empty($profile_avatar_url)): ?>
-                                        <img id="avatarPreviewImg" src="<?php echo e($profile_avatar_url); ?>" alt="Profile Avatar" style="width: 100%; height: 100%; object-fit: cover;">
+                                    <?php if ($profile_has_avatar): ?>
+                                        <img id="avatarPreviewImg" src="<?php echo e($profile_avatar_url); ?>" alt="Profile Avatar" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'; document.getElementById('avatarFallbackInitials').style.display='block';">
                                         <span id="avatarFallbackInitials" style="display: none; font-size: 42px; font-weight: 700; color: #c89b3c;"><?php echo e($profile_initial); ?></span>
                                     <?php else: ?>
-                                        <img id="avatarPreviewImg" src="" alt="Profile Avatar" style="display: none; width: 100%; height: 100%; object-fit: cover;">
+                                        <img id="avatarPreviewImg" src="" alt="Profile Avatar" style="display: none; width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'; document.getElementById('avatarFallbackInitials').style.display='block';">
                                         <span id="avatarFallbackInitials" style="font-size: 44px; font-weight: 700; color: #c89b3c;"><?php echo e($profile_initial); ?></span>
                                     <?php endif; ?>
                                 </div>
