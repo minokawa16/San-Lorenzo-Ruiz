@@ -10,6 +10,9 @@ require_once __DIR__ . '/../includes/CertificateTemplateManager.php';
 requireAdmin();
 requirePermission('certificates.manage');
 
+$record_load_error = '';
+$record_found = false;
+
 if (isset($_GET['id'])) {
     $rec_id = intval($_GET['id']);
     $rec_type = $_GET['type'] ?? 'baptism';
@@ -23,6 +26,7 @@ if (isset($_GET['id'])) {
                 unset($_SESSION['manual_certificate']);
                 $_SESSION['certificate_data'] = $res->fetch_assoc();
                 $_SESSION['cert_type'] = $rec_type;
+                $record_found = true;
             }
             $stmt->close();
         }
@@ -41,6 +45,7 @@ if (isset($_GET['id'])) {
                 unset($_SESSION['manual_certificate']);
                 $_SESSION['certificate_data'] = $rec;
                 $_SESSION['cert_type'] = $rec_type;
+                $record_found = true;
             }
             $stmt->close();
         }
@@ -54,6 +59,7 @@ if (isset($_GET['id'])) {
                 unset($_SESSION['manual_certificate']);
                 $_SESSION['certificate_data'] = $res->fetch_assoc();
                 $_SESSION['cert_type'] = $rec_type;
+                $record_found = true;
             }
             $stmt->close();
         }
@@ -67,6 +73,7 @@ if (isset($_GET['id'])) {
                 unset($_SESSION['manual_certificate']);
                 $_SESSION['certificate_data'] = $res->fetch_assoc();
                 $_SESSION['cert_type'] = $rec_type;
+                $record_found = true;
             }
             $stmt->close();
         }
@@ -80,21 +87,39 @@ if (isset($_GET['id'])) {
                 unset($_SESSION['manual_certificate']);
                 $_SESSION['certificate_data'] = $res->fetch_assoc();
                 $_SESSION['cert_type'] = $rec_type;
+                $record_found = true;
             }
             $stmt->close();
         }
     }
+
+    if (!$record_found) {
+        $pretty_type = ucwords(str_replace('_', ' ', $rec_type));
+        $record_load_error = "Record #{$rec_id} was not found in the {$pretty_type} registry.";
+    }
 }
 
 if (!isset($_SESSION['certificate_data']) || !isset($_SESSION['cert_type'])) {
-    $fallback_stmt = $conn->query("SELECT * FROM baptism_records WHERE fullname LIKE '%REY MARK%' ORDER BY baptism_id ASC LIMIT 1");
-    if ($fallback_stmt && $fb = $fallback_stmt->fetch_assoc()) {
+    if (!empty($record_load_error)) {
         unset($_SESSION['manual_certificate']);
-        $_SESSION['certificate_data'] = $fb;
-        $_SESSION['cert_type'] = 'baptism';
+        $_SESSION['certificate_data'] = [
+            'fullname' => '[Record Not Found]',
+            'deceased_name' => '[Record Not Found]',
+            'husband_name' => '[Record Not Found]',
+            'wife_name' => '[Record Not Found]',
+            'purpose' => 'N/A'
+        ];
+        $_SESSION['cert_type'] = $rec_type ?? 'baptism';
     } else {
-        header('Location: certificate-generator.php');
-        exit;
+        $fallback_stmt = $conn->query("SELECT * FROM baptism_records WHERE fullname LIKE '%REY MARK%' ORDER BY baptism_id ASC LIMIT 1");
+        if ($fallback_stmt && $fb = $fallback_stmt->fetch_assoc()) {
+            unset($_SESSION['manual_certificate']);
+            $_SESSION['certificate_data'] = $fb;
+            $_SESSION['cert_type'] = 'baptism';
+        } else {
+            header('Location: certificate-generator.php');
+            exit;
+        }
     }
 }
 
@@ -219,19 +244,98 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
     if (isset($_POST['sponsor'])) {
         $_SESSION['certificate_data']['sponsor'] = trim((string)$_POST['sponsor']);
     }
+    if (isset($_POST['deceased_name'])) {
+        $_SESSION['certificate_data']['deceased_name'] = trim((string)$_POST['deceased_name']);
+    }
+    if (isset($_POST['husband_name'])) {
+        $_SESSION['certificate_data']['husband_name'] = trim((string)$_POST['husband_name']);
+    }
+    if (isset($_POST['wife_name'])) {
+        $_SESSION['certificate_data']['wife_name'] = trim((string)$_POST['wife_name']);
+    }
+    if (isset($_POST['wedding_date'])) {
+        $_SESSION['certificate_data']['wedding_date'] = trim((string)$_POST['wedding_date']);
+    }
+    if (isset($_POST['officiating_priest'])) {
+        $_SESSION['certificate_data']['officiating_priest'] = trim((string)$_POST['officiating_priest']);
+    }
+    if (isset($_POST['minister'])) {
+        $_SESSION['certificate_data']['minister'] = trim((string)$_POST['minister']);
+    }
+    if (isset($_POST['date_of_burial'])) {
+        $_SESSION['certificate_data']['date_of_burial'] = trim((string)$_POST['date_of_burial']);
+    }
+    if (isset($_POST['date_of_death'])) {
+        $_SESSION['certificate_data']['date_of_death'] = trim((string)$_POST['date_of_death']);
+    }
     if (isset($_POST['priest_position'])) {
         $_SESSION['certificate_data']['priest_position'] = trim((string)$_POST['priest_position']);
+    }
+
+    // Persist purpose to linked request if available
+    if (isset($_POST['purpose']) && !empty($_POST['purpose'])) {
+        $p_val = trim((string)$_POST['purpose']);
+        $req_id = intval($_SESSION['certificate_data']['request_id'] ?? 0);
+        if ($req_id > 0) {
+            $r_get = $conn->prepare("SELECT description FROM requests WHERE request_id = ? LIMIT 1");
+            if ($r_get) {
+                $r_get->bind_param("i", $req_id);
+                $r_get->execute();
+                $r_res = $r_get->get_result();
+                if ($r_res && $r_row = $r_res->fetch_assoc()) {
+                    $old_desc = $r_row['description'] ?? '';
+                    if (preg_match('/purpose:\s*[^\r\n]+/i', $old_desc)) {
+                        $new_desc = preg_replace('/purpose:\s*[^\r\n]+/i', 'Purpose: ' . $p_val, $old_desc);
+                    } else {
+                        $new_desc = trim($old_desc . "\nPurpose: " . $p_val);
+                    }
+                    $r_up = $conn->prepare("UPDATE requests SET description = ? WHERE request_id = ?");
+                    if ($r_up) {
+                        $r_up->bind_param("si", $new_desc, $req_id);
+                        $r_up->execute();
+                        $r_up->close();
+                    }
+                }
+                $r_get->close();
+            }
+        }
+    }
+
+    // Database updates for all sacrament registries if active record ID present
+    $b_rec_id = intval($_SESSION['certificate_data']['baptism_id'] ?? 0);
+    if ($b_rec_id > 0) {
+        $b_fname = $_SESSION['certificate_data']['fullname'] ?? '';
+        $b_bdate = !empty($_SESSION['certificate_data']['birth_date']) ? $_SESSION['certificate_data']['birth_date'] : null;
+        $b_bplace = $_SESSION['certificate_data']['birth_place'] ?? '';
+        $b_father = $_SESSION['certificate_data']['father_name'] ?? '';
+        $b_mother = $_SESSION['certificate_data']['mother_name'] ?? '';
+        $b_bpdate = !empty($_SESSION['certificate_data']['baptism_date']) ? $_SESSION['certificate_data']['baptism_date'] : null;
+        $b_priest = $_SESSION['certificate_data']['priest'] ?? ($_SESSION['certificate_data']['parish_priest'] ?? '');
+        $b_ppriest = $_SESSION['certificate_data']['parish_priest'] ?? '';
+        $b_spons  = $_SESSION['certificate_data']['godparents'] ?? '';
+        $b_book   = $_SESSION['certificate_data']['book_no'] ?? ($_SESSION['certificate_data']['volume_no'] ?? '');
+        $b_page   = $_SESSION['certificate_data']['page_no'] ?? '';
+        $b_entry  = $_SESSION['certificate_data']['entry_no'] ?? '';
+        $up_b_stmt = $conn->prepare("UPDATE baptism_records SET fullname=?, birth_date=?, birth_place=?, father_name=?, mother_name=?, baptism_date=?, priest=?, parish_priest=?, godparents=?, book_no=?, page_no=?, entry_no=? WHERE baptism_id=?");
+        if ($up_b_stmt) {
+            $up_b_stmt->bind_param("ssssssssssssi", $b_fname, $b_bdate, $b_bplace, $b_father, $b_mother, $b_bpdate, $b_priest, $b_ppriest, $b_spons, $b_book, $b_page, $b_entry, $b_rec_id);
+            $up_b_stmt->execute();
+            $up_b_stmt->close();
+        }
     }
     $c_rec_id = intval($_SESSION['certificate_data']['communion_id'] ?? 0);
     if ($c_rec_id > 0) {
         $c_fname = $_SESSION['certificate_data']['fullname'] ?? '';
         $c_cdate = !empty($_SESSION['certificate_data']['communion_date']) ? $_SESSION['certificate_data']['communion_date'] : null;
-        $c_ppriest = $_SESSION['certificate_data']['parish_priest'] ?? '';
+        $c_father = $_SESSION['certificate_data']['father_name'] ?? '';
+        $c_mother = $_SESSION['certificate_data']['mother_name'] ?? '';
+        $c_priest = $_SESSION['certificate_data']['priest'] ?? '';
+        $c_ppriest = $_SESSION['certificate_data']['parish_priest'] ?? ($_SESSION['certificate_data']['priest'] ?? '');
         $c_ccat = $_SESSION['certificate_data']['catechist_coordinator'] ?? '';
         $c_cprin = $_SESSION['certificate_data']['principal'] ?? '';
-        $up_c_stmt = $conn->prepare("UPDATE first_communion_records SET fullname=?, communion_date=?, parish_priest=?, catechist_coordinator=?, principal=? WHERE communion_id=?");
+        $up_c_stmt = $conn->prepare("UPDATE first_communion_records SET fullname=?, communion_date=?, father_name=?, mother_name=?, priest=?, parish_priest=?, catechist_coordinator=?, principal=? WHERE communion_id=?");
         if ($up_c_stmt) {
-            $up_c_stmt->bind_param("sssssi", $c_fname, $c_cdate, $c_ppriest, $c_ccat, $c_cprin, $c_rec_id);
+            $up_c_stmt->bind_param("ssssssssi", $c_fname, $c_cdate, $c_father, $c_mother, $c_priest, $c_ppriest, $c_ccat, $c_cprin, $c_rec_id);
             $up_c_stmt->execute();
             $up_c_stmt->close();
         }
@@ -255,7 +359,49 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
             $up_conf_stmt->close();
         }
     }
-    header('Location: view-certificate.php');
+    $m_rec_id = intval($_SESSION['certificate_data']['marriage_id'] ?? 0);
+    if ($m_rec_id > 0) {
+        $m_hname = $_SESSION['certificate_data']['husband_name'] ?? '';
+        $m_wname = $_SESSION['certificate_data']['wife_name'] ?? '';
+        $m_wdate = !empty($_SESSION['certificate_data']['wedding_date']) ? $_SESSION['certificate_data']['wedding_date'] : null;
+        $m_priest = $_SESSION['certificate_data']['officiating_priest'] ?? ($_SESSION['certificate_data']['parish_priest'] ?? '');
+        $m_ppriest = $_SESSION['certificate_data']['parish_priest'] ?? '';
+        $m_spons = $_SESSION['certificate_data']['sponsors'] ?? '';
+        $m_hres = $_SESSION['certificate_data']['husband_residence'] ?? '';
+        $m_wres = $_SESSION['certificate_data']['wife_residence'] ?? '';
+        $m_hparents = $_SESSION['certificate_data']['husband_parents'] ?? '';
+        $m_wparents = $_SESSION['certificate_data']['wife_parents'] ?? '';
+        $up_m_stmt = $conn->prepare("UPDATE marriage_records SET husband_name=?, wife_name=?, wedding_date=?, officiating_priest=?, parish_priest=?, sponsors=?, husband_residence=?, wife_residence=?, husband_parents=?, wife_parents=? WHERE marriage_id=?");
+        if ($up_m_stmt) {
+            $up_m_stmt->bind_param("ssssssssssi", $m_hname, $m_wname, $m_wdate, $m_priest, $m_ppriest, $m_spons, $m_hres, $m_wres, $m_hparents, $m_wparents, $m_rec_id);
+            $up_m_stmt->execute();
+            $up_m_stmt->close();
+        }
+    }
+    $f_rec_id = intval($_SESSION['certificate_data']['funeral_id'] ?? 0);
+    if ($f_rec_id > 0) {
+        $f_dname = $_SESSION['certificate_data']['deceased_name'] ?? '';
+        $f_bdate = !empty($_SESSION['certificate_data']['date_of_burial']) ? $_SESSION['certificate_data']['date_of_burial'] : null;
+        $f_ddate = !empty($_SESSION['certificate_data']['date_of_death']) ? $_SESSION['certificate_data']['date_of_death'] : null;
+        $f_minister = $_SESSION['certificate_data']['minister'] ?? ($_SESSION['certificate_data']['parish_priest'] ?? '');
+        $f_ppriest = $_SESSION['certificate_data']['parish_priest'] ?? '';
+        $f_father = $_SESSION['certificate_data']['father_name'] ?? '';
+        $f_mother = $_SESSION['certificate_data']['mother_name'] ?? '';
+        $up_f_stmt = $conn->prepare("UPDATE funeral_records SET deceased_name=?, date_of_burial=?, date_of_death=?, minister=?, parish_priest=?, father_name=?, mother_name=? WHERE funeral_id=?");
+        if ($up_f_stmt) {
+            $up_f_stmt->bind_param("sssssssi", $f_dname, $f_bdate, $f_ddate, $f_minister, $f_ppriest, $f_father, $f_mother, $f_rec_id);
+            $up_f_stmt->execute();
+            $up_f_stmt->close();
+        }
+    }
+
+    $redir_type = $_SESSION['cert_type'] ?? ($_GET['type'] ?? '');
+    $redir_id = intval($_SESSION['certificate_data']['baptism_id'] ?? ($_SESSION['certificate_data']['communion_id'] ?? ($_SESSION['certificate_data']['confirmation_id'] ?? ($_SESSION['certificate_data']['marriage_id'] ?? ($_SESSION['certificate_data']['funeral_id'] ?? ($_GET['id'] ?? 0))))));
+    if ($redir_id > 0 && $redir_type !== '') {
+        header('Location: view-certificate.php?id=' . $redir_id . '&type=' . urlencode($redir_type));
+    } else {
+        header('Location: view-certificate.php');
+    }
     exit;
 }
 
@@ -263,6 +409,7 @@ $data = $_SESSION['certificate_data'];
 $cert_type = $_SESSION['cert_type'];
 
 if (empty($_SESSION['manual_certificate'])) {
+    $cur_purpose = $data['purpose'] ?? '';
     if ($cert_type === 'baptism' || $cert_type === 'baptism_certification') {
         $bid = intval($data['baptism_id'] ?? 0);
         if ($bid > 0) {
@@ -274,18 +421,20 @@ if (empty($_SESSION['manual_certificate'])) {
                 $r_stmt->close();
                 if ($fresh) {
                     $data = array_merge($data, $fresh);
+                    if ($cur_purpose !== '') $data['purpose'] = $cur_purpose;
                     $_SESSION['certificate_data'] = $data;
                 }
             }
         }
-        if (empty($data['fullname']) || stripos($data['fullname'], 'JUAN MANUEL') !== false || stripos($data['fullname'], 'REY MARK') === false) {
+        if ($cert_type === 'baptism' && (empty($data['fullname']) || stripos($data['fullname'], 'JUAN MANUEL') !== false || stripos($data['fullname'], 'REY MARK') === false)) {
             $fallback_stmt = $conn->query("SELECT * FROM baptism_records WHERE fullname LIKE '%REY MARK%' ORDER BY baptism_id ASC LIMIT 1");
             if ($fallback_stmt && $fb = $fallback_stmt->fetch_assoc()) {
                 $data = array_merge($data, $fb);
+                if ($cur_purpose !== '') $data['purpose'] = $cur_purpose;
                 $_SESSION['certificate_data'] = $data;
             }
         }
-    } elseif (in_array($cert_type, ['communion', 'first_communion', 'first_communion_certificate'], true)) {
+    } elseif (in_array($cert_type, ['communion', 'first_communion', 'first_communion_certificate', 'first_communion_certification'], true)) {
         $cid = intval($data['communion_id'] ?? 0);
         if ($cid > 0) {
             $r_stmt = $conn->prepare("SELECT * FROM first_communion_records WHERE communion_id = ?");
@@ -296,11 +445,12 @@ if (empty($_SESSION['manual_certificate'])) {
                 $r_stmt->close();
                 if ($fresh) {
                     $data = array_merge($data, $fresh);
+                    if ($cur_purpose !== '') $data['purpose'] = $cur_purpose;
                     $_SESSION['certificate_data'] = $data;
                 }
             }
         }
-    } elseif ($cert_type === 'confirmation') {
+    } elseif (in_array($cert_type, ['confirmation', 'confirmation_certification'], true)) {
         $confid = intval($data['confirmation_id'] ?? 0);
         if ($confid > 0) {
             $r_stmt = $conn->prepare("SELECT * FROM confirmation_records WHERE confirmation_id = ?");
@@ -311,11 +461,66 @@ if (empty($_SESSION['manual_certificate'])) {
                 $r_stmt->close();
                 if ($fresh) {
                     $data = array_merge($data, $fresh);
+                    if ($cur_purpose !== '') $data['purpose'] = $cur_purpose;
+                    $_SESSION['certificate_data'] = $data;
+                }
+            }
+        }
+    } elseif (in_array($cert_type, ['marriage', 'marriage_certification'], true)) {
+        $mid = intval($data['marriage_id'] ?? 0);
+        if ($mid > 0) {
+            $r_stmt = $conn->prepare("SELECT * FROM marriage_records WHERE marriage_id = ?");
+            if ($r_stmt) {
+                $r_stmt->bind_param('i', $mid);
+                $r_stmt->execute();
+                $fresh = $r_stmt->get_result()->fetch_assoc();
+                $r_stmt->close();
+                if ($fresh) {
+                    $data = array_merge($data, $fresh);
+                    if ($cur_purpose !== '') $data['purpose'] = $cur_purpose;
+                    $_SESSION['certificate_data'] = $data;
+                }
+            }
+        }
+    } elseif (in_array($cert_type, ['funeral', 'funeral_certification'], true)) {
+        $fid = intval($data['funeral_id'] ?? 0);
+        if ($fid > 0) {
+            $r_stmt = $conn->prepare("SELECT * FROM funeral_records WHERE funeral_id = ?");
+            if ($r_stmt) {
+                $r_stmt->bind_param('i', $fid);
+                $r_stmt->execute();
+                $fresh = $r_stmt->get_result()->fetch_assoc();
+                $r_stmt->close();
+                if ($fresh) {
+                    $data = array_merge($data, $fresh);
+                    if ($cur_purpose !== '') $data['purpose'] = $cur_purpose;
                     $_SESSION['certificate_data'] = $data;
                 }
             }
         }
     }
+}
+
+// Auto-resolve Purpose of Request from requests/issuances if empty
+if (empty($data['purpose']) || trim((string)$data['purpose']) === '') {
+    $found_purpose = '';
+    $rec_holder = trim((string)($data['fullname'] ?? ($data['deceased_name'] ?? ($data['husband_name'] ?? ''))));
+    if ($rec_holder !== '') {
+        $p_stmt = $conn->prepare("SELECT description FROM requests WHERE record_holder_name = ? ORDER BY request_id DESC LIMIT 1");
+        if ($p_stmt) {
+            $p_stmt->bind_param('s', $rec_holder);
+            $p_stmt->execute();
+            $p_res = $p_stmt->get_result();
+            if ($p_res && $p_row = $p_res->fetch_assoc()) {
+                if (preg_match('/Purpose:\s*([^\r\n]+)/i', (string)$p_row['description'], $pm)) {
+                    $found_purpose = trim($pm[1]);
+                }
+            }
+            $p_stmt->close();
+        }
+    }
+    $data['purpose'] = $found_purpose !== '' ? $found_purpose : 'whatever lawful purpose it may serve';
+    $_SESSION['certificate_data']['purpose'] = $data['purpose'];
 }
 $is_manual_certificate = !empty($_SESSION['manual_certificate']);
 $is_baptism_certification = $cert_type === 'baptism_certification';
@@ -358,30 +563,93 @@ function certificateRecordMeta($cert_type) {
         return ['table' => 'baptism_records', 'id' => 'baptism_id', 'prefix' => 'BAP', 'title' => 'CERTIFICATE OF BAPTISM'];
     }
     if ($cert_type === 'baptism_certification') {
-        return ['table' => 'baptism_records', 'id' => 'baptism_id', 'prefix' => 'BCF', 'title' => 'CERTIFICATION OF BAPTISM'];
+        return ['table' => 'baptism_records', 'id' => 'baptism_id', 'prefix' => 'BCF', 'title' => 'BAPTISMAL CERTIFICATION'];
     }
     if (in_array($cert_type, ['communion', 'first_communion', 'first_communion_certificate'], true)) {
         return ['table' => 'first_communion_records', 'id' => 'communion_id', 'prefix' => 'COM', 'title' => 'FIRST HOLY COMMUNION'];
     }
     if ($cert_type === 'first_communion_certification') {
-        return ['table' => 'first_communion_records', 'id' => 'communion_id', 'prefix' => 'FCF', 'title' => 'CERTIFICATION OF FIRST HOLY COMMUNION'];
+        return ['table' => 'first_communion_records', 'id' => 'communion_id', 'prefix' => 'FCF', 'title' => 'FIRST COMMUNION CERTIFICATION'];
     }
     if ($cert_type === 'confirmation_certification') {
-        return ['table' => 'confirmation_records', 'id' => 'confirmation_id', 'prefix' => 'CCF', 'title' => 'CERTIFICATION OF CONFIRMATION'];
+        return ['table' => 'confirmation_records', 'id' => 'confirmation_id', 'prefix' => 'CCF', 'title' => 'CONFIRMATION CERTIFICATION'];
     }
     if ($cert_type === 'marriage') {
         return ['table' => 'marriage_records', 'id' => 'marriage_id', 'prefix' => 'MAR', 'title' => 'CERTIFICATE OF MARRIAGE'];
     }
     if ($cert_type === 'marriage_certification') {
-        return ['table' => 'marriage_records', 'id' => 'marriage_id', 'prefix' => 'MCF', 'title' => 'CERTIFICATION OF MARRIAGE'];
+        return ['table' => 'marriage_records', 'id' => 'marriage_id', 'prefix' => 'MCF', 'title' => 'MARRIAGE CERTIFICATION'];
     }
     if ($cert_type === 'funeral' || $cert_type === 'funeral_certification') {
-        return ['table' => 'funeral_records', 'id' => 'funeral_id', 'prefix' => 'FNC', 'title' => 'FUNERAL / BURIAL CERTIFICATION'];
+        return ['table' => 'funeral_records', 'id' => 'funeral_id', 'prefix' => 'FNC', 'title' => 'FUNERAL CERTIFICATION'];
     }
     if ($cert_type === 'other') {
         return ['table' => 'manual_certificates', 'id' => 'manual_id', 'prefix' => 'GEN', 'title' => 'PARISH CERTIFICATE'];
     }
     return ['table' => 'confirmation_records', 'id' => 'confirmation_id', 'prefix' => 'CON', 'title' => 'CONFIRMATION CERTIFICATE'];
+}
+}
+
+if (!function_exists('cleanOfficiatingPriest')) {
+function cleanOfficiatingPriest($priest) {
+    $p = trim((string)$priest);
+    if ($p === '' || $p === 'N/A') {
+        return 'N/A';
+    }
+    if (preg_match('/^(?:by\s+the\s+)?(?:most\s+rev\.?\s*|rev\.?\s*fr\.?\s*|father\s*|fr\.?\s*|rev\.?\s*)(.*)$/i', $p, $pm)) {
+        $p = trim($pm[1]);
+    }
+    return $p !== '' ? $p : 'N/A';
+}
+}
+
+if (!function_exists('formatParishPriestSignature')) {
+function formatParishPriestSignature($priest) {
+    $p = trim((string)$priest);
+    if ($p === '' || $p === 'N/A') {
+        global $layout_priest_name;
+        $p = !empty($layout_priest_name) ? $layout_priest_name : 'REV. FR. HERIBERTO C. VILLAS, O.M.I.';
+    }
+    if (!preg_match('/^rev/i', $p)) {
+        $p = 'REV. FR. ' . strtoupper($p);
+    } else {
+        $p = strtoupper($p);
+    }
+    return $p;
+}
+}
+
+if (!function_exists('getMissingCertificationFields')) {
+function getMissingCertificationFields($cert_type, $data) {
+    $missing = [];
+    if ($cert_type === 'baptism_certification') {
+        if (empty(trim((string)($data['fullname'] ?? '')))) $missing[] = 'Full Name';
+        if (empty(trim((string)($data['baptism_date'] ?? '')))) $missing[] = 'Date of Baptism';
+        $priest = trim((string)($data['priest'] ?? ($data['parish_priest'] ?? '')));
+        if ($priest === '' || $priest === 'N/A') $missing[] = 'Officiating Priest';
+    } elseif ($cert_type === 'confirmation_certification') {
+        if (empty(trim((string)($data['fullname'] ?? '')))) $missing[] = 'Full Name';
+        if (empty(trim((string)($data['confirmation_date'] ?? '')))) $missing[] = 'Date of Confirmation';
+        $bp = trim((string)($data['bishop_priest'] ?? ($data['parish_priest'] ?? '')));
+        if ($bp === '' || $bp === 'N/A') $missing[] = 'Confirming Bishop / Priest';
+    } elseif ($cert_type === 'first_communion_certification') {
+        if (empty(trim((string)($data['fullname'] ?? '')))) $missing[] = 'Full Name';
+        if (empty(trim((string)($data['communion_date'] ?? '')))) $missing[] = 'Date of First Holy Communion';
+        $priest = trim((string)($data['priest'] ?? ($data['parish_priest'] ?? '')));
+        if ($priest === '' || $priest === 'N/A') $missing[] = 'Officiating Priest';
+    } elseif ($cert_type === 'marriage_certification') {
+        if (empty(trim((string)($data['husband_name'] ?? '')))) $missing[] = 'Groom Name';
+        if (empty(trim((string)($data['wife_name'] ?? '')))) $missing[] = 'Bride Name';
+        if (empty(trim((string)($data['wedding_date'] ?? '')))) $missing[] = 'Date of Marriage';
+        $priest = trim((string)($data['officiating_priest'] ?? ($data['parish_priest'] ?? '')));
+        if ($priest === '' || $priest === 'N/A') $missing[] = 'Officiating Priest';
+    } elseif ($cert_type === 'funeral_certification' || $cert_type === 'funeral') {
+        if (empty(trim((string)($data['deceased_name'] ?? '')))) $missing[] = 'Deceased Name';
+        if (empty(trim((string)($data['date_of_burial'] ?? ($data['burial_date'] ?? ''))))) $missing[] = 'Date of Burial';
+        $minister = trim((string)($data['minister'] ?? ($data['parish_priest'] ?? '')));
+        if ($minister === '' || $minister === 'N/A') $missing[] = 'Officiating Priest / Minister';
+    }
+    return $missing;
 }
 }
 
@@ -922,8 +1190,8 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             --muted: #4c4c4c;
             --line: <?php echo e($layout_border_color); ?>;
             --accent-line: <?php echo e($layout_border_color); ?>;
-            --cert-width: <?php echo $is_communion_cert ? '279.4mm' : ($is_confirmation_cert ? '215.9mm' : '152.4mm'); ?>;
-            --cert-height: <?php echo $is_communion_cert ? '215.9mm' : ($is_confirmation_cert ? '165.1mm' : '228.6mm'); ?>;
+            --cert-width: <?php echo $is_communion_cert ? '279.4mm' : ($is_confirmation_cert ? '215.9mm' : ($is_certification ? '215.9mm' : '152.4mm')); ?>;
+            --cert-height: <?php echo $is_communion_cert ? '215.9mm' : ($is_confirmation_cert ? '165.1mm' : ($is_certification ? '165.1mm' : '228.6mm')); ?>;
             --conf-blue: #006eb3;
             --conf-ink: #111827;
             --conf-gold: #c59b27;
@@ -1409,70 +1677,200 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             color: #333;
         }
 
-        /* Simplified Flowing Certification Paragraph Styles */
+        /* Simplified Flowing Certification Paragraph Styles - Standardized Image 3 Design */
         .simple-cert-page {
             width: 8.5in !important;
             height: 6.5in !important;
+            margin: 0 auto 24px;
+            background: #fdfbf7;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.12);
+            position: relative;
+            overflow: hidden;
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
-        .simple-cert-page .certificate-sheet {
-            padding: 3.5mm 5mm 4.5mm;
+        .simple-cert-sheet {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            padding: 7mm 10mm 6mm;
+            box-sizing: border-box;
+            background: #fdfbf7;
+            display: flex;
+            flex-direction: column;
         }
+        .simple-cert-outer-border {
+            position: absolute;
+            top: 3.5mm;
+            left: 3.5mm;
+            right: 3.5mm;
+            bottom: 3.5mm;
+            border: 1px solid #c59b27;
+            pointer-events: none;
+            box-sizing: border-box;
+        }
+        .simple-cert-inner-border {
+            position: absolute;
+            top: 6mm;
+            left: 6mm;
+            right: 6mm;
+            bottom: 6mm;
+            border: 1px solid #c59b27;
+            pointer-events: none;
+            box-sizing: border-box;
+        }
+        .simple-cert-corner {
+            position: absolute;
+            width: 4.5mm;
+            height: 4.5mm;
+            pointer-events: none;
+            z-index: 2;
+        }
+        .simple-cert-corner.tl { top: 7.8mm; left: 7.8mm; }
+        .simple-cert-corner.tr { top: 7.8mm; right: 7.8mm; }
+        .simple-cert-corner.bl { bottom: 7.8mm; left: 7.8mm; }
+        .simple-cert-corner.br { bottom: 7.8mm; right: 7.8mm; }
+
+        .simple-cert-header {
+            display: grid;
+            grid-template-columns: 20mm 1fr 20mm;
+            gap: 3mm;
+            align-items: center;
+            margin-top: 1mm;
+            margin-bottom: 2mm;
+            width: 100%;
+        }
+        .simple-cert-circle-logo {
+            width: 20mm;
+            height: 20mm;
+            border-radius: 50%;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .simple-cert-circle-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+        .simple-cert-header-center {
+            text-align: center;
+        }
+        .simple-cert-church {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 7.5pt;
+            letter-spacing: 1.2px;
+            color: #1e3a8a;
+            text-transform: uppercase;
+            margin-bottom: 0.2mm;
+        }
+        .simple-cert-archdiocese {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 9.5pt;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: #1e3a8a;
+            text-transform: uppercase;
+            margin-bottom: 0.3mm;
+        }
+        .simple-cert-parish {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 8pt;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            color: #444;
+            text-transform: uppercase;
+            margin-bottom: 0.2mm;
+        }
+        .simple-cert-loc {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 7.5pt;
+            letter-spacing: 0.5px;
+            color: #555;
+            text-transform: uppercase;
+            margin-bottom: 2mm;
+        }
+        .simple-cert-title {
+            font-family: 'Cinzel', 'Times New Roman', Georgia, serif;
+            font-size: 15pt;
+            font-weight: 700;
+            color: #852219;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin: 0;
+            line-height: 1.1;
+        }
+        .simple-cert-title-rule {
+            width: 62mm;
+            height: 1px;
+            background: #c59b27;
+            margin: 1.5mm auto 0;
+        }
+
         .simple-cert-intro {
             font-family: Georgia, 'Times New Roman', serif;
-            font-size: 8.8pt;
+            font-size: 8.5pt;
             font-weight: 700;
             color: #852219;
             letter-spacing: 2px;
             text-transform: uppercase;
             text-align: center;
-            margin: 5mm auto 4.5mm;
+            margin: 4.5mm auto 3.5mm;
+        }
+        .simple-cert-name-wrap {
+            text-align: center;
+            margin-bottom: 4.5mm;
         }
         .simple-cert-name {
             font-family: 'EB Garamond', Georgia, 'Times New Roman', serif;
-            font-size: 17pt;
+            font-size: 18pt;
             font-weight: 700;
             font-style: italic;
             color: #1e3a8a;
-            text-align: center;
-            margin-bottom: 5.5mm;
+            display: inline-block;
+            border-bottom: 1px solid #c59b27;
+            padding: 0 4mm 1mm;
             line-height: 1.25;
         }
         .simple-cert-body {
             font-family: Georgia, 'Times New Roman', serif;
-            font-size: 10.8pt;
-            line-height: 2.15;
+            font-size: 10.2pt;
+            line-height: 2.1;
             color: #222222;
             text-align: center;
-            max-width: 138mm;
+            max-width: 155mm;
             margin: 0 auto;
+        }
+        .simple-cert-body div {
+            margin-bottom: 0.8mm;
         }
         .simple-cert-fill {
             font-family: 'EB Garamond', Georgia, 'Times New Roman', serif;
-            font-size: 12.2pt;
+            font-size: 11.8pt;
             font-weight: 700;
             font-style: italic;
             color: #1e3a8a;
-            border-bottom: 1px solid #bfa15f;
-            padding-bottom: 0.3mm;
-            display: inline;
-        }
-        .simple-cert-fill.underline {
-            text-decoration: underline;
-            text-underline-offset: 1.5px;
+            border-bottom: 1px solid #c59b27;
+            padding: 0 1.5mm 0.2mm;
+            display: inline-block;
+            line-height: 1.15;
         }
         .simple-cert-footer {
-            position: absolute;
-            bottom: 10mm;
-            left: 12mm;
-            right: 12mm;
+            margin-top: auto;
+            padding: 0 10mm 3.5mm;
             display: flex;
             justify-content: space-between;
             align-items: flex-end;
+            width: 100%;
+            box-sizing: border-box;
         }
         .simple-cert-seal {
-            width: 24mm;
-            height: 24mm;
-            border: 1.2px dashed #8c733e;
+            width: 22mm;
+            height: 22mm;
+            border: 1.2px dashed #c59b27;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -1483,6 +1881,7 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             color: #8c733e;
             line-height: 1.2;
             padding: 1.5mm;
+            box-sizing: border-box;
         }
         .simple-cert-sign {
             min-width: 65mm;
@@ -1490,20 +1889,28 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
         }
         .simple-cert-sign-line {
             border-bottom: 1px solid #222;
-            margin-bottom: 1mm;
+            margin-bottom: 1.5mm;
+            width: 100%;
             min-height: 8mm;
         }
         .simple-cert-sign-name {
             font-family: Georgia, 'Times New Roman', serif;
-            font-size: 9pt;
+            font-size: 8.5pt;
             font-weight: 700;
             letter-spacing: 0.5px;
+            color: #111;
+            text-transform: uppercase;
         }
         .simple-cert-sign-title {
             font-family: Georgia, 'Times New Roman', serif;
             font-size: 8pt;
             font-style: italic;
             color: #555;
+            margin-top: 0.3mm;
+        }
+        .cert-admin-meta {
+            max-width: 900px;
+            margin: 18px auto 0;
         }
 
         /* Confirmation Certificate Faithful Replication Styles */
@@ -1913,10 +2320,11 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
         }
         @media print {
             html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; width: 100% !important; height: auto !important; }
-            .cert-toolbar, .cert-toolbar *, .alert, .alert-warning, .alert-danger, .alert-success, .btn, button, nav, footer { display: none !important; visibility: hidden !important; height: 0 !important; margin: 0 !important; padding: 0 !important; border: 0 !important; }
+            .cert-toolbar, .cert-toolbar *, .cert-admin-meta, .cert-admin-meta *, .alert, .alert-warning, .alert-danger, .alert-success, .btn, button, nav, footer { display: none !important; visibility: hidden !important; height: 0 !important; margin: 0 !important; padding: 0 !important; border: 0 !important; }
             .certificate-page { width: var(--cert-width) !important; height: var(--cert-height) !important; margin: 0 auto !important; padding: 0 !important; box-shadow: none !important; page-break-before: avoid !important; page-break-after: avoid !important; page-break-inside: avoid !important; break-inside: avoid !important; transform: none !important; }
             .confirmation-replica-page { width: 8.5in !important; height: 6.5in !important; margin: 0 auto !important; padding: 0 !important; box-shadow: none !important; page-break-before: avoid !important; page-break-after: avoid !important; page-break-inside: avoid !important; break-inside: avoid !important; transform: none !important; }
-            .simple-cert-page { width: 8.5in !important; height: 6.5in !important; }
+            .simple-cert-page { width: 8.5in !important; height: 6.5in !important; margin: 0 auto !important; padding: 0 !important; box-shadow: none !important; background: #fdfbf7 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            .simple-cert-sheet { height: 100% !important; page-break-inside: avoid !important; break-inside: avoid !important; background: #fdfbf7 !important; }
             .certificate-sheet { height: 100% !important; page-break-inside: avoid !important; break-inside: avoid !important; }
             .confirmation-replica-sheet { height: 100% !important; page-break-inside: avoid !important; break-inside: avoid !important; }
             .communion-page { width: 100vw !important; height: 100vh !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; page-break-before: avoid !important; page-break-after: avoid !important; page-break-inside: avoid !important; break-inside: avoid !important; transform: none !important; }
@@ -1937,6 +2345,27 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
     <link rel="stylesheet" href="../assets/css/responsive-unified.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/responsive-unified.css'); ?>">
 </head>
 <body>
+    <!-- Administrative Purpose of Request Context (Staff-Only, Hidden on Print) -->
+    <div class="cert-admin-meta container-fluid" style="max-width: 900px; margin: 18px auto 0;">
+        <div class="card border-0 shadow-sm" style="background: #ffffff; border-radius: 8px;">
+            <div class="card-body py-2 px-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-primary text-uppercase px-2 py-1" style="font-size: 0.75rem; letter-spacing: 0.5px;">
+                        <i class="fas fa-clipboard-list me-1"></i> Purpose of Request
+                    </span>
+                    <span class="fw-semibold text-dark" style="font-size: 0.95rem;" id="displayPurposeText">
+                        <?php echo e(!empty($data['purpose']) ? $data['purpose'] : 'whatever lawful purpose it may serve'); ?>
+                    </span>
+                </div>
+                <?php if ($is_certification): ?>
+                    <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2" data-bs-toggle="modal" data-bs-target="#editPurposeModal">
+                        <i class="fas fa-pen-to-square me-1"></i> Edit Purpose & Details
+                    </button>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+
     <div class="cert-toolbar">
         <div class="d-flex flex-wrap gap-2">
             <?php if ($is_confirmation_cert && !empty($missing_confirmation_fields)): ?>
@@ -1963,6 +2392,30 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             <a href="certificate-generator.php" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back</a>
         </div>
     </div>
+
+    <?php if (!empty($record_load_error)): ?>
+        <div class="alert alert-danger border-danger shadow-sm mx-auto mb-4 p-4 text-center" style="max-width: 700px;">
+            <i class="fas fa-triangle-exclamation text-danger fa-3x mb-3"></i>
+            <h4 class="fw-bold text-danger">Certificate Record Error</h4>
+            <p class="text-secondary mb-3"><?php echo e($record_load_error); ?></p>
+            <a href="certificate-generator.php" class="btn btn-secondary px-4"><i class="fas fa-arrow-left me-1"></i> Return to Certificate Generator</a>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($is_certification && !empty($missing_certification_fields)): ?>
+        <div class="alert alert-warning border-warning shadow-sm mx-auto mb-3" style="max-width: 8.5in;">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <i class="fas fa-triangle-exclamation text-warning me-2 fs-5"></i>
+                    <strong>Incomplete Sacramental Data:</strong> Missing required certification field(s): <span class="fw-bold"><?php echo e(implode(', ', $missing_certification_fields)); ?></span>.
+                    <div class="small text-muted mt-1">Please complete the missing details so the official certification can be accurately issued and printed.</div>
+                </div>
+                <button type="button" class="btn btn-sm btn-warning text-dark fw-bold" data-bs-toggle="modal" data-bs-target="#editPurposeModal">
+                    <i class="fas fa-pen-to-square me-1"></i> Complete Missing Data
+                </button>
+            </div>
+        </div>
+    <?php endif; ?>
 
     <?php if ($is_confirmation_cert && !empty($missing_confirmation_fields)): ?>
         <div class="alert alert-danger border-danger shadow-sm mx-auto mb-3" style="max-width: 215.9mm;">
@@ -2365,8 +2818,9 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             </section>
         </main>
     <?php elseif (in_array($cert_type, ['baptism_certification', 'marriage_certification', 'first_communion_certification', 'confirmation_certification', 'funeral_certification', 'funeral'], true)): ?>
+        <?php if (empty($record_load_error)): ?>
         <?php
-            // Simplified Flowing Certification Paragraph - One clean paragraph with essential facts only
+            // Standardized Image 3 Certification Template - One clean paragraph with essential sacramental facts
             $cert_subject_name = '';
             $cert_body_lines = [];
             $cert_priest_name = '';
@@ -2375,7 +2829,7 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
                 $cert_subject_name = $data['fullname'] ?? 'N/A';
                 $cert_body_lines[] = 'child of <span class="simple-cert-fill">' . e($father_name) . '</span> and <span class="simple-cert-fill">' . e($mother_name) . '</span>,';
                 $cert_body_lines[] = 'received the Sacrament of Baptism on <span class="simple-cert-fill underline">' . e(displayDate($data['baptism_date'] ?? '')) . '</span>,';
-                $cert_priest_name = cleanOfficiatingPriest($data['priest'] ?? '');
+                $cert_priest_name = cleanOfficiatingPriest($data['priest'] ?? ($data['parish_priest'] ?? ''));
                 $cert_body_lines[] = 'officiated by Rev. Fr. <span class="simple-cert-fill underline">' . e($cert_priest_name) . '</span>.';
             } elseif ($cert_type === 'first_communion_certification') {
                 $cert_subject_name = $data['fullname'] ?? 'N/A';
@@ -2387,66 +2841,105 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
                 $cert_subject_name = $data['fullname'] ?? 'N/A';
                 $cert_body_lines[] = 'child of <span class="simple-cert-fill">' . e($father_name) . '</span> and <span class="simple-cert-fill">' . e($mother_name) . '</span>,';
                 $cert_body_lines[] = 'received the Sacrament of Confirmation on <span class="simple-cert-fill underline">' . e(displayDate($data['confirmation_date'] ?? '')) . '</span>,';
-                $cert_priest_name = cleanOfficiatingPriest($data['bishop_priest'] ?? ($data['parish_priest'] ?? ''));
-                $cert_body_lines[] = 'administered by <span class="simple-cert-fill underline">' . e($cert_priest_name) . '</span>.';
+                $cert_bp_name = cleanOfficiatingPriest(!empty($confirmation_bishop) ? $confirmation_bishop : ($data['bishop_priest'] ?? ($data['parish_priest'] ?? '')));
+                $conf_sps = [];
+                if (!empty($godfather) && $godfather !== 'N/A') $conf_sps[] = $godfather;
+                if (!empty($godmother) && $godmother !== 'N/A') $conf_sps[] = $godmother;
+                if (empty($conf_sps) && !empty($data['sponsor']) && $data['sponsor'] !== 'N/A') $conf_sps[] = $data['sponsor'];
+                $sponsors_text = !empty($conf_sps) ? ', the sponsors being <span class="simple-cert-fill">' . e(implode(' and ', $conf_sps)) . '</span>.' : '.';
+                $cert_body_lines[] = 'administered by <span class="simple-cert-fill underline">' . e($cert_bp_name) . '</span>' . $sponsors_text;
             } elseif ($cert_type === 'marriage_certification') {
                 $cert_subject_name = ($data['husband_name'] ?? 'N/A') . ' and ' . ($data['wife_name'] ?? 'N/A');
                 $cert_body_lines[] = 'were joined in the Sacrament of Holy Matrimony on <span class="simple-cert-fill underline">' . e(displayDate($data['wedding_date'] ?? '')) . '</span>,';
                 $cert_priest_name = cleanOfficiatingPriest($data['officiating_priest'] ?? ($data['parish_priest'] ?? ''));
-                $cert_body_lines[] = 'officiated by Rev. Fr. <span class="simple-cert-fill underline">' . e($cert_priest_name) . '</span>.';
+                $m_sponsors = trim((string)($data['sponsors'] ?? ''));
+                if (!empty($m_sponsors) && $m_sponsors !== 'N/A') {
+                    $cert_body_lines[] = 'officiated by Rev. Fr. <span class="simple-cert-fill underline">' . e($cert_priest_name) . '</span>, in the presence of witnesses <span class="simple-cert-fill">' . e($m_sponsors) . '</span>.';
+                } else {
+                    $cert_body_lines[] = 'officiated by Rev. Fr. <span class="simple-cert-fill underline">' . e($cert_priest_name) . '</span>.';
+                }
             } else {
                 // funeral / funeral_certification
                 $cert_subject_name = $data['deceased_name'] ?? 'N/A';
-                $cert_body_lines[] = 'child of <span class="simple-cert-fill">' . e($father_name) . '</span> and <span class="simple-cert-fill">' . e($mother_name) . '</span>,';
-                $cert_body_lines[] = 'was given Christian Burial on <span class="simple-cert-fill underline">' . e(displayDate($data['date_of_burial'] ?? '')) . '</span>,';
+                if (!empty($father_name) && $father_name !== 'N/A' && !empty($mother_name) && $mother_name !== 'N/A') {
+                    $cert_body_lines[] = 'child of <span class="simple-cert-fill">' . e($father_name) . '</span> and <span class="simple-cert-fill">' . e($mother_name) . '</span>,';
+                }
+                $burial_date_str = displayDate($data['date_of_burial'] ?? ($data['burial_date'] ?? ''));
+                $cert_body_lines[] = 'was given Christian Burial on <span class="simple-cert-fill underline">' . e($burial_date_str) . '</span>,';
                 $cert_priest_name = cleanOfficiatingPriest($data['minister'] ?? ($data['parish_priest'] ?? ''));
                 $cert_body_lines[] = 'officiated by Rev. Fr. <span class="simple-cert-fill underline">' . e($cert_priest_name) . '</span>.';
             }
             $parish_priest_signature = formatParishPriestSignature($data['parish_priest'] ?? ($data['priest'] ?? ($data['officiating_priest'] ?? ($data['minister'] ?? ($data['bishop_priest'] ?? '')))));
         ?>
         <main class="certificate-page simple-cert-page" id="certificateDocument">
-            <section class="certificate-sheet">
-                <?php echo $certificate_template_layer; ?>
-                <?php echo layoutImageTag($certificate_layout_settings, 'watermark', 'layout-watermark-image', 'Certificate watermark'); ?>
-                <div class="watermark-text"><?php echo e($layout_watermark_text); ?></div>
-                <div class="cert-content">
-                    <header class="cert-header">
-                        <div class="certificate-logo-slot">
-                            <?php if ($archdiocese_logo): ?>
-                                <img class="certificate-logo archdiocese-logo" src="<?php echo e($archdiocese_logo); ?>" alt="Official Archdiocese of Cotabato crest">
-                            <?php endif; ?>
-                        </div>
-                        <div>
-                            <div class="parish"><?php echo e(strtoupper($layout_church_title)); ?></div>
-                            <div class="diocese"><?php echo e(strtoupper($layout_diocese_name)); ?></div>
-                            <div class="parish"><?php echo e(strtoupper($display_parish_name)); ?></div>
-                            <div class="location"><?php echo e(strtoupper($display_ceremony_place)); ?></div>
-                            <div class="cert-title"><?php echo e($layout_certificate_title); ?></div>
-                        </div>
-                        <div class="certificate-logo-slot">
-                            <img class="certificate-logo" src="<?php echo e($mission_logo); ?>" alt="San Lorenzo Ruiz Mission Station logo">
-                        </div>
-                    </header>
+            <section class="simple-cert-sheet">
+                <!-- Outer and Inner Thin Gold Borders -->
+                <div class="simple-cert-outer-border"></div>
+                <div class="simple-cert-inner-border"></div>
 
-                    <div class="simple-cert-intro">THIS IS TO CERTIFY THAT</div>
-                    <div class="simple-cert-name"><?php echo e($cert_subject_name); ?></div>
-                    <div class="simple-cert-body">
-                        <?php foreach ($cert_body_lines as $line): ?>
-                            <div><?php echo $line; ?></div>
-                        <?php endforeach; ?>
+                <!-- 4 Gold L-Bracket Corner Ornaments -->
+                <svg class="simple-cert-corner tl" viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M 0 16 L 0 0 L 16 0" fill="none" stroke="#c59b27" stroke-width="1.2"/>
+                </svg>
+                <svg class="simple-cert-corner tr" viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M 16 16 L 16 0 L 0 0" fill="none" stroke="#c59b27" stroke-width="1.2"/>
+                </svg>
+                <svg class="simple-cert-corner bl" viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M 0 0 L 0 16 L 16 16" fill="none" stroke="#c59b27" stroke-width="1.2"/>
+                </svg>
+                <svg class="simple-cert-corner br" viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M 16 0 L 16 16 L 0 16" fill="none" stroke="#c59b27" stroke-width="1.2"/>
+                </svg>
+
+                <!-- Centered Header Block with Circular Logos -->
+                <header class="simple-cert-header">
+                    <div class="simple-cert-circle-logo">
+                        <?php if ($archdiocese_logo): ?>
+                            <img src="<?php echo e($archdiocese_logo); ?>" alt="Archdiocese of Cotabato crest">
+                        <?php endif; ?>
                     </div>
+                    <div class="simple-cert-header-center">
+                        <div class="simple-cert-church"><?php echo e(strtoupper($layout_church_title)); ?></div>
+                        <div class="simple-cert-archdiocese"><?php echo e(strtoupper($layout_diocese_name)); ?></div>
+                        <div class="simple-cert-parish"><?php echo e(strtoupper($display_parish_name)); ?></div>
+                        <div class="simple-cert-loc"><?php echo e(strtoupper($display_ceremony_place)); ?></div>
+                        <div class="simple-cert-title"><?php echo e($layout_certificate_title); ?></div>
+                        <div class="simple-cert-title-rule"></div>
+                    </div>
+                    <div class="simple-cert-circle-logo">
+                        <img src="<?php echo e($mission_logo); ?>" alt="San Lorenzo Ruiz Mission Station logo">
+                    </div>
+                </header>
 
-                    <div class="simple-cert-footer">
-                        <div class="simple-cert-seal">Official<br>Parish<br>Seal</div>
-                        <div class="simple-cert-sign">
-                            <div class="simple-cert-sign-line"></div>
-                            <div class="simple-cert-sign-name"><?php echo e($parish_priest_signature); ?></div>
-                            <div class="simple-cert-sign-title">Parish Priest</div>
-                        </div>
+                <!-- Lead-in -->
+                <div class="simple-cert-intro">THIS IS TO CERTIFY THAT</div>
+
+                <!-- Primary Visual Anchor (Name) -->
+                <div class="simple-cert-name-wrap">
+                    <span class="simple-cert-name"><?php echo e($cert_subject_name); ?></span>
+                </div>
+
+                <!-- Flowing Body Paragraph with Underlined Fields -->
+                <div class="simple-cert-body">
+                    <?php foreach ($cert_body_lines as $line): ?>
+                        <div><?php echo $line; ?></div>
+                    <?php endforeach; ?>
+                </div>
+
+                <!-- Footer with Dashed Parish Seal and Single Priest Signature Line -->
+                <div class="simple-cert-footer">
+                    <div class="simple-cert-seal">
+                        Official<br>Parish Seal
+                    </div>
+                    <div class="simple-cert-sign">
+                        <div class="simple-cert-sign-line"></div>
+                        <div class="simple-cert-sign-name"><?php echo e($parish_priest_signature); ?></div>
+                        <div class="simple-cert-sign-title">Parish Priest</div>
                     </div>
                 </div>
             </section>
         </main>
+        <?php endif; ?>
     <?php elseif ($cert_type === 'confirmation'): ?>
         <main class="confirmation-replica-page" id="certificateDocument">
             <section class="confirmation-replica-sheet">
@@ -2665,57 +3158,166 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
                         </div>
 
                         <div class="row g-3">
-                            <?php if ($cert_type === 'marriage' || $cert_type === 'marriage_certification'): ?>
+                            <?php if ($cert_type === 'marriage_certification' || $cert_type === 'marriage'): ?>
                                 <div class="col-md-6">
-                                    <label class="form-label fw-bold">Groom's Residence</label>
-                                    <input type="text" class="form-control" name="husband_residence" value="<?php echo e($data['husband_residence'] ?? ''); ?>" placeholder="Barangay, Municipality, Province">
+                                    <label class="form-label fw-bold small">Groom's Full Name <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control form-control-sm" name="husband_name" value="<?php echo e($data['husband_name'] ?? ''); ?>" required>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label fw-bold">Bride's Residence</label>
-                                    <input type="text" class="form-control" name="wife_residence" value="<?php echo e($data['wife_residence'] ?? ''); ?>" placeholder="Barangay, Municipality, Province">
+                                    <label class="form-label fw-bold small">Bride's Full Name <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control form-control-sm" name="wife_name" value="<?php echo e($data['wife_name'] ?? ''); ?>" required>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label fw-bold">Groom's Parents</label>
-                                    <input type="text" class="form-control" name="husband_parents" value="<?php echo e($data['husband_parents'] ?? ''); ?>" placeholder="Mother / Father">
+                                    <label class="form-label fw-bold small">Wedding Date <span class="text-danger">*</span></label>
+                                    <input type="date" class="form-control form-control-sm" name="wedding_date" value="<?php echo e($data['wedding_date'] ?? ''); ?>" required>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label fw-bold">Bride's Parents</label>
-                                    <input type="text" class="form-control" name="wife_parents" value="<?php echo e($data['wife_parents'] ?? ''); ?>" placeholder="Mother / Father">
-                                </div>
-                            <?php else: ?>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Father's Name</label>
-                                    <input type="text" class="form-control" name="father_name" value="<?php echo e($father_name); ?>">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Mother's Name</label>
-                                    <input type="text" class="form-control" name="mother_name" value="<?php echo e($mother_name); ?>">
+                                    <label class="form-label fw-bold small">Officiating Priest <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control form-control-sm" name="officiating_priest" value="<?php echo e($data['officiating_priest'] ?? ''); ?>" required>
                                 </div>
                                 <div class="col-md-12">
-                                    <label class="form-label fw-bold">Residence / Address</label>
-                                    <input type="text" class="form-control" name="residence" value="<?php echo e($data['residence'] ?? ($data['domicile'] ?? ($data['parent_address'] ?? ''))); ?>" placeholder="Sitio / Barangay, Municipality, Province">
+                                    <label class="form-label fw-bold small">Witnesses / Sponsors</label>
+                                    <input type="text" class="form-control form-control-sm" name="sponsors" value="<?php echo e($data['sponsors'] ?? ''); ?>" placeholder="e.g. Pedro Cruz and Maria Santos">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small">Signing Parish Priest</label>
+                                    <input type="text" class="form-control form-control-sm" name="parish_priest" value="<?php echo e($data['parish_priest'] ?? ''); ?>" placeholder="e.g. Rev. Fr. Heriberto C. Villas, O.M.I.">
+                                </div>
+                            <?php elseif ($cert_type === 'funeral_certification' || $cert_type === 'funeral'): ?>
+                                <div class="col-md-12">
+                                    <label class="form-label fw-bold small">Deceased Full Name <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control form-control-sm" name="deceased_name" value="<?php echo e($data['deceased_name'] ?? ''); ?>" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small">Date of Burial <span class="text-danger">*</span></label>
+                                    <input type="date" class="form-control form-control-sm" name="date_of_burial" value="<?php echo e($data['date_of_burial'] ?? ($data['burial_date'] ?? '')); ?>" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small">Date of Death</label>
+                                    <input type="date" class="form-control form-control-sm" name="date_of_death" value="<?php echo e($data['date_of_death'] ?? ''); ?>">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small">Father's Name</label>
+                                    <input type="text" class="form-control form-control-sm" name="father_name" value="<?php echo e($father_name !== 'N/A' ? $father_name : ''); ?>">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small">Mother's Name</label>
+                                    <input type="text" class="form-control form-control-sm" name="mother_name" value="<?php echo e($mother_name !== 'N/A' ? $mother_name : ''); ?>">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small">Officiating Minister / Priest <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control form-control-sm" name="minister" value="<?php echo e($data['minister'] ?? ''); ?>" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small">Signing Parish Priest</label>
+                                    <input type="text" class="form-control form-control-sm" name="parish_priest" value="<?php echo e($data['parish_priest'] ?? ''); ?>" placeholder="e.g. Rev. Fr. Heriberto C. Villas, O.M.I.">
+                                </div>
+                            <?php elseif ($cert_type === 'confirmation_certification'): ?>
+                                <div class="col-md-8">
+                                    <label class="form-label fw-bold small">Confirmand Full Name <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control form-control-sm" name="fullname" value="<?php echo e($data['fullname'] ?? ''); ?>" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold small">Confirmation Date <span class="text-danger">*</span></label>
+                                    <input type="date" class="form-control form-control-sm" name="confirmation_date" value="<?php echo e($data['confirmation_date'] ?? ''); ?>" required>
+                                </div>
+                                <div class="col-md-12">
+                                    <label class="form-label fw-bold small">Confirming Bishop / Minister <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control form-control-sm" name="bishop_priest" value="<?php echo e($confirmation_bishop); ?>" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small">Father's Name</label>
+                                    <input type="text" class="form-control form-control-sm" name="father_name" value="<?php echo e($father_name !== 'N/A' ? $father_name : ''); ?>">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small">Mother's Name</label>
+                                    <input type="text" class="form-control form-control-sm" name="mother_name" value="<?php echo e($mother_name !== 'N/A' ? $mother_name : ''); ?>">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small">Godfather's Name</label>
+                                    <input type="text" class="form-control form-control-sm" name="godfather" value="<?php echo e($godfather !== 'N/A' ? $godfather : ''); ?>">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small">Godmother's Name</label>
+                                    <input type="text" class="form-control form-control-sm" name="godmother" value="<?php echo e($godmother !== 'N/A' ? $godmother : ''); ?>">
+                                </div>
+                                <div class="col-md-12">
+                                    <label class="form-label fw-bold small">Signing Parish Priest</label>
+                                    <input type="text" class="form-control form-control-sm" name="parish_priest" value="<?php echo e($data['parish_priest'] ?? ''); ?>" placeholder="e.g. Rev. Fr. Alberto G. Cahilig, O.M.I.">
+                                </div>
+                            <?php elseif ($cert_type === 'first_communion_certification'): ?>
+                                <div class="col-md-8">
+                                    <label class="form-label fw-bold small">Communicant Full Name <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control form-control-sm" name="fullname" value="<?php echo e($data['fullname'] ?? ''); ?>" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold small">First Communion Date <span class="text-danger">*</span></label>
+                                    <input type="date" class="form-control form-control-sm" name="communion_date" value="<?php echo e($data['communion_date'] ?? ''); ?>" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small">Father's Name</label>
+                                    <input type="text" class="form-control form-control-sm" name="father_name" value="<?php echo e($father_name !== 'N/A' ? $father_name : ''); ?>">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small">Mother's Name</label>
+                                    <input type="text" class="form-control form-control-sm" name="mother_name" value="<?php echo e($mother_name !== 'N/A' ? $mother_name : ''); ?>">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small">Officiating Priest <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control form-control-sm" name="priest" value="<?php echo e($data['priest'] ?? ''); ?>" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small">Signing Parish Priest</label>
+                                    <input type="text" class="form-control form-control-sm" name="parish_priest" value="<?php echo e($data['parish_priest'] ?? ''); ?>" placeholder="e.g. Rev. Fr. Alberto G. Cahilig, O.M.I.">
+                                </div>
+                            <?php else: ?>
+                                <div class="col-md-8">
+                                    <label class="form-label fw-bold small">Full Name of Baptized <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control form-control-sm" name="fullname" value="<?php echo e($data['fullname'] ?? ''); ?>" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold small">Baptism Date <span class="text-danger">*</span></label>
+                                    <input type="date" class="form-control form-control-sm" name="baptism_date" value="<?php echo e($data['baptism_date'] ?? ''); ?>" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small">Father's Name</label>
+                                    <input type="text" class="form-control form-control-sm" name="father_name" value="<?php echo e($father_name !== 'N/A' ? $father_name : ''); ?>">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small">Mother's Name</label>
+                                    <input type="text" class="form-control form-control-sm" name="mother_name" value="<?php echo e($mother_name !== 'N/A' ? $mother_name : ''); ?>">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small">Officiating Priest <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control form-control-sm" name="priest" value="<?php echo e($data['priest'] ?? ''); ?>" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small">Signing Parish Priest</label>
+                                    <input type="text" class="form-control form-control-sm" name="parish_priest" value="<?php echo e($data['parish_priest'] ?? ''); ?>" placeholder="e.g. Rev. Fr. Heriberto C. Villas, O.M.I.">
                                 </div>
                             <?php endif; ?>
 
+                            <div class="col-12"><hr class="my-1"></div>
+
                             <div class="col-md-4">
-                                <label class="form-label fw-bold">Vol. / Book No.</label>
-                                <input type="text" class="form-control" name="volume_no" value="<?php echo e($volume_no !== 'N/A' ? $volume_no : ''); ?>">
+                                <label class="form-label fw-bold small">Vol. / Book No.</label>
+                                <input type="text" class="form-control form-control-sm" name="volume_no" value="<?php echo e($volume_no !== 'N/A' ? $volume_no : ''); ?>">
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label fw-bold">Page No.</label>
-                                <input type="text" class="form-control" name="page_no" value="<?php echo e($page_no !== 'N/A' ? $page_no : ''); ?>">
+                                <label class="form-label fw-bold small">Page No.</label>
+                                <input type="text" class="form-control form-control-sm" name="page_no" value="<?php echo e($page_no !== 'N/A' ? $page_no : ''); ?>">
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label fw-bold">Entry No.</label>
-                                <input type="text" class="form-control" name="entry_no" value="<?php echo e($entry_no !== 'N/A' ? $entry_no : ''); ?>">
+                                <label class="form-label fw-bold small">Entry No.</label>
+                                <input type="text" class="form-control form-control-sm" name="entry_no" value="<?php echo e($entry_no !== 'N/A' ? $entry_no : ''); ?>">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label fw-bold">Date Issued</label>
-                                <input type="date" class="form-control" name="date_issued" value="<?php echo e($data['date_issued'] ?? date('Y-m-d')); ?>">
+                                <label class="form-label fw-bold small">Date Issued</label>
+                                <input type="date" class="form-control form-control-sm" name="date_issued" value="<?php echo e($data['date_issued'] ?? date('Y-m-d')); ?>">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label fw-bold">Additional Remarks</label>
-                                <input type="text" class="form-control" name="remarks" value="<?php echo e($data['remarks'] ?? ''); ?>">
+                                <label class="form-label fw-bold small">Additional Remarks</label>
+                                <input type="text" class="form-control form-control-sm" name="remarks" value="<?php echo e($data['remarks'] ?? ''); ?>">
                             </div>
                         </div>
                     </div>
