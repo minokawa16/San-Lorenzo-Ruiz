@@ -2434,25 +2434,6 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
     <link rel="stylesheet" href="../assets/css/responsive-unified.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/responsive-unified.css'); ?>">
 </head>
 <body>
-    <!-- Administrative Purpose of Request Context (Staff-Only, Hidden on Print) -->
-    <div class="cert-admin-meta container-fluid" style="max-width: 900px; margin: 18px auto 0;">
-        <div class="card border-0 shadow-sm" style="background: #ffffff; border-radius: 8px;">
-            <div class="card-body py-2 px-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <div class="d-flex align-items-center gap-2">
-                    <span class="badge bg-primary text-uppercase px-2 py-1" style="font-size: 0.75rem; letter-spacing: 0.5px;">
-                        <i class="fas fa-clipboard-list me-1"></i> Purpose of Request
-                    </span>
-                    <span class="fw-semibold text-dark" style="font-size: 0.95rem;" id="displayPurposeText">
-                        <?php echo e($display_purpose_raw); ?>
-                    </span>
-                </div>
-                <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2" data-bs-toggle="modal" data-bs-target="#editPurposeModal">
-                    <i class="fas fa-pen-to-square me-1"></i> Edit Purpose & Details
-                </button>
-            </div>
-        </div>
-    </div>
-
     <div class="cert-toolbar">
         <div class="d-flex flex-wrap gap-2">
             <?php if ($is_confirmation_cert && !empty($missing_confirmation_fields)): ?>
