@@ -98,10 +98,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['add', 'edit', '
             redirectWithNotification('baptism-records.php', 'Correction submitted for review; the official record was not overwritten.', 'success');
         } elseif ($action === 'archive') {
             $records->archive('baptism', (int)($_POST['record_id'] ?? 0), (string)($_POST['archive_reason'] ?? ''), $actor);
-            redirectWithNotification('baptism-records.php', 'Baptism record archived.', 'success');
+            redirectWithNotification('baptism-records.php', 'Baptism record archived and moved to archives.', 'success');
         } else {
             $records->restore('baptism', (int)($_POST['record_id'] ?? 0), $actor);
-            redirectWithNotification('baptism-records.php', 'Baptism record restored.', 'success');
+            redirectWithNotification('baptism-records.php', 'Baptism record restored to active registry.', 'success');
         }
     } catch (Throwable $exception) {
         $message = $exception->getMessage();
@@ -209,7 +209,15 @@ if ($action === 'archive' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Get search and filter parameters
 $search = trim($_GET['search'] ?? '');
-$status_filter = $_GET['status'] ?? '';
+// Default status is 'active' so archived records disappear from the main active registry table
+$raw_status = trim((string)($_GET['status'] ?? ''));
+if ($raw_status === '') {
+    $status_filter = 'active';
+} elseif (in_array(strtolower($raw_status), ['active', 'archived', 'all'], true)) {
+    $status_filter = strtolower($raw_status);
+} else {
+    $status_filter = 'active';
+}
 $page = max(1, (int)($_GET['page'] ?? 1));
 $per_page = 15;
 
@@ -227,11 +235,12 @@ if (!empty($search)) {
     $param_types .= "sssssssssss";
 }
 
-if (!empty($status_filter)) {
-    $where_clauses[] = "status = ?";
-    $params[] = $status_filter;
-    $param_types .= "s";
+if ($status_filter === 'active') {
+    $where_clauses[] = "status = 'active'";
+} elseif ($status_filter === 'archived') {
+    $where_clauses[] = "status = 'archived'";
 }
+// If 'all', no status filter is applied
 
 $where = implode(" AND ", $where_clauses);
 
@@ -351,6 +360,33 @@ include '../templates/header.php';
         .registry-stat-card:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(15, 23, 42, 0.07);
+        }
+
+        .registry-stat-card.active-stat-filter {
+            border-color: var(--parish-gold);
+            box-shadow: 0 0 0 2px rgba(200, 155, 60, 0.35);
+            background: #FFFDF9;
+        }
+
+        .btn-formal-archives {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            background: #F8FAFC;
+            color: #334155;
+            border: 1px solid #CBD5E1;
+            padding: 9px 15px;
+            border-radius: 8px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.15s ease;
+        }
+
+        .btn-formal-archives:hover {
+            background: #EDE9FE;
+            color: #6D28D9;
+            border-color: #C4B5FD;
         }
 
         .registry-stat-icon {
@@ -1190,27 +1226,27 @@ include '../templates/header.php';
 
         <!-- Formal Stats Ribbon -->
         <div class="registry-stats-grid">
-            <div class="registry-stat-card">
+            <a href="baptism-records.php?status=all" class="registry-stat-card <?php echo $status_filter === 'all' ? 'active-stat-filter' : ''; ?>" style="text-decoration: none; color: inherit;" title="View all records (active and archived)">
                 <div class="registry-stat-icon"><i class="fas fa-water"></i></div>
                 <div class="registry-stat-content">
                     <strong><?php echo number_format($stat_total); ?></strong>
                     <span>Total Baptism Records</span>
                 </div>
-            </div>
-            <div class="registry-stat-card">
+            </a>
+            <a href="baptism-records.php?status=active" class="registry-stat-card <?php echo $status_filter === 'active' ? 'active-stat-filter' : ''; ?>" style="text-decoration: none; color: inherit;" title="View active baptism registry entries (default)">
                 <div class="registry-stat-icon icon-active"><i class="fas fa-circle-check"></i></div>
                 <div class="registry-stat-content">
                     <strong><?php echo number_format($stat_active); ?></strong>
-                    <span>Active Records</span>
+                    <span>Active Records (Default)</span>
                 </div>
-            </div>
-            <div class="registry-stat-card">
+            </a>
+            <a href="baptism-records.php?status=archived" class="registry-stat-card <?php echo $status_filter === 'archived' ? 'active-stat-filter' : ''; ?>" style="text-decoration: none; color: inherit;" title="View archived baptism records">
                 <div class="registry-stat-icon icon-archived"><i class="fas fa-box-archive"></i></div>
                 <div class="registry-stat-content">
                     <strong><?php echo number_format($stat_archived); ?></strong>
                     <span>Archived Records</span>
                 </div>
-            </div>
+            </a>
             <div class="registry-stat-card">
                 <div class="registry-stat-icon icon-books"><i class="fas fa-book-bible"></i></div>
                 <div class="registry-stat-content">
@@ -1230,21 +1266,24 @@ include '../templates/header.php';
                     </div>
                     <div class="status-select-wrap">
                         <select id="statusFilter" onchange="applyFilter()" aria-label="Filter records by status">
-                            <option value="">All Statuses</option>
-                            <option value="active" <?php echo $status_filter === 'active' ? 'selected' : ''; ?>>Active Only</option>
-                            <option value="archived" <?php echo $status_filter === 'archived' ? 'selected' : ''; ?>>Archived Only</option>
+                            <option value="active" <?php echo $status_filter === 'active' ? 'selected' : ''; ?>>Active Records (Default)</option>
+                            <option value="archived" <?php echo $status_filter === 'archived' ? 'selected' : ''; ?>>Archived Records Only</option>
+                            <option value="all" <?php echo $status_filter === 'all' ? 'selected' : ''; ?>>All Records (Active & Archived)</option>
                         </select>
                     </div>
                     <button type="button" onclick="performSearch()" class="btn-formal-search">
                         <i class="fas fa-filter"></i> Filter
                     </button>
-                    <?php if (!empty($search) || !empty($status_filter)): ?>
-                        <a href="baptism-records.php" class="btn-formal-reset" title="Clear all filters">
+                    <?php if (!empty($search) || $status_filter !== 'active'): ?>
+                        <a href="baptism-records.php" class="btn-formal-reset" title="Clear filters & return to active records">
                             <i class="fas fa-rotate-left"></i> Reset
                         </a>
                     <?php endif; ?>
                 </div>
-                <div>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <a href="archives.php?tab=records" class="btn-formal-archives" title="View central sacramental archives">
+                        <i class="fas fa-box-archive"></i> Central Archives
+                    </a>
                     <button type="button" onclick="openAddModal()" class="btn-formal-add">
                         <i class="fas fa-plus-circle"></i> Add Baptism Record
                     </button>
@@ -1257,14 +1296,47 @@ include '../templates/header.php';
             <div class="registry-table-header">
                 <div class="registry-table-title">
                     <span class="registry-table-title-icon"><i class="fas fa-book-journal-whills"></i></span>
-                    <h2>Baptismal Registry Archive</h2>
+                    <h2>
+                        <?php if ($status_filter === 'archived'): ?>
+                            Archived Baptismal Records
+                        <?php elseif ($status_filter === 'all'): ?>
+                            All Baptismal Records
+                        <?php else: ?>
+                            Baptismal Registry Archive
+                        <?php endif; ?>
+                    </h2>
+                    <?php if ($status_filter === 'archived'): ?>
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle ms-2 px-2.5 py-1" style="font-size: 0.78rem; border-radius: 6px;">
+                            <i class="fas fa-box-archive me-1"></i> Archived Only
+                        </span>
+                    <?php elseif ($status_filter === 'all'): ?>
+                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle ms-2 px-2.5 py-1" style="font-size: 0.78rem; border-radius: 6px;">
+                            <i class="fas fa-layer-group me-1"></i> All Statuses
+                        </span>
+                    <?php else: ?>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle ms-2 px-2.5 py-1" style="font-size: 0.78rem; border-radius: 6px;">
+                            <i class="fas fa-circle-check me-1"></i> Active Registry
+                        </span>
+                    <?php endif; ?>
                 </div>
                 <div>
                     <span class="registry-table-count-badge">
-                        <i class="fas fa-list-check me-1"></i> <?php echo number_format($total_records); ?> Total Record<?php echo $total_records === 1 ? '' : 's'; ?>
+                        <i class="fas fa-list-check me-1"></i> <?php echo number_format($total_records); ?> Record<?php echo $total_records === 1 ? '' : 's'; ?>
                     </span>
                 </div>
             </div>
+
+            <?php if ($status_filter === 'archived'): ?>
+                <div class="alert alert-warning d-flex align-items-center justify-content-between mx-3 mt-3 mb-0" style="border-radius: 8px; font-size: 0.88rem;">
+                    <div>
+                        <i class="fas fa-circle-info me-2 text-warning-emphasis"></i>
+                        <strong>Archived Records View:</strong> These records have been removed from the active registry. You can click <strong>Restore</strong> to return a record to the active list, or manage all archived records in the <a href="archives.php?tab=records" class="fw-bold text-decoration-underline text-warning-emphasis">Central Archives Module</a>.
+                    </div>
+                    <a href="baptism-records.php?status=active" class="btn btn-sm btn-outline-dark" style="font-size: 0.8rem;">
+                        <i class="fas fa-arrow-left me-1"></i> Back to Active Registry
+                    </a>
+                </div>
+            <?php endif; ?>
 
             <div class="registry-table-responsive">
                 <table class="formal-records-table">
@@ -1398,11 +1470,19 @@ include '../templates/header.php';
                                 <td colspan="12">
                                     <div class="registry-empty-state">
                                         <div class="registry-empty-icon"><i class="fas fa-book-open"></i></div>
-                                        <h3>No Baptism Records Found</h3>
-                                        <p>There are no baptismal registry entries matching your filter criteria.</p>
-                                        <button type="button" onclick="openAddModal()" class="btn-formal-add">
-                                            <i class="fas fa-plus-circle"></i> Add New Record
-                                        </button>
+                                        <?php if ($status_filter === 'archived'): ?>
+                                            <h3>No Archived Records Found</h3>
+                                            <p>There are no archived baptism entries matching your search criteria.</p>
+                                            <a href="baptism-records.php?status=active" class="btn-formal-add" style="text-decoration: none;">
+                                                <i class="fas fa-arrow-left"></i> Return to Active Registry
+                                            </a>
+                                        <?php else: ?>
+                                            <h3>No Baptism Records Found</h3>
+                                            <p>There are no active baptismal registry entries matching your filter criteria.</p>
+                                            <button type="button" onclick="openAddModal()" class="btn-formal-add">
+                                                <i class="fas fa-plus-circle"></i> Add New Record
+                                            </button>
+                                        <?php endif; ?>
                                     </div>
                                 </td>
                             </tr>

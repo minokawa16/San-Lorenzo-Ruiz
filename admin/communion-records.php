@@ -204,7 +204,14 @@ if ($action === 'archive' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Get search and filter parameters
 $search = trim($_GET['search'] ?? '');
-$status_filter = $_GET['status'] ?? '';
+$raw_status = trim((string)($_GET['status'] ?? ''));
+if ($raw_status === '') {
+    $status_filter = 'active';
+} elseif (in_array(strtolower($raw_status), ['active', 'archived', 'all'], true)) {
+    $status_filter = strtolower($raw_status);
+} else {
+    $status_filter = 'active';
+}
 $page = max(1, (int)($_GET['page'] ?? 1));
 $per_page = 15;
 
@@ -222,10 +229,10 @@ if (!empty($search)) {
     }
 }
 
-if (!empty($status_filter)) {
-    $where_clauses[] = "status = ?";
-    $params[] = $status_filter;
-    $param_types .= "s";
+if ($status_filter === 'active') {
+    $where_clauses[] = "status = 'active'";
+} elseif ($status_filter === 'archived') {
+    $where_clauses[] = "status = 'archived'";
 }
 
 $where = implode(" AND ", $where_clauses);
@@ -722,9 +729,9 @@ include '../templates/header.php';
                 <div class="search-bar">
                     <input type="text" id="searchInput" placeholder="Search by full name..." value="<?php echo htmlspecialchars($search); ?>">
                     <select id="statusFilter" onchange="applyFilter()">
-                        <option value="">All Status</option>
-                        <option value="active" <?php echo $status_filter === 'active' ? 'selected' : ''; ?>>Active</option>
+                        <option value="active" <?php echo $status_filter === 'active' ? 'selected' : ''; ?>>Active (Default)</option>
                         <option value="archived" <?php echo $status_filter === 'archived' ? 'selected' : ''; ?>>Archived</option>
+                        <option value="all" <?php echo $status_filter === 'all' ? 'selected' : ''; ?>>All Status</option>
                     </select>
                     <button onclick="performSearch()" class="btn btn-primary-gold">
                         <i class="fas fa-search"></i> Search
