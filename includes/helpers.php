@@ -3446,6 +3446,3 @@ function getFirstCommunionSigners($conn, $data = []) {
         'principal' => $principal,
     ];
 }
-
-?>
-

@@ -28,13 +28,34 @@ function secureStoreUpload(array $file, string $directory, array $config): array
 
 function secureStreamFile(string $path, string $mime, string $filename, bool $inline = false): void {
     $real = realpath($path);
-    if (!$real || !is_file($real)) { http_response_code(404); exit('File not found.'); }
+    if (!$real || !is_file($real)) {
+        http_response_code(404);
+        exit('File not found.');
+    }
+
+    while (ob_get_level() > 1) {
+        @ob_end_clean();
+    }
+    if (ob_get_level() > 0) {
+        @ob_clean();
+    }
+
     $safeName = preg_replace('/[^A-Za-z0-9._-]/', '-', basename($filename));
     header('Content-Type: ' . $mime);
     header('Content-Length: ' . (string) filesize($real));
     header('Content-Disposition: ' . ($inline ? 'inline' : 'attachment') . '; filename="' . $safeName . '"');
     header('Cache-Control: private, no-store');
     header('X-Content-Type-Options: nosniff');
-    readfile($real);
+
+    $fp = fopen($real, 'rb');
+    if ($fp) {
+        while (!feof($fp)) {
+            echo fread($fp, 65536);
+            flush();
+        }
+        fclose($fp);
+    } else {
+        readfile($real);
+    }
     exit;
 }

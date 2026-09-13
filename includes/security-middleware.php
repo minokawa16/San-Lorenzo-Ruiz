@@ -1,15 +1,19 @@
 <?php
 
 /** Central browser security middleware. Must run before page output. */
-function applySecurityHeaders(): void {
+function applySecurityHeaders(bool $allowFraming = false): void {
     if (headers_sent()) return;
     $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
         || strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https';
+    $framingPermitted = $allowFraming || (defined('ALLOW_EMBEDDED_FRAMES') && ALLOW_EMBEDDED_FRAMES);
+    $frameOptions = $framingPermitted ? 'SAMEORIGIN' : 'DENY';
+    $frameAncestors = $framingPermitted ? "'self'" : "'none'";
+
     header('X-Content-Type-Options: nosniff');
-    header('X-Frame-Options: DENY');
+    header("X-Frame-Options: {$frameOptions}");
     header('Referrer-Policy: strict-origin-when-cross-origin');
     header('Permissions-Policy: geolocation=(), microphone=(), camera=(self)');
-    header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' data: https://cdnjs.cloudflare.com https://fonts.gstatic.com; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
+    header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://cdnjs.cloudflare.com https://fonts.gstatic.com; connect-src 'self'; frame-ancestors {$frameAncestors}; base-uri 'self'; form-action 'self'");
     if ($isHttps) {
         header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
     }

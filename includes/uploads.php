@@ -18,6 +18,14 @@ function getRequestDocumentConfig() {
     ];
 }
 
-function isRequestImageDocument($mime_type) {
-    return in_array((string) $mime_type, ['image/jpeg', 'image/png', 'image/gif'], true);
+function isRequestImageDocument($mime_type, $filename = '') {
+    $clean_mime = strtolower(trim((string) $mime_type));
+    if ($clean_mime !== '' && str_starts_with($clean_mime, 'image/')) {
+        return true;
+    }
+    if ($filename !== '') {
+        $ext = strtolower(pathinfo((string) $filename, PATHINFO_EXTENSION));
+        return in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'], true);
+    }
+    return in_array($clean_mime, ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/svg+xml'], true);
 }

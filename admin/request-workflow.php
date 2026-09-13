@@ -1483,15 +1483,66 @@ document.addEventListener('DOMContentLoaded', function () {
 <script>
 // Document Viewer Controller
 (function () {
-    let pdfTimeout = null;
     let initialized = false;
     let currentDocId = null;
+    let activeBlobUrl = null;
+    let activeAbortController = null;
 
     function initDocViewer() {
         if (initialized) return;
         const previewModalEl = document.getElementById('documentPreviewModal');
         if (!previewModalEl) return;
         initialized = true;
+
+        const modalLabel = document.getElementById('docPreviewModalLabel');
+        const modalMeta = document.getElementById('docPreviewMeta');
+        const externalBtn = document.getElementById('docPreviewExternalBtn');
+        const downloadBtn = document.getElementById('docPreviewDownloadBtn');
+        const errorDownloadBtn = document.getElementById('docPreviewErrorDownloadBtn');
+        const fallbackDownloadBtn = document.getElementById('docPreviewFallbackDownloadBtn');
+        const fallbackFileName = document.getElementById('docPreviewFallbackFileName');
+        
+        const loader = document.getElementById('docPreviewLoader');
+        const errorBox = document.getElementById('docPreviewError');
+        const errorMsg = document.getElementById('docPreviewErrorMessage');
+        const fallbackBox = document.getElementById('docPreviewFallback');
+        const imgContainer = document.getElementById('docPreviewImageContainer');
+        const imgElement = document.getElementById('docPreviewImage');
+        const pdfContainer = document.getElementById('docPreviewPdfContainer');
+        const pdfFrame = document.getElementById('docPreviewPdfFrame');
+
+        function cleanupActiveStream() {
+            if (activeAbortController) {
+                try { activeAbortController.abort(); } catch (e) {}
+                activeAbortController = null;
+            }
+            if (activeBlobUrl) {
+                try { URL.revokeObjectURL(activeBlobUrl); } catch (e) {}
+                activeBlobUrl = null;
+            }
+            if (imgElement) {
+                imgElement.onload = null;
+                imgElement.onerror = null;
+                imgElement.removeAttribute('src');
+                imgElement.style.display = 'none';
+            }
+            if (pdfFrame) {
+                pdfFrame.onload = null;
+                pdfFrame.onerror = null;
+                pdfFrame.src = 'about:blank';
+            }
+        }
+
+        function showErrorState(message) {
+            if (loader) loader.style.display = 'none';
+            if (imgContainer) imgContainer.style.display = 'none';
+            if (pdfContainer) pdfContainer.style.display = 'none';
+            if (fallbackBox) fallbackBox.style.display = 'none';
+            if (errorMsg) {
+                errorMsg.textContent = message || 'Unable to preview this file — try downloading it instead.';
+            }
+            if (errorBox) errorBox.style.display = 'block';
+        }
 
         function renderDocPreview(button) {
             if (!button) return;
@@ -1509,44 +1560,13 @@ document.addEventListener('DOMContentLoaded', function () {
             const docSize = button.getAttribute('data-doc-size') || '';
             const docMime = (button.getAttribute('data-doc-mime') || '').toLowerCase();
 
-            const modalLabel = document.getElementById('docPreviewModalLabel');
-            const modalMeta = document.getElementById('docPreviewMeta');
-            const externalBtn = document.getElementById('docPreviewExternalBtn');
-            const downloadBtn = document.getElementById('docPreviewDownloadBtn');
-            const errorDownloadBtn = document.getElementById('docPreviewErrorDownloadBtn');
-            const fallbackDownloadBtn = document.getElementById('docPreviewFallbackDownloadBtn');
-            const fallbackFileName = document.getElementById('docPreviewFallbackFileName');
-            
-            const loader = document.getElementById('docPreviewLoader');
-            const errorBox = document.getElementById('docPreviewError');
-            const fallbackBox = document.getElementById('docPreviewFallback');
-            const imgContainer = document.getElementById('docPreviewImageContainer');
-            const imgElement = document.getElementById('docPreviewImage');
-            const pdfContainer = document.getElementById('docPreviewPdfContainer');
-            const pdfFrame = document.getElementById('docPreviewPdfFrame');
-
-            if (pdfTimeout) {
-                clearTimeout(pdfTimeout);
-                pdfTimeout = null;
-            }
+            cleanupActiveStream();
 
             if (loader) loader.style.display = 'block';
             if (errorBox) errorBox.style.display = 'none';
             if (fallbackBox) fallbackBox.style.display = 'none';
             if (imgContainer) imgContainer.style.display = 'none';
             if (pdfContainer) pdfContainer.style.display = 'none';
-
-            if (imgElement) {
-                imgElement.onload = null;
-                imgElement.onerror = null;
-                imgElement.style.display = 'none';
-                imgElement.removeAttribute('src');
-            }
-            if (pdfFrame) {
-                pdfFrame.onload = null;
-                pdfFrame.onerror = null;
-                pdfFrame.src = 'about:blank';
-            }
 
             const previewUrl = '../request-document.php?id=' + encodeURIComponent(docId);
             const downloadUrl = '../request-document.php?id=' + encodeURIComponent(docId) + '&download=1';
@@ -1564,66 +1584,96 @@ document.addEventListener('DOMContentLoaded', function () {
             const isImage = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'svg', 'ico', 'tif', 'tiff'].includes(ext) || (docMime && docMime.startsWith('image/'));
             const isPdf = ext === 'pdf' || docMime === 'application/pdf';
 
-            if (isImage) {
-                if (imgContainer && imgElement) {
-                    imgContainer.style.display = 'flex';
-                    imgElement.onload = function () {
-                        if (loader) loader.style.display = 'none';
-                        if (errorBox) errorBox.style.display = 'none';
-                        if (fallbackBox) fallbackBox.style.display = 'none';
-                        if (imgContainer) imgContainer.style.display = 'flex';
-                        imgElement.style.display = 'block';
-                    };
-                    imgElement.onerror = function () {
-                        // Native in-browser viewer fallback via iframe
-                        if (pdfContainer && pdfFrame) {
-                            if (imgContainer) imgContainer.style.display = 'none';
-                            pdfContainer.style.display = 'block';
-                            pdfFrame.onload = function () {
-                                if (loader) loader.style.display = 'none';
-                                if (errorBox) errorBox.style.display = 'none';
-                            };
-                            pdfFrame.onerror = function () {
-                                if (loader) loader.style.display = 'none';
-                                if (pdfContainer) pdfContainer.style.display = 'none';
-                                if (errorBox) errorBox.style.display = 'block';
-                            };
-                            pdfFrame.src = previewUrl;
-                            return;
-                        }
-                        if (loader) loader.style.display = 'none';
-                        if (imgContainer) imgContainer.style.display = 'none';
-                        if (errorBox) errorBox.style.display = 'block';
-                    };
-                    imgElement.src = previewUrl;
-                }
-            } else if (isPdf) {
-                if (pdfContainer && pdfFrame) {
-                    pdfContainer.style.display = 'block';
-                    let frameLoaded = false;
-
-                    pdfFrame.onload = function () {
-                        frameLoaded = true;
-                        if (loader) loader.style.display = 'none';
-                        if (errorBox) errorBox.style.display = 'none';
-                    };
-                    pdfFrame.onerror = function () {
-                        if (loader) loader.style.display = 'none';
-                        if (pdfContainer) pdfContainer.style.display = 'none';
-                        if (errorBox) errorBox.style.display = 'block';
-                    };
-                    pdfFrame.src = previewUrl;
-
-                    pdfTimeout = setTimeout(function () {
-                        if (!frameLoaded && loader) {
-                            loader.style.display = 'none';
-                        }
-                    }, 3500);
-                }
-            } else {
+            if (!isImage && !isPdf) {
                 if (loader) loader.style.display = 'none';
                 if (fallbackBox) fallbackBox.style.display = 'block';
+                return;
             }
+
+            activeAbortController = new AbortController();
+            const fetchSignal = activeAbortController.signal;
+
+            fetch(previewUrl, {
+                signal: fetchSignal,
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': isImage ? 'image/*,*/*' : 'application/pdf,*/*'
+                }
+            })
+            .then(async function (response) {
+                if (currentDocId !== docId) return;
+
+                if (!response.ok) {
+                    let errText = 'Unable to preview this file — try downloading it instead.';
+                    if (response.status === 404) {
+                        errText = 'The requested document file was not found on server storage. Try downloading it instead.';
+                    } else if (response.status === 403) {
+                        errText = 'Access denied. You do not have permission to view this document.';
+                    } else if (response.status >= 500) {
+                        errText = 'A server error occurred while retrieving this document. Try downloading it instead.';
+                    }
+                    showErrorState(errText);
+                    return;
+                }
+
+                const contentType = (response.headers.get('content-type') || '').toLowerCase();
+                if (contentType.includes('application/json')) {
+                    try {
+                        const json = await response.json();
+                        showErrorState(json.message || 'Unable to preview this file — try downloading it instead.');
+                        return;
+                    } catch (e) {}
+                }
+
+                const blob = await response.blob();
+                if (currentDocId !== docId) return;
+
+                if (!blob || blob.size === 0) {
+                    showErrorState('The uploaded document is empty or unreadable. Try downloading it instead.');
+                    return;
+                }
+
+                const resolvedBlobUrl = URL.createObjectURL(blob);
+                activeBlobUrl = resolvedBlobUrl;
+
+                if (isImage) {
+                    if (imgContainer && imgElement) {
+                        imgElement.onload = function () {
+                            if (currentDocId !== docId) return;
+                            if (loader) loader.style.display = 'none';
+                            if (errorBox) errorBox.style.display = 'none';
+                            if (fallbackBox) fallbackBox.style.display = 'none';
+                            if (imgContainer) imgContainer.style.display = 'flex';
+                            imgElement.style.display = 'block';
+                        };
+                        imgElement.onerror = function () {
+                            if (currentDocId !== docId) return;
+                            showErrorState('Unable to preview this image file — try downloading it instead.');
+                        };
+                        imgElement.src = resolvedBlobUrl;
+                    }
+                } else if (isPdf) {
+                    if (pdfContainer && pdfFrame) {
+                        pdfContainer.style.display = 'block';
+                        pdfFrame.onload = function () {
+                            if (currentDocId !== docId) return;
+                            if (loader) loader.style.display = 'none';
+                            if (errorBox) errorBox.style.display = 'none';
+                        };
+                        pdfFrame.onerror = function () {
+                            if (currentDocId !== docId) return;
+                            showErrorState('Unable to preview this PDF document — try downloading it instead.');
+                        };
+                        pdfFrame.src = resolvedBlobUrl;
+                    }
+                }
+            })
+            .catch(function (err) {
+                if (err && err.name === 'AbortError') return;
+                if (currentDocId !== docId) return;
+                console.warn('Document preview fetch error:', err);
+                showErrorState('Unable to preview this file — try downloading it instead.');
+            });
         }
 
         // Bootstrap show.bs.modal listener
@@ -1649,23 +1699,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         previewModalEl.addEventListener('hidden.bs.modal', function () {
             currentDocId = null;
-            if (pdfTimeout) {
-                clearTimeout(pdfTimeout);
-                pdfTimeout = null;
-            }
-            const imgElement = document.getElementById('docPreviewImage');
-            const pdfFrame = document.getElementById('docPreviewPdfFrame');
-            if (imgElement) {
-                imgElement.onload = null;
-                imgElement.onerror = null;
-                imgElement.removeAttribute('src');
-                imgElement.style.display = 'none';
-            }
-            if (pdfFrame) {
-                pdfFrame.onload = null;
-                pdfFrame.onerror = null;
-                pdfFrame.src = 'about:blank';
-            }
+            cleanupActiveStream();
         });
     }
 
