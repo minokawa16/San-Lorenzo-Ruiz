@@ -933,6 +933,8 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             --cert-height: <?php echo $is_communion_cert ? '215.9mm' : ($is_confirmation_cert ? '165.1mm' : '228.6mm'); ?>;
             --conf-blue: #006eb3;
             --conf-ink: #111827;
+            --conf-gold: #c59b27;
+            --conf-gold-light: #dfc27d;
             --layout-font-family: "<?php echo e(layoutCssValue($layout_typography['font_family'] ?? '', 'Times New Roman')); ?>", Georgia, serif;
             --layout-font-size: <?php echo floatval($layout_typography['font_size'] ?? 8.5); ?>pt;
             --layout-font-weight: <?php echo e($layout_font_weight); ?>;
@@ -1529,62 +1531,82 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             width: 100%;
             height: 100%;
             position: relative;
-            padding: 9.5mm 10.5mm 9mm 10.5mm;
+            padding: 3.5mm;
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
             background: #ffffff;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
-        .confirmation-border-img {
-            position: absolute;
-            inset: 0;
+        /* Clean double-line frame in the same blue as headings */
+        .conf-outer-frame {
+            position: relative;
             width: 100%;
             height: 100%;
-            pointer-events: none;
-            z-index: 1;
+            border: 2px solid var(--conf-blue);
+            padding: 2.2mm;
+            box-sizing: border-box;
         }
-        .confirmation-replica-body {
+        .conf-inner-frame {
             position: relative;
-            z-index: 2;
+            width: 100%;
             height: 100%;
+            border: 1px solid var(--conf-blue);
+            padding: 3.2mm 5.5mm 3mm 5.5mm;
+            box-sizing: border-box;
             display: flex;
             flex-direction: column;
-            padding: 0 4mm;
             font-family: 'Times New Roman', Times, serif;
             color: var(--conf-ink);
         }
+        /* Small corner flourishes only at the four corners */
+        .conf-corner {
+            position: absolute;
+            width: 10mm;
+            height: 10mm;
+            pointer-events: none;
+            z-index: 5;
+        }
+        .conf-corner.tl { top: -0.5mm; left: -0.5mm; }
+        .conf-corner.tr { top: -0.5mm; right: -0.5mm; transform: scaleX(-1); }
+        .conf-corner.bl { bottom: -0.5mm; left: -0.5mm; transform: scaleY(-1); }
+        .conf-corner.br { bottom: -0.5mm; right: -0.5mm; transform: scale(-1); }
+
+        /* Standardized two-logo header matching Baptismal & Communion templates */
         .conf-header-grid {
             display: grid;
-            grid-template-columns: 21mm 1fr;
-            gap: 3.5mm;
+            grid-template-columns: 21mm 1fr 21mm;
+            gap: 2.5mm;
             align-items: center;
             margin-bottom: 0.5mm;
+            width: 100%;
         }
-        .conf-portrait-box {
+        .conf-logo-slot {
             width: 21mm;
-            height: 27mm;
+            height: 21mm;
             display: flex;
             align-items: center;
             justify-content: center;
         }
-        .conf-portrait-box img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
+        .conf-logo-slot img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
             display: block;
         }
-        .conf-header-titles {
+        .conf-header-center {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             text-align: center;
-            margin-top: -2mm;
+            margin-top: -1mm;
         }
         .conf-title-svg {
             width: 100%;
-            max-width: 140mm;
-            height: 16mm;
+            max-width: 138mm;
+            height: 15mm;
             display: block;
         }
         .conf-mission-name {
@@ -1593,7 +1615,7 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             font-size: 9.5pt;
             color: var(--conf-blue);
             letter-spacing: 0.6px;
-            margin-top: -1.5mm;
+            margin-top: -1.2mm;
             text-transform: uppercase;
         }
         .conf-mission-loc {
@@ -1602,37 +1624,50 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             font-size: 7.8pt;
             color: var(--conf-blue);
             letter-spacing: 0.2px;
-            margin-top: 0.3mm;
+            margin-top: 0.2mm;
         }
+
+        /* Recipient Name: Primary visual anchor */
         .conf-recipient-wrap {
-            margin-top: 1.2mm;
+            margin-top: 1mm;
             text-align: center;
+            width: 100%;
         }
         .conf-recipient-name {
             font-family: 'Times New Roman', 'Cinzel', serif;
-            font-size: 14.5pt;
-            font-weight: 700;
-            letter-spacing: 2.2px;
+            font-size: 18.5pt;
+            font-weight: 800;
+            letter-spacing: 2.8px;
             color: var(--conf-ink);
             text-transform: uppercase;
-            line-height: 1.1;
+            line-height: 1.15;
         }
         .conf-name-underline {
             border-bottom: 1.5px solid var(--conf-blue);
             width: 100%;
             margin-top: 0.8mm;
-            margin-bottom: 1mm;
+            margin-bottom: 1.2mm;
         }
+
         .conf-sacrament-line {
             font-style: italic;
-            font-size: 9.6pt;
+            font-size: 10pt;
             color: var(--conf-blue);
             text-align: center;
-            margin-bottom: 0.8mm;
+            margin-bottom: 1.2mm;
         }
-        .conf-date-bishop-block {
-            font-size: 8.4pt;
-            line-height: 1.35;
+
+        .conf-canonical-block {
+            display: flex;
+            flex-direction: column;
+            gap: 1.2mm;
+            font-size: 8.5pt;
+            line-height: 1.3;
+        }
+        .conf-canon-line {
+            display: flex;
+            align-items: flex-end;
+            white-space: nowrap;
         }
         .conf-lbl {
             font-style: italic;
@@ -1646,7 +1681,7 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             display: inline-block;
             border-bottom: 1px solid var(--conf-blue);
             text-align: center;
-            padding: 0 3px;
+            padding: 0 4px;
             min-height: 3.8mm;
             vertical-align: bottom;
         }
@@ -1655,30 +1690,34 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
         .conf-val-yr { min-width: 8mm; }
         .conf-val-bishop { min-width: 65mm; }
         .conf-delegate-line {
-            margin-top: 0.6mm;
             display: flex;
             align-items: flex-end;
         }
         .conf-val-cname {
             flex-grow: 1;
             text-align: left;
-            padding-left: 4mm;
+            padding-left: 3mm;
         }
+
+        /* Indented Parents & Godparents with aligned columns and even rhythm */
         .conf-parents-block {
-            margin-top: 0.8mm;
+            margin-top: 1.4mm;
             display: flex;
             flex-direction: column;
-            gap: 0.6mm;
-            font-size: 8.4pt;
-            padding-left: 5mm;
+            gap: 1.4mm;
+            font-size: 8.5pt;
+            padding-left: 6mm;
+            padding-right: 2mm;
         }
         .conf-parent-row {
             display: flex;
             align-items: flex-end;
+            height: 4.8mm;
         }
         .conf-parent-row .conf-lbl {
-            width: 28mm;
+            width: 36mm;
             flex-shrink: 0;
+            font-size: 8.5pt;
         }
         .conf-fill-line {
             flex-grow: 1;
@@ -1686,33 +1725,63 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             font-weight: 600;
             color: var(--conf-ink);
             text-transform: uppercase;
-            padding-left: 2.5mm;
+            padding-left: 3mm;
             padding-bottom: 0.2mm;
-            min-height: 4mm;
+            min-height: 4.2mm;
             font-family: 'Times New Roman', serif;
-            font-size: 8.4pt;
+            font-size: 8.5pt;
         }
+
         .conf-certify-stmt {
-            margin-top: 1.2mm;
+            margin-top: 1.8mm;
+            margin-bottom: 1.2mm;
             font-style: italic;
             font-size: 7.8pt;
             color: var(--conf-blue);
             line-height: 1.2;
         }
+
+        /* Bottom Row with ID Photo, Registry, Gold Seal, and Clean Signature */
         .conf-bottom-grid {
             margin-top: auto;
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 4mm;
+            grid-template-columns: 19mm auto 1fr 65mm;
+            gap: 3.5mm;
             align-items: flex-end;
             padding-bottom: 0.5mm;
+            width: 100%;
+        }
+        .conf-photo-box {
+            width: 19mm;
+            height: 19mm;
+            border: 1px solid var(--conf-blue);
+            background: #fdfdfd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+            flex-shrink: 0;
+        }
+        .conf-id-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .conf-photo-placeholder {
+            font-size: 5.5pt;
+            font-family: 'Montserrat', Arial, sans-serif;
+            color: #888;
+            text-align: center;
+            line-height: 1.15;
+            font-weight: 600;
         }
         .conf-reg-col {
             font-size: 8pt;
         }
         .conf-reg-top-row {
             display: flex;
-            gap: 2mm;
+            gap: 1.8mm;
             align-items: flex-end;
             margin-bottom: 0.8mm;
         }
@@ -1734,6 +1803,38 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             text-align: left;
             padding-left: 2mm;
         }
+
+        /* Gold Accent Official Seal */
+        .conf-seal-slot {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .conf-seal-circle {
+            width: 18mm;
+            height: 18mm;
+            border: 1px dashed var(--conf-gold);
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--conf-gold);
+            font-size: 5.5pt;
+            font-family: 'Montserrat', Arial, sans-serif;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-align: center;
+            line-height: 1.1;
+            opacity: 0.9;
+        }
+        .conf-seal-star {
+            font-size: 7.5pt;
+            color: var(--conf-gold);
+            margin-bottom: 0.3mm;
+        }
+
+        /* Clean Priest Signature Column: No ghost text, no duplicate signature */
         .conf-sig-col {
             display: flex;
             flex-direction: column;
@@ -1743,13 +1844,14 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             width: 65mm;
         }
         .conf-sig-img {
-            height: 9.5mm;
+            height: 8.5mm;
             object-fit: contain;
-            margin-bottom: -1.5mm;
+            margin-bottom: 0.5mm;
+            display: block;
             z-index: 2;
         }
         .conf-sig-space {
-            height: 8mm;
+            height: 8.5mm;
         }
         .conf-priest-name {
             font-family: 'Times New Roman', serif;
@@ -1759,6 +1861,7 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             color: var(--conf-ink);
             text-transform: uppercase;
             width: 100%;
+            white-space: nowrap;
         }
         .conf-priest-rule {
             border-bottom: 1px solid var(--conf-blue);
@@ -2323,119 +2426,165 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
     <?php elseif ($cert_type === 'confirmation'): ?>
         <main class="confirmation-replica-page" id="certificateDocument">
             <section class="confirmation-replica-sheet">
-                <!-- Authentic Border from Parish Template -->
-                <img src="../assets/certificates/confirmation_border.png" class="confirmation-border-img" alt="Confirmation Border">
+                <div class="conf-outer-frame">
+                    <!-- Corner flourishes with subtle gold accent -->
+                    <svg class="conf-corner tl" viewBox="0 0 36 36" aria-hidden="true">
+                        <path d="M 2 34 L 2 10 C 2 5.5 5.5 2 10 2 L 34 2" fill="none" stroke="var(--conf-blue)" stroke-width="1.6"/>
+                        <circle cx="10" cy="10" r="2.2" fill="var(--conf-gold)"/>
+                        <path d="M 10 5 L 10 15 M 5 10 L 15 10" stroke="var(--conf-gold)" stroke-width="0.9"/>
+                    </svg>
+                    <svg class="conf-corner tr" viewBox="0 0 36 36" aria-hidden="true">
+                        <path d="M 2 34 L 2 10 C 2 5.5 5.5 2 10 2 L 34 2" fill="none" stroke="var(--conf-blue)" stroke-width="1.6"/>
+                        <circle cx="10" cy="10" r="2.2" fill="var(--conf-gold)"/>
+                        <path d="M 10 5 L 10 15 M 5 10 L 15 10" stroke="var(--conf-gold)" stroke-width="0.9"/>
+                    </svg>
+                    <svg class="conf-corner bl" viewBox="0 0 36 36" aria-hidden="true">
+                        <path d="M 2 34 L 2 10 C 2 5.5 5.5 2 10 2 L 34 2" fill="none" stroke="var(--conf-blue)" stroke-width="1.6"/>
+                        <circle cx="10" cy="10" r="2.2" fill="var(--conf-gold)"/>
+                        <path d="M 10 5 L 10 15 M 5 10 L 15 10" stroke="var(--conf-gold)" stroke-width="0.9"/>
+                    </svg>
+                    <svg class="conf-corner br" viewBox="0 0 36 36" aria-hidden="true">
+                        <path d="M 2 34 L 2 10 C 2 5.5 5.5 2 10 2 L 34 2" fill="none" stroke="var(--conf-blue)" stroke-width="1.6"/>
+                        <circle cx="10" cy="10" r="2.2" fill="var(--conf-gold)"/>
+                        <path d="M 10 5 L 10 15 M 5 10 L 15 10" stroke="var(--conf-gold)" stroke-width="0.9"/>
+                    </svg>
 
-                <div class="confirmation-replica-body">
-                    <!-- Top Section: Saint Lorenzo Ruiz Portrait + Arched Title + Mission Station Heading -->
-                    <div class="conf-header-grid">
-                        <div class="conf-portrait-box">
-                            <img src="<?php echo e($confirmation_photo); ?>" alt="San Lorenzo Ruiz">
-                        </div>
-                        <div class="conf-header-titles">
-                            <svg class="conf-title-svg" viewBox="0 0 540 68">
-                                <defs>
-                                    <path id="confTitleArch" d="M 20 54 Q 270 12 520 54" fill="transparent" />
-                                </defs>
-                                <text font-family="'UnifrakturMaguntia', 'Old English Text MT', serif" font-size="33px" font-weight="700" fill="#006eb3">
-                                    <textPath href="#confTitleArch" startOffset="50%" text-anchor="middle">
-                                        Certificate of Confirmation
-                                    </textPath>
-                                </text>
-                            </svg>
-                            <div class="conf-mission-name">SAN LORENZO RUIZ MISSION STATION</div>
-                            <div class="conf-mission-loc">Aleosan, Cotabato</div>
-                        </div>
-                    </div>
-
-                    <!-- Main Recipient: Rey Mark C. Cavañas -->
-                    <div class="conf-recipient-wrap">
-                        <div class="conf-recipient-name"><?php echo e(strtoupper($data['fullname'] ?? '')); ?></div>
-                        <div class="conf-name-underline"></div>
-                    </div>
-
-                    <!-- Sacrament Declaration -->
-                    <div class="conf-sacrament-line">
-                        received the Holy Sacrament of Confirmation
-                    </div>
-
-                    <!-- Canonical Details: Date, Bishop, Delegate -->
-                    <div class="conf-date-bishop-block">
-                        <div>
-                            <span class="conf-lbl">in this parish on the</span>
-                            <span class="conf-val conf-val-day"><?php echo e($confirmation_day); ?></span>
-                            <span class="conf-lbl">day of</span>
-                            <span class="conf-val conf-val-month"><?php echo e($confirmation_month); ?></span>,
-                            <span class="conf-lbl">20</span><span class="conf-val conf-val-yr"><?php echo e($confirmation_year_short); ?></span>.
-                        </div>
-                        <div style="margin-top: 0.6mm;">
-                            <span class="conf-lbl">Administered by His Excellency</span>
-                            <span class="conf-val conf-val-bishop"><?php echo e($confirmation_bishop); ?></span>
-                            <span class="conf-lbl">Archbishop of Cotabato</span>
-                        </div>
-                        <div class="conf-delegate-line">
-                            <span class="conf-lbl">or his delegate. Confirmed</span>
-                            <span class="conf-val conf-val-cname"><?php echo e($confirmation_cname_display); ?></span>
-                        </div>
-                    </div>
-
-                    <!-- Parents & Sponsors Indented Lines -->
-                    <div class="conf-parents-block">
-                        <div class="conf-parent-row">
-                            <span class="conf-lbl">Father's name</span>
-                            <span class="conf-fill-line"><?php echo e(strtoupper($father_name)); ?></span>
-                        </div>
-                        <div class="conf-parent-row">
-                            <span class="conf-lbl">Mother's name</span>
-                            <span class="conf-fill-line"><?php echo e(strtoupper($mother_name)); ?></span>
-                        </div>
-                        <div class="conf-parent-row">
-                            <span class="conf-lbl">Godfather's name</span>
-                            <span class="conf-fill-line"><?php echo e(strtoupper($godfather !== 'N/A' ? $godfather : '')); ?></span>
-                        </div>
-                        <div class="conf-parent-row">
-                            <span class="conf-lbl">Godmother's name</span>
-                            <span class="conf-fill-line"><?php echo e(strtoupper($godmother !== 'N/A' ? $godmother : '')); ?></span>
-                        </div>
-                    </div>
-
-                    <!-- Certification Statement -->
-                    <div class="conf-certify-stmt">
-                        This is to certify that this certificate is a true copy of Confirmation Record kept in this parish.
-                    </div>
-
-                    <!-- Bottom Row: Registry Left, Signature Right -->
-                    <div class="conf-bottom-grid">
-                        <div class="conf-reg-col">
-                            <div class="conf-reg-top-row">
-                                <div class="conf-reg-item">
-                                    <span class="conf-lbl">Book No.</span>
-                                    <span class="conf-val conf-reg-val"><?php echo e($volume_no !== 'N/A' ? $volume_no : ''); ?></span>
-                                </div>
-                                <div class="conf-reg-item" style="margin-left: 2mm;">
-                                    <span class="conf-lbl">Page</span>
-                                    <span class="conf-val conf-reg-val"><?php echo e($page_no !== 'N/A' ? $page_no : ''); ?></span>
-                                </div>
-                                <div class="conf-reg-item" style="margin-left: 2mm;">
-                                    <span class="conf-lbl">Year</span>
-                                    <span class="conf-val conf-reg-val"><?php echo e($confirmation_year); ?></span>
-                                </div>
+                    <div class="conf-inner-frame">
+                        <!-- Standardized Two-Logo Header (Archdiocese crest on left, Mission medallion on right) -->
+                        <header class="conf-header-grid">
+                            <div class="conf-logo-slot">
+                                <?php if ($archdiocese_logo): ?>
+                                    <img src="<?php echo e($archdiocese_logo); ?>" alt="Archdiocese of Cotabato crest">
+                                <?php endif; ?>
                             </div>
-                            <div class="conf-reg-date-row">
-                                <span class="conf-lbl">Date</span>
-                                <span class="conf-val conf-date-val"><?php echo e($confirmation_issue_date); ?></span>
+                            <div class="conf-header-center">
+                                <svg class="conf-title-svg" viewBox="0 0 540 64">
+                                    <defs>
+                                        <path id="confTitleArch" d="M 20 52 Q 270 12 520 52" fill="transparent" />
+                                    </defs>
+                                    <text font-family="'UnifrakturMaguntia', 'Old English Text MT', serif" font-size="33px" font-weight="700" fill="#006eb3">
+                                        <textPath href="#confTitleArch" startOffset="50%" text-anchor="middle">
+                                            Certificate of Confirmation
+                                        </textPath>
+                                    </text>
+                                </svg>
+                                <div class="conf-mission-name">SAN LORENZO RUIZ MISSION STATION</div>
+                                <div class="conf-mission-loc">Aleosan, Cotabato</div>
+                            </div>
+                            <div class="conf-logo-slot">
+                                <img src="<?php echo e($mission_logo); ?>" alt="San Lorenzo Ruiz Mission Station logo">
+                            </div>
+                        </header>
+
+                        <!-- Recipient Name: Primary visual anchor -->
+                        <div class="conf-recipient-wrap">
+                            <div class="conf-recipient-name"><?php echo e(strtoupper($data['fullname'] ?? '')); ?></div>
+                            <div class="conf-name-underline"></div>
+                        </div>
+
+                        <!-- Sacrament Declaration -->
+                        <div class="conf-sacrament-line">
+                            received the Holy Sacrament of Confirmation
+                        </div>
+
+                        <!-- Canonical Details Block -->
+                        <div class="conf-canonical-block">
+                            <div class="conf-canon-line">
+                                <span class="conf-lbl">in this parish on the</span>
+                                <span class="conf-val conf-val-day"><?php echo e($confirmation_day); ?></span>
+                                <span class="conf-lbl">day of</span>
+                                <span class="conf-val conf-val-month"><?php echo e($confirmation_month); ?></span>,
+                                <span class="conf-lbl">20</span><span class="conf-val conf-val-yr"><?php echo e($confirmation_year_short); ?></span>.
+                            </div>
+                            <div class="conf-canon-line">
+                                <span class="conf-lbl">Administered by His Excellency</span>
+                                <span class="conf-val conf-val-bishop"><?php echo e($confirmation_bishop); ?></span>
+                                <span class="conf-lbl">Archbishop of Cotabato</span>
+                            </div>
+                            <div class="conf-canon-line conf-delegate-line">
+                                <span class="conf-lbl">or his delegate. Confirmed</span>
+                                <span class="conf-val conf-val-cname"><?php echo e($confirmation_cname_display); ?></span>
                             </div>
                         </div>
 
-                        <div class="conf-sig-col">
-                            <?php if (!empty($confirmation_sig_img)): ?>
-                                <img src="<?php echo e($confirmation_sig_img); ?>" class="conf-sig-img" alt="Priest Signature">
-                            <?php else: ?>
-                                <div class="conf-sig-space"></div>
-                            <?php endif; ?>
-                            <div class="conf-priest-name"><?php echo e(strtoupper($confirmation_priest_name)); ?></div>
-                            <div class="conf-priest-rule"></div>
-                            <div class="conf-priest-title"><?php echo e($confirmation_priest_title); ?></div>
+                        <!-- Parents & Sponsors Indented Block with Perfectly Aligned Columns -->
+                        <div class="conf-parents-block">
+                            <div class="conf-parent-row">
+                                <span class="conf-lbl">Father's name</span>
+                                <span class="conf-fill-line"><?php echo e(strtoupper($father_name)); ?></span>
+                            </div>
+                            <div class="conf-parent-row">
+                                <span class="conf-lbl">Mother's name</span>
+                                <span class="conf-fill-line"><?php echo e(strtoupper($mother_name)); ?></span>
+                            </div>
+                            <div class="conf-parent-row">
+                                <span class="conf-lbl">Godfather's name</span>
+                                <span class="conf-fill-line"><?php echo e(strtoupper($godfather !== 'N/A' ? $godfather : '')); ?></span>
+                            </div>
+                            <div class="conf-parent-row">
+                                <span class="conf-lbl">Godmother's name</span>
+                                <span class="conf-fill-line"><?php echo e(strtoupper($godmother !== 'N/A' ? $godmother : '')); ?></span>
+                            </div>
+                        </div>
+
+                        <!-- Certification Assurance Statement -->
+                        <div class="conf-certify-stmt">
+                            This is to certify that this certificate is a true copy of Confirmation Record kept in this parish.
+                        </div>
+
+                        <!-- Bottom Grid: ID Photo Box, Registry, Gold Seal, Clean Signature -->
+                        <div class="conf-bottom-grid">
+                            <div class="conf-photo-box">
+                                <?php if (!empty($data['photo']) && is_file(__DIR__ . '/../' . ltrim($data['photo'], '/'))): ?>
+                                    <img src="<?php echo e('../' . ltrim($data['photo'], '/')); ?>" class="conf-id-img" alt="Confirmand Photo">
+                                <?php elseif (!empty($confirmation_photo) && strpos($confirmation_photo, 'confirmation_slr.png') === false && is_file(__DIR__ . '/../' . ltrim($confirmation_photo, './'))): ?>
+                                    <img src="<?php echo e($confirmation_photo); ?>" class="conf-id-img" alt="Confirmand Photo">
+                                <?php else: ?>
+                                    <div class="conf-photo-placeholder">
+                                        <span>2x2<br>PHOTO</span>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+
+                            <div class="conf-reg-col">
+                                <div class="conf-reg-top-row">
+                                    <div class="conf-reg-item">
+                                        <span class="conf-lbl">Book No.</span>
+                                        <span class="conf-val conf-reg-val"><?php echo e($volume_no !== 'N/A' ? $volume_no : ''); ?></span>
+                                    </div>
+                                    <div class="conf-reg-item" style="margin-left: 2mm;">
+                                        <span class="conf-lbl">Page</span>
+                                        <span class="conf-val conf-reg-val"><?php echo e($page_no !== 'N/A' ? $page_no : ''); ?></span>
+                                    </div>
+                                    <div class="conf-reg-item" style="margin-left: 2mm;">
+                                        <span class="conf-lbl">Year</span>
+                                        <span class="conf-val conf-reg-val"><?php echo e($confirmation_year); ?></span>
+                                    </div>
+                                </div>
+                                <div class="conf-reg-date-row">
+                                    <span class="conf-lbl">Date</span>
+                                    <span class="conf-val conf-date-val"><?php echo e($confirmation_issue_date); ?></span>
+                                </div>
+                            </div>
+
+                            <div class="conf-seal-slot">
+                                <div class="conf-seal-circle">
+                                    <div class="conf-seal-star">&#10013;</div>
+                                    <div class="conf-seal-lbl">PARISH SEAL</div>
+                                    <div class="conf-seal-loc">ALEOSAN</div>
+                                </div>
+                            </div>
+
+                            <div class="conf-sig-col">
+                                <?php if (!empty($confirmation_sig_img)): ?>
+                                    <img src="<?php echo e($confirmation_sig_img); ?>" class="conf-sig-img" alt="Priest Signature">
+                                <?php else: ?>
+                                    <div class="conf-sig-space"></div>
+                                <?php endif; ?>
+                                <div class="conf-priest-name"><?php echo e(strtoupper($confirmation_priest_name)); ?></div>
+                                <div class="conf-priest-rule"></div>
+                                <div class="conf-priest-title"><?php echo e($confirmation_priest_title); ?></div>
+                            </div>
                         </div>
                     </div>
                 </div>
