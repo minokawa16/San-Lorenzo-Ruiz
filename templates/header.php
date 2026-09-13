@@ -282,9 +282,6 @@ if (isLoggedIn()) {
                         <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="userProfileDropdown">
                             <li><a class="dropdown-item" href="../auth/profile.php"><i class="fas fa-user-gear me-2 text-muted"></i> Profile Settings</a></li>
                             <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>users/notifications.php"><i class="fas fa-bell me-2 text-muted"></i> Notifications<?php if ($unread_notification_count > 0): ?> <span class="badge bg-danger ms-auto"><?php echo $unread_notification_count; ?></span><?php endif; ?></a></li>
-                            <?php if (hasPermission('ai.parishioner.use')): ?>
-                            <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>users/ai-assistant.php"><i class="fas fa-robot me-2 text-muted"></i> AI Assistant</a></li>
-                            <?php endif; ?>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item text-danger user-header-logout" href="../auth/logout.php"><i class="fas fa-power-off me-2"></i> <?php echo e(t('nav.logout', 'Log Out')); ?></a></li>
                         </ul>
