@@ -1692,6 +1692,8 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             display: flex;
             align-items: flex-end;
             height: 4.8mm;
+            width: 138mm;
+            box-sizing: border-box;
         }
         .conf-delegate-lbl {
             font-size: 8.5pt;
@@ -1703,19 +1705,19 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             line-height: 1;
             display: inline-block;
             vertical-align: bottom;
+            flex-shrink: 0;
         }
         .conf-val-cname {
             display: inline-block;
-            width: 96mm;
             height: 4.2mm;
             min-height: 4.2mm;
-            flex-grow: 0;
+            flex-grow: 1;
             flex-shrink: 0;
             border-bottom: 1px solid var(--conf-blue);
             font-weight: 600;
             color: var(--conf-ink);
             text-transform: uppercase;
-            padding-left: 2.5mm;
+            padding-left: 3mm;
             padding-right: 2mm;
             padding-bottom: 0.2mm;
             padding-top: 0;
@@ -1737,13 +1739,16 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             flex-direction: column;
             gap: 1.4mm;
             font-size: 8.5pt;
+            width: 138mm;
+            box-sizing: border-box;
             padding-left: 6mm;
-            padding-right: 2mm;
         }
         .conf-parent-row {
             display: flex;
             align-items: flex-end;
             height: 4.8mm;
+            width: 100%;
+            box-sizing: border-box;
         }
         .conf-parent-row .conf-lbl {
             width: 36mm;
@@ -1754,10 +1759,9 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
         }
         .conf-fill-line {
             display: inline-block;
-            width: 96mm;
             height: 4.2mm;
             min-height: 4.2mm;
-            flex-grow: 0;
+            flex-grow: 1;
             flex-shrink: 0;
             border-bottom: 1px solid var(--conf-blue);
             font-weight: 600;
