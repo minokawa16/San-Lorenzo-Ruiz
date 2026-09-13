@@ -1572,7 +1572,7 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             grid-template-columns: 21mm 1fr 21mm;
             gap: 2.5mm;
             align-items: center;
-            margin-bottom: 0.5mm;
+            margin-bottom: 2mm;
             width: 100%;
         }
         .conf-logo-slot {
@@ -1617,12 +1617,14 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             font-size: 7.8pt;
             color: var(--conf-blue);
             letter-spacing: 0.2px;
-            margin-top: 0.2mm;
+            margin-top: 0.4mm;
+            margin-bottom: 1.5mm;
         }
 
-        /* Recipient Name: Primary visual anchor */
+        /* Recipient Name: Primary visual anchor with generous breathing space */
         .conf-recipient-wrap {
-            margin-top: 1mm;
+            margin-top: 3.5mm;
+            margin-bottom: 1.2mm;
             text-align: center;
             width: 100%;
         }
@@ -1653,7 +1655,7 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
         .conf-canonical-block {
             display: flex;
             flex-direction: column;
-            gap: 1.2mm;
+            gap: 1.4mm;
             font-size: 8.5pt;
             line-height: 1.3;
         }
@@ -1661,6 +1663,7 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             display: flex;
             align-items: flex-end;
             white-space: nowrap;
+            height: 4.8mm;
         }
         .conf-lbl {
             font-style: italic;
@@ -1675,8 +1678,11 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             border-bottom: 1px solid var(--conf-blue);
             text-align: center;
             padding: 0 4px;
-            min-height: 3.8mm;
+            min-height: 4.2mm;
+            padding-bottom: 0.2mm;
             vertical-align: bottom;
+            box-sizing: border-box;
+            line-height: 1;
         }
         .conf-val-day { min-width: 22mm; }
         .conf-val-month { min-width: 26mm; }
@@ -1685,19 +1691,43 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
         .conf-delegate-line {
             display: flex;
             align-items: flex-end;
+            height: 4.8mm;
+        }
+        .conf-delegate-lbl {
+            font-size: 8.5pt;
+            font-style: italic;
+            color: var(--conf-blue);
+            white-space: nowrap;
+            margin-right: 3.5mm;
+            padding-bottom: 0.2mm;
+            line-height: 1;
+            display: inline-block;
+            vertical-align: bottom;
         }
         .conf-val-cname {
+            display: inline-block;
             width: 96mm;
+            height: 4.2mm;
+            min-height: 4.2mm;
             flex-grow: 0;
             flex-shrink: 0;
-            margin-left: 1.5mm;
-            text-align: left;
+            border-bottom: 1px solid var(--conf-blue);
+            font-weight: 600;
+            color: var(--conf-ink);
+            text-transform: uppercase;
             padding-left: 2.5mm;
             padding-right: 2mm;
+            padding-bottom: 0.2mm;
+            padding-top: 0;
+            font-family: 'Times New Roman', serif;
+            font-size: 8.5pt;
+            line-height: 1;
             box-sizing: border-box;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            text-align: left;
+            vertical-align: bottom;
         }
 
         /* Indented Parents & Godparents with aligned columns and even rhythm */
@@ -1719,9 +1749,14 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             width: 36mm;
             flex-shrink: 0;
             font-size: 8.5pt;
+            padding-bottom: 0.2mm;
+            line-height: 1;
         }
         .conf-fill-line {
+            display: inline-block;
             width: 96mm;
+            height: 4.2mm;
+            min-height: 4.2mm;
             flex-grow: 0;
             flex-shrink: 0;
             border-bottom: 1px solid var(--conf-blue);
@@ -1731,13 +1766,15 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             padding-left: 3mm;
             padding-right: 2mm;
             padding-bottom: 0.2mm;
-            min-height: 4.2mm;
+            padding-top: 0;
             font-family: 'Times New Roman', serif;
             font-size: 8.5pt;
+            line-height: 1;
             box-sizing: border-box;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            vertical-align: bottom;
         }
 
         .conf-certify-stmt {
@@ -2485,7 +2522,7 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
                                 <span class="conf-lbl">Archbishop of Cotabato</span>
                             </div>
                             <div class="conf-canon-line conf-delegate-line">
-                                <span class="conf-lbl">or his delegate. Confirmed</span>
+                                <span class="conf-lbl conf-delegate-lbl">or his delegate. Confirmed</span>
                                 <span class="conf-val conf-val-cname"><?php echo e($confirmation_cname_display); ?></span>
                             </div>
                         </div>
