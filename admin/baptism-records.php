@@ -1358,12 +1358,28 @@ include '../templates/header.php';
                                             <i class="fas <?php echo $is_archived ? 'fa-box-archive' : 'fa-circle-check'; ?>"></i>
                                             <?php echo $is_archived ? 'Archived' : 'Active'; ?>
                                         </span>
+                                        <?php if ($is_archived && !empty($record['archive_reason'])): ?>
+                                            <div class="mt-1" title="Archive Reason: <?php echo htmlspecialchars($record['archive_reason']); ?>" style="font-size: 0.76rem; color: #dc2626; background: #fee2e2; border: 1px solid #fecaca; border-radius: 4px; padding: 2px 6px; max-width: 140px; word-break: break-word; margin: 0 auto; line-height: 1.3;">
+                                                <i class="fas fa-comment-dots me-1"></i><?php echo htmlspecialchars($record['archive_reason']); ?>
+                                            </div>
+                                        <?php endif; ?>
                                     </td>
                                     <td style="text-align: center;">
                                         <div class="record-actions-wrap justify-content-center">
-                                            <button type="button" class="btn-reg-action btn-reg-archive" onclick="confirmArchive(<?php echo (int)$record['baptism_id']; ?>)" title="Archive this record">
-                                                <i class="fas fa-box-archive"></i> Archive
-                                            </button>
+                                            <?php if ($is_archived): ?>
+                                                <form method="POST" class="d-inline" onsubmit="return confirm('Restore this baptism record to active?');">
+                                                    <?php echo csrfInput(); ?>
+                                                    <input type="hidden" name="action" value="restore">
+                                                    <input type="hidden" name="record_id" value="<?php echo (int)$record['baptism_id']; ?>">
+                                                    <button type="submit" class="btn-reg-action" style="color: #16a34a; border-color: #bbf7d0; background: #f0fdf4;" title="Restore this record">
+                                                        <i class="fas fa-rotate-left"></i> Restore
+                                                    </button>
+                                                </form>
+                                            <?php else: ?>
+                                                <button type="button" class="btn-reg-action btn-reg-archive" onclick="confirmArchive(<?php echo (int)$record['baptism_id']; ?>)" title="Archive this record">
+                                                    <i class="fas fa-box-archive"></i> Archive
+                                                </button>
+                                            <?php endif; ?>
                                         </div>
                                     </td>
                                 </tr>

@@ -175,18 +175,29 @@ if ($action === 'edit' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 // Archive first communion record
 if ($action === 'archive' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $record_id = (int)($_POST['record_id'] ?? 0);
+    $archive_reason = trim($_POST['archive_reason'] ?? '');
     if ($record_id) {
-        $stmt = $conn->prepare("UPDATE first_communion_records SET status='archived', updated_at=NOW() WHERE communion_id=?");
-        if ($stmt) {
-            $stmt->bind_param("i", $record_id);
-            if ($stmt->execute()) {
-                $message = "First Communion record archived successfully!";
-                $alert_type = "success";
-            } else {
-                $message = "Error archiving record: " . $stmt->error;
-                $alert_type = "danger";
-            }
-            $stmt->close();
+        try {
+            $service = new SacramentalRecordService($conn);
+            $service->archive('communion', $record_id, $archive_reason ?: 'Archived by administrator', (int)$_SESSION['user_id']);
+            $message = "First Communion record archived successfully!";
+            $alert_type = "success";
+        } catch (Throwable $e) {
+            $message = "Error archiving record: " . $e->getMessage();
+            $alert_type = "danger";
+        }
+    }
+} elseif ($action === 'restore' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $record_id = (int)($_POST['record_id'] ?? 0);
+    if ($record_id) {
+        try {
+            $service = new SacramentalRecordService($conn);
+            $service->restore('communion', $record_id, (int)$_SESSION['user_id']);
+            $message = "First Communion record restored successfully!";
+            $alert_type = "success";
+        } catch (Throwable $e) {
+            $message = "Error restoring record: " . $e->getMessage();
+            $alert_type = "danger";
         }
     }
 }
@@ -791,18 +802,34 @@ include '../templates/header.php';
                                             <span class="status-badge badge-<?php echo strtolower($record['status']); ?>">
                                                 <?php echo ucfirst($record['status']); ?>
                                             </span>
+                                            <?php if (strtolower($record['status']) === 'archived' && !empty($record['archive_reason'])): ?>
+                                                <div class="mt-1" title="Archive Reason: <?php echo htmlspecialchars($record['archive_reason']); ?>" style="font-size: 0.76rem; color: #dc2626; background: #fee2e2; border: 1px solid #fecaca; border-radius: 4px; padding: 2px 6px; max-width: 140px; word-break: break-word; margin: 0 auto; line-height: 1.3;">
+                                                    <i class="fas fa-comment-dots me-1"></i><?php echo htmlspecialchars($record['archive_reason']); ?>
+                                                </div>
+                                            <?php endif; ?>
                                         </td>
                                         <td>
                                             <div class="action-buttons">
-                                                <a href="generate-cert.php?type=communion&id=<?php echo (int)$record['communion_id']; ?>" class="action-btn" style="background:#1e3a8a;color:#fff;text-decoration:none;padding:6px 11px;border-radius:5px;display:inline-flex;align-items:center;gap:5px;font-size:0.8rem;font-weight:600;" title="Generate First Communion Certificate">
-                                                    <i class="fas fa-certificate"></i> Cert
-                                                </a>
-                                                <button type="button" class="action-btn" style="background:#f59e0b;color:#fff;border:none;padding:6px 11px;border-radius:5px;display:inline-flex;align-items:center;gap:5px;font-size:0.8rem;font-weight:600;cursor:pointer;" onclick='openEditModal(<?php echo js_value($record_payload); ?>)'>
-                                                    <i class="fas fa-edit"></i> Edit
-                                                </button>
-                                                <button class="action-btn btn-delete" onclick="confirmArchive(<?php echo $record['communion_id']; ?>)">
-                                                    <i class="fas fa-archive"></i> Archive
-                                                </button>
+                                                <?php if (strtolower($record['status']) === 'archived'): ?>
+                                                    <form method="POST" class="d-inline" onsubmit="return confirm('Restore this first communion record to active?');">
+                                                        <?php echo csrfInput(); ?>
+                                                        <input type="hidden" name="action" value="restore">
+                                                        <input type="hidden" name="record_id" value="<?php echo (int)$record['communion_id']; ?>">
+                                                        <button type="submit" class="action-btn" style="color: #16a34a; border-color: #bbf7d0; background: #f0fdf4;" title="Restore this record">
+                                                            <i class="fas fa-rotate-left"></i> Restore
+                                                        </button>
+                                                    </form>
+                                                <?php else: ?>
+                                                    <a href="generate-cert.php?type=communion&id=<?php echo (int)$record['communion_id']; ?>" class="action-btn" style="background:#1e3a8a;color:#fff;text-decoration:none;padding:6px 11px;border-radius:5px;display:inline-flex;align-items:center;gap:5px;font-size:0.8rem;font-weight:600;" title="Generate First Communion Certificate">
+                                                        <i class="fas fa-certificate"></i> Cert
+                                                    </a>
+                                                    <button type="button" class="action-btn" style="background:#f59e0b;color:#fff;border:none;padding:6px 11px;border-radius:5px;display:inline-flex;align-items:center;gap:5px;font-size:0.8rem;font-weight:600;cursor:pointer;" onclick='openEditModal(<?php echo js_value($record_payload); ?>)'>
+                                                        <i class="fas fa-edit"></i> Edit
+                                                    </button>
+                                                    <button class="action-btn btn-delete" onclick="confirmArchive(<?php echo $record['communion_id']; ?>)">
+                                                        <i class="fas fa-archive"></i> Archive
+                                                    </button>
+                                                <?php endif; ?>
                                             </div>
                                         </td>
                                     </tr>

@@ -30,7 +30,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $allowed = $isParishioner->get_result()->num_rows > 0;
         $isParishioner->close();
 
-        if ($allowed && transitionAccountStatus($conn, $user_id, 'archived', 'archived', null, (int) $_SESSION['user_id'])) {
+        $archive_reason = trim((string)($_POST['archive_reason'] ?? '')) ?: 'Archived from parishioner management';
+        if ($allowed && transitionAccountStatus($conn, $user_id, 'archived', 'archived', $archive_reason, (int) $_SESSION['user_id'])) {
             createAuditLog($conn, $_SESSION['user_id'], 'ARCHIVE_PARISHIONER', 'users', $user_id);
             $success = 'Parishioner archived successfully!';
         } else {

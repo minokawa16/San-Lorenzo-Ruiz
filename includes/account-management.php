@@ -195,13 +195,14 @@ function transitionAccountStatus(mysqli $conn, int $userId, string $nextStatus, 
         $update = $conn->prepare(
             'UPDATE users SET status = ?, rejection_reason = ?, account_state_changed_at = NOW(), verified_at = CASE WHEN ? IN ("active","rejected") THEN NOW() ELSE verified_at END, verified_by = CASE WHEN ? IN ("active","rejected") THEN ? ELSE verified_by END WHERE id = ?'
         );
-        $storedReason = $nextStatus === 'rejected' ? trim((string) $reason) : null;
+        $cleanReason = trim((string) $reason) !== '' ? trim((string) $reason) : null;
+        $storedReason = ($nextStatus === 'rejected' || $nextStatus === 'archived') ? $cleanReason : null;
         $update->bind_param('ssssii', $nextStatus, $storedReason, $nextStatus, $nextStatus, $actor, $userId);
         if (!$update->execute()) {
             throw new RuntimeException('Unable to update account status.');
         }
         $update->close();
-        if (!recordAccountStatusChange($conn, $userId, $previous, $nextStatus, $action, $storedReason, $actor)) {
+        if (!recordAccountStatusChange($conn, $userId, $previous, $nextStatus, $action, $cleanReason, $actor)) {
             throw new RuntimeException('Unable to record account status history.');
         }
         if (in_array($action, ['approved', 'rejected', 'resubmitted', 'submitted'], true)

@@ -37,7 +37,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') == 'POST') {
             $error = 'Error updating parishioner: ' . $conn->error;
         }
     } elseif ($action == 'archive_user') {
-        if (transitionAccountStatus($conn, $user_id, 'archived', 'archived', null, (int) $_SESSION['user_id'])) {
+        $archive_reason = trim((string)($_POST['archive_reason'] ?? '')) ?: 'Archived from user management';
+        if (transitionAccountStatus($conn, $user_id, 'archived', 'archived', $archive_reason, (int) $_SESSION['user_id'])) {
             createAuditLog($conn, $_SESSION['user_id'], 'ARCHIVE_USER', 'users', $user_id);
             $success = 'Parishioner archived successfully!';
         } else {

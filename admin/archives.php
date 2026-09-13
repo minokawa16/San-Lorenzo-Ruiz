@@ -4,9 +4,9 @@
  * Shows archived requests, announcements, sacramental records, and parishioners.
  */
 
-include '../includes/session.php';
-include '../database/config.php';
-include '../includes/helpers.php';
+require_once '../includes/session.php';
+require_once '../database/config.php';
+require_once '../includes/helpers.php';
 require_once '../services/SacramentalRecordService.php';
 require_once '../includes/account-management.php';
 
@@ -30,14 +30,18 @@ $date_from = trim((string) ($_GET['date_from'] ?? ''));
 $date_to = trim((string) ($_GET['date_to'] ?? ''));
 
 // Ensure Archive Column Function
+if (!function_exists('ensureArchiveColumn')) {
 function ensureArchiveColumn($conn, $table) {
     return columnExists($conn, $table, 'deleted_at');
 }
+}
 
 // Archive Table Exists Function
+if (!function_exists('archiveTableExists')) {
 function archiveTableExists($conn, $table) {
     $table = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
     return schemaTableExists($conn, $table);
+}
 }
 
 ensureArchiveColumn($conn, 'requests');
@@ -135,9 +139,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $requests = [];
-$request_sql = "SELECT r.request_id, r.reference_number, r.request_type, r.status, r.date_requested, r.deleted_at, u.fullname, u.email
+$req_has_reason = columnExists($conn, 'requests', 'archive_reason');
+$req_reason_sel = $req_has_reason ? "r.archive_reason" : "NULL AS archive_reason";
+$request_sql = "SELECT r.request_id, r.reference_number, r.request_type, r.status, r.date_requested, r.deleted_at,
+                       r.admin_response, {$req_reason_sel}, u.fullname, u.email
                 FROM requests r
-                JOIN users u ON r.user_id = u.id
+                LEFT JOIN users u ON r.user_id = u.id
                 WHERE r.deleted_at IS NOT NULL
                 ORDER BY r.deleted_at DESC";
 $request_result = $conn->query($request_sql);
@@ -146,11 +153,16 @@ while ($request_result && $row = $request_result->fetch_assoc()) {
 }
 
 $announcements = [];
-$announcement_sql = "SELECT a.announcement_id, a.title, a.content, a.type, a.published_date, a.deleted_at, u.fullname
+$announcement_sql = "SELECT a.announcement_id, a.title, a.content, a.type, a.published_date,
+                            COALESCE(a.archived_at, a.deleted_at) AS deleted_at,
+                            a.archive_reason,
+                            u.fullname AS published_by_name,
+                            arch_u.fullname AS archived_by_name
                      FROM announcements a
-                     JOIN users u ON a.published_by = u.id
-                     WHERE a.deleted_at IS NOT NULL
-                     ORDER BY a.deleted_at DESC";
+                     LEFT JOIN users u ON a.published_by = u.id
+                     LEFT JOIN users arch_u ON a.archived_by = arch_u.id
+                     WHERE a.deleted_at IS NOT NULL OR a.lifecycle_status = 'archived'
+                     ORDER BY COALESCE(a.archived_at, a.deleted_at) DESC";
 $announcement_result = $conn->query($announcement_sql);
 while ($announcement_result && $row = $announcement_result->fetch_assoc()) {
     $announcements[] = $row;
@@ -162,17 +174,64 @@ foreach ($record_tables as $type => $meta) {
         continue;
     }
 
+    $hasReasonCol = columnExists($conn, $meta['table'], 'archive_reason');
+    $hasArchivedAtCol = columnExists($conn, $meta['table'], 'archived_at');
+    $hasArchivedByCol = columnExists($conn, $meta['table'], 'archived_by');
+    $hasRegistryCol = columnExists($conn, $meta['table'], 'registry_no');
+    $hasBookCol = columnExists($conn, $meta['table'], 'book_no');
+    $hasPageCol = columnExists($conn, $meta['table'], 'page_no');
+    $hasEntryCol = columnExists($conn, $meta['table'], 'entry_no');
+
+    $reasonSelect = $hasReasonCol ? "t.archive_reason" : "NULL AS archive_reason";
+    $archivedAtSelect = $hasArchivedAtCol ? "COALESCE(t.archived_at, t.updated_at) AS archived_at" : "t.updated_at AS archived_at";
+    $archivedBySelect = $hasArchivedByCol ? "t.archived_by" : "NULL AS archived_by";
+    $registrySelect = $hasRegistryCol ? "t.registry_no" : "NULL AS registry_no";
+    $bookSelect = $hasBookCol ? "t.book_no" : "NULL AS book_no";
+    $pageSelect = $hasPageCol ? "t.page_no" : "NULL AS page_no";
+    $entrySelect = $hasEntryCol ? "t.entry_no" : "NULL AS entry_no";
+
+    $joinUser = $hasArchivedByCol ? "LEFT JOIN users u ON u.id = t.archived_by" : "";
+    $userNameSelect = $hasArchivedByCol ? "u.fullname AS archived_by_name" : "NULL AS archived_by_name";
+
+    $nameExpr = strpos($meta['name'], '(') !== false ? $meta['name'] : 't.' . $meta['name'];
+    $dateExpr = strpos($meta['date'], '(') !== false ? $meta['date'] : 't.' . $meta['date'];
+
     $sql = "SELECT '{$type}' AS record_type,
                    '{$meta['label']}' AS record_label,
-                   {$meta['id']} AS record_id,
-                   {$meta['name']} AS record_name,
-                   {$meta['date']} AS record_date,
+                   t.{$meta['id']} AS record_id,
+                   {$nameExpr} AS record_name,
+                   {$dateExpr} AS record_date,
                    {$meta['detail']} AS record_detail,
-                   updated_at AS archived_at
-            FROM {$meta['table']}
-            WHERE status = 'archived'";
+                   {$archivedAtSelect},
+                   {$reasonSelect},
+                   {$archivedBySelect},
+                   {$userNameSelect},
+                   {$registrySelect},
+                   {$bookSelect},
+                   {$pageSelect},
+                   {$entrySelect}
+            FROM {$meta['table']} t
+            {$joinUser}
+            WHERE t.status = 'archived'";
     $result = $conn->query($sql);
     while ($result && $row = $result->fetch_assoc()) {
+        if (empty($row['archive_reason'])) {
+            // Fallback: check audit_log for reason
+            $log_stmt = $conn->prepare("SELECT new_values, new_value, description FROM audit_log WHERE table_name = ? AND (target_id = ? OR record_id = ?) AND action = 'ARCHIVE_SACRAMENTAL_RECORD' ORDER BY log_id DESC LIMIT 1");
+            if ($log_stmt) {
+                $rec_id = (int)$row['record_id'];
+                $log_stmt->bind_param("sii", $meta['table'], $rec_id, $rec_id);
+                $log_stmt->execute();
+                $log_row = $log_stmt->get_result()->fetch_assoc();
+                $log_stmt->close();
+                if ($log_row) {
+                    $parsed = json_decode($log_row['new_values'] ?? $log_row['new_value'] ?? '', true);
+                    if (!empty($parsed['reason'])) {
+                        $row['archive_reason'] = (string)$parsed['reason'];
+                    }
+                }
+            }
+        }
         $records[] = $row;
     }
 }
@@ -181,10 +240,28 @@ usort($records, function ($a, $b) {
 });
 
 $parishioners = [];
-$parishioner_sql = "SELECT u.id, u.fullname, u.email, u.phone_number, u.address, u.chapel_district, u.status, u.role, u.account_state_changed_at, u.created_at, u.updated_at
+$hasUserArchivedReason = columnExists($conn, 'users', 'archive_reason');
+$userReasonCol = $hasUserArchivedReason ? "u.archive_reason," : "";
+$userReasonCoalesce = $hasUserArchivedReason ? "COALESCE(u.archive_reason, ash.reason, u.rejection_reason)" : "COALESCE(ash.reason, u.rejection_reason)";
+$parishioner_sql = "SELECT u.id, u.fullname, u.email, u.phone_number, u.address, u.chapel_district, u.status, u.role,
+                           {$userReasonCol}
+                           COALESCE(u.account_state_changed_at, u.updated_at, u.created_at) AS archived_at,
+                           {$userReasonCoalesce} AS archive_reason,
+                           act_u.fullname AS archived_by_name
                     FROM users u
+                    LEFT JOIN (
+                        SELECT ash1.user_id, ash1.reason, ash1.actor_user_id
+                        FROM account_status_history ash1
+                        INNER JOIN (
+                            SELECT user_id, MAX(history_id) AS max_id
+                            FROM account_status_history
+                            WHERE new_status = 'archived' OR action = 'archived'
+                            GROUP BY user_id
+                        ) ash2 ON ash1.history_id = ash2.max_id
+                    ) ash ON ash.user_id = u.id
+                    LEFT JOIN users act_u ON act_u.id = ash.actor_user_id
                     WHERE u.status = 'archived'
-                    ORDER BY COALESCE(u.account_state_changed_at, u.updated_at, u.created_at) DESC";
+                    ORDER BY archived_at DESC";
 $parishioner_result = $conn->query($parishioner_sql);
 while ($parishioner_result && $row = $parishioner_result->fetch_assoc()) {
     $parishioners[] = $row;
@@ -211,6 +288,7 @@ foreach ($archive_filter_options as $key => $values) {
     sort($archive_filter_options[$key]);
 }
 
+if (!function_exists('archiveDateMatches')) {
 function archiveDateMatches($value, $date_from, $date_to) {
     $timestamp = strtotime((string) $value);
     if (!$timestamp) {
@@ -224,12 +302,15 @@ function archiveDateMatches($value, $date_from, $date_to) {
     }
     return true;
 }
+}
 
+if (!function_exists('archiveTextMatches')) {
 function archiveTextMatches($haystack, $needle) {
     if ($needle === '') {
         return true;
     }
     return stripos(implode(' ', array_map('strval', $haystack)), $needle) !== false;
+}
 }
 
 if ($active_tab === 'requests') {
@@ -246,6 +327,8 @@ if ($active_tab === 'requests') {
             $request['status'] ?? '',
             $request['fullname'] ?? '',
             $request['email'] ?? '',
+            $request['archive_reason'] ?? '',
+            $request['admin_response'] ?? '',
         ], $archive_search);
     }));
 } elseif ($active_tab === 'announcements') {
@@ -260,7 +343,9 @@ if ($active_tab === 'requests') {
             $announcement['title'] ?? '',
             $announcement['content'] ?? '',
             $announcement['type'] ?? '',
-            $announcement['fullname'] ?? '',
+            $announcement['published_by_name'] ?? $announcement['fullname'] ?? '',
+            $announcement['archived_by_name'] ?? '',
+            $announcement['archive_reason'] ?? '',
         ], $archive_search);
     }));
 } elseif ($active_tab === 'records') {
@@ -276,6 +361,12 @@ if ($active_tab === 'requests') {
             $record['record_name'] ?? '',
             $record['record_date'] ?? '',
             $record['record_detail'] ?? '',
+            $record['archive_reason'] ?? '',
+            $record['archived_by_name'] ?? '',
+            $record['registry_no'] ?? '',
+            $record['book_no'] ?? '',
+            $record['page_no'] ?? '',
+            $record['entry_no'] ?? '',
         ], $archive_search);
     }));
 } else {
@@ -283,7 +374,7 @@ if ($active_tab === 'requests') {
         if ($archive_filter !== '' && (string) ($parishioner['chapel_district'] ?? '') !== $archive_filter) {
             return false;
         }
-        $archived_date = $parishioner['account_state_changed_at'] ?? ($parishioner['updated_at'] ?? $parishioner['created_at']);
+        $archived_date = $parishioner['archived_at'] ?? ($parishioner['account_state_changed_at'] ?? ($parishioner['updated_at'] ?? $parishioner['created_at']));
         if (($date_from !== '' || $date_to !== '') && !archiveDateMatches($archived_date, $date_from, $date_to)) {
             return false;
         }
@@ -293,6 +384,8 @@ if ($active_tab === 'requests') {
             $parishioner['phone_number'] ?? '',
             $parishioner['address'] ?? '',
             $parishioner['chapel_district'] ?? '',
+            $parishioner['archive_reason'] ?? '',
+            $parishioner['archived_by_name'] ?? '',
         ], $archive_search);
     }));
 }
@@ -335,6 +428,34 @@ include '../templates/header.php';
 
     <div class="card shadow-sm border-0 rounded-4">
         <div class="card-body p-4">
+            <style>
+                .archive-reason-box {
+                    background: #fef2f2;
+                    border: 1px solid #fecaca;
+                    border-left: 3.5px solid #dc2626;
+                    border-radius: 6px;
+                    padding: 6px 10px;
+                    max-width: 320px;
+                }
+                .archive-reason-text {
+                    font-size: 0.84rem;
+                    font-weight: 600;
+                    color: #b91c1c;
+                    line-height: 1.35;
+                    word-break: break-word;
+                }
+                .archive-meta-date {
+                    font-size: 0.83rem;
+                    font-weight: 600;
+                    color: #1e293b;
+                }
+                .archive-meta-by {
+                    font-size: 0.77rem;
+                    color: #64748b;
+                    margin-top: 2px;
+                }
+            </style>
+
             <ul class="nav nav-tabs mb-4">
                 <li class="nav-item">
                     <a class="nav-link <?php echo $active_tab === 'requests' ? 'active fw-bold' : ''; ?>" href="?tab=requests">
@@ -343,13 +464,13 @@ include '../templates/header.php';
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link <?php echo $active_tab === 'announcements' ? 'active' : ''; ?>" href="?tab=announcements">
+                    <a class="nav-link <?php echo $active_tab === 'announcements' ? 'active fw-bold' : ''; ?>" href="?tab=announcements">
                         <i class="fas fa-bullhorn me-1"></i> Announcements
                         <span class="badge bg-secondary ms-1"><?php echo count($announcements); ?></span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link <?php echo $active_tab === 'records' ? 'active' : ''; ?>" href="?tab=records">
+                    <a class="nav-link <?php echo $active_tab === 'records' ? 'active fw-bold' : ''; ?>" href="?tab=records">
                         <i class="fas fa-book-bible me-1"></i> Sacramental Records
                         <span class="badge bg-secondary ms-1"><?php echo count($records); ?></span>
                     </a>
@@ -367,7 +488,7 @@ include '../templates/header.php';
                 <div class="row g-2 align-items-end">
                     <div class="col-lg-4">
                         <label class="form-label fw-semibold" for="archiveSearch">Search</label>
-                        <input class="form-control" id="archiveSearch" type="text" name="q" value="<?php echo e($archive_search); ?>" placeholder="Search archived items...">
+                        <input class="form-control" id="archiveSearch" type="text" name="q" value="<?php echo e($archive_search); ?>" placeholder="Search archived items, reasons...">
                     </div>
                     <div class="col-lg-3">
                         <label class="form-label fw-semibold" for="archiveFilter">
@@ -422,6 +543,7 @@ include '../templates/header.php';
                                     <th>User</th>
                                     <th>Type</th>
                                     <th>Status</th>
+                                    <th style="min-width: 220px;">Reason / Response</th>
                                     <th>Archived</th>
                                     <th>Action</th>
                                 </tr>
@@ -430,12 +552,29 @@ include '../templates/header.php';
                                 <?php foreach ($requests as $request): ?>
                                     <tr>
                                         <td><strong><?php echo e($request['reference_number']); ?></strong></td>
-                                        <td><?php echo e($request['fullname']); ?><br><small><?php echo e($request['email']); ?></small></td>
+                                        <td><?php echo e($request['fullname']); ?><br><small class="text-muted"><?php echo e($request['email']); ?></small></td>
                                         <td><?php echo e(ucfirst(str_replace('_', ' ', $request['request_type']))); ?></td>
                                         <?php 
                                             $disp_status = strtolower($request['status'] ?? 'pending');
                                         ?>
                                         <td><span class="badge rounded-pill border px-2.5 py-1 fw-semibold <?php echo getStatusBadgeClass($disp_status); ?>"><?php echo e(ucfirst($disp_status)); ?></span></td>
+                                        <td>
+                                            <?php 
+                                                $req_note = trim($request['archive_reason'] ?? '') ?: trim($request['admin_response'] ?? '');
+                                            ?>
+                                            <?php if (!empty($req_note)): ?>
+                                                <div class="archive-reason-box">
+                                                    <div class="d-flex align-items-start gap-1">
+                                                        <i class="fas fa-comment-dots text-danger mt-1 flex-shrink-0" style="font-size: 0.8rem;"></i>
+                                                        <span class="archive-reason-text">
+                                                            <?php echo e($req_note); ?>
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            <?php else: ?>
+                                                <span class="badge bg-light text-muted border fst-italic">No reason recorded</span>
+                                            <?php endif; ?>
+                                        </td>
                                         <td><?php echo formatDateTime($request['deleted_at']); ?></td>
                                         <td>
                                             <form method="POST" class="d-inline" onsubmit="return confirm('Restore this request?');">
@@ -465,6 +604,7 @@ include '../templates/header.php';
                                     <th>Title</th>
                                     <th>Type</th>
                                     <th>By</th>
+                                    <th style="min-width: 240px;">Archive Reason</th>
                                     <th>Archived</th>
                                     <th>Action</th>
                                 </tr>
@@ -477,8 +617,31 @@ include '../templates/header.php';
                                             <small class="text-muted"><?php echo e(substr($announcement['content'], 0, 100)); ?>...</small>
                                         </td>
                                         <td><?php echo e(ucfirst($announcement['type'])); ?></td>
-                                        <td><?php echo e($announcement['fullname']); ?></td>
-                                        <td><?php echo formatDateTime($announcement['deleted_at']); ?></td>
+                                        <td><?php echo e($announcement['published_by_name'] ?? $announcement['fullname'] ?? 'System'); ?></td>
+                                        <td>
+                                            <?php if (!empty($announcement['archive_reason'])): ?>
+                                                <div class="archive-reason-box">
+                                                    <div class="d-flex align-items-start gap-1">
+                                                        <i class="fas fa-comment-dots text-danger mt-1 flex-shrink-0" style="font-size: 0.8rem;"></i>
+                                                        <span class="archive-reason-text">
+                                                            <?php echo e($announcement['archive_reason']); ?>
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            <?php else: ?>
+                                                <span class="badge bg-light text-muted border fst-italic">No reason recorded</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <div class="archive-meta-date">
+                                                <i class="fas fa-clock text-muted me-1"></i><?php echo formatDateTime($announcement['deleted_at']); ?>
+                                            </div>
+                                            <?php if (!empty($announcement['archived_by_name'])): ?>
+                                                <div class="archive-meta-by">
+                                                    <i class="fas fa-user-shield text-muted me-1"></i>By <?php echo e($announcement['archived_by_name']); ?>
+                                                </div>
+                                            <?php endif; ?>
+                                        </td>
                                         <td>
                                             <form method="POST" class="d-inline" onsubmit="return confirm('Restore this announcement?');">
                                                 <?php echo csrfInput(); ?>
@@ -504,23 +667,63 @@ include '../templates/header.php';
                         <table class="table table-hover align-middle">
                             <thead class="table-light">
                                 <tr>
-                                    <th>Record Type</th>
-                                    <th>Name</th>
-                                    <th>Date</th>
-                                    <th>Details</th>
-                                    <th>Archived</th>
-                                    <th>Action</th>
+                                    <th style="min-width: 140px;">Record Type</th>
+                                    <th style="min-width: 180px;">Name</th>
+                                    <th style="min-width: 110px;">Date</th>
+                                    <th style="min-width: 170px;">Details</th>
+                                    <th style="min-width: 250px;">Archive Reason</th>
+                                    <th style="min-width: 170px;">Archived</th>
+                                    <th style="width: 110px; text-align: center;">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php foreach ($records as $record): ?>
                                     <tr>
-                                        <td><?php echo e($record['record_label']); ?></td>
-                                        <td><strong><?php echo e($record['record_name']); ?></strong></td>
-                                        <td><?php echo formatDate($record['record_date']); ?></td>
-                                        <td><?php echo e($record['record_detail']); ?></td>
-                                        <td><?php echo formatDateTime($record['archived_at']); ?></td>
                                         <td>
+                                            <span class="badge bg-light text-dark border px-2 py-1 fw-semibold">
+                                                <i class="fas fa-book-bible me-1 text-primary"></i><?php echo e($record['record_label']); ?>
+                                            </span>
+                                            <?php if (!empty($record['registry_no'])): ?>
+                                                <div class="small text-muted mt-1"><i class="fas fa-hashtag me-1"></i>Reg: <?php echo e($record['registry_no']); ?></div>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <strong class="text-dark"><?php echo e($record['record_name']); ?></strong>
+                                            <?php if (!empty($record['book_no']) || !empty($record['page_no'])): ?>
+                                                <div class="text-muted small">
+                                                    Bk <?php echo e($record['book_no'] ?: '-'); ?>, Pg <?php echo e($record['page_no'] ?: '-'); ?><?php if (!empty($record['entry_no'])): ?>, Ent <?php echo e($record['entry_no']); ?><?php endif; ?>
+                                                </div>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td><?php echo formatDate($record['record_date']); ?></td>
+                                        <td>
+                                            <span class="text-secondary small"><?php echo e($record['record_detail']); ?></span>
+                                        </td>
+                                        <td>
+                                            <?php if (!empty($record['archive_reason'])): ?>
+                                                <div class="archive-reason-box">
+                                                    <div class="d-flex align-items-start gap-1">
+                                                        <i class="fas fa-comment-dots text-danger mt-1 flex-shrink-0" style="font-size: 0.82rem;"></i>
+                                                        <span class="archive-reason-text">
+                                                            <?php echo e($record['archive_reason']); ?>
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            <?php else: ?>
+                                                <span class="badge bg-light text-muted border fst-italic">No reason recorded</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <div class="archive-meta-date">
+                                                <i class="fas fa-clock text-muted me-1"></i><?php echo formatDateTime($record['archived_at']); ?>
+                                            </div>
+                                            <?php if (!empty($record['archived_by_name'])): ?>
+                                                <div class="archive-meta-by">
+                                                    <i class="fas fa-user-shield text-muted me-1"></i>By <?php echo e($record['archived_by_name']); ?>
+                                                </div>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td class="text-center">
                                             <form method="POST" class="d-inline" onsubmit="return confirm('Restore this sacramental record?');">
                                                 <?php echo csrfInput(); ?>
                                                 <input type="hidden" name="action" value="restore_record">
@@ -550,6 +753,7 @@ include '../templates/header.php';
                                     <th>Address &amp; District</th>
                                     <th>Role</th>
                                     <th>Status</th>
+                                    <th style="min-width: 240px;">Archive Reason</th>
                                     <th>Archived Date</th>
                                     <th>Action</th>
                                 </tr>
@@ -572,7 +776,30 @@ include '../templates/header.php';
                                         </td>
                                         <td><span class="badge bg-info text-dark"><?php echo e(ucfirst($p['role'])); ?></span></td>
                                         <td><span class="badge bg-secondary">Archived</span></td>
-                                        <td><?php echo formatDateTime($p['account_state_changed_at'] ?? ($p['updated_at'] ?? $p['created_at'])); ?></td>
+                                        <td>
+                                            <?php if (!empty($p['archive_reason'])): ?>
+                                                <div class="archive-reason-box">
+                                                    <div class="d-flex align-items-start gap-1">
+                                                        <i class="fas fa-comment-dots text-danger mt-1 flex-shrink-0" style="font-size: 0.8rem;"></i>
+                                                        <span class="archive-reason-text">
+                                                            <?php echo e($p['archive_reason']); ?>
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            <?php else: ?>
+                                                <span class="badge bg-light text-muted border fst-italic">No reason recorded</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <div class="archive-meta-date">
+                                                <i class="fas fa-clock text-muted me-1"></i><?php echo formatDateTime($p['archived_at']); ?>
+                                            </div>
+                                            <?php if (!empty($p['archived_by_name'])): ?>
+                                                <div class="archive-meta-by">
+                                                    <i class="fas fa-user-shield text-muted me-1"></i>By <?php echo e($p['archived_by_name']); ?>
+                                                </div>
+                                            <?php endif; ?>
+                                        </td>
                                         <td>
                                             <form method="POST" class="d-inline" onsubmit="return confirm('Restore this parishioner account to Active?');">
                                                 <?php echo csrfInput(); ?>
