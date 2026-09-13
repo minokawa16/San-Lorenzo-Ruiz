@@ -3259,10 +3259,6 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
                                     <option value="First Communion Requirement">First Communion Requirement</option>
                                     <option value="Confirmation Requirement">Confirmation Requirement</option>
                                     <option value="Marriage Requirement">Marriage Requirement</option>
-                                    <option value="Employment">Employment</option>
-                                    <option value="Travel/Passport Application">Travel/Passport Application</option>
-                                    <option value="PhilHealth/SSS Requirement">PhilHealth/SSS Requirement</option>
-                                    <option value="Legal Reference / Personal Record">Legal Reference / Personal Record</option>
                                     <option value="__OTHER__">Other (Enter custom purpose below)</option>
                                 </select>
                             </div>
@@ -3274,9 +3270,6 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
                                 <span class="badge bg-light text-dark border" style="cursor:pointer;" onclick="setPurposeValue('First Communion Requirement')">First Communion Requirement</span>
                                 <span class="badge bg-light text-dark border" style="cursor:pointer;" onclick="setPurposeValue('Confirmation Requirement')">Confirmation Requirement</span>
                                 <span class="badge bg-light text-dark border" style="cursor:pointer;" onclick="setPurposeValue('Marriage Requirement')">Marriage Requirement</span>
-                                <span class="badge bg-light text-dark border" style="cursor:pointer;" onclick="setPurposeValue('Employment')">Employment</span>
-                                <span class="badge bg-light text-dark border" style="cursor:pointer;" onclick="setPurposeValue('Travel/Passport Application')">Travel/Passport Application</span>
-                                <span class="badge bg-light text-dark border" style="cursor:pointer;" onclick="setPurposeValue('PhilHealth/SSS Requirement')">PhilHealth/SSS Requirement</span>
                                 <span class="badge bg-light text-dark border" style="cursor:pointer;" onclick="focusCustomPurpose()">Other (Custom)</span>
                             </div>
                         </div>
