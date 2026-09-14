@@ -79,11 +79,16 @@ require_once '../services/ReportPdfGenerator.php';
 $service = new ReportService($conn);
 $export  = $_POST['export'] ?? ($_GET['export'] ?? '');
 
-if (in_array($export, ['csv', 'pdf'], true)) {
-    requirePermission('reports.export');
-    $data = $service->export($report, $filters, 10000);
-    writeAuditLog($conn, $_SESSION['user_id'], 'EXPORT_REPORT', 'reports', null, null,
-        ['report' => $report, 'filters' => $filters, 'format' => $export, 'rows' => count($data['rows'])], 'reports', 'reports.export');
+if (in_array($export, ['csv', 'pdf', 'preview'], true)) {
+    if ($export !== 'preview') {
+        requirePermission('reports.export');
+    }
+    $exportLimit = ($export === 'preview') ? 500 : 10000;
+    $data = $service->export($report, $filters, $exportLimit);
+    if ($export !== 'preview') {
+        writeAuditLog($conn, $_SESSION['user_id'], 'EXPORT_REPORT', 'reports', null, null,
+            ['report' => $report, 'filters' => $filters, 'format' => $export, 'rows' => count($data['rows'])], 'reports', 'reports.export');
+    }
     $title    = 'Parish Analytics & Operational Report';
     $subtitle = $labels[$report] ?? 'Parish Operational Statistics';
     if ($export === 'csv') {
@@ -126,6 +131,13 @@ if (in_array($export, ['csv', 'pdf'], true)) {
     ];
 
     $generatedBy = !empty($_SESSION['fullname']) ? (string)$_SESSION['fullname'] : 'Parish Administrator';
+
+    if ($export === 'preview') {
+        header('Content-Type: text/html; charset=utf-8');
+        echo ReportPdfGenerator::buildHtml($report, $title, $filters, $data, $generatedBy, $subtitle, $charts, $meta);
+        exit;
+    }
+
     ReportPdfGenerator::stream($report, $title, $filters, $data, $generatedBy, 'portrait', $subtitle, $charts, $meta);
 }
 
@@ -295,6 +307,22 @@ include '../templates/header.php';
   border: 1.5px solid var(--slate-200);
 }
 .ar-btn-outline:hover { background: var(--slate-50); border-color: var(--gold); color: var(--gold); transform: translateY(-1px); }
+.ar-btn-primary {
+  background: var(--green-dark);
+  color: #fff;
+  border: 1.5px solid var(--green-dark);
+  box-shadow: 0 2px 8px rgba(46, 58, 45, 0.25);
+}
+.ar-btn-primary:hover {
+  background: var(--green-mid);
+  border-color: var(--green-mid);
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(46, 58, 45, 0.35);
+}
+.ar-btn-primary:active {
+  transform: translateY(0);
+}
 
 /* --- KPI Grid --- */
 .ar-kpi-grid {
@@ -516,6 +544,66 @@ include '../templates/header.php';
 .ar-empty i { font-size: 2.2rem; display: block; margin-bottom: 12px; opacity: 0.4; }
 .ar-empty strong { display: block; color: var(--slate-600); font-size: 0.9rem; margin-bottom: 4px; }
 .ar-empty span { font-size: 0.8rem; }
+
+/* --- Print Preview Modal Styling --- */
+.print-preview-modal-dialog {
+  max-width: 980px;
+  margin: 1.5rem auto;
+}
+.print-preview-modal-content {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.print-preview-modal-body {
+  background: #525659;
+  min-height: 560px;
+  max-height: calc(85vh - 130px);
+  overflow-y: auto;
+  position: relative;
+}
+.print-preview-container {
+  display: flex;
+  justify-content: center;
+  padding: 24px 16px;
+  min-height: 100%;
+}
+.print-paper-sheet {
+  background: #ffffff;
+  width: 100%;
+  max-width: 860px;
+  min-height: 900px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.38);
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.print-preview-iframe {
+  width: 100%;
+  min-height: 850px;
+  height: 100%;
+  border: none;
+  background: #ffffff;
+  display: block;
+}
+.print-preview-loading {
+  background: #f8fafc;
+  min-height: 520px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.print-preview-header-icon {
+  width: 34px;
+  height: 34px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+}
 </style>
 
 <?php
@@ -538,6 +626,9 @@ $kpi_completion_rate = $kpi_requests_total > 0
     </div>
     <?php if (hasPermission('reports.export')): ?>
     <div class="ar-header-actions">
+      <button type="button" class="ar-btn ar-btn-primary btn-open-print-preview" id="btnOpenPrintPreview" title="Print preview report">
+        <i class="fas fa-print"></i> Print Preview
+      </button>
       <a class="ar-btn ar-btn-gold" href="?<?php echo e(http_build_query(array_merge($queryBase, ['export' => 'pdf']))); ?>">
         <i class="fas fa-file-pdf"></i> Export PDF
       </a>
@@ -698,7 +789,10 @@ $kpi_completion_rate = $kpi_requests_total > 0
         <span class="ar-table-count"><?php echo number_format($tableData['total']); ?> records</span>
       </div>
       <?php if (hasPermission('reports.export')): ?>
-      <div style="display:flex;gap:8px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" class="ar-btn ar-btn-primary btn-open-print-preview" style="padding:7px 14px;font-size:0.78rem;" title="Print preview report">
+          <i class="fas fa-print"></i> Print Preview
+        </button>
         <a class="ar-btn ar-btn-gold" style="padding:7px 14px;font-size:0.78rem;" href="?<?php echo e(http_build_query(array_merge($queryBase, ['export' => 'pdf']))); ?>">
           <i class="fas fa-file-pdf"></i> PDF
         </a>
@@ -811,6 +905,80 @@ $kpi_completion_rate = $kpi_requests_total > 0
   </div><!-- /table-section -->
 
 </div><!-- /ar-page -->
+
+<!-- Print Preview Modal -->
+<div class="modal fade" id="printPreviewModal" tabindex="-1" aria-labelledby="printPreviewModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable print-preview-modal-dialog">
+    <div class="modal-content border-0 shadow-lg print-preview-modal-content">
+      
+      <!-- Fixed Modal Header -->
+      <div class="modal-header bg-dark text-white px-4 py-3 align-items-center">
+        <div class="d-flex align-items-center gap-2">
+          <span class="print-preview-header-icon"><i class="fas fa-print text-warning"></i></span>
+          <div>
+            <h5 class="modal-title mb-0 fw-bold fs-6" id="printPreviewModalLabel">Print Preview &mdash; Analytics Report</h5>
+            <small class="text-white-50" id="printPreviewFilterSummary">Active filters &amp; live metrics</small>
+          </div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+      </div>
+
+      <!-- Scrollable Modal Body -->
+      <div class="modal-body p-0 print-preview-modal-body">
+        
+        <!-- Loading State -->
+        <div id="printPreviewLoading" class="print-preview-loading py-5 text-center">
+          <div class="spinner-border text-warning mb-3" style="width: 3rem; height: 3rem;" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <h6 class="fw-bold text-dark mb-1">Generating Print Preview...</h6>
+          <p class="text-muted small mb-0">Capturing live high-resolution charts and rendering document layout</p>
+        </div>
+
+        <!-- Error State -->
+        <div id="printPreviewError" class="print-preview-error p-4 text-center d-none">
+          <div class="alert alert-danger mx-auto my-4" style="max-width: 600px;">
+            <i class="fas fa-circle-exclamation fs-4 mb-2 d-block"></i>
+            <h6 class="fw-bold mb-1">Unable to compile print preview</h6>
+            <p class="small mb-3" id="printPreviewErrorMsg">An unexpected error occurred while generating the document.</p>
+            <button type="button" class="btn btn-sm btn-outline-danger" id="btnRetryPrintPreview">
+              <i class="fas fa-rotate-right me-1"></i> Retry Preview
+            </button>
+          </div>
+        </div>
+
+        <!-- Document Viewer Container (PDF-like paper simulation) -->
+        <div id="printPreviewContainer" class="print-preview-container d-none">
+          <div class="print-paper-sheet">
+            <iframe id="printPreviewIframe" title="Print Preview Document" class="print-preview-iframe"></iframe>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Fixed Sticky Modal Footer -->
+      <div class="modal-footer bg-light px-4 py-2 d-flex justify-content-between align-items-center">
+        <div class="text-muted small d-none d-sm-block">
+          <i class="fas fa-circle-info text-primary me-1"></i> Preview renders exact printable layout with letterhead and data tables.
+        </div>
+        <div class="d-flex gap-2 ms-auto">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-1"></i> Close
+          </button>
+          <button type="button" class="btn btn-outline-dark" id="btnModalDownloadPdf">
+            <i class="fas fa-file-pdf text-danger me-1"></i> Download as PDF
+          </button>
+          <button type="button" class="btn btn-primary" id="btnModalPrintDoc" style="background: #1e3a5f; border-color: #1e3a5f;">
+            <i class="fas fa-print me-1"></i> Print
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
 
 <!-- === CHART.JS & HIGH-RES PDF EXPORT SCRIPTS === -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
@@ -1112,10 +1280,161 @@ $kpi_completion_rate = $kpi_requests_total > 0
     }
   }
 
+  /* --- Live Active Filters Helper --- */
+  function getLiveFilters() {
+    const fromInput   = document.getElementById('filterFrom');
+    const toInput     = document.getElementById('filterTo');
+    const statusInput = document.getElementById('filterStatus');
+    const typeInput   = document.getElementById('filterType');
+
+    return {
+      report: <?php echo json_encode($report); ?>,
+      from:   fromInput   ? fromInput.value.trim()   : <?php echo json_encode($filters['from']); ?>,
+      to:     toInput     ? toInput.value.trim()     : <?php echo json_encode($filters['to']); ?>,
+      status: statusInput ? statusInput.value.trim() : <?php echo json_encode($filters['status']); ?>,
+      type:   typeInput   ? typeInput.value.trim()   : <?php echo json_encode($filters['type']); ?>
+    };
+  }
+
+  /* --- Print Preview Orchestrator --- */
+  function openPrintPreview(e) {
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
+    const modalEl = document.getElementById('printPreviewModal');
+    if (!modalEl) return;
+
+    const modal = (window.bootstrap && bootstrap.Modal)
+      ? bootstrap.Modal.getOrCreateInstance(modalEl)
+      : null;
+    if (modal) modal.show();
+
+    const loadingEl       = document.getElementById('printPreviewLoading');
+    const errorEl         = document.getElementById('printPreviewError');
+    const containerEl     = document.getElementById('printPreviewContainer');
+    const iframe          = document.getElementById('printPreviewIframe');
+    const filterSummaryEl = document.getElementById('printPreviewFilterSummary');
+
+    if (loadingEl)   loadingEl.classList.remove('d-none');
+    if (errorEl)     errorEl.classList.add('d-none');
+    if (containerEl) containerEl.classList.add('d-none');
+
+    const live = getLiveFilters();
+
+    // Humanize filter summary in modal header
+    if (filterSummaryEl) {
+      const parts = [];
+      if (live.from || live.to) {
+        parts.push('Date: ' + (live.from || 'Beginning') + ' to ' + (live.to || 'Present'));
+      }
+      if (live.status) {
+        parts.push('Status: ' + live.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()));
+      }
+      if (live.type) {
+        parts.push('Type: ' + live.type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()));
+      }
+      filterSummaryEl.textContent = parts.length ? parts.join(' | ') : 'All active records (no filters)';
+    }
+
+    try {
+      const sacramentsImg    = extractChartBase64(window.parishCharts.sacraments, 'chartSacraments');
+      const requestStatusImg = extractChartBase64(window.parishCharts.requestStatus, 'chartRequestStatus');
+      const topServicesImg   = extractChartBase64(window.parishCharts.topServices, 'chartTopServices');
+      const parishGrowthImg  = extractChartBase64(window.parishCharts.parishGrowth, 'chartParishGrowth');
+
+      const formData = new FormData();
+      formData.append('export', 'preview');
+      formData.append('report', live.report);
+      formData.append('from', live.from);
+      formData.append('to', live.to);
+      formData.append('status', live.status);
+      formData.append('type', live.type);
+      formData.append('chart_sacraments', sacramentsImg);
+      formData.append('chart_request_status', requestStatusImg);
+      formData.append('chart_top_services', topServicesImg);
+      formData.append('chart_parish_growth', parishGrowthImg);
+      formData.append(<?php echo json_encode(csrfTokenName()); ?>, <?php echo json_encode(generateCsrfToken()); ?>);
+
+      fetch('reports.php', {
+        method: 'POST',
+        body: formData
+      })
+      .then(res => {
+        if (!res.ok) throw new Error('HTTP status ' + res.status + ' while building preview.');
+        return res.text();
+      })
+      .then(html => {
+        if (loadingEl)   loadingEl.classList.add('d-none');
+        if (containerEl) containerEl.classList.remove('d-none');
+
+        if (iframe) {
+          iframe.onload = function () {
+            try {
+              const doc = iframe.contentDocument || iframe.contentWindow.document;
+              const h = Math.max(
+                doc.body.scrollHeight,
+                doc.body.offsetHeight,
+                doc.documentElement.clientHeight,
+                doc.documentElement.scrollHeight,
+                doc.documentElement.offsetHeight
+              );
+              iframe.style.height = (h + 40) + 'px';
+            } catch (err) {
+              iframe.style.height = '1100px';
+            }
+          };
+          iframe.srcdoc = html;
+        }
+      })
+      .catch(err => {
+        console.error('Print preview generation failed:', err);
+        if (loadingEl) loadingEl.classList.add('d-none');
+        if (errorEl)   errorEl.classList.remove('d-none');
+        const msgEl = document.getElementById('printPreviewErrorMsg');
+        if (msgEl) msgEl.textContent = err.message || 'An unexpected error occurred while loading preview.';
+      });
+    } catch (err) {
+      console.error('Print preview initialization error:', err);
+      if (loadingEl) loadingEl.classList.add('d-none');
+      if (errorEl)   errorEl.classList.remove('d-none');
+      const msgEl = document.getElementById('printPreviewErrorMsg');
+      if (msgEl) msgEl.textContent = err.message || 'Failed to initialize preview.';
+    }
+  }
+
+  /* --- Execute Scoped Browser Print --- */
+  function executePreviewPrint() {
+    const iframe = document.getElementById('printPreviewIframe');
+    if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+    } else {
+      window.print();
+    }
+  }
+
   // Attach listener to PDF export buttons
   document.querySelectorAll('.ar-export-pdf-btn, a[href*="export=pdf"]').forEach(el => {
     el.addEventListener('click', triggerPdfExportWithCharts);
   });
+
+  // Attach listener to Print Preview open buttons
+  document.querySelectorAll('#btnOpenPrintPreview, .btn-open-print-preview').forEach(btn => {
+    btn.addEventListener('click', openPrintPreview);
+  });
+
+  const retryBtn = document.getElementById('btnRetryPrintPreview');
+  if (retryBtn) {
+    retryBtn.addEventListener('click', openPrintPreview);
+  }
+
+  const modalPrintDocBtn = document.getElementById('btnModalPrintDoc');
+  if (modalPrintDocBtn) {
+    modalPrintDocBtn.addEventListener('click', executePreviewPrint);
+  }
+
+  const modalDownloadPdfBtn = document.getElementById('btnModalDownloadPdf');
+  if (modalDownloadPdfBtn) {
+    modalDownloadPdfBtn.addEventListener('click', triggerPdfExportWithCharts);
+  }
 
 })();
 </script>

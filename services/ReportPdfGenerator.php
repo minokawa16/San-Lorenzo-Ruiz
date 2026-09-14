@@ -227,7 +227,8 @@ final class ReportPdfGenerator
 <title><?php echo htmlspecialchars($title, ENT_QUOTES, 'UTF-8'); ?></title>
 <style>
     @page {
-        margin: 15mm;
+        size: portrait;
+        margin: 12mm 15mm;
     }
     *, *::before, *::after {
         box-sizing: border-box;
@@ -240,6 +241,26 @@ final class ReportPdfGenerator
         background: #ffffff;
         margin: 0;
         padding: 0;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    @media screen {
+        body {
+            padding: 24px;
+            max-width: 820px;
+            margin: 0 auto;
+        }
+    }
+    @media print {
+        body {
+            padding: 0;
+            margin: 0;
+            max-width: none;
+        }
+        .chart-box, .kpi-summary-table, .chart-two-col, table.data-table tr, .report-signoff-block {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+        }
     }
 
     /* ── Formal Parish Letterhead ────────────────────────────────── */
