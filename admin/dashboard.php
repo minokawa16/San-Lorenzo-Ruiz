@@ -143,8 +143,8 @@ if ($stmt) {
 
 $page_title = 'Admin Dashboard - Parish Management';
 $dashboard_unread_count = function_exists('getUnreadNotificationCount') ? getUnreadNotificationCount($conn, $_SESSION['user_id'] ?? 0) : 0;
-$dashboard_profile_name = sanitize($_SESSION['fullname'] ?? 'TUGON Parish Admin');
-$dashboard_avatar_letter = strtoupper(substr($dashboard_profile_name ?: 'T', 0, 1));
+$dashboard_profile_name = 'Parish Admin';
+$dashboard_avatar_letter = 'P';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -717,7 +717,6 @@ $dashboard_avatar_letter = strtoupper(substr($dashboard_profile_name ?: 'T', 0, 
                             <?php echo renderUserAvatar($_SESSION['user_id'] ?? 0, 32, 'profile-chip-avatar parish-profile-avatar'); ?>
                             <span class="profile-chip-meta parish-profile-meta">
                                 <span class="profile-chip-name parish-profile-name"><?php echo e($dashboard_profile_name); ?></span>
-                                <span class="profile-chip-role parish-profile-role"><?php echo e(ucfirst($_SESSION['role'] ?? 'Administrator')); ?></span>
                             </span>
                             <i class="fas fa-chevron-down ms-1" style="font-size: 10px; color: #9a9890;"></i>
                         </button>

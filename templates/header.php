@@ -156,9 +156,9 @@ $user_header_icons = [
 $header_icon = $is_admin_area ? ($admin_header_icons[$current_page] ?? 'fa-table-cells-large') : ($user_header_icons[$current_page] ?? 'fa-table-cells-large');
 
 if ($is_admin_area) {
-    $header_user_name = 'Admin';
-    $header_avatar_initial = 'A';
-    $header_user_role = 'Administrator';
+    $header_user_name = 'Parish Admin';
+    $header_avatar_initial = 'P';
+    $header_user_role = '';
 } else {
     $header_user_name = sanitize($_SESSION['fullname'] ?? 'Parishioner');
     $header_avatar_initial = strtoupper(substr($header_user_name ?: 'P', 0, 1));
@@ -320,7 +320,9 @@ if (isLoggedIn()) {
                             </span>
                             <span class="profile-chip-meta profile-meta parish-profile-meta">
                                 <span class="profile-chip-name profile-name parish-profile-name"><?php echo $header_user_name; ?></span>
-                                <span class="profile-chip-role profile-role parish-profile-role"><?php echo e($header_user_role); ?></span>
+                                <?php if (!empty($header_user_role)): ?>
+                                    <span class="profile-chip-role profile-role parish-profile-role"><?php echo e($header_user_role); ?></span>
+                                <?php endif; ?>
                             </span>
                             <i class="fas fa-chevron-down ms-1" style="font-size: 10px; color: #9a9890;"></i>
                         </button>
