@@ -428,10 +428,10 @@ $dashboard_avatar_letter = 'P';
             transform: translateY(-1px);
         }
 
-        /* ── 3. High Density 4-Column Stat Cards ──────────────────── */
+        /* ── 3. High Density Stat Cards ──────────────────── */
         .dashboard-stats-grid {
             display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 12px;
             margin-bottom: 16px;
         }
@@ -730,7 +730,7 @@ $dashboard_avatar_letter = 'P';
                 </div>
             </header>
 
-            <!-- Compact 4-Column Stat Cards Grid (8 Key Metrics) -->
+            <!-- Compact Stat Cards Grid (6 Key Metrics) -->
             <div class="dashboard-stats-grid">
                 <!-- 1. Total Parishioners -->
                 <a href="manage-users.php" class="stat-card-compact" aria-label="View total parishioners">
@@ -796,7 +796,7 @@ $dashboard_avatar_letter = 'P';
                     </div>
                 </a>
 
-                <!-- 7. Calendar Schedules -->
+                <!-- 6. Calendar Schedules -->
                 <a href="manage-calendar.php" class="stat-card-compact" aria-label="View calendar schedules">
                     <div class="stat-card-header">
                         <span class="stat-card-label">Schedules &amp; Events</span>
@@ -805,18 +805,6 @@ $dashboard_avatar_letter = 'P';
                     <div class="stat-card-value"><?php echo number_format($kpis['active_schedules']); ?></div>
                     <div class="stat-card-footer">
                         <span class="trend-pill neutral"><i class="fas fa-clock"></i> Approved</span>
-                    </div>
-                </a>
-
-                <!-- 8. Audit Logs -->
-                <a href="audit-logs.php" class="stat-card-compact" aria-label="View audit logs">
-                    <div class="stat-card-header">
-                        <span class="stat-card-label">System Audit</span>
-                        <span class="stat-card-icon icon-slate"><i class="fas fa-shield-halved"></i></span>
-                    </div>
-                    <div class="stat-card-value">Live</div>
-                    <div class="stat-card-footer">
-                        <span class="trend-pill success"><i class="fas fa-lock"></i> Tracking active</span>
                     </div>
                 </a>
             </div>
