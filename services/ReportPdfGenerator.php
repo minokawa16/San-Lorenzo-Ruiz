@@ -185,15 +185,6 @@ final class ReportPdfGenerator
                 <td class="divider-line"></td>
             </tr>
         </table>
-
-        <div class="report-header-section">
-            <div class="report-title"><?php echo htmlspecialchars($reportTitle, ENT_QUOTES, 'UTF-8'); ?></div>
-            <?php if (!empty($subtitle) && strcasecmp(trim($subtitle), trim($reportTitle)) !== 0): ?>
-                <div class="report-subtitle"><?php echo htmlspecialchars($subtitle, ENT_QUOTES, 'UTF-8'); ?></div>
-            <?php endif; ?>
-            <div class="report-timestamp">Generated on: <?php echo htmlspecialchars($timestamp, ENT_QUOTES, 'UTF-8'); ?></div>
-            <div class="report-filters">Filters: <?php echo htmlspecialchars($filtersFormatted, ENT_QUOTES, 'UTF-8'); ?></div>
-        </div>
         <?php
         return (string) ob_get_clean();
     }
