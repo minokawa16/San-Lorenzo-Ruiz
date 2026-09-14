@@ -39,8 +39,37 @@ final class ReportService
         if(($f['from']??'')!==''){$clauses[]="$dateColumn>=?";$types.='s';$values[]=$f['from'].' 00:00:00';}
         if(($f['to']??'')!==''){$clauses[]="$dateColumn<=?";$types.='s';$values[]=$f['to'].' 23:59:59';}
         $alias=match($type){'notifications'=>'nd',default=>'r'};
-        if(($f['status']??'')!==''){$clauses[]="$alias.status=?";$types.='s';$values[]=$f['status'];}
-        if(($f['type']??'')!==''){$col=match($type){'notifications'=>'n.notification_type',default=>'r.request_type'};$clauses[]="$col=?";$types.='s';$values[]=$f['type'];}
+        
+        $status=strtolower(trim((string)($f['status']??'')));
+        if($status!==''&&$status!=='all'){
+            if($alias==='r'){
+                match($status){
+                    'pending'=>$clauses[]="$alias.status IN ('pending','submitted','requirements_review')",
+                    'processing'=>$clauses[]="$alias.status IN ('processing','approved','in_processing','ready_for_pickup','ready_for_release','payment_review')",
+                    'completed'=>$clauses[]="$alias.status IN ('completed','released')",
+                    'rejected'=>$clauses[]="$alias.status IN ('rejected','cancelled','declined')",
+                    default=>($clauses[]="$alias.status=?")&&($types.='s')&&($values[]=$status)
+                };
+            }else{
+                $clauses[]="$alias.status=?";$types.='s';$values[]=$status;
+            }
+        }
+
+        $reqType=strtolower(trim((string)($f['type']??'')));
+        if($reqType!==''&&$reqType!=='all'){
+            $col=match($type){'notifications'=>'n.notification_type',default=>'r.request_type'};
+            if($alias==='r'){
+                match($reqType){
+                    'certificates','certificate'=>$clauses[]="($col LIKE '%certif%' OR $col IN ('baptismal_certificate','baptism_certification','confirmation_certificate','confirmation_certification','first_communion_certificate','first_communion_certification','marriage_certification','funeral_certification'))",
+                    'blessings','blessing'=>$clauses[]="$col LIKE '%blessing%'",
+                    'sacramental_services','sacramental','sacramental services'=>$clauses[]="(($col LIKE '%service%' OR $col LIKE '%mass%' OR $col LIKE '%reservation%' OR $col LIKE '%anointing%' OR $col LIKE '%fiesta%' OR $col IN ('baptism_service','marriage_wedding_service','funeral_mass','anointing_of_the_sick','patronal_fiesta','church_reservation','wedding_reservation','burial_reservation','wedding','baptism','confirmation','burial','church_venue')) AND $col NOT LIKE '%certif%')",
+                    default=>($clauses[]="$col=?")&&($types.='s')&&($values[]=$reqType)
+                };
+            }else{
+                $clauses[]="$col=?";$types.='s';$values[]=$reqType;
+            }
+        }
+
         return ['WHERE '.implode(' AND ',$clauses),$types,$values];
     }
 

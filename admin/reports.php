@@ -823,16 +823,22 @@ $kpi_completion_rate = $kpi_requests_total > 0
       </div>
       <div class="ar-filter-group">
         <label for="filterStatus">Status</label>
-        <select id="filterStatus" class="ar-filter-input" name="status">
-          <option value="">All Statuses</option>
-          <?php foreach (['pending','submitted','approved','in_processing','completed','released','rejected','cancelled'] as $st): ?>
-          <option value="<?php echo $st; ?>" <?php echo $filters['status'] === $st ? 'selected' : ''; ?>><?php echo ucwords(str_replace('_',' ',$st)); ?></option>
-          <?php endforeach; ?>
+        <select id="filterStatus" class="ar-filter-input" name="status" style="min-width:130px;">
+          <option value="">All</option>
+          <option value="pending" <?php echo $filters['status'] === 'pending' ? 'selected' : ''; ?>>Pending</option>
+          <option value="processing" <?php echo $filters['status'] === 'processing' ? 'selected' : ''; ?>>Processing</option>
+          <option value="completed" <?php echo $filters['status'] === 'completed' ? 'selected' : ''; ?>>Completed</option>
+          <option value="rejected" <?php echo $filters['status'] === 'rejected' ? 'selected' : ''; ?>>Rejected</option>
         </select>
       </div>
       <div class="ar-filter-group">
         <label for="filterType">Type</label>
-        <input id="filterType" class="ar-filter-input" type="text" name="type" value="<?php echo e($filters['type']); ?>" placeholder="e.g. baptismal_cert" style="width:170px;">
+        <select id="filterType" class="ar-filter-input" name="type" style="min-width:190px;">
+          <option value="">All</option>
+          <option value="certificates" <?php echo in_array($filters['type'], ['certificates', 'certificate'], true) ? 'selected' : ''; ?>>Certificates</option>
+          <option value="blessings" <?php echo in_array($filters['type'], ['blessings', 'blessing'], true) ? 'selected' : ''; ?>>Blessings</option>
+          <option value="sacramental_services" <?php echo in_array($filters['type'], ['sacramental_services', 'sacramental'], true) ? 'selected' : ''; ?>>Sacramental Services</option>
+        </select>
       </div>
       <div style="display:flex;gap:8px;align-items:flex-end;">
         <button type="submit" class="ar-btn-apply"><i class="fas fa-filter"></i> Apply</button>
