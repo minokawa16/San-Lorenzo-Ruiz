@@ -731,23 +731,7 @@ $dashboard_avatar_letter = strtoupper(substr($dashboard_profile_name ?: 'T', 0, 
                 </div>
             </header>
 
-            <!-- 2. Quick Action Toolbar -->
-            <nav class="dashboard-quick-actions" aria-label="Quick dashboard actions">
-                <a class="action-btn-compact primary" href="manage-requests.php">
-                    <i class="fas fa-circle-plus"></i> New Request
-                </a>
-                <a class="action-btn-compact gold" href="<?php echo e(BASE_URL . 'admin/certificate-generator.php'); ?>">
-                    <i class="fas fa-award"></i> Generate Certificate
-                </a>
-                <a class="action-btn-compact secondary" href="manage-calendar.php">
-                    <i class="fas fa-calendar-plus"></i> Add Event
-                </a>
-                <a class="action-btn-compact secondary" href="manage-announcements.php">
-                    <i class="fas fa-bullhorn"></i> Post Announcement
-                </a>
-            </nav>
-
-            <!-- 3. Compact 4-Column Stat Cards Grid (8 Key Metrics) -->
+            <!-- Compact 4-Column Stat Cards Grid (8 Key Metrics) -->
             <div class="dashboard-stats-grid">
                 <!-- 1. Total Parishioners -->
                 <a href="manage-users.php" class="stat-card-compact" aria-label="View total parishioners">
