@@ -1532,7 +1532,7 @@ function renderPrintableParishionerRegistry(array $users, string $filterLabel, s
             </div>
             <div class="cert-signature-box">
                 <div class="cert-line"></div>
-                <div class="cert-name">Rev. Fr. Parish Priest / Administrator</div>
+                <div class="cert-name">Parish Priest</div>
                 <div class="cert-title">Attested &amp; Verified</div>
             </div>
         </div>
