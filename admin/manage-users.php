@@ -40,27 +40,97 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') == 'POST') {
         $archive_reason = trim((string)($_POST['archive_reason'] ?? '')) ?: 'Archived from user management';
         if (transitionAccountStatus($conn, $user_id, 'archived', 'archived', $archive_reason, (int) $_SESSION['user_id'])) {
             createAuditLog($conn, $_SESSION['user_id'], 'ARCHIVE_USER', 'users', $user_id);
-            $success = 'Parishioner archived successfully!';
+            $success = 'Parishioner archived successfully! The record has been moved to the <a href="archives.php?tab=parishioners" class="alert-link text-decoration-underline fw-bold">Archives</a> section.';
         } else {
             $error = 'Error archiving parishioner: ' . $conn->error;
         }
     }
 }
 
-// Get users
-$search = $_GET['search'] ?? '';
-$page = intval($_GET['page'] ?? 1);
-$limit = 10;
+// ── Status Filter & Search Parameters ────────────────────────
+$status_filter = strtolower(trim((string)($_GET['status'] ?? 'all')));
+if (!in_array($status_filter, ['all', 'pending', 'approved', 'rejected'], true)) {
+    $status_filter = 'all';
+}
+$search = trim((string)($_GET['search'] ?? ''));
+$page = max(1, intval($_GET['page'] ?? 1));
+$limit = 15;
 
-$scope = $_GET['scope'] ?? '';
-$where = $scope === 'archived' ? "WHERE u.role = 'user' AND u.status = 'archived'" : "WHERE u.role = 'user' AND u.status != 'archived'";
-if (!empty($search)) {
+// Base condition: always exclude archived and deleted records from main view
+$where = "WHERE u.role = 'user' AND u.status != 'archived' AND u.status != 'deleted'";
+
+// Verification status filter mapping
+if ($status_filter === 'pending') {
+    $where .= " AND u.status IN ('pending', 'pending_verification')";
+} elseif ($status_filter === 'approved') {
+    $where .= " AND u.status IN ('active', 'approved')";
+} elseif ($status_filter === 'rejected') {
+    $where .= " AND u.status = 'rejected'";
+}
+
+if ($search !== '') {
     $search_escaped = $conn->real_escape_string($search);
-    $where .= " AND (u.fullname LIKE '%$search_escaped%' OR u.email LIKE '%$search_escaped%' OR u.address LIKE '%$search_escaped%' OR u.chapel_district LIKE '%$search_escaped%')";
+    $where .= " AND (u.fullname LIKE '%$search_escaped%' OR u.email LIKE '%$search_escaped%' OR u.phone_number LIKE '%$search_escaped%' OR u.address LIKE '%$search_escaped%' OR u.chapel_district LIKE '%$search_escaped%')";
+}
+
+// Live Status Counts for Filter Options
+$count_base = "WHERE u.role = 'user' AND u.status != 'archived' AND u.status != 'deleted'";
+$count_sql = "SELECT 
+    COUNT(*) as total_all,
+    SUM(CASE WHEN u.status IN ('pending', 'pending_verification') THEN 1 ELSE 0 END) as total_pending,
+    SUM(CASE WHEN u.status IN ('active', 'approved') THEN 1 ELSE 0 END) as total_approved,
+    SUM(CASE WHEN u.status = 'rejected' THEN 1 ELSE 0 END) as total_rejected
+FROM users u $count_base";
+$counts_res = $conn->query($count_sql);
+$counts_row = $counts_res ? $counts_res->fetch_assoc() : [];
+$counts = [
+    'all' => intval($counts_row['total_all'] ?? 0),
+    'pending' => intval($counts_row['total_pending'] ?? 0),
+    'approved' => intval($counts_row['total_approved'] ?? 0),
+    'rejected' => intval($counts_row['total_rejected'] ?? 0),
+];
+
+// Archived count for shortcut navigation
+$archived_res = $conn->query("SELECT COUNT(*) as count FROM users WHERE role = 'user' AND status = 'archived'");
+$counts['archived'] = $archived_res ? intval($archived_res->fetch_assoc()['count'] ?? 0) : 0;
+
+// ── Printable View Mode Handler (?print=1) ───────────────────
+if (isset($_GET['print']) && $_GET['print'] === '1') {
+    $print_users_sql = "SELECT u.*, verifier.fullname AS verified_by_name
+        FROM users u
+        LEFT JOIN users verifier ON u.verified_by = verifier.id
+        $where
+        ORDER BY u.fullname ASC";
+    $print_res = $conn->query($print_users_sql);
+    $print_users = [];
+    while ($print_res && $row = $print_res->fetch_assoc()) {
+        $print_users[] = $row;
+    }
+
+    $logoPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'img' . DIRECTORY_SEPARATOR . 'parish-logo.jpg';
+    if (!is_file($logoPath)) {
+        $logoPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'img' . DIRECTORY_SEPARATOR . 'san-lorenzo-logo.png';
+    }
+    $logoBase64 = '';
+    if (is_file($logoPath)) {
+        $mime = (pathinfo($logoPath, PATHINFO_EXTENSION) === 'png') ? 'image/png' : 'image/jpeg';
+        $logoBase64 = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+    }
+
+    $generatedBy = !empty($_SESSION['fullname']) ? (string)$_SESSION['fullname'] : 'Parish Administrator';
+    $generatedAt = date('F d, Y \a\t h:i A');
+
+    $filterLabel = ucfirst($status_filter);
+    if ($status_filter === 'all') {
+        $filterLabel = 'All Statuses';
+    }
+
+    renderPrintableParishionerRegistry($print_users, $filterLabel, $search, $logoBase64, $generatedBy, $generatedAt);
+    exit;
 }
 
 $total_result = $conn->query("SELECT COUNT(*) as count FROM users u $where");
-$total = $total_result->fetch_assoc()['count'];
+$total = $total_result ? intval($total_result->fetch_assoc()['count'] ?? 0) : 0;
 $pagination = getPaginationData($page, $limit, $total);
 
 $sql = "SELECT u.*, verifier.fullname AS verified_by_name
@@ -75,6 +145,28 @@ if ($result) {
     while ($row = $result->fetch_assoc()) {
         $users[] = $row;
     }
+}
+
+/**
+ * Helper to build pagination and filter URLs maintaining active query params
+ */
+function buildParishionerFilterUrl(array $params = []): string {
+    $current = [];
+    if (!empty($_GET['status']) && $_GET['status'] !== 'all') {
+        $current['status'] = $_GET['status'];
+    }
+    if (!empty($_GET['search'])) {
+        $current['search'] = $_GET['search'];
+    }
+    $merged = array_merge($current, $params);
+    if (isset($merged['status']) && $merged['status'] === 'all') {
+        unset($merged['status']);
+    }
+    if (isset($merged['page']) && $merged['page'] <= 1) {
+        unset($merged['page']);
+    }
+    $qs = http_build_query($merged);
+    return 'manage-users.php' . ($qs !== '' ? '?' . $qs : '');
 }
 
 function userDetailValue($value, $fallback = 'Not provided') {
@@ -275,48 +367,195 @@ $admin_avatar_letter = strtoupper(substr($admin_display_name, 0, 1));
     box-shadow: 0 2px 8px rgba(197, 155, 39, 0.25);
 }
 
-/* ── Toggle Tabs (Active vs. Archived) ──────────────────────── */
-.parish-toggle-tabs {
+/* ── Filter Dropdown, Action Buttons & Quick Filter Pills ─── */
+.parish-filter-select-wrap {
+    min-width: 170px;
+}
+
+.parish-filter-select {
+    width: 100%;
+    height: 42px;
+    border-radius: 10px;
+    border: 1px solid var(--border-warm-strong);
+    background: #FFFFFF;
+    padding: 0 14px;
+    font-size: 0.86rem;
+    font-weight: 600;
+    color: var(--text-charcoal-dark);
+    outline: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.parish-filter-select:focus {
+    border-color: var(--brand-gold-warm);
+    box-shadow: 0 0 0 3px rgba(197, 155, 39, 0.15);
+}
+
+.parish-filter-actions {
     display: inline-flex;
     align-items: center;
     gap: 8px;
+}
+
+.parish-print-btn {
+    height: 42px;
+    border-radius: 10px;
+    border: 1.5px solid var(--brand-green-deep);
+    background: var(--brand-green-deep);
+    color: #FFFFFF;
+    font-size: 0.86rem;
+    font-weight: 700;
+    padding: 0 20px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+}
+
+.parish-print-btn:hover {
+    background: var(--brand-green-forest);
+    border-color: var(--brand-green-forest);
+    color: #FFFFFF;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(20, 61, 40, 0.25);
+}
+
+.parish-reset-btn {
+    height: 42px;
+    border-radius: 10px;
+    border: 1px solid var(--border-warm-strong);
+    background: #FFFFFF;
+    color: var(--text-charcoal-muted);
+    font-size: 0.86rem;
+    font-weight: 600;
+    padding: 0 16px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+    transition: all 0.15s ease;
+}
+
+.parish-reset-btn:hover {
+    background: #F8FAFC;
+    color: var(--text-charcoal-dark);
+    border-color: #94A3B8;
+}
+
+.parish-filter-pills-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
     margin-bottom: 20px;
+}
+
+.parish-filter-pills {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     background: rgba(0, 0, 0, 0.02);
     padding: 4px;
     border-radius: 10px;
     border: 1px solid var(--border-warm-subtle);
 }
 
-.parish-tab-btn {
-    padding: 8px 18px;
+.parish-filter-pill {
+    padding: 7px 16px;
     font-size: 0.82rem;
     font-weight: 700;
     border-radius: 8px;
     text-decoration: none;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    transition: all 0.15s ease;
+    gap: 7px;
+    color: #475569;
+    background: transparent;
     border: 1px solid transparent;
+    transition: all 0.15s ease;
 }
 
-.parish-tab-btn.active {
+.parish-filter-pill .pill-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 7px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.06);
+    color: inherit;
+}
+
+.parish-filter-pill:hover {
+    background: #FFFFFF;
+    color: var(--text-charcoal-dark);
+    border-color: var(--border-warm-subtle);
+}
+
+.parish-filter-pill.active {
     background: var(--brand-green-deep);
     color: #FFFFFF;
     border-color: var(--brand-green-deep);
     box-shadow: 0 2px 6px rgba(14, 51, 33, 0.2);
 }
 
-.parish-tab-btn.inactive {
-    background: transparent;
-    color: #475569;
-    border-color: transparent;
+.parish-filter-pill.active .pill-count {
+    background: rgba(255, 255, 255, 0.25);
+    color: #FFFFFF;
 }
 
-.parish-tab-btn.inactive:hover {
-    background: #FFFFFF;
-    color: var(--text-charcoal-dark);
-    border-color: var(--border-warm-subtle);
+.parish-filter-pill.pending.active {
+    background: #D97706;
+    border-color: #D97706;
+}
+
+.parish-filter-pill.approved.active {
+    background: #15803D;
+    border-color: #15803D;
+}
+
+.parish-filter-pill.rejected.active {
+    background: #DC2626;
+    border-color: #DC2626;
+}
+
+.parish-archives-shortcut {
+    display: inline-flex;
+    align-items: center;
+}
+
+.parish-archives-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 14px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #64748B;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: all 0.15s ease;
+}
+
+.parish-archives-link:hover {
+    background: #F1F5F9;
+    color: #334155;
+    border-color: #CBD5E1;
+}
+
+.parish-archives-link .archive-count {
+    padding: 1px 6px;
+    font-size: 0.72rem;
+    border-radius: 999px;
+    background: #E2E8F0;
+    color: #475569;
 }
 
 /* ── 5. Data Table Styling ──────────────────────────────────── */
@@ -483,10 +722,30 @@ $admin_avatar_letter = strtoupper(substr($admin_display_name, 0, 1));
 @media (max-width: 860px) {
     .parish-filter-row {
         flex-direction: column;
+        align-items: stretch;
     }
-    .parish-search-submit-btn {
+    .parish-filter-select-wrap,
+    .parish-search-input-wrap {
         width: 100%;
+    }
+    .parish-filter-actions {
+        display: flex;
+        gap: 8px;
+        width: 100%;
+    }
+    .parish-search-submit-btn,
+    .parish-print-btn,
+    .parish-reset-btn {
+        flex: 1;
         justify-content: center;
+    }
+    .parish-filter-pills-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .parish-filter-pills {
+        overflow-x: auto;
+        width: 100%;
     }
 }
 
@@ -561,25 +820,65 @@ $admin_avatar_letter = strtoupper(substr($admin_display_name, 0, 1));
     <div class="parish-main-card">
 
         <!-- Filter & Search Control Row -->
-        <form method="GET" action="manage-users.php" class="parish-filter-row">
-            <input type="hidden" name="scope" value="<?php echo e($scope); ?>">
+        <form method="GET" action="manage-users.php" class="parish-filter-row" id="parishionerFilterForm">
+            <div class="parish-filter-select-wrap">
+                <select id="statusFilter" name="status" class="parish-filter-select" onchange="this.form.submit()" title="Filter by verification status">
+                    <option value="all" <?php echo ($status_filter === 'all') ? 'selected' : ''; ?>>All Statuses (<?php echo $counts['all']; ?>)</option>
+                    <option value="pending" <?php echo ($status_filter === 'pending') ? 'selected' : ''; ?>>Pending (<?php echo $counts['pending']; ?>)</option>
+                    <option value="approved" <?php echo ($status_filter === 'approved') ? 'selected' : ''; ?>>Approved (<?php echo $counts['approved']; ?>)</option>
+                    <option value="rejected" <?php echo ($status_filter === 'rejected') ? 'selected' : ''; ?>>Rejected (<?php echo $counts['rejected']; ?>)</option>
+                </select>
+            </div>
             <div class="parish-search-input-wrap">
                 <i class="fas fa-magnifying-glass search-icon" aria-hidden="true"></i>
-                <input id="tableSearchInput" type="text" class="parish-table-search-field" name="search" placeholder="Search by name, email, or address..." value="<?php echo sanitize($search); ?>" autocomplete="off">
+                <input id="tableSearchInput" type="text" class="parish-table-search-field" name="search" placeholder="Search by name, email, phone, or address..." value="<?php echo sanitize($search); ?>" autocomplete="off">
             </div>
-            <button class="parish-search-submit-btn" type="submit">
-                <i class="fas fa-search"></i> Search
-            </button>
+            <div class="parish-filter-actions">
+                <button class="parish-search-submit-btn" type="submit" title="Search parishioners">
+                    <i class="fas fa-search"></i> Search
+                </button>
+                <button class="parish-print-btn" type="button" onclick="printParishioners()" title="Print current list of parishioners">
+                    <i class="fas fa-print"></i> Print
+                </button>
+                <?php if ($search !== '' || $status_filter !== 'all'): ?>
+                    <a href="manage-users.php" class="parish-reset-btn" title="Reset all filters">
+                        <i class="fas fa-rotate-left"></i> Reset
+                    </a>
+                <?php endif; ?>
+            </div>
         </form>
 
-        <!-- Toggle Tabs (Active Parishioners vs. Archived Parishioners) -->
-        <div class="parish-toggle-tabs" role="tablist">
-            <a class="parish-tab-btn <?php echo $scope !== 'archived' ? 'active' : 'inactive'; ?>" href="manage-users.php">
-                <i class="fas fa-user-check"></i> Active Parishioners
-            </a>
-            <a class="parish-tab-btn <?php echo $scope === 'archived' ? 'active' : 'inactive'; ?>" href="manage-users.php?scope=archived">
-                <i class="fas fa-box-archive"></i> Archived Parishioners
-            </a>
+        <!-- Status Filter Buttons (Replaces old Active/Archived tab toggle) -->
+        <div class="parish-filter-pills-row">
+            <div class="parish-filter-pills" role="group" aria-label="Status Filter">
+                <a class="parish-filter-pill <?php echo ($status_filter === 'all') ? 'active' : ''; ?>" href="<?php echo buildParishionerFilterUrl(['status' => 'all']); ?>">
+                    <span>All</span>
+                    <span class="pill-count"><?php echo $counts['all']; ?></span>
+                </a>
+                <a class="parish-filter-pill pending <?php echo ($status_filter === 'pending') ? 'active' : ''; ?>" href="<?php echo buildParishionerFilterUrl(['status' => 'pending']); ?>">
+                    <i class="fas fa-clock"></i>
+                    <span>Pending</span>
+                    <span class="pill-count"><?php echo $counts['pending']; ?></span>
+                </a>
+                <a class="parish-filter-pill approved <?php echo ($status_filter === 'approved') ? 'active' : ''; ?>" href="<?php echo buildParishionerFilterUrl(['status' => 'approved']); ?>">
+                    <i class="fas fa-check"></i>
+                    <span>Approved</span>
+                    <span class="pill-count"><?php echo $counts['approved']; ?></span>
+                </a>
+                <a class="parish-filter-pill rejected <?php echo ($status_filter === 'rejected') ? 'active' : ''; ?>" href="<?php echo buildParishionerFilterUrl(['status' => 'rejected']); ?>">
+                    <i class="fas fa-times-circle"></i>
+                    <span>Rejected</span>
+                    <span class="pill-count"><?php echo $counts['rejected']; ?></span>
+                </a>
+            </div>
+            <div class="parish-archives-shortcut">
+                <a href="archives.php?tab=parishioners" class="parish-archives-link" title="Open Archived Parishioners in Archives Section">
+                    <i class="fas fa-box-archive"></i>
+                    <span>View Archives</span>
+                    <span class="archive-count"><?php echo $counts['archived']; ?></span>
+                    <i class="fas fa-arrow-up-right-from-square" style="font-size: 0.72rem;"></i>
+                </a>
+            </div>
         </div>
 
         <!-- 5. Data Table -->
@@ -649,7 +948,7 @@ $admin_avatar_letter = strtoupper(substr($admin_display_name, 0, 1));
                                             <i class="fas fa-eye"></i> View
                                         </button>
                                         <?php if ($user['status'] !== 'archived'): ?>
-                                            <form method="POST" action="" class="d-inline" onsubmit="return confirm('Archive this parishioner? The account will be moved to the archived list.');">
+                                            <form method="POST" action="" class="d-inline" onsubmit="return confirm('Archive this parishioner? The account will be automatically removed from this list and moved to the Archives section.');">
                                                 <?php echo csrfInput(); ?>
                                                 <input type="hidden" name="action" value="archive_user">
                                                 <input type="hidden" name="user_id" value="<?php echo $user['id']; ?>">
@@ -665,6 +964,33 @@ $admin_avatar_letter = strtoupper(substr($admin_display_name, 0, 1));
                     </tbody>
                 </table>
             </div>
+
+            <?php if ($pagination['total_pages'] > 1): ?>
+                <div class="parish-pagination-wrap d-flex justify-content-between align-items-center mt-3 pt-2">
+                    <div class="text-muted small">
+                        Showing <?php echo $pagination['offset'] + 1; ?> to <?php echo min($total, $pagination['offset'] + $pagination['limit']); ?> of <?php echo $total; ?> parishioners
+                    </div>
+                    <nav aria-label="Parishioner table pagination">
+                        <ul class="pagination pagination-sm mb-0">
+                            <?php if ($page > 1): ?>
+                                <li class="page-item">
+                                    <a class="page-link" href="<?php echo buildParishionerFilterUrl(['page' => $page - 1]); ?>" aria-label="Previous">&laquo; Prev</a>
+                                </li>
+                            <?php endif; ?>
+                            <?php for ($p = 1; $p <= $pagination['total_pages']; $p++): ?>
+                                <li class="page-item <?php echo $p === $page ? 'active' : ''; ?>">
+                                    <a class="page-link" href="<?php echo buildParishionerFilterUrl(['page' => $p]); ?>"><?php echo $p; ?></a>
+                                </li>
+                            <?php endfor; ?>
+                            <?php if ($page < $pagination['total_pages']): ?>
+                                <li class="page-item">
+                                    <a class="page-link" href="<?php echo buildParishionerFilterUrl(['page' => $page + 1]); ?>" aria-label="Next">Next &raquo;</a>
+                                </li>
+                            <?php endif; ?>
+                        </ul>
+                    </nav>
+                </div>
+            <?php endif; ?>
 
             <!-- Modals for Parishioner Details -->
             <?php foreach ($users as $user): ?>
@@ -813,7 +1139,12 @@ $admin_avatar_letter = strtoupper(substr($admin_display_name, 0, 1));
             <div class="text-center py-5 text-muted">
                 <i class="fas fa-users-slash fa-3x mb-3 text-secondary opacity-50"></i>
                 <h5>No parishioners found</h5>
-                <p class="small">Try adjusting your search criteria or switch between active and archived filters.</p>
+                <p class="small">Try adjusting your search criteria or switch status filters.</p>
+                <?php if ($search !== '' || $status_filter !== 'all'): ?>
+                    <a href="manage-users.php" class="btn btn-sm btn-outline-secondary mt-2">
+                        <i class="fas fa-rotate-left me-1"></i> Reset Filters
+                    </a>
+                <?php endif; ?>
             </div>
         <?php endif; ?>
 
@@ -821,6 +1152,34 @@ $admin_avatar_letter = strtoupper(substr($admin_display_name, 0, 1));
 </div>
 
 <script>
+/**
+ * Print Parishioners List
+ * Opens the print preview page respecting active status filter and search query.
+ */
+function printParishioners() {
+    const statusSelect = document.getElementById('statusFilter');
+    const searchInput = document.getElementById('tableSearchInput');
+    const status = statusSelect ? statusSelect.value : 'all';
+    const search = searchInput ? searchInput.value.trim() : '';
+
+    const params = new URLSearchParams();
+    params.set('print', '1');
+    if (status && status !== 'all') {
+        params.set('status', status);
+    }
+    if (search) {
+        params.set('search', search);
+    }
+
+    const printUrl = 'manage-users.php?' + params.toString();
+    const printWindow = window.open(printUrl, '_blank');
+    if (printWindow) {
+        printWindow.focus();
+    } else {
+        window.location.href = printUrl;
+    }
+}
+
 // Interactive Client-Side Real-Time Filter & Search Helper
 document.addEventListener('DOMContentLoaded', function() {
     const tableSearchInput = document.getElementById('tableSearchInput');
@@ -846,7 +1205,7 @@ document.addEventListener('DOMContentLoaded', function() {
     window.addEventListener('keydown', function(e) {
         if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
             e.preventDefault();
-            const topSearch = document.getElementById('globalParishionerSearch');
+            const topSearch = document.getElementById('tableSearchInput');
             if (topSearch) {
                 topSearch.focus();
                 topSearch.select();
@@ -855,6 +1214,498 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+
+<?php
+/**
+ * Standalone Printable View for Parishioner Directory
+ */
+function renderPrintableParishionerRegistry(array $users, string $filterLabel, string $searchQuery, string $logoBase64, string $generatedBy, string $generatedAt): void {
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parishioner Registry - San Lorenzo Ruiz Mission Station</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            color: #1e293b;
+            background-color: #f8fafc;
+            line-height: 1.4;
+            font-size: 13px;
+        }
+        .print-toolbar {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background: #1e293b;
+            color: #ffffff;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .toolbar-info {
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .toolbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .btn-toolbar {
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 700;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.15s ease;
+        }
+        .btn-print-action {
+            background: #15803d;
+            color: #ffffff;
+        }
+        .btn-print-action:hover {
+            background: #166534;
+        }
+        .btn-close-action {
+            background: #475569;
+            color: #ffffff;
+        }
+        .btn-close-action:hover {
+            background: #334155;
+        }
+        .document-wrapper {
+            max-width: 960px;
+            margin: 24px auto;
+            background: #ffffff;
+            padding: 40px 48px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        }
+        /* Letterhead */
+        .letterhead-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 12px;
+        }
+        .logo-col {
+            width: 85px;
+            vertical-align: middle;
+            text-align: left;
+        }
+        .logo-img {
+            width: 72px;
+            height: 72px;
+            object-fit: contain;
+        }
+        .logo-placeholder {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #64748b;
+        }
+        .text-col {
+            vertical-align: middle;
+            text-align: center;
+        }
+        .diocese-title {
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            color: #475569;
+            text-transform: uppercase;
+        }
+        .parish-title {
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 21px;
+            font-weight: 800;
+            color: #0f172a;
+            letter-spacing: 0.5px;
+            margin: 3px 0;
+            text-transform: uppercase;
+        }
+        .location-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+            letter-spacing: 0.5px;
+        }
+        .spacer-col {
+            width: 85px;
+        }
+        /* Cross divider */
+        .divider-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0 20px 0;
+        }
+        .divider-table td {
+            padding: 0;
+        }
+        .divider-line {
+            border-top: 1.5px solid #d97706;
+            width: 48%;
+        }
+        .divider-cross {
+            width: 4%;
+            text-align: center;
+            font-size: 15px;
+            color: #d97706;
+            line-height: 1;
+        }
+        /* Report Title & Meta Bar */
+        .doc-header-block {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .doc-heading {
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            color: #1e293b;
+            margin-bottom: 6px;
+        }
+        .doc-meta-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            font-size: 12px;
+            color: #475569;
+            margin-top: 8px;
+            padding: 8px 16px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+        }
+        .meta-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-weight: 600;
+        }
+        .meta-pill-badge {
+            background: #0f3321;
+            color: #ffffff;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        /* Table */
+        .registry-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+            font-size: 12px;
+        }
+        .registry-table th {
+            background-color: #f1f5f9;
+            color: #334155;
+            font-weight: 800;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 10px 12px;
+            border: 1px solid #cbd5e1;
+            text-align: left;
+        }
+        .registry-table td {
+            padding: 9px 12px;
+            border: 1px solid #e2e8f0;
+            vertical-align: middle;
+            color: #1e293b;
+        }
+        .registry-table tbody tr:nth-child(even) {
+            background-color: #fafbfc;
+        }
+        .status-badge-print {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .status-approved {
+            background: #dcfce7;
+            color: #15803d;
+            border: 1px solid #86efac;
+        }
+        .status-pending {
+            background: #fef3c7;
+            color: #b45309;
+            border: 1px solid #fcd34d;
+        }
+        .status-rejected {
+            background: #fee2e2;
+            color: #dc2626;
+            border: 1px solid #fca5a5;
+        }
+        .status-other {
+            background: #f1f5f9;
+            color: #475569;
+            border: 1px solid #cbd5e1;
+        }
+        /* Certification block */
+        .certification-block {
+            margin-top: 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding-top: 20px;
+            page-break-inside: avoid;
+        }
+        .cert-signature-box {
+            width: 44%;
+            text-align: center;
+        }
+        .cert-line {
+            border-bottom: 1px solid #0f172a;
+            margin-bottom: 8px;
+            height: 40px;
+        }
+        .cert-name {
+            font-weight: 700;
+            font-size: 13px;
+            color: #0f172a;
+        }
+        .cert-title {
+            font-size: 11px;
+            color: #64748b;
+        }
+        .footer-note {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 10.5px;
+            color: #94a3b8;
+            border-top: 1px solid #f1f5f9;
+            padding-top: 12px;
+        }
+        /* Print rules */
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            body {
+                background: #ffffff !important;
+                color: #000000 !important;
+                font-size: 11px !important;
+            }
+            .document-wrapper {
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                border: none !important;
+                box-shadow: none !important;
+            }
+            @page {
+                size: portrait;
+                margin: 12mm 10mm 15mm 10mm;
+            }
+            thead {
+                display: table-header-group;
+            }
+            tr {
+                page-break-inside: avoid;
+            }
+            .registry-table th {
+                background-color: #f1f5f9 !important;
+                color: #000000 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .status-badge-print {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="print-toolbar no-print">
+        <div class="toolbar-info">
+            <i class="fas fa-church"></i>
+            <span>Parishioner Directory &bull; <?php echo count($users); ?> records</span>
+        </div>
+        <div class="toolbar-actions">
+            <button type="button" class="btn-toolbar btn-print-action" onclick="window.print()">
+                <i class="fas fa-print"></i> Print Document
+            </button>
+            <button type="button" class="btn-toolbar btn-close-action" onclick="window.close()">
+                <i class="fas fa-xmark"></i> Close
+            </button>
+        </div>
+    </div>
+
+    <div class="document-wrapper">
+        <table class="letterhead-table">
+            <tr>
+                <td class="logo-col">
+                    <?php if (!empty($logoBase64)): ?>
+                        <img src="<?php echo $logoBase64; ?>" alt="Parish Logo" class="logo-img">
+                    <?php else: ?>
+                        <div class="logo-placeholder">SLR</div>
+                    <?php endif; ?>
+                </td>
+                <td class="text-col">
+                    <div class="diocese-title">Archdiocese of Cotabato</div>
+                    <div class="parish-title">San Lorenzo Ruiz Mission Station</div>
+                    <div class="location-title">Aleosan, North Cotabato</div>
+                </td>
+                <td class="spacer-col"></td>
+            </tr>
+        </table>
+
+        <table class="divider-table">
+            <tr>
+                <td class="divider-line"></td>
+                <td class="divider-cross">&#8224;</td>
+                <td class="divider-line"></td>
+            </tr>
+        </table>
+
+        <div class="doc-header-block">
+            <h1 class="doc-heading">Official Parishioner Registry</h1>
+            <div class="doc-meta-bar">
+                <span class="meta-pill">
+                    Status: <span class="meta-pill-badge"><?php echo htmlspecialchars($filterLabel); ?></span>
+                </span>
+                <?php if ($searchQuery !== ''): ?>
+                    <span class="meta-pill">
+                        Search: <strong>"<?php echo htmlspecialchars($searchQuery); ?>"</strong>
+                    </span>
+                <?php endif; ?>
+                <span class="meta-pill">
+                    Total Records: <strong><?php echo count($users); ?></strong>
+                </span>
+                <span class="meta-pill">
+                    Generated: <strong><?php echo $generatedAt; ?></strong>
+                </span>
+            </div>
+        </div>
+
+        <table class="registry-table">
+            <thead>
+                <tr>
+                    <th style="width: 35px; text-align: center;">#</th>
+                    <th>Full Name</th>
+                    <th>Email Address</th>
+                    <th>Contact No.</th>
+                    <th>Chapel / Address</th>
+                    <th>Status</th>
+                    <th>Date Joined</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if (!empty($users)): ?>
+                    <?php $idx = 1; foreach ($users as $user): ?>
+                        <?php
+                        $st = strtolower($user['status'] ?? 'pending');
+                        $is_approved = in_array($st, ['active', 'approved'], true);
+                        $is_pending = in_array($st, ['pending', 'pending_verification'], true);
+                        $is_rejected = ($st === 'rejected');
+                        
+                        $badge_class = 'status-other';
+                        $status_text = ucfirst(str_replace('_', ' ', $st));
+                        if ($is_approved) {
+                            $badge_class = 'status-approved';
+                            $status_text = 'Approved';
+                        } elseif ($is_pending) {
+                            $badge_class = 'status-pending';
+                            $status_text = 'Pending';
+                        } elseif ($is_rejected) {
+                            $badge_class = 'status-rejected';
+                            $status_text = 'Rejected';
+                        }
+                        
+                        $address_info = trim($user['chapel_district'] ?? '');
+                        if (!empty($user['address'])) {
+                            $address_info = $address_info !== '' ? $address_info . ' &bull; ' . $user['address'] : $user['address'];
+                        }
+                        if ($address_info === '') $address_info = '—';
+                        ?>
+                        <tr>
+                            <td style="text-align: center; color: #64748b;"><?php echo $idx++; ?></td>
+                            <td><strong><?php echo htmlspecialchars($user['fullname'] ?? ''); ?></strong></td>
+                            <td><?php echo !empty($user['email']) ? htmlspecialchars($user['email']) : '—'; ?></td>
+                            <td><?php echo !empty($user['phone_number']) ? htmlspecialchars($user['phone_number']) : '—'; ?></td>
+                            <td><?php echo htmlspecialchars($address_info); ?></td>
+                            <td>
+                                <span class="status-badge-print <?php echo $badge_class; ?>">
+                                    <?php echo $status_text; ?>
+                                </span>
+                            </td>
+                            <td><?php echo !empty($user['created_at']) ? date('M d, Y', strtotime($user['created_at'])) : '—'; ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 24px; color: #64748b;">
+                            No parishioner records found matching the current criteria.
+                        </td>
+                    </tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
+
+        <div class="certification-block">
+            <div class="cert-signature-box">
+                <div class="cert-line"></div>
+                <div class="cert-name"><?php echo htmlspecialchars($generatedBy); ?></div>
+                <div class="cert-title">Prepared by / Parish Records Administrator</div>
+            </div>
+            <div class="cert-signature-box">
+                <div class="cert-line"></div>
+                <div class="cert-name">Rev. Fr. Parish Priest / Administrator</div>
+                <div class="cert-title">Attested &amp; Verified</div>
+            </div>
+        </div>
+
+        <div class="footer-note">
+            San Lorenzo Ruiz Mission Station &bull; Archdiocese of Cotabato &bull; Official Registry Document &bull; Generated on <?php echo $generatedAt; ?>
+        </div>
+    </div>
+
+    <script>
+        window.addEventListener('DOMContentLoaded', function() {
+            setTimeout(function() {
+                window.print();
+            }, 500);
+        });
+    </script>
+</body>
+</html>
+<?php
+}
+?>
 
 <script src="../assets/js/main.js"></script>
 <?php include '../templates/footer.php'; ?>
