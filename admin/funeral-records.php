@@ -60,6 +60,12 @@ $alert_type = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['add','edit','archive','restore'], true)) {
     requireValidCsrfToken();
     try {
+        if (!empty($_POST['family_name']) && !empty($_POST['deceased_name']) && stripos($_POST['deceased_name'], trim($_POST['family_name'])) === false) {
+            $_POST['deceased_name'] = trim($_POST['deceased_name'] . ' ' . trim($_POST['family_name']));
+        }
+        if (empty($_POST['status'])) {
+            $_POST['status'] = 'active';
+        }
         $records=new SacramentalRecordService($conn);$actor=(int)($_SESSION['user_id']??0);
         if($action==='add'){$records->create('funeral',$_POST,$actor);$notice='Funeral record created.';}
         elseif($action==='edit'){$records->requestCorrection('funeral',(int)($_POST['record_id']??0),$_POST,(string)($_POST['correction_reason']??''),$actor);$notice='Correction submitted for review; the official record was not overwritten.';}
@@ -74,6 +80,10 @@ if (($action === 'add' || $action === 'edit') && $_SERVER['REQUEST_METHOD'] === 
     $registry_no = trim($_POST['registry_no'] ?? '');
     $deceased_name = trim($_POST['deceased_name'] ?? '');
     $family_name = trim($_POST['family_name'] ?? '');
+    if ($family_name !== '' && stripos($deceased_name, $family_name) === false) {
+        $deceased_name = trim($deceased_name . ' ' . $family_name);
+    }
+    $family_name = null;
     $date_of_death = !empty($_POST['date_of_death']) ? $_POST['date_of_death'] : null;
     $date_of_burial = !empty($_POST['date_of_burial']) ? $_POST['date_of_burial'] : null;
     $civil_status = trim($_POST['civil_status'] ?? '');
@@ -82,7 +92,7 @@ if (($action === 'add' || $action === 'edit') && $_SERVER['REQUEST_METHOD'] === 
     $place_of_burial = trim($_POST['place_of_burial'] ?? '');
     $minister = trim($_POST['minister'] ?? '');
     $remarks = trim($_POST['remarks'] ?? '');
-    $status = $_POST['status'] ?? 'active';
+    $status = !empty($_POST['status']) ? trim($_POST['status']) : 'active';
     $request_id = !empty($_POST['request_id']) ? (int)$_POST['request_id'] : null;
 
     if ($deceased_name && $date_of_burial) {
@@ -149,6 +159,7 @@ if ($action === 'archive' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $search = trim($_GET['search'] ?? '');
+$year_filter = isset($_GET['year']) && is_numeric($_GET['year']) && (int)$_GET['year'] > 1900 ? (int)$_GET['year'] : null;
 $raw_status = trim((string)($_GET['status'] ?? ''));
 if ($raw_status === '') {
     $status_filter = 'active';
@@ -157,6 +168,26 @@ if ($raw_status === '') {
 } else {
     $status_filter = 'active';
 }
+
+// Fetch available years dynamically from existing records (burial or death dates)
+$years_query = "
+    SELECT DISTINCT yr FROM (
+        SELECT YEAR(date_of_burial) AS yr FROM funeral_records WHERE date_of_burial IS NOT NULL AND date_of_burial != '0000-00-00'
+        UNION
+        SELECT YEAR(date_of_death) AS yr FROM funeral_records WHERE date_of_death IS NOT NULL AND date_of_death != '0000-00-00'
+    ) years_sub WHERE yr IS NOT NULL AND yr > 1900 ORDER BY yr DESC
+";
+$years_stmt = $conn->query($years_query);
+$available_years = array();
+if ($years_stmt) {
+    while ($y_row = $years_stmt->fetch_assoc()) {
+        if (!empty($y_row['yr'])) {
+            $available_years[] = (int)$y_row['yr'];
+        }
+    }
+    $years_stmt->close();
+}
+
 $page = max(1, (int)($_GET['page'] ?? 1));
 $per_page = 15;
 
@@ -171,6 +202,13 @@ if ($search !== '') {
         $params[] = $search_param;
         $param_types .= "s";
     }
+}
+
+if ($year_filter !== null) {
+    $where_clauses[] = "(YEAR(date_of_burial) = ? OR YEAR(date_of_death) = ?)";
+    $params[] = $year_filter;
+    $params[] = $year_filter;
+    $param_types .= "ii";
 }
 
 if ($status_filter === 'active') {
@@ -638,11 +676,14 @@ include '../templates/header.php';
 
             <div class="card-section">
                 <div class="search-bar">
-                    <input type="text" id="searchInput" placeholder="Search deceased name, family name, burial place, minister, cause, or remarks..." value="<?php echo htmlspecialchars($search); ?>">
-                    <select id="statusFilter" onchange="applyFilter()">
-                        <option value="active" <?php echo $status_filter === 'active' ? 'selected' : ''; ?>>Active (Default)</option>
-                        <option value="archived" <?php echo $status_filter === 'archived' ? 'selected' : ''; ?>>Archived</option>
-                        <option value="all" <?php echo $status_filter === 'all' ? 'selected' : ''; ?>>All Status</option>
+                    <input type="text" id="searchInput" placeholder="Search deceased name, burial place, minister, cause, or remarks..." value="<?php echo htmlspecialchars($search); ?>">
+                    <select id="yearFilter" onchange="applyFilter()">
+                        <option value="">All Years</option>
+                        <?php foreach ($available_years as $yr): ?>
+                            <option value="<?php echo $yr; ?>" <?php echo $year_filter === (int)$yr ? 'selected' : ''; ?>>
+                                <?php echo $yr; ?>
+                            </option>
+                        <?php endforeach; ?>
                     </select>
                     <button onclick="performSearch()" class="btn btn-primary-gold">
                         <i class="fas fa-search"></i> Search
@@ -663,7 +704,6 @@ include '../templates/header.php';
                             <tr>
                                 <th>No.</th>
                                 <th>Deceased Name</th>
-                                <th>Family Name</th>
                                 <th>Date of Death</th>
                                 <th>Date of Burial</th>
                                 <th>Civil Status</th>
@@ -680,11 +720,15 @@ include '../templates/header.php';
                             <?php if (count($records) > 0): ?>
                                 <?php foreach ($records as $record): ?>
                                     <?php
+                                        $deceased_display_name = trim($record['deceased_name'] ?? '');
+                                        $fam = trim($record['family_name'] ?? '');
+                                        if ($fam !== '' && stripos($deceased_display_name, $fam) === false) {
+                                            $deceased_display_name = trim($deceased_display_name . ' ' . $fam);
+                                        }
                                         $record_payload = array(
                                             'id' => $record['funeral_id'],
                                             'registry_no' => $record['registry_no'] ?? '',
-                                            'deceased_name' => $record['deceased_name'] ?? '',
-                                            'family_name' => $record['family_name'] ?? '',
+                                            'deceased_name' => $deceased_display_name,
                                             'date_of_death' => $record['date_of_death'] ?? '',
                                             'date_of_burial' => $record['date_of_burial'] ?? '',
                                             'civil_status' => $record['civil_status'] ?? '',
@@ -700,8 +744,7 @@ include '../templates/header.php';
                                     ?>
                                     <tr>
                                         <td><?php echo htmlspecialchars($record['registry_no'] ?: $record['funeral_id']); ?></td>
-                                        <td><span class="text-strong"><?php echo htmlspecialchars($record['deceased_name']); ?></span></td>
-                                        <td><?php echo htmlspecialchars($record['family_name'] ?: 'N/A'); ?></td>
+                                        <td><span class="text-strong"><?php echo htmlspecialchars($deceased_display_name); ?></span></td>
                                         <td><?php echo funeral_format_date($record['date_of_death']); ?></td>
                                         <td><?php echo funeral_format_date($record['date_of_burial']); ?></td>
                                         <td><?php echo htmlspecialchars($record['civil_status'] ?: 'N/A'); ?></td>
@@ -711,13 +754,15 @@ include '../templates/header.php';
                                         <td><?php echo htmlspecialchars($record['minister'] ?: 'N/A'); ?></td>
                                         <td><?php echo htmlspecialchars($record['remarks'] ?: ''); ?></td>
                                         <td>
-                                            <span class="status-badge badge-<?php echo strtolower($record['status']); ?>">
-                                                <?php echo ucfirst($record['status']); ?>
-                                            </span>
-                                            <?php if (strtolower($record['status']) === 'archived' && !empty($record['archive_reason'])): ?>
-                                                <div class="mt-1" title="Archive Reason: <?php echo htmlspecialchars($record['archive_reason']); ?>" style="font-size: 0.76rem; color: #dc2626; background: #fee2e2; border: 1px solid #fecaca; border-radius: 4px; padding: 2px 6px; max-width: 140px; word-break: break-word; margin: 0 auto; line-height: 1.3;">
-                                                    <i class="fas fa-comment-dots me-1"></i><?php echo htmlspecialchars($record['archive_reason']); ?>
-                                                </div>
+                                            <?php if (strtolower($record['status']) === 'archived'): ?>
+                                                <span class="status-badge badge-archived">
+                                                    Archived
+                                                </span>
+                                                <?php if (!empty($record['archive_reason'])): ?>
+                                                    <div class="mt-1" title="Archive Reason: <?php echo htmlspecialchars($record['archive_reason']); ?>" style="font-size: 0.76rem; color: #dc2626; background: #fee2e2; border: 1px solid #fecaca; border-radius: 4px; padding: 2px 6px; max-width: 140px; word-break: break-word; margin: 0 auto; line-height: 1.3;">
+                                                        <i class="fas fa-comment-dots me-1"></i><?php echo htmlspecialchars($record['archive_reason']); ?>
+                                                    </div>
+                                                <?php endif; ?>
                                             <?php endif; ?>
                                         </td>
                                         <td>
@@ -742,7 +787,7 @@ include '../templates/header.php';
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <tr>
-                                    <td colspan="13" style="text-align: center; padding: 30px; color: #6c757d;">
+                                    <td colspan="12" style="text-align: center; padding: 30px; color: #6c757d;">
                                         <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 10px;"></i><br>
                                         No funeral records found.
                                     </td>
@@ -755,7 +800,7 @@ include '../templates/header.php';
                 <?php if ($total_pages > 1): ?>
                     <div style="margin-top: 20px; text-align: center;">
                         <?php for ($i = 1; $i <= $total_pages; $i++): ?>
-                            <a href="?page=<?php echo $i; ?>&search=<?php echo urlencode($search); ?>&status=<?php echo urlencode($status_filter); ?>"
+                            <a href="?page=<?php echo $i; ?>&search=<?php echo urlencode($search); ?>&year=<?php echo urlencode($year_filter ?? ''); ?><?php echo !empty($raw_status) ? '&status=' . urlencode($raw_status) : ''; ?>"
                                style="padding: 8px 12px; margin: 0 3px; border-radius: 6px; text-decoration: none; background: <?php echo $i === $page ? 'var(--primary-gold)' : '#e0e0e0'; ?>; color: <?php echo $i === $page ? 'var(--primary-navy)' : '#666'; ?>; font-weight: 700;">
                                 <?php echo $i; ?>
                             </a>
@@ -804,14 +849,9 @@ include '../templates/header.php';
 
                         <div class="form-group">
                             <label>Deceased Name *</label>
-                            <input type="text" id="deceasedName" name="deceased_name" required>
+                            <input type="text" id="deceasedName" name="deceased_name" placeholder="Full name of deceased" required>
                         </div>
                         <div class="form-group"><label>Birth Date *</label><input id="birthDate" type="date" name="birth_date" required max="<?php echo date('Y-m-d'); ?>"></div>
-
-                        <div class="form-group">
-                            <label>Family Name</label>
-                            <input type="text" id="familyName" name="family_name" placeholder="Family / surname">
-                        </div>
 
                         <div class="form-group">
                             <label>Date of Death *</label>
@@ -851,6 +891,7 @@ include '../templates/header.php';
                         <div class="form-group">
                             <label>Record Status</label>
                             <select id="recordStatus" name="status">
+                                <option value="">-- Select Status --</option>
                                 <option value="active">Active</option>
                                 <option value="archived">Archived</option>
                             </select>
@@ -910,6 +951,17 @@ include '../templates/header.php';
             document.getElementById('bookNo').value = '';
             document.getElementById('pageNo').value = '';
             document.getElementById('entryNo').value = '';
+            document.getElementById('deceasedName').value = '';
+            document.getElementById('birthDate').value = '';
+            document.getElementById('dateOfDeath').value = '';
+            document.getElementById('dateOfBurial').value = '';
+            document.getElementById('civilStatus').value = '';
+            document.getElementById('funeralRites').value = '';
+            document.getElementById('causeOfDeath').value = '';
+            document.getElementById('placeOfBurial').value = '';
+            document.getElementById('minister').value = '';
+            document.getElementById('recordStatus').value = '';
+            document.getElementById('remarks').value = '';
             document.getElementById('modalTitle').textContent = 'Add Funeral Record';
             document.getElementById('recordModal').classList.add('show');
             document.body.classList.add('modal-open');
@@ -923,8 +975,11 @@ include '../templates/header.php';
             document.getElementById('pageNo').value = record.page_no || '';
             document.getElementById('entryNo').value = record.entry_no || '';
             document.getElementById('birthDate').value = record.birth_date || '';
-            document.getElementById('deceasedName').value = record.deceased_name || '';
-            document.getElementById('familyName').value = record.family_name || '';
+            let fullName = record.deceased_name || '';
+            if (record.family_name && !fullName.toLowerCase().includes(record.family_name.toLowerCase())) {
+                fullName = (fullName + ' ' + record.family_name).trim();
+            }
+            document.getElementById('deceasedName').value = fullName;
             document.getElementById('dateOfDeath').value = record.date_of_death || '';
             document.getElementById('dateOfBurial').value = record.date_of_burial || '';
             document.getElementById('civilStatus').value = record.civil_status || '';
@@ -933,7 +988,7 @@ include '../templates/header.php';
             document.getElementById('placeOfBurial').value = record.place_of_burial || '';
             document.getElementById('minister').value = record.minister || '';
             document.getElementById('remarks').value = record.remarks || '';
-            document.getElementById('recordStatus').value = record.status || 'active';
+            document.getElementById('recordStatus').value = record.status || '';
             document.getElementById('requestId').value = record.request_id || '';
             document.getElementById('actionInput').value = 'edit';
             document.getElementById('modalTitle').textContent = 'Edit Funeral Record';
@@ -963,8 +1018,13 @@ include '../templates/header.php';
         // Perform Search Function - Documents this helper's role in the parish management workflow.
         function performSearch() {
             const search = document.getElementById('searchInput').value;
-            const status = document.getElementById('statusFilter').value;
-            window.location.href = `?search=${encodeURIComponent(search)}&status=${encodeURIComponent(status)}&page=1`;
+            const yearFilter = document.getElementById('yearFilter');
+            const year = yearFilter ? yearFilter.value : '';
+            let url = `?search=${encodeURIComponent(search)}&page=1`;
+            if (year) {
+                url += `&year=${encodeURIComponent(year)}`;
+            }
+            window.location.href = url;
         }
 
         // Apply Filter Function - Documents this helper's role in the parish management workflow.
