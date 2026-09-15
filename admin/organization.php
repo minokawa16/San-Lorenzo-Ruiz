@@ -124,6 +124,31 @@ foreach ($allPositions as $p) {
 // 5. Level 5 (Bottom Tier): Ministry Coordinators (Directly below Level 4)
 // =========================================================================
 
+$filterStaticDesc = function (?string $desc): string {
+    if (empty($desc)) return '';
+    $trimmed = trim($desc);
+    $staticPlaceholders = [
+        'Pastoral & Canonical Head of Mission Station',
+        'Canonical Head & Pastor',
+        'Assistant Pastoral & Liturgical Ministry',
+        'Parochial Vicar',
+        'Chancery, Office & Sacramental Operations Head',
+        'Chancery & Office Operations',
+        'Parish Pastoral Council Executive Board President',
+        'Parish Pastoral Council Executive Board Vice President',
+        'Parish Pastoral Council Executive Board Secretary',
+        'Parish Pastoral Council Executive Board Treasurer',
+        'Council Officer',
+        'Liturgical planning, choir coordination, and liturgical servers',
+        'Youth empowerment, faith formation, and campus fellowship',
+        'Religious instruction, sacraments preparation, and bible apostolate',
+        'Hospitality, mass ushering, and order maintenance',
+        'Ministry Coordinator',
+        'Test desc'
+    ];
+    return in_array($trimmed, $staticPlaceholders, true) ? '' : $trimmed;
+};
+
 // Level 1: Parish Priest
 $priestOccupant = $tree['tier1']['occupants'][0]['full_name'] ?? '';
 $priestVacant = empty($priestOccupant);
@@ -139,7 +164,7 @@ $level1Nodes = [
         'email' => $tree['tier1']['occupants'][0]['email'] ?? '',
         'status' => $priestVacant ? 'Vacant' : 'Active',
         'is_vacant' => $priestVacant,
-        'description' => $tree['tier1']['description'] ?? '',
+        'description' => $filterStaticDesc($tree['tier1']['description'] ?? ''),
         'is_system_role' => true,
         'can_vacate' => !$priestVacant,
         'parentId' => null
@@ -161,7 +186,7 @@ if (!empty($tree['tier2'])) {
             'email' => $t2['occupants'][0]['email'] ?? '',
             'status' => $t2Vac ? 'Vacant' : 'Active',
             'is_vacant' => $t2Vac,
-            'description' => $t2['description'] ?? '',
+            'description' => $filterStaticDesc($t2['description'] ?? ''),
             'is_system_role' => !empty($t2['is_system_role']),
             'can_vacate' => !$t2Vac,
             'can_remove' => empty($t2['is_system_role']),
@@ -187,7 +212,7 @@ $level3Nodes = [
         'email' => $t3['occupants'][0]['email'] ?? '',
         'status' => $t3Vac ? 'Vacant' : 'Active',
         'is_vacant' => $t3Vac,
-        'description' => $t3['description'] ?? '',
+        'description' => $filterStaticDesc($t3['description'] ?? ''),
         'is_system_role' => true,
         'can_vacate' => !$t3Vac,
         'parentId' => $parentForSecretary
@@ -214,7 +239,7 @@ if (!empty($tree['tier4'])) {
             'email' => $p4['occupants'][0]['email'] ?? '',
             'status' => $p4Vac ? 'Vacant' : 'Active',
             'is_vacant' => $p4Vac,
-            'description' => $p4['description'] ?? '',
+            'description' => $filterStaticDesc($p4['description'] ?? ''),
             'is_system_role' => true,
             'can_vacate' => !$p4Vac,
             'parentId' => $secPosId
@@ -240,7 +265,7 @@ if (!empty($tree['tier5'])) {
             'email' => $p5['occupants'][0]['email'] ?? '',
             'status' => $p5Vac ? 'Vacant' : 'Active',
             'is_vacant' => $p5Vac,
-            'description' => $p5['description'] ?? '',
+            'description' => $filterStaticDesc($p5['description'] ?? ''),
             'is_system_role' => false,
             'is_custom_ministry' => true,
             'can_vacate' => !$p5Vac,
