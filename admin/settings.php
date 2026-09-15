@@ -11,7 +11,7 @@ include '../includes/helpers.php';
 requireAdmin();
 requirePermission('system.settings');
 
-$page_title = 'Backup, Recovery & Maintenance Center';
+$page_title = 'Settings & Parish Backup';
 $error = '';
 $success = '';
 $validation_result = null;
@@ -372,7 +372,7 @@ function getBackupFiles($backup_dir) {
     $files = [];
     foreach ($search_dirs as $dir) {
         if (is_dir($dir)) {
-            $matched = glob($dir . DIRECTORY_SEPARATOR . '*.{sql,zip}', GLOB_BRACE) ?: [];
+            $matched = glob($dir . DIRECTORY_SEPARATOR . '*.{sql,zip,csv}', GLOB_BRACE) ?: [];
             foreach ($matched as $f) {
                 if (is_file($f)) {
                     $files[basename($f)] = $f;
@@ -951,6 +951,153 @@ function runDueAutomatedTasks($conn, $backup_dir, $project_root, $admin_id) {
     return $messages;
 }
 
+// Export Parish Records - Generates clean, Excel-compatible CSV spreadsheets for selected parish record categories
+function exportParishRecords($conn, array $categories, $backup_dir, $user_id = 0) {
+    if (empty($categories)) {
+        throw new Exception('Please select at least one record category to back up.');
+    }
+
+    @set_time_limit(300);
+    @ini_set('memory_limit', '512M');
+
+    if (!ensureBackupDirectory($backup_dir)) {
+        throw new Exception('Backup folder is not writable.');
+    }
+
+    $timestamp = date('Y-m-d_His');
+    $temp_dir = $backup_dir . DIRECTORY_SEPARATOR . 'temp_export_' . uniqid('', true);
+    if (!@mkdir($temp_dir, 0777, true) && !is_dir($temp_dir)) {
+        throw new Exception('Unable to create temporary export folder.');
+    }
+
+    $files_created = [];
+
+    // Columns to exclude for user privacy and security
+    $sensitive_user_cols = [
+        'password', 'salt', 'remember_token', 'token', 'reset_token',
+        'otp_code', 'otp_expiry', 'otp_verified', 'auth_token',
+        'two_factor_secret', 'two_factor_recovery_codes', 'failed_login_attempts',
+        'lockout_time', 'email_verification_token', 'verification_token'
+    ];
+
+    $category_map = [
+        'parishioners' => [
+            ['table' => 'users', 'filename' => 'Parishioner_Directory.csv', 'sensitive' => $sensitive_user_cols]
+        ],
+        'sacramental' => [
+            ['table' => 'baptism_records', 'filename' => 'Sacramental_Baptism_Records.csv', 'sensitive' => []],
+            ['table' => 'confirmation_records', 'filename' => 'Sacramental_Confirmation_Records.csv', 'sensitive' => []],
+            ['table' => 'marriage_records', 'filename' => 'Sacramental_Marriage_Records.csv', 'sensitive' => []],
+            ['table' => 'first_communion_records', 'filename' => 'Sacramental_First_Communion_Records.csv', 'sensitive' => []]
+        ],
+        'funeral' => [
+            ['table' => 'funeral_records', 'filename' => 'Funeral_and_Burial_Records.csv', 'sensitive' => []]
+        ],
+        'requests' => [
+            ['table' => 'requests', 'filename' => 'Certificate_Requests.csv', 'sensitive' => []]
+        ],
+        'reservations' => [
+            ['table' => 'reservations', 'filename' => 'Church_Reservations.csv', 'sensitive' => []]
+        ]
+    ];
+
+    foreach ($categories as $cat) {
+        if (!isset($category_map[$cat])) {
+            continue;
+        }
+
+        foreach ($category_map[$cat] as $item) {
+            $table = $item['table'];
+            $filename = $item['filename'];
+            $omit = $item['sensitive'];
+
+            $tbl_check = $conn->query("SHOW TABLES LIKE '" . $conn->real_escape_string($table) . "'");
+            if (!$tbl_check || $tbl_check->num_rows === 0) {
+                continue;
+            }
+
+            $cols_res = $conn->query("SHOW COLUMNS FROM `" . str_replace('`', '``', $table) . "`");
+            $columns = [];
+            while ($cols_res && $c = $cols_res->fetch_assoc()) {
+                if (!in_array(strtolower($c['Field']), $omit, true)) {
+                    $columns[] = $c['Field'];
+                }
+            }
+
+            if (empty($columns)) {
+                continue;
+            }
+
+            $col_sql = '`' . implode('`, `', array_map(function($c) { return str_replace('`', '``', $c); }, $columns)) . '`';
+            $data_res = $conn->query("SELECT $col_sql FROM `" . str_replace('`', '``', $table) . "`");
+
+            $file_path = $temp_dir . DIRECTORY_SEPARATOR . $filename;
+            $fp = fopen($file_path, 'wb');
+            if (!$fp) {
+                continue;
+            }
+
+            // UTF-8 BOM for seamless Microsoft Excel compatibility
+            fwrite($fp, "\xEF\xBB\xBF");
+
+            $headers = array_map(function($c) {
+                return ucwords(str_replace('_', ' ', $c));
+            }, $columns);
+            fputcsv($fp, $headers);
+
+            if ($data_res) {
+                while ($row = $data_res->fetch_assoc()) {
+                    fputcsv($fp, array_values($row));
+                }
+            }
+
+            fclose($fp);
+            $files_created[] = $file_path;
+        }
+    }
+
+    if (empty($files_created)) {
+        @rmdir($temp_dir);
+        throw new Exception('No parish records found for the selected categories.');
+    }
+
+    $zip_filename = 'Parish_Records_Backup_' . $timestamp . '.zip';
+    $zip_path = $backup_dir . DIRECTORY_SEPARATOR . $zip_filename;
+
+    if (class_exists('ZipArchive')) {
+        $zip = new ZipArchive();
+        if ($zip->open($zip_path, ZipArchive::CREATE | ZipArchive::OVERWRITE) === true) {
+            foreach ($files_created as $f) {
+                $zip->addFile($f, basename($f));
+            }
+            $zip->close();
+
+            foreach ($files_created as $f) {
+                @unlink($f);
+            }
+            @rmdir($temp_dir);
+
+            if ($user_id > 0 && function_exists('createAuditLog')) {
+                createAuditLog($conn, $user_id, 'DOWNLOAD_PARISH_RECORDS_BACKUP', 'system', 0, null, [
+                    'filename' => $zip_filename,
+                    'categories' => $categories
+                ]);
+            }
+
+            return $zip_path;
+        }
+    }
+
+    if (count($files_created) === 1) {
+        $single_path = $backup_dir . DIRECTORY_SEPARATOR . 'Parish_Records_' . basename($files_created[0]);
+        rename($files_created[0], $single_path);
+        @rmdir($temp_dir);
+        return $single_path;
+    }
+
+    throw new Exception('Unable to generate ZIP archive of parish records.');
+}
+
 // Direct Stream Action: Immediately generates and streams complete system backup or DB snapshot to the browser
 if (isset($_GET['download_action']) && in_array($_GET['download_action'], ['full_backup', 'database_backup', 'weekly_backup'], true)) {
     requireAdmin();
@@ -1026,12 +1173,12 @@ if (isset($_GET['download'])) {
 
     $extension = $path ? strtolower(pathinfo($path, PATHINFO_EXTENSION)) : '';
 
-    if (!$path || !in_array($extension, ['sql', 'zip'], true) || !is_file($path)) {
+    if (!$path || !in_array($extension, ['sql', 'zip', 'csv'], true) || !is_file($path)) {
         http_response_code(404);
         exit('Backup file not found.');
     }
 
-    $mime_type = $extension === 'zip' ? 'application/zip' : 'application/sql';
+    $mime_type = $extension === 'zip' ? 'application/zip' : ($extension === 'csv' ? 'text/csv; charset=UTF-8' : 'application/sql');
 
     // Clear any previous output buffers to avoid corrupting binary data
     while (ob_get_level()) {
@@ -1069,7 +1216,42 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $action = $_POST['action'] ?? '';
 
     try {
-        if ($action === 'database_backup') {
+        if ($action === 'download_parish_backup') {
+            $categories = $_POST['categories'] ?? [];
+            if (!is_array($categories) || empty($categories)) {
+                throw new Exception('Please select at least one record category to back up.');
+            }
+
+            $path = exportParishRecords($conn, $categories, $backup_dir, $_SESSION['user_id'] ?? 0);
+
+            while (ob_get_level()) {
+                ob_end_clean();
+            }
+
+            $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+            $mime_type = $extension === 'zip' ? 'application/zip' : 'text/csv; charset=UTF-8';
+
+            header('Content-Description: File Transfer');
+            header('Content-Type: ' . $mime_type);
+            header('Content-Disposition: attachment; filename="' . basename($path) . '"');
+            header('Content-Transfer-Encoding: binary');
+            header('Expires: 0');
+            header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
+            header('Pragma: public');
+            header('Content-Length: ' . filesize($path));
+
+            $fp = fopen($path, 'rb');
+            if ($fp !== false) {
+                while (!feof($fp)) {
+                    echo fread($fp, 1024 * 1024);
+                    flush();
+                }
+                fclose($fp);
+            } else {
+                readfile($path);
+            }
+            exit;
+        } elseif ($action === 'database_backup') {
             $path = createDatabaseBackup($conn, $backup_dir, 'daily-database');
             writeSetting($conn, 'last_daily_backup', date('Y-m-d H:i:s'));
             createAuditLog($conn, $_SESSION['user_id'], 'CREATE_DATABASE_BACKUP', 'system', 0);
@@ -1243,628 +1425,307 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
 }
 
 $backup_files = getBackupFiles($backup_dir);
-$total_backup_size = directorySize($backup_dir);
-$latest_backup = latestBackupTime($backup_files);
-$last_daily = readSetting($conn, 'last_daily_backup', '');
-$last_weekly = readSetting($conn, 'last_weekly_backup', '');
-$last_monthly = readSetting($conn, 'last_monthly_backup', '');
-$scheduler_enabled = readSetting($conn, 'backup_scheduler_enabled', '1') === '1';
-$daily_time = readSetting($conn, 'daily_backup_time', '01:00');
-$weekly_day = readSetting($conn, 'weekly_backup_day', 'Sunday');
-$monthly_day = readSetting($conn, 'monthly_backup_day', '1');
-$db_status = tableExists($conn, 'users') && tableExists($conn, 'audit_log') ? 'healthy' : 'warning';
-$backup_status = backupStatusFromAge($latest_backup, 7, 30);
-$storage_status = $total_backup_size > (2 * 1024 * 1024 * 1024) ? 'warning' : 'healthy';
-$zip_status = class_exists('ZipArchive') ? 'healthy' : 'critical';
-$recovery_readiness = ($backup_status === 'healthy' && $zip_status === 'healthy') ? 'healthy' : (($backup_status === 'critical' || $zip_status === 'critical') ? 'critical' : 'warning');
-$recent_recovery_logs = getRecentRows($conn, 'recovery_logs', 'created_at', 8);
-$recent_maintenance_logs = getRecentRows($conn, 'maintenance_logs', 'created_at', 8);
-$db_storage_bytes = getDatabaseStorageUsage($conn);
-$backup_storage_limit = 2 * 1024 * 1024 * 1024;
-$backup_storage_percent = min(100, round(($total_backup_size / max(1, $backup_storage_limit)) * 100));
-$memory_peak = memory_get_peak_usage(true);
-$backup_success_total = tableExists($conn, 'recovery_logs') ? maintenanceCount($conn, "SELECT COUNT(*) AS count FROM recovery_logs") : 0;
-$backup_success_completed = tableExists($conn, 'recovery_logs') ? maintenanceCount($conn, "SELECT COUNT(*) AS count FROM recovery_logs WHERE status = 'completed'") : 0;
-$backup_success_rate = $backup_success_total > 0 ? round(($backup_success_completed / $backup_success_total) * 100) : ($latest_backup ? 100 : 0);
-$critical_alerts = [];
-if ($backup_status === 'critical') {
-    $critical_alerts[] = 'No recent backup is available. Create a complete recovery package.';
-}
-if ($zip_status === 'critical') {
-    $critical_alerts[] = 'PHP ZipArchive is disabled. Full recovery packages cannot be created or restored.';
-}
-if ($storage_status !== 'healthy') {
-    $critical_alerts[] = 'Backup storage is approaching the configured local limit.';
-}
 $breadcrumbs = [
     'Dashboard' => 'dashboard.php',
-    'Backup, Recovery & Maintenance Center' => null
+    'Backup Records' => null
 ];
 ?>
 <?php include '../templates/header.php'; ?>
 
 <style>
-    .recovery-center { max-width: 1500px; margin: 0 auto; }
+    .backup-records-container {
+        max-width: 1100px;
+        margin: 0 auto;
+    }
     .btn-backup-brand {
-        background-color: #8b5a19 !important;
-        border-color: #8b5a19 !important;
+        background-color: #7a5214 !important;
+        border-color: #7a5214 !important;
         color: #ffffff !important;
-        padding: 0.5rem 1.15rem;
+        padding: 0.65rem 1.75rem;
         border-radius: 8px;
+        font-weight: 600;
         transition: all 0.2s ease-in-out;
     }
     .btn-backup-brand:hover,
     .btn-backup-brand:focus {
-        background-color: #704814 !important;
-        border-color: #704814 !important;
+        background-color: #63410e !important;
+        border-color: #63410e !important;
         color: #ffffff !important;
-        box-shadow: 0 4px 12px rgba(139, 90, 25, 0.25);
+        box-shadow: 0 4px 14px rgba(122, 82, 20, 0.28);
     }
     .btn-backup-brand:active {
-        background-color: #5c3b10 !important;
-        border-color: #5c3b10 !important;
+        background-color: #4f3309 !important;
+        border-color: #4f3309 !important;
         transform: translateY(1px);
     }
-    .recovery-hero { background: #fff; color: #101828; border: 1px solid #e4e7ec; border-top: 4px solid #d7ad43; border-radius: 8px; padding: 28px; display: grid; grid-template-columns: 1.5fr .8fr; gap: 24px; align-items: center; box-shadow: 0 12px 28px rgba(16, 24, 40, .06); }
-    .recovery-hero h1 { font-size: clamp(1.6rem, 3vw, 2.35rem); margin: 0 0 10px; letter-spacing: 0; }
-    .recovery-hero p { color: #667085; margin-bottom: 0; max-width: 760px; }
-    .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
-    .metric-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; margin: 18px 0; }
-    .metric-card, .enterprise-card, .wizard-panel, .health-panel { background: #fff; border: 1px solid #e4e7ec; border-radius: 8px; box-shadow: 0 12px 28px rgba(16, 24, 40, .06); }
-    .metric-card { padding: 16px; min-height: 118px; }
-    .metric-label { color: #667085; font-size: .82rem; font-weight: 700; text-transform: uppercase; }
-    .metric-value { font-size: 1.45rem; font-weight: 800; color: #101828; margin-top: 8px; word-break: break-word; }
-    .metric-note { color: #667085; font-size: .86rem; margin-top: 4px; }
-    .status-pill { display: inline-flex; align-items: center; gap: 7px; border-radius: 999px; padding: 5px 10px; font-weight: 700; font-size: .82rem; }
-    .status-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
-    .status-healthy { background: #ecfdf3; color: #027a48; }
-    .status-warning { background: #fffaeb; color: #b54708; }
-    .status-critical { background: #fef3f2; color: #b42318; }
-    .status-healthy .status-dot { background: #12b76a; }
-    .status-warning .status-dot { background: #f79009; }
-    .status-critical .status-dot { background: #f04438; }
-    .enterprise-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-    .enterprise-card { padding: 18px; display: flex; flex-direction: column; min-height: 236px; }
-    .enterprise-card h3 { font-size: 1.02rem; font-weight: 800; margin-bottom: 8px; color: #101828; }
-    .enterprise-card p, .enterprise-card li { color: #667085; font-size: .92rem; }
-    .enterprise-card ul { padding-left: 18px; margin-bottom: 14px; }
-    .enterprise-card form { margin-top: auto; }
-    .progress.slim { height: 8px; }
-    .wizard-panel { padding: 20px; }
-    .wizard-steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 18px; }
-    .wizard-step { border: 1px solid #e4e7ec; border-radius: 8px; padding: 10px; color: #475467; background: #f9fafb; min-height: 72px; }
-    .wizard-step strong { display: block; color: #101828; font-size: .9rem; }
-    .health-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
-    .health-panel { padding: 15px; }
-    .health-panel i { color: #175cd3; }
-    .maintenance-dashboard { display: grid; grid-template-columns: 1.25fr .75fr; gap: 16px; margin-bottom: 24px; }
-    .dashboard-panel { background: #fff; border: 1px solid #e4e7ec; border-radius: 8px; padding: 18px; box-shadow: 0 12px 28px rgba(16, 24, 40, .06); }
-    .dashboard-panel h2 { font-size: 1.08rem; font-weight: 850; margin: 0 0 14px; color: #101828; }
-    .analytics-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-    .analytics-tile { border: 1px solid #edf0f3; border-radius: 8px; padding: 14px; background: #f9fafb; min-height: 118px; }
-    .analytics-tile span { display: block; color: #667085; font-size: .78rem; font-weight: 800; text-transform: uppercase; }
-    .analytics-tile strong { display: block; color: #101828; font-size: 1.35rem; margin: 8px 0 6px; }
-    .alert-list { display: grid; gap: 10px; }
-    .alert-item { display: flex; gap: 10px; align-items: flex-start; border: 1px solid #fedf89; border-radius: 8px; padding: 11px; background: #fffbeb; color: #7a4b00; }
-    .alert-item.ok { border-color: #abefc6; background: #ecfdf3; color: #027a48; }
-    .form-section-title { color: #101828; font-weight: 850; margin: 0 0 12px; }
-    .backup-table td, .backup-table th { vertical-align: middle; }
-    .coverage-list { columns: 2; }
-    .custom-schedule-toggle-wrap {
-        margin-bottom: 1rem;
-    }
-    .schedule-checkbox-container {
-        display: inline-flex;
-        align-items: center;
-        gap: 10px;
+    .category-selection-card {
+        border: 1.5px solid #e4e7ec;
+        border-radius: 10px;
+        padding: 16px 18px;
+        transition: all 0.2s ease;
+        background: #ffffff;
         cursor: pointer;
         user-select: none;
-        -webkit-user-select: none;
-        margin: 0;
-        padding: 4px 0;
-    }
-    .schedule-checkbox-input {
-        position: absolute;
-        opacity: 0;
-        width: 1px;
-        height: 1px;
-        pointer-events: none;
-    }
-    .schedule-checkbox-custom {
-        position: relative;
-        display: inline-block;
-        width: 22px;
-        height: 22px;
-        min-width: 22px;
-        min-height: 22px;
-        background-color: #ffffff;
-        border: 2px solid #d0d5dd;
-        border-radius: 6px;
-        transition: all 0.15s ease-in-out;
-        box-sizing: border-box;
-        vertical-align: middle;
-    }
-    .schedule-checkbox-container:hover .schedule-checkbox-custom {
-        border-color: #7a5214;
-        background-color: #fcf9f4;
-    }
-    .schedule-checkbox-input:focus-visible + .schedule-checkbox-custom,
-    .schedule-checkbox-input:focus + .schedule-checkbox-custom {
-        border-color: #7a5214;
-        box-shadow: 0 0 0 3.5px rgba(122, 82, 20, 0.25);
-    }
-    .schedule-checkbox-input:checked + .schedule-checkbox-custom {
-        background-color: #7a5214 !important;
-        border-color: #7a5214 !important;
-    }
-    .schedule-checkbox-custom::after {
-        content: '';
-        position: absolute;
-        left: 6px;
-        top: 2px;
-        width: 6px;
-        height: 11px;
-        border: solid #ffffff;
-        border-width: 0 2.5px 2.5px 0;
-        transform: rotate(45deg);
-        opacity: 0;
-        transition: opacity 0.15s ease-in-out, transform 0.15s ease-in-out;
-    }
-    .schedule-checkbox-input:checked + .schedule-checkbox-custom::after {
-        opacity: 1 !important;
-    }
-    .schedule-checkbox-text {
-        font-size: 0.94rem;
-        font-weight: 600;
-        color: #344054;
-        line-height: 1.4;
-        transition: color 0.15s ease-in-out;
-    }
-    .schedule-checkbox-container:hover .schedule-checkbox-text {
-        color: #101828;
-    }
-    .log-panel-card {
-        border: 1px solid #e4e7ec;
-        border-radius: 8px;
-        background: #fff;
-        box-shadow: 0 12px 28px rgba(16, 24, 40, .06);
-        overflow: hidden;
-    }
-    .log-panel-header {
-        background: #ffffff;
-        border-bottom: 1px solid #e4e7ec;
-        padding: 14px 18px;
+        height: 100%;
         display: flex;
-        justify-content: space-between;
-        align-items: center;
-        cursor: pointer;
-        user-select: none;
-        -webkit-user-select: none;
-        transition: background-color 0.15s ease-in-out;
+        align-items: flex-start;
+        gap: 14px;
     }
-    .log-panel-header:hover {
-        background-color: #fcfaf7;
+    .category-selection-card:hover {
+        border-color: #c99b42;
+        background-color: #fdfbf7;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.04);
     }
-    .log-panel-header:focus-visible {
-        outline: none;
-        background-color: #fbf7f0;
-        box-shadow: inset 0 0 0 2px #7a5214;
-    }
-    .log-toggle-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 0.8rem;
-        font-weight: 600;
-        padding: 4px 10px;
-        border-radius: 6px;
-        border-color: #d0d5dd;
-        color: #475467;
-        background: #ffffff;
-        pointer-events: none;
-        transition: all 0.15s ease-in-out;
-    }
-    .log-panel-header:hover .log-toggle-btn {
+    .category-selection-card.selected {
         border-color: #7a5214;
+        background-color: #fcf9f3;
+    }
+    .category-checkbox {
+        width: 20px;
+        height: 20px;
+        margin-top: 3px;
+        accent-color: #7a5214;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+    .category-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 8px;
+        background-color: #f4ede4;
         color: #7a5214;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.15rem;
+        flex-shrink: 0;
     }
-    .log-panel-body {
-        transition: height 0.25s ease-in-out, opacity 0.2s ease-in-out;
+    .category-content h4 {
+        font-size: 0.98rem;
+        font-weight: 700;
+        color: #101828;
+        margin: 0 0 3px 0;
     }
-    .logs-scroll-container {
-        max-height: 300px;
-        overflow-y: auto;
-        overflow-x: auto;
-        scrollbar-width: thin;
-        scrollbar-color: #6d4c1b #f4ede4;
+    .category-content p {
+        font-size: 0.84rem;
+        color: #667085;
+        margin: 0;
+        line-height: 1.35;
     }
-    .logs-scroll-container::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
+    .quick-toggle-btn {
+        font-size: 0.84rem;
+        color: #7a5214;
+        font-weight: 600;
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        text-decoration: underline;
     }
-    .logs-scroll-container::-webkit-scrollbar-track {
-        background: #f4ede4;
-        border-radius: 4px;
+    .quick-toggle-btn:hover {
+        color: #543912;
     }
-    .logs-scroll-container::-webkit-scrollbar-thumb {
-        background: #6d4c1b;
-        border-radius: 4px;
+    .saved-files-card {
+        border: 1px solid #e4e7ec;
+        border-radius: 12px;
+        background: #ffffff;
+        box-shadow: 0 6px 18px rgba(16, 24, 40, 0.04);
     }
-    .logs-scroll-container::-webkit-scrollbar-thumb:hover {
-        background: #543912;
+    .table-saved td {
+        vertical-align: middle;
+        font-size: 0.88rem;
+        padding: 12px 16px;
     }
-    .log-table {
-        margin-bottom: 0;
-    }
-    .log-table thead th {
-        position: sticky;
-        top: 0;
-        z-index: 2;
-        background: #f8fafc;
-        color: #475467;
+    .table-saved th {
         font-size: 0.78rem;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.03em;
-        border-bottom: 1.5px solid #e4e7ec;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-    }
-    .log-table td {
-        font-size: 0.86rem;
-        vertical-align: middle;
-        padding: 8px 12px;
-    }
-    @media (max-width: 1100px) {
-        .metric-grid, .enterprise-grid, .health-grid, .analytics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        .maintenance-dashboard { grid-template-columns: 1fr; }
-        .recovery-hero { grid-template-columns: 1fr; }
-        .hero-actions { justify-content: flex-start; }
-        .wizard-steps { grid-template-columns: repeat(2, 1fr); }
-    }
-    @media (max-width: 640px) {
-        .metric-grid, .enterprise-grid, .health-grid, .wizard-steps, .analytics-grid { grid-template-columns: 1fr; }
-        .recovery-hero { padding: 20px; }
-        .coverage-list { columns: 1; }
+        background: #f8fafc;
+        color: #475467;
+        padding: 12px 16px;
     }
 </style>
 
-<div class="container-fluid px-0 recovery-center">
+<div class="container-fluid px-0 backup-records-container">
     <?php
-    $page_header_title = 'Settings & System Maintenance';
-    $page_header_subtitle = 'Configure system preferences, security, SMS gateway, backups, and maintenance routines.';
-    $page_header_icon = 'fa-gear';
+    $page_header_title = 'Settings & Parish Backup';
+    $page_header_subtitle = 'Download a copy of your parish records for safekeeping.';
+    $page_header_icon = 'fa-cloud-arrow-down';
     $show_back_button = true;
     $back_button_url = BASE_URL . 'admin/dashboard.php';
     include '../includes/page_header.php';
     ?>
 
+    <?php if ($error): ?>
+        <div class="alert alert-danger alert-dismissible fade show shadow-sm rounded-3 mb-4" role="alert">
+            <i class="fas fa-circle-exclamation me-2"></i> <?php echo e($error); ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($success): ?>
+        <div class="alert alert-success alert-dismissible fade show shadow-sm rounded-3 mb-4" role="alert">
+            <i class="fas fa-circle-check me-2"></i> <?php echo e($success); ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    <?php endif; ?>
+
+    <!-- Simplified Backup Parish Records Card -->
     <div class="card border-0 shadow-sm rounded-4 mb-4">
-        <div class="card-body p-4 d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
-            <div>
-                <h2 class="h5 m-0 font-weight-bold text-dark d-flex align-items-center gap-2">
-                    <i class="fas fa-shield-halved text-secondary"></i> Backup &amp; Recovery
-                </h2>
-                <p class="m-0 text-muted mt-1" style="font-size: 0.875rem;">Create and manage database backups to ensure parish records and data safety.</p>
-            </div>
-            <div class="d-flex flex-wrap align-items-center gap-2">
-                <a href="settings.php?download_action=database_backup" class="btn btn-backup-brand fw-semibold d-inline-flex align-items-center gap-2" data-download-action>
-                    <i class="fas fa-cloud-arrow-down"></i> Backup Data
-                </a>
-                <a href="#recoveryWizard" class="btn btn-outline-secondary fw-semibold d-inline-flex align-items-center gap-2 px-3 py-2" style="border-radius: 8px;">
-                    <i class="fas fa-rotate-left"></i> Restore
-                </a>
-            </div>
-        </div>
-    </div>
-
-    <div id="backupAlertContainer">
-        <?php if ($error): ?>
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <?php echo e($error); ?>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        <?php endif; ?>
-
-        <?php if ($success): ?>
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                <?php echo e($success); ?>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        <?php endif; ?>
-    </div>
-
-    <div class="metric-grid">
-        <div class="metric-card">
-            <div class="metric-label">Total Backups</div>
-            <div class="metric-value" id="metricTotalBackups"><?php echo count($backup_files); ?></div>
-            <div class="metric-note">Protected recovery files</div>
-        </div>
-        <div class="metric-card">
-            <div class="metric-label">Last Backup</div>
-            <div class="metric-value" id="metricLastBackup"><?php echo $latest_backup ? date('M d, Y', $latest_backup) : 'None'; ?></div>
-            <div class="metric-note" id="metricLastBackupNote"><?php echo $latest_backup ? date('g:i A', $latest_backup) : 'Create one now'; ?></div>
-        </div>
-        <div class="metric-card">
-            <div class="metric-label">Next Scheduled</div>
-            <div class="metric-value"><?php echo $scheduler_enabled ? 'Daily ' . e($daily_time) : 'Paused'; ?></div>
-            <div class="metric-note">Weekly <?php echo e($weekly_day); ?>, monthly day <?php echo e($monthly_day); ?></div>
-        </div>
-        <div class="metric-card">
-            <div class="metric-label">Storage Usage</div>
-            <div class="metric-value" id="metricStorageUsage"><?php echo formatFileSize($total_backup_size); ?></div>
-            <div class="metric-note">Local backup folder</div>
-        </div>
-        <div class="metric-card">
-            <div class="metric-label">Recovery Readiness</div>
-            <div class="metric-value" id="metricRecoveryReadinessContainer">
-                <span class="status-pill status-<?php echo e($recovery_readiness); ?>" id="metricRecoveryReadiness"><span class="status-dot"></span><?php echo e(healthLabel($recovery_readiness)); ?></span>
-            </div>
-            <div class="metric-note">Backup age and ZIP support</div>
-        </div>
-    </div>
-
-    <div class="health-grid mb-4">
-        <div class="health-panel"><i class="fas fa-database"></i> Database Health<br><span class="status-pill status-<?php echo e($db_status); ?>"><span class="status-dot"></span><?php echo e(healthLabel($db_status)); ?></span></div>
-        <div class="health-panel"><i class="fas fa-hard-drive"></i> Storage Capacity<br><span class="status-pill status-<?php echo e($storage_status); ?>"><span class="status-dot"></span><?php echo e(healthLabel($storage_status)); ?></span></div>
-        <div class="health-panel"><i class="fas fa-microchip"></i> Server Performance<br><span class="status-pill status-healthy"><span class="status-dot"></span>Healthy</span></div>
-        <div class="health-panel"><i class="fas fa-user-shield"></i> Security Status<br><span class="status-pill status-healthy"><span class="status-dot"></span>Healthy</span></div>
-        <div class="health-panel"><i class="fas fa-file-shield"></i> Backup Integrity<br><span class="status-pill status-<?php echo e($backup_status); ?>" id="metricBackupIntegrity"><span class="status-dot"></span><?php echo e(healthLabel($backup_status)); ?></span></div>
-    </div>
-
-    <section class="maintenance-dashboard">
-        <div class="dashboard-panel">
-            <h2><i class="fas fa-gauge-high"></i> Maintenance Dashboard</h2>
-            <div class="analytics-grid">
-                <div class="analytics-tile">
-                    <span>Backup Success Rate</span>
-                    <strong><?php echo intval($backup_success_rate); ?>%</strong>
-                    <div class="progress slim"><div class="progress-bar bg-success" style="width: <?php echo intval($backup_success_rate); ?>%"></div></div>
+        <div class="card-body p-4 p-md-5">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 pb-3 mb-4 border-bottom">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="category-icon" style="width: 48px; height: 48px; font-size: 1.35rem;">
+                        <i class="fas fa-folder-arrow-down"></i>
+                    </div>
+                    <div>
+                        <h2 class="h5 font-weight-bold text-dark mb-1">Backup Parish Records</h2>
+                        <p class="text-muted mb-0" style="font-size: 0.9rem;">Download a copy of your parish records for safekeeping.</p>
+                    </div>
                 </div>
-                <div class="analytics-tile">
-                    <span>Database Storage</span>
-                    <strong><?php echo e(formatFileSize($db_storage_bytes)); ?></strong>
-                    <div class="metric-note">Current schema size</div>
-                </div>
-                <div class="analytics-tile">
-                    <span>Backup Storage Used</span>
-                    <strong><?php echo intval($backup_storage_percent); ?>%</strong>
-                    <div class="progress slim"><div class="progress-bar bg-<?php echo $backup_storage_percent >= 85 ? 'warning' : 'primary'; ?>" style="width: <?php echo intval($backup_storage_percent); ?>%"></div></div>
-                </div>
-                <div class="analytics-tile">
-                    <span>Server Memory Peak</span>
-                    <strong><?php echo e(formatFileSize($memory_peak)); ?></strong>
-                    <div class="metric-note">PHP runtime usage</div>
-                </div>
-                <div class="analytics-tile">
-                    <span>Maintenance Runs</span>
-                    <strong><?php echo count($recent_maintenance_logs); ?></strong>
-                    <div class="metric-note">Recent logged actions</div>
-                </div>
-                <div class="analytics-tile">
-                    <span>Recovery Events</span>
-                    <strong><?php echo count($recent_recovery_logs); ?></strong>
-                    <div class="metric-note">Recent recovery history</div>
+                <div class="d-flex align-items-center gap-3">
+                    <button type="button" class="quick-toggle-btn" id="toggleSelectAllBtn">Select All</button>
+                    <span class="text-muted">•</span>
+                    <button type="button" class="quick-toggle-btn" id="toggleDeselectAllBtn">Deselect All</button>
                 </div>
             </div>
-        </div>
-        <div class="dashboard-panel">
-            <h2><i class="fas fa-triangle-exclamation"></i> Critical Alerts</h2>
-            <div class="alert-list">
-                <?php if ($critical_alerts): ?>
-                    <?php foreach ($critical_alerts as $alert): ?>
-                        <div class="alert-item"><i class="fas fa-circle-exclamation"></i><span><?php echo e($alert); ?></span></div>
-                    <?php endforeach; ?>
-                <?php else: ?>
-                    <div class="alert-item ok"><i class="fas fa-circle-check"></i><span>No critical maintenance alerts at this time.</span></div>
-                <?php endif; ?>
-                <div class="alert-item ok"><i class="fas fa-clock-rotate-left"></i><span>Recent maintenance and recovery actions are recorded with timestamps for audit review.</span></div>
-            </div>
-        </div>
-    </section>
 
-    <div class="enterprise-grid mb-4">
-        <div class="enterprise-card">
-            <h3><i class="fas fa-cloud-arrow-down"></i> Complete System Backup</h3>
-            <p>Builds a disaster recovery package with the full database, uploads, source code, assets, templates, configuration, and recovery manifest.</p>
-            <ul class="coverage-list">
-                <?php foreach (backupCoverageItems() as $group => $items): ?>
-                    <li><strong><?php echo e($group); ?>:</strong> <?php echo e(implode(', ', $items)); ?></li>
-                <?php endforeach; ?>
-            </ul>
-            <div class="mt-auto">
-                <a href="settings.php?download_action=full_backup" class="btn btn-primary w-100" data-download-action>
-                    <i class="fas fa-file-zipper me-1"></i> Create Recovery Package
-                </a>
-            </div>
-        </div>
-
-        <div class="enterprise-card">
-            <h3><i class="fas fa-rotate-left"></i> Full System Recovery</h3>
-            <p>Validates backup integrity, checks database structure, detects corrupt packages, and restores selected recovery scopes.</p>
-            <ul>
-                <li>Restore full database and files</li>
-                <li>Restore sacramental, user, document, or announcement scope</li>
-                <li>Record administrator, status, file count, and recovery type</li>
-            </ul>
-            <a href="#recoveryWizard" class="btn btn-outline-primary w-100"><i class="fas fa-wand-magic-sparkles"></i> Open Recovery Wizard</a>
-        </div>
-
-        <div class="enterprise-card">
-            <h3><i class="fas fa-calendar-check"></i> Automated Backup Schedule</h3>
-            <form method="POST">
+            <form method="POST" id="backupForm">
                 <?php echo csrfInput(); ?>
-                <input type="hidden" name="action" value="save_schedule">
-                <div class="custom-schedule-toggle-wrap">
-                    <label class="schedule-checkbox-container" for="schedulerEnabled">
-                        <input 
-                            type="checkbox" 
-                            name="scheduler_enabled" 
-                            id="schedulerEnabled" 
-                            class="schedule-checkbox-input"
-                            role="checkbox"
-                            <?php echo $scheduler_enabled ? 'checked' : ''; ?>
-                        >
-                        <span class="schedule-checkbox-custom"></span>
-                        <span class="schedule-checkbox-text">Enable scheduled backups</span>
+                <input type="hidden" name="action" value="download_parish_backup">
+
+                <div class="mb-4">
+                    <label class="form-label fw-bold text-dark mb-2" style="font-size: 0.92rem;">
+                        Select Records to Include in Backup
                     </label>
+                    <div class="row g-3">
+                        <!-- Parishioner Records -->
+                        <div class="col-md-6 col-lg-4">
+                            <label class="category-selection-card selected" for="cat_parishioners">
+                                <input type="checkbox" name="categories[]" value="parishioners" id="cat_parishioners" class="category-checkbox" checked>
+                                <div class="category-icon">
+                                    <i class="fas fa-users"></i>
+                                </div>
+                                <div class="category-content">
+                                    <h4>Parishioner Directory</h4>
+                                    <p>Registered parishioners, contact info, status, and profile details</p>
+                                </div>
+                            </label>
+                        </div>
+
+                        <!-- Sacramental Records -->
+                        <div class="col-md-6 col-lg-4">
+                            <label class="category-selection-card selected" for="cat_sacramental">
+                                <input type="checkbox" name="categories[]" value="sacramental" id="cat_sacramental" class="category-checkbox" checked>
+                                <div class="category-icon">
+                                    <i class="fas fa-church"></i>
+                                </div>
+                                <div class="category-content">
+                                    <h4>Sacramental Records</h4>
+                                    <p>Baptism, Confirmation, Marriage, and First Communion registers</p>
+                                </div>
+                            </label>
+                        </div>
+
+                        <!-- Funeral Records -->
+                        <div class="col-md-6 col-lg-4">
+                            <label class="category-selection-card selected" for="cat_funeral">
+                                <input type="checkbox" name="categories[]" value="funeral" id="cat_funeral" class="category-checkbox" checked>
+                                <div class="category-icon">
+                                    <i class="fas fa-cross"></i>
+                                </div>
+                                <div class="category-content">
+                                    <h4>Funeral &amp; Burial Records</h4>
+                                    <p>Deceased parishioner records, burial dates, ministers, and resting places</p>
+                                </div>
+                            </label>
+                        </div>
+
+                        <!-- Certificate Requests -->
+                        <div class="col-md-6 col-lg-4">
+                            <label class="category-selection-card selected" for="cat_requests">
+                                <input type="checkbox" name="categories[]" value="requests" id="cat_requests" class="category-checkbox" checked>
+                                <div class="category-icon">
+                                    <i class="fas fa-file-lines"></i>
+                                </div>
+                                <div class="category-content">
+                                    <h4>Certificates &amp; Requests</h4>
+                                    <p>Document applications, issuance tracking, and request records</p>
+                                </div>
+                            </label>
+                        </div>
+
+                        <!-- Church Reservations -->
+                        <div class="col-md-6 col-lg-4">
+                            <label class="category-selection-card selected" for="cat_reservations">
+                                <input type="checkbox" name="categories[]" value="reservations" id="cat_reservations" class="category-checkbox" checked>
+                                <div class="category-icon">
+                                    <i class="fas fa-calendar-check"></i>
+                                </div>
+                                <div class="category-content">
+                                    <h4>Church Reservations</h4>
+                                    <p>Mass intentions, wedding bookings, blessings, and chapel schedules</p>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
                 </div>
-                <label class="form-label">Daily backup time</label>
-                <input class="form-control mb-2" type="time" name="daily_backup_time" value="<?php echo e($daily_time); ?>">
-                <label class="form-label">Weekly backup day</label>
-                <select class="form-select mb-2" name="weekly_backup_day">
-                    <?php foreach (['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as $day): ?>
-                        <option value="<?php echo e($day); ?>" <?php echo $weekly_day === $day ? 'selected' : ''; ?>><?php echo e($day); ?></option>
-                    <?php endforeach; ?>
-                </select>
-                <label class="form-label">Monthly backup day</label>
-                <input class="form-control mb-3" type="number" name="monthly_backup_day" min="1" max="28" value="<?php echo e($monthly_day); ?>">
-                <button type="submit" class="btn btn-primary w-100"><i class="fas fa-save"></i> Save Schedule</button>
+
+                <div class="bg-light rounded-3 p-3 mb-4 d-flex align-items-center gap-3 border">
+                    <i class="fas fa-circle-info text-primary-brand fa-lg ms-1"></i>
+                    <div style="font-size: 0.88rem;" class="text-secondary">
+                        Records are prepared as standard spreadsheet files (CSV) compatible with Microsoft Excel and LibreOffice, packaged into a single convenient zip file.
+                    </div>
+                </div>
+
+                <div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3 pt-2">
+                    <button type="submit" id="downloadBackupBtn" class="btn btn-backup-brand btn-lg d-inline-flex align-items-center justify-content-center gap-2">
+                        <i class="fas fa-cloud-arrow-down"></i>
+                        <span>Download Backup</span>
+                    </button>
+                    <span class="text-muted small">
+                        <i class="fas fa-lock me-1"></i> Passwords and personal security credentials are automatically excluded for safety.
+                    </span>
+                </div>
             </form>
-        </div>
-
-        <div class="enterprise-card">
-            <h3><i class="fas fa-screwdriver-wrench"></i> Monthly Maintenance</h3>
-            <p>Runs database repair and optimization, removes expired OTP records, reviews temporary files, validates backups, and applies retention rules.</p>
-            <ul>
-                <li>Daily backups retained for 30 days</li>
-                <li>Weekly backups retained for 6 months</li>
-                <li>Monthly backups retained for 2 years</li>
-            </ul>
-            <form method="POST">
-                <?php echo csrfInput(); ?>
-                <input type="hidden" name="action" value="run_maintenance">
-                <button type="submit" class="btn btn-warning w-100" data-confirm="Run monthly maintenance now?" data-progress-button><i class="fas fa-broom"></i> Run Maintenance</button>
-            </form>
-        </div>
-
-        <div class="enterprise-card">
-            <h3><i class="fas fa-chart-line"></i> System Health Monitor</h3>
-            <p>Monitors database availability, local storage usage, ZIP recovery support, security posture, and backup freshness.</p>
-            <div class="progress slim mb-2"><div class="progress-bar bg-<?php echo e(statusClass($recovery_readiness)); ?>" style="width: <?php echo $recovery_readiness === 'healthy' ? 94 : ($recovery_readiness === 'warning' ? 64 : 32); ?>%"></div></div>
-            <p class="mb-0">Readiness score reflects current backup age and required recovery extensions.</p>
-        </div>
-
-        <div class="enterprise-card">
-            <h3><i class="fas fa-clipboard-list"></i> Backup & Recovery Logs</h3>
-            <p>Maintains recovery and maintenance activity history for continuity audits.</p>
-            <ul>
-                <li>Recovery date and time</li>
-                <li>Administrator responsible</li>
-                <li>Recovery type and status</li>
-                <li>Files restored and operation details</li>
-            </ul>
-            <a href="#logs" class="btn btn-outline-secondary w-100"><i class="fas fa-list"></i> View Logs</a>
         </div>
     </div>
 
-    <section class="wizard-panel mb-4" id="recoveryWizard">
-        <h2 class="h4 mb-3"><i class="fas fa-life-ring"></i> Emergency Recovery Mode</h2>
-        <div class="wizard-steps">
-            <div class="wizard-step"><strong>Step 1</strong>Upload or select a recovery package.</div>
-            <div class="wizard-step"><strong>Step 2</strong>Validate backup integrity and structure.</div>
-            <div class="wizard-step"><strong>Step 3</strong>Choose the recovery scope.</div>
-            <div class="wizard-step"><strong>Step 4</strong>Execute confirmed recovery.</div>
-            <div class="wizard-step"><strong>Step 5</strong>Review logs and verification result.</div>
-        </div>
-
-        <div class="row g-3">
-            <div class="col-lg-6">
-                <form method="POST" enctype="multipart/form-data">
-                    <?php echo csrfInput(); ?>
-                    <input type="hidden" name="action" value="validate_backup">
-                    <label class="form-label">Upload Recovery Package</label>
-                    <input type="file" name="recovery_package" class="form-control mb-2" accept=".zip,.sql">
-                    <label class="form-label">Or validate existing backup</label>
-                    <select name="backup_file" class="form-select mb-3">
-                        <option value="">Select backup file</option>
-                        <?php foreach ($backup_files as $file): ?>
-                            <option value="<?php echo e(basename($file)); ?>"><?php echo e(basename($file)); ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                    <button type="submit" class="btn btn-outline-primary"><i class="fas fa-magnifying-glass-chart"></i> Validate Backup</button>
-                </form>
+    <!-- Previously Saved Files -->
+    <?php if (!empty($backup_files)): ?>
+        <div class="card saved-files-card border-0 mb-4">
+            <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
+                <h3 class="h6 mb-0 font-weight-bold text-dark d-flex align-items-center gap-2">
+                    <i class="fas fa-clock-rotate-left text-muted"></i> Previously Saved Backups
+                </h3>
+                <span class="badge bg-light text-dark border"><?php echo count($backup_files); ?> file<?php echo count($backup_files) === 1 ? '' : 's'; ?></span>
             </div>
-            <div class="col-lg-6">
-                <form method="POST" id="restoreForm">
-                    <?php echo csrfInput(); ?>
-                    <input type="hidden" name="action" value="restore_backup">
-                    <label class="form-label">Recovery Package</label>
-                    <select name="backup_file" class="form-select mb-2" required>
-                        <?php foreach ($backup_files as $file): ?>
-                            <option value="<?php echo e(basename($file)); ?>"><?php echo e(basename($file)); ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                    <label class="form-label">Recovery Scope</label>
-                    <select name="recovery_scope" class="form-select mb-2" required>
-                        <?php foreach (recoveryScopes() as $key => $label): ?>
-                            <option value="<?php echo e($key); ?>"><?php echo e($label); ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                    <label class="form-label">Confirmation</label>
-                    <input type="text" name="confirmation" class="form-control mb-3" placeholder="Type RESTORE to confirm" required>
-                    <button type="submit" class="btn btn-danger" data-confirm="This will overwrite the selected recovery scope. Continue?" data-progress-button>
-                        <i class="fas fa-triangle-exclamation"></i> Execute Recovery
-                    </button>
-                </form>
-            </div>
-        </div>
-
-        <?php if ($validation_result): ?>
-            <div class="alert alert-<?php echo $validation_result['valid'] ? 'success' : 'danger'; ?> mt-3">
-                <strong><?php echo e($validation_result['file']); ?></strong>
-                <div class="row mt-2">
-                    <?php foreach ($validation_result['checks'] as $check): ?>
-                        <div class="col-md-6 mb-2">
-                            <span class="status-pill status-<?php echo e($check['status']); ?>"><span class="status-dot"></span><?php echo e($check['text']); ?></span>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-                <?php if (!empty($validation_result['manifest']['tables'])): ?>
-                    <div class="mt-2">Tables in manifest: <?php echo count($validation_result['manifest']['tables']); ?>. Included files: <?php echo intval($validation_result['manifest']['included_file_count'] ?? 0); ?>.</div>
-                <?php endif; ?>
-            </div>
-        <?php endif; ?>
-    </section>
-
-    <div class="card mb-4" id="backupFilesCard">
-        <div class="card-body">
-            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-                <h2 class="h5 mb-0"><i class="fas fa-clock-rotate-left"></i> Available Backup Files</h2>
-                <div class="d-flex flex-wrap gap-2">
-                    <a href="settings.php?download_action=database_backup" class="btn btn-sm btn-outline-primary" data-download-action>
-                        <i class="fas fa-database me-1"></i> Daily DB Backup
-                    </a>
-                    <a href="settings.php?download_action=full_backup" class="btn btn-sm btn-outline-success" data-download-action>
-                        <i class="fas fa-folder-tree me-1"></i> Weekly Backup
-                    </a>
-                </div>
-            </div>
-
-            <div id="backupFilesContainer" style="display: <?php echo count($backup_files) > 0 ? 'block' : 'none'; ?>;">
+            <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-hover backup-table" id="backupFilesTable">
-                        <thead class="table-light">
+                    <table class="table table-hover table-saved mb-0">
+                        <thead>
                             <tr>
-                                <th>File</th>
-                                <th>Type</th>
-                                <th>Size</th>
-                                <th>Created</th>
-                                <th>Integrity</th>
-                                <th>Action</th>
+                                <th>Backup File</th>
+                                <th>Date Created</th>
+                                <th>File Size</th>
+                                <th class="text-end">Action</th>
                             </tr>
                         </thead>
-                        <tbody id="backupFilesTableBody">
-                            <?php foreach ($backup_files as $file): ?>
-                                <?php $quick_validation = validateBackupPackage($file); ?>
+                        <tbody>
+                            <?php foreach (array_slice($backup_files, 0, 10) as $file): ?>
                                 <tr>
-                                    <td><strong><?php echo e(basename($file)); ?></strong></td>
-                                    <td><?php echo strtoupper(e(pathinfo($file, PATHINFO_EXTENSION))); ?></td>
-                                    <td><?php echo e(formatFileSize(filesize($file))); ?></td>
-                                    <td><?php echo date('M d, Y g:i A', filemtime($file)); ?></td>
-                                    <td><span class="status-pill status-<?php echo $quick_validation['valid'] ? 'healthy' : 'warning'; ?>"><span class="status-dot"></span><?php echo $quick_validation['valid'] ? 'Valid' : 'Review'; ?></span></td>
                                     <td>
-                                        <a href="?download=<?php echo urlencode(basename($file)); ?>" class="btn btn-sm btn-outline-primary">
-                                            <i class="fas fa-download"></i> Download
+                                        <div class="d-flex align-items-center gap-2">
+                                            <i class="far fa-file-zipper text-muted fa-lg"></i>
+                                            <span class="fw-semibold text-dark"><?php echo e(basename($file)); ?></span>
+                                        </div>
+                                    </td>
+                                    <td class="text-muted"><?php echo date('M d, Y g:i A', filemtime($file)); ?></td>
+                                    <td class="text-muted"><?php echo e(formatFileSize(filesize($file))); ?></td>
+                                    <td class="text-end">
+                                        <a href="settings.php?download=<?php echo urlencode(basename($file)); ?>" class="btn btn-sm btn-outline-secondary px-3">
+                                            <i class="fas fa-download me-1"></i> Download
                                         </a>
                                     </td>
                                 </tr>
@@ -1873,358 +1734,75 @@ $breadcrumbs = [
                     </table>
                 </div>
             </div>
-            
-            <div id="noBackupFilesAlert" class="alert alert-info mb-0" style="display: <?php echo count($backup_files) === 0 ? 'block' : 'none'; ?>;">
-                No backup files created yet.
-            </div>
         </div>
-    </div>
-
-    <div class="row g-4 mb-4" id="logs">
-        <!-- Recovery Logs Card -->
-        <div class="col-lg-6">
-            <div class="card h-100 log-panel-card" id="recoveryLogsCard">
-                <div class="card-header log-panel-header" id="recoveryLogsHeader" role="button" tabindex="0" aria-expanded="true" aria-controls="recoveryLogsBody">
-                    <h2 class="h5 mb-0"><i class="fas fa-rotate-left"></i> Recovery Logs</h2>
-                    <button type="button" class="btn btn-sm btn-outline-secondary log-toggle-btn" id="recoveryLogsToggle" aria-label="Toggle Recovery Logs">
-                        <span class="toggle-text">Hide</span>
-                        <i class="fas fa-chevron-down toggle-icon"></i>
-                    </button>
-                </div>
-                <div class="card-body p-0 log-panel-body" id="recoveryLogsBody">
-                    <?php if ($recent_recovery_logs): ?>
-                        <div class="table-responsive logs-scroll-container">
-                            <table class="table table-sm table-hover mb-0 log-table">
-                                <thead>
-                                    <tr><th>Date</th><th>Admin/User</th><th>Type</th><th>File</th><th>Status</th><th>Files</th></tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($recent_recovery_logs as $log): ?>
-                                        <tr>
-                                            <td><?php echo e(formatDateTime($log['created_at'])); ?></td>
-                                            <td><?php echo e(maintenanceAdminName($conn, $log['admin_id'] ?? 0)); ?></td>
-                                            <td><?php echo e($log['recovery_type']); ?></td>
-                                            <td><?php echo e($log['backup_file']); ?></td>
-                                            <td><?php echo e($log['status']); ?></td>
-                                            <td><?php echo intval($log['files_restored']); ?></td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    <?php else: ?>
-                        <div class="p-3">
-                            <div class="alert alert-light border mb-0">No recovery operations logged yet.</div>
-                        </div>
-                    <?php endif; ?>
-                </div>
-            </div>
-        </div>
-
-        <!-- Maintenance Logs Card -->
-        <div class="col-lg-6">
-            <div class="card h-100 log-panel-card" id="maintenanceLogsCard">
-                <div class="card-header log-panel-header" id="maintenanceLogsHeader" role="button" tabindex="0" aria-expanded="true" aria-controls="maintenanceLogsBody">
-                    <h2 class="h5 mb-0"><i class="fas fa-screwdriver-wrench"></i> Maintenance Logs</h2>
-                    <button type="button" class="btn btn-sm btn-outline-secondary log-toggle-btn" id="maintenanceLogsToggle" aria-label="Toggle Maintenance Logs">
-                        <span class="toggle-text">Hide</span>
-                        <i class="fas fa-chevron-down toggle-icon"></i>
-                    </button>
-                </div>
-                <div class="card-body p-0 log-panel-body" id="maintenanceLogsBody">
-                    <?php if ($recent_maintenance_logs): ?>
-                        <div class="table-responsive logs-scroll-container">
-                            <table class="table table-sm table-hover mb-0 log-table">
-                                <thead>
-                                    <tr><th>Date</th><th>Admin/User</th><th>Type</th><th>Status</th><th>Details</th></tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($recent_maintenance_logs as $log): ?>
-                                        <tr>
-                                            <td><?php echo e(formatDateTime($log['created_at'])); ?></td>
-                                            <td><?php echo e(maintenanceAdminName($conn, $log['admin_id'] ?? 0)); ?></td>
-                                            <td><?php echo e($log['maintenance_type']); ?></td>
-                                            <td><?php echo e($log['status']); ?></td>
-                                            <td><?php echo e(substr($log['details'] ?? '', 0, 120)); ?></td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    <?php else: ?>
-                        <div class="p-3">
-                            <div class="alert alert-light border mb-0">No maintenance runs logged yet.</div>
-                        </div>
-                    <?php endif; ?>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="alert alert-warning">
-        <strong>Continuity reminder:</strong> download complete recovery packages and store copies outside this server. A local backup cannot protect the parish if the entire computer or XAMPP folder is lost.
-    </div>
+    <?php endif; ?>
 </div>
 
 <script>
-    function escapeHtml(str) {
-        if (!str) return '';
-        var div = document.createElement('div');
-        div.textContent = str;
-        return div.innerHTML;
-    }
+    document.addEventListener('DOMContentLoaded', function() {
+        var checkboxes = document.querySelectorAll('.category-checkbox');
+        var form = document.getElementById('backupForm');
+        var downloadBtn = document.getElementById('downloadBackupBtn');
+        var selectAllBtn = document.getElementById('toggleSelectAllBtn');
+        var deselectAllBtn = document.getElementById('toggleDeselectAllBtn');
 
-    document.querySelectorAll('[data-confirm]').forEach(function(button) {
-        button.addEventListener('click', function(event) {
-            if (!confirm(button.getAttribute('data-confirm'))) {
-                event.preventDefault();
-            }
-        });
-    });
-
-    // Native Direct-Download Action Handler: Triggers native browser download without popup blocks
-    document.querySelectorAll('[data-download-action]').forEach(function(el) {
-        el.addEventListener('click', function() {
-            var origHtml = el.innerHTML;
-            el.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Preparing Download...';
-
-            var alertContainer = document.getElementById('backupAlertContainer');
-            if (alertContainer) {
-                alertContainer.innerHTML = `
-                    <div class="alert alert-info alert-dismissible fade show shadow-sm" role="alert">
-                        <i class="fas fa-circle-notch fa-spin me-2"></i> <strong>Preparing Backup...</strong> 
-                        Your file is being packaged and will download directly to your computer.
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                `;
-            }
-
-            setTimeout(function() {
-                el.innerHTML = origHtml;
-            }, 6000);
-        });
-    });
-
-    // AJAX Dual-Action Backup Handler: Generates on server + Streams straight to client Downloads
-    document.querySelectorAll('.backup-action-form').forEach(function(form) {
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-            var btn = form.querySelector('button[type="submit"]');
-            var origHtml = btn ? btn.innerHTML : '';
-            if (btn) {
-                btn.disabled = true;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Packaging Backup & Downloading...';
-            }
-
-            var formData = new FormData(form);
-            formData.append('ajax', '1');
-
-            fetch(window.location.href, {
-                method: 'POST',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json'
-                },
-                body: formData
-            })
-            .then(function(res) {
-                return res.json().then(function(data) {
-                    return { ok: res.ok, status: res.status, data: data };
-                }).catch(function() {
-                    return { ok: res.ok, status: res.status, data: { success: false, error: 'Server returned an invalid response (HTTP ' + res.status + ').' } };
-                });
-            })
-            .then(function(result) {
-                if (btn) {
-                    btn.disabled = false;
-                    btn.innerHTML = origHtml;
-                }
-
-                if (!result.ok || !result.data.success) {
-                    var errMsg = result.data.error || 'Failed to create backup.';
-                    var alertContainer = document.getElementById('backupAlertContainer');
-                    if (alertContainer) {
-                        alertContainer.innerHTML = `
-                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                                <strong>Backup Error:</strong> ${escapeHtml(errMsg)}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            </div>
-                        `;
+        // Sync card active state with checkbox state
+        checkboxes.forEach(function(cb) {
+            cb.addEventListener('change', function() {
+                var card = cb.closest('.category-selection-card');
+                if (card) {
+                    if (cb.checked) {
+                        card.classList.add('selected');
+                    } else {
+                        card.classList.remove('selected');
                     }
+                }
+            });
+        });
+
+        // Select All / Deselect All
+        if (selectAllBtn) {
+            selectAllBtn.addEventListener('click', function() {
+                checkboxes.forEach(function(cb) {
+                    cb.checked = true;
+                    var card = cb.closest('.category-selection-card');
+                    if (card) card.classList.add('selected');
+                });
+            });
+        }
+
+        if (deselectAllBtn) {
+            deselectAllBtn.addEventListener('click', function() {
+                checkboxes.forEach(function(cb) {
+                    cb.checked = false;
+                    var card = cb.closest('.category-selection-card');
+                    if (card) card.classList.remove('selected');
+                });
+            });
+        }
+
+        // Form submission feedback
+        if (form && downloadBtn) {
+            form.addEventListener('submit', function(e) {
+                var anyChecked = Array.from(checkboxes).some(function(cb) { return cb.checked; });
+                if (!anyChecked) {
+                    e.preventDefault();
+                    alert('Please select at least one record category to back up.');
                     return;
                 }
 
-                var data = result.data;
+                var originalContent = downloadBtn.innerHTML;
+                downloadBtn.disabled = true;
+                downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparing Backup...';
 
-                // 1. Automatically trigger browser file download to local machine
-                if (data.download_url) {
-                    var downloadLink = document.createElement('a');
-                    downloadLink.href = data.download_url;
-                    downloadLink.download = data.filename;
-                    document.body.appendChild(downloadLink);
-                    downloadLink.click();
-                    document.body.removeChild(downloadLink);
-                }
-
-                // 2. Render prominent success banner with manual download fallback link
-                var alertContainer = document.getElementById('backupAlertContainer');
-                if (alertContainer) {
-                    alertContainer.innerHTML = `
-                        <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
-                            <i class="fas fa-circle-check me-1"></i> <strong>Backup Complete!</strong> ${escapeHtml(data.message)}
-                            <div class="mt-1 small">
-                                The archive <code>${escapeHtml(data.filename)}</code> (${escapeHtml(data.filesize)}) is downloading to your computer. 
-                                <a href="${escapeHtml(data.download_url)}" class="alert-link font-weight-bold text-decoration-underline ms-1">
-                                    <i class="fas fa-download"></i> Click here if download did not start automatically
-                                </a>
-                            </div>
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    `;
-                }
-
-                // 3. Dynamically update metric cards on UI without full reload
-                if (data.metrics) {
-                    var totalEl = document.getElementById('metricTotalBackups');
-                    if (totalEl) totalEl.textContent = data.metrics.total_backups;
-
-                    var lastBackupEl = document.getElementById('metricLastBackup');
-                    if (lastBackupEl) lastBackupEl.textContent = data.metrics.latest_backup_text;
-
-                    var lastBackupNoteEl = document.getElementById('metricLastBackupNote');
-                    if (lastBackupNoteEl) lastBackupNoteEl.textContent = data.metrics.latest_backup_subtext;
-
-                    var storageEl = document.getElementById('metricStorageUsage');
-                    if (storageEl) storageEl.textContent = data.metrics.storage_usage_text;
-
-                    var readinessContainer = document.getElementById('metricRecoveryReadinessContainer');
-                    if (readinessContainer) {
-                        readinessContainer.innerHTML = `
-                            <span class="status-pill status-${escapeHtml(data.metrics.recovery_readiness)}" id="metricRecoveryReadiness">
-                                <span class="status-dot"></span>${escapeHtml(data.metrics.recovery_readiness_label)}
-                            </span>
-                        `;
-                    }
-
-                    var integrityEl = document.getElementById('metricBackupIntegrity');
-                    if (integrityEl) {
-                        integrityEl.className = 'status-pill status-' + escapeHtml(data.metrics.backup_integrity);
-                        integrityEl.innerHTML = '<span class="status-dot"></span>' + escapeHtml(data.metrics.backup_integrity_label);
-                    }
-                }
-
-                // 4. Prepend new backup file to the available backup files table
-                var tableContainer = document.getElementById('backupFilesContainer');
-                var emptyAlert = document.getElementById('noBackupFilesAlert');
-                var tableBody = document.getElementById('backupFilesTableBody');
-
-                if (tableContainer) tableContainer.style.display = 'block';
-                if (emptyAlert) emptyAlert.style.display = 'none';
-
-                if (tableBody) {
-                    var newRow = document.createElement('tr');
-                    newRow.className = 'table-success';
-                    newRow.innerHTML = `
-                        <td><strong>${escapeHtml(data.filename)}</strong></td>
-                        <td>${escapeHtml(data.type)}</td>
-                        <td>${escapeHtml(data.filesize)}</td>
-                        <td>${escapeHtml(data.created_at)}</td>
-                        <td><span class="status-pill status-healthy"><span class="status-dot"></span>Valid</span></td>
-                        <td>
-                            <a href="${escapeHtml(data.download_url)}" class="btn btn-sm btn-outline-primary">
-                                <i class="fas fa-download"></i> Download
-                            </a>
-                        </td>
-                    `;
-                    tableBody.insertBefore(newRow, tableBody.firstChild);
-                }
-            })
-            .catch(function(err) {
-                if (btn) {
-                    btn.disabled = false;
-                    btn.innerHTML = origHtml;
-                }
-                var alertContainer = document.getElementById('backupAlertContainer');
-                if (alertContainer) {
-                    alertContainer.innerHTML = `
-                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                            <strong>Backup Failed:</strong> Network or server error during backup generation.
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    `;
-                }
-            });
-        });
-    });
-
-    // Fallback handler for any other form buttons with data-progress-button (like restore wizard)
-    document.querySelectorAll('[data-progress-button]').forEach(function(button) {
-        var form = button.closest('form');
-        if (form && !form.classList.contains('backup-action-form')) {
-            form.addEventListener('submit', function() {
-                button.disabled = true;
-                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+                // Re-enable after short delay to allow subsequent downloads
+                setTimeout(function() {
+                    downloadBtn.disabled = false;
+                    downloadBtn.innerHTML = originalContent;
+                }, 4000);
             });
         }
     });
-
-    // Accordion Toggle for Recovery and Maintenance Log Panels with localStorage persistence
-    function initLogPanels() {
-        var panels = [
-            { headerId: 'recoveryLogsHeader', bodyId: 'recoveryLogsBody', key: 'tugon_recovery_logs_state' },
-            { headerId: 'maintenanceLogsHeader', bodyId: 'maintenanceLogsBody', key: 'tugon_maintenance_logs_state' }
-        ];
-
-        panels.forEach(function(p) {
-            var header = document.getElementById(p.headerId);
-            var body = document.getElementById(p.bodyId);
-            if (!header || !body) return;
-
-            var toggleBtn = header.querySelector('.log-toggle-btn');
-            var textSpan = toggleBtn ? toggleBtn.querySelector('.toggle-text') : null;
-            var iconEl = toggleBtn ? toggleBtn.querySelector('.toggle-icon') : null;
-
-            function setPanelState(isExpanded) {
-                if (isExpanded) {
-                    body.style.display = 'block';
-                    header.setAttribute('aria-expanded', 'true');
-                    if (textSpan) textSpan.textContent = 'Hide';
-                    if (iconEl) iconEl.className = 'fas fa-chevron-down toggle-icon';
-                } else {
-                    body.style.display = 'none';
-                    header.setAttribute('aria-expanded', 'false');
-                    if (textSpan) textSpan.textContent = 'Show';
-                    if (iconEl) iconEl.className = 'fas fa-chevron-right toggle-icon';
-                }
-            }
-
-            // Restore state from localStorage (defaults to expanded)
-            var savedState = localStorage.getItem(p.key);
-            if (savedState === 'collapsed') {
-                setPanelState(false);
-            } else {
-                setPanelState(true);
-            }
-
-            // Click listener
-            header.addEventListener('click', function() {
-                var isCurrentlyExpanded = header.getAttribute('aria-expanded') === 'true';
-                var newState = !isCurrentlyExpanded;
-                setPanelState(newState);
-                localStorage.setItem(p.key, newState ? 'expanded' : 'collapsed');
-            });
-
-            // Keyboard accessibility (Enter / Spacebar)
-            header.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    header.click();
-                }
-            });
-        });
-    }
-
-    initLogPanels();
 </script>
 
 <?php include '../templates/footer.php'; ?>
