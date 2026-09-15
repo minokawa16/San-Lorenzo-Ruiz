@@ -62,38 +62,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $name = trim((string)($_POST['occupant_name'] ?? ''));
             $newId = $orgService->addAssistantPriest($name, (int)$_SESSION['user_id']);
             $success = 'Assistant Priest card added successfully.';
-        } elseif ($action === 'remove_assistant_priest') {
+        } elseif ($action === 'remove_assistant_priest' || $action === 'delete_position' || $action === 'archive_ministry') {
             $posId = (int)($_POST['position_id'] ?? 0);
-            $orgService->removeAssistantPriest($posId, (int)$_SESSION['user_id']);
-            $success = 'Assistant Priest slot removed.';
-        } elseif ($action === 'save_ministry') {
+            $orgService->deletePosition($posId, (int)$_SESSION['user_id']);
+            $success = 'Position or record permanently deleted.';
+        } elseif ($action === 'save_position_settings' || $action === 'save_ministry') {
             $posId = (int)($_POST['position_id'] ?? 0);
             $title = trim((string)($_POST['title'] ?? ''));
             $occupant = trim((string)($_POST['occupant_name'] ?? ''));
+            $phone = trim((string)($_POST['phone'] ?? ''));
+            $email = trim((string)($_POST['email'] ?? ''));
             $description = trim((string)($_POST['description'] ?? ''));
             $displayOrder = (int)($_POST['display_order'] ?? 0);
 
-            if ($title === '') {
-                throw new DomainException('Ministry title is required.');
-            }
-
             if ($posId > 0) {
-                $orgService->updateMinistryRole($posId, $title, $description, $displayOrder, (int)$_SESSION['user_id']);
-                if ($occupant !== '') {
-                    $orgService->setOccupantDirect($posId, $occupant, (int)$_SESSION['user_id']);
-                }
-                $success = 'Ministry updated successfully.';
+                $orgService->savePositionSettings($posId, $title, $occupant, $phone, $email, $description, (int)$_SESSION['user_id']);
+                $success = 'Position settings and contact details saved.';
             } else {
+                if ($title === '') {
+                    throw new DomainException('Ministry title is required.');
+                }
                 $newPosId = $orgService->createMinistryRole($title, $description, $displayOrder, (int)$_SESSION['user_id']);
-                if ($occupant !== '') {
-                    $orgService->setOccupantDirect($newPosId, $occupant, (int)$_SESSION['user_id']);
+                if ($occupant !== '' || $phone !== '' || $email !== '' || $description !== '') {
+                    $orgService->savePositionSettings($newPosId, $title, $occupant, $phone, $email, $description, (int)$_SESSION['user_id']);
                 }
                 $success = 'New ministry coordinator card created.';
             }
-        } elseif ($action === 'archive_ministry') {
-            $posId = (int)($_POST['position_id'] ?? 0);
-            $orgService->archiveMinistryRole($posId, (int)$_SESSION['user_id']);
-            $success = 'Ministry role archived.';
         }
     } catch (Exception $e) {
         $error = $e->getMessage();
@@ -141,9 +135,11 @@ $level1Nodes = [
         'level' => 1,
         'role' => $tree['tier1']['title'] ?? 'Parish Priest',
         'name' => $priestOccupant,
+        'phone' => $tree['tier1']['occupants'][0]['phone'] ?? '',
+        'email' => $tree['tier1']['occupants'][0]['email'] ?? '',
         'status' => $priestVacant ? 'Vacant' : 'Active',
         'is_vacant' => $priestVacant,
-        'description' => 'Canonical Head & Pastor',
+        'description' => $tree['tier1']['description'] ?? 'Canonical Head & Pastor',
         'is_system_role' => true,
         'can_vacate' => !$priestVacant,
         'parentId' => null
@@ -161,9 +157,11 @@ if (!empty($tree['tier2'])) {
             'level' => 2,
             'role' => $t2['title'],
             'name' => $t2Occ,
+            'phone' => $t2['occupants'][0]['phone'] ?? '',
+            'email' => $t2['occupants'][0]['email'] ?? '',
             'status' => $t2Vac ? 'Vacant' : 'Active',
             'is_vacant' => $t2Vac,
-            'description' => 'Parochial Vicar',
+            'description' => $t2['description'] ?? 'Parochial Vicar',
             'is_system_role' => !empty($t2['is_system_role']),
             'can_vacate' => !$t2Vac,
             'can_remove' => empty($t2['is_system_role']),
@@ -185,9 +183,11 @@ $level3Nodes = [
         'level' => 3,
         'role' => $t3['title'] ?? 'Parish Secretary',
         'name' => $t3Occ,
+        'phone' => $t3['occupants'][0]['phone'] ?? '',
+        'email' => $t3['occupants'][0]['email'] ?? '',
         'status' => $t3Vac ? 'Vacant' : 'Active',
         'is_vacant' => $t3Vac,
-        'description' => 'Chancery & Office Operations',
+        'description' => $t3['description'] ?? 'Chancery & Office Operations',
         'is_system_role' => true,
         'can_vacate' => !$t3Vac,
         'parentId' => $parentForSecretary
@@ -210,9 +210,11 @@ if (!empty($tree['tier4'])) {
             'level' => 4,
             'role' => $p4['title'],
             'name' => $p4Occ,
+            'phone' => $p4['occupants'][0]['phone'] ?? '',
+            'email' => $p4['occupants'][0]['email'] ?? '',
             'status' => $p4Vac ? 'Vacant' : 'Active',
             'is_vacant' => $p4Vac,
-            'description' => 'Council Officer',
+            'description' => $p4['description'] ?? 'Council Officer',
             'is_system_role' => true,
             'can_vacate' => !$p4Vac,
             'parentId' => $secPosId
@@ -234,9 +236,11 @@ if (!empty($tree['tier5'])) {
             'level' => 5,
             'role' => $p5['title'],
             'name' => $p5Occ,
+            'phone' => $p5['occupants'][0]['phone'] ?? '',
+            'email' => $p5['occupants'][0]['email'] ?? '',
             'status' => $p5Vac ? 'Vacant' : 'Active',
             'is_vacant' => $p5Vac,
-            'description' => 'Ministry Coordinator',
+            'description' => $p5['description'] ?? 'Ministry Coordinator',
             'is_system_role' => false,
             'is_custom_ministry' => true,
             'can_vacate' => !$p5Vac,
@@ -421,12 +425,9 @@ include __DIR__ . '/../templates/header.php';
             <button type="button" class="btn-org-cta" onclick="toggleNewVicarDrawer()">
                 <i class="fas fa-user-plus"></i> Add Assistant Priest
             </button>
-            <button type="button" class="btn-org-cta" onclick="openMinistryModal(0, '', '')">
+            <button type="button" class="btn-org-cta" onclick="openPositionSettings(null)">
                 <i class="fas fa-plus"></i> Add Ministry Role
             </button>
-            <a href="<?php echo BASE_URL; ?>users/organization.php" class="btn-org-cta ms-1" target="_blank" title="Public Directory View">
-                <i class="fas fa-arrow-up-right-from-square"></i> Public
-            </a>
         </div>
     </div>
 
@@ -461,31 +462,72 @@ include __DIR__ . '/../templates/header.php';
 
 </div>
 
-<!-- Minimalist Ministry Modal for Custom Apostolates -->
-<div class="modal fade" id="ministryModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-sm">
-        <form method="POST" class="modal-content rounded-3 border-0 shadow" style="border-radius: 10px;">
+<!-- Position & Person Settings Modal -->
+<div class="modal fade" id="positionSettingsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 460px;">
+        <form method="POST" class="modal-content rounded-3 border-0 shadow" style="border-radius: 12px; overflow: hidden;">
             <?php echo csrfInput(); ?>
-            <input type="hidden" name="action" value="save_ministry">
-            <input type="hidden" name="position_id" id="modalMinistryPosId" value="0">
+            <input type="hidden" name="action" value="save_position_settings">
+            <input type="hidden" name="position_id" id="settingPosId" value="0">
 
-            <div class="modal-header border-0 pb-0 pt-3 px-3">
-                <h6 class="modal-title fw-bold" id="modalMinistryTitle" style="font-family: 'Fraunces', 'Playfair Display', serif; color: #16233A;">Ministry Coordinator Role</h6>
+            <div class="modal-header border-0 pb-0 pt-3 px-4" style="background: #FAF8F5;">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 32px; height: 32px; background: rgba(169, 129, 46, 0.15); color: #A9812E;">
+                        <i class="fas fa-gear"></i>
+                    </span>
+                    <h6 class="modal-title fw-bold m-0" id="settingModalTitle" style="font-family: 'Fraunces', 'Playfair Display', serif; color: #16233A; font-size: 1.05rem;">
+                        Position & Person Settings
+                    </h6>
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body py-3 px-3">
-                <div class="mb-2.5">
-                    <label class="form-label text-xs fw-bold text-uppercase text-secondary" style="letter-spacing: 0.05em;">Ministry Name</label>
-                    <input type="text" name="title" id="inputMinistryName" class="org-inline-input w-100" required placeholder="e.g. Ministry of Greeters & Ushers">
+
+            <div class="modal-body py-3 px-4">
+                <!-- Position Title -->
+                <div class="mb-3" id="groupPositionTitle">
+                    <label class="form-label text-xs fw-bold text-uppercase text-secondary" style="letter-spacing: 0.05em; font-size: 0.72rem;">
+                        Position Title
+                    </label>
+                    <input type="text" name="title" id="settingPositionTitle" class="form-control form-control-sm" required style="border-radius: 6px; border-color: #DCD5C9;">
                 </div>
-                <div class="mt-2">
-                    <label class="form-label text-xs fw-bold text-uppercase text-secondary" style="letter-spacing: 0.05em;">Coordinator Name (Optional)</label>
-                    <input type="text" name="occupant_name" id="inputMinistryCoordinator" class="org-inline-input w-100" placeholder="Enter coordinator name">
+
+                <!-- Occupant Name -->
+                <div class="mb-3">
+                    <label class="form-label text-xs fw-bold text-uppercase text-secondary" style="letter-spacing: 0.05em; font-size: 0.72rem;">
+                        Person / Appointee Name
+                    </label>
+                    <input type="text" name="occupant_name" id="settingOccupantName" class="form-control form-control-sm" placeholder="e.g. Rev. Fr. Mark Anthony Santos, OMI" style="border-radius: 6px; border-color: #DCD5C9;">
+                    <div class="form-text text-muted" style="font-size: 0.7rem;">Leave blank to vacate or unassign the position.</div>
+                </div>
+
+                <!-- Contact Number (Optional) -->
+                <div class="mb-3">
+                    <label class="form-label text-xs fw-bold text-uppercase text-secondary" style="letter-spacing: 0.05em; font-size: 0.72rem;">
+                        <i class="fas fa-phone me-1 text-muted"></i> Contact Number <span class="fw-normal text-muted text-capitalize">(Optional)</span>
+                    </label>
+                    <input type="text" name="phone" id="settingPhone" class="form-control form-control-sm" placeholder="e.g. +63 917 123 4567" style="border-radius: 6px; border-color: #DCD5C9;">
+                </div>
+
+                <!-- Facebook / Email (Optional) -->
+                <div class="mb-3">
+                    <label class="form-label text-xs fw-bold text-uppercase text-secondary" style="letter-spacing: 0.05em; font-size: 0.72rem;">
+                        <i class="fas fa-share-nodes me-1 text-muted"></i> Facebook / Email <span class="fw-normal text-muted text-capitalize">(Optional)</span>
+                    </label>
+                    <input type="text" name="email" id="settingEmail" class="form-control form-control-sm" placeholder="e.g. fb.com/profile or name@parish.ph" style="border-radius: 6px; border-color: #DCD5C9;">
+                </div>
+
+                <!-- Role Description / Subtitle (Optional) -->
+                <div class="mb-2">
+                    <label class="form-label text-xs fw-bold text-uppercase text-secondary" style="letter-spacing: 0.05em; font-size: 0.72rem;">
+                        Description / Subtitle <span class="fw-normal text-muted text-capitalize">(Optional)</span>
+                    </label>
+                    <input type="text" name="description" id="settingDescription" class="form-control form-control-sm" placeholder="e.g. Chancery & Office Operations" style="border-radius: 6px; border-color: #DCD5C9;">
                 </div>
             </div>
-            <div class="modal-footer border-0 pt-0 pb-3 px-3">
-                <button type="button" class="btn-org-cancel" data-bs-dismiss="modal">Cancel</button>
-                <button type="submit" class="btn-org-save">Save Role</button>
+
+            <div class="modal-footer border-0 pt-0 pb-3 px-4 d-flex justify-content-end gap-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary px-3" data-bs-dismiss="modal" style="border-radius: 6px;">Cancel</button>
+                <button type="submit" class="btn btn-sm px-3 fw-bold" style="border-radius: 6px; background: #A9812E; color: #fff; border: none;">Save Changes</button>
             </div>
         </form>
     </div>
@@ -502,13 +544,30 @@ function toggleNewVicarDrawer() {
     }
 }
 
-function openMinistryModal(posId, title, occupant) {
-    document.getElementById('modalMinistryPosId').value = posId || 0;
-    document.getElementById('inputMinistryName').value = title || '';
-    document.getElementById('inputMinistryCoordinator').value = occupant || '';
-    document.getElementById('modalMinistryTitle').textContent = posId ? 'Edit Ministry Role' : 'Add Ministry Role';
-    var modal = new bootstrap.Modal(document.getElementById('ministryModal'));
+function openPositionSettings(data) {
+    var posId = data ? (data.id || 0) : 0;
+    var title = data ? (data.title || '') : '';
+    var occupant = data ? (data.occupant || '') : '';
+    var phone = data ? (data.phone || '') : '';
+    var email = data ? (data.email || '') : '';
+    var desc = data ? (data.desc || '') : '';
+
+    document.getElementById('settingPosId').value = posId;
+    document.getElementById('settingPositionTitle').value = title;
+    document.getElementById('settingOccupantName').value = occupant;
+    document.getElementById('settingPhone').value = phone;
+    document.getElementById('settingEmail').value = email;
+    document.getElementById('settingDescription').value = desc;
+    document.getElementById('settingModalTitle').textContent = posId ? (title + ' Settings') : 'Add Ministry Role';
+
+    var modalEl = document.getElementById('positionSettingsModal');
+    var modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
     modal.show();
+}
+
+// Backwards compatibility alias
+function openMinistryModal(posId, title, occupant) {
+    openPositionSettings({ id: posId, title: title, occupant: occupant });
 }
 </script>
 

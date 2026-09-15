@@ -40,6 +40,27 @@ foreach ($tree['all_tiers'] as $tier) {
     }
 }
 
+function renderOrgContactItem(?string $phone, ?string $emailOrFb): string
+{
+    $html = '';
+    if (!empty($emailOrFb)) {
+        $val = trim($emailOrFb);
+        $isFb = preg_match('#^(https?://|www\.|facebook\.com|fb\.com)#i', $val) || stripos($val, 'facebook.com') !== false || stripos($val, 'fb.com') !== false;
+        if ($isFb) {
+            $href = preg_match('#^https?://#i', $val) ? $val : 'https://' . ltrim($val, '/');
+            $display = preg_replace('#^https?://(www\.)?#i', '', $val);
+            $html .= '<a href="' . htmlspecialchars($href, ENT_QUOTES, 'UTF-8') . '" target="_blank" rel="noopener noreferrer" class="org-contact-item" title="Facebook"><i class="fab fa-facebook text-primary"></i> ' . htmlspecialchars($display, ENT_QUOTES, 'UTF-8') . '</a>';
+        } else {
+            $html .= '<a href="mailto:' . htmlspecialchars($val, ENT_QUOTES, 'UTF-8') . '" class="org-contact-item" title="Email"><i class="fas fa-envelope"></i> ' . htmlspecialchars($val, ENT_QUOTES, 'UTF-8') . '</a>';
+        }
+    }
+    if (!empty($phone)) {
+        $phoneVal = trim($phone);
+        $html .= '<a href="tel:' . htmlspecialchars($phoneVal, ENT_QUOTES, 'UTF-8') . '" class="org-contact-item" title="Contact Number"><i class="fas fa-phone"></i> ' . htmlspecialchars($phoneVal, ENT_QUOTES, 'UTF-8') . '</a>';
+    }
+    return $html;
+}
+
 include __DIR__ . '/../templates/header.php';
 include __DIR__ . '/../includes/breadcrumb.php';
 include __DIR__ . '/../includes/back_button.php';
@@ -490,18 +511,12 @@ include __DIR__ . '/../includes/back_button.php';
                 <?php if (!empty($t1Occupant['bio'])): ?>
                     <div class="org-bio"><?php echo e($t1Occupant['bio']); ?></div>
                 <?php endif; ?>
-                <div class="org-contacts">
-                    <?php if (!empty($t1Occupant['email'])): ?>
-                        <a href="mailto:<?php echo e($t1Occupant['email']); ?>" class="org-contact-item">
-                            <i class="fas fa-envelope"></i> <?php echo e($t1Occupant['email']); ?>
-                        </a>
-                    <?php endif; ?>
-                    <?php if (!empty($t1Occupant['phone'])): ?>
-                        <a href="tel:<?php echo e($t1Occupant['phone']); ?>" class="org-contact-item">
-                            <i class="fas fa-phone"></i> <?php echo e($t1Occupant['phone']); ?>
-                        </a>
-                    <?php endif; ?>
-                </div>
+                <?php $c1Html = renderOrgContactItem($t1Occupant['phone'] ?? null, $t1Occupant['email'] ?? null); ?>
+                <?php if (!empty($c1Html)): ?>
+                    <div class="org-contacts">
+                        <?php echo $c1Html; ?>
+                    </div>
+                <?php endif; ?>
             <?php else: ?>
                 <div class="org-profile">
                     <div class="org-avatar avatar-vacant"><i class="fas fa-user-clock"></i></div>
@@ -556,18 +571,12 @@ include __DIR__ . '/../includes/back_button.php';
                     <?php if (!empty($occ['bio'])): ?>
                         <div class="org-bio"><?php echo e($occ['bio']); ?></div>
                     <?php endif; ?>
-                    <div class="org-contacts">
-                        <?php if (!empty($occ['email'])): ?>
-                            <a href="mailto:<?php echo e($occ['email']); ?>" class="org-contact-item">
-                                <i class="fas fa-envelope"></i> <?php echo e($occ['email']); ?>
-                            </a>
-                        <?php endif; ?>
-                        <?php if (!empty($occ['phone'])): ?>
-                            <a href="tel:<?php echo e($occ['phone']); ?>" class="org-contact-item">
-                                <i class="fas fa-phone"></i> <?php echo e($occ['phone']); ?>
-                            </a>
-                        <?php endif; ?>
-                    </div>
+                    <?php $c2Html = renderOrgContactItem($occ['phone'] ?? null, $occ['email'] ?? null); ?>
+                    <?php if (!empty($c2Html)): ?>
+                        <div class="org-contacts">
+                            <?php echo $c2Html; ?>
+                        </div>
+                    <?php endif; ?>
                 <?php endforeach; ?>
             <?php else: ?>
                 <div class="org-profile">
@@ -622,18 +631,12 @@ include __DIR__ . '/../includes/back_button.php';
                 <?php if (!empty($t3Occupant['bio'])): ?>
                     <div class="org-bio"><?php echo e($t3Occupant['bio']); ?></div>
                 <?php endif; ?>
-                <div class="org-contacts">
-                    <?php if (!empty($t3Occupant['email'])): ?>
-                        <a href="mailto:<?php echo e($t3Occupant['email']); ?>" class="org-contact-item">
-                            <i class="fas fa-envelope"></i> <?php echo e($t3Occupant['email']); ?>
-                        </a>
-                    <?php endif; ?>
-                    <?php if (!empty($t3Occupant['phone'])): ?>
-                        <a href="tel:<?php echo e($t3Occupant['phone']); ?>" class="org-contact-item">
-                            <i class="fas fa-phone"></i> <?php echo e($t3Occupant['phone']); ?>
-                        </a>
-                    <?php endif; ?>
-                </div>
+                <?php $c3Html = renderOrgContactItem($t3Occupant['phone'] ?? null, $t3Occupant['email'] ?? null); ?>
+                <?php if (!empty($c3Html)): ?>
+                    <div class="org-contacts">
+                        <?php echo $c3Html; ?>
+                    </div>
+                <?php endif; ?>
             <?php else: ?>
                 <div class="org-profile">
                     <div class="org-avatar avatar-vacant"><i class="fas fa-user-clock"></i></div>
@@ -686,18 +689,12 @@ include __DIR__ . '/../includes/back_button.php';
                                 <div class="org-member-title">Council Officer</div>
                             </div>
                         </div>
-                        <div class="org-contacts">
-                            <?php if (!empty($occ['email'])): ?>
-                                <a href="mailto:<?php echo e($occ['email']); ?>" class="org-contact-item">
-                                    <i class="fas fa-envelope"></i> <?php echo e($occ['email']); ?>
-                                </a>
-                            <?php endif; ?>
-                            <?php if (!empty($occ['phone'])): ?>
-                                <a href="tel:<?php echo e($occ['phone']); ?>" class="org-contact-item">
-                                    <i class="fas fa-phone"></i> <?php echo e($occ['phone']); ?>
-                                </a>
-                            <?php endif; ?>
-                        </div>
+                        <?php $c4Html = renderOrgContactItem($occ['phone'] ?? null, $occ['email'] ?? null); ?>
+                        <?php if (!empty($c4Html)): ?>
+                            <div class="org-contacts">
+                                <?php echo $c4Html; ?>
+                            </div>
+                        <?php endif; ?>
                     <?php else: ?>
                         <div class="org-profile">
                             <div class="org-avatar avatar-vacant"><i class="fas fa-user-clock"></i></div>
@@ -756,18 +753,12 @@ include __DIR__ . '/../includes/back_button.php';
                                 <div class="org-member-title">Ministry Coordinator</div>
                             </div>
                         </div>
-                        <div class="org-contacts">
-                            <?php if (!empty($occ['email'])): ?>
-                                <a href="mailto:<?php echo e($occ['email']); ?>" class="org-contact-item">
-                                    <i class="fas fa-envelope"></i> <?php echo e($occ['email']); ?>
-                                </a>
-                            <?php endif; ?>
-                            <?php if (!empty($occ['phone'])): ?>
-                                <a href="tel:<?php echo e($occ['phone']); ?>" class="org-contact-item">
-                                    <i class="fas fa-phone"></i> <?php echo e($occ['phone']); ?>
-                                </a>
-                            <?php endif; ?>
-                        </div>
+                        <?php $c5Html = renderOrgContactItem($occ['phone'] ?? null, $occ['email'] ?? null); ?>
+                        <?php if (!empty($c5Html)): ?>
+                            <div class="org-contacts">
+                                <?php echo $c5Html; ?>
+                            </div>
+                        <?php endif; ?>
                     <?php else: ?>
                         <div class="org-profile">
                             <div class="org-avatar avatar-vacant"><i class="fas fa-user-plus"></i></div>

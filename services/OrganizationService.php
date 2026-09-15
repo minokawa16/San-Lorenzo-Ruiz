@@ -483,54 +483,11 @@ final class OrganizationService
 
     /**
      * Remove an additional Assistant Priest card slot.
-     * Guardrail: The primary core vicar (is_system_role = 1) cannot be deleted.
+     * Delegates to true deletePosition.
      */
     public function removeAssistantPriest(int $positionId, int $actorId): bool
     {
-        $pos = $this->getPosition($positionId);
-        if (!$pos) {
-            throw new DomainException('Position not found.');
-        }
-
-        if ((int)$pos['rank_level'] !== 2) {
-            throw new DomainException('Target position is not an Assistant Priest role.');
-        }
-
-        if ((int)$pos['is_system_role'] === 1) {
-            throw new DomainException('The primary Assistant Priest role is a fixed system position. You can vacate it, but not delete it.');
-        }
-
-        // Deactivate assignments
-        $stmt = $this->db->prepare('UPDATE position_assignments SET is_active = 0, end_date = CURRENT_DATE() WHERE position_id = ?');
-        $stmt->bind_param('i', $positionId);
-        $stmt->execute();
-        $stmt->close();
-
-        // Mark archived
-        $stmt = $this->db->prepare("UPDATE org_positions SET status = 'archived' WHERE position_id = ?");
-        $stmt->bind_param('i', $positionId);
-        $ok = $stmt->execute();
-        $stmt->close();
-
-        writeAuditLog(
-            $this->db,
-            $actorId,
-            'REMOVE_ASSISTANT_PRIEST',
-            'org_positions',
-            $positionId,
-            null,
-            ['status' => 'archived'],
-            'organization',
-            null,
-            null,
-            "Removed additional Assistant Priest position #{$positionId}.",
-            'SYSTEM',
-            'WARNING',
-            'org_positions',
-            $positionId
-        );
-
-        return $ok;
+        return $this->deletePosition($positionId, $actorId);
     }
 
     /**
@@ -638,53 +595,231 @@ final class OrganizationService
 
     /**
      * Archive/Delete a dynamic ministry role.
-     * HARD GUARDRAIL: Strict block on Ranks 1 to 4 (is_system_role = 1).
+     * Delegates to true deletePosition.
      */
     public function archiveMinistryRole(int $positionId, int $actorId): bool
+    {
+        return $this->deletePosition($positionId, $actorId);
+    }
+
+    /**
+     * Save comprehensive position settings, including title, occupant name, and contact details.
+     */
+    public function savePositionSettings(
+        int $positionId,
+        string $title,
+        string $occupantName,
+        ?string $phone,
+        ?string $email,
+        ?string $description,
+        int $actorId
+    ): bool {
+        $pos = $this->getPosition($positionId);
+        if (!$pos) {
+            throw new DomainException('Position not found.');
+        }
+
+        $title = trim($title);
+        $occupantName = trim($occupantName);
+        $phone = trim((string)$phone);
+        $email = trim((string)$email);
+        $description = trim((string)$description);
+
+        // 1. Update Position Title & Description
+        if ($title !== '') {
+            $stmt = $this->db->prepare('UPDATE org_positions SET title = ?, description = ? WHERE position_id = ?');
+            $stmt->bind_param('ssi', $title, $description, $positionId);
+        } else {
+            $stmt = $this->db->prepare('UPDATE org_positions SET description = ? WHERE position_id = ?');
+            $stmt->bind_param('si', $description, $positionId);
+        }
+        $stmt->execute();
+        $stmt->close();
+
+        // 2. Handle Occupant and Contact Details
+        if ($occupantName === '') {
+            // Vacate if name was cleared
+            $stmt = $this->db->prepare('UPDATE position_assignments SET is_active = 0, end_date = CURRENT_DATE() WHERE position_id = ? AND is_active = 1');
+            $stmt->bind_param('i', $positionId);
+            $stmt->execute();
+            $stmt->close();
+        } else {
+            // Check if position already has an active occupant
+            $stmt = $this->db->prepare('
+                SELECT pa.assignment_id, m.member_id 
+                FROM position_assignments pa
+                JOIN org_members m ON m.member_id = pa.member_id
+                WHERE pa.position_id = ? AND pa.is_active = 1
+                LIMIT 1
+            ');
+            $stmt->bind_param('i', $positionId);
+            $stmt->execute();
+            $currAssign = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+
+            $prefix = '';
+            if (preg_match('/^(Rev\.\s*Fr\.|Fr\.|Father)\s+/i', $occupantName)) {
+                $prefix = 'Rev. Fr.';
+            } elseif (preg_match('/^(Bro\.|Brother)\s+/i', $occupantName)) {
+                $prefix = 'Bro.';
+            } elseif (preg_match('/^(Sis\.|Sister)\s+/i', $occupantName)) {
+                $prefix = 'Sis.';
+            }
+
+            if ($currAssign) {
+                // Update existing occupant profile with new name and contact details
+                $mId = (int)$currAssign['member_id'];
+                $stmt = $this->db->prepare('
+                    UPDATE org_members 
+                    SET full_name = ?, title_prefix = ?, phone = ?, email = ?, status = "active"
+                    WHERE member_id = ?
+                ');
+                $stmt->bind_param('ssssi', $occupantName, $prefix, $phone, $email, $mId);
+                $stmt->execute();
+                $stmt->close();
+            } else {
+                // Find existing member or create new one
+                $stmt = $this->db->prepare('SELECT member_id FROM org_members WHERE full_name = ? LIMIT 1');
+                $stmt->bind_param('s', $occupantName);
+                $stmt->execute();
+                $memRow = $stmt->get_result()->fetch_assoc();
+                $stmt->close();
+
+                if ($memRow) {
+                    $mId = (int)$memRow['member_id'];
+                    $stmt = $this->db->prepare('
+                        UPDATE org_members 
+                        SET title_prefix = ?, phone = ?, email = ?, status = "active"
+                        WHERE member_id = ?
+                    ');
+                    $stmt->bind_param('sssi', $prefix, $phone, $email, $mId);
+                    $stmt->execute();
+                    $stmt->close();
+                } else {
+                    $stmt = $this->db->prepare('
+                        INSERT INTO org_members (title_prefix, full_name, phone, email, status)
+                        VALUES (?, ?, ?, ?, "active")
+                    ');
+                    $stmt->bind_param('ssss', $prefix, $occupantName, $phone, $email);
+                    $stmt->execute();
+                    $mId = $stmt->insert_id;
+                    $stmt->close();
+                }
+
+                // Deactivate old assignments and create new active assignment
+                $stmt = $this->db->prepare('UPDATE position_assignments SET is_active = 0, end_date = CURRENT_DATE() WHERE position_id = ? AND is_active = 1');
+                $stmt->bind_param('i', $positionId);
+                $stmt->execute();
+                $stmt->close();
+
+                $startDate = date('Y-m-d');
+                $notes = 'Updated via Settings';
+                $stmt = $this->db->prepare('
+                    INSERT INTO position_assignments (position_id, member_id, start_date, is_active, notes, assigned_by)
+                    VALUES (?, ?, ?, 1, ?, ?)
+                ');
+                $stmt->bind_param('iissi', $positionId, $mId, $startDate, $notes, $actorId);
+                $stmt->execute();
+                $stmt->close();
+            }
+        }
+
+        writeAuditLog(
+            $this->db,
+            $actorId,
+            'UPDATE_POSITION_SETTINGS',
+            'org_positions',
+            $positionId,
+            $pos,
+            ['title' => $title, 'occupant' => $occupantName, 'phone' => $phone, 'email' => $email, 'description' => $description],
+            'organization',
+            null,
+            null,
+            "Updated settings for position '{$pos['title']}'.",
+            'SYSTEM',
+            'INFO',
+            'org_positions',
+            $positionId
+        );
+
+        return true;
+    }
+
+    /**
+     * True permanent delete for position / occupant person record (replaces soft archive).
+     * If dynamic position: permanently deletes the position and its assignments/records.
+     * If core system position: permanently deletes the assigned person record, setting position to vacant.
+     */
+    public function deletePosition(int $positionId, int $actorId): bool
     {
         $pos = $this->getPosition($positionId);
         if (!$pos) {
             throw new DomainException('Position not found.');
         }
 
-        // HARD IMMUTABILITY GUARD
-        if ((int)$pos['is_system_role'] === 1 || (int)$pos['rank_level'] < 5) {
-            throw new DomainException('Forbidden: Core system roles (Ranks 1 to 4: Parish Priest, Vicar, Secretary, and PPC Board) cannot be deleted or archived.');
-        }
+        $isSystem = (bool)$pos['is_system_role'];
 
-        // Deactivate assignments
-        $stmt = $this->db->prepare('UPDATE position_assignments SET is_active = 0, end_date = COALESCE(end_date, CURRENT_DATE()) WHERE position_id = ?');
+        // 1. Find assigned members
+        $stmt = $this->db->prepare('SELECT member_id FROM position_assignments WHERE position_id = ?');
+        $stmt->bind_param('i', $positionId);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        $memberIds = [];
+        while ($row = $res->fetch_assoc()) {
+            $memberIds[] = (int)$row['member_id'];
+        }
+        $stmt->close();
+
+        // 2. Permanently delete assignments
+        $stmt = $this->db->prepare('DELETE FROM position_assignments WHERE position_id = ?');
         $stmt->bind_param('i', $positionId);
         $stmt->execute();
         $stmt->close();
 
-        // Mark position as archived
-        $stmt = $this->db->prepare("UPDATE org_positions SET status = 'archived' WHERE position_id = ?");
-        $stmt->bind_param('i', $positionId);
-        $ok = $stmt->execute();
-        $stmt->close();
-
-        if ($ok) {
-            writeAuditLog(
-                $this->db,
-                $actorId,
-                'ARCHIVE_MINISTRY_ROLE',
-                'org_positions',
-                $positionId,
-                $pos,
-                ['status' => 'archived'],
-                'organization',
-                null,
-                null,
-                "Archived custom ministry role: '{$pos['title']}'.",
-                'SYSTEM',
-                'WARNING',
-                'org_positions',
-                $positionId
-            );
+        // 3. Delete unlinked member records
+        foreach ($memberIds as $mId) {
+            $chk = $this->db->prepare('SELECT assignment_id FROM position_assignments WHERE member_id = ? LIMIT 1');
+            $chk->bind_param('i', $mId);
+            $chk->execute();
+            $otherAssigned = $chk->get_result()->fetch_assoc();
+            $chk->close();
+            if (!$otherAssigned) {
+                $delM = $this->db->prepare('DELETE FROM org_members WHERE member_id = ?');
+                $delM->bind_param('i', $mId);
+                $delM->execute();
+                $delM->close();
+            }
         }
 
-        return $ok;
+        // 4. If dynamic role, permanently delete the position itself
+        if (!$isSystem) {
+            $stmt = $this->db->prepare('DELETE FROM org_positions WHERE position_id = ?');
+            $stmt->bind_param('i', $positionId);
+            $stmt->execute();
+            $stmt->close();
+        }
+
+        writeAuditLog(
+            $this->db,
+            $actorId,
+            'DELETE_ORG_POSITION',
+            'org_positions',
+            $positionId,
+            $pos,
+            ['deleted' => true, 'is_system_role' => $isSystem],
+            'organization',
+            null,
+            null,
+            $isSystem 
+                ? "Permanently deleted occupant/person record for system position '{$pos['title']}'."
+                : "Permanently deleted dynamic position '{$pos['title']}' and its records.",
+            'SYSTEM',
+            'WARNING',
+            'org_positions',
+            $positionId
+        );
+
+        return true;
     }
 
     /**

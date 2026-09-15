@@ -420,63 +420,23 @@ if (!function_exists('renderParishOrgChartStyles')) {
         /* Card Footer */
         .org-card-footer {
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             align-items: center;
             border-top: 1px solid #F1ECE4;
             padding-top: 0.5rem;
-            gap: 0.35rem;
-        }
-
-        .btn-org-edit,
-        .btn-org-assign {
-            background: #FAF8F5;
-            border: 1px solid #DCD5C9;
-            border-radius: 5px;
-            color: var(--org-text-navy);
-            font-family: var(--org-font-sans);
-            font-size: 0.74rem;
-            font-weight: 600;
-            padding: 0.25rem 0.55rem;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.3rem;
-            transition: all 0.15s ease;
-        }
-
-        .btn-org-edit:hover,
-        .btn-org-assign:hover {
-            background: #FFFFFF;
-            border-color: var(--org-brass);
-            color: var(--org-brass);
-        }
-
-        .btn-org-assign {
-            color: #2F6144;
-            background: #F2F7F4;
-            border-color: #C6DEC9;
-        }
-
-        .btn-org-assign:hover {
-            background: #E8F2EC;
-            border-color: var(--org-active-pill-color);
-            color: var(--org-active-pill-color);
-        }
-
-        .org-footer-secondary {
-            display: flex;
-            align-items: center;
-            gap: 0.25rem;
+            gap: 0.5rem;
         }
 
         .btn-org-icon {
-            background: transparent;
-            border: none;
-            color: #94A3B8;
-            padding: 0.2rem 0.35rem;
-            border-radius: 4px;
+            background: #FAF8F5;
+            border: 1px solid #E2DDD5;
+            color: #64748B;
+            width: 28px;
+            height: 28px;
+            padding: 0;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 0.75rem;
+            font-size: 0.78rem;
             transition: all 0.15s ease;
             display: inline-flex;
             align-items: center;
@@ -484,18 +444,35 @@ if (!function_exists('renderParishOrgChartStyles')) {
         }
 
         .btn-org-icon:hover {
-            background: #F1F5F9;
+            background: #FFFFFF;
+            border-color: #CBD5E1;
             color: var(--org-text-navy);
+            transform: translateY(-1px);
         }
 
-        .btn-icon-vacate:hover,
-        .btn-icon-archive:hover {
+        .btn-icon-edit:hover {
+            border-color: var(--org-brass);
+            color: var(--org-brass);
+            background: #FAF5EA;
+        }
+
+        .btn-icon-vacate:hover {
             background: #FEF2F2;
+            border-color: #FECACA;
             color: #DC2626;
         }
 
         .btn-icon-gear:hover {
+            border-color: var(--org-brass);
             color: var(--org-brass);
+            background: #FAF5EA;
+        }
+
+        .btn-icon-delete:hover,
+        .btn-icon-archive:hover {
+            background: #FEF2F2;
+            border-color: #FECACA;
+            color: #DC2626;
         }
 
         /* --- RESPONSIVE COLLAPSE UNDER 900PX --- */
@@ -642,6 +619,8 @@ if (!function_exists('renderOrgCard')) {
         $level = (int)($node['level'] ?? ($node['rank'] ?? 1));
         $role = trim((string)($node['role'] ?? ''));
         $name = trim((string)($node['name'] ?? ''));
+        $phone = trim((string)($node['phone'] ?? ''));
+        $email = trim((string)($node['email'] ?? ''));
         $desc = trim((string)($node['description'] ?? ''));
         $isVacant = !empty($node['is_vacant']) || empty($name);
         $status = $isVacant ? 'Vacant' : ($node['status'] ?? 'Active');
@@ -696,7 +675,7 @@ if (!function_exists('renderOrgCard')) {
                         <input type="hidden" name="position_id" value="<?php echo $id; ?>">
                         <input type="text" 
                                name="occupant_name" 
-                               id="input-pos-<?php echo $id; ?>"
+                               id="input-pos-<?php echo $id; ?>" 
                                value="<?php echo htmlspecialchars($name, ENT_QUOTES, 'UTF-8'); ?>" 
                                class="org-inline-input" 
                                placeholder="Enter full name" 
@@ -714,74 +693,66 @@ if (!function_exists('renderOrgCard')) {
                 <?php endif; ?>
             </div>
 
-            <!-- Card Footer: Inline Edit / Assign & Secondary Actions -->
+            <!-- Card Footer: Uniform 4 Action Icons across all cards -->
             <div class="org-card-footer">
                 <?php if ($editable): ?>
-                    <div class="org-footer-primary">
-                        <?php if ($isVacant): ?>
-                            <button type="button" class="btn-org-assign" onclick="toggleCardEdit(<?php echo $id; ?>)">
-                                <i class="fas fa-user-plus"></i> Assign
-                            </button>
-                        <?php else: ?>
-                            <button type="button" class="btn-org-edit" onclick="toggleCardEdit(<?php echo $id; ?>)">
-                                <i class="fas fa-pen"></i> Edit Name
-                            </button>
-                        <?php endif; ?>
-                    </div>
+                    <!-- 1. Edit Name (Icon-only) -->
+                    <button type="button" 
+                            class="btn-org-icon btn-icon-edit" 
+                            onclick="toggleCardEdit(<?php echo $id; ?>)" 
+                            title="<?php echo $isVacant ? 'Assign Name' : 'Edit Name'; ?>">
+                        <i class="fas fa-pen"></i>
+                    </button>
 
-                    <!-- Secondary Pinned Utilities (Vacate, Settings, Delete) -->
-                    <div class="org-footer-secondary">
-                        <?php if ($canVacate): ?>
-                            <form method="POST" class="d-inline m-0" onsubmit="return confirm('Clear and vacate position for <?php echo htmlspecialchars(addslashes($role), ENT_QUOTES, 'UTF-8'); ?>?');">
-                                <?php if (!empty($csrfToken)): ?>
-                                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8'); ?>">
-                                <?php elseif (function_exists('csrfInput')): ?>
-                                    <?php echo csrfInput(); ?>
-                                <?php endif; ?>
-                                <input type="hidden" name="action" value="vacate_position">
-                                <input type="hidden" name="position_id" value="<?php echo $id; ?>">
-                                <button type="submit" class="btn-org-icon btn-icon-vacate" title="Vacate Position">
-                                    <i class="fas fa-user-xmark"></i>
-                                </button>
-                            </form>
+                    <!-- 2. Vacate Position (Icon-only) -->
+                    <form method="POST" class="d-inline m-0" onsubmit="return confirm('Clear and vacate position for <?php echo htmlspecialchars(addslashes($role), ENT_QUOTES, 'UTF-8'); ?>?');">
+                        <?php if (!empty($csrfToken)): ?>
+                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8'); ?>">
+                        <?php elseif (function_exists('csrfInput')): ?>
+                            <?php echo csrfInput(); ?>
                         <?php endif; ?>
+                        <input type="hidden" name="action" value="vacate_position">
+                        <input type="hidden" name="position_id" value="<?php echo $id; ?>">
+                        <button type="submit" 
+                                class="btn-org-icon btn-icon-vacate" 
+                                title="Vacate Position" 
+                                <?php echo $isVacant ? 'disabled style="opacity:0.35; cursor:not-allowed;" title="Position is already vacant"' : ''; ?>>
+                            <i class="fas fa-user-xmark"></i>
+                        </button>
+                    </form>
 
-                        <?php if ($isCustomMinistry): ?>
-                            <button type="button" 
-                                    class="btn-org-icon btn-icon-gear" 
-                                    onclick="openMinistryModal(<?php echo $id; ?>, '<?php echo htmlspecialchars(addslashes($role), ENT_QUOTES, 'UTF-8'); ?>', '<?php echo htmlspecialchars(addslashes($name), ENT_QUOTES, 'UTF-8'); ?>')" 
-                                    title="Ministry Settings">
-                                <i class="fas fa-gear"></i>
-                            </button>
-                            <form method="POST" class="d-inline m-0" onsubmit="return confirm('Archive custom ministry role: <?php echo htmlspecialchars(addslashes($role), ENT_QUOTES, 'UTF-8'); ?>?');">
-                                <?php if (!empty($csrfToken)): ?>
-                                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8'); ?>">
-                                <?php elseif (function_exists('csrfInput')): ?>
-                                    <?php echo csrfInput(); ?>
-                                <?php endif; ?>
-                                <input type="hidden" name="action" value="archive_ministry">
-                                <input type="hidden" name="position_id" value="<?php echo $id; ?>">
-                                <button type="submit" class="btn-org-icon btn-icon-archive" title="Archive Ministry Role">
-                                    <i class="fas fa-trash-can"></i>
-                                </button>
-                            </form>
-                        <?php endif; ?>
+                    <!-- 3. Settings (Icon-only) -->
+                    <button type="button" 
+                            class="btn-org-icon btn-icon-gear" 
+                            onclick="openPositionSettings(<?php echo htmlspecialchars(json_encode([
+                                'id' => $id,
+                                'title' => $role,
+                                'occupant' => $name,
+                                'phone' => $phone,
+                                'email' => $email,
+                                'desc' => $desc,
+                                'is_system' => $isSystemRole
+                            ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP), ENT_QUOTES, 'UTF-8'); ?>)" 
+                            title="Position & Person Settings">
+                        <i class="fas fa-gear"></i>
+                    </button>
 
-                        <?php if ($canRemove): ?>
-                            <form method="POST" class="d-inline m-0" onsubmit="return confirm('Remove this additional Assistant Priest slot?');">
-                                <?php if (!empty($csrfToken)): ?>
-                                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8'); ?>">
-                                <?php elseif (function_exists('csrfInput')): ?>
-                                    <?php echo csrfInput(); ?>
-                                <?php endif; ?>
-                                <input type="hidden" name="action" value="remove_assistant_priest">
-                                <input type="hidden" name="position_id" value="<?php echo $id; ?>">
-                                <button type="submit" class="btn-org-icon btn-icon-archive" title="Remove Assistant Priest Slot">
-                                    <i class="fas fa-trash-can"></i>
-                                </button>
-                            </form>
+                    <!-- 4. Delete (Icon-only) -->
+                    <form method="POST" class="d-inline m-0" onsubmit="return confirm('Permanently delete <?php echo $isSystemRole ? 'the person record from ' . htmlspecialchars(addslashes($role), ENT_QUOTES, 'UTF-8') : 'this position (' . htmlspecialchars(addslashes($role), ENT_QUOTES, 'UTF-8') . ')'; ?>? This cannot be undone.');">
+                        <?php if (!empty($csrfToken)): ?>
+                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8'); ?>">
+                        <?php elseif (function_exists('csrfInput')): ?>
+                            <?php echo csrfInput(); ?>
                         <?php endif; ?>
-                    </div>
+                        <input type="hidden" name="action" value="delete_position">
+                        <input type="hidden" name="position_id" value="<?php echo $id; ?>">
+                        <button type="submit" 
+                                class="btn-org-icon btn-icon-delete" 
+                                title="<?php echo $isSystemRole ? 'Delete Person Record' : 'Delete Position'; ?>"
+                                <?php echo ($isSystemRole && $isVacant) ? 'disabled style="opacity:0.35; cursor:not-allowed;" title="Position is already vacant"' : ''; ?>>
+                            <i class="fas fa-trash-can"></i>
+                        </button>
+                    </form>
                 <?php endif; ?>
             </div>
 
