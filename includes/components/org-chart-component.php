@@ -230,12 +230,12 @@ if (!function_exists('renderParishOrgChartStyles')) {
             background: var(--org-card-bg);
             border: 1px solid var(--org-card-border);
             border-radius: var(--org-card-radius);
-            padding: 14px 14px 12px 14px;
+            padding: 12px 14px 10px 14px;
             position: relative;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            min-height: 162px;
+            min-height: 126px;
             box-shadow: none; /* No drop shadows as per spec */
             box-sizing: border-box;
             text-align: left;
@@ -252,7 +252,7 @@ if (!function_exists('renderParishOrgChartStyles')) {
         .org-card.is-editing {
             border-color: var(--org-brass);
             border-top: 3px solid var(--org-brass) !important;
-            padding-top: 12px;
+            padding-top: 10px;
             box-shadow: 0 0 0 1px var(--org-brass), 0 4px 16px var(--org-brass-glow);
         }
 
@@ -274,7 +274,7 @@ if (!function_exists('renderParishOrgChartStyles')) {
             justify-content: space-between;
             align-items: flex-start;
             gap: 0.4rem;
-            margin-bottom: 0.65rem;
+            margin-bottom: 0.45rem;
         }
 
         .org-card-role {
@@ -285,45 +285,7 @@ if (!function_exists('renderParishOrgChartStyles')) {
             letter-spacing: 0.05em;
             color: #6E7A8A;
             line-height: 1.25;
-            flex-grow: 1;
-        }
-
-        .org-status-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.3rem;
-            font-size: 0.68rem;
-            font-weight: 600;
-            padding: 0.15rem 0.45rem;
-            border-radius: 4px;
-            white-space: nowrap;
-            line-height: 1;
-            flex-shrink: 0;
-        }
-
-        .org-status-dot {
-            width: 5px;
-            height: 5px;
-            border-radius: 50%;
-            display: inline-block;
-        }
-
-        .pill-active {
-            background: var(--org-active-pill-bg);
-            color: var(--org-active-pill-color);
-            border: 1px solid var(--org-active-pill-border);
-        }
-        .pill-active .org-status-dot {
-            background: var(--org-active-pill-color);
-        }
-
-        .pill-vacant {
-            background: var(--org-vacant-pill-bg);
-            color: var(--org-vacant-pill-color);
-            border: 1px solid var(--org-vacant-pill-border);
-        }
-        .pill-vacant .org-status-dot {
-            background: var(--org-vacant-pill-color);
+            width: 100%;
         }
 
         /* Card Body */
@@ -332,7 +294,7 @@ if (!function_exists('renderParishOrgChartStyles')) {
             display: flex;
             flex-direction: column;
             justify-content: center;
-            margin-bottom: 0.65rem;
+            margin-bottom: 0.5rem;
         }
 
         .org-card-name {
@@ -341,7 +303,7 @@ if (!function_exists('renderParishOrgChartStyles')) {
             font-weight: 700;
             color: var(--org-text-navy);
             line-height: 1.3;
-            margin-bottom: 0.2rem;
+            margin-bottom: 0;
             word-break: break-word;
         }
 
@@ -352,9 +314,10 @@ if (!function_exists('renderParishOrgChartStyles')) {
         }
 
         .org-card-desc {
-            font-size: 0.76rem;
+            font-size: 0.74rem;
             color: #5A6779;
             line-height: 1.35;
+            margin-top: 0.25rem;
         }
 
         /* Inline Direct Edit Form */
@@ -637,15 +600,11 @@ if (!function_exists('renderOrgCard')) {
              data-level="<?php echo $level; ?>"
              data-role="<?php echo htmlspecialchars($role, ENT_QUOTES, 'UTF-8'); ?>">
             
-            <!-- Card Header: Role Label & Status Pill -->
+            <!-- Card Header: Role Label -->
             <div class="org-card-head">
                 <div class="org-card-role" title="<?php echo htmlspecialchars($role, ENT_QUOTES, 'UTF-8'); ?>">
                     <?php echo htmlspecialchars($role, ENT_QUOTES, 'UTF-8'); ?>
                 </div>
-                <span class="org-status-pill <?php echo $isVacant ? 'pill-vacant' : 'pill-active'; ?>">
-                    <span class="org-status-dot"></span>
-                    <?php echo $isVacant ? 'Vacant' : 'Active'; ?>
-                </span>
             </div>
 
             <!-- Card Body: Occupant Name & Description -->

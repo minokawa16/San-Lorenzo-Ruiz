@@ -139,7 +139,7 @@ $level1Nodes = [
         'email' => $tree['tier1']['occupants'][0]['email'] ?? '',
         'status' => $priestVacant ? 'Vacant' : 'Active',
         'is_vacant' => $priestVacant,
-        'description' => $tree['tier1']['description'] ?? 'Canonical Head & Pastor',
+        'description' => $tree['tier1']['description'] ?? '',
         'is_system_role' => true,
         'can_vacate' => !$priestVacant,
         'parentId' => null
@@ -161,7 +161,7 @@ if (!empty($tree['tier2'])) {
             'email' => $t2['occupants'][0]['email'] ?? '',
             'status' => $t2Vac ? 'Vacant' : 'Active',
             'is_vacant' => $t2Vac,
-            'description' => $t2['description'] ?? 'Parochial Vicar',
+            'description' => $t2['description'] ?? '',
             'is_system_role' => !empty($t2['is_system_role']),
             'can_vacate' => !$t2Vac,
             'can_remove' => empty($t2['is_system_role']),
@@ -187,7 +187,7 @@ $level3Nodes = [
         'email' => $t3['occupants'][0]['email'] ?? '',
         'status' => $t3Vac ? 'Vacant' : 'Active',
         'is_vacant' => $t3Vac,
-        'description' => $t3['description'] ?? 'Chancery & Office Operations',
+        'description' => $t3['description'] ?? '',
         'is_system_role' => true,
         'can_vacate' => !$t3Vac,
         'parentId' => $parentForSecretary
@@ -214,7 +214,7 @@ if (!empty($tree['tier4'])) {
             'email' => $p4['occupants'][0]['email'] ?? '',
             'status' => $p4Vac ? 'Vacant' : 'Active',
             'is_vacant' => $p4Vac,
-            'description' => $p4['description'] ?? 'Council Officer',
+            'description' => $p4['description'] ?? '',
             'is_system_role' => true,
             'can_vacate' => !$p4Vac,
             'parentId' => $secPosId
@@ -240,7 +240,7 @@ if (!empty($tree['tier5'])) {
             'email' => $p5['occupants'][0]['email'] ?? '',
             'status' => $p5Vac ? 'Vacant' : 'Active',
             'is_vacant' => $p5Vac,
-            'description' => $p5['description'] ?? 'Ministry Coordinator',
+            'description' => $p5['description'] ?? '',
             'is_system_role' => false,
             'is_custom_ministry' => true,
             'can_vacate' => !$p5Vac,
@@ -521,7 +521,7 @@ include __DIR__ . '/../templates/header.php';
                     <label class="form-label text-xs fw-bold text-uppercase text-secondary" style="letter-spacing: 0.05em; font-size: 0.72rem;">
                         Description / Subtitle <span class="fw-normal text-muted text-capitalize">(Optional)</span>
                     </label>
-                    <input type="text" name="description" id="settingDescription" class="form-control form-control-sm" placeholder="e.g. Chancery & Office Operations" style="border-radius: 6px; border-color: #DCD5C9;">
+                    <input type="text" name="description" id="settingDescription" class="form-control form-control-sm" placeholder="Optional description / subtitle" style="border-radius: 6px; border-color: #DCD5C9;">
                 </div>
             </div>
 
