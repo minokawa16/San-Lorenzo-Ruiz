@@ -1321,13 +1321,13 @@ function renderPrintableParishionerRegistry(array $users, string $filterLabel, s
         .certification-block {
             margin-top: 40px;
             display: flex;
-            justify-content: flex-start;
+            justify-content: space-between;
             align-items: flex-end;
             padding-top: 20px;
             page-break-inside: avoid;
         }
         .cert-signature-box {
-            width: 320px;
+            width: 44%;
             text-align: center;
         }
         .cert-line {
@@ -1529,6 +1529,11 @@ function renderPrintableParishionerRegistry(array $users, string $filterLabel, s
                 <div class="cert-line"></div>
                 <div class="cert-name"><?php echo htmlspecialchars($generatedBy); ?></div>
                 <div class="cert-title">Prepared by / Parish Records Administrator</div>
+            </div>
+            <div class="cert-signature-box">
+                <div class="cert-line"></div>
+                <div class="cert-name">Rev. Fr. Parish Priest / Administrator</div>
+                <div class="cert-title">Attested &amp; Verified</div>
             </div>
         </div>
 
