@@ -4,10 +4,10 @@
  * Admin page for managing funeral and burial parish records.
  */
 
-include '../config/security.php';
-include '../includes/session.php';
-include '../includes/helpers.php';
-include '../database/config.php';
+require_once '../config/security.php';
+require_once '../includes/session.php';
+require_once '../includes/helpers.php';
+require_once '../database/config.php';
 require_once '../services/SacramentalRecordService.php';
 
 if (!defined('BASE_URL')) {
@@ -18,6 +18,7 @@ requireAdmin();
 requirePermission('records.manage');
 
 // Funeral Fetch All Assoc Function - Documents this helper's role in the parish management workflow.
+if (!function_exists('funeral_fetch_all_assoc')) {
 function funeral_fetch_all_assoc($stmt) {
     $result = $stmt->get_result();
     if (!$result) {
@@ -26,8 +27,10 @@ function funeral_fetch_all_assoc($stmt) {
 
     return $result->fetch_all(MYSQLI_ASSOC);
 }
+}
 
 // Ensure Funeral Records Schema Function - Documents this helper's role in the parish management workflow.
+if (!function_exists('ensure_funeral_records_schema')) {
 function ensure_funeral_records_schema($conn) {
     return requireSchemaColumns($conn, 'funeral_records', [
         'funeral_id', 'request_id', 'registry_no', 'deceased_name', 'family_name',
@@ -36,8 +39,10 @@ function ensure_funeral_records_schema($conn) {
         'created_at', 'updated_at'
     ], 'funeral records');
 }
+}
 
 // Funeral Format Date Function - Documents this helper's role in the parish management workflow.
+if (!function_exists('funeral_format_date')) {
 function funeral_format_date($date_value, $format = 'M d, Y') {
     if (empty($date_value) || $date_value === '0000-00-00') {
         return 'N/A';
@@ -45,10 +50,13 @@ function funeral_format_date($date_value, $format = 'M d, Y') {
 
     return date($format, strtotime($date_value));
 }
+}
 
 // Funeral Js Value Function - Documents this helper's role in the parish management workflow.
+if (!function_exists('funeral_js_value')) {
 function funeral_js_value($value) {
     return htmlspecialchars(json_encode($value, JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES), ENT_QUOTES, 'UTF-8');
+}
 }
 
 ensure_funeral_records_schema($conn);
@@ -159,7 +167,15 @@ if ($action === 'archive' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $search = trim($_GET['search'] ?? '');
-$year_filter = isset($_GET['year']) && is_numeric($_GET['year']) && (int)$_GET['year'] > 1900 ? (int)$_GET['year'] : null;
+$date_from = trim((string)($_GET['date_from'] ?? ''));
+$date_to = trim((string)($_GET['date_to'] ?? ''));
+if ($date_from !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date_from)) {
+    $date_from = '';
+}
+if ($date_to !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date_to)) {
+    $date_to = '';
+}
+
 $raw_status = trim((string)($_GET['status'] ?? ''));
 if ($raw_status === '') {
     $status_filter = 'active';
@@ -167,25 +183,6 @@ if ($raw_status === '') {
     $status_filter = strtolower($raw_status);
 } else {
     $status_filter = 'active';
-}
-
-// Fetch available years dynamically from existing records (burial or death dates)
-$years_query = "
-    SELECT DISTINCT yr FROM (
-        SELECT YEAR(date_of_burial) AS yr FROM funeral_records WHERE date_of_burial IS NOT NULL AND date_of_burial != '0000-00-00'
-        UNION
-        SELECT YEAR(date_of_death) AS yr FROM funeral_records WHERE date_of_death IS NOT NULL AND date_of_death != '0000-00-00'
-    ) years_sub WHERE yr IS NOT NULL AND yr > 1900 ORDER BY yr DESC
-";
-$years_stmt = $conn->query($years_query);
-$available_years = array();
-if ($years_stmt) {
-    while ($y_row = $years_stmt->fetch_assoc()) {
-        if (!empty($y_row['yr'])) {
-            $available_years[] = (int)$y_row['yr'];
-        }
-    }
-    $years_stmt->close();
 }
 
 $page = max(1, (int)($_GET['page'] ?? 1));
@@ -204,11 +201,20 @@ if ($search !== '') {
     }
 }
 
-if ($year_filter !== null) {
-    $where_clauses[] = "(YEAR(date_of_burial) = ? OR YEAR(date_of_death) = ?)";
-    $params[] = $year_filter;
-    $params[] = $year_filter;
-    $param_types .= "ii";
+// Calendar Date Range Filter (queries Date of Death, falling back to Date of Burial)
+if ($date_from !== '' && $date_to !== '') {
+    $where_clauses[] = "(COALESCE(date_of_death, date_of_burial) BETWEEN ? AND ?)";
+    $params[] = $date_from;
+    $params[] = $date_to;
+    $param_types .= "ss";
+} elseif ($date_from !== '') {
+    $where_clauses[] = "(COALESCE(date_of_death, date_of_burial) >= ?)";
+    $params[] = $date_from;
+    $param_types .= "s";
+} elseif ($date_to !== '') {
+    $where_clauses[] = "(COALESCE(date_of_death, date_of_burial) <= ?)";
+    $params[] = $date_to;
+    $param_types .= "s";
 }
 
 if ($status_filter === 'active') {
@@ -322,15 +328,52 @@ include '../templates/header.php';
             display: flex;
             gap: 10px;
             margin-bottom: 20px;
+            align-items: center;
+            flex-wrap: wrap;
         }
 
-        .search-bar input,
+        .search-bar input[type="text"],
         .search-bar select {
-            flex: 1;
+            flex: 2;
+            min-width: 220px;
             padding: 10px 15px;
             border: 1px solid #dee2e6;
             border-radius: 8px;
             font-size: 0.95rem;
+        }
+
+        .date-filter-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #f8fafc;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 5px 12px;
+            flex-shrink: 0;
+        }
+
+        .date-filter-item label {
+            font-weight: 700;
+            font-size: 0.85rem;
+            color: var(--primary-navy);
+            margin-bottom: 0;
+            white-space: nowrap;
+        }
+
+        .date-filter-item input[type="date"] {
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            background: #ffffff;
+            padding: 5px 10px;
+            font-size: 0.9rem;
+            color: #1e293b;
+            cursor: pointer;
+        }
+
+        .date-filter-item input[type="date"]:focus {
+            outline: none;
+            border-color: var(--primary-gold);
         }
 
         .records-table {
@@ -677,18 +720,23 @@ include '../templates/header.php';
             <div class="card-section">
                 <div class="search-bar">
                     <input type="text" id="searchInput" placeholder="Search deceased name, burial place, minister, cause, or remarks..." value="<?php echo htmlspecialchars($search); ?>">
-                    <select id="yearFilter" onchange="applyFilter()">
-                        <option value="">All Years</option>
-                        <?php foreach ($available_years as $yr): ?>
-                            <option value="<?php echo $yr; ?>" <?php echo $year_filter === (int)$yr ? 'selected' : ''; ?>>
-                                <?php echo $yr; ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                    <button onclick="performSearch()" class="btn btn-primary-gold">
+                    <div class="date-filter-item">
+                        <label for="dateFrom">From:</label>
+                        <input type="date" id="dateFrom" name="date_from" value="<?php echo htmlspecialchars($date_from); ?>">
+                    </div>
+                    <div class="date-filter-item">
+                        <label for="dateTo">To:</label>
+                        <input type="date" id="dateTo" name="date_to" value="<?php echo htmlspecialchars($date_to); ?>">
+                    </div>
+                    <button onclick="performSearch()" class="btn btn-primary-gold" title="Apply search and date range filters">
                         <i class="fas fa-search"></i> Search
                     </button>
-                    <button onclick="openAddModal()" class="btn btn-primary-gold">
+                    <?php if ($search !== '' || $date_from !== '' || $date_to !== ''): ?>
+                        <button onclick="clearFilters()" class="btn btn-outline-secondary" title="Clear all filters" style="border: 1px solid #cbd5e1; background: #fff; color: #475569; font-weight: 600; border-radius: 8px; padding: 10px 14px; white-space: nowrap;">
+                            <i class="fas fa-rotate-left"></i> Reset
+                        </button>
+                    <?php endif; ?>
+                    <button onclick="openAddModal()" class="btn btn-primary-gold" title="Add funeral record">
                         <i class="fas fa-plus"></i> Add Record
                     </button>
                 </div>
@@ -800,7 +848,7 @@ include '../templates/header.php';
                 <?php if ($total_pages > 1): ?>
                     <div style="margin-top: 20px; text-align: center;">
                         <?php for ($i = 1; $i <= $total_pages; $i++): ?>
-                            <a href="?page=<?php echo $i; ?>&search=<?php echo urlencode($search); ?>&year=<?php echo urlencode($year_filter ?? ''); ?><?php echo !empty($raw_status) ? '&status=' . urlencode($raw_status) : ''; ?>"
+                            <a href="?page=<?php echo $i; ?>&search=<?php echo urlencode($search); ?>&date_from=<?php echo urlencode($date_from); ?>&date_to=<?php echo urlencode($date_to); ?><?php echo !empty($raw_status) ? '&status=' . urlencode($raw_status) : ''; ?>"
                                style="padding: 8px 12px; margin: 0 3px; border-radius: 6px; text-decoration: none; background: <?php echo $i === $page ? 'var(--primary-gold)' : '#e0e0e0'; ?>; color: <?php echo $i === $page ? 'var(--primary-navy)' : '#666'; ?>; font-weight: 700;">
                                 <?php echo $i; ?>
                             </a>
@@ -1017,14 +1065,25 @@ include '../templates/header.php';
 
         // Perform Search Function - Documents this helper's role in the parish management workflow.
         function performSearch() {
-            const search = document.getElementById('searchInput').value;
-            const yearFilter = document.getElementById('yearFilter');
-            const year = yearFilter ? yearFilter.value : '';
-            let url = `?search=${encodeURIComponent(search)}&page=1`;
-            if (year) {
-                url += `&year=${encodeURIComponent(year)}`;
+            const search = document.getElementById('searchInput').value.trim();
+            const dateFrom = document.getElementById('dateFrom') ? document.getElementById('dateFrom').value.trim() : '';
+            const dateTo = document.getElementById('dateTo') ? document.getElementById('dateTo').value.trim() : '';
+            let url = `?page=1`;
+            if (search) {
+                url += `&search=${encodeURIComponent(search)}`;
+            }
+            if (dateFrom) {
+                url += `&date_from=${encodeURIComponent(dateFrom)}`;
+            }
+            if (dateTo) {
+                url += `&date_to=${encodeURIComponent(dateTo)}`;
             }
             window.location.href = url;
+        }
+
+        // Clear all filters
+        function clearFilters() {
+            window.location.href = '?page=1';
         }
 
         // Apply Filter Function - Documents this helper's role in the parish management workflow.
@@ -1052,10 +1111,15 @@ include '../templates/header.php';
             }
         });
 
-        // Allow Enter key in search to perform search
-        document.getElementById('searchInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                performSearch();
+        // Allow Enter key in search and date inputs to perform search
+        ['searchInput', 'dateFrom', 'dateTo'].forEach(function(id) {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        performSearch();
+                    }
+                });
             }
         });
     </script>
