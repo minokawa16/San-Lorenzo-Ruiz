@@ -90,9 +90,6 @@ $counts = [
     'rejected' => intval($counts_row['total_rejected'] ?? 0),
 ];
 
-// Archived count for shortcut navigation
-$archived_res = $conn->query("SELECT COUNT(*) as count FROM users WHERE role = 'user' AND status = 'archived'");
-$counts['archived'] = $archived_res ? intval($archived_res->fetch_assoc()['count'] ?? 0) : 0;
 
 // ── Printable View Mode Handler (?print=1) ───────────────────
 if (isset($_GET['print']) && $_GET['print'] === '1') {
@@ -445,119 +442,6 @@ $admin_avatar_letter = strtoupper(substr($admin_display_name, 0, 1));
     border-color: #94A3B8;
 }
 
-.parish-filter-pills-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 12px;
-    margin-bottom: 20px;
-}
-
-.parish-filter-pills {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: rgba(0, 0, 0, 0.02);
-    padding: 4px;
-    border-radius: 10px;
-    border: 1px solid var(--border-warm-subtle);
-}
-
-.parish-filter-pill {
-    padding: 7px 16px;
-    font-size: 0.82rem;
-    font-weight: 700;
-    border-radius: 8px;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    color: #475569;
-    background: transparent;
-    border: 1px solid transparent;
-    transition: all 0.15s ease;
-}
-
-.parish-filter-pill .pill-count {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 2px 7px;
-    font-size: 0.72rem;
-    font-weight: 800;
-    border-radius: 999px;
-    background: rgba(0, 0, 0, 0.06);
-    color: inherit;
-}
-
-.parish-filter-pill:hover {
-    background: #FFFFFF;
-    color: var(--text-charcoal-dark);
-    border-color: var(--border-warm-subtle);
-}
-
-.parish-filter-pill.active {
-    background: var(--brand-green-deep);
-    color: #FFFFFF;
-    border-color: var(--brand-green-deep);
-    box-shadow: 0 2px 6px rgba(14, 51, 33, 0.2);
-}
-
-.parish-filter-pill.active .pill-count {
-    background: rgba(255, 255, 255, 0.25);
-    color: #FFFFFF;
-}
-
-.parish-filter-pill.pending.active {
-    background: #D97706;
-    border-color: #D97706;
-}
-
-.parish-filter-pill.approved.active {
-    background: #15803D;
-    border-color: #15803D;
-}
-
-.parish-filter-pill.rejected.active {
-    background: #DC2626;
-    border-color: #DC2626;
-}
-
-.parish-archives-shortcut {
-    display: inline-flex;
-    align-items: center;
-}
-
-.parish-archives-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 7px 14px;
-    font-size: 0.82rem;
-    font-weight: 700;
-    color: #64748B;
-    background: #F8FAFC;
-    border: 1px solid #E2E8F0;
-    border-radius: 8px;
-    text-decoration: none;
-    transition: all 0.15s ease;
-}
-
-.parish-archives-link:hover {
-    background: #F1F5F9;
-    color: #334155;
-    border-color: #CBD5E1;
-}
-
-.parish-archives-link .archive-count {
-    padding: 1px 6px;
-    font-size: 0.72rem;
-    border-radius: 999px;
-    background: #E2E8F0;
-    color: #475569;
-}
-
 /* ── 5. Data Table Styling ──────────────────────────────────── */
 .parish-table-container {
     overflow-x: auto;
@@ -739,14 +623,6 @@ $admin_avatar_letter = strtoupper(substr($admin_display_name, 0, 1));
         flex: 1;
         justify-content: center;
     }
-    .parish-filter-pills-row {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    .parish-filter-pills {
-        overflow-x: auto;
-        width: 100%;
-    }
 }
 
 @media (max-width: 720px) {
@@ -847,39 +723,6 @@ $admin_avatar_letter = strtoupper(substr($admin_display_name, 0, 1));
                 <?php endif; ?>
             </div>
         </form>
-
-        <!-- Status Filter Buttons (Replaces old Active/Archived tab toggle) -->
-        <div class="parish-filter-pills-row">
-            <div class="parish-filter-pills" role="group" aria-label="Status Filter">
-                <a class="parish-filter-pill <?php echo ($status_filter === 'all') ? 'active' : ''; ?>" href="<?php echo buildParishionerFilterUrl(['status' => 'all']); ?>">
-                    <span>All</span>
-                    <span class="pill-count"><?php echo $counts['all']; ?></span>
-                </a>
-                <a class="parish-filter-pill pending <?php echo ($status_filter === 'pending') ? 'active' : ''; ?>" href="<?php echo buildParishionerFilterUrl(['status' => 'pending']); ?>">
-                    <i class="fas fa-clock"></i>
-                    <span>Pending</span>
-                    <span class="pill-count"><?php echo $counts['pending']; ?></span>
-                </a>
-                <a class="parish-filter-pill approved <?php echo ($status_filter === 'approved') ? 'active' : ''; ?>" href="<?php echo buildParishionerFilterUrl(['status' => 'approved']); ?>">
-                    <i class="fas fa-check"></i>
-                    <span>Approved</span>
-                    <span class="pill-count"><?php echo $counts['approved']; ?></span>
-                </a>
-                <a class="parish-filter-pill rejected <?php echo ($status_filter === 'rejected') ? 'active' : ''; ?>" href="<?php echo buildParishionerFilterUrl(['status' => 'rejected']); ?>">
-                    <i class="fas fa-times-circle"></i>
-                    <span>Rejected</span>
-                    <span class="pill-count"><?php echo $counts['rejected']; ?></span>
-                </a>
-            </div>
-            <div class="parish-archives-shortcut">
-                <a href="archives.php?tab=parishioners" class="parish-archives-link" title="Open Archived Parishioners in Archives Section">
-                    <i class="fas fa-box-archive"></i>
-                    <span>View Archives</span>
-                    <span class="archive-count"><?php echo $counts['archived']; ?></span>
-                    <i class="fas fa-arrow-up-right-from-square" style="font-size: 0.72rem;"></i>
-                </a>
-            </div>
-        </div>
 
         <!-- 5. Data Table -->
         <?php if (!empty($users)): ?>
@@ -1478,13 +1321,13 @@ function renderPrintableParishionerRegistry(array $users, string $filterLabel, s
         .certification-block {
             margin-top: 40px;
             display: flex;
-            justify-content: space-between;
+            justify-content: flex-start;
             align-items: flex-end;
             padding-top: 20px;
             page-break-inside: avoid;
         }
         .cert-signature-box {
-            width: 44%;
+            width: 320px;
             text-align: center;
         }
         .cert-line {
@@ -1646,18 +1489,23 @@ function renderPrintableParishionerRegistry(array $users, string $filterLabel, s
                             $status_text = 'Rejected';
                         }
                         
-                        $address_info = trim($user['chapel_district'] ?? '');
-                        if (!empty($user['address'])) {
-                            $address_info = $address_info !== '' ? $address_info . ' &bull; ' . $user['address'] : $user['address'];
+                        $chapel = trim((string)($user['chapel_district'] ?? ''));
+                        $address = trim((string)($user['address'] ?? ''));
+                        $formatted_address = '—';
+                        if ($chapel !== '' && $address !== '') {
+                            $formatted_address = htmlspecialchars($chapel, ENT_QUOTES, 'UTF-8') . ' &bull; ' . htmlspecialchars($address, ENT_QUOTES, 'UTF-8');
+                        } elseif ($chapel !== '') {
+                            $formatted_address = htmlspecialchars($chapel, ENT_QUOTES, 'UTF-8');
+                        } elseif ($address !== '') {
+                            $formatted_address = htmlspecialchars($address, ENT_QUOTES, 'UTF-8');
                         }
-                        if ($address_info === '') $address_info = '—';
                         ?>
                         <tr>
                             <td style="text-align: center; color: #64748b;"><?php echo $idx++; ?></td>
                             <td><strong><?php echo htmlspecialchars($user['fullname'] ?? ''); ?></strong></td>
                             <td><?php echo !empty($user['email']) ? htmlspecialchars($user['email']) : '—'; ?></td>
                             <td><?php echo !empty($user['phone_number']) ? htmlspecialchars($user['phone_number']) : '—'; ?></td>
-                            <td><?php echo htmlspecialchars($address_info); ?></td>
+                            <td><?php echo $formatted_address; ?></td>
                             <td>
                                 <span class="status-badge-print <?php echo $badge_class; ?>">
                                     <?php echo $status_text; ?>
@@ -1681,11 +1529,6 @@ function renderPrintableParishionerRegistry(array $users, string $filterLabel, s
                 <div class="cert-line"></div>
                 <div class="cert-name"><?php echo htmlspecialchars($generatedBy); ?></div>
                 <div class="cert-title">Prepared by / Parish Records Administrator</div>
-            </div>
-            <div class="cert-signature-box">
-                <div class="cert-line"></div>
-                <div class="cert-name">Rev. Fr. Parish Priest / Administrator</div>
-                <div class="cert-title">Attested &amp; Verified</div>
             </div>
         </div>
 
