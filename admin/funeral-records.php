@@ -326,31 +326,50 @@ include '../templates/header.php';
 
         .search-bar {
             display: flex;
-            gap: 10px;
+            gap: 12px;
             margin-bottom: 20px;
             align-items: center;
             flex-wrap: wrap;
         }
 
-        .search-bar input[type="text"],
-        .search-bar select {
-            flex: 2;
+        .search-bar .parish-autocomplete-wrap {
+            flex: 1 1 260px;
             min-width: 220px;
-            padding: 10px 15px;
-            border: 1px solid #dee2e6;
+            position: relative;
+        }
+
+        .search-bar .parish-autocomplete-wrap input,
+        .search-bar #searchInput {
+            width: 100% !important;
+            min-width: 0 !important;
+            padding: 10px 14px;
+            padding-right: 88px;
+            border: 1px solid #cbd5e1;
             border-radius: 8px;
             font-size: 0.95rem;
+            color: #1e293b;
+            background: #ffffff;
+            box-sizing: border-box;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .search-bar .parish-autocomplete-wrap input:focus,
+        .search-bar #searchInput:focus {
+            border-color: var(--primary-gold);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.18);
         }
 
         .date-filter-item {
-            display: flex;
+            display: inline-flex;
             align-items: center;
             gap: 8px;
             background: #f8fafc;
-            border: 1px solid #dee2e6;
+            border: 1px solid #cbd5e1;
             border-radius: 8px;
-            padding: 5px 12px;
-            flex-shrink: 0;
+            padding: 7px 12px;
+            flex: 0 0 auto;
+            box-sizing: border-box;
         }
 
         .date-filter-item label {
@@ -369,11 +388,79 @@ include '../templates/header.php';
             font-size: 0.9rem;
             color: #1e293b;
             cursor: pointer;
+            box-sizing: border-box;
+            min-width: 130px;
         }
 
         .date-filter-item input[type="date"]:focus {
             outline: none;
             border-color: var(--primary-gold);
+            box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.15);
+        }
+
+        .search-bar .btn {
+            flex: 0 0 auto;
+            white-space: nowrap;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.92rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            box-sizing: border-box;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+
+        .search-bar .btn-reset {
+            border: 1px solid #cbd5e1;
+            background: #ffffff;
+            color: #475569;
+            font-weight: 600;
+        }
+
+        .search-bar .btn-reset:hover {
+            background: #f1f5f9;
+            color: #0f172a;
+            border-color: #94a3b8;
+        }
+
+        @media (max-width: 992px) {
+            .search-bar {
+                gap: 10px;
+            }
+            .search-bar .parish-autocomplete-wrap {
+                flex: 1 1 100%;
+                min-width: 100%;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .date-filter-item {
+                flex: 1 1 calc(50% - 6px);
+                justify-content: space-between;
+            }
+            .date-filter-item input[type="date"] {
+                flex: 1;
+                min-width: 0;
+            }
+            .search-bar .btn {
+                flex: 1 1 calc(33.333% - 8px);
+                justify-content: center;
+                padding: 10px 12px;
+                font-size: 0.88rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .date-filter-item {
+                flex: 1 1 100%;
+            }
+            .search-bar .btn {
+                flex: 1 1 100%;
+            }
         }
 
         .records-table {
@@ -679,7 +766,6 @@ include '../templates/header.php';
                 padding: 20px 15px;
             }
 
-            .search-bar,
             .action-buttons {
                 flex-direction: column;
             }
@@ -719,7 +805,7 @@ include '../templates/header.php';
 
             <div class="card-section">
                 <div class="search-bar">
-                    <input type="text" id="searchInput" placeholder="Search deceased name, burial place, minister, cause, or remarks..." value="<?php echo htmlspecialchars($search); ?>">
+                    <input type="text" id="searchInput" data-suggestion-scope="funeral" placeholder="Search deceased name, burial place, minister, cause, or remarks..." value="<?php echo htmlspecialchars($search); ?>">
                     <div class="date-filter-item">
                         <label for="dateFrom">From:</label>
                         <input type="date" id="dateFrom" name="date_from" value="<?php echo htmlspecialchars($date_from); ?>">
@@ -728,15 +814,13 @@ include '../templates/header.php';
                         <label for="dateTo">To:</label>
                         <input type="date" id="dateTo" name="date_to" value="<?php echo htmlspecialchars($date_to); ?>">
                     </div>
-                    <button onclick="performSearch()" class="btn btn-primary-gold" title="Apply search and date range filters">
+                    <button type="button" onclick="performSearch()" class="btn btn-primary-gold" title="Apply search and date range filters">
                         <i class="fas fa-search"></i> Search
                     </button>
-                    <?php if ($search !== '' || $date_from !== '' || $date_to !== ''): ?>
-                        <button onclick="clearFilters()" class="btn btn-outline-secondary" title="Clear all filters" style="border: 1px solid #cbd5e1; background: #fff; color: #475569; font-weight: 600; border-radius: 8px; padding: 10px 14px; white-space: nowrap;">
-                            <i class="fas fa-rotate-left"></i> Reset
-                        </button>
-                    <?php endif; ?>
-                    <button onclick="openAddModal()" class="btn btn-primary-gold" title="Add funeral record">
+                    <button type="button" onclick="clearFilters()" class="btn btn-reset" title="Clear all filters">
+                        <i class="fas fa-rotate-left"></i> Reset
+                    </button>
+                    <button type="button" onclick="openAddModal()" class="btn btn-primary-gold" title="Add funeral record">
                         <i class="fas fa-plus"></i> Add Record
                     </button>
                 </div>
@@ -1083,7 +1167,13 @@ include '../templates/header.php';
 
         // Clear all filters
         function clearFilters() {
-            window.location.href = '?page=1';
+            const searchInput = document.getElementById('searchInput');
+            const dateFrom = document.getElementById('dateFrom');
+            const dateTo = document.getElementById('dateTo');
+            if (searchInput) searchInput.value = '';
+            if (dateFrom) dateFrom.value = '';
+            if (dateTo) dateTo.value = '';
+            window.location.href = 'funeral-records.php';
         }
 
         // Apply Filter Function - Documents this helper's role in the parish management workflow.

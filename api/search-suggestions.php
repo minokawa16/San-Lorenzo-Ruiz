@@ -35,7 +35,7 @@ function suggestionColumnExists($conn, $table, $column) {
         'first_communion_records'=>['fullname','registry_no','parents','priest','sponsor'],
         'confirmation_records'=>['fullname','registry_no','parents','godparents','priest'],
         'marriage_records'=>['groom_name','registry_no','bride_name','priest','witnesses'],
-        'funeral_records'=>['fullname','registry_no','cemetery','priest','cause_of_death']
+        'funeral_records'=>['deceased_name','family_name','registry_no','cause_of_death','place_of_burial','minister','remarks','date_of_death','date_of_burial']
     ];
     return in_array($column,$columns[$table]??[],true);
 }
@@ -85,6 +85,68 @@ if ($query !== '') {
                     'Reservation - ' . ucfirst(str_replace('_', ' ', $row['reservation_type'])) . ' - ' . formatDate($row['event_date']) . ' - ' . ucfirst($row['status']),
                     '../admin/manage-reservations.php?q=' . urlencode($row['fullname']),
                     'fa-calendar-check'
+                );
+            }
+            $stmt->close();
+        }
+
+        $clean = array_map(function($item) {
+            unset($item['_key']);
+            return $item;
+        }, array_slice($suggestions, 0, 8));
+
+        echo json_encode(['success' => true, 'suggestions' => $clean]);
+        exit;
+    }
+
+    if (($scope === 'funeral' || $scope === 'funeral_records') && ($can_records || hasPermission('admin.access')) && suggestionTableExists($conn, 'funeral_records')) {
+        $stmt = $conn->prepare("
+            SELECT funeral_id, registry_no, deceased_name, family_name, date_of_death, date_of_burial, place_of_burial, minister, cause_of_death, remarks
+            FROM funeral_records
+            WHERE (status = 'active' OR status IS NULL OR status = '')
+              AND (
+                  deceased_name LIKE ?
+                  OR family_name LIKE ?
+                  OR registry_no LIKE ?
+                  OR place_of_burial LIKE ?
+                  OR minister LIKE ?
+                  OR cause_of_death LIKE ?
+                  OR remarks LIKE ?
+                  OR date_of_death LIKE ?
+                  OR date_of_burial LIKE ?
+              )
+            ORDER BY
+                CASE WHEN deceased_name LIKE ? THEN 0 ELSE 1 END,
+                deceased_name ASC,
+                date_of_burial DESC
+            LIMIT 8
+        ");
+        if ($stmt) {
+            $starts_like = $query . '%';
+            $stmt->bind_param('ssssssssss', $like, $like, $like, $like, $like, $like, $like, $like, $like, $starts_like);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            while ($row = $result->fetch_assoc()) {
+                $meta_parts = ['Funeral Record'];
+                if (!empty($row['registry_no'])) {
+                    $meta_parts[] = 'Reg #' . $row['registry_no'];
+                }
+                if (!empty($row['date_of_burial']) && $row['date_of_burial'] !== '0000-00-00') {
+                    $meta_parts[] = 'Burial: ' . date('M d, Y', strtotime($row['date_of_burial']));
+                } elseif (!empty($row['date_of_death']) && $row['date_of_death'] !== '0000-00-00') {
+                    $meta_parts[] = 'Died: ' . date('M d, Y', strtotime($row['date_of_death']));
+                }
+                if (!empty($row['place_of_burial'])) {
+                    $meta_parts[] = $row['place_of_burial'];
+                }
+                $meta = implode(' • ', $meta_parts);
+                $label = !empty($row['deceased_name']) ? $row['deceased_name'] : 'Record #' . $row['registry_no'];
+                addSuggestion(
+                    $suggestions,
+                    $label,
+                    $meta,
+                    '../admin/funeral-records.php?search=' . urlencode($label),
+                    'fa-book-open'
                 );
             }
             $stmt->close();
