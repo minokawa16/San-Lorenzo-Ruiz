@@ -61,38 +61,32 @@ if ($stmt) {
     }
 
     .calendar-user-icon {
-        width: 52px;
-        height: 52px;
+        width: 48px;
+        height: 48px;
         border-radius: 12px;
         display: grid;
         place-items: center;
-        color: #C89B3C;
-        background: linear-gradient(135deg, #2E3A2D, #1F291F);
-        border: 1px solid rgba(200, 155, 60, 0.35);
-        box-shadow: 0 8px 20px rgba(46, 58, 45, 0.15);
-        font-size: 1.35rem;
+        color: #8C6A30;
+        background: #F3EFE6;
+        border: 1px solid #DFD7C7;
+        box-shadow: 0 2px 6px rgba(46, 58, 45, 0.05);
+        font-size: 1.25rem;
     }
 
     .calendar-user-title h1 {
         margin: 0;
         font-family: "Playfair Display", Georgia, serif;
         font-weight: 700;
-        font-size: clamp(1.5rem, 2.2vw, 2.1rem);
-        color: #1F2937;
-        line-height: 1.15;
+        font-size: clamp(1.5rem, 2.2vw, 2.05rem);
+        color: #1E252B;
+        line-height: 1.2;
     }
 
     .calendar-user-title p {
         margin: 4px 0 0;
-        color: #6B7280;
-        font-size: 0.9rem;
-    }
-
-    .calendar-user-actions {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-        justify-content: flex-end;
+        color: #5F6672;
+        font-size: 0.92rem;
+        line-height: 1.4;
     }
 
     .btn-parish-gold {
@@ -113,108 +107,170 @@ if ($stmt) {
         box-shadow: 0 6px 16px rgba(200, 155, 60, 0.3) !important;
     }
 
-    /* Top Filter Toolbar Card */
+    /* Redesigned Filter Toolbar Card */
     .calendar-toolbar-card {
         background: #FFFFFF;
-        border: 1px solid #E8E1D5;
-        border-radius: 12px;
-        padding: 14px 18px;
-        margin-bottom: 20px;
-        box-shadow: 0 2px 8px rgba(46, 58, 45, 0.04);
+        border: 1px solid #EBE4D8;
+        border-radius: 16px;
+        padding: 20px 22px;
+        margin-bottom: 24px;
+        box-shadow: 0 2px 10px rgba(46, 58, 45, 0.03);
     }
 
-    .calendar-toolbar-row {
+    .calendar-filters-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+        align-items: start;
+    }
+
+    @media (max-width: 991px) {
+        .calendar-filters-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+    }
+
+    @media (max-width: 575px) {
+        .calendar-filters-grid {
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+    }
+
+    .filter-field {
         display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 14px;
-        flex-wrap: wrap;
+        flex-direction: column;
     }
 
-    .calendar-toolbar-search {
+    .filter-label {
+        display: block;
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: #64748B;
+        letter-spacing: 0.05em;
+        margin-bottom: 6px;
+        text-transform: uppercase;
+    }
+
+    .filter-input-wrap {
         position: relative;
-        flex: 1 1 280px;
-        max-width: 420px;
+        width: 100%;
     }
 
-    .calendar-toolbar-search i {
+    .filter-input-wrap i {
         position: absolute;
-        left: 12px;
+        left: 14px;
         top: 50%;
         transform: translateY(-50%);
-        color: #9A733B;
-        font-size: 14px;
-        pointer-events: none;
-    }
-
-    .calendar-toolbar-search input {
-        padding-left: 36px;
-        border: 1px solid #E8E1D5;
-        border-radius: 9px;
-        height: 42px;
-        background: #FAF7F2;
-        font-size: 0.9rem;
-    }
-
-    .calendar-toolbar-search input:focus {
-        background: #FFFFFF;
-        border-color: #C89B3C;
-        box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.15);
-    }
-
-    .calendar-toolbar-controls {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        flex-wrap: wrap;
-    }
-
-    .calendar-toolbar-controls .form-select,
-    .calendar-toolbar-controls .mini-month {
-        height: 42px;
-        min-width: 150px;
-        border: 1px solid #E8E1D5;
-        border-radius: 9px;
-        background: #FAF7F2;
-        color: #1F2937;
+        color: #64748B;
         font-size: 0.88rem;
-        font-weight: 550;
+        pointer-events: none;
+        z-index: 2;
     }
 
-    .calendar-toolbar-controls .form-select:focus,
-    .calendar-toolbar-controls .mini-month:focus {
+    .filter-control {
+        width: 100%;
+        height: 44px;
+        background: #FAF7F2;
+        border: 1px solid #E5DEC9;
+        border-radius: 10px;
+        font-size: 0.9rem;
+        color: #1F2937;
+        font-weight: 500;
+        padding: 8px 14px;
+        transition: all 0.18s ease;
+    }
+
+    .filter-input-wrap input.filter-control {
+        padding-left: 38px;
+    }
+
+    .filter-control:hover {
+        border-color: #C89B3C;
+        background: #FDFBF8;
+    }
+
+    .filter-control:focus {
         background: #FFFFFF;
         border-color: #C89B3C;
         box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.15);
+        outline: none;
     }
 
-    /* Category Legend Pills */
+    .form-select.filter-control {
+        background-color: #FAF7F2;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%2364748B' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 14px center;
+        background-size: 12px 10px;
+        padding-right: 36px;
+        cursor: pointer;
+    }
+
+    /* Divider & Legend Key */
+    .filter-divider {
+        height: 1px;
+        background: #EBE4D8;
+        margin: 18px 0 16px 0;
+        border: none;
+    }
+
+    .calendar-legend-section {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .calendar-legend-header {
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: #64748B;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+
     .calendar-legend-bar {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 8px;
         flex-wrap: wrap;
-        margin-top: 12px;
-        padding-top: 12px;
-        border-top: 1px dashed #E8E1D5;
     }
 
     .legend-badge {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
-        padding: 3px 10px;
-        border-radius: 20px;
+        gap: 7px;
+        padding: 5px 13px;
+        border-radius: 9999px;
         background: #FAF7F2;
-        border: 1px solid #E8E1D5;
-        font-size: 0.78rem;
-        font-weight: 600;
-        color: #4B5563;
+        border: 1px solid #E5DEC9;
+        font-size: 0.8rem;
+        font-weight: 550;
+        color: #374151;
+        cursor: pointer;
+        user-select: none;
+        transition: all 0.15s ease;
+    }
+
+    .legend-badge:hover {
+        border-color: #C89B3C;
+        background: #FFFFFF;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 6px rgba(200, 155, 60, 0.12);
+    }
+
+    .legend-badge.active {
+        background: #F4EAD3;
+        border-color: #C89B3C;
+        color: #8A681B;
+        font-weight: 700;
+        box-shadow: 0 2px 6px rgba(200, 155, 60, 0.16);
     }
 
     .legend-dot {
-        width: 9px;
-        height: 9px;
+        width: 8px;
+        height: 8px;
         border-radius: 50%;
         flex-shrink: 0;
     }
@@ -544,55 +600,75 @@ if ($stmt) {
 <div class="container-fluid mt-4">
     <div class="calendar-user-hero">
         <div class="calendar-user-title">
-            <div class="calendar-user-icon"><i class="fas fa-calendar-days"></i></div>
+            <div class="calendar-user-icon"><i class="far fa-calendar-alt"></i></div>
             <div>
                 <h1>Parish Calendar</h1>
                 <p>View public parish schedules, sacraments, blessings, announcements, and feast day events clearly.</p>
             </div>
         </div>
-        <div class="calendar-user-actions">
-            <a href="request-service.php" class="btn btn-parish-gold"><i class="fas fa-church"></i> Request Sacramental Service</a>
-        </div>
     </div>
 
     <!-- Desktop Filter Toolbar (Full-Width Top Bar) -->
     <div class="calendar-toolbar-card">
-        <div class="calendar-toolbar-row">
-            <div class="calendar-toolbar-search">
-                <i class="fas fa-magnifying-glass"></i>
-                <input type="search" class="form-control" id="calendarSearch" placeholder="Search parish schedules...">
+        <div class="calendar-filters-grid">
+            <div class="filter-field">
+                <label for="search" class="filter-label">SEARCH</label>
+                <div class="filter-input-wrap">
+                    <i class="fas fa-magnifying-glass"></i>
+                    <input type="search" class="form-control filter-control" id="search" placeholder="Search parish schedules...">
+                </div>
             </div>
-            <div class="calendar-toolbar-controls">
-                <input class="form-control mini-month" type="month" id="miniMonth" value="<?php echo date('Y-m'); ?>" title="Jump to month">
-                <select class="form-select" id="categoryFilter">
-                    <option value="all">All Categories</option>
-                    <option value="event">Events</option>
-                    <option value="mass">Mass / Public Schedule</option>
-                    <option value="monthly_mass">Monthly Mass</option>
-                    <option value="sacramental">Sacramental Services</option>
-                    <option value="patronal_fiesta">Patronal Fiesta</option>
-                    <option value="blessing">Blessings</option>
-                    <option value="reservation">Approved Bookings</option>
-                    <option value="announcement">Announcements</option>
-                    <option value="meeting">Meetings</option>
-                </select>
-                <select class="form-select" id="statusFilter">
-                    <option value="all">All Statuses</option>
-                    <option value="upcoming">Upcoming</option>
-                    <option value="ongoing">Ongoing</option>
-                    <option value="finished">Finished</option>
-                </select>
+            <div class="filter-field">
+                <label for="month" class="filter-label">MONTH</label>
+                <div class="filter-input-wrap">
+                    <i class="far fa-calendar"></i>
+                    <input type="month" class="form-control filter-control" id="month" value="<?php echo date('Y-m'); ?>" title="Jump to month">
+                </div>
+            </div>
+            <div class="filter-field">
+                <label for="category" class="filter-label">CATEGORY</label>
+                <div class="filter-input-wrap">
+                    <select class="form-select filter-control" id="category">
+                        <option value="all">All Categories</option>
+                        <option value="mass">Mass / Public Schedule</option>
+                        <option value="event">Parish Event</option>
+                        <option value="monthly_mass">Monthly Mass</option>
+                        <option value="sacramental">Sacramental Services</option>
+                        <option value="patronal_fiesta">Patronal Fiesta</option>
+                        <option value="blessing">Blessing</option>
+                        <option value="reservation">Approved Bookings</option>
+                        <option value="announcement">Announcement</option>
+                        <option value="meeting">Meetings</option>
+                    </select>
+                </div>
+            </div>
+            <div class="filter-field">
+                <label for="status" class="filter-label">STATUS</label>
+                <div class="filter-input-wrap">
+                    <select class="form-select filter-control" id="status">
+                        <option value="all">All Statuses</option>
+                        <option value="upcoming">Upcoming</option>
+                        <option value="ongoing">Ongoing</option>
+                        <option value="finished">Finished</option>
+                    </select>
+                </div>
             </div>
         </div>
-        <!-- Compact Category Legend Pills -->
-        <div class="calendar-legend-bar">
-            <span class="legend-badge"><span class="legend-dot" style="background:#C89B3C"></span> Mass / Public Schedule</span>
-            <span class="legend-badge"><span class="legend-dot" style="background:#2E3A2D"></span> Parish Event</span>
-            <span class="legend-badge"><span class="legend-dot" style="background:#0F766E"></span> Monthly Mass</span>
-            <span class="legend-badge"><span class="legend-dot" style="background:#7C3AED"></span> Sacramental Services</span>
-            <span class="legend-badge"><span class="legend-dot" style="background:#C026D3"></span> Patronal Fiesta</span>
-            <span class="legend-badge"><span class="legend-dot" style="background:#D97706"></span> Blessing</span>
-            <span class="legend-badge"><span class="legend-dot" style="background:#2563EB"></span> Announcement</span>
+
+        <hr class="filter-divider">
+
+        <!-- Category Legend Key Below Divider -->
+        <div class="calendar-legend-section">
+            <div class="calendar-legend-header">CATEGORIES</div>
+            <div class="calendar-legend-bar">
+                <span class="legend-badge" data-category="mass"><span class="legend-dot" style="background:#C89B3C"></span> Mass / Public Schedule</span>
+                <span class="legend-badge" data-category="event"><span class="legend-dot" style="background:#1F2937"></span> Parish Event</span>
+                <span class="legend-badge" data-category="monthly_mass"><span class="legend-dot" style="background:#0F766E"></span> Monthly Mass</span>
+                <span class="legend-badge" data-category="sacramental"><span class="legend-dot" style="background:#7C3AED"></span> Sacramental Services</span>
+                <span class="legend-badge" data-category="patronal_fiesta"><span class="legend-dot" style="background:#C026D3"></span> Patronal Fiesta</span>
+                <span class="legend-badge" data-category="blessing"><span class="legend-dot" style="background:#D97706"></span> Blessing</span>
+                <span class="legend-badge" data-category="announcement"><span class="legend-dot" style="background:#2563EB"></span> Announcement</span>
+            </div>
         </div>
     </div>
 
@@ -666,15 +742,34 @@ let detailsModal;
 let selectedReminder = null;
 let searchTimer;
 
+function getFilterEl(id, altId) {
+    return document.getElementById(id) || (altId ? document.getElementById(altId) : null);
+}
+
 function filters() {
     const params = new URLSearchParams();
-    const q = document.getElementById('calendarSearch').value.trim();
-    const category = document.getElementById('categoryFilter').value;
-    const status = document.getElementById('statusFilter').value;
+    const searchEl = getFilterEl('search', 'calendarSearch');
+    const categoryEl = getFilterEl('category', 'categoryFilter');
+    const statusEl = getFilterEl('status', 'statusFilter');
+    const q = searchEl ? searchEl.value.trim() : '';
+    const category = categoryEl ? categoryEl.value : 'all';
+    const status = statusEl ? statusEl.value : 'all';
     if (q) params.set('q', q);
     if (category !== 'all') params.set('category', category);
     if (status !== 'all') params.set('status', status);
     return params;
+}
+
+function syncLegendPills() {
+    const categoryEl = getFilterEl('category', 'categoryFilter');
+    const currentVal = categoryEl ? categoryEl.value : 'all';
+    document.querySelectorAll('.legend-badge[data-category]').forEach(pill => {
+        if (pill.dataset.category === currentVal) {
+            pill.classList.add('active');
+        } else {
+            pill.classList.remove('active');
+        }
+    });
 }
 
 function eventLabel(value) {
@@ -709,6 +804,15 @@ document.addEventListener('DOMContentLoaded', function() {
             hour: 'numeric',
             minute: '2-digit',
             meridiem: 'short'
+        },
+        datesSet: function(dateInfo) {
+            const d = dateInfo.view.currentStart;
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const monthInput = getFilterEl('month', 'miniMonth');
+            if (monthInput) {
+                monthInput.value = `${yyyy}-${mm}`;
+            }
         },
         headerToolbar: isMobileCalendar ? {
             left: 'prev',
@@ -786,20 +890,26 @@ document.addEventListener('DOMContentLoaded', function() {
     window.addEventListener('focus', () => calendar.refetchEvents());
 });
 
-document.getElementById('miniMonth').addEventListener('change', function() {
-    if (this.value && calendar) {
-        calendar.gotoDate(this.value + '-01');
-    }
-});
-['categoryFilter', 'statusFilter'].forEach(id => {
+const monthInput = getFilterEl('month', 'miniMonth');
+if (monthInput) {
+    monthInput.addEventListener('change', function() {
+        if (this.value && calendar) {
+            calendar.gotoDate(this.value + '-01');
+        }
+    });
+}
+
+['category', 'categoryFilter', 'status', 'statusFilter'].forEach(id => {
     const el = document.getElementById(id);
     if (el) {
         el.addEventListener('change', () => {
+            syncLegendPills();
             if (calendar) calendar.refetchEvents();
         });
     }
 });
-const searchInput = document.getElementById('calendarSearch');
+
+const searchInput = getFilterEl('search', 'calendarSearch');
 if (searchInput) {
     searchInput.addEventListener('input', function() {
         clearTimeout(searchTimer);
@@ -808,6 +918,21 @@ if (searchInput) {
         }, 280);
     });
 }
+
+document.querySelectorAll('.legend-badge[data-category]').forEach(pill => {
+    pill.addEventListener('click', function() {
+        const categoryEl = getFilterEl('category', 'categoryFilter');
+        if (!categoryEl) return;
+        const targetCat = this.dataset.category;
+        if (categoryEl.value === targetCat) {
+            categoryEl.value = 'all';
+        } else {
+            categoryEl.value = targetCat;
+        }
+        syncLegendPills();
+        if (calendar) calendar.refetchEvents();
+    });
+});
 
 document.querySelectorAll('.event-card').forEach(card => {
     card.addEventListener('click', function() {
