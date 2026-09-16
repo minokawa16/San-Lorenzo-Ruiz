@@ -28,13 +28,83 @@ $announcement_types = [
     'important_notice' => 'Important Notices'
 ];
 $announcement_type_meta = [
-    'announcement' => ['icon' => 'fa-bullhorn', 'tone' => 'general', 'label' => 'General Announcement'],
-    'monthly_schedule' => ['icon' => 'fa-calendar-days', 'tone' => 'schedule', 'label' => 'Monthly Schedule'],
-    'mass_schedule' => ['icon' => 'fa-church', 'tone' => 'mass', 'label' => 'Mass Schedule'],
-    'parish_event' => ['icon' => 'fa-people-group', 'tone' => 'event', 'label' => 'Parish Event'],
-    'patronal_fiesta_schedule' => ['icon' => 'fa-star', 'tone' => 'fiesta', 'label' => 'Fiesta Celebration'],
-    'sacramental_activity' => ['icon' => 'fa-hands-praying', 'tone' => 'sacrament', 'label' => 'Sacramental Activities'],
-    'important_notice' => ['icon' => 'fa-circle-exclamation', 'tone' => 'important', 'label' => 'Important Notice']
+    'announcement' => [
+        'icon' => 'fa-bullhorn',
+        'tone' => 'general',
+        'label' => 'General Announcement',
+        'color' => '#1D4ED8',
+        'bg_pill' => '#EEF5FB',
+        'border_pill' => '#DBEAFE',
+        'btn_bg' => '#1D4ED8',
+        'btn_hover' => '#1E40AF',
+        'btn_border' => '#1D4ED8'
+    ],
+    'mass_schedule' => [
+        'icon' => 'fa-arrow-up',
+        'tone' => 'mass',
+        'label' => 'Mass Schedule',
+        'color' => '#8C5E1A',
+        'bg_pill' => '#FEF3C7',
+        'border_pill' => '#FDE68A',
+        'btn_bg' => '#8C5E1A',
+        'btn_hover' => '#724B12',
+        'btn_border' => '#8C5E1A'
+    ],
+    'patronal_fiesta_schedule' => [
+        'icon' => 'fa-star',
+        'tone' => 'fiesta',
+        'label' => 'Fiesta Celebration',
+        'color' => '#9D174D',
+        'bg_pill' => '#FDF2F8',
+        'border_pill' => '#FBCFE8',
+        'btn_bg' => '#9D174D',
+        'btn_hover' => '#831843',
+        'btn_border' => '#9D174D'
+    ],
+    'monthly_schedule' => [
+        'icon' => 'fa-calendar-days',
+        'tone' => 'schedule',
+        'label' => 'Monthly Schedule',
+        'color' => '#B45309',
+        'bg_pill' => '#FFFBEB',
+        'border_pill' => '#FDE68A',
+        'btn_bg' => '#B45309',
+        'btn_hover' => '#92400E',
+        'btn_border' => '#B45309'
+    ],
+    'parish_event' => [
+        'icon' => 'fa-people-group',
+        'tone' => 'event',
+        'label' => 'Parish Event',
+        'color' => '#4338CA',
+        'bg_pill' => '#EEF2FF',
+        'border_pill' => '#E0E7FF',
+        'btn_bg' => '#4338CA',
+        'btn_hover' => '#3730A3',
+        'btn_border' => '#4338CA'
+    ],
+    'sacramental_activity' => [
+        'icon' => 'fa-hands-praying',
+        'tone' => 'sacrament',
+        'label' => 'Sacramental Activity',
+        'color' => '#6D28D9',
+        'bg_pill' => '#F5F3FF',
+        'border_pill' => '#DDD6FE',
+        'btn_bg' => '#6D28D9',
+        'btn_hover' => '#5B21B6',
+        'btn_border' => '#6D28D9'
+    ],
+    'important_notice' => [
+        'icon' => 'fa-circle-exclamation',
+        'tone' => 'important',
+        'label' => 'Important Notice',
+        'color' => '#B91C1C',
+        'bg_pill' => '#FEF2F2',
+        'border_pill' => '#FECACA',
+        'btn_bg' => '#B91C1C',
+        'btn_hover' => '#991B1B',
+        'btn_border' => '#B91C1C'
+    ]
 ];
 
 $breadcrumbs = [
@@ -120,7 +190,17 @@ if ($total_active_notices === 0) {
 
 // Announcement Meta Function - Documents this helper's role in the parish management workflow.
 function announcementMeta($type, $meta) {
-    return $meta[$type] ?? ['icon' => 'fa-bullhorn', 'tone' => 'general', 'label' => ucfirst(str_replace('_', ' ', (string) $type))];
+    return $meta[$type] ?? [
+        'icon' => 'fa-bullhorn',
+        'tone' => 'general',
+        'label' => ucfirst(str_replace('_', ' ', (string) $type)),
+        'color' => '#1D4ED8',
+        'bg_pill' => '#EEF5FB',
+        'border_pill' => '#DBEAFE',
+        'btn_bg' => '#1D4ED8',
+        'btn_hover' => '#1E40AF',
+        'btn_border' => '#1D4ED8'
+    ];
 }
 
 // Announcement Preview Function - Documents this helper's role in the parish management workflow.
@@ -148,13 +228,121 @@ function announcementCountdown($event_date) {
     }
     return abs($days) . ' day' . (abs($days) === 1 ? '' : 's') . ' ago';
 }
+
+// Announcement Time-Ago Relative Formatter for top-right quiet pill
+function announcementTimeAgo($datetime) {
+    if (empty($datetime)) {
+        return '';
+    }
+    $timestamp = is_numeric($datetime) ? (int)$datetime : strtotime($datetime);
+    if (!$timestamp) {
+        return '';
+    }
+    $diff = time() - $timestamp;
+    if ($diff < 60) {
+        return 'Just now';
+    }
+    $mins = floor($diff / 60);
+    if ($mins < 60) {
+        return $mins . 'm ago';
+    }
+    $hours = floor($diff / 3600);
+    if ($hours < 24) {
+        return $hours . 'h ago';
+    }
+    $days = floor($diff / 86400);
+    if ($days == 1) {
+        return '1 day ago';
+    }
+    if ($days < 30) {
+        return $days . ' days ago';
+    }
+    $months = floor($days / 30);
+    if ($months == 1) {
+        return '1 month ago';
+    }
+    if ($months < 12) {
+        return $months . ' months ago';
+    }
+    $years = floor($days / 365);
+    return $years == 1 ? '1 year ago' : $years . ' years ago';
+}
+
+// 4-Column Form Grid Extractor for What / When / Where / Who
+function extractNoticeCardGrid($announcement, $parsed_5w) {
+    // 1. WHAT
+    $what = '';
+    if (!empty($parsed_5w['what'])) {
+        $what = trim(strip_tags($parsed_5w['what']));
+    }
+    if (empty($what)) {
+        $what = trim(strip_tags($announcement['content']));
+    }
+    if (strlen($what) > 75) {
+        $what = substr($what, 0, 72) . '...';
+    }
+
+    // 2. WHEN
+    $when = '';
+    if (!empty($parsed_5w['when'])) {
+        $when = trim(strip_tags($parsed_5w['when']));
+    } elseif (!empty($announcement['event_date'])) {
+        $when = formatDate($announcement['event_date']);
+        $countdown = announcementCountdown($announcement['event_date']);
+        if ($countdown) {
+            $when .= ' · ' . $countdown;
+        }
+    } else {
+        $when = formatDate($announcement['published_date']) . ' · All day';
+    }
+
+    // 3. WHERE
+    $where = '';
+    if (!empty($parsed_5w['where'])) {
+        $where = trim(strip_tags($parsed_5w['where']));
+    }
+    if (empty($where)) {
+        $where = 'San Lorenzo Ruiz Mission Station';
+    }
+
+    // 4. WHO
+    $who = '';
+    if (!empty($parsed_5w['who'])) {
+        $who = trim(strip_tags($parsed_5w['who']));
+    }
+    if (empty($who)) {
+        $who = 'All Parishioners';
+    }
+
+    return [
+        'what' => $what,
+        'when' => $when,
+        'where' => $where,
+        'who' => $who
+    ];
+}
 ?>
 <?php include '../templates/header.php'; ?>
 
 <?php include '../includes/breadcrumb.php'; ?>
 <?php include '../includes/back_button.php'; ?>
 
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,700;1,9..144,600&display=swap" rel="stylesheet">
+
 <style>
+    /* Warm Atmospheric Background Wash */
+    body.user-area {
+        background: linear-gradient(180deg, #FAF7F2 0%, #F5EFEB 100%) !important;
+    }
+
+    .announcements-page-wrapper {
+        background: linear-gradient(180deg, #FAF7F2 0%, #F5EFEB 100%);
+        min-height: 100vh;
+        padding-bottom: 48px;
+    }
+
     .announcements-page {
         max-width: 1440px;
         margin: 0 auto;
@@ -171,11 +359,11 @@ function announcementCountdown($event_date) {
 
     .announcement-hero-main,
     .announcement-insight {
-        background: #FFFFFF;
-        border: 1px solid #EBE4D8;
-        border-radius: 16px;
+        background: #FFFFFF !important;
+        border: 1px solid #EBE4D8 !important;
+        border-radius: 16px !important;
         padding: 24px 26px;
-        box-shadow: 0 2px 10px rgba(46, 58, 45, 0.03);
+        box-shadow: 0 4px 20px rgba(44, 38, 30, 0.04), 0 1px 3px rgba(44, 38, 30, 0.02) !important;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
@@ -197,7 +385,7 @@ function announcementCountdown($event_date) {
 
     .announcement-hero-main h1 {
         margin: 10px 0 6px 0;
-        font-family: "Playfair Display", Georgia, serif;
+        font-family: 'Fraunces', 'Playfair Display', Georgia, serif !important;
         font-weight: 700;
         font-size: clamp(1.5rem, 2.2vw, 1.95rem);
         color: #1E252B;
@@ -264,14 +452,14 @@ function announcementCountdown($event_date) {
         line-height: 1.5;
     }
 
-    /* Redesigned Filter Toolbar (Clean Single Control Panel) */
+    /* Redesigned Filter Toolbar */
     .announcement-toolbar-card {
-        background: #FFFFFF;
-        border: 1px solid #EBE4D8;
-        border-radius: 16px;
+        background: #FFFFFF !important;
+        border: 1px solid #EBE4D8 !important;
+        border-radius: 16px !important;
         padding: 20px 22px;
         margin-bottom: 24px;
-        box-shadow: 0 2px 10px rgba(46, 58, 45, 0.03);
+        box-shadow: 0 4px 20px rgba(44, 38, 30, 0.04), 0 1px 3px rgba(44, 38, 30, 0.02) !important;
     }
 
     .announcement-filters-grid {
@@ -393,7 +581,7 @@ function announcementCountdown($event_date) {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 16px;
+        margin-bottom: 18px;
         gap: 12px;
         flex-wrap: wrap;
     }
@@ -405,9 +593,9 @@ function announcementCountdown($event_date) {
     }
 
     .section-heading {
-        font-family: "Playfair Display", Georgia, serif;
+        font-family: 'Fraunces', 'Playfair Display', Georgia, serif !important;
         font-weight: 700;
-        font-size: 1.25rem;
+        font-size: 1.32rem;
         color: #1E252B;
         margin: 0;
     }
@@ -423,37 +611,43 @@ function announcementCountdown($event_date) {
         letter-spacing: 0.02em;
     }
 
-    /* Rebuilt Announcement Cards */
+    /* Redesigned Bulletin Announcement Cards */
     .announcement-grid {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr);
-        gap: 16px;
-    }
-
-    .announcement-card {
-        background: #FFFFFF;
-        border: 1px solid #EBE4D8;
-        border-radius: 16px;
-        padding: 22px 24px;
-        box-shadow: 0 2px 10px rgba(46, 58, 45, 0.03);
-        transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
         display: flex;
         flex-direction: column;
+        gap: 20px;
     }
 
+    body.user-area .announcements-page .announcement-card,
+    .announcements-page .announcement-card,
+    .announcement-card {
+        position: relative;
+        background: #FFFFFF !important;
+        border: 1px solid #EBE4D8 !important;
+        border-left: 5px solid var(--card-accent, #1D4ED8) !important;
+        border-radius: 16px !important;
+        padding: 24px 28px 20px 28px !important;
+        box-shadow: 0 4px 20px rgba(44, 38, 30, 0.04), 0 1px 3px rgba(44, 38, 30, 0.02) !important;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    body.user-area .announcements-page .announcement-card:hover,
+    .announcements-page .announcement-card:hover,
     .announcement-card:hover {
         transform: translateY(-2px);
-        border-color: #C89B3C;
-        box-shadow: 0 8px 24px rgba(46, 58, 45, 0.08);
+        box-shadow: 0 10px 28px rgba(44, 38, 30, 0.08) !important;
     }
 
     .announcement-card-top {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 10px;
+        gap: 12px;
         flex-wrap: wrap;
-        margin-bottom: 10px;
+        margin-bottom: 12px;
     }
 
     .announcement-badge-row {
@@ -467,27 +661,21 @@ function announcementCountdown($event_date) {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        padding: 4px 11px;
+        padding: 4px 12px;
         border-radius: 9999px;
         font-size: 0.78rem;
-        font-weight: 650;
-        border: 1px solid transparent;
+        font-weight: 700;
+        line-height: 1.3;
+        letter-spacing: 0.01em;
     }
-    .category-chip.general { background: #EEF5FB; color: #1D4ED8; border-color: #DBEAFE; }
-    .category-chip.schedule { background: #FEF9C3; color: #A16207; border-color: #FEF08A; }
-    .category-chip.mass { background: #F0FDF4; color: #15803D; border-color: #BBF7D0; }
-    .category-chip.event { background: #F5F3FF; color: #6D28D9; border-color: #DDD6FE; }
-    .category-chip.fiesta { background: #FDF2F8; color: #BE185D; border-color: #FBCFE8; }
-    .category-chip.sacrament { background: #F5F3FF; color: #7C3AED; border-color: #E9D5FF; }
-    .category-chip.important { background: #FEF2F2; color: #B91C1C; border-color: #FECACA; }
 
     .badge-pinned {
         display: inline-flex;
         align-items: center;
-        gap: 4px;
-        padding: 3px 9px;
+        gap: 5px;
+        padding: 4px 10px;
         border-radius: 9999px;
-        font-size: 0.72rem;
+        font-size: 0.74rem;
         font-weight: 700;
         color: #854D0E;
         background: #FEF08A;
@@ -497,128 +685,143 @@ function announcementCountdown($event_date) {
     .badge-new {
         display: inline-flex;
         align-items: center;
-        gap: 4px;
-        padding: 3px 9px;
+        gap: 5px;
+        padding: 4px 10px;
         border-radius: 9999px;
-        font-size: 0.72rem;
+        font-size: 0.74rem;
         font-weight: 700;
         color: #15803D;
         background: #DCFCE7;
         border: 1px solid #BBF7D0;
     }
 
-    .event-countdown-pill {
-        font-size: 0.76rem;
-        font-weight: 650;
-        color: #64748B;
-        background: #FAF7F2;
+    /* Quiet Time Pill in Top-Right Corner */
+    .quiet-time-pill {
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #78716C;
+        background: #F3EFEA;
         border: 1px solid #E5DEC9;
-        padding: 3px 10px;
+        padding: 4px 12px;
         border-radius: 9999px;
         display: inline-flex;
         align-items: center;
-        gap: 5px;
+        gap: 6px;
+        white-space: nowrap;
     }
 
+    /* Serif Headline for Notice Title */
+    body.user-area .announcements-page .announcement-card-title,
+    .announcements-page .announcement-card-title,
     .announcement-card-title {
-        font-family: "Playfair Display", Georgia, serif;
-        font-size: 1.35rem;
-        font-weight: 700;
-        color: #1E252B;
-        margin: 0 0 12px 0;
-        line-height: 1.3;
+        font-family: 'Fraunces', 'Playfair Display', Georgia, serif !important;
+        font-size: clamp(1.3rem, 1.8vw, 1.55rem) !important;
+        font-weight: 700 !important;
+        color: #1E252B !important;
+        margin: 0 0 16px 0 !important;
+        line-height: 1.28 !important;
+        letter-spacing: -0.01em !important;
     }
 
-    .announcement-plain-desc {
-        color: #5F6672;
-        font-size: 0.92rem;
-        line-height: 1.6;
-        margin: 0 0 8px 0;
-    }
-
-    /* 5W1H Aligned Details Row with Icons */
-    .announcement-details-grid {
+    /* Form-Style 4-Column Grid with Dividers */
+    .notice-form-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 10px 16px;
-        margin-bottom: 12px;
+        grid-template-columns: 1.15fr 1fr 1.25fr 1fr;
         background: #FAF7F2;
         border: 1px solid #EBE4D8;
         border-radius: 12px;
+        margin-bottom: 16px;
+        overflow: hidden;
+    }
+
+    .form-grid-cell {
         padding: 12px 16px;
-    }
-
-    .detail-item {
-        display: flex;
-        align-items: flex-start;
-        gap: 10px;
-    }
-
-    .detail-icon {
-        width: 28px;
-        height: 28px;
-        border-radius: 8px;
-        display: grid;
-        place-items: center;
-        font-size: 0.8rem;
-        flex-shrink: 0;
-        margin-top: 2px;
-    }
-
-    .detail-icon.what { background: #EEF5FB; color: #2563EB; border: 1px solid #DBEAFE; }
-    .detail-icon.when { background: #FEF9C3; color: #CA8A04; border: 1px solid #FEF08A; }
-    .detail-icon.where { background: #FEE2E2; color: #DC2626; border: 1px solid #FECACA; }
-    .detail-icon.who { background: #DCFCE7; color: #16A34A; border: 1px solid #BBF7D0; }
-
-    .detail-content {
         display: flex;
         flex-direction: column;
+        justify-content: flex-start;
         min-width: 0;
     }
 
-    .detail-label {
-        font-size: 0.66rem;
-        font-weight: 750;
-        letter-spacing: 0.05em;
-        color: #64748B;
-        text-transform: uppercase;
-        margin-bottom: 1px;
+    .form-grid-cell:not(:last-child) {
+        border-right: 1px solid #E5DEC9;
     }
 
-    .detail-value {
-        font-size: 0.86rem;
-        color: #1F2937;
-        font-weight: 500;
-        line-height: 1.35;
+    .form-grid-label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.68rem;
+        font-weight: 750;
+        letter-spacing: 0.06em;
+        color: #78716C;
+        text-transform: uppercase;
+        margin-bottom: 4px;
+    }
+
+    .form-grid-label i {
+        font-size: 0.72rem;
+        opacity: 0.85;
+    }
+
+    .form-grid-value {
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: #1E252B;
+        line-height: 1.38;
         word-break: break-word;
     }
 
+    @media (max-width: 991px) {
+        .notice-form-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        .form-grid-cell:nth-child(1),
+        .form-grid-cell:nth-child(2) {
+            border-bottom: 1px solid #E5DEC9;
+        }
+        .form-grid-cell:nth-child(2n) {
+            border-right: none;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .notice-form-grid {
+            grid-template-columns: 1fr;
+        }
+        .form-grid-cell:not(:last-child) {
+            border-right: none;
+            border-bottom: 1px solid #E5DEC9;
+        }
+    }
+
     .announcement-inline-image {
-        max-height: 220px;
-        border-radius: 10px;
+        max-height: 240px;
+        border-radius: 12px;
         overflow: hidden;
         border: 1px solid #EBE4D8;
-        margin-bottom: 12px;
+        margin-bottom: 14px;
     }
 
     .announcement-inline-image img {
         width: 100%;
         height: 100%;
-        max-height: 220px;
+        max-height: 240px;
         object-fit: cover;
     }
 
-    .announcement-card-divider {
+    /* Dashed Divider Rule */
+    .notice-dashed-rule {
         border: 0;
-        border-top: 1px solid #EBE4D8;
-        margin: 14px 0 12px 0;
+        border-top: 1px dashed #DDD5C7;
+        margin: 16px 0 14px 0;
     }
 
+    /* Card Footer: Provenance on Left, Category Read More Button on Right */
     .announcement-card-footer {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 12px;
+        gap: 14px;
         flex-wrap: wrap;
         margin-top: auto;
     }
@@ -626,10 +829,11 @@ function announcementCountdown($event_date) {
     .announcement-meta-info {
         display: flex;
         align-items: center;
-        gap: 14px;
+        gap: 16px;
         flex-wrap: wrap;
-        color: #64748B;
+        color: #78716C;
         font-size: 0.84rem;
+        font-weight: 500;
     }
 
     .announcement-meta-info span {
@@ -638,32 +842,45 @@ function announcementCountdown($event_date) {
         gap: 6px;
     }
 
-    .btn-parish-gold {
-        background: #C89B3C !important;
-        border-color: #A97F24 !important;
-        color: #FFFFFF !important;
-        font-weight: 650 !important;
-        padding: 7px 16px !important;
-        border-radius: 9px !important;
-        font-size: 0.86rem !important;
-        box-shadow: 0 2px 6px rgba(200, 155, 60, 0.18) !important;
-        transition: all 0.18s ease !important;
+    .btn-notice-readmore {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 650;
+        font-size: 0.86rem;
+        padding: 7px 18px;
+        border-radius: 9px;
+        border-width: 1px;
+        border-style: solid;
+        transition: all 0.18s ease;
+        text-decoration: none;
+        cursor: pointer;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
     }
 
-    .btn-parish-gold:hover {
-        background: #A97F24 !important;
-        border-color: #8C6819 !important;
-        transform: translateY(-1px) !important;
-        box-shadow: 0 4px 10px rgba(200, 155, 60, 0.28) !important;
+    .btn-notice-readmore:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.16);
+        filter: brightness(0.92);
+    }
+
+    /* Bottom Scanning Helper Note */
+    .notices-scanning-note {
+        text-align: center;
+        padding: 24px 12px;
+        color: #78716C;
+        font-size: 0.85rem;
+        font-weight: 500;
     }
 
     .announcement-empty {
-        background: #FFFFFF;
-        border: 1px dashed #E5DEC9;
-        border-radius: 16px;
+        background: #FFFFFF !important;
+        border: 1px dashed #E5DEC9 !important;
+        border-radius: 16px !important;
         padding: 48px 24px;
         text-align: center;
         color: #64748B;
+        box-shadow: 0 4px 20px rgba(44, 38, 30, 0.04) !important;
     }
 
     .announcement-empty-icon {
@@ -690,203 +907,187 @@ function announcementCountdown($event_date) {
             grid-template-columns: 1fr;
         }
 
+        body.user-area .announcements-page .announcement-card,
+        .announcements-page .announcement-card,
         .announcement-card {
-            padding: 18px 16px;
+            padding: 18px 18px 16px 18px !important;
         }
 
-        .announcement-card-title {
-            font-size: 1.15rem;
+        .announcement-card-footer {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 12px;
         }
 
-        .announcement-details-grid {
-            grid-template-columns: 1fr;
-            padding: 10px 12px;
+        .btn-notice-readmore {
+            width: 100%;
+            justify-content: center;
         }
     }
 </style>
 
-<div class="container-fluid mt-4">
-    <div class="announcements-page">
-        <section class="announcements-hero">
-            <div class="announcement-hero-main">
-                <div class="hero-header">
-                    <span class="announcement-kicker"><i class="fas fa-bullhorn"></i> Parish Communication Hub</span>
-                    <h1>Parish Announcements</h1>
-                    <p>Stay updated with parish activities, liturgical schedules, events, and community notices from San Lorenzo Ruiz Mission Station.</p>
+<div class="announcements-page-wrapper">
+    <div class="container-fluid pt-4">
+        <div class="announcements-page">
+            <section class="announcements-hero">
+                <div class="announcement-hero-main">
+                    <div class="hero-header">
+                        <span class="announcement-kicker"><i class="fas fa-bullhorn"></i> Parish Communication Hub</span>
+                        <h1>Parish Announcements</h1>
+                        <p>Stay updated with parish activities, liturgical schedules, events, and community notices from San Lorenzo Ruiz Mission Station.</p>
+                    </div>
+                    <div class="announcement-hero-badges">
+                        <span class="hero-badge"><i class="far fa-bell"></i> <?php echo count($announcements); ?> active notices</span>
+                        <span class="hero-badge"><i class="fas fa-wand-magic-sparkles"></i> AI summary ready</span>
+                        <span class="hero-badge"><i class="far fa-calendar-check"></i> Event-aware updates</span>
+                    </div>
                 </div>
-                <div class="announcement-hero-badges">
-                    <span class="hero-badge"><i class="far fa-bell"></i> <?php echo count($announcements); ?> active notices</span>
-                    <span class="hero-badge"><i class="fas fa-wand-magic-sparkles"></i> AI summary ready</span>
-                    <span class="hero-badge"><i class="far fa-calendar-check"></i> Event-aware updates</span>
-                </div>
-            </div>
-            <aside class="announcement-insight">
-                <div class="insight-icon-box"><i class="fas fa-robot"></i></div>
-                <strong class="insight-title">Smart parish update</strong>
-                <p class="insight-desc"><?php echo !empty($announcements) ? 'Latest parish communication: ' . e($announcements[0]['title']) : 'No active parish announcements are available right now.'; ?></p>
-            </aside>
-        </section>
+                <aside class="announcement-insight">
+                    <div class="insight-icon-box"><i class="fas fa-robot"></i></div>
+                    <strong class="insight-title">Smart parish update</strong>
+                    <p class="insight-desc"><?php echo !empty($announcements) ? 'Latest parish communication: ' . e($announcements[0]['title']) : 'No active parish announcements are available right now.'; ?></p>
+                </aside>
+            </section>
 
-        <!-- Redesigned Filter Toolbar Card -->
-        <form method="GET" class="announcement-toolbar-card">
-            <div class="announcement-filters-grid">
-                <div class="filter-field">
-                    <label class="filter-label">Search announcements</label>
-                    <div class="filter-input-wrap">
-                        <i class="fas fa-magnifying-glass"></i>
-                        <input type="search" class="form-control filter-control" name="q" value="<?php echo e($search); ?>" placeholder="Search announcements, events, or schedules...">
+            <!-- Filter Toolbar Card -->
+            <form method="GET" class="announcement-toolbar-card">
+                <div class="announcement-filters-grid">
+                    <div class="filter-field">
+                        <label class="filter-label">Search announcements</label>
+                        <div class="filter-input-wrap">
+                            <i class="fas fa-magnifying-glass"></i>
+                            <input type="search" class="form-control filter-control" name="q" value="<?php echo e($search); ?>" placeholder="Search announcements, events, or schedules...">
+                        </div>
+                    </div>
+                    <div class="filter-field">
+                        <label class="filter-label">Category</label>
+                        <div class="filter-input-wrap">
+                            <select name="type" class="form-select filter-control">
+                                <option value="all" <?php echo $type === 'all' ? 'selected' : ''; ?>>All Types</option>
+                                <?php foreach ($announcement_types as $value => $label): ?>
+                                    <option value="<?php echo e($value); ?>" <?php echo $type === $value ? 'selected' : ''; ?>><?php echo e($label); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="filter-field">
+                        <label class="filter-label">Sort</label>
+                        <div class="filter-input-wrap">
+                            <select name="sort" class="form-select filter-control">
+                                <option value="latest" <?php echo $sort === 'latest' ? 'selected' : ''; ?>>Latest first</option>
+                                <option value="oldest" <?php echo $sort === 'oldest' ? 'selected' : ''; ?>>Oldest first</option>
+                                <option value="event_date" <?php echo $sort === 'event_date' ? 'selected' : ''; ?>>Event date</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="filter-field">
+                        <label class="filter-label">Event date</label>
+                        <div class="filter-input-wrap">
+                            <input type="date" class="form-control filter-control" name="event_date" value="<?php echo e($event_date); ?>">
+                        </div>
+                    </div>
+                    <div class="filter-field">
+                        <button class="btn-filter-submit" type="submit" title="Apply Filters">
+                            <i class="fas fa-filter"></i>
+                        </button>
                     </div>
                 </div>
-                <div class="filter-field">
-                    <label class="filter-label">Category</label>
-                    <div class="filter-input-wrap">
-                        <select name="type" class="form-select filter-control">
-                            <option value="all" <?php echo $type === 'all' ? 'selected' : ''; ?>>All Types</option>
-                            <?php foreach ($announcement_types as $value => $label): ?>
-                                <option value="<?php echo e($value); ?>" <?php echo $type === $value ? 'selected' : ''; ?>><?php echo e($label); ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                </div>
-                <div class="filter-field">
-                    <label class="filter-label">Sort</label>
-                    <div class="filter-input-wrap">
-                        <select name="sort" class="form-select filter-control">
-                            <option value="latest" <?php echo $sort === 'latest' ? 'selected' : ''; ?>>Latest first</option>
-                            <option value="oldest" <?php echo $sort === 'oldest' ? 'selected' : ''; ?>>Oldest first</option>
-                            <option value="event_date" <?php echo $sort === 'event_date' ? 'selected' : ''; ?>>Event date</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="filter-field">
-                    <label class="filter-label">Event date</label>
-                    <div class="filter-input-wrap">
-                        <input type="date" class="form-control filter-control" name="event_date" value="<?php echo e($event_date); ?>">
-                    </div>
-                </div>
-                <div class="filter-field">
-                    <button class="btn-filter-submit" type="submit" title="Apply Filters">
-                        <i class="fas fa-filter"></i>
-                    </button>
-                </div>
-            </div>
-        </form>
+            </form>
 
-        <!-- Section Header with "1 of 6" Counter -->
-        <div class="announcements-section-header">
-            <div class="section-heading-group">
-                <h2 class="section-heading">Parish Notices</h2>
-                <span class="section-counter-badge"><?php echo count($announcements); ?> of <?php echo max($total_active_notices, count($announcements)); ?></span>
+            <!-- Section Header with "1 of 6" Counter -->
+            <div class="announcements-section-header">
+                <div class="section-heading-group">
+                    <h2 class="section-heading">Parish Notices</h2>
+                    <span class="section-counter-badge"><?php echo count($announcements); ?> of <?php echo max($total_active_notices, count($announcements)); ?></span>
+                </div>
+                <?php if ($search !== '' || $type !== 'all' || $sort !== 'latest' || $event_date !== ''): ?>
+                    <a href="announcements.php" class="btn btn-sm btn-outline-secondary rounded-pill" style="font-size: 0.8rem;">
+                        <i class="fas fa-xmark me-1"></i> Clear Filters
+                    </a>
+                <?php endif; ?>
             </div>
-            <?php if ($search !== '' || $type !== 'all' || $sort !== 'latest' || $event_date !== ''): ?>
-                <a href="announcements.php" class="btn btn-sm btn-outline-secondary rounded-pill" style="font-size: 0.8rem;">
-                    <i class="fas fa-xmark me-1"></i> Clear Filters
-                </a>
+
+            <?php if (!empty($announcements)): ?>
+                <section class="announcement-grid">
+                    <?php foreach ($announcements as $announcement): ?>
+                        <?php 
+                            $meta = announcementMeta($announcement['type'], $announcement_type_meta);
+                            $parsed_5w = parse5W1HAnnouncement($announcement['content']);
+                            $grid = extractNoticeCardGrid($announcement, $parsed_5w);
+                        ?>
+                        <article class="announcement-card" style="--card-accent: <?php echo e($meta['color']); ?>;">
+                            <div class="announcement-card-top">
+                                <div class="announcement-badge-row">
+                                    <span class="category-chip" style="background: <?php echo e($meta['bg_pill']); ?>; color: <?php echo e($meta['color']); ?>; border: 1px solid <?php echo e($meta['border_pill']); ?>;">
+                                        <i class="fas <?php echo e($meta['icon']); ?>"></i> <?php echo e($meta['label']); ?>
+                                    </span>
+                                    <?php if (intval($announcement['is_pinned'] ?? 0) === 1): ?>
+                                        <span class="badge-pinned"><i class="fas fa-thumbtack"></i> Pinned</span>
+                                    <?php endif; ?>
+                                    <?php if (strtotime($announcement['published_date']) >= strtotime('-3 days')): ?>
+                                        <span class="badge-new"><i class="fas fa-circle-dot"></i> New</span>
+                                    <?php endif; ?>
+                                </div>
+                                <span class="quiet-time-pill">
+                                    <i class="far fa-clock"></i> <?php echo e(announcementTimeAgo($announcement['published_date'])); ?>
+                                </span>
+                            </div>
+
+                            <h3 class="announcement-card-title"><?php echo e($announcement['title']); ?></h3>
+
+                            <?php if (!empty($announcement['attachment_path']) && isAnnouncementImageAttachment($announcement['attachment_mime_type'] ?? '')): ?>
+                                <div class="announcement-inline-image">
+                                    <img src="../announcement-attachment.php?id=<?php echo intval($announcement['announcement_id']); ?>" alt="<?php echo e($announcement['attachment_original_name'] ?: 'Announcement image'); ?>">
+                                </div>
+                            <?php endif; ?>
+
+                            <div class="notice-form-grid">
+                                <div class="form-grid-cell">
+                                    <div class="form-grid-label"><i class="fas fa-tag"></i> WHAT</div>
+                                    <div class="form-grid-value"><?php echo e($grid['what']); ?></div>
+                                </div>
+                                <div class="form-grid-cell">
+                                    <div class="form-grid-label"><i class="far fa-calendar-alt"></i> WHEN</div>
+                                    <div class="form-grid-value"><?php echo e($grid['when']); ?></div>
+                                </div>
+                                <div class="form-grid-cell">
+                                    <div class="form-grid-label"><i class="fas fa-location-dot"></i> WHERE</div>
+                                    <div class="form-grid-value"><?php echo e($grid['where']); ?></div>
+                                </div>
+                                <div class="form-grid-cell">
+                                    <div class="form-grid-label"><i class="far fa-user"></i> WHO</div>
+                                    <div class="form-grid-value"><?php echo e($grid['who']); ?></div>
+                                </div>
+                            </div>
+
+                            <hr class="notice-dashed-rule">
+
+                            <div class="announcement-card-footer">
+                                <div class="announcement-meta-info">
+                                    <span><i class="far fa-calendar"></i> Posted <?php echo e(formatDate($announcement['published_date'])); ?></span>
+                                    <span><i class="far fa-user"></i> <?php echo e($announcement['posted_by']); ?></span>
+                                </div>
+                                <button class="btn btn-notice-readmore" type="button" 
+                                        style="background: <?php echo e($meta['btn_bg']); ?>; border-color: <?php echo e($meta['btn_border']); ?>; color: #FFFFFF;"
+                                        data-bs-toggle="modal" data-bs-target="#announcementModal-<?php echo intval($announcement['announcement_id']); ?>">
+                                    <i class="fas fa-book-open"></i> Read More
+                                </button>
+                            </div>
+                        </article>
+                    <?php endforeach; ?>
+                </section>
+
+                <div class="notices-scanning-note">
+                    Showing <?php echo count($announcements); ?> of <?php echo max($total_active_notices, count($announcements)); ?> notices — color accent and left rule shift per category for quick scanning
+                </div>
+            <?php else: ?>
+                <div class="announcement-empty">
+                    <div class="announcement-empty-icon"><i class="fas fa-bullhorn"></i></div>
+                    <h5 class="fw-bold text-dark">No announcements available at the moment.</h5>
+                    <p class="mb-0 text-muted">Please check again later for parish activities, schedules, and community notices.</p>
+                </div>
             <?php endif; ?>
         </div>
-
-        <?php if (!empty($announcements)): ?>
-            <section class="announcement-grid">
-                <?php foreach ($announcements as $announcement): ?>
-                    <?php 
-                        $meta = announcementMeta($announcement['type'], $announcement_type_meta);
-                        $parsed_5w = parse5W1HAnnouncement($announcement['content']);
-                    ?>
-                    <article class="announcement-card">
-                        <div class="announcement-card-top">
-                            <div class="announcement-badge-row">
-                                <span class="category-chip <?php echo e($meta['tone']); ?>">
-                                    <i class="fas <?php echo e($meta['icon']); ?>"></i> <?php echo e($meta['label']); ?>
-                                </span>
-                                <?php if (intval($announcement['is_pinned'] ?? 0) === 1): ?>
-                                    <span class="badge-pinned"><i class="fas fa-thumbtack"></i> Pinned</span>
-                                <?php endif; ?>
-                                <?php if (strtotime($announcement['published_date']) >= strtotime('-3 days')): ?>
-                                    <span class="badge-new"><i class="fas fa-circle-dot"></i> New</span>
-                                <?php endif; ?>
-                            </div>
-                            <?php if (!empty($announcement['event_date'])): ?>
-                                <span class="event-countdown-pill">
-                                    <i class="far fa-clock"></i> <?php echo e(announcementCountdown($announcement['event_date'])); ?>
-                                </span>
-                            <?php endif; ?>
-                        </div>
-
-                        <h3 class="announcement-card-title"><?php echo e($announcement['title']); ?></h3>
-
-                        <?php if (!empty($announcement['attachment_path']) && isAnnouncementImageAttachment($announcement['attachment_mime_type'] ?? '')): ?>
-                            <div class="announcement-inline-image">
-                                <img src="../announcement-attachment.php?id=<?php echo intval($announcement['announcement_id']); ?>" alt="<?php echo e($announcement['attachment_original_name'] ?: 'Announcement image'); ?>">
-                            </div>
-                        <?php endif; ?>
-
-                        <?php if ($parsed_5w['is_structured']): ?>
-                            <div class="announcement-details-grid">
-                                <?php if (!empty($parsed_5w['what'])): ?>
-                                    <div class="detail-item">
-                                        <span class="detail-icon what"><i class="fas fa-bullhorn"></i></span>
-                                        <div class="detail-content">
-                                            <span class="detail-label">WHAT</span>
-                                            <span class="detail-value"><?php echo e($parsed_5w['what']); ?></span>
-                                        </div>
-                                    </div>
-                                <?php endif; ?>
-                                <?php if (!empty($parsed_5w['when'])): ?>
-                                    <div class="detail-item">
-                                        <span class="detail-icon when"><i class="far fa-calendar-alt"></i></span>
-                                        <div class="detail-content">
-                                            <span class="detail-label">WHEN</span>
-                                            <span class="detail-value"><?php echo e($parsed_5w['when']); ?></span>
-                                        </div>
-                                    </div>
-                                <?php endif; ?>
-                                <?php if (!empty($parsed_5w['where'])): ?>
-                                    <div class="detail-item">
-                                        <span class="detail-icon where"><i class="fas fa-location-dot"></i></span>
-                                        <div class="detail-content">
-                                            <span class="detail-label">WHERE</span>
-                                            <span class="detail-value"><?php echo e($parsed_5w['where']); ?></span>
-                                        </div>
-                                    </div>
-                                <?php endif; ?>
-                                <?php if (!empty($parsed_5w['who'])): ?>
-                                    <div class="detail-item">
-                                        <span class="detail-icon who"><i class="fas fa-users"></i></span>
-                                        <div class="detail-content">
-                                            <span class="detail-label">WHO</span>
-                                            <span class="detail-value"><?php echo e($parsed_5w['who']); ?></span>
-                                        </div>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-                        <?php else: ?>
-                            <p class="announcement-plain-desc"><?php echo e(announcementPreview($announcement['content'], 220)); ?></p>
-                        <?php endif; ?>
-
-                        <hr class="announcement-card-divider">
-
-                        <div class="announcement-card-footer">
-                            <div class="announcement-meta-info">
-                                <span><i class="far fa-calendar"></i> <?php echo e(formatDate($announcement['published_date'])); ?></span>
-                                <span><i class="far fa-user"></i> <?php echo e($announcement['posted_by']); ?></span>
-                                <?php if (!empty($announcement['event_date'])): ?>
-                                    <span><i class="far fa-calendar-check"></i> Event: <?php echo e(formatDate($announcement['event_date'])); ?></span>
-                                <?php endif; ?>
-                            </div>
-                            <button class="btn btn-parish-gold btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#announcementModal-<?php echo intval($announcement['announcement_id']); ?>">
-                                <i class="fas fa-book-open"></i> Read More
-                            </button>
-                        </div>
-                    </article>
-                <?php endforeach; ?>
-            </section>
-        <?php else: ?>
-            <div class="announcement-empty">
-                <div class="announcement-empty-icon"><i class="fas fa-bullhorn"></i></div>
-                <h5 class="fw-bold text-dark">No announcements available at the moment.</h5>
-                <p class="mb-0 text-muted">Please check again later for parish activities, schedules, and community notices.</p>
-            </div>
-        <?php endif; ?>
     </div>
 </div>
 
@@ -897,7 +1098,9 @@ function announcementCountdown($event_date) {
             <div class="modal-content">
                 <div class="modal-header">
                     <div>
-                        <span class="category-chip <?php echo e($meta['tone']); ?>"><i class="fas <?php echo e($meta['icon']); ?>"></i> <?php echo e($meta['label']); ?></span>
+                        <span class="category-chip" style="background: <?php echo e($meta['bg_pill']); ?>; color: <?php echo e($meta['color']); ?>; border: 1px solid <?php echo e($meta['border_pill']); ?>;">
+                            <i class="fas <?php echo e($meta['icon']); ?>"></i> <?php echo e($meta['label']); ?>
+                        </span>
                         <h5 class="modal-title mt-2"><?php echo e($announcement['title']); ?></h5>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
