@@ -45,7 +45,7 @@ $mobile_nav_items = [
         'active' => in_array($mobile_nav_page, ['my-requests.php', 'view-request.php'], true),
     ],
     [
-        'label' => t('nav.schedule', 'Schedule'),
+        'label' => t('nav.schedule', 'Parish Calendar'),
         'href' => BASE_URL . 'users/view-schedule.php',
         'icon' => 'fa-calendar-days',
         'theme' => 'schedule',

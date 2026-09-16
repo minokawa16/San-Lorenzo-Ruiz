@@ -70,9 +70,9 @@ $is_primary_user_dashboard = $is_user_dashboard_page && (($_GET['view'] ?? '') !
     </div>
 
     <div class="nav-section-label"><?php echo e(t('nav.communication', 'Communication')); ?></div>
-    <a href="<?php echo BASE_URL; ?>users/view-schedule.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'view-schedule.php') ? 'active' : ''; ?>" data-tooltip="<?php echo e(t('nav.schedule', 'Schedule')); ?>">
+    <a href="<?php echo BASE_URL; ?>users/view-schedule.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'view-schedule.php') ? 'active' : ''; ?>" data-tooltip="<?php echo e(t('nav.schedule', 'Parish Calendar')); ?>">
       <i class="fas fa-calendar-days"></i>
-      <span><?php echo e(t('nav.schedule', 'Schedule')); ?></span>
+      <span><?php echo e(t('nav.schedule', 'Parish Calendar')); ?></span>
     </a>
     <a href="<?php echo BASE_URL; ?>users/announcements.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'announcements.php') ? 'active' : ''; ?>" data-tooltip="<?php echo e(t('nav.announcements', 'Announcements')); ?>">
       <i class="fas fa-bullhorn"></i>

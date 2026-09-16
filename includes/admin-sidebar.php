@@ -216,9 +216,9 @@ html body .admin-sidebar.collapsed .nav-section-submenu {
         </a>
         <?php endif; ?>
         <?php if (hasPermission('calendar.manage')): ?>
-        <a href="<?php echo BASE_URL; ?>admin/manage-calendar.php" class="nav-link <?php echo ($currentPage == 'manage-calendar.php') ? 'active' : ''; ?>" data-tooltip="<?php echo e(t('nav.schedule_calendar', 'Schedule Calendar')); ?>">
+        <a href="<?php echo BASE_URL; ?>admin/manage-calendar.php" class="nav-link <?php echo ($currentPage == 'manage-calendar.php') ? 'active' : ''; ?>" data-tooltip="<?php echo e(t('nav.schedule_calendar', 'Parish Calendar')); ?>">
           <i class="fas fa-calendar-days"></i>
-          <span><?php echo e(t('nav.schedule_calendar', 'Schedule Calendar')); ?></span>
+          <span><?php echo e(t('nav.schedule_calendar', 'Parish Calendar')); ?></span>
         </a>
         <?php endif; ?>
       </div>
