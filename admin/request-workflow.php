@@ -230,12 +230,12 @@ foreach ($documents as $document) {
 if (!empty($documents_by_type['requirement'])) {
     $requirement_order = [
         'Chapel Recommendation' => 1,
+        'Photocopy of Marriage Certificate (if married)' => 2,
+        'Latest Marriage Certificate / Marriage Contract Receipt' => 2,
         'Latest Marriage Contract (if parents are married)' => 2,
-        'Latest Marriage Certificate / Marriage Contract Receipt' => 3,
-        'Photocopy of Marriage Certificate (if married)' => 4,
-        'Photocopy of Live Birth Certificate with Official Registry Number' => 5,
-        'Two (2) White Cards of Sponsors (Ninong and Ninang)' => 6,
-        'White Cards of Parents' => 7,
+        'Photocopy of Live Birth Certificate with Official Registry Number' => 3,
+        'Two (2) White Cards of Sponsors (Ninong and Ninang)' => 4,
+        'White Cards of Parents' => 5,
     ];
     usort($documents_by_type['requirement'], function ($left, $right) use ($requirement_order) {
         $left_name = trim((string) ($left['requirement_name'] ?? ''));

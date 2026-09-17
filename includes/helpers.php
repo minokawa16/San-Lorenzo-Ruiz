@@ -1188,7 +1188,7 @@ function chatbotKnowledgeOfficialDefaults() {
             'Baptism Requirements',
             'what are the baptism requirements,baptism requirements,ano ang requirements sa binyag,what papers are needed for baby baptism,i want to baptize my child what do i need,requirements for baptism,binyag,baptism,baptismal,baptize,pabinyag,baby baptism,christening,requirements,papers,documents',
             "Before submitting a Baptism request, prepare these official parish requirements.",
-            "Chapel recommendation\nParents' latest marriage contract or receipt, if applicable\nPhotocopy of marriage certificate, if married\nPhotocopy of the child's live birth certificate with registry number\nTwo white cards of sponsors\nWhite cards of parents\nPre-baptismal investigation sheet, if requested by the parish office",
+            "Chapel recommendation\nPhotocopy of marriage certificate, if married\nPhotocopy of the child's live birth certificate with registry number\nTwo white cards of sponsors\nWhite cards of parents\nPre-baptismal investigation sheet, if requested by the parish office",
             'sacrament'
         ],
         [

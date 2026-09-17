@@ -131,12 +131,11 @@ OFFICIAL PARISH DIRECTORY & SACRAMENTAL KNOWLEDGE BASE:
 
 • Baptism Requirements:
   1. Chapel recommendation
-  2. Parents' latest marriage contract or receipt (if married)
-  3. Photocopy of marriage certificate (if married)
-  4. Photocopy of child's PSA Live Birth Certificate (with registry number)
-  5. Two white cards of sponsors (Godparents)
-  6. White cards of parents
-  7. Pre-baptismal investigation sheet (if required by parish office)
+  2. Photocopy of marriage certificate (if married)
+  3. Photocopy of child's PSA Live Birth Certificate (with registry number)
+  4. Two white cards of sponsors (Godparents)
+  5. White cards of parents
+  6. Pre-baptismal investigation sheet (if required by parish office)
 
 • Confirmation Requirements:
   1. Baptismal Certificate
