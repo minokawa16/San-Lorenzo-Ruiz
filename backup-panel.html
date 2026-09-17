@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backup Parish Records — TUGON Parish System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,400&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-page: #F7F3EA;
+            --bg-card: #FFFFFF;
+            --border-card: #E7E0D2;
+            --border-divider: #ECE4D6;
+            
+            --text-heading: #1C1917;
+            --text-body: #44403C;
+            --text-muted: #78716C;
+            --text-subtle: #A8A29E;
+            
+            --primary-green: #1E3626;
+            --primary-green-hover: #16291C;
+            --primary-green-active: #0F1D14;
+            --primary-green-focus: rgba(30, 54, 38, 0.25);
+            
+            --accent-gold: #A6791E;
+            --accent-gold-border: #D8C39D;
+            --accent-gold-bg: #FAF5EA;
+            --accent-gold-hover: #F6EEDC;
+            
+            --row-unselected-bg: #FFFFFF;
+            --row-unselected-border: #E7E0D2;
+            --row-unselected-hover: #FCFAF6;
+            
+            --icon-box-bg: #F4EFE6;
+            --icon-box-border: #E8E0D2;
+            --icon-box-color: #574D3F;
+            
+            --info-box-bg: #F5F0E6;
+            --info-box-border: #EAE3D5;
+            --info-box-text: #635A4D;
+            
+            --btn-outline-border: #DCD4C4;
+            --btn-outline-bg: #FFFFFF;
+            --btn-outline-text: #595144;
+            --btn-outline-hover: #F3ECE0;
+            
+            --shadow-card: 0 1px 3px rgba(44, 36, 24, 0.04), 0 6px 20px rgba(44, 36, 24, 0.03);
+            --radius-card: 16px;
+            --radius-row: 12px;
+            --radius-btn: 8px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-page: #171614;
+                --bg-card: #211F1C;
+                --border-card: #38342E;
+                --border-divider: #322E28;
+                
+                --text-heading: #F5F2EB;
+                --text-body: #D6D0C5;
+                --text-muted: #A39B8E;
+                --text-subtle: #797165;
+                
+                --primary-green: #2B4E38;
+                --primary-green-hover: #355E44;
+                --primary-green-active: #213C2B;
+                --primary-green-focus: rgba(53, 94, 68, 0.35);
+                
+                --accent-gold: #D6A440;
+                --accent-gold-border: #6B552A;
+                --accent-gold-bg: #2B251B;
+                --accent-gold-hover: #332B1E;
+                
+                --row-unselected-bg: #262420;
+                --row-unselected-border: #3A352E;
+                --row-unselected-hover: #2D2A25;
+                
+                --icon-box-bg: #2C2822;
+                --icon-box-border: #423C33;
+                --icon-box-color: #D1C8B8;
+                
+                --info-box-bg: #26231E;
+                --info-box-border: #3D372F;
+                --info-box-text: #BDB4A5;
+                
+                --btn-outline-border: #453F36;
+                --btn-outline-bg: #262420;
+                --btn-outline-text: #D6D0C5;
+                --btn-outline-hover: #33302A;
+                
+                --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.3);
+            }
+        }
+
+        [data-theme="light"] {
+            --bg-page: #F7F3EA;
+            --bg-card: #FFFFFF;
+            --border-card: #E7E0D2;
+            --border-divider: #ECE4D6;
+            --text-heading: #1C1917;
+            --text-body: #44403C;
+            --text-muted: #78716C;
+            --text-subtle: #A8A29E;
+            --primary-green: #1E3626;
+            --primary-green-hover: #16291C;
+            --primary-green-active: #0F1D14;
+            --primary-green-focus: rgba(30, 54, 38, 0.25);
+            --accent-gold: #A6791E;
+            --accent-gold-border: #D8C39D;
+            --accent-gold-bg: #FAF5EA;
+            --accent-gold-hover: #F6EEDC;
+            --row-unselected-bg: #FFFFFF;
+            --row-unselected-border: #E7E0D2;
+            --row-unselected-hover: #FCFAF6;
+            --icon-box-bg: #F4EFE6;
+            --icon-box-border: #E8E0D2;
+            --icon-box-color: #574D3F;
+            --info-box-bg: #F5F0E6;
+            --info-box-border: #EAE3D5;
+            --info-box-text: #635A4D;
+            --btn-outline-border: #DCD4C4;
+            --btn-outline-bg: #FFFFFF;
+            --btn-outline-text: #595144;
+            --btn-outline-hover: #F3ECE0;
+            --shadow-card: 0 1px 3px rgba(44, 36, 24, 0.04), 0 6px 20px rgba(44, 36, 24, 0.03);
+        }
+
+        [data-theme="dark"] {
+            --bg-page: #171614;
+            --bg-card: #211F1C;
+            --border-card: #38342E;
+            --border-divider: #322E28;
+            --text-heading: #F5F2EB;
+            --text-body: #D6D0C5;
+            --text-muted: #A39B8E;
+            --text-subtle: #797165;
+            --primary-green: #2B4E38;
+            --primary-green-hover: #355E44;
+            --primary-green-active: #213C2B;
+            --primary-green-focus: rgba(53, 94, 68, 0.35);
+            --accent-gold: #D6A440;
+            --accent-gold-border: #6B552A;
+            --accent-gold-bg: #2B251B;
+            --accent-gold-hover: #332B1E;
+            --row-unselected-bg: #262420;
+            --row-unselected-border: #3A352E;
+            --row-unselected-hover: #2D2A25;
+            --icon-box-bg: #2C2822;
+            --icon-box-border: #423C33;
+            --icon-box-color: #D1C8B8;
+            --info-box-bg: #26231E;
+            --info-box-border: #3D372F;
+            --info-box-text: #BDB4A5;
+            --btn-outline-border: #453F36;
+            --btn-outline-bg: #262420;
+            --btn-outline-text: #D6D0C5;
+            --btn-outline-hover: #33302A;
+            --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Work Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-page);
+            color: var(--text-body);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px 16px;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .backup-panel {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-card);
+            border-radius: var(--radius-card);
+            box-shadow: var(--shadow-card);
+            width: 100%;
+            max-width: 580px;
+            overflow: hidden;
+            transition: all 0.2s ease;
+        }
+
+        /* -------------------------------------------------------------
+           1. HEADER SECTION
+        -------------------------------------------------------------- */
+        .backup-header {
+            padding: 24px 28px 20px;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            border-bottom: 1px solid var(--border-divider);
+        }
+
+        .backup-header-left {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+        }
+
+        .backup-badge-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            background-color: var(--primary-green);
+            color: #FAF7F2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(30, 54, 38, 0.2);
+        }
+
+        .backup-badge-icon svg {
+            width: 22px;
+            height: 22px;
+            stroke-width: 2;
+        }
+
+        .backup-title-group h1 {
+            font-family: 'Lora', Georgia, serif;
+            font-size: 1.35rem;
+            font-weight: 600;
+            color: var(--text-heading);
+            letter-spacing: -0.01em;
+            line-height: 1.25;
+            margin-bottom: 4px;
+        }
+
+        .backup-title-group p {
+            font-size: 0.86rem;
+            color: var(--text-muted);
+            line-height: 1.35;
+        }
+
+        .backup-last-time {
+            text-align: right;
+            flex-shrink: 0;
+            padding-top: 2px;
+        }
+
+        .backup-last-label {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--text-subtle);
+            font-weight: 500;
+            line-height: 1.2;
+        }
+
+        .backup-last-date {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-top: 2px;
+            white-space: nowrap;
+        }
+
+        /* -------------------------------------------------------------
+           2. BODY & RECORD SELECTION LIST
+        -------------------------------------------------------------- */
+        .backup-body {
+            padding: 22px 28px 24px;
+        }
+
+        .selection-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            gap: 12px;
+        }
+
+        .selection-label {
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: var(--text-heading);
+        }
+
+        .selection-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toggle-btn {
+            background-color: var(--btn-outline-bg);
+            border: 1px solid var(--btn-outline-border);
+            color: var(--btn-outline-text);
+            font-family: inherit;
+            font-size: 0.78rem;
+            font-weight: 500;
+            padding: 5px 12px;
+            border-radius: var(--radius-btn);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            user-select: none;
+        }
+
+        .toggle-btn:hover {
+            background-color: var(--btn-outline-hover);
+            border-color: var(--accent-gold-border);
+            color: var(--text-heading);
+        }
+
+        .toggle-btn:focus-visible {
+            outline: 2px solid var(--accent-gold);
+            outline-offset: 1px;
+        }
+
+        .records-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        /* Record Item Row */
+        .record-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            border-radius: var(--radius-row);
+            background-color: var(--row-unselected-bg);
+            border: 1px solid var(--row-unselected-border);
+            cursor: pointer;
+            user-select: none;
+            transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+            gap: 12px;
+        }
+
+        .record-row:hover {
+            background-color: var(--row-unselected-hover);
+            border-color: var(--accent-gold-border);
+        }
+
+        .record-row:active {
+            transform: scale(0.996);
+        }
+
+        .record-row.is-selected {
+            background-color: var(--accent-gold-bg);
+            border: 1.5px solid var(--accent-gold-border);
+        }
+
+        .record-row.is-selected:hover {
+            background-color: var(--accent-gold-hover);
+        }
+
+        .record-row:focus-visible {
+            outline: 2px solid var(--primary-green);
+            outline-offset: 2px;
+        }
+
+        .record-row-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            min-width: 0;
+            flex: 1;
+        }
+
+        /* Checkbox Custom UI */
+        .custom-checkbox {
+            width: 20px;
+            height: 20px;
+            border-radius: 5px;
+            border: 1.5px solid var(--btn-outline-border);
+            background-color: var(--bg-card);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .record-row.is-selected .custom-checkbox {
+            background-color: var(--primary-green);
+            border-color: var(--primary-green);
+        }
+
+        .custom-checkbox svg {
+            width: 12px;
+            height: 12px;
+            stroke: #FFFFFF;
+            stroke-width: 2.6;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            fill: none;
+            opacity: 0;
+            transform: scale(0.65);
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .record-row.is-selected .custom-checkbox svg {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* Icon container inside row */
+        .record-icon-box {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background-color: var(--icon-box-bg);
+            border: 1px solid var(--icon-box-border);
+            color: var(--icon-box-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.15s ease;
+        }
+
+        .record-row.is-selected .record-icon-box {
+            background-color: #FFFFFF;
+            border-color: var(--accent-gold-border);
+            color: var(--accent-gold);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .record-row.is-selected .record-icon-box {
+                background-color: #24201A;
+            }
+        }
+
+        [data-theme="dark"] .record-row.is-selected .record-icon-box {
+            background-color: #24201A;
+        }
+
+        .record-icon-box svg {
+            width: 18px;
+            height: 18px;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            fill: none;
+            stroke: currentColor;
+        }
+
+        .record-text {
+            min-width: 0;
+        }
+
+        .record-name {
+            font-size: 0.94rem;
+            font-weight: 600;
+            color: var(--text-heading);
+            margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .record-desc {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            line-height: 1.35;
+        }
+
+        .record-count {
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            white-space: nowrap;
+            text-align: right;
+            padding-left: 8px;
+            flex-shrink: 0;
+        }
+
+        /* Muted Note Banner */
+        .backup-info-note {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            background-color: var(--info-box-bg);
+            border: 1px solid var(--info-box-border);
+            color: var(--info-box-text);
+            font-size: 0.78rem;
+            line-height: 1.45;
+        }
+
+        .backup-info-note svg {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+            margin-top: 1px;
+            stroke: currentColor;
+            stroke-width: 2;
+            fill: none;
+            opacity: 0.8;
+        }
+
+        /* -------------------------------------------------------------
+           3. FOOTER SECTION
+        -------------------------------------------------------------- */
+        .backup-footer {
+            padding: 18px 28px 22px;
+            border-top: 1px solid var(--border-divider);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .footer-summary {
+            font-size: 0.86rem;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        .footer-summary strong {
+            color: var(--text-heading);
+            font-weight: 600;
+        }
+
+        .footer-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .privacy-note {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+            user-select: none;
+        }
+
+        .privacy-note svg {
+            width: 13px;
+            height: 13px;
+            stroke: currentColor;
+            stroke-width: 2;
+            fill: none;
+        }
+
+        .btn-download {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background-color: var(--primary-green);
+            color: #FAF7F2;
+            font-family: inherit;
+            font-size: 0.88rem;
+            font-weight: 600;
+            padding: 10px 18px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(30, 54, 38, 0.25);
+            transition: all 0.15s ease;
+            white-space: nowrap;
+            text-decoration: none;
+        }
+
+        .btn-download:hover:not(:disabled) {
+            background-color: var(--primary-green-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(30, 54, 38, 0.3);
+        }
+
+        .btn-download:active:not(:disabled) {
+            background-color: var(--primary-green-active);
+            transform: translateY(0);
+        }
+
+        .btn-download:focus-visible {
+            outline: 2px solid var(--primary-green);
+            outline-offset: 2px;
+        }
+
+        .btn-download:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .btn-download svg {
+            width: 16px;
+            height: 16px;
+            stroke: currentColor;
+            stroke-width: 2.2;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        /* Toast feedback */
+        .toast-notification {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: #1E3626;
+            color: #FFFFFF;
+            padding: 12px 20px;
+            border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+            font-size: 0.88rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 9999;
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            pointer-events: none;
+        }
+
+        .toast-notification.is-visible {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        .toast-notification svg {
+            width: 18px;
+            height: 18px;
+            stroke: #86efac;
+            stroke-width: 2.4;
+            fill: none;
+        }
+
+        /* Responsive */
+        @media (max-width: 540px) {
+            .backup-header {
+                padding: 18px 18px 16px;
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .backup-last-time {
+                text-align: left;
+                padding-top: 4px;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+
+            .backup-last-label {
+                display: inline;
+            }
+
+            .backup-last-date {
+                display: inline;
+                margin-top: 0;
+            }
+
+            .backup-body {
+                padding: 18px 18px 20px;
+            }
+
+            .backup-footer {
+                padding: 16px 18px 20px;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 14px;
+            }
+
+            .footer-right {
+                flex-direction: column-reverse;
+                align-items: stretch;
+                gap: 10px;
+            }
+
+            .privacy-note {
+                justify-content: center;
+            }
+
+            .btn-download {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <main class="backup-panel" id="backupPanel" role="region" aria-label="Backup Parish Records">
+        <!-- HEADER -->
+        <header class="backup-header">
+            <div class="backup-header-left">
+                <div class="backup-badge-icon" aria-hidden="true">
+                    <!-- Backup / Upload Tray Icon -->
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"></path>
+                        <polyline points="7 9 12 4 17 9"></polyline>
+                        <line x1="12" y1="4" x2="12" y2="16"></line>
+                    </svg>
+                </div>
+                <div class="backup-title-group">
+                    <h1>Backup Parish Records</h1>
+                    <p>Export a copy of your parish's records for safekeeping.</p>
+                </div>
+            </div>
+            <div class="backup-last-time">
+                <span class="backup-last-label">Last backup</span>
+                <span class="backup-last-date" id="lastBackupDate">Sept 10, 2026</span>
+            </div>
+        </header>
+
+        <!-- BODY / LIST -->
+        <div class="backup-body">
+            <!-- Toolbar -->
+            <div class="selection-toolbar">
+                <span class="selection-label">Select record types to include</span>
+                <div class="selection-actions">
+                    <button type="button" class="toggle-btn" id="btnSelectAll" aria-label="Select all record types">Select all</button>
+                    <button type="button" class="toggle-btn" id="btnDeselectAll" aria-label="Deselect all record types">Deselect all</button>
+                </div>
+            </div>
+
+            <!-- List of 3 Record Types -->
+            <div class="records-list" role="group" aria-label="Parish Record Types">
+                <!-- Row 1: Sacramental Records -->
+                <div class="record-row is-selected" 
+                     data-id="sacramental" 
+                     data-weight="4.2" 
+                     role="checkbox" 
+                     aria-checked="true" 
+                     tabindex="0"
+                     aria-label="Sacramental Records, 612 records">
+                    <div class="record-row-left">
+                        <div class="custom-checkbox" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        </div>
+                        <div class="record-icon-box" aria-hidden="true">
+                            <!-- Register / Book / Altar icon -->
+                            <svg viewBox="0 0 24 24">
+                                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                            </svg>
+                        </div>
+                        <div class="record-text">
+                            <div class="record-name">Sacramental Records</div>
+                            <div class="record-desc">All Baptism, Confirmation, Marriage, and First Communion registers</div>
+                        </div>
+                    </div>
+                    <div class="record-count">612 records</div>
+                </div>
+
+                <!-- Row 2: Parishioners -->
+                <div class="record-row is-selected" 
+                     data-id="parishioners" 
+                     data-weight="3.8" 
+                     role="checkbox" 
+                     aria-checked="true" 
+                     tabindex="0"
+                     aria-label="Parishioners, 1,248 records">
+                    <div class="record-row-left">
+                        <div class="custom-checkbox" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        </div>
+                        <div class="record-icon-box" aria-hidden="true">
+                            <!-- People / Directory icon -->
+                            <svg viewBox="0 0 24 24">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="9" cy="7" r="4"></circle>
+                                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                            </svg>
+                        </div>
+                        <div class="record-text">
+                            <div class="record-name">Parishioners</div>
+                            <div class="record-desc">All registered parishioner profiles, contact info, and status</div>
+                        </div>
+                    </div>
+                    <div class="record-count">1,248 records</div>
+                </div>
+
+                <!-- Row 3: Requests -->
+                <div class="record-row is-selected" 
+                     data-id="requests" 
+                     data-weight="4.4" 
+                     role="checkbox" 
+                     aria-checked="true" 
+                     tabindex="0"
+                     aria-label="Requests, 1,357 records">
+                    <div class="record-row-left">
+                        <div class="custom-checkbox" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        </div>
+                        <div class="record-icon-box" aria-hidden="true">
+                            <!-- Document / Request icon -->
+                            <svg viewBox="0 0 24 24">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                                <line x1="16" y1="13" x2="8" y2="13"></line>
+                                <line x1="16" y1="17" x2="8" y2="17"></line>
+                                <polyline points="10 9 9 9 8 9"></polyline>
+                            </svg>
+                        </div>
+                        <div class="record-text">
+                            <div class="record-name">Requests</div>
+                            <div class="record-desc">All certificate, blessing, and sacramental service requests</div>
+                        </div>
+                    </div>
+                    <div class="record-count">1,357 records</div>
+                </div>
+            </div>
+
+            <!-- Muted Info Note -->
+            <div class="backup-info-note">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+                <span>Records are prepared as standard spreadsheet files (CSV), compatible with Microsoft Excel and LibreOffice, and packaged into a single ZIP file.</span>
+            </div>
+        </div>
+
+        <!-- FOOTER -->
+        <footer class="backup-footer">
+            <div class="footer-summary" id="footerSummary">
+                <strong id="selectedCount">3</strong> of 3 record types selected &middot; est. <strong id="selectedSize">12.4 MB</strong>
+            </div>
+            <div class="footer-right">
+                <div class="privacy-note">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                    <span>Passwords &amp; credentials excluded</span>
+                </div>
+                <button type="button" class="btn-download" id="btnDownload">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    <span>Download Backup</span>
+                </button>
+            </div>
+        </footer>
+    </main>
+
+    <!-- Toast feedback notification -->
+    <div class="toast-notification" id="toastNotification" role="status" aria-live="polite">
+        <svg viewBox="0 0 24 24">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+        </svg>
+        <span id="toastMessage">Preparing backup package...</span>
+    </div>
+
+    <script>
+        (function () {
+            const rows = document.querySelectorAll('.record-row');
+            const btnSelectAll = document.getElementById('btnSelectAll');
+            const btnDeselectAll = document.getElementById('btnDeselectAll');
+            const selectedCountEl = document.getElementById('selectedCount');
+            const selectedSizeEl = document.getElementById('selectedSize');
+            const btnDownload = document.getElementById('btnDownload');
+            const toastNotification = document.getElementById('toastNotification');
+            const toastMessage = document.getElementById('toastMessage');
+
+            function updateSummary() {
+                let count = 0;
+                let totalWeight = 0;
+
+                rows.forEach(function (row) {
+                    if (row.classList.contains('is-selected')) {
+                        count++;
+                        const weight = parseFloat(row.getAttribute('data-weight')) || 0;
+                        totalWeight += weight;
+                    }
+                });
+
+                selectedCountEl.textContent = count;
+                selectedSizeEl.textContent = totalWeight.toFixed(1) + ' MB';
+
+                if (count === 0) {
+                    btnDownload.disabled = true;
+                    btnDownload.setAttribute('aria-disabled', 'true');
+                } else {
+                    btnDownload.disabled = false;
+                    btnDownload.removeAttribute('aria-disabled');
+                }
+            }
+
+            function setRowState(row, selected) {
+                if (selected) {
+                    row.classList.add('is-selected');
+                    row.setAttribute('aria-checked', 'true');
+                } else {
+                    row.classList.remove('is-selected');
+                    row.setAttribute('aria-checked', 'false');
+                }
+            }
+
+            function toggleRow(row) {
+                const isSelected = row.classList.contains('is-selected');
+                setRowState(row, !isSelected);
+                updateSummary();
+            }
+
+            // Click and Keyboard interaction on rows
+            rows.forEach(function (row) {
+                row.addEventListener('click', function () {
+                    toggleRow(row);
+                });
+
+                row.addEventListener('keydown', function (e) {
+                    if (e.key === ' ' || e.key === 'Enter') {
+                        e.preventDefault();
+                        toggleRow(row);
+                    }
+                });
+            });
+
+            // Select all
+            btnSelectAll.addEventListener('click', function () {
+                rows.forEach(function (row) {
+                    setRowState(row, true);
+                });
+                updateSummary();
+            });
+
+            // Deselect all
+            btnDeselectAll.addEventListener('click', function () {
+                rows.forEach(function (row) {
+                    setRowState(row, false);
+                });
+                updateSummary();
+            });
+
+            // Toast helper
+            let toastTimer = null;
+            function showToast(msg) {
+                if (toastMessage) toastMessage.textContent = msg;
+                if (toastNotification) {
+                    toastNotification.classList.add('is-visible');
+                    clearTimeout(toastTimer);
+                    toastTimer = setTimeout(function () {
+                        toastNotification.classList.remove('is-visible');
+                    }, 4000);
+                }
+            }
+
+            // Client-side ZIP / Backup Download Simulation & Export Trigger
+            btnDownload.addEventListener('click', function () {
+                const selectedRows = Array.from(rows).filter(r => r.classList.contains('is-selected'));
+                if (selectedRows.length === 0) {
+                    alert('Please select at least one record type to backup.');
+                    return;
+                }
+
+                const selectedTypes = selectedRows.map(r => r.getAttribute('data-id'));
+                const originalText = btnDownload.innerHTML;
+
+                // Loading State
+                btnDownload.disabled = true;
+                btnDownload.innerHTML = `
+                    <svg viewBox="0 0 24 24" style="animation: spin 1s linear infinite;">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="32" stroke-dashoffset="12"></circle>
+                    </svg>
+                    <span>Generating...</span>
+                `;
+
+                showToast('Packaging ' + selectedTypes.length + ' record ' + (selectedTypes.length === 1 ? 'type' : 'types') + ' into ZIP...');
+
+                // Generate and download client-side sample CSV package
+                setTimeout(function () {
+                    try {
+                        const dateStr = new Date().toISOString().slice(0, 10);
+                        const csvContent = "\uFEFFCategory,Record Count,Generated At,Security\n" + 
+                            selectedRows.map(r => {
+                                const name = r.querySelector('.record-name').textContent;
+                                const count = r.querySelector('.record-count').textContent;
+                                return `"${name}","${count}","${dateStr}","Credentials & Passwords Excluded"`;
+                            }).join("\n");
+
+                        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `TUGON_Parish_Records_Backup_${dateStr}.csv`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+
+                        showToast('Backup download started successfully!');
+                    } catch (err) {
+                        console.error('Download error:', err);
+                    } finally {
+                        btnDownload.disabled = false;
+                        btnDownload.innerHTML = originalText;
+                    }
+                }, 900);
+            });
+
+            // Initial summary calculation
+            updateSummary();
+        })();
+    </script>
+</body>
+</html>
