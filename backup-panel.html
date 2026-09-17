@@ -3,12 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Backup Parish Records — TUGON Parish System</title>
+    <title>Backup Parish Records — TUGON Parish Management</title>
+    
+    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,400&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
     <style>
+        /* -------------------------------------------------------------
+           DESIGN SYSTEM TOKENS & CSS CUSTOM PROPERTIES
+        -------------------------------------------------------------- */
         :root {
+            /* Palette */
             --bg-page: #F7F3EA;
             --bg-card: #FFFFFF;
             --border-card: #E7E0D2;
@@ -19,16 +26,19 @@
             --text-muted: #78716C;
             --text-subtle: #A8A29E;
             
+            /* Primary Accent: Deep Forest Green */
             --primary-green: #1E3626;
             --primary-green-hover: #16291C;
             --primary-green-active: #0F1D14;
             --primary-green-focus: rgba(30, 54, 38, 0.25);
             
+            /* Secondary Accent: Muted Antique Gold */
             --accent-gold: #A6791E;
             --accent-gold-border: #D8C39D;
             --accent-gold-bg: #FAF5EA;
             --accent-gold-hover: #F6EEDC;
             
+            /* Row states */
             --row-unselected-bg: #FFFFFF;
             --row-unselected-border: #E7E0D2;
             --row-unselected-hover: #FCFAF6;
@@ -40,6 +50,10 @@
             --info-box-bg: #F5F0E6;
             --info-box-border: #EAE3D5;
             --info-box-text: #635A4D;
+            
+            --warning-box-bg: #FEF3C7;
+            --warning-box-border: #FCD34D;
+            --warning-box-text: #92400E;
             
             --btn-outline-border: #DCD4C4;
             --btn-outline-bg: #FFFFFF;
@@ -86,6 +100,10 @@
                 --info-box-border: #3D372F;
                 --info-box-text: #BDB4A5;
                 
+                --warning-box-bg: #3D2D10;
+                --warning-box-border: #785818;
+                --warning-box-text: #FDE68A;
+                
                 --btn-outline-border: #453F36;
                 --btn-outline-bg: #262420;
                 --btn-outline-text: #D6D0C5;
@@ -121,6 +139,9 @@
             --info-box-bg: #F5F0E6;
             --info-box-border: #EAE3D5;
             --info-box-text: #635A4D;
+            --warning-box-bg: #FEF3C7;
+            --warning-box-border: #FCD34D;
+            --warning-box-text: #92400E;
             --btn-outline-border: #DCD4C4;
             --btn-outline-bg: #FFFFFF;
             --btn-outline-text: #595144;
@@ -154,6 +175,9 @@
             --info-box-bg: #26231E;
             --info-box-border: #3D372F;
             --info-box-text: #BDB4A5;
+            --warning-box-bg: #3D2D10;
+            --warning-box-border: #785818;
+            --warning-box-text: #FDE68A;
             --btn-outline-border: #453F36;
             --btn-outline-bg: #262420;
             --btn-outline-text: #D6D0C5;
@@ -161,10 +185,20 @@
             --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.3);
         }
 
-        * {
+        /* -------------------------------------------------------------
+           UPFRONT LAYOUT & HEIGHT RESERVATION (Prevents font reflows)
+        -------------------------------------------------------------- */
+        *, *::before, *::after {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
+        }
+
+        html {
+            min-height: 100vh;
+            height: 100%;
+            font-size: 16px;
+            -webkit-text-size-adjust: 100%;
         }
 
         body {
@@ -175,9 +209,10 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 24px 16px;
+            padding: 32px 16px;
             line-height: 1.5;
             -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
         .backup-panel {
@@ -226,6 +261,10 @@
             width: 22px;
             height: 22px;
             stroke-width: 2;
+            stroke: currentColor;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
         }
 
         .backup-title-group h1 {
@@ -480,7 +519,7 @@
             flex-shrink: 0;
         }
 
-        /* Muted Note Banner */
+        /* Muted Info Note */
         .backup-info-note {
             display: flex;
             align-items: flex-start;
@@ -503,6 +542,35 @@
             stroke-width: 2;
             fill: none;
             opacity: 0.8;
+        }
+
+        /* Inline Selection Warning Message */
+        .inline-warning-banner {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            margin-top: 12px;
+            border-radius: 8px;
+            background-color: var(--warning-box-bg);
+            border: 1px solid var(--warning-box-border);
+            color: var(--warning-box-text);
+            font-size: 0.82rem;
+            font-weight: 500;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .inline-warning-banner.is-visible {
+            display: flex;
+        }
+
+        .inline-warning-banner svg {
+            width: 16px;
+            height: 16px;
+            stroke: currentColor;
+            stroke-width: 2.2;
+            fill: none;
+            flex-shrink: 0;
         }
 
         /* -------------------------------------------------------------
@@ -591,9 +659,16 @@
         }
 
         .btn-download:disabled {
-            opacity: 0.55;
+            opacity: 0.7;
             cursor: not-allowed;
-            box-shadow: none;
+            transform: none;
+        }
+
+        .btn-download.is-failed {
+            background-color: #991B1B !important;
+            color: #FFFFFF !important;
+            border-color: #991B1B !important;
+            box-shadow: 0 2px 8px rgba(153, 27, 27, 0.35) !important;
         }
 
         .btn-download svg {
@@ -604,6 +679,20 @@
             fill: none;
             stroke-linecap: round;
             stroke-linejoin: round;
+        }
+
+        .spinner {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         /* Toast feedback */
@@ -641,8 +730,12 @@
             fill: none;
         }
 
-        /* Responsive */
+        /* Responsive Breakpoints */
         @media (max-width: 540px) {
+            body {
+                padding: 16px 12px;
+            }
+
             .backup-header {
                 padding: 18px 18px 16px;
                 flex-direction: column;
@@ -700,8 +793,8 @@
         <header class="backup-header">
             <div class="backup-header-left">
                 <div class="backup-badge-icon" aria-hidden="true">
-                    <!-- Backup / Upload Tray Icon -->
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <!-- Backup tray icon -->
+                    <svg viewBox="0 0 24 24">
                         <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"></path>
                         <polyline points="7 9 12 4 17 9"></polyline>
                         <line x1="12" y1="4" x2="12" y2="16"></line>
@@ -729,11 +822,11 @@
                 </div>
             </div>
 
-            <!-- List of 3 Record Types -->
+            <!-- Exactly 3 Selectable Record Types -->
             <div class="records-list" role="group" aria-label="Parish Record Types">
-                <!-- Row 1: Sacramental Records -->
+                <!-- Row 1: Sacramental Records (key: sacramental_records) -->
                 <div class="record-row is-selected" 
-                     data-id="sacramental" 
+                     data-id="sacramental_records" 
                      data-weight="4.2" 
                      role="checkbox" 
                      aria-checked="true" 
@@ -744,7 +837,7 @@
                             <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
                         </div>
                         <div class="record-icon-box" aria-hidden="true">
-                            <!-- Register / Book / Altar icon -->
+                            <!-- Register / Book icon -->
                             <svg viewBox="0 0 24 24">
                                 <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
                                 <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
@@ -758,7 +851,7 @@
                     <div class="record-count">612 records</div>
                 </div>
 
-                <!-- Row 2: Parishioners -->
+                <!-- Row 2: Parishioners (key: parishioners) -->
                 <div class="record-row is-selected" 
                      data-id="parishioners" 
                      data-weight="3.8" 
@@ -787,7 +880,7 @@
                     <div class="record-count">1,248 records</div>
                 </div>
 
-                <!-- Row 3: Requests -->
+                <!-- Row 3: Requests (key: requests) -->
                 <div class="record-row is-selected" 
                      data-id="requests" 
                      data-weight="4.4" 
@@ -827,6 +920,16 @@
                 </svg>
                 <span>Records are prepared as standard spreadsheet files (CSV), compatible with Microsoft Excel and LibreOffice, and packaged into a single ZIP file.</span>
             </div>
+
+            <!-- Inline Selection Warning -->
+            <div class="inline-warning-banner" id="inlineWarning" role="alert" aria-live="polite">
+                <svg viewBox="0 0 24 24">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                <span>Please select at least one record type to include in the backup.</span>
+            </div>
         </div>
 
         <!-- FOOTER -->
@@ -843,12 +946,12 @@
                     <span>Passwords &amp; credentials excluded</span>
                 </div>
                 <button type="button" class="btn-download" id="btnDownload">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" id="btnDownloadIcon">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                         <polyline points="7 10 12 15 17 10"></polyline>
                         <line x1="12" y1="15" x2="12" y2="3"></line>
                     </svg>
-                    <span>Download Backup</span>
+                    <span id="btnDownloadText">Download Backup</span>
                 </button>
             </div>
         </footer>
@@ -860,7 +963,7 @@
             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
             <polyline points="22 4 12 14.01 9 11.01"></polyline>
         </svg>
-        <span id="toastMessage">Preparing backup package...</span>
+        <span id="toastMessage">Preparing backup…</span>
     </div>
 
     <script>
@@ -871,8 +974,30 @@
             const selectedCountEl = document.getElementById('selectedCount');
             const selectedSizeEl = document.getElementById('selectedSize');
             const btnDownload = document.getElementById('btnDownload');
+            const btnDownloadText = document.getElementById('btnDownloadText');
+            const btnDownloadIcon = document.getElementById('btnDownloadIcon');
+            const inlineWarning = document.getElementById('inlineWarning');
             const toastNotification = document.getElementById('toastNotification');
             const toastMessage = document.getElementById('toastMessage');
+
+            const ORIGINAL_ICON_HTML = `
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>`;
+
+            const SPINNER_ICON_HTML = `
+                <svg viewBox="0 0 24 24" class="spinner" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="32" stroke-dashoffset="12"></circle>
+                </svg>`;
+
+            const ERROR_ICON_HTML = `
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                </svg>`;
 
             function updateSummary() {
                 let count = 0;
@@ -889,12 +1014,8 @@
                 selectedCountEl.textContent = count;
                 selectedSizeEl.textContent = totalWeight.toFixed(1) + ' MB';
 
-                if (count === 0) {
-                    btnDownload.disabled = true;
-                    btnDownload.setAttribute('aria-disabled', 'true');
-                } else {
-                    btnDownload.disabled = false;
-                    btnDownload.removeAttribute('aria-disabled');
+                if (count > 0 && inlineWarning) {
+                    inlineWarning.classList.remove('is-visible');
                 }
             }
 
@@ -957,57 +1078,104 @@
                 }
             }
 
-            // Client-side ZIP / Backup Download Simulation & Export Trigger
-            btnDownload.addEventListener('click', function () {
+            function setButtonState(state, text) {
+                if (state === 'loading') {
+                    btnDownload.disabled = true;
+                    btnDownload.classList.remove('is-failed');
+                    btnDownload.innerHTML = SPINNER_ICON_HTML + `<span>${text || 'Preparing backup…'}</span>`;
+                } else if (state === 'failed') {
+                    btnDownload.disabled = true;
+                    btnDownload.classList.add('is-failed');
+                    btnDownload.innerHTML = ERROR_ICON_HTML + `<span>${text || 'Failed — try again'}</span>`;
+                } else {
+                    btnDownload.disabled = false;
+                    btnDownload.classList.remove('is-failed');
+                    btnDownload.innerHTML = ORIGINAL_ICON_HTML + `<span>Download Backup</span>`;
+                }
+            }
+
+            // REAL BACKEND DATABASE INTEGRATION
+            btnDownload.addEventListener('click', async function () {
                 const selectedRows = Array.from(rows).filter(r => r.classList.contains('is-selected'));
+                
+                // 1. If nothing is selected, show inline warning instead of doing nothing
                 if (selectedRows.length === 0) {
-                    alert('Please select at least one record type to backup.');
+                    if (inlineWarning) {
+                        inlineWarning.classList.add('is-visible');
+                    }
                     return;
                 }
 
+                if (inlineWarning) {
+                    inlineWarning.classList.remove('is-visible');
+                }
+
                 const selectedTypes = selectedRows.map(r => r.getAttribute('data-id'));
-                const originalText = btnDownload.innerHTML;
 
-                // Loading State
-                btnDownload.disabled = true;
-                btnDownload.innerHTML = `
-                    <svg viewBox="0 0 24 24" style="animation: spin 1s linear infinite;">
-                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="32" stroke-dashoffset="12"></circle>
-                    </svg>
-                    <span>Generating...</span>
-                `;
+                // 2. Set button loading state
+                setButtonState('loading', 'Preparing backup…');
+                showToast('Preparing backup of live parish records…');
 
-                showToast('Packaging ' + selectedTypes.length + ' record ' + (selectedTypes.length === 1 ? 'type' : 'types') + ' into ZIP...');
+                const endpointUrls = [
+                    '/api/backup-parish-records',
+                    'api/backup-parish-records.php',
+                    '../api/backup-parish-records.php'
+                ];
 
-                // Generate and download client-side sample CSV package
-                setTimeout(function () {
+                let downloadSuccess = false;
+                let lastError = null;
+
+                for (const url of endpointUrls) {
                     try {
-                        const dateStr = new Date().toISOString().slice(0, 10);
-                        const csvContent = "\uFEFFCategory,Record Count,Generated At,Security\n" + 
-                            selectedRows.map(r => {
-                                const name = r.querySelector('.record-name').textContent;
-                                const count = r.querySelector('.record-count').textContent;
-                                return `"${name}","${count}","${dateStr}","Credentials & Passwords Excluded"`;
-                            }).join("\n");
+                        const response = await fetch(url, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/zip, application/json'
+                            },
+                            body: JSON.stringify({ types: selectedTypes })
+                        });
 
-                        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                        const url = URL.createObjectURL(blob);
+                        if (!response.ok) {
+                            const errData = await response.json().catch(() => ({ error: response.statusText }));
+                            throw new Error(errData.error || `Server responded with ${response.status}`);
+                        }
+
+                        // Response is a binary ZIP Blob
+                        const blob = await response.blob();
+                        const blobUrl = window.URL.createObjectURL(blob);
+
+                        // Trigger download named parish-backup-YYYY-MM-DD.zip
+                        const today = new Date().toISOString().slice(0, 10);
                         const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `TUGON_Parish_Records_Backup_${dateStr}.csv`;
+                        a.style.display = 'none';
+                        a.href = blobUrl;
+                        a.download = `parish-backup-${today}.zip`;
                         document.body.appendChild(a);
                         a.click();
                         document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
+                        window.URL.revokeObjectURL(blobUrl);
 
-                        showToast('Backup download started successfully!');
+                        downloadSuccess = true;
+                        showToast('Backup downloaded successfully!');
+                        break;
                     } catch (err) {
-                        console.error('Download error:', err);
-                    } finally {
-                        btnDownload.disabled = false;
-                        btnDownload.innerHTML = originalText;
+                        lastError = err;
                     }
-                }, 900);
+                }
+
+                if (downloadSuccess) {
+                    setButtonState('idle');
+                } else {
+                    // On failure, show "Failed — try again" on the button for ~2.5s, then restore it, and log the error
+                    console.error('Backup download error:', lastError);
+                    setButtonState('failed', 'Failed — try again');
+                    showToast('Export failed: ' + (lastError ? lastError.message : 'Network error'));
+
+                    setTimeout(function () {
+                        setButtonState('idle');
+                    }, 2500);
+                }
             });
 
             // Initial summary calculation

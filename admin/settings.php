@@ -990,6 +990,12 @@ function exportParishRecords($conn, array $categories, $backup_dir, $user_id = 0
             ['table' => 'marriage_records', 'filename' => 'Sacramental_Marriage_Records.csv', 'sensitive' => []],
             ['table' => 'first_communion_records', 'filename' => 'Sacramental_First_Communion_Records.csv', 'sensitive' => []]
         ],
+        'sacramental_records' => [
+            ['table' => 'baptism_records', 'filename' => 'Sacramental_Baptism_Records.csv', 'sensitive' => []],
+            ['table' => 'confirmation_records', 'filename' => 'Sacramental_Confirmation_Records.csv', 'sensitive' => []],
+            ['table' => 'marriage_records', 'filename' => 'Sacramental_Marriage_Records.csv', 'sensitive' => []],
+            ['table' => 'first_communion_records', 'filename' => 'Sacramental_First_Communion_Records.csv', 'sensitive' => []]
+        ],
         'funeral' => [
             ['table' => 'funeral_records', 'filename' => 'Funeral_and_Burial_Records.csv', 'sensitive' => []]
         ],
@@ -2171,7 +2177,7 @@ $latest_backup_time = !empty($backup_files) ? (is_array($backup_files[0]) ? date
                 <div class="records-list">
                     <!-- Row 1: Sacramental Records -->
                     <label class="record-row is-selected" for="cat_sacramental" data-weight="4.2">
-                        <input type="checkbox" name="categories[]" value="sacramental" id="cat_sacramental" class="d-none category-checkbox" checked>
+                        <input type="checkbox" name="categories[]" value="sacramental_records" id="cat_sacramental" class="d-none category-checkbox" checked>
                         <div class="record-row-left">
                             <div class="custom-checkbox" aria-hidden="true">
                                 <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
