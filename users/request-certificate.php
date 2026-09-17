@@ -287,7 +287,7 @@ function certificateLabel($value, $labels = []) {
                 createAuditLog($conn, $user_id, 'CREATE_REQUEST', 'requests', $request_id);
                 $doc_count = intval($documents['saved'] ?? 0);
                 $file_text = $doc_count === 1 ? 'file' : 'files';
-                createNotification($conn, $user_id, 'Certificate Request Created', 'Your certificate request has been submitted with reference: ' . $reference_number . ' (' . $doc_count . ' ' . $file_text . ' attached)');
+                createNotification($conn, $user_id, 'Certificate Request Created', 'Your certificate request has been submitted with reference: ' . $reference_number . ' (' . $doc_count . ' ' . $file_text . ' attached)', true, 'requests', 'request', $request_id, 'request.view');
                 $success = 'Certificate request submitted successfully! Reference: ' . $reference_number . ' (' . $doc_count . ' file' . ($doc_count === 1 ? '' : 's') . ' attached)';
             }
         } catch (DuplicateRequestException $exception) {

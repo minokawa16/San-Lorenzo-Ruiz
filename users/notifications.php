@@ -62,8 +62,14 @@ function notificationGroupLabel($date) {
     return 'EARLIER';
 }
 
-function notificationActionUrl($notification) {
-    return NotificationService::actionUrl($notification['action_key'] ?? null);
+function notificationActionUrl($notification, $conn = null) {
+    return NotificationService::resolveActionUrl(
+        $notification['action_key'] ?? null,
+        $notification['entity_type'] ?? null,
+        $notification['entity_id'] ?? null,
+        $notification,
+        $conn
+    );
 }
 
 function notificationShortMessage($message, $limit = 220) {
@@ -860,6 +866,9 @@ $body_extra_class = 'user-notifications-page';
             </div>
 
             <!-- Grouped Notifications -->
+            <?php 
+                $unresolved_notifications = [];
+            ?>
             <?php if (!empty($grouped_notifications)): ?>
                 <?php foreach ($grouped_notifications as $group => $items): ?>
                     <h2 class="notification-group-title"><?php echo e($group); ?></h2>
@@ -869,6 +878,14 @@ $body_extra_class = 'user-notifications-page';
                                 $iconMeta = notificationIconMeta($notification);
                                 $detail_id = 'notification-detail-' . intval($notification['notification_id']);
                                 $reference_number = notificationReferenceNumber($notification);
+                                $action_url = notificationActionUrl($notification, $conn);
+                                if (empty($action_url)) {
+                                    $unresolved_notifications[] = [
+                                        'id' => (int) $notification['notification_id'],
+                                        'title' => (string) $notification['title'],
+                                        'type' => (string) $notification['notification_type']
+                                    ];
+                                }
                             ?>
                             <article class="notification-card <?php echo !$notification['is_read'] ? 'unread' : 'read'; ?>">
                                 <a class="notification-card-link" href="#<?php echo e($detail_id); ?>" aria-label="Open notification details"></a>
@@ -904,7 +921,7 @@ $body_extra_class = 'user-notifications-page';
                                         <?php endif; ?>
                                     </div>
                                     <div class="notification-actions">
-                                        <?php if (!empty($action_url = notificationActionUrl($notification))): ?>
+                                        <?php if (!empty($action_url)): ?>
                                             <a class="notification-view-btn" href="<?php echo e($action_url); ?>">
                                                 <i class="fas fa-arrow-up-right-from-square"></i> View
                                             </a>
@@ -992,5 +1009,18 @@ $body_extra_class = 'user-notifications-page';
         </main>
     </div>
 </div>
+
+<?php if (!empty($unresolved_notifications)): ?>
+<script>
+(function() {
+    var unlinked = <?php echo json_encode($unresolved_notifications); ?>;
+    if (unlinked && unlinked.length > 0 && typeof console !== 'undefined' && console.warn) {
+        unlinked.forEach(function(item) {
+            console.warn('[Tugon Notifications] Unlinked notification #' + item.id + ' ("' + item.title + '"): target resource could not be resolved; View button safely hidden.', item);
+        });
+    }
+})();
+</script>
+<?php endif; ?>
 
 <?php include '../templates/footer.php'; ?>

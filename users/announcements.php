@@ -1127,4 +1127,29 @@ function extractNoticeCardGrid($announcement, $parsed_5w) {
     </div>
 <?php endforeach; ?>
 
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        var urlParams = new URLSearchParams(window.location.search);
+        var targetId = urlParams.get('id');
+        var modalId = null;
+        if (targetId) {
+            modalId = 'announcementModal-' + targetId;
+        } else if (window.location.hash && window.location.hash.indexOf('#announcementModal-') === 0) {
+            modalId = window.location.hash.substring(1);
+        }
+        if (modalId) {
+            var modalEl = document.getElementById(modalId);
+            if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                var modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                modal.show();
+            }
+        }
+    } catch (e) {
+        console.warn('[Announcements] Could not auto-open target modal:', e);
+    }
+});
+</script>
+
 <?php include '../templates/footer.php'; ?>
+

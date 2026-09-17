@@ -66,9 +66,159 @@ final class NotificationService
         $this->db = $db;
     }
 
-    public static function actionUrl(?string $key): string
+    public static function actionUrl(?string $key, ?string $entityType = null, $entityId = null, ?array $notification = null, ?mysqli $conn = null): string
     {
-        return self::ACTIONS[$key ?? ''] ?? 'index.php';
+        return self::resolveActionUrl($key, $entityType, $entityId, $notification, $conn) ?? '';
+    }
+
+    public static function resolveActionUrl(
+        ?string $actionKey = null,
+        ?string $entityType = null,
+        $entityId = null,
+        ?array $notification = null,
+        ?mysqli $conn = null
+    ): ?string {
+        if ($notification !== null) {
+            $actionKey = $actionKey ?: ($notification['action_key'] ?? null);
+            $entityType = $entityType ?: ($notification['entity_type'] ?? null);
+            $entityId = $entityId !== null ? $entityId : ($notification['entity_id'] ?? null);
+        }
+
+        $entityIdInt = intval($entityId ?? 0);
+        $entityType = strtolower(trim((string) ($entityType ?? '')));
+        $actionKey = trim((string) ($actionKey ?? ''));
+        $title = (string) ($notification['title'] ?? '');
+        $message = (string) ($notification['message'] ?? '');
+        $notifType = strtolower(trim((string) ($notification['notification_type'] ?? '')));
+        $userId = intval($notification['user_id'] ?? 0);
+
+        // 1. Explicit entity type and entity ID
+        if ($entityIdInt > 0) {
+            if ($entityType === 'request' || $entityType === 'certificate') {
+                return 'view-request.php?id=' . $entityIdInt;
+            }
+            if ($entityType === 'announcement') {
+                return 'announcements.php?id=' . $entityIdInt . '#announcementModal-' . $entityIdInt;
+            }
+            if ($entityType === 'reservation') {
+                if ($conn && $conn instanceof mysqli) {
+                    $stmt = $conn->prepare("SELECT request_id FROM reservations WHERE reservation_id = ? LIMIT 1");
+                    if ($stmt) {
+                        $stmt->bind_param('i', $entityIdInt);
+                        $stmt->execute();
+                        $r = $stmt->get_result()->fetch_assoc();
+                        $stmt->close();
+                        if (!empty($r['request_id'])) {
+                            return 'view-request.php?id=' . (int) $r['request_id'];
+                        }
+                    }
+                }
+                return 'view-schedule.php?reservation_id=' . $entityIdInt;
+            }
+            if ($entityType === 'schedule') {
+                return 'view-schedule.php?event_id=' . $entityIdInt;
+            }
+        }
+
+        // 2. Scan text for reference numbers (TUGON-2026-XXXX, PRQ-XXXX, REQ-XXXX)
+        $textToScan = $message . ' ' . $title;
+        if (preg_match('/\b(TUGON-\d{4}-[A-Fa-f0-9]+|PRQ-\d{8}-\d+|REQ-[A-Za-z0-9-]+|TEST-REQ-[A-Za-z0-9-]+)\b/', $textToScan, $refMatches)) {
+            $ref = $refMatches[1];
+            if ($conn && $conn instanceof mysqli) {
+                $stmt = $conn->prepare("SELECT request_id FROM requests WHERE reference_number = ? LIMIT 1");
+                if ($stmt) {
+                    $stmt->bind_param('s', $ref);
+                    $stmt->execute();
+                    $r = $stmt->get_result()->fetch_assoc();
+                    $stmt->close();
+                    if (!empty($r['request_id'])) {
+                        return 'view-request.php?id=' . (int) $r['request_id'];
+                    }
+                }
+            }
+            return 'view-request.php?ref=' . urlencode($ref);
+        }
+
+        // 3. Announcements matching by type, actionKey, or title
+        if ($entityType === 'announcement' || $actionKey === 'announcement.view' || $notifType === 'announcement_published' || $notifType === 'broadcast_notice' || stripos($title, 'announcement') !== false) {
+            if ($conn && $conn instanceof mysqli && $title !== '') {
+                $candidateTitle = (strcasecmp($title, 'New Parish Announcement') === 0) ? trim($message) : $title;
+                $firstLine = trim((string) strtok($candidateTitle, "\n\r"));
+                if ($firstLine !== '') {
+                    $stmt = $conn->prepare("SELECT announcement_id FROM announcements WHERE title = ? OR title LIKE ? LIMIT 1");
+                    if ($stmt) {
+                        $likeParam = '%' . $firstLine . '%';
+                        $stmt->bind_param('ss', $firstLine, $likeParam);
+                        $stmt->execute();
+                        $r = $stmt->get_result()->fetch_assoc();
+                        $stmt->close();
+                        if (!empty($r['announcement_id'])) {
+                            return 'announcements.php?id=' . (int) $r['announcement_id'] . '#announcementModal-' . (int) $r['announcement_id'];
+                        }
+                    }
+                }
+            }
+            return 'announcements.php';
+        }
+
+        // 4. Request / Sacramental matching
+        if ($entityType === 'request' || $actionKey === 'request.view' || $notifType === 'request' || str_starts_with($notifType, 'request_') || stripos($title, 'Request') !== false) {
+            if ($conn && $conn instanceof mysqli && $userId > 0) {
+                $serviceKeywords = ['baptism', 'marriage', 'funeral', 'blessing', 'communion', 'confirmation'];
+                $matchedKw = null;
+                foreach ($serviceKeywords as $kw) {
+                    if (stripos($title . ' ' . $message, $kw) !== false) {
+                        $matchedKw = $kw;
+                        break;
+                    }
+                }
+                if ($matchedKw) {
+                    $stmt = $conn->prepare("SELECT request_id FROM requests WHERE user_id = ? AND request_type LIKE ? ORDER BY request_id DESC LIMIT 1");
+                    if ($stmt) {
+                        $kwParam = '%' . $matchedKw . '%';
+                        $stmt->bind_param('is', $userId, $kwParam);
+                        $stmt->execute();
+                        $r = $stmt->get_result()->fetch_assoc();
+                        $stmt->close();
+                        if (!empty($r['request_id'])) {
+                            return 'view-request.php?id=' . (int) $r['request_id'];
+                        }
+                    }
+                }
+                $stmt = $conn->prepare("SELECT request_id FROM requests WHERE user_id = ? ORDER BY request_id DESC LIMIT 1");
+                if ($stmt) {
+                    $stmt->bind_param('i', $userId);
+                    $stmt->execute();
+                    $r = $stmt->get_result()->fetch_assoc();
+                    $stmt->close();
+                    if (!empty($r['request_id'])) {
+                        return 'view-request.php?id=' . (int) $r['request_id'];
+                    }
+                }
+            }
+            return 'my-requests.php';
+        }
+
+        // 5. Reservation / Schedule matching
+        if ($entityType === 'reservation' || $actionKey === 'reservation.view' || str_starts_with($notifType, 'reservation_') || str_starts_with($notifType, 'schedule_') || stripos($title, 'Reservation') !== false || stripos($title, 'Schedule') !== false) {
+            return 'view-schedule.php';
+        }
+
+        // 6. Security / Account matching
+        if ($actionKey === 'security.view' || stripos($title, 'Password') !== false) {
+            return 'profile.php';
+        }
+        if ($actionKey === 'settings.view') {
+            return 'notifications.php?tab=preferences';
+        }
+
+        // 7. Static actions fallback if registered (except dashboard)
+        if ($actionKey !== '' && isset(self::ACTIONS[$actionKey])) {
+            return self::ACTIONS[$actionKey];
+        }
+
+        // Truly unresolvable notification -> return null so caller can hide View button
+        return null;
     }
 
     public function create(
@@ -161,8 +311,16 @@ final class NotificationService
         return $id > 0 ? $id : null;
     }
 
-    public function createLegacy(int $userId, string $title, string $message, bool $outbound = true, string $category = 'system'): ?int
-    {
+    public function createLegacy(
+        int $userId,
+        string $title,
+        string $message,
+        bool $outbound = true,
+        string $category = 'system',
+        ?string $entityType = null,
+        ?int $entityId = null,
+        ?string $actionKey = null
+    ): ?int {
         if ($userId <= 0) {
             return null;
         }
@@ -177,14 +335,40 @@ final class NotificationService
             $title = 'Parish Announcement';
         }
 
+        // Auto-detect entityType, entityId, actionKey if not explicitly provided
+        if ($entityType === null && $entityId === null && $actionKey === null) {
+            $textToScan = $message . ' ' . $title;
+            if (preg_match('/\b(TUGON-\d{4}-[A-Fa-f0-9]+|PRQ-\d{8}-\d+|REQ-[A-Za-z0-9-]+|TEST-REQ-[A-Za-z0-9-]+)\b/', $textToScan, $m)) {
+                $ref = $m[1];
+                $stmt = $this->db->prepare("SELECT request_id FROM requests WHERE reference_number = ? LIMIT 1");
+                if ($stmt) {
+                    $stmt->bind_param('s', $ref);
+                    $stmt->execute();
+                    $r = $stmt->get_result()->fetch_assoc();
+                    $stmt->close();
+                    if (!empty($r['request_id'])) {
+                        $entityType = 'request';
+                        $entityId = (int) $r['request_id'];
+                        $actionKey = 'request.view';
+                    }
+                }
+            } elseif ($isAnnouncement) {
+                $entityType = 'announcement';
+                $actionKey = 'announcement.view';
+            } elseif (in_array(strtolower($category), ['schedules', 'reservation', 'reservations'], true)) {
+                $entityType = 'reservation';
+                $actionKey = 'reservation.view';
+            }
+        }
+
         $allowInApp = $this->allows($userId, $category, 'in_app');
         $id = null;
 
         if ($allowInApp) {
-            $notifType = $isAnnouncement ? 'announcement_published' : 'system';
-            $stmt = $this->db->prepare("INSERT INTO notifications (user_id, notification_type, title, message, state, is_read) VALUES (?, ?, ?, ?, 'unread', 0)");
+            $notifType = $isAnnouncement ? 'announcement_published' : ($entityType === 'request' ? 'request' : 'system');
+            $stmt = $this->db->prepare("INSERT INTO notifications (user_id, notification_type, title, message, entity_type, entity_id, action_key, state, is_read) VALUES (?, ?, ?, ?, ?, ?, ?, 'unread', 0)");
             if ($stmt) {
-                $stmt->bind_param('isss', $userId, $notifType, $title, $message);
+                $stmt->bind_param('issssis', $userId, $notifType, $title, $message, $entityType, $entityId, $actionKey);
                 $stmt->execute();
                 $id = (int) $stmt->insert_id;
                 $stmt->close();

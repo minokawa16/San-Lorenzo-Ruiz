@@ -147,7 +147,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 ]);
             } else {
                 createAuditLog($conn, $user_id, 'CREATE_REQUEST', 'requests', $request_id);
-                createNotification($conn, $user_id, 'Blessing Request Created', 'Your blessing request has been submitted with reference: ' . $reference_number . ' (' . $doc_count . ' ' . $file_text . ' attached)');
+                createNotification($conn, $user_id, 'Blessing Request Created', 'Your blessing request has been submitted with reference: ' . $reference_number . ' (' . $doc_count . ' ' . $file_text . ' attached)', true, 'requests', 'request', $request_id, 'request.view');
                 $success_msg = 'Blessing request submitted successfully! Reference: ' . $reference_number . ' (' . $doc_count . ' file' . ($doc_count === 1 ? '' : 's') . ' attached)';
                 $respond(true, $success_msg, [
                     'reference_number' => $reference_number,

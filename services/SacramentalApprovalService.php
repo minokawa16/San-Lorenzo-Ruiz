@@ -691,9 +691,10 @@ class SacramentalApprovalService {
         $title = "Request " . ucfirst($statusWord) . ": {$serviceLabel}";
 
         // 1. Direct in-app notification insertion
-        $ins = $this->conn->prepare("INSERT INTO notifications (user_id, notification_type, title, message, state, is_read) VALUES (?, 'request', ?, ?, 'unread', 0)");
+        $requestId = intval($request['request_id'] ?? 0);
+        $ins = $this->conn->prepare("INSERT INTO notifications (user_id, notification_type, title, message, entity_type, entity_id, action_key, state, is_read) VALUES (?, 'request', ?, ?, 'request', ?, 'request.view', 'unread', 0)");
         if ($ins) {
-            $ins->bind_param('iss', $userId, $title, $message);
+            $ins->bind_param('issi', $userId, $title, $message, $requestId);
             $ins->execute();
             $ins->close();
         }

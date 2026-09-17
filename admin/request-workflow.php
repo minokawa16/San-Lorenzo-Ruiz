@@ -172,7 +172,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 $stmt->bind_param('ssiii', $status, $admin_remarks, $admin_id, $payment_id, $request_id);
                 if ($stmt->execute() && $stmt->affected_rows >= 0) {
                     createAuditLog($conn, $_SESSION['user_id'], 'VERIFY_PAYMENT', 'request_payments', $payment_id);
-                    createNotification($conn, $request['user_id'], 'Payment Receipt Reviewed', 'Your payment receipt for request ' . $request['reference_number'] . ' is now ' . ucfirst($status) . '.');
+                    createNotification($conn, $request['user_id'], 'Payment Receipt Reviewed', 'Your payment receipt for request ' . $request['reference_number'] . ' is now ' . ucfirst($status) . '.', true, 'requests', 'request', (int) $request_id, 'request.view');
                     $success = 'Payment status updated.';
                 } else {
                     $error = 'Unable to update payment status.';
@@ -189,7 +189,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $error = $document['error'] ?? 'Please choose a file to release.';
         } else {
             createAuditLog($conn, $_SESSION['user_id'], 'UPLOAD_REQUEST_FILE', 'request_documents', $document['document_id']);
-            createNotification($conn, $request['user_id'], 'Parish File Available', 'A parish office file was added to request ' . $request['reference_number'] . '.');
+            createNotification($conn, $request['user_id'], 'Parish File Available', 'A parish office file was added to request ' . $request['reference_number'] . '.', true, 'requests', 'request', (int) $request_id, 'request.view');
 
             if (!empty($_POST['mark_completed'])) {
                 $stmt = $conn->prepare("UPDATE requests SET status = 'completed' WHERE request_id = ?");

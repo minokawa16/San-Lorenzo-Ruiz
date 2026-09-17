@@ -15,13 +15,24 @@ if (!hasPermission('requests.view_own')) {
 
 $user_id = $_SESSION['user_id'];
 $request_id = intval($_GET['id'] ?? 0);
+$reference_number = trim((string) ($_GET['ref'] ?? ''));
 
-$stmt = $conn->prepare("SELECT r.*, u.fullname as user_name FROM requests r JOIN users u ON r.user_id = u.id WHERE r.request_id = ? AND r.user_id = ?");
-if (!$stmt) {
+if ($request_id > 0) {
+    $stmt = $conn->prepare("SELECT r.*, u.fullname as user_name FROM requests r JOIN users u ON r.user_id = u.id WHERE r.request_id = ? AND r.user_id = ?");
+    if (!$stmt) {
+        redirect('my-requests.php');
+    }
+    $stmt->bind_param('ii', $request_id, $user_id);
+} elseif ($reference_number !== '') {
+    $stmt = $conn->prepare("SELECT r.*, u.fullname as user_name FROM requests r JOIN users u ON r.user_id = u.id WHERE r.reference_number = ? AND r.user_id = ?");
+    if (!$stmt) {
+        redirect('my-requests.php');
+    }
+    $stmt->bind_param('si', $reference_number, $user_id);
+} else {
     redirect('my-requests.php');
 }
 
-$stmt->bind_param('ii', $request_id, $user_id);
 $stmt->execute();
 $result = $stmt->get_result();
 
@@ -31,6 +42,7 @@ if (!$result || $result->num_rows == 0) {
 }
 
 $request = $result->fetch_assoc();
+$request_id = intval($request['request_id']);
 $stmt->close();
 
 ensureRequestDocumentsSchema($conn);
@@ -66,13 +78,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
         );
 
         if ($payment['ok']) {
-            createNotification($conn, $user_id, 'Payment Receipt Submitted', 'Your receipt was submitted for request ' . $request['reference_number'] . '.');
+            createNotification($conn, $user_id, 'Payment Receipt Submitted', 'Your receipt was submitted for request ' . $request['reference_number'] . '.', true, 'requests', 'request', (int) $request['request_id'], 'request.view');
             
             // Notify administrators and staff
             $admin_stmt = $conn->query("SELECT id FROM users WHERE role IN ('admin', 'staff') AND status = 'active'");
             if ($admin_stmt) {
                 while ($admin_row = $admin_stmt->fetch_assoc()) {
-                    createNotification($conn, (int)$admin_row['id'], 'Payment Receipt Submitted', 'Parishioner ' . ($request['user_name'] ?? 'A parishioner') . ' submitted a GCash receipt for request ' . $request['reference_number'] . '.');
+                    createNotification($conn, (int)$admin_row['id'], 'Payment Receipt Submitted', 'Parishioner ' . ($request['user_name'] ?? 'A parishioner') . ' submitted a GCash receipt for request ' . $request['reference_number'] . '.', true, 'requests', 'request', (int) $request['request_id'], 'request.view');
                 }
             }
             

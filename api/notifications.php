@@ -47,7 +47,7 @@ if ($method === 'GET') {
             $result = $stmt->get_result();
             while ($row = $result->fetch_assoc()) {
                 $row['is_read'] = ($row['state'] === 'read' || (int) $row['is_read'] === 1) ? 1 : 0;
-                $row['action_url'] = NotificationService::actionUrl($row['action_key'] ?? '');
+                $row['action_url'] = NotificationService::actionUrl($row['action_key'] ?? '', $row['entity_type'] ?? null, $row['entity_id'] ?? null, $row, $conn);
                 $row['time_ago'] = formatDateTime($row['created_at']);
                 $notifications[] = $row;
             }

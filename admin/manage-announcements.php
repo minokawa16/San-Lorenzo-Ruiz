@@ -204,7 +204,7 @@ if (!function_exists('queueAnnouncementNotifications')) {
             $email_status = 'skipped';
             $sms_status = 'skipped';
             if ($send_system && intval($recipient['in_app_enabled']) === 1) {
-                if (createNotification($conn, intval($recipient['id']), 'New Parish Announcement', $title, false, 'announcements')) {
+                if (createNotification($conn, intval($recipient['id']), 'New Parish Announcement', $title, false, 'announcements', 'announcement', $announcement_id, 'announcement.view')) {
                     $system_count++;
                 }
             }

@@ -320,17 +320,26 @@ function dispatchNotificationDelivery($conn, $user_id, $title, $message, $catego
 }
 
 // Notification System - Creates in-app alerts for parishioners and staff.
-function createNotification($conn, $user_id, $title, $message, $send_outbound = true, $category = null) {
+function createNotification($conn, $user_id, $title, $message, $send_outbound = true, $category = null, $entity_type = null, $entity_id = null, $action_key = null) {
     require_once dirname(__DIR__) . '/services/NotificationService.php';
-    return (new NotificationService($conn))->createLegacy((int)$user_id, (string)$title, (string)$message, (bool)$send_outbound, (string)($category ?: 'system')) !== null;
+    return (new NotificationService($conn))->createLegacy(
+        (int)$user_id,
+        (string)$title,
+        (string)$message,
+        (bool)$send_outbound,
+        (string)($category ?: 'system'),
+        $entity_type,
+        $entity_id ? (int)$entity_id : null,
+        $action_key
+    ) !== null;
 }
 
-function createNotificationSafe($conn, $user_id, $title, $message) {
+function createNotificationSafe($conn, $user_id, $title, $message, $send_outbound = true, $category = null, $entity_type = null, $entity_id = null, $action_key = null) {
     if (!$conn || !tableExists($conn, 'notifications')) {
         return false;
     }
 
-    return createNotification($conn, $user_id, $title, $message);
+    return createNotification($conn, $user_id, $title, $message, $send_outbound, $category, $entity_type, $entity_id, $action_key);
 }
 
 // System-Wide Automatic Notification Dispatch - Broadcasts to all active parishioners across In-App, Email & SMS.
@@ -458,6 +467,14 @@ function ensureEmailNotificationSchema($conn) {
                 $ins->execute();
             }
             $ins->close();
+        }
+
+        // Self-healing backfill for unlinked notifications with reference numbers
+        if (tableExists($conn, 'notifications') && tableExists($conn, 'requests')) {
+            $conn->query("UPDATE notifications n 
+                JOIN requests r ON (n.message LIKE CONCAT('%', r.reference_number, '%') OR n.title LIKE CONCAT('%', r.reference_number, '%'))
+                SET n.entity_type = 'request', n.entity_id = r.request_id, n.action_key = 'request.view'
+                WHERE (n.entity_id IS NULL OR n.action_key IS NULL) AND r.reference_number IS NOT NULL AND r.reference_number <> ''");
         }
     }
 
