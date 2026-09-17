@@ -517,130 +517,308 @@ $breadcrumbs = [
 ?>
 <?php include '../templates/header.php'; ?>
 
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,400&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
 <style>
-/* --- Workflow Layout & Document Presentation Styles --- */
+/* --- Dense & Compact Request Workflow Layout --- */
 .workflow-wrap {
-    max-width: 1040px;
+    max-width: 980px;
     margin: 0 auto;
+    font-family: 'Work Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #1e293b;
+    font-size: 12.5px;
+    line-height: 1.45;
 }
 
-/* Micro Typography for Administrative Metadata */
-.micro-label {
-    font-size: 0.72rem;
+/* Page Header - Dense, Serif Title with Avatar Chip */
+.rw-header-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 0 12px 0;
+    min-height: 48px; /* Reserve height upfront to avoid layout reflow */
+}
+
+.rw-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.rw-icon-badge {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: #8c6225;
+    color: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    flex-shrink: 0;
+    box-shadow: 0 1px 3px rgba(140, 98, 37, 0.2);
+}
+
+.rw-header-title {
+    font-family: 'Lora', Georgia, serif;
+    font-size: 17px;
+    font-weight: 600;
+    color: #1e293b;
+    line-height: 1.2;
+    margin: 0;
+}
+
+.rw-header-subtitle {
+    font-size: 12px;
+    color: #64748b;
+    margin: 1px 0 0 0;
+}
+
+.rw-admin-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #ffffff;
+    border: 1px solid #E7E0D2;
+    padding: 3px 10px 3px 4px;
+    border-radius: 20px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #334155;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+}
+
+.rw-admin-avatar {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #e2e8f0;
+    color: #475569;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+/* Compact Section Cards */
+.rw-card {
+    background: #ffffff;
+    border: 1px solid #E7E0D2;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.rw-section-header {
+    padding: 8px 14px;
+    background: #ffffff;
+    border-bottom: 1px solid #E7E0D2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.rw-section-title {
+    font-size: 12.5px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.04em;
+    color: #1e293b;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.rw-section-body {
+    padding: 12px 14px;
+}
+
+/* Micro Typography */
+.micro-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
     color: #64748b;
-    margin-bottom: 0.25rem;
+    margin-bottom: 3px;
     display: block;
 }
 
 .meta-value {
     color: #0f172a;
     font-weight: 600;
+    font-size: 12.5px;
     word-break: break-word;
 }
 
-/* Official Printable Church Document Container */
-.formal-document-container {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
-    position: relative;
-    overflow: hidden;
+/* Section 1 Warning & Info Boxes */
+.rw-alert-warning {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 7px;
+    padding: 9px 12px;
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
 }
 
-.formal-doc-header {
-    background: #f8fafc;
-    border-bottom: 2px solid #e2e8f0;
-    padding: 1.15rem 1.75rem;
-}
-
-.formal-doc-body {
-    padding: 2rem 2.25rem;
-}
-
-.formal-section-title {
-    font-size: 0.92rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: #1e293b;
-    border-bottom: 1px solid #e2e8f0;
-    padding-bottom: 0.65rem;
-    margin-bottom: 1.25rem;
+.rw-alert-success {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 7px;
+    padding: 9px 12px;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
 }
 
-.formal-inset-card {
-    background-color: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 1.25rem 1.5rem;
+/* Section 2 Two-Column & File Card */
+.rw-file-card {
+    background: #fdfdfd;
+    border: 1px solid #E7E0D2;
+    border-radius: 7px;
+    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 42px;
 }
 
-.formal-doc-footer {
-    border-top: 1px dashed #cbd5e1;
-    margin-top: 2rem;
-    padding-top: 1.25rem;
-    text-align: center;
-    font-size: 0.8rem;
-    color: #64748b;
-    font-style: italic;
+.btn-icon-gold {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #8c6225;
+    border: 1px solid #8c6225;
+    color: #ffffff !important;
+    border-radius: 6px;
+    font-size: 11px;
+    transition: background 0.15s ease-in-out;
+}
+.btn-icon-gold:hover {
+    background: #734f1d;
+    border-color: #734f1d;
 }
 
-/* Parish Primary Button (Deep Golden Brown / Amber Tone) */
+.btn-icon-neutral {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    color: #475569 !important;
+    border-radius: 6px;
+    font-size: 11px;
+    transition: all 0.15s ease-in-out;
+}
+.btn-icon-neutral:hover {
+    background: #f1f5f9;
+    color: #1e293b !important;
+}
+
+/* Parish Buttons */
 .btn-parish-gold {
     background-color: #8c6225 !important;
     border-color: #8c6225 !important;
     color: #ffffff !important;
     font-weight: 600;
-    padding: 0.65rem 1.85rem;
-    border-radius: 8px;
-    box-shadow: 0 2px 6px rgba(140, 98, 37, 0.25);
-    transition: all 0.2s ease-in-out;
+    font-size: 12.5px;
+    padding: 5px 14px;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(140, 98, 37, 0.2);
+    transition: all 0.15s ease-in-out;
 }
 
-.btn-parish-gold:hover,
-.btn-parish-gold:focus,
-.btn-parish-gold:active {
+.btn-parish-gold:hover {
     background-color: #734f1d !important;
     border-color: #734f1d !important;
     color: #ffffff !important;
-    box-shadow: 0 4px 12px rgba(115, 79, 29, 0.35);
-    transform: translateY(-1px);
+}
+
+/* Formal Document Box inside Collapsible */
+.formal-document-container {
+    background: #ffffff;
+    border: 1px solid #E7E0D2;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.formal-doc-header {
+    background: #fafaf8;
+    border-bottom: 1px solid #E7E0D2;
+    padding: 8px 14px;
+}
+
+.formal-doc-body {
+    padding: 14px 16px;
+}
+
+.formal-section-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #1e293b;
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 4px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.formal-inset-card {
+    background-color: #fafaf8;
+    border: 1px solid #E7E0D2;
+    border-radius: 7px;
+    padding: 10px 12px;
+}
+
+.formal-doc-footer {
+    border-top: 1px dashed #cbd5e1;
+    margin-top: 14px;
+    padding-top: 8px;
+    text-align: center;
+    font-size: 11px;
+    color: #64748b;
+    font-style: italic;
 }
 
 /* Document Toggle Button */
 .btn-toggle-doc {
     transition: all 0.2s ease-in-out;
-    border-width: 1.5px;
-}
-
-/* Requirements list helpers */
-.requirement-review-list .min-w-0 {
-    min-width: 0;
-}
-
-.requirement-review-list strong {
-    color: #172033;
-    overflow-wrap: anywhere;
+    border-width: 1px;
+    font-size: 12px;
 }
 
 /* Clean Form Controls */
 .form-control,
 .form-select {
     border-color: #cbd5e1;
-    border-radius: 8px;
+    border-radius: 6px;
+    font-size: 12px;
 }
 
 .form-control:focus,
 .form-select:focus {
     border-color: #8c6225;
-    box-shadow: 0 0 0 0.2rem rgba(140, 98, 37, 0.15);
+    box-shadow: 0 0 0 0.15rem rgba(140, 98, 37, 0.12);
 }
 
 /* Print Optimization */
@@ -670,23 +848,30 @@ $breadcrumbs = [
 </style>
 
 <div class="container-fluid px-0">
-    <!-- Standardized Section Header -->
-    <?php
-    $page_header_title = 'Request Workflow';
-    if ($is_certificate) {
-        $page_header_subtitle = 'Process document review, verify payment receipts, and release certificates for ' . e($request['reference_number']);
-    } elseif ($is_blessing) {
-        $page_header_subtitle = 'Review blessing details, inspect applicant submission, and manage schedule for ' . e($request['reference_number']);
-    } else {
-        $page_header_subtitle = 'Review sacramental application, inspect submitted details, and manage schedule for ' . e($request['reference_number']);
-    }
-    $page_header_icon = 'fa-route';
-    $show_back_button = true;
-    $back_button_url = 'manage-requests.php';
-    include '../includes/page_header.php';
-    ?>
-
-    <div class="workflow-wrap pb-5">
+    <div class="workflow-wrap pb-4">
+        <!-- Compact Page Header -->
+        <div class="rw-header-bar no-print">
+            <div class="rw-header-left">
+                <div class="rw-icon-badge">
+                    <i class="fas fa-route"></i>
+                </div>
+                <div>
+                    <h1 class="rw-header-title">Request Workflow</h1>
+                    <p class="rw-header-subtitle">Track request progress and operational steps.</p>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <a href="manage-requests.php" class="btn btn-sm btn-light border text-secondary d-inline-flex align-items-center gap-1 py-1 px-2.5" style="font-size: 11.5px; border-radius: 6px;" title="Back to Requests">
+                    <i class="fas fa-arrow-left"></i> Back
+                </a>
+                <div class="rw-admin-chip">
+                    <div class="rw-admin-avatar">
+                        <i class="fas fa-user-shield"></i>
+                    </div>
+                    <span>Parish Admin</span>
+                </div>
+            </div>
+        </div>
         <?php if ($error): ?>
             <div class="alert alert-danger shadow-sm mb-4 d-flex align-items-center gap-2">
                 <i class="fas fa-exclamation-circle fs-5"></i>
@@ -700,29 +885,27 @@ $breadcrumbs = [
             </div>
         <?php endif; ?>
 
-        <!-- ========================================================= -->
         <!-- 1. TOP OVERVIEW CARD (Summary Metadata + Expandable Toggle) -->
-        <!-- ========================================================= -->
-        <div class="card mb-4 shadow-sm border-0 rounded-3 overflow-hidden">
-            <div class="card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="rw-card">
+            <div class="rw-section-header">
                 <div class="d-flex align-items-center gap-2 flex-wrap">
-                    <span class="badge bg-light text-dark border font-monospace px-2.5 py-1.5 fs-6 fw-bold">
+                    <span class="badge bg-light text-dark border font-monospace px-2 py-1 fw-bold" style="font-size: 11.5px;">
                         <i class="fas fa-receipt me-1 text-primary"></i><?php echo e($request['reference_number']); ?>
                     </span>
-                    <span class="badge bg-<?php echo $category_badges[$request_category] ?? 'secondary'; ?>-subtle text-<?php echo $category_badges[$request_category] ?? 'secondary'; ?> border border-<?php echo $category_badges[$request_category] ?? 'secondary'; ?>-subtle text-uppercase fw-semibold px-2.5 py-1">
+                    <span class="badge bg-<?php echo $category_badges[$request_category] ?? 'secondary'; ?>-subtle text-<?php echo $category_badges[$request_category] ?? 'secondary'; ?> border border-<?php echo $category_badges[$request_category] ?? 'secondary'; ?>-subtle text-uppercase fw-semibold px-2 py-0.5" style="font-size: 10.5px;">
                         <?php echo e($category_labels[$request_category] ?? 'Parish Request'); ?>
                     </span>
                 </div>
                 <div class="d-flex align-items-center gap-2">
-                    <span class="badge rounded-pill px-3 py-2 fs-6 fw-semibold text-uppercase <?php echo getStatusBadgeClass($disp_status); ?>">
+                    <span class="badge rounded-pill px-2.5 py-1 fw-semibold text-uppercase <?php echo getStatusBadgeClass($disp_status); ?>" style="font-size: 11px;">
                         <?php echo e(ucfirst(str_replace('_', ' ', $disp_status))); ?>
                     </span>
                 </div>
             </div>
 
-            <div class="card-body p-4">
+            <div class="rw-section-body">
                 <!-- Metadata Grid -->
-                <div class="row g-4">
+                <div class="row g-2.5">
                     <div class="col-6 col-md-3">
                         <span class="micro-label">Tracking Reference</span>
                         <div class="meta-value font-monospace text-primary">
@@ -740,7 +923,7 @@ $breadcrumbs = [
                     <div class="col-6 col-md-3">
                         <span class="micro-label">Category Badge</span>
                         <div>
-                            <span class="badge bg-<?php echo $category_badges[$request_category] ?? 'secondary'; ?> text-uppercase">
+                            <span class="badge bg-<?php echo $category_badges[$request_category] ?? 'secondary'; ?> text-uppercase" style="font-size: 10.5px;">
                                 <?php echo e($category_labels[$request_category] ?? 'Request'); ?>
                             </span>
                         </div>
@@ -755,8 +938,8 @@ $breadcrumbs = [
 
                     <div class="col-6 col-md-3">
                         <span class="micro-label">Parishioner Name</span>
-                        <div class="meta-value d-flex align-items-center gap-2">
-                            <?php echo renderUserAvatar($request, 28); ?>
+                        <div class="meta-value d-flex align-items-center gap-1.5">
+                            <?php echo renderUserAvatar($request, 22); ?>
                             <span><?php echo e($request['fullname']); ?></span>
                         </div>
                     </div>
@@ -772,7 +955,7 @@ $breadcrumbs = [
                         <span class="micro-label">Date/Time Requested</span>
                         <div class="meta-value">
                             <?php echo formatDate($request['date_requested']); ?>
-                            <span class="text-muted small fw-normal d-block"><?php echo date('h:i A', strtotime($request['date_requested'])); ?></span>
+                            <span class="text-muted small fw-normal d-block" style="font-size: 10.5px;"><?php echo date('h:i A', strtotime($request['date_requested'])); ?></span>
                         </div>
                     </div>
 
@@ -784,15 +967,15 @@ $breadcrumbs = [
                                     <i class="fas fa-phone small me-1"></i><?php echo e($request['phone_number']); ?>
                                 </a>
                             <?php else: ?>
-                                <span class="text-muted fw-normal">None provided</span>
+                                <span class="text-muted fw-normal" style="font-size: 11px;">None provided</span>
                             <?php endif; ?>
                         </div>
                     </div>
                 </div>
 
                 <!-- Primary Toggle Button Bar -->
-                <div class="mt-4 pt-3 border-top d-flex justify-content-between align-items-center flex-wrap gap-2">
-                    <button class="btn btn-outline-primary btn-toggle-doc px-4 py-2 fw-semibold d-inline-flex align-items-center gap-2" 
+                <div class="mt-2.5 pt-2 border-top d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <button class="btn btn-outline-primary btn-toggle-doc px-3 py-1 fw-semibold d-inline-flex align-items-center gap-1.5" 
                             type="button" 
                             id="toggleApplicationFormBtn" 
                             data-bs-toggle="collapse" 
@@ -1030,17 +1213,6 @@ $breadcrumbs = [
                         <?php endif; ?>
                     <?php endif; ?>
 
-                    <!-- Raw Submission Collapsible -->
-                    <div class="mt-3 text-end no-print">
-                        <button class="btn btn-sm btn-link text-muted text-decoration-none" type="button" data-bs-toggle="collapse" data-bs-target="#rawSubmissionCollapse" aria-expanded="false">
-                            <i class="fas fa-code me-1"></i> Toggle Raw Form Text
-                        </button>
-                        <div class="collapse mt-2 text-start" id="rawSubmissionCollapse">
-                            <div class="card card-body bg-light small font-monospace text-secondary p-3 border">
-                                <?php echo nl2br(e($request['description'] ?: 'No raw submission text.')); ?>
-                            </div>
-                        </div>
-                    </div>
 
                     <!-- Formal Document Footer Text -->
                     <div class="formal-doc-footer">
@@ -1056,36 +1228,37 @@ $breadcrumbs = [
         
         <!-- Payment Receipts (For Certificate Requests) -->
         <?php if ($is_certificate): ?>
-        <div class="card mb-4 shadow-sm border-0 rounded-3">
-            <div class="card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <h6 class="mb-0 fw-bold text-dark">
-                    <i class="fas fa-receipt text-primary me-2"></i> Payment Receipts &amp; Verification
+        <div class="rw-card">
+            <div class="rw-section-header">
+                <h6 class="rw-section-title">
+                    <i class="fas fa-receipt" style="color: #8c6225; font-size: 13px;"></i>
+                    PAYMENT RECEIPTS &amp; VERIFICATION
                 </h6>
-                <span class="badge bg-success px-2.5 py-1.5">
+                <span class="badge" style="background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 12px;">
                     Verified Total: PHP <?php echo number_format($payment_summary['verified_amount'], 2); ?>
                 </span>
             </div>
-            <div class="card-body p-4">
+            <div class="rw-section-body">
                 <?php if (empty($payments) && empty($documents_by_type['payment_receipt'])): ?>
-                    <div class="text-muted small fst-italic">No payment receipts submitted yet.</div>
+                    <div class="text-muted fst-italic" style="font-size: 11.5px;">No payment receipts submitted yet.</div>
                 <?php else: ?>
                     <?php foreach ($payments as $payment): ?>
                         <?php
                         $badge_map = [
-                            'pending' => ['class' => 'warning text-dark', 'icon' => 'fa-clock', 'label' => 'Pending Verification'],
+                            'pending' => ['class' => 'warning text-dark', 'icon' => 'fa-clock', 'label' => 'Pending'],
                             'verified' => ['class' => 'success', 'icon' => 'fa-circle-check', 'label' => 'Verified'],
                             'rejected' => ['class' => 'danger', 'icon' => 'fa-circle-xmark', 'label' => 'Rejected']
                         ];
                         $curr_badge = $badge_map[$payment['status']] ?? ['class' => 'secondary', 'icon' => 'fa-info-circle', 'label' => ucfirst($payment['status'])];
                         ?>
-                        <div class="border rounded-3 p-3 mb-3 bg-light-subtle shadow-sm">
-                            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2 pb-2 border-bottom">
+                        <div class="border rounded p-2.5 mb-2 bg-light-subtle">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1.5 pb-1.5 border-bottom">
                                 <div>
                                     <div class="d-flex align-items-center gap-2">
-                                        <span class="fs-5 fw-bold text-dark">PHP <?php echo number_format(floatval($payment['amount']), 2); ?></span>
-                                        <span class="badge bg-primary text-uppercase font-monospace"><?php echo e($payment['payment_method']); ?></span>
+                                        <span class="fw-bold text-dark" style="font-size: 13px;">PHP <?php echo number_format(floatval($payment['amount']), 2); ?></span>
+                                        <span class="badge bg-primary text-uppercase font-monospace" style="font-size: 10px;"><?php echo e($payment['payment_method']); ?></span>
                                     </div>
-                                    <div class="small text-muted mt-1">
+                                    <div class="text-muted mt-0.5" style="font-size: 10.5px;">
                                         <?php if (!empty($payment['reference_number'])): ?>
                                             <span class="me-2"><i class="fas fa-hashtag me-1"></i>Ref: <strong><?php echo e($payment['reference_number']); ?></strong></span>
                                         <?php endif; ?>
@@ -1094,21 +1267,22 @@ $breadcrumbs = [
                                         <?php endif; ?>
                                     </div>
                                 </div>
-                                <span class="badge bg-<?php echo e($curr_badge['class']); ?> px-2.5 py-1.5">
+                                <span class="badge bg-<?php echo e($curr_badge['class']); ?> px-2 py-0.5" style="font-size: 10.5px;">
                                     <i class="fas <?php echo e($curr_badge['icon']); ?> me-1"></i><?php echo e($curr_badge['label']); ?>
                                 </span>
                             </div>
 
                             <?php if (!empty($payment['notes'])): ?>
-                                <div class="small p-2 bg-white rounded border mb-2 text-secondary">
+                                <div class="p-1.5 bg-white rounded border mb-1.5 text-secondary" style="font-size: 11px;">
                                     <i class="fas fa-comment-dots me-1 text-muted"></i><strong>Parishioner Note:</strong> <?php echo e($payment['notes']); ?>
                                 </div>
                             <?php endif; ?>
 
                             <?php if (!empty($payment['receipt_document_id'])): ?>
-                                <div class="mb-3 d-flex align-items-center gap-2">
+                                <div class="mb-2 d-flex align-items-center gap-1.5">
                                     <button type="button" 
-                                            class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-2 btn-preview-doc"
+                                            class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 btn-preview-doc py-0.5 px-2"
+                                            style="font-size: 11.5px; border-radius: 5px;"
                                             data-bs-toggle="modal"
                                             data-bs-target="#documentPreviewModal"
                                             data-doc-id="<?php echo intval($payment['receipt_document_id']); ?>"
@@ -1117,9 +1291,10 @@ $breadcrumbs = [
                                             data-doc-size="<?php echo !empty($payment['file_size']) ? formatFileSize($payment['file_size']) : ''; ?>"
                                             data-doc-mime="<?php echo e($payment['mime_type'] ?? ''); ?>">
                                         <i class="fas fa-file-invoice"></i>
-                                        <span>View Receipt (<?php echo e($payment['original_name'] ?: 'Receipt File'); ?><?php echo !empty($payment['file_size']) ? ' &bull; ' . formatFileSize($payment['file_size']) : ''; ?>)</span>
+                                        <span>View Receipt (<?php echo e($payment['original_name'] ?: 'Receipt'); ?><?php echo !empty($payment['file_size']) ? ' &bull; ' . formatFileSize($payment['file_size']) : ''; ?>)</span>
                                     </button>
-                                    <a class="btn btn-sm btn-outline-secondary" 
+                                    <a class="btn btn-sm btn-outline-secondary py-0.5 px-1.5" 
+                                       style="font-size: 11.5px; border-radius: 5px;"
                                        href="../request-document.php?id=<?php echo intval($payment['receipt_document_id']); ?>&download=1" 
                                        title="Download Receipt" 
                                        download>
@@ -1128,14 +1303,14 @@ $breadcrumbs = [
                                 </div>
                             <?php endif; ?>
 
-                            <form method="POST" class="row g-2 align-items-center pt-2 border-top">
+                            <form method="POST" class="row g-2 align-items-center pt-1.5 border-top">
                                 <?php echo csrfInput(); ?>
                                 <input type="hidden" name="action" value="verify_payment">
                                 <input type="hidden" name="request_id" value="<?php echo intval($request_id); ?>">
                                 <input type="hidden" name="payment_id" value="<?php echo intval($payment['payment_id']); ?>">
                                 <div class="col-md-3">
                                     <span class="micro-label">Status</span>
-                                    <select class="form-select form-select-sm" name="payment_status" required>
+                                    <select class="form-select form-select-sm" name="payment_status" required style="font-size: 11.5px; padding: 2px 6px; height: 28px;">
                                         <option value="pending" <?php echo $payment['status'] === 'pending' ? 'selected' : ''; ?>>Pending</option>
                                         <option value="verified" <?php echo $payment['status'] === 'verified' ? 'selected' : ''; ?>>Verified</option>
                                         <option value="rejected" <?php echo $payment['status'] === 'rejected' ? 'selected' : ''; ?>>Rejected</option>
@@ -1143,11 +1318,11 @@ $breadcrumbs = [
                                 </div>
                                 <div class="col-md-6">
                                     <span class="micro-label">Admin Remarks</span>
-                                    <input type="text" class="form-control form-control-sm" name="admin_remarks" value="<?php echo e($payment['admin_remarks'] ?? ''); ?>" placeholder="Enter verification note or reference check">
+                                    <input type="text" class="form-control form-control-sm" name="admin_remarks" value="<?php echo e($payment['admin_remarks'] ?? ''); ?>" placeholder="Enter note or check..." style="font-size: 11.5px; padding: 2px 8px; height: 28px;">
                                 </div>
                                 <div class="col-md-3 d-flex align-items-end">
-                                    <button type="submit" class="btn btn-sm btn-primary w-100 mt-auto">
-                                        <i class="fas fa-check-double me-1"></i> Update Payment
+                                    <button type="submit" class="btn btn-sm btn-primary w-100 mt-auto fw-semibold" style="font-size: 11.5px; padding: 3px 8px; height: 28px;">
+                                        <i class="fas fa-check-double me-1"></i> Update
                                     </button>
                                 </div>
                             </form>
@@ -1159,61 +1334,61 @@ $breadcrumbs = [
         <?php endif; ?>
 
         <?php if ($is_certificate && (str_contains($raw_type, 'baptism') || str_contains($raw_type, 'bapt'))): ?>
-        <!-- Sacramental Registry Record Cross-Check Card -->
-        <div class="card mb-4 shadow-sm border-0 rounded-3 overflow-hidden" style="border-left: 5px solid #0284c7 !important;">
-            <div class="card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <div class="d-flex align-items-center gap-2">
-                    <i class="fas fa-water text-primary fs-5"></i>
-                    <h6 class="mb-0 fw-bold text-dark text-uppercase tracking-wider">
-                        Sacramental Registry Record Cross-Check
-                    </h6>
+        <!-- SECTION 1: Sacramental Registry Cross-Check -->
+        <div class="rw-card">
+            <div class="rw-section-header">
+                <h6 class="rw-section-title">
+                    <i class="fas fa-water" style="color: #0284c7; font-size: 13px;"></i>
+                    SACRAMENTAL REGISTRY CROSS-CHECK
+                </h6>
+                <div>
+                    <?php if (!empty($baptism_meta['matched_baptism_id'])): ?>
+                        <span class="badge" style="background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 12px;">
+                            <i class="fas fa-check-circle me-1"></i> Registry record matched
+                        </span>
+                    <?php else: ?>
+                        <span class="badge" style="background: #fef3c7; color: #b45309; border: 1px solid #fde68a; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 12px;">
+                            <i class="fas fa-search me-1"></i> Manual lookup needed
+                        </span>
+                    <?php endif; ?>
                 </div>
-                <?php if (!empty($baptism_meta['matched_baptism_id'])): ?>
-                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1">
-                        <i class="fas fa-check-circle me-1"></i> Registry Record Matched
-                    </span>
-                <?php else: ?>
-                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2.5 py-1">
-                        <i class="fas fa-search me-1"></i> Manual Archive Lookup Required
-                    </span>
-                <?php endif; ?>
             </div>
-            <div class="card-body p-4">
+            <div class="rw-section-body">
                 <?php if (!empty($baptism_meta['matched_baptism_id'])): ?>
-                    <div class="alert alert-success d-flex align-items-center justify-content-between flex-wrap gap-3 mb-0 p-3 rounded-3" style="background: #f0fdf4; border: 1px solid #bbf7d0;">
-                        <div class="d-flex align-items-center gap-3">
-                            <div class="text-success fs-3"><i class="fas fa-circle-check"></i></div>
-                            <div>
-                                <strong class="text-dark d-block" style="font-size: 1rem;">Matched Sacramental Record #<?php echo intval($baptism_meta['matched_baptism_id']); ?> on File</strong>
-                                <span class="text-secondary small">
+                    <div class="rw-alert-success mb-2">
+                        <div class="d-flex align-items-center gap-2 text-truncate">
+                            <i class="fas fa-circle-check text-success flex-shrink-0" style="font-size: 14px;"></i>
+                            <div class="text-truncate">
+                                <span class="fw-bold text-dark d-block text-truncate" style="font-size: 12px;">Matched Sacramental Record #<?php echo intval($baptism_meta['matched_baptism_id']); ?> on File</span>
+                                <span class="text-muted text-truncate d-block" style="font-size: 11px;">
                                     Book: <strong><?php echo e($baptism_meta['book_no'] ?: 'N/A'); ?></strong> &bull; 
                                     Page: <strong><?php echo e($baptism_meta['page_no'] ?: 'N/A'); ?></strong> &bull; 
                                     Entry: <strong><?php echo e($baptism_meta['entry_no'] ?: 'N/A'); ?></strong>
                                     <?php if (!empty($baptism_meta['priest'])): ?>
-                                        &bull; Recorded Priest: <em><?php echo e($baptism_meta['priest']); ?></em>
+                                        &bull; Priest: <em><?php echo e($baptism_meta['priest']); ?></em>
                                     <?php endif; ?>
                                 </span>
                             </div>
                         </div>
-                        <a href="certificate-generator.php?cert_type=baptism&record_id=<?php echo intval($baptism_meta['matched_baptism_id']); ?>" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-2 px-3 py-2 fw-semibold" style="border-radius: 8px;">
+                        <a href="certificate-generator.php?cert_type=baptism&record_id=<?php echo intval($baptism_meta['matched_baptism_id']); ?>" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1.5 flex-shrink-0" style="font-size: 11.5px; padding: 4px 10px; border-radius: 6px; font-weight: 600;">
                             <i class="fas fa-file-signature"></i>
                             <span>Generate Certificate</span>
                         </a>
                     </div>
                 <?php else: ?>
-                    <div class="alert alert-warning d-flex align-items-center justify-content-between flex-wrap gap-3 mb-0 p-3 rounded-3" style="background: #fffbeb; border: 1px solid #fef3c7;">
-                        <div class="d-flex align-items-center gap-3">
-                            <div class="text-warning fs-3"><i class="fas fa-triangle-exclamation"></i></div>
-                            <div>
-                                <strong class="text-dark d-block">No Exact Registry Match Found Automatically</strong>
-                                <span class="text-secondary small">The parishioner's submitted Name, Birthday, and Date of Baptism did not match an existing active entry. Search the parish archives or open Certificate Generator to select a record.</span>
+                    <div class="rw-alert-warning mb-2">
+                        <i class="fas fa-triangle-exclamation flex-shrink-0" style="color: #d97706; font-size: 13px; margin-top: 2px;"></i>
+                        <div style="flex: 1;">
+                            <div class="fw-bold" style="color: #92400e; font-size: 12px; line-height: 1.3;">No exact registry match found</div>
+                            <div style="color: #78350f; font-size: 11.5px; line-height: 1.35; margin-top: 2px;">
+                                The applicant's submitted name and sacrament date did not match an active entry automatically. Search the parish archives or open Certificate Generator to select a record.
                             </div>
                         </div>
-                        <a href="certificate-generator.php?cert_type=baptism" class="btn btn-sm btn-outline-warning text-dark d-inline-flex align-items-center gap-2 px-3 py-2 fw-semibold" style="border-radius: 8px;">
-                            <i class="fas fa-search"></i>
-                            <span>Search Records in Generator</span>
-                        </a>
                     </div>
+                    <a href="certificate-generator.php?cert_type=baptism" class="btn btn-sm btn-outline-warning text-dark d-inline-flex align-items-center gap-1.5" style="font-size: 11.5px; padding: 4px 10px; border-radius: 6px; font-weight: 600; border-color: #d97706;">
+                        <i class="fas fa-search"></i>
+                        <span>Search Records in Generator</span>
+                    </a>
                 <?php endif; ?>
             </div>
         </div>
@@ -1223,136 +1398,138 @@ $breadcrumbs = [
         <?php
         $is_online_release = (stripos((string)($request['description'] ?? ''), 'Online Release') !== false) || (stripos((string)($request['description'] ?? ''), 'online') !== false);
         $is_walkin_release = (stripos((string)($request['description'] ?? ''), 'Walk-in') !== false);
+        $released_files = array_merge($documents_by_type['released_certificate'], $documents_by_type['admin_file']);
+        $first_released = !empty($released_files) ? $released_files[0] : null;
         ?>
-        <!-- Release Certificate Card (For Certificate Requests) -->
-        <div class="card mb-4 shadow-sm border-0 rounded-3 overflow-hidden" style="border-left: 5px solid #22c55e !important;">
-            <div class="card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <div class="d-flex align-items-center gap-2">
-                    <i class="fas fa-certificate text-success fs-5"></i>
-                    <h6 class="mb-0 fw-bold text-dark text-uppercase tracking-wider">
-                        Certificate Issuance &amp; Digital Release
-                    </h6>
-                </div>
+        <!-- SECTION 2: Certificate Issuance & Release -->
+        <div class="rw-card">
+            <div class="rw-section-header">
+                <h6 class="rw-section-title">
+                    <i class="fas fa-certificate" style="color: #16a34a; font-size: 13px;"></i>
+                    CERTIFICATE ISSUANCE &amp; RELEASE
+                </h6>
                 <div>
                     <?php if ($is_online_release): ?>
-                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1">
-                            <i class="fas fa-globe me-1"></i> Requested for Online Release (System Portal)
+                        <span class="badge" style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 12px;">
+                            <i class="fas fa-globe me-1"></i> Online Release
                         </span>
                     <?php elseif ($is_walkin_release): ?>
-                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2.5 py-1">
-                            <i class="fas fa-person-walking me-1"></i> Requested for Walk-in Pickup
+                        <span class="badge" style="background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 12px;">
+                            <i class="fas fa-person-walking me-1"></i> Walk-in Pickup
                         </span>
                     <?php endif; ?>
                 </div>
             </div>
-            <div class="card-body p-4">
-                <div class="row g-4">
-                    <div class="col-lg-6">
-                        <span class="micro-label mb-2">Upload Finalized / Signed Certificate</span>
-                        <p class="text-muted small mb-3">Attach the official signed/sealed certificate. When sent, the certificate will be immediately available in the parishioner's portal for download.</p>
-                        <form method="POST" enctype="multipart/form-data" class="border rounded-3 p-3 bg-light-subtle">
-                            <?php echo csrfInput(); ?>
-                            <input type="hidden" name="action" value="upload_release">
-                            <input type="hidden" name="request_id" value="<?php echo intval($request_id); ?>">
-                            <div class="mb-3">
-                                <label class="form-label small fw-bold text-dark mb-1" for="release_file">
-                                    Certificate Document <span class="text-danger">*</span>
-                                </label>
-                                <input type="file" class="form-control form-control-sm" id="release_file" name="release_file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" required>
-                                <div class="form-text small text-muted">Upload finalized certificate (PDF, JPG, PNG up to 10MB).</div>
+            <div class="rw-section-body">
+                <form method="POST" enctype="multipart/form-data">
+                    <?php echo csrfInput(); ?>
+                    <input type="hidden" name="action" value="upload_release">
+                    <input type="hidden" name="request_id" value="<?php echo intval($request_id); ?>">
+
+                    <div class="row g-3">
+                        <!-- Left Column: Upload -->
+                        <div class="col-12 col-md-6">
+                            <div class="fw-bold text-dark" style="font-size: 12px; margin-bottom: 2px;">Upload signed certificate</div>
+                            <div class="text-muted" style="font-size: 11.5px; margin-bottom: 6px;">Sends instantly to the parishioner's portal for download.</div>
+                            
+                            <div class="d-flex align-items-center gap-2">
+                                <input type="file" class="form-control form-control-sm" id="release_file" name="release_file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" required style="font-size: 11.5px; padding: 3px 8px; height: 30px;">
                             </div>
-                            <div class="form-check mb-3">
-                                <input class="form-check-input" type="checkbox" name="mark_completed" id="mark_completed" value="1" checked>
-                                <label class="form-check-label small" for="mark_completed">
-                                    Mark this certificate request as <strong>Completed (Fulfilled)</strong> and notify parishioner
-                                </label>
-                            </div>
-                            <button type="submit" class="btn btn-sm btn-success w-100 fw-semibold py-2">
-                                <i class="fas fa-paper-plane me-1"></i> Send to Parishioner
-                            </button>
-                        </form>
-                    </div>
-                    <div class="col-lg-6">
-                        <span class="micro-label mb-2">Released Certificate Files</span>
-                        <?php $released_files = array_merge($documents_by_type['released_certificate'], $documents_by_type['admin_file']); ?>
-                        <?php if (empty($released_files)): ?>
-                            <div class="text-muted small fst-italic p-4 bg-light-subtle border rounded-3 text-center">
-                                <i class="fas fa-file-circle-question fs-3 text-muted d-block mb-2"></i>
-                                No certificate files have been released for this request yet.
-                            </div>
-                        <?php else: ?>
-                            <div class="list-group">
-                                <?php foreach ($released_files as $document): ?>
-                                    <div class="list-group-item d-flex justify-content-between align-items-center rounded-2 mb-2 border p-3 bg-white shadow-sm">
-                                        <div class="text-truncate me-2">
-                                            <div class="d-flex align-items-center gap-2">
-                                                <i class="fas fa-file-circle-check text-success fs-5"></i>
-                                                <div>
-                                                    <span class="fw-semibold small text-dark d-block text-truncate" style="max-width: 250px;"><?php echo e($document['original_name']); ?></span>
-                                                    <small class="text-muted"><?php echo e(formatFileSize($document['file_size'])); ?> &bull; Uploaded <?php echo formatDate($document['uploaded_at']); ?></small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="d-flex align-items-center gap-1 flex-shrink-0">
-                                            <button type="button" 
-                                                    class="btn btn-sm btn-outline-primary py-1 px-2 btn-preview-doc"
-                                                    data-bs-toggle="modal"
-                                                    data-bs-target="#documentPreviewModal"
-                                                    data-doc-id="<?php echo intval($document['document_id']); ?>"
-                                                    data-doc-name="<?php echo e($document['original_name']); ?>"
-                                                    data-doc-file="<?php echo e($document['original_name']); ?>"
-                                                    data-doc-size="<?php echo e(formatFileSize($document['file_size'])); ?>"
-                                                    data-doc-mime="<?php echo e($document['mime_type'] ?? ''); ?>"
-                                                    title="Preview File">
-                                                <i class="fas fa-eye me-1"></i> View
-                                            </button>
-                                            <a class="btn btn-sm btn-success py-1 px-2 fw-semibold" 
-                                               href="../request-document.php?id=<?php echo intval($document['document_id']); ?>&download=1" 
-                                               title="Download File" 
-                                               download>
-                                                <i class="fas fa-download me-1"></i> Download
-                                            </a>
+                            <div class="text-muted" style="font-size: 10.5px; margin-top: 3px;">PDF, JPG, PNG up to 10MB</div>
+                        </div>
+
+                        <!-- Right Column: Released File -->
+                        <div class="col-12 col-md-6">
+                            <div class="fw-bold text-dark" style="font-size: 12px; margin-bottom: 2px;">Released file</div>
+                            <div class="text-muted" style="font-size: 11.5px; margin-bottom: 6px;">Official file currently delivered to applicant.</div>
+
+                            <?php if ($first_released): ?>
+                                <div class="rw-file-card">
+                                    <div class="d-flex align-items-center gap-2 text-truncate me-1">
+                                        <i class="fas fa-file-pdf text-danger flex-shrink-0" style="font-size: 15px;"></i>
+                                        <div class="text-truncate">
+                                            <span class="fw-semibold text-dark d-block text-truncate" style="font-size: 11.5px; max-width: 200px;" title="<?php echo e($first_released['original_name']); ?>">
+                                                <?php echo e($first_released['original_name']); ?>
+                                            </span>
+                                            <span class="text-muted d-block text-truncate" style="font-size: 10.5px;">
+                                                <?php echo e(formatFileSize($first_released['file_size'])); ?> &bull; <?php echo formatDate($first_released['uploaded_at']); ?>
+                                            </span>
                                         </div>
                                     </div>
-                                <?php endforeach; ?>
-                            </div>
-                        <?php endif; ?>
+                                    <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                                        <button type="button" 
+                                                class="btn-icon-neutral btn-preview-doc"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#documentPreviewModal"
+                                                data-doc-id="<?php echo intval($first_released['document_id']); ?>"
+                                                data-doc-name="<?php echo e($first_released['original_name']); ?>"
+                                                data-doc-file="<?php echo e($first_released['original_name']); ?>"
+                                                data-doc-size="<?php echo e(formatFileSize($first_released['file_size'])); ?>"
+                                                data-doc-mime="<?php echo e($first_released['mime_type'] ?? ''); ?>"
+                                                title="View file">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <a class="btn-icon-gold" 
+                                           href="../request-document.php?id=<?php echo intval($first_released['document_id']); ?>&download=1" 
+                                           title="Download file" 
+                                           download>
+                                            <i class="fas fa-download"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            <?php else: ?>
+                                <div class="rw-file-card text-muted fst-italic justify-content-center" style="font-size: 11.5px; background: #fafaf8; border-style: dashed;">
+                                    <i class="fas fa-file-circle-question me-1.5 text-secondary" style="font-size: 12px;"></i>
+                                    No certificate released yet.
+                                </div>
+                            <?php endif; ?>
+                        </div>
                     </div>
-                </div>
+
+                    <!-- Bottom inline checkbox and submit button -->
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-2 pt-2 border-top">
+                        <div class="form-check m-0 d-flex align-items-center gap-1.5">
+                            <input class="form-check-input" type="checkbox" name="mark_completed" id="mark_completed" value="1" checked style="margin-top: 0; width: 14px; height: 14px;">
+                            <label class="form-check-label" for="mark_completed" style="font-size: 11.5px; color: #334155; cursor: pointer;">
+                                Mark this request as <strong>Completed (Fulfilled)</strong> and notify the parishioner.
+                            </label>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-success fw-semibold d-inline-flex align-items-center gap-1.5" style="font-size: 11.5px; padding: 4px 12px; border-radius: 6px;">
+                            <i class="fas fa-paper-plane"></i> Upload &amp; Release
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
         <?php endif; ?>
 
-        <!-- ========================================================= -->
-        <!-- 3. BOTTOM ACTION SECTION: "REVIEW STATUS & UPDATES"        -->
-        <!-- (Positioned directly beneath the form / review items)      -->
-        <!-- ========================================================= -->
-        <div class="card shadow-sm border-0 rounded-3 overflow-hidden">
-            <div class="card-header bg-white py-3 px-4 border-bottom">
-                <h5 class="mb-0 fw-bold text-dark d-flex align-items-center gap-2">
-                    <i class="fas fa-clipboard-check text-primary"></i>
-                    Review Status &amp; Updates
-                </h5>
+        <!-- 3. BOTTOM ACTION SECTION: "REVIEW STATUS & UPDATES" -->
+        <div class="rw-card">
+            <div class="rw-section-header">
+                <h6 class="rw-section-title">
+                    <i class="fas fa-clipboard-check" style="color: #8c6225; font-size: 13px;"></i>
+                    REVIEW STATUS &amp; UPDATES
+                </h6>
             </div>
 
-            <div class="card-body p-4">
+            <div class="rw-section-body">
                 <form method="POST" id="reviewStatusForm">
                     <?php echo csrfInput(); ?>
                     <input type="hidden" name="action" value="update_status">
                     <input type="hidden" name="request_id" value="<?php echo intval($request_id); ?>">
 
-                    <div class="row g-4 mb-4">
+                    <div class="row g-3 mb-3">
                         <!-- Status Dropdown -->
                         <div class="col-md-5">
-                            <label for="status" class="form-label fw-bold text-dark small text-uppercase">REQUEST STATUS</label>
-                            <select class="form-select border-secondary-subtle py-2 fw-semibold" id="status" name="status" required>
+                            <label for="status" class="micro-label">REQUEST STATUS</label>
+                            <select class="form-select border-secondary-subtle py-1.5 fw-semibold" id="status" name="status" required style="font-size: 12px; height: 32px;">
                                 <option value="pending" <?php echo (strtolower($request['status'] ?? '') === 'pending') ? 'selected' : ''; ?>>Pending</option>
                                 <option value="processing" <?php echo (strtolower($request['status'] ?? '') === 'processing') ? 'selected' : ''; ?>>Processing</option>
                                 <option value="completed" <?php echo (strtolower($request['status'] ?? '') === 'completed') ? 'selected' : ''; ?>>Completed</option>
                                 <option value="rejected" <?php echo (strtolower($request['status'] ?? '') === 'rejected') ? 'selected' : ''; ?>>Rejected</option>
                             </select>
-                            <div class="form-text text-muted small mt-2">
-                                <i class="fas fa-info-circle me-1"></i> Changing this updates the parishioner's tracking status.
+                            <div class="text-muted small mt-1" style="font-size: 11px;">
+                                <i class="fas fa-info-circle me-1"></i> Changing this updates parishioner tracking status.
                             </div>
                         </div>
 
@@ -1362,10 +1539,11 @@ $breadcrumbs = [
                             <textarea class="form-control border-secondary-subtle" 
                                       id="admin_response" 
                                       name="admin_response" 
-                                      rows="4" 
-                                      placeholder="Enter remarks, preparation instructions, or scheduled venue reminders sent back to the parishioner..."><?php echo e($request['admin_response'] ?? ''); ?></textarea>
-                            <div class="form-text text-muted small mt-2">
-                                <i class="fas fa-bell me-1"></i> This response is included in the parishioner's email and portal notification.
+                                      rows="2" 
+                                      style="font-size: 12px;"
+                                      placeholder="Enter remarks, instructions, or pickup/event reminders sent back to parishioner..."><?php echo e($request['admin_response'] ?? ''); ?></textarea>
+                            <div class="text-muted small mt-1" style="font-size: 11px;">
+                                <i class="fas fa-bell me-1"></i> Sent in parishioner email &amp; portal notification.
                             </div>
                         </div>
 
@@ -1375,17 +1553,17 @@ $breadcrumbs = [
                         ?>
                             <div class="col-md-6">
                                 <label for="workflow_minister" class="micro-label">Minister / Officiating Priest <span class="text-danger">*</span></label>
-                                <select class="form-select border-secondary-subtle py-2 fw-semibold" id="workflow_minister" name="officiating_priest">
-                                    <option value="">-- Select Minister (Who performed baptism) --</option>
+                                <select class="form-select border-secondary-subtle py-1 fw-semibold" id="workflow_minister" name="officiating_priest" style="font-size: 11.5px; height: 30px;">
+                                    <option value="">-- Select Minister (Who performed sacrament) --</option>
                                     <?php foreach ($priest_roster as $p_opt): ?>
                                         <option value="<?php echo htmlspecialchars($p_opt); ?>"><?php echo htmlspecialchars($p_opt); ?></option>
                                     <?php endforeach; ?>
                                 </select>
-                                <div class="form-text text-muted small mt-1">Required when marking sacramental request completed.</div>
+                                <div class="text-muted small mt-1" style="font-size: 10.5px;">Required when marking sacramental request completed.</div>
                             </div>
                             <div class="col-md-6">
                                 <label for="workflow_parish_priest" class="micro-label">Parish Priest <span class="text-danger">*</span></label>
-                                <select class="form-select border-secondary-subtle py-2 fw-semibold" id="workflow_parish_priest" name="parish_priest">
+                                <select class="form-select border-secondary-subtle py-1 fw-semibold" id="workflow_parish_priest" name="parish_priest" style="font-size: 11.5px; height: 30px;">
                                     <option value="">-- Select Parish Priest --</option>
                                     <?php foreach ($priest_roster as $p_opt): ?>
                                         <option value="<?php echo htmlspecialchars($p_opt); ?>" <?php echo ($p_opt === $default_parish_priest) ? 'selected' : ''; ?>>
@@ -1393,19 +1571,19 @@ $breadcrumbs = [
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
-                                <div class="form-text text-muted small mt-1">Confirmed canonical Parish Priest for official registry.</div>
+                                <div class="text-muted small mt-1" style="font-size: 10.5px;">Confirmed canonical Parish Priest for official registry.</div>
                             </div>
                         <?php endif; ?>
                     </div>
 
                     <!-- Bottom Action Bar -->
-                    <div class="pt-3 border-top d-flex flex-column flex-sm-row justify-content-between align-items-stretch align-items-sm-center gap-3">
-                        <a href="manage-requests.php" class="btn btn-outline-secondary px-4 py-2 fw-semibold d-inline-flex align-items-center justify-content-center gap-2">
+                    <div class="pt-2 border-top d-flex flex-column flex-sm-row justify-content-between align-items-stretch align-items-sm-center gap-2">
+                        <a href="manage-requests.php" class="btn btn-sm btn-outline-secondary px-3 py-1 fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5" style="font-size: 12px; border-radius: 6px;">
                             <i class="fas fa-arrow-left"></i>
                             <span>Back to Requests</span>
                         </a>
 
-                        <button type="submit" class="btn btn-parish-gold d-inline-flex align-items-center justify-content-center gap-2">
+                        <button type="submit" class="btn btn-sm btn-parish-gold d-inline-flex align-items-center justify-content-center gap-1.5">
                             <i class="fas fa-check-circle"></i>
                             <span>Update Request</span>
                         </button>
