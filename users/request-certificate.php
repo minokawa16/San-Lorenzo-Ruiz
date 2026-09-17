@@ -24,6 +24,10 @@ ensureRequestDocumentsSchema($conn);
 ensureEmailNotificationSchema($conn);
 ensureCertificateDuplicateGuardSchema($conn);
 
+$gcash_recipient_name = 'Agnes Calapaan';
+$gcash_recipient_number = '09977428176';
+$gcash_recipient_display = '0997 742 8176';
+
 $certificate_types = [
     'baptism_certification' => 'Baptismal Certification',
     'confirmation_certification' => 'Confirmation Certification',
@@ -141,7 +145,7 @@ function certificateLabel($value, $labels = []) {
     return $labels[$value] ?? ucfirst(str_replace('_', ' ', (string) $value));
 }
 
-    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     requireValidCsrfToken();
     $request_type = trim((string) ($_POST['request_type'] ?? $_POST['certificate_mobile_type'] ?? ''));
     $purpose = trim((string) ($_POST['purpose'] ?? ''));
@@ -149,6 +153,21 @@ function certificateLabel($value, $labels = []) {
     $record_holder_name = trim((string) ($_POST['record_holder_name'] ?? ''));
     if ($record_holder_name === '') {
         $record_holder_name = trim((string) ($_SESSION['fullname'] ?? ''));
+    }
+
+    $payment_method = strtolower(trim((string) ($_POST['payment_method'] ?? 'gcash')));
+    if (!in_array($payment_method, ['gcash', 'cash'], true)) {
+        $payment_method = 'gcash';
+    }
+    $payment_amount = floatval($_POST['payment_amount'] ?? 150.00);
+    $payment_reference = trim((string) ($_POST['payment_reference'] ?? ''));
+    $payment_notes = trim((string) ($_POST['payment_notes'] ?? ''));
+    $receipt_file = $_FILES['receipt_file'] ?? null;
+    $has_receipt = ($receipt_file && is_array($receipt_file) && !empty($receipt_file['tmp_name']) && ($receipt_file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK);
+
+    $release_method = strtolower(trim((string) ($_POST['release_method'] ?? 'online')));
+    if (!in_array($release_method, ['online', 'walk_in'], true)) {
+        $release_method = 'online';
     }
 
     $is_baptism = in_array($request_type, ['baptismal_certificate', 'baptism_certification', 'baptism'], true);
@@ -204,12 +223,21 @@ function certificateLabel($value, $labels = []) {
         $error = 'The custom purpose must be 180 characters or fewer.';
     } elseif (!requestUploadHasFiles($_FILES['requirement_files'] ?? null)) {
         $error = 'Please upload a copy of the required supporting document (e.g. PSA / Valid ID) before submitting your certificate request.';
+    } elseif ($payment_method === 'gcash' && $payment_amount <= 0) {
+        $error = 'Please enter the amount paid via GCash.';
+    } elseif ($payment_method === 'gcash' && !$has_receipt) {
+        $error = 'Please upload your GCash payment confirmation receipt or screenshot.';
     } else {
         $purpose_description = $purpose === 'others' ? $purpose_other : $certificate_purposes[$purpose];
+        $release_label = ($release_method === 'walk_in') ? 'Walk-in Pickup (Parish Office)' : 'Online Release (Digital Delivery)';
+        $payment_label = ($payment_method === 'gcash') ? 'GCash Transfer' : 'Cash (Parish Office Settlement)';
+
         $description_parts = [
             'Record Holder Name: ' . $record_holder_name,
             'Required document: ' . $certificate_required_document,
-            'Purpose: ' . $purpose_description
+            'Purpose: ' . $purpose_description,
+            'Payment Method: ' . $payment_label,
+            'Release Method: ' . $release_label
         ];
 
         // If baptism, search/match against baptism_records registry by Name + Birthday + Date of Baptism
@@ -281,13 +309,26 @@ function certificateLabel($value, $labels = []) {
             $request_id = (int) $requestResult['request_id'];
             $reference_number = $requestResult['reference_number'];
             $documents = saveMultipleRequirementDocuments($conn, $request_id, $user_id, $_FILES['requirement_files'] ?? null);
+            $paymentResult = createRequestPayment($conn, $request_id, $user_id, $payment_amount, $payment_method, $payment_reference, $payment_notes, $receipt_file);
+
             if (!$documents['ok'] && empty($documents['saved'])) {
-                $error = $documents['error'] . ' Your request was saved, but the files were not attached. Reference: ' . $reference_number;
+                $error = $documents['error'] . ' Your request was saved, but the requirements were not attached. Reference: ' . $reference_number;
             } else {
                 createAuditLog($conn, $user_id, 'CREATE_REQUEST', 'requests', $request_id);
                 $doc_count = intval($documents['saved'] ?? 0);
                 $file_text = $doc_count === 1 ? 'file' : 'files';
                 createNotification($conn, $user_id, 'Certificate Request Created', 'Your certificate request has been submitted with reference: ' . $reference_number . ' (' . $doc_count . ' ' . $file_text . ' attached)', true, 'requests', 'request', $request_id, 'request.view');
+                
+                // Notify administrators and staff if payment was submitted via GCash
+                if ($payment_method === 'gcash' && ($paymentResult['ok'] ?? false)) {
+                    $admin_stmt = $conn->query("SELECT id FROM users WHERE role IN ('admin', 'staff') AND status = 'active'");
+                    if ($admin_stmt) {
+                        while ($admin_row = $admin_stmt->fetch_assoc()) {
+                            createNotification($conn, (int)$admin_row['id'], 'Payment Receipt Submitted', 'Parishioner ' . ($record_holder_name ?: 'A parishioner') . ' submitted a GCash receipt for certificate request ' . $reference_number . '.', true, 'requests', 'request', $request_id, 'request.view');
+                        }
+                    }
+                }
+
                 $success = 'Certificate request submitted successfully! Reference: ' . $reference_number . ' (' . $doc_count . ' file' . ($doc_count === 1 ? '' : 's') . ' attached)';
             }
         } catch (DuplicateRequestException $exception) {
@@ -1186,6 +1227,219 @@ if ($stmt) {
         width: 100%;
         height: 100%;
         background: linear-gradient(90deg, #17446a, #d7ad43);
+    }
+
+    /* Payment and Release Method Styles */
+    .payment-method-card,
+    .release-method-card {
+        position: relative;
+        display: block;
+        cursor: pointer;
+        margin-bottom: 0;
+        height: 100%;
+    }
+
+    .payment-method-card input[type="radio"],
+    .release-method-card input[type="radio"] {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .payment-card-inner,
+    .release-card-inner {
+        position: relative;
+        height: 100%;
+        min-height: 110px;
+        padding: 18px 18px;
+        border: 1.5px solid #e7e2d8;
+        border-radius: 12px;
+        background: #ffffff;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+    }
+
+    .payment-method-card:hover .payment-card-inner,
+    .release-method-card:hover .release-card-inner {
+        border-color: #c89b3c;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(46, 58, 45, 0.07);
+    }
+
+    .payment-method-card input[type="radio"]:checked + .payment-card-inner,
+    .release-method-card input[type="radio"]:checked + .release-card-inner {
+        border-color: #c89b3c;
+        border-width: 2px;
+        background: #fffdf9;
+        box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.16), 0 8px 20px rgba(46, 58, 45, 0.08);
+    }
+
+    .payment-method-card input[type="radio"]:checked + .payment-card-inner::after,
+    .release-method-card input[type="radio"]:checked + .release-card-inner::after {
+        content: "\f00c";
+        font-family: "Font Awesome 6 Free";
+        font-weight: 900;
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        width: 20px;
+        height: 20px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        color: #ffffff;
+        background: #c89b3c;
+        font-size: 10px;
+    }
+
+    .payment-icon-box,
+    .release-icon-box {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.05rem;
+    }
+
+    .gcash-bg {
+        background: #e0f2fe;
+        color: #0284c7;
+    }
+
+    .cash-bg {
+        background: #dcfce7;
+        color: #16a34a;
+    }
+
+    .online-bg {
+        background: #e0f2fe;
+        color: #0284c7;
+    }
+
+    .walkin-bg {
+        background: #f1f5f9;
+        color: #475569;
+    }
+
+    .payment-guide {
+        display: grid;
+        grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+        gap: 16px;
+        align-items: start;
+        padding: 16px;
+        border: 1px solid #eadfca;
+        border-radius: 14px;
+        background: #fffdfa;
+    }
+
+    @media (max-width: 768px) {
+        .payment-guide {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .payment-contact-card {
+        display: grid;
+        justify-items: center;
+        padding: 18px 14px;
+        border: 1px solid #ead9af;
+        border-radius: 14px;
+        background: linear-gradient(135deg, #fbf3df, #f7ecd6);
+        text-align: center;
+    }
+
+    .payment-contact-avatar {
+        width: 48px;
+        height: 48px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 8px;
+        border: 3px solid #fff;
+        border-radius: 50%;
+        color: #2a241c;
+        background: #b9863a;
+        box-shadow: 0 4px 12px rgba(140, 100, 39, 0.22);
+        font-size: 0.95rem;
+        font-weight: 900;
+    }
+
+    .payment-contact-role {
+        color: #8c6427;
+        font-size: 0.68rem;
+        font-weight: 850;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+
+    .payment-contact-name {
+        margin-top: 2px;
+        color: #2a241c;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 1rem;
+        font-weight: 800;
+    }
+
+    .payment-contact-number-row {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-top: 12px;
+        padding: 8px 10px;
+        border: 1px solid #ead9af;
+        border-radius: 10px;
+        background: #fff;
+    }
+
+    .payment-contact-number {
+        font-weight: 800;
+        font-size: 0.95rem;
+        color: #1e293b;
+        letter-spacing: 0.5px;
+    }
+
+    .payment-copy-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 8px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        background: #f8fafc;
+        color: #475569;
+        font-size: 0.75rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .payment-copy-button:hover {
+        background: #fdf8ed;
+        color: #8c6427;
+        border-color: #c89b3c;
+    }
+
+    .payment-instructions h6 {
+        font-size: 0.95rem;
+        margin-bottom: 8px;
+    }
+
+    .payment-guide-list {
+        padding-left: 18px;
+        font-size: 0.85rem;
+        color: #4b5563;
+        line-height: 1.5;
+    }
+
+    .payment-guide-list li {
+        margin-bottom: 4px;
     }
 
     .form-actions {
@@ -2400,6 +2654,172 @@ if ($stmt) {
                 </div>
             </section>
 
+            <section class="form-step" id="paymentReleaseStep">
+                <div class="step-heading">
+                    <span class="step-number">5</span>
+                    <div>
+                        <h3>Payment &amp; Release</h3>
+                        <p>Select your payment method and choose how you would like to receive your official certificate.</p>
+                    </div>
+                </div>
+
+                <!-- Part A: Payment Method -->
+                <div class="mb-4">
+                    <label class="form-label fw-bold mb-1" style="font-size: 0.95rem; color: #1e293b;">
+                        <i class="fas fa-wallet text-warning me-1"></i> How will you pay? <span class="text-danger">*</span>
+                    </label>
+                    <p class="text-muted small mb-3">Choose whether you will pay via GCash transfer now or settle in cash at the parish office.</p>
+
+                    <div class="row g-3 mb-3" role="radiogroup" aria-label="Payment Method">
+                        <!-- GCash Option -->
+                        <div class="col-md-6">
+                            <label class="payment-method-card" for="payment_method_gcash">
+                                <input type="radio" name="payment_method" id="payment_method_gcash" value="gcash" <?php echo (($_POST['payment_method'] ?? 'gcash') === 'gcash') ? 'checked' : ''; ?> required>
+                                <div class="payment-card-inner">
+                                    <div class="d-flex align-items-center justify-content-between mb-2">
+                                        <span class="payment-icon-box gcash-bg">
+                                            <i class="fas fa-mobile-screen-button"></i>
+                                        </span>
+                                        <span class="badge bg-primary-subtle text-primary fw-semibold px-2 py-1" style="font-size: 0.75rem;">Instant Online</span>
+                                    </div>
+                                    <strong class="d-block text-dark mb-1" style="font-size: 1rem;">GCash Transfer</strong>
+                                    <small class="text-muted d-block">Pay digitally via GCash and attach your transaction screenshot below.</small>
+                                </div>
+                            </label>
+                        </div>
+
+                        <!-- Cash Option -->
+                        <div class="col-md-6">
+                            <label class="payment-method-card" for="payment_method_cash">
+                                <input type="radio" name="payment_method" id="payment_method_cash" value="cash" <?php echo (($_POST['payment_method'] ?? '') === 'cash') ? 'checked' : ''; ?> required>
+                                <div class="payment-card-inner">
+                                    <div class="d-flex align-items-center justify-content-between mb-2">
+                                        <span class="payment-icon-box cash-bg">
+                                            <i class="fas fa-money-bill-wave"></i>
+                                        </span>
+                                        <span class="badge bg-success-subtle text-success fw-semibold px-2 py-1" style="font-size: 0.75rem;">In-Person</span>
+                                    </div>
+                                    <strong class="d-block text-dark mb-1" style="font-size: 1rem;">Cash (Parish Office)</strong>
+                                    <small class="text-muted d-block">Settle your certificate offering in cash directly at the parish office.</small>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Conditional GCash Payment Details Section -->
+                    <div id="gcashPaymentDetails" class="payment-details-panel border rounded-3 p-3 mb-3" style="<?php echo (($_POST['payment_method'] ?? 'gcash') === 'cash') ? 'display: none;' : ''; ?> background: #fdfbf7; border-color: #eadfca !important;">
+                        <div class="payment-guide mb-3">
+                            <div class="payment-contact-card">
+                                <div class="payment-contact-avatar" aria-hidden="true">AC</div>
+                                <div class="payment-contact-role">GCash — Parish Secretary</div>
+                                <div class="payment-contact-name"><?php echo e($gcash_recipient_name); ?></div>
+                                <div class="payment-contact-number-row">
+                                    <span class="payment-contact-number"><?php echo e($gcash_recipient_display); ?></span>
+                                    <button type="button" class="payment-copy-button" data-copy-gcash="<?php echo e($gcash_recipient_number); ?>" aria-label="Copy GCash number <?php echo e($gcash_recipient_display); ?>">
+                                        <i class="fas fa-copy" aria-hidden="true"></i>
+                                        <span>Copy</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="payment-instructions">
+                                <h6 class="fw-bold text-dark"><i class="fas fa-money-bill-wave text-warning me-1"></i> How to Pay via GCash</h6>
+                                <ul class="payment-guide-list mb-0">
+                                    <li>Send your certificate fee via GCash to the name and number provided above.</li>
+                                    <li>Standard certificate offering is <strong>PHP 150.00</strong> (or the amount advised by parish office).</li>
+                                    <li>Save a screenshot or photo of your payment transaction confirmation.</li>
+                                    <li>Attach the receipt below so parish staff can verify your payment immediately.</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold" for="payment_amount">Amount (PHP) <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control request-form-control" id="payment_amount" name="payment_amount" min="1" step="0.01" inputmode="decimal" placeholder="e.g. 150.00" value="<?php echo e($_POST['payment_amount'] ?? '150.00'); ?>">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold" for="payment_reference">GCash Reference Number <span class="text-muted small fw-normal">(Optional)</span></label>
+                                <input type="text" class="form-control request-form-control" id="payment_reference" name="payment_reference" placeholder="e.g. 1002 9384 1928" value="<?php echo e($_POST['payment_reference'] ?? ''); ?>">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-bold" for="receipt_file">Receipt / Proof of Payment <span class="text-danger">*</span></label>
+                                <input type="file" class="form-control request-form-control" id="receipt_file" name="receipt_file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf">
+                                <div class="form-text text-muted">Upload your GCash confirmation receipt (JPG, PNG, PDF up to 10MB).</div>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-bold" for="payment_notes">Payment Notes <span class="text-muted small fw-normal">(Optional)</span></label>
+                                <input type="text" class="form-control request-form-control" id="payment_notes" name="payment_notes" placeholder="Optional notes about your payment" value="<?php echo e($_POST['payment_notes'] ?? ''); ?>">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Conditional Cash Notice -->
+                    <div id="cashPaymentNotice" class="alert alert-warning py-3 px-3 rounded-3" style="<?php echo (($_POST['payment_method'] ?? 'gcash') === 'cash') ? '' : 'display: none;' ?> background: #fffcf0; border: 1px solid #f6e0b5;">
+                        <div class="d-flex align-items-start gap-2">
+                            <i class="fas fa-info-circle text-warning fs-5 mt-1"></i>
+                            <div>
+                                <strong class="text-dark d-block mb-1">Cash Settlement at Parish Office</strong>
+                                <span class="text-secondary small">Please settle your certificate offering in cash at the parish office. Staff will confirm payment upon processing or release.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="my-4" style="border-color: #e9e1d2;">
+
+                <!-- Part B: Release Method -->
+                <div>
+                    <label class="form-label fw-bold mb-1" style="font-size: 0.95rem; color: #1e293b;">
+                        <i class="fas fa-hand-holding-heart text-warning me-1"></i> How would you like to receive your certificate? <span class="text-danger">*</span>
+                    </label>
+                    <p class="text-muted small mb-3">Choose whether you prefer digital download/delivery or physical pickup at the parish office.</p>
+
+                    <div class="row g-3" role="radiogroup" aria-label="Release Method">
+                        <!-- Online Release -->
+                        <div class="col-md-6">
+                            <label class="release-method-card" for="release_method_online">
+                                <input type="radio" name="release_method" id="release_method_online" value="online" <?php echo (($_POST['release_method'] ?? 'online') === 'online') ? 'checked' : ''; ?> required>
+                                <div class="release-card-inner">
+                                    <div class="d-flex align-items-center justify-content-between mb-2">
+                                        <span class="release-icon-box online-bg">
+                                            <i class="fas fa-globe"></i>
+                                        </span>
+                                        <span class="badge bg-info-subtle text-info fw-semibold px-2 py-1" style="font-size: 0.75rem;">Digital Delivery</span>
+                                    </div>
+                                    <strong class="d-block text-dark mb-1" style="font-size: 1rem;">Online Release</strong>
+                                    <small class="text-muted d-block">Delivered digitally via email and downloadable directly from your portal once approved.</small>
+                                </div>
+                            </label>
+                        </div>
+
+                        <!-- Walk-in Release -->
+                        <div class="col-md-6">
+                            <label class="release-method-card" for="release_method_walkin">
+                                <input type="radio" name="release_method" id="release_method_walkin" value="walk_in" <?php echo (($_POST['release_method'] ?? '') === 'walk_in') ? 'checked' : ''; ?> required>
+                                <div class="release-card-inner">
+                                    <div class="d-flex align-items-center justify-content-between mb-2">
+                                        <span class="release-icon-box walkin-bg">
+                                            <i class="fas fa-building-columns"></i>
+                                        </span>
+                                        <span class="badge bg-secondary-subtle text-secondary fw-semibold px-2 py-1" style="font-size: 0.75rem;">Parish Pickup</span>
+                                    </div>
+                                    <strong class="d-block text-dark mb-1" style="font-size: 1rem;">Walk-in Release</strong>
+                                    <small class="text-muted d-block">Pick up the printed and sealed official certificate in person at the parish office.</small>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Release Notes Info -->
+                    <div id="onlineReleaseInfo" class="alert alert-info py-2 px-3 mt-3 rounded-3 small" style="<?php echo (($_POST['release_method'] ?? 'online') === 'walk_in') ? 'display: none;' : ''; ?> background: #f0f7ff; border: 1px solid #cce3fe;">
+                        <i class="fas fa-envelope-circle-check text-primary me-1"></i> Digital certificate notification will be sent to <strong><?php echo e($_SESSION['email'] ?? 'your registered email'); ?></strong> and available in your request details once signed and ready.
+                    </div>
+                    <div id="walkinReleaseInfo" class="alert alert-secondary py-2 px-3 mt-3 rounded-3 small" style="<?php echo (($_POST['release_method'] ?? '') === 'walk_in') ? '' : 'display: none;'; ?> background: #f8fafc; border: 1px solid #e2e8f0;">
+                        <i class="fas fa-clock text-secondary me-1"></i> Office pickup hours: <strong>Tuesday to Sunday, 8:00 AM – 5:00 PM</strong> at San Lorenzo Ruiz Parish Office. Please present a valid ID when claiming.
+                    </div>
+                </div>
+            </section>
+
             <div class="form-actions">
                 <div class="privacy-copy">
                     <i class="fas fa-lock"></i> Secure parish request submission. Please ensure all details are accurate before submitting.
@@ -2444,6 +2864,58 @@ if ($stmt) {
             }
             return '';
         })();
+
+        // Payment & Release Handlers
+        const paymentRadios = document.querySelectorAll('input[name="payment_method"]');
+        const gcashDetails = document.getElementById('gcashPaymentDetails');
+        const cashNotice = document.getElementById('cashPaymentNotice');
+        const receiptInput = document.getElementById('receipt_file');
+        const amountInput = document.getElementById('payment_amount');
+
+        function updatePaymentMethod() {
+            const checked = document.querySelector('input[name="payment_method"]:checked');
+            const method = checked ? checked.value : 'gcash';
+            if (gcashDetails) gcashDetails.style.display = (method === 'gcash') ? 'block' : 'none';
+            if (cashNotice) cashNotice.style.display = (method === 'cash') ? 'block' : 'none';
+            if (receiptInput) receiptInput.required = (method === 'gcash');
+            if (amountInput) amountInput.required = (method === 'gcash');
+        }
+        paymentRadios.forEach(function(r) {
+            r.addEventListener('change', updatePaymentMethod);
+        });
+        updatePaymentMethod();
+
+        const releaseRadios = document.querySelectorAll('input[name="release_method"]');
+        const onlineInfo = document.getElementById('onlineReleaseInfo');
+        const walkinInfo = document.getElementById('walkinReleaseInfo');
+
+        function updateReleaseMethod() {
+            const checked = document.querySelector('input[name="release_method"]:checked');
+            const method = checked ? checked.value : 'online';
+            if (onlineInfo) onlineInfo.style.display = (method === 'online') ? 'block' : 'none';
+            if (walkinInfo) walkinInfo.style.display = (method === 'walk_in') ? 'block' : 'none';
+        }
+        releaseRadios.forEach(function(r) {
+            r.addEventListener('change', updateReleaseMethod);
+        });
+        updateReleaseMethod();
+
+        document.querySelectorAll('[data-copy-gcash]').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const num = btn.getAttribute('data-copy-gcash') || '09977428176';
+                navigator.clipboard.writeText(num).then(function() {
+                    const span = btn.querySelector('span');
+                    const orig = span ? span.textContent : 'Copy';
+                    if (span) span.textContent = 'Copied!';
+                    setTimeout(function() {
+                        if (span) span.textContent = orig;
+                    }, 2000);
+                }).catch(function() {
+                    prompt('GCash Number:', num);
+                });
+            });
+        });
 
         function showCategoryFlow(cat, options) {
             options = options || {};
@@ -2828,6 +3300,24 @@ if ($stmt) {
                     alert('Please upload a copy of the required supporting document before submitting.');
                     fileInput.focus();
                     return false;
+                }
+
+                const paymentMethod = (document.querySelector('input[name="payment_method"]:checked') || {}).value || 'gcash';
+                if (paymentMethod === 'gcash') {
+                    const amountInput = document.getElementById('payment_amount');
+                    if (amountInput && (!amountInput.value || parseFloat(amountInput.value) <= 0)) {
+                        event.preventDefault();
+                        alert('Please enter the GCash payment amount.');
+                        amountInput.focus();
+                        return false;
+                    }
+                    const receiptInput = document.getElementById('receipt_file');
+                    if (receiptInput && (!receiptInput.files || receiptInput.files.length === 0)) {
+                        event.preventDefault();
+                        alert('Please upload your GCash payment receipt or confirmation screenshot.');
+                        receiptInput.focus();
+                        return false;
+                    }
                 }
 
                 // Immediately lock submission and disable button on first click to prevent rapid double-clicks

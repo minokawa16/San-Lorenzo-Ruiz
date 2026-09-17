@@ -1600,36 +1600,53 @@ function requestHasVerifiedPayment($conn, $request_id) {
     return intval($row['total'] ?? 0) > 0;
 }
 
-function createRequestPayment($conn, $request_id, $user_id, $amount, $payment_method, $reference_number, $notes, $receipt_file) {
+function createRequestPayment($conn, $request_id, $user_id, $amount, $payment_method, $reference_number = '', $notes = '', $receipt_file = null) {
     ensureRequestPaymentsSchema($conn);
 
     $amount = floatval($amount);
-    $payment_method = trim((string) $payment_method);
+    $payment_method = strtolower(trim((string) $payment_method));
     $reference_number = trim((string) $reference_number);
     $notes = trim((string) $notes);
 
-    if ($amount <= 0) {
-        return ['ok' => false, 'error' => 'Please enter a valid payment amount.'];
-    }
     if ($payment_method === '') {
         return ['ok' => false, 'error' => 'Please choose a payment method.'];
     }
 
-    $receipt = saveRequestDocument($conn, $request_id, $user_id, $receipt_file, 'payment_receipt');
-    if (!$receipt['ok'] || empty($receipt['saved'])) {
-        return ['ok' => false, 'error' => $receipt['error'] ?? 'Please upload a receipt or proof of payment.'];
+    $document_id = null;
+    $has_receipt = ($receipt_file && is_array($receipt_file) && !empty($receipt_file['tmp_name']) && ($receipt_file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK);
+
+    if ($payment_method === 'gcash' || $has_receipt) {
+        if ($amount <= 0) {
+            return ['ok' => false, 'error' => 'Please enter a valid payment amount.'];
+        }
+        if (!$has_receipt) {
+            return ['ok' => false, 'error' => 'Please upload a receipt or proof of payment for GCash.'];
+        }
+        $receipt = saveRequestDocument($conn, $request_id, $user_id, $receipt_file, 'payment_receipt');
+        if (!$receipt['ok'] || empty($receipt['saved'])) {
+            return ['ok' => false, 'error' => $receipt['error'] ?? 'Please upload a receipt or proof of payment.'];
+        }
+        $document_id = intval($receipt['document_id']);
     }
 
     $status = 'pending';
-    $document_id = intval($receipt['document_id']);
-    $stmt = $conn->prepare("INSERT INTO request_payments (request_id, user_id, receipt_document_id, amount, payment_method, reference_number, notes, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-    if (!$stmt) {
-        return ['ok' => false, 'error' => 'Unable to prepare the payment record.'];
-    }
-
     $request_id = intval($request_id);
     $user_id = intval($user_id);
-    $stmt->bind_param('iiidssss', $request_id, $user_id, $document_id, $amount, $payment_method, $reference_number, $notes, $status);
+
+    if ($document_id !== null) {
+        $stmt = $conn->prepare("INSERT INTO request_payments (request_id, user_id, receipt_document_id, amount, payment_method, reference_number, notes, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        if (!$stmt) {
+            return ['ok' => false, 'error' => 'Unable to prepare the payment record.'];
+        }
+        $stmt->bind_param('iiidssss', $request_id, $user_id, $document_id, $amount, $payment_method, $reference_number, $notes, $status);
+    } else {
+        $stmt = $conn->prepare("INSERT INTO request_payments (request_id, user_id, receipt_document_id, amount, payment_method, reference_number, notes, status) VALUES (?, ?, NULL, ?, ?, ?, ?, ?)");
+        if (!$stmt) {
+            return ['ok' => false, 'error' => 'Unable to prepare the payment record.'];
+        }
+        $stmt->bind_param('iidssss', $request_id, $user_id, $amount, $payment_method, $reference_number, $notes, $status);
+    }
+
     if (!$stmt->execute()) {
         $stmt->close();
         return ['ok' => false, 'error' => 'Unable to save the payment record.'];
