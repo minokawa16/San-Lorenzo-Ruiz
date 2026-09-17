@@ -7,6 +7,11 @@ final class RequestListService
 {
     public const ALLOWED_STATUSES = ['pending', 'processing', 'completed', 'rejected'];
     public const DROPDOWN_STATUSES = ['pending', 'processing', 'completed', 'rejected'];
+    public const ALLOWED_TYPES = [
+        'blessings' => 'Blessings',
+        'certificates' => 'Certificates',
+        'sacramental_services' => 'Sacramental Services',
+    ];
     private $repository;
 
     public function __construct(RequestRepository $repository)
@@ -19,7 +24,20 @@ final class RequestListService
         $page = max(1, (int) ($query['page'] ?? 1));
         $limit = 10;
         $search = trim((string) ($query['q'] ?? ''));
+        $type = trim((string) ($query['type'] ?? $query['request_type'] ?? ''));
         $status = trim((string) ($query['status'] ?? ''));
+
+        if (!array_key_exists($type, self::ALLOWED_TYPES)) {
+            $typeAliases = [
+                'blessing' => 'blessings',
+                'certificate' => 'certificates',
+                'sacramental' => 'sacramental_services',
+                'sacrament' => 'sacramental_services',
+                'services' => 'sacramental_services',
+            ];
+            $type = $typeAliases[strtolower($type)] ?? '';
+        }
+
         if (!in_array($status, self::ALLOWED_STATUSES, true)) {
             $status = '';
         }
@@ -29,6 +47,7 @@ final class RequestListService
             $userId,
             $search,
             $status,
+            $type,
             $limit,
             $offset
         );
@@ -39,7 +58,9 @@ final class RequestListService
             'pagination' => $pagination,
             'page' => $page,
             'search' => $search,
+            'type_filter' => $type,
             'status_filter' => $status,
+            'allowed_types' => self::ALLOWED_TYPES,
             'allowed_statuses' => self::ALLOWED_STATUSES,
             'dropdown_statuses' => self::DROPDOWN_STATUSES,
         ];

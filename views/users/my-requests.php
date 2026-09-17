@@ -4,30 +4,31 @@
 <?php require dirname(__DIR__, 2) . '/includes/back_button.php'; ?>
 
 <div class="container-fluid mt-4">
-    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4">
-        <div>
-            <h1 class="mb-1 fw-bold text-dark" style="font-family: 'Playfair Display', Georgia, serif; font-size: clamp(1.5rem, 2.2vw, 2rem);">
-                <i class="fas fa-list-check me-2" style="color: #C89B3C;"></i> My Requests
-            </h1>
-            <p class="text-muted mb-0" style="font-size: 0.9rem;">Track all your sacrament, blessing, and certificate requests in real time.</p>
-        </div>
-        <div>
-            <a href="request-certificate.php" class="btn text-white fw-semibold px-3 py-2 shadow-sm" style="background: #C89B3C; border-color: #A97F24; border-radius: 10px;">
-                <i class="fas fa-plus me-1"></i> Submit New Request
-            </a>
-        </div>
+    <div class="mb-4">
+        <h1 class="mb-1 fw-bold text-dark" style="font-family: 'Playfair Display', Georgia, serif; font-size: clamp(1.5rem, 2.2vw, 2rem);">
+            <i class="fas fa-list-check me-2" style="color: #C89B3C;"></i> My Requests
+        </h1>
+        <p class="text-muted mb-0" style="font-size: 0.9rem;">Track all your sacrament, blessing, and certificate requests in real time.</p>
     </div>
 
     <form class="card border-0 shadow-sm mb-4" method="GET" action="" style="border: 1px solid #E8E1D5 !important; border-radius: 12px; background: #FFFFFF;">
         <div class="card-body p-3">
             <div class="row g-2 align-items-center">
-                <div class="col-md-6">
+                <div class="col-lg-4 col-md-12">
                     <div class="input-group">
                         <span class="input-group-text bg-light border-end-0" style="border-color: #E8E1D5; color: #9A733B;"><i class="fas fa-search"></i></span>
                         <input type="text" class="form-control border-start-0 ps-0" name="q" value="<?php echo e($search); ?>" placeholder="Search by reference, request type, or details..." style="border-color: #E8E1D5; background: #FAF7F2;">
                     </div>
                 </div>
-                <div class="col-md-3">
+                <div class="col-lg-3 col-md-4">
+                    <select class="form-select" name="type" style="border-color: #E8E1D5; background: #FAF7F2;">
+                        <option value="">All Types</option>
+                        <option value="blessings" <?php echo ($type_filter ?? '') === 'blessings' ? 'selected' : ''; ?>>Blessings</option>
+                        <option value="certificates" <?php echo ($type_filter ?? '') === 'certificates' ? 'selected' : ''; ?>>Certificates</option>
+                        <option value="sacramental_services" <?php echo ($type_filter ?? '') === 'sacramental_services' ? 'selected' : ''; ?>>Sacramental Services</option>
+                    </select>
+                </div>
+                <div class="col-lg-3 col-md-4">
                     <select class="form-select" name="status" style="border-color: #E8E1D5; background: #FAF7F2;">
                         <option value="">All Statuses</option>
                         <?php
@@ -40,11 +41,11 @@
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div class="col-md-3 d-grid d-md-flex gap-2">
+                <div class="col-lg-2 col-md-4 d-grid d-md-flex gap-2">
                     <button class="btn text-white fw-semibold px-3 flex-grow-1" type="submit" style="background: #2E3A2D; border-color: #263225; border-radius: 8px;">
                         <i class="fas fa-filter me-1"></i> Filter
                     </button>
-                    <?php if ($search !== '' || $status_filter !== ''): ?>
+                    <?php if ($search !== '' || $status_filter !== '' || ($type_filter ?? '') !== ''): ?>
                         <a class="btn btn-outline-secondary" href="my-requests.php" style="border-radius: 8px;">Clear</a>
                     <?php endif; ?>
                 </div>
@@ -107,7 +108,7 @@
                             <ul class="pagination justify-content-center mb-0">
                                 <?php for ($i = 1; $i <= $pagination['total_pages']; $i++): ?>
                                     <li class="page-item <?php echo $i === $page ? 'active' : ''; ?>">
-                                        <a class="page-link" href="?page=<?php echo $i; ?>&amp;q=<?php echo urlencode($search); ?>&amp;status=<?php echo urlencode($status_filter); ?>"><?php echo $i; ?></a>
+                                        <a class="page-link" href="?page=<?php echo $i; ?>&amp;q=<?php echo urlencode($search); ?>&amp;type=<?php echo urlencode($type_filter ?? ''); ?>&amp;status=<?php echo urlencode($status_filter); ?>"><?php echo $i; ?></a>
                                     </li>
                                 <?php endfor; ?>
                             </ul>
@@ -121,7 +122,7 @@
                     </div>
                     <h5 class="fw-bold text-dark">No Requests Found</h5>
                     <p class="text-muted mb-3" style="max-width: 400px; margin: 0 auto; font-size: 0.9rem;">
-                        <?php echo $search !== '' || $status_filter !== '' ? 'No requests match your current search or filter criteria.' : 'You have not submitted any sacramental or certificate requests yet.'; ?>
+                        <?php echo ($search !== '' || $status_filter !== '' || ($type_filter ?? '') !== '') ? 'No requests match your current search or filter criteria.' : 'You have not submitted any sacramental or certificate requests yet.'; ?>
                     </p>
                     <a href="request-certificate.php" class="btn text-white fw-semibold px-4 py-2" style="background: #C89B3C; border-color: #A97F24; border-radius: 10px;">
                         <i class="fas fa-plus me-1"></i> Submit Your First Request
