@@ -114,6 +114,10 @@ assertCondition(strpos($settings_content, 'requests') !== false, "admin/settings
 assertCondition(strpos($settings_content, 'exportParishRecords') !== false, "admin/settings.php contains exportParishRecords handler");
 assertCondition(strpos($settings_content, 'btn-download-backup') !== false, "admin/settings.php contains download button");
 
+preg_match_all('/class="record-row(?:\s+[^"]*)?"/', $settings_content, $settings_matches);
+assertCondition(count($settings_matches[0]) === 3, "admin/settings.php contains exactly 3 record-type rows (found: " . count($settings_matches[0]) . ")");
+
+
 echo "\n===================================\n";
 echo "Total checks: $checks, Errors: " . count($errors) . "\n";
 if (count($errors) > 0) {

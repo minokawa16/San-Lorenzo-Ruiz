@@ -1751,6 +1751,20 @@ $latest_backup_time = !empty($backup_files) ? (is_array($backup_files[0]) ? date
         flex-shrink: 0;
     }
 
+    .backup-empty-warning {
+        padding: 10px 14px;
+        border-radius: 8px;
+        background-color: #FEF3C7;
+        border: 1px solid #FCD34D;
+        color: #92400E;
+        font-size: 0.8rem;
+        font-weight: 500;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
     .backup-info-note {
         display: flex;
         align-items: flex-start;
@@ -1850,6 +1864,7 @@ $latest_backup_time = !empty($backup_files) ? (is_array($backup_files[0]) ? date
         opacity: 0.55;
         cursor: not-allowed;
         box-shadow: none;
+        transform: none;
     }
 
     .btn-download-backup svg {
@@ -1979,204 +1994,9 @@ $latest_backup_time = !empty($backup_files) ? (is_array($backup_files[0]) ? date
                     </div>
                 </div>
 
-                <div class="records-list">
+                <div class="records-list" id="recordsList">
                     <!-- Row 1: Sacramental Records -->
-                    <label class="record-row is-selected" for="cat_sacramental" data-weight="4.2">
-                        <input type="checkbox" name="categories[]" value="sacramental" id="cat_sacramental" class="d-none category-checkbox" checked>
-                        <div class="record-row-left">
-                            <div class="custom-checkbox" aria-hidden="true">
-                                <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                            </div>
-                            <div class="record-icon-box" aria-hidden="true">
-                                <svg viewBox="0 0 24 24">
-                                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-                                </svg>
-                            </div>
-                            <div class="record-text">
-                                <div class="record-name">Sacramental Records</div>
-                                <div class="record-desc">All Baptism, Confirmation, Marriage, and First Communion registers</div>
-                            </div>
-                        </div>
-                        <div class="record-count"><?php echo number_format($sacramental_count); ?> records</div>
-                    </label>
-
-                    <!-- Row 2: Parishioners -->
-                    <label class="record-row is-selected" for="cat_parishioners" data-weight="3.8">
-                        <input type="checkbox" name="categories[]" value="parishioners" id="cat_parishioners" class="d-none category-checkbox" checked>
-                        <div class="record-row-left">
-                            <div class="custom-checkbox" aria-hidden="true">
-                                <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                            </div>
-                            <div class="record-icon-box" aria-hidden="true">
-                                <svg viewBox="0 0 24 24">
-                                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                                    <circle cx="9" cy="7" r="4"></circle>
-                                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                                </svg>
-                            </div>
-                            <div class="record-text">
-                                <div class="record-name">Parishioners</div>
-                                <div class="record-desc">All registered parishioner profiles, contact info, and status</div>
-                            </div>
-                        </div>
-                        <div class="record-count"><?php echo number_format($parishioner_count); ?> records</div>
-                    </label>
-
-                    <!-- Row 3: Requests -->
-                    <label class="record-row is-selected" for="cat_requests" data-weight="4.4">
-                        <input type="checkbox" name="categories[]" value="requests" id="cat_requests" class="d-none category-checkbox" checked>
-                        <div class="record-row-left">
-                            <div class="custom-checkbox" aria-hidden="true">
-                                <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                            </div>
-                            <div class="record-icon-box" aria-hidden="true">
-                                <svg viewBox="0 0 24 24">
-                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                    <polyline points="14 2 14 8 20 8"></polyline>
-                                    <line x1="16" y1="13" x2="8" y2="13"></line>
-                                    <line x1="16" y1="17" x2="8" y2="17"></line>
-                                    <polyline points="10 9 9 9 8 9"></polyline>
-                                </svg>
-                            </div>
-                            <div class="record-text">
-                                <div class="record-name">Requests</div>
-                                <div class="record-desc">All certificate, blessing, and sacramental service requests</div>
-                            </div>
-                        </div>
-                        <div class="record-count"><?php echo number_format($request_count); ?> records</div>
-                    </label>
-                </div>
-
-                <div class="backup-info-note">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="12" y1="16" x2="12" y2="12"></line>
-                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                    </svg>
-                    <span>Records are prepared as standard spreadsheet files (CSV), compatible with Microsoft Excel and LibreOffice, and packaged into a single ZIP file.</span>
-                </div>
-            </div>
-
-            <footer class="backup-card-footer">
-                <div class="footer-summary" id="footerSummary">
-                    <strong id="selectedCount">3</strong> of 3 record types selected &middot; est. <strong id="selectedSize">12.4 MB</strong>
-                </div>
-                <div class="footer-right">
-                    <div class="privacy-note">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-    .table-saved td {
-        vertical-align: middle;
-        font-size: 0.88rem;
-        padding: 12px 16px;
-    }
-
-    .table-saved th {
-        font-size: 0.78rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.03em;
-        background: #F7F3EA;
-        color: #595144;
-        padding: 12px 16px;
-    }
-
-    @media (max-width: 540px) {
-        .backup-card-header {
-            padding: 18px 18px 16px;
-            flex-direction: column;
-            align-items: stretch;
-        }
-
-        .backup-last-time {
-            text-align: left;
-            padding-top: 4px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .backup-card-body {
-            padding: 18px 18px 20px;
-        }
-
-        .backup-card-footer {
-            padding: 16px 18px 20px;
-            flex-direction: column;
-            align-items: stretch;
-            gap: 14px;
-        }
-
-        .footer-right {
-            flex-direction: column-reverse;
-            align-items: stretch;
-            gap: 10px;
-        }
-
-        .privacy-note {
-            justify-content: center;
-        }
-
-        .btn-download-backup {
-            width: 100%;
-        }
-    }
-</style>
-
-<div class="backup-page-wrapper">
-    <?php if ($error): ?>
-        <div class="alert alert-danger alert-dismissible fade show shadow-sm rounded-3 mb-4" style="max-width: 600px; width: 100%;" role="alert">
-            <i class="fas fa-circle-exclamation me-2"></i> <?php echo e($error); ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    <?php endif; ?>
-
-    <?php if ($success): ?>
-        <div class="alert alert-success alert-dismissible fade show shadow-sm rounded-3 mb-4" style="max-width: 600px; width: 100%;" role="alert">
-            <i class="fas fa-circle-check me-2"></i> <?php echo e($success); ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    <?php endif; ?>
-
-    <!-- Backup Parish Records Card -->
-    <main class="backup-records-card" role="region" aria-label="Backup Parish Records">
-        <header class="backup-card-header">
-            <div class="backup-header-left">
-                <div class="backup-badge-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"></path>
-                        <polyline points="7 9 12 4 17 9"></polyline>
-                        <line x1="12" y1="4" x2="12" y2="16"></line>
-                    </svg>
-                </div>
-                <div class="backup-title-group">
-                    <h1>Backup Parish Records</h1>
-                    <p>Export a copy of your parish's records for safekeeping.</p>
-                </div>
-            </div>
-            <div class="backup-last-time">
-                <span class="backup-last-label">Last backup</span>
-                <span class="backup-last-date"><?php echo e($latest_backup_time); ?></span>
-            </div>
-        </header>
-
-        <form method="POST" id="backupForm">
-            <?php echo csrfInput(); ?>
-            <input type="hidden" name="action" value="download_parish_backup">
-
-            <div class="backup-card-body">
-                <div class="selection-toolbar">
-                    <span class="selection-label">Select record types to include</span>
-                    <div class="selection-actions">
-                        <button type="button" class="toggle-btn" id="btnSelectAll">Select all</button>
-                        <button type="button" class="toggle-btn" id="btnDeselectAll">Deselect all</button>
-                    </div>
-                </div>
-
-                <div class="records-list">
-                    <!-- Row 1: Sacramental Records -->
-                    <label class="record-row is-selected" for="cat_sacramental" data-weight="4.2">
+                    <label class="record-row is-selected" for="cat_sacramental" data-id="sacramental_records" data-weight="4.2">
                         <input type="checkbox" name="categories[]" value="sacramental_records" id="cat_sacramental" class="d-none category-checkbox" checked>
                         <div class="record-row-left">
                             <div class="custom-checkbox" aria-hidden="true">
@@ -2197,7 +2017,7 @@ $latest_backup_time = !empty($backup_files) ? (is_array($backup_files[0]) ? date
                     </label>
 
                     <!-- Row 2: Parishioners -->
-                    <label class="record-row is-selected" for="cat_parishioners" data-weight="3.8">
+                    <label class="record-row is-selected" for="cat_parishioners" data-id="parishioners" data-weight="3.8">
                         <input type="checkbox" name="categories[]" value="parishioners" id="cat_parishioners" class="d-none category-checkbox" checked>
                         <div class="record-row-left">
                             <div class="custom-checkbox" aria-hidden="true">
@@ -2220,7 +2040,7 @@ $latest_backup_time = !empty($backup_files) ? (is_array($backup_files[0]) ? date
                     </label>
 
                     <!-- Row 3: Requests -->
-                    <label class="record-row is-selected" for="cat_requests" data-weight="4.4">
+                    <label class="record-row is-selected" for="cat_requests" data-id="requests" data-weight="4.4">
                         <input type="checkbox" name="categories[]" value="requests" id="cat_requests" class="d-none category-checkbox" checked>
                         <div class="record-row-left">
                             <div class="custom-checkbox" aria-hidden="true">
@@ -2242,6 +2062,11 @@ $latest_backup_time = !empty($backup_files) ? (is_array($backup_files[0]) ? date
                         </div>
                         <div class="record-count"><?php echo number_format($request_count); ?> records</div>
                     </label>
+                </div>
+
+                <div class="backup-empty-warning" id="emptyWarning" style="display: none;">
+                    <i class="fas fa-triangle-exclamation"></i>
+                    <span>Please select at least one record type to generate a backup.</span>
                 </div>
 
                 <div class="backup-info-note">
@@ -2348,6 +2173,7 @@ $latest_backup_time = !empty($backup_files) ? (is_array($backup_files[0]) ? date
         var countEl = document.getElementById('selectedCount');
         var sizeEl = document.getElementById('selectedSize');
         var downloadBtn = document.getElementById('downloadBackupBtn');
+        var emptyWarning = document.getElementById('emptyWarning');
         var form = document.getElementById('backupForm');
 
         function updateSummary() {
@@ -2366,6 +2192,11 @@ $latest_backup_time = !empty($backup_files) ? (is_array($backup_files[0]) ? date
 
             if (countEl) countEl.textContent = count;
             if (sizeEl) sizeEl.textContent = totalWeight.toFixed(1) + ' MB';
+            
+            if (emptyWarning) {
+                emptyWarning.style.display = (count === 0) ? 'flex' : 'none';
+            }
+
             if (downloadBtn) {
                 downloadBtn.disabled = (count === 0);
             }
@@ -2373,7 +2204,6 @@ $latest_backup_time = !empty($backup_files) ? (is_array($backup_files[0]) ? date
 
         rows.forEach(function(row) {
             row.addEventListener('click', function(e) {
-                // If label default triggers checkbox, sync after event
                 setTimeout(updateSummary, 10);
             });
         });
@@ -2403,18 +2233,19 @@ $latest_backup_time = !empty($backup_files) ? (is_array($backup_files[0]) ? date
                 var anyChecked = Array.from(document.querySelectorAll('.category-checkbox')).some(function(cb) { return cb.checked; });
                 if (!anyChecked) {
                     e.preventDefault();
+                    if (emptyWarning) emptyWarning.style.display = 'flex';
                     alert('Please select at least one record type to include in the backup.');
                     return;
                 }
 
                 var originalContent = downloadBtn.innerHTML;
                 downloadBtn.disabled = true;
-                downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Generating...';
+                downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i><span>Preparing backup…</span>';
 
                 setTimeout(function() {
                     downloadBtn.disabled = false;
                     downloadBtn.innerHTML = originalContent;
-                }, 4500);
+                }, 5000);
             });
         }
 
