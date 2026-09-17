@@ -80,9 +80,12 @@
                                     <td class="py-3 px-3" data-label="Status">
                                         <?php 
                                             $disp_status = strtolower($request['status'] ?? 'pending');
+                                            $is_cert = str_contains(strtolower((string)($request['request_type'] ?? '')), 'certif');
+                                            $status_label = ($is_cert && $disp_status === 'completed') ? 'Released' : ucfirst($disp_status);
                                         ?>
                                         <span class="badge <?php echo getStatusBadgeClass($disp_status); ?> px-2.5 py-1.5" style="font-size: 0.78rem; font-weight: 600;">
-                                            <?php echo e(ucfirst($disp_status)); ?>
+                                            <?php if ($status_label === 'Released'): ?><i class="fas fa-certificate me-1"></i><?php endif; ?>
+                                            <?php echo e($status_label); ?>
                                         </span>
                                     </td>
                                     <td class="py-3 px-3 text-muted" data-label="Date Requested" style="font-size: 0.88rem;">

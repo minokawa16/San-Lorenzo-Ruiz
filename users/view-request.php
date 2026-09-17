@@ -202,10 +202,15 @@ $page_title = 'View Request';
                     <div class="d-flex justify-content-between align-items-center">
                         <h5 class="mb-0"><i class="fas fa-file-alt"></i> Request Details</h5>
                         <?php 
+                            $released_certs = array_merge($documents_by_type['released_certificate'], $documents_by_type['admin_file']);
+                            $has_released_cert = !empty($released_certs);
                             $disp_status = strtolower($request['status'] ?? 'pending');
+                            if ($has_released_cert && in_array($disp_status, ['completed', 'approved', 'released'], true)) {
+                                $disp_status = 'released — available for download';
+                            }
                         ?>
                         <span class="badge rounded-pill border px-3 py-1.5 fw-semibold <?php echo getStatusBadgeClass($disp_status); ?>">
-                            <?php echo e(ucfirst($disp_status)); ?>
+                            <?php echo e(ucwords($disp_status)); ?>
                         </span>
                     </div>
                 </div>
@@ -215,6 +220,50 @@ $page_title = 'View Request';
                     <?php endif; ?>
                     <?php if ($success): ?>
                         <div class="alert alert-success"><?php echo e($success); ?></div>
+                    <?php endif; ?>
+
+                    <?php if ($has_released_cert): ?>
+                        <div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); border: 1.5px solid #86efac !important; border-radius: 16px;">
+                            <div class="card-body p-4">
+                                <div class="d-flex align-items-start gap-3 flex-wrap flex-md-nowrap">
+                                    <div class="d-flex align-items-center justify-content-center flex-shrink-0" style="width: 52px; height: 52px; border-radius: 14px; background: #16a34a; color: #ffffff; font-size: 1.5rem; box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);">
+                                        <i class="fas fa-certificate"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-1">
+                                            <h5 class="fw-bold text-dark mb-0" style="font-family: 'Playfair Display', Georgia, serif;">Official Certificate Ready for Download</h5>
+                                            <span class="badge bg-success text-white px-2.5 py-1 rounded-pill" style="font-size: 0.78rem;">
+                                                <i class="fas fa-check-circle me-1"></i> Ready for Download
+                                            </span>
+                                        </div>
+                                        <p class="text-secondary small mb-3">
+                                            The parish office has finalized and released your official certificate. You can preview or download your digital certificate directly below:
+                                        </p>
+                                        <div class="d-flex flex-column gap-2">
+                                            <?php foreach ($released_certs as $cert): ?>
+                                                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 p-3 bg-white rounded-3 border shadow-sm" style="border-color: #bbf7d0 !important;">
+                                                    <div class="d-flex align-items-center gap-2 text-truncate me-2">
+                                                        <i class="fas fa-file-pdf text-danger fs-3"></i>
+                                                        <div>
+                                                            <strong class="d-block text-dark text-truncate" style="max-width: 320px; font-size: 0.95rem;"><?php echo e($cert['original_name']); ?></strong>
+                                                            <span class="text-muted small"><?php echo e(formatFileSize($cert['file_size'])); ?> &bull; Issued <?php echo formatDate($cert['uploaded_at']); ?></span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                                                        <a class="btn btn-sm btn-outline-secondary" href="../request-document.php?id=<?php echo intval($cert['document_id']); ?>" target="_blank" rel="noopener">
+                                                            <i class="fas fa-eye me-1"></i> Preview
+                                                        </a>
+                                                        <a class="btn btn-sm btn-success fw-bold px-3 shadow-sm" href="../request-document.php?id=<?php echo intval($cert['document_id']); ?>&download=1" download>
+                                                            <i class="fas fa-download me-1"></i> Download Certificate
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     <?php endif; ?>
                     
                     <div class="row mb-4">

@@ -186,10 +186,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $document = saveRequestDocument($conn, $request_id, $_SESSION['user_id'], $_FILES['release_file'] ?? null, 'released_certificate');
 
         if (!$document['ok'] || empty($document['saved'])) {
-            $error = $document['error'] ?? 'Please choose a file to release.';
+            $error = $document['error'] ?? 'Please choose a certificate file to upload and deliver.';
         } else {
             createAuditLog($conn, $_SESSION['user_id'], 'UPLOAD_REQUEST_FILE', 'request_documents', $document['document_id']);
-            createNotification($conn, $request['user_id'], 'Parish File Available', 'A parish office file was added to request ' . $request['reference_number'] . '.', true, 'requests', 'request', (int) $request_id, 'request.view');
+            createNotification($conn, $request['user_id'], 'Certificate Ready for Download', 'Your official certificate for request ' . $request['reference_number'] . ' has been released and is ready for download in your portal.', true, 'requests', 'request', (int) $request_id, 'request.view');
 
             if (!empty($_POST['mark_completed'])) {
                 $stmt = $conn->prepare("UPDATE requests SET status = 'completed' WHERE request_id = ?");
@@ -200,7 +200,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     $request['status'] = 'completed';
                 }
             }
-            $success = 'File released to parishioner.';
+            $success = 'Certificate file successfully uploaded and sent to parishioner.';
         }
     }
 }
@@ -1156,6 +1156,7 @@ $breadcrumbs = [
                 <?php endif; ?>
             </div>
         </div>
+        <?php endif; ?>
 
         <?php if ($is_certificate && (str_contains($raw_type, 'baptism') || str_contains($raw_type, 'bapt'))): ?>
         <!-- Sacramental Registry Record Cross-Check Card -->
@@ -1218,49 +1219,79 @@ $breadcrumbs = [
         </div>
         <?php endif; ?>
 
+        <?php if ($is_certificate): ?>
+        <?php
+        $is_online_release = (stripos((string)($request['description'] ?? ''), 'Online Release') !== false) || (stripos((string)($request['description'] ?? ''), 'online') !== false);
+        $is_walkin_release = (stripos((string)($request['description'] ?? ''), 'Walk-in') !== false);
+        ?>
         <!-- Release Certificate Card (For Certificate Requests) -->
-        <div class="card mb-4 shadow-sm border-0 rounded-3">
-            <div class="card-header bg-white py-3 px-4 border-bottom">
-                <h6 class="mb-0 fw-bold text-dark">
-                    <i class="fas fa-file-export text-primary me-2"></i> Certificate Issuance &amp; Releases
-                </h6>
+        <div class="card mb-4 shadow-sm border-0 rounded-3 overflow-hidden" style="border-left: 5px solid #22c55e !important;">
+            <div class="card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fas fa-certificate text-success fs-5"></i>
+                    <h6 class="mb-0 fw-bold text-dark text-uppercase tracking-wider">
+                        Certificate Issuance &amp; Digital Release
+                    </h6>
+                </div>
+                <div>
+                    <?php if ($is_online_release): ?>
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1">
+                            <i class="fas fa-globe me-1"></i> Requested for Online Release (System Portal)
+                        </span>
+                    <?php elseif ($is_walkin_release): ?>
+                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2.5 py-1">
+                            <i class="fas fa-person-walking me-1"></i> Requested for Walk-in Pickup
+                        </span>
+                    <?php endif; ?>
+                </div>
             </div>
             <div class="card-body p-4">
                 <div class="row g-4">
                     <div class="col-lg-6">
-                        <span class="micro-label mb-2">Upload Generated / Signed Certificate</span>
+                        <span class="micro-label mb-2">Upload Finalized / Signed Certificate</span>
+                        <p class="text-muted small mb-3">Attach the official signed/sealed certificate. When sent, the certificate will be immediately available in the parishioner's portal for download.</p>
                         <form method="POST" enctype="multipart/form-data" class="border rounded-3 p-3 bg-light-subtle">
                             <?php echo csrfInput(); ?>
                             <input type="hidden" name="action" value="upload_release">
                             <input type="hidden" name="request_id" value="<?php echo intval($request_id); ?>">
                             <div class="mb-3">
-                                <label class="form-label small text-muted mb-1" for="release_file">Select Certificate Document (PDF or Image)</label>
-                                <input type="file" class="form-control form-control-sm" id="release_file" name="release_file" accept=".jpg,.jpeg,.png,.pdf" required>
+                                <label class="form-label small fw-bold text-dark mb-1" for="release_file">
+                                    Certificate Document <span class="text-danger">*</span>
+                                </label>
+                                <input type="file" class="form-control form-control-sm" id="release_file" name="release_file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" required>
+                                <div class="form-text small text-muted">Upload finalized certificate (PDF, JPG, PNG up to 10MB).</div>
                             </div>
                             <div class="form-check mb-3">
                                 <input class="form-check-input" type="checkbox" name="mark_completed" id="mark_completed" value="1" checked>
                                 <label class="form-check-label small" for="mark_completed">
-                                    Automatically mark this certificate request as <strong>Completed</strong> upon upload
+                                    Mark this certificate request as <strong>Completed (Fulfilled)</strong> and notify parishioner
                                 </label>
                             </div>
-                            <button type="submit" class="btn btn-sm btn-success w-100 fw-semibold">
-                                <i class="fas fa-cloud-arrow-up me-1"></i> Release File to Parishioner
+                            <button type="submit" class="btn btn-sm btn-success w-100 fw-semibold py-2">
+                                <i class="fas fa-paper-plane me-1"></i> Send to Parishioner
                             </button>
                         </form>
                     </div>
                     <div class="col-lg-6">
-                        <span class="micro-label mb-2">Previously Released Files</span>
+                        <span class="micro-label mb-2">Released Certificate Files</span>
                         <?php $released_files = array_merge($documents_by_type['released_certificate'], $documents_by_type['admin_file']); ?>
                         <?php if (empty($released_files)): ?>
-                            <div class="text-muted small fst-italic p-3 bg-light-subtle border rounded-3">No certificates released yet.</div>
+                            <div class="text-muted small fst-italic p-4 bg-light-subtle border rounded-3 text-center">
+                                <i class="fas fa-file-circle-question fs-3 text-muted d-block mb-2"></i>
+                                No certificate files have been released for this request yet.
+                            </div>
                         <?php else: ?>
                             <div class="list-group">
                                 <?php foreach ($released_files as $document): ?>
-                                    <div class="list-group-item d-flex justify-content-between align-items-center rounded-2 mb-1 border p-2 bg-white">
+                                    <div class="list-group-item d-flex justify-content-between align-items-center rounded-2 mb-2 border p-3 bg-white shadow-sm">
                                         <div class="text-truncate me-2">
-                                            <i class="fas fa-file-circle-check text-success me-2"></i>
-                                            <span class="fw-semibold small text-dark"><?php echo e($document['original_name']); ?></span>
-                                            <small class="text-muted ms-1">(<?php echo e(formatFileSize($document['file_size'])); ?>)</small>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <i class="fas fa-file-circle-check text-success fs-5"></i>
+                                                <div>
+                                                    <span class="fw-semibold small text-dark d-block text-truncate" style="max-width: 250px;"><?php echo e($document['original_name']); ?></span>
+                                                    <small class="text-muted"><?php echo e(formatFileSize($document['file_size'])); ?> &bull; Uploaded <?php echo formatDate($document['uploaded_at']); ?></small>
+                                                </div>
+                                            </div>
                                         </div>
                                         <div class="d-flex align-items-center gap-1 flex-shrink-0">
                                             <button type="button" 
@@ -1275,11 +1306,11 @@ $breadcrumbs = [
                                                     title="Preview File">
                                                 <i class="fas fa-eye me-1"></i> View
                                             </button>
-                                            <a class="btn btn-sm btn-outline-secondary py-1 px-2" 
+                                            <a class="btn btn-sm btn-success py-1 px-2 fw-semibold" 
                                                href="../request-document.php?id=<?php echo intval($document['document_id']); ?>&download=1" 
                                                title="Download File" 
                                                download>
-                                                <i class="fas fa-download"></i>
+                                                <i class="fas fa-download me-1"></i> Download
                                             </a>
                                         </div>
                                     </div>

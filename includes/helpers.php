@@ -3410,6 +3410,8 @@ function getStatusBadgeClass($status) {
         case 'under review':
             return 'bg-info-subtle text-info border border-info-subtle';
         case 'completed':
+        case 'released':
+        case 'released — available for download':
             return 'bg-success-subtle text-success border border-success-subtle';
         case 'rejected':
         case 'cancelled':

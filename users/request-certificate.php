@@ -2787,7 +2787,7 @@ if ($stmt) {
                                         <span class="badge bg-info-subtle text-info fw-semibold px-2 py-1" style="font-size: 0.75rem;">Digital Delivery</span>
                                     </div>
                                     <strong class="d-block text-dark mb-1" style="font-size: 1rem;">Online Release</strong>
-                                    <small class="text-muted d-block">Delivered digitally via email and downloadable directly from your portal once approved.</small>
+                                    <small class="text-muted d-block">Delivered digitally through the system and downloadable directly from your portal once approved.</small>
                                 </div>
                             </label>
                         </div>
