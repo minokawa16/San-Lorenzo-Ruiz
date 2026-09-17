@@ -858,6 +858,227 @@ if ($stmt) {
         box-shadow: 0 2px 6px rgba(200, 155, 60, 0.4);
     }
 
+    /* Two-Step Certificate Selection Flow Styles */
+    .category-selection-container {
+        margin-bottom: 8px;
+    }
+
+    .category-prompt-box {
+        margin-bottom: 18px;
+    }
+
+    .category-prompt-heading {
+        font-family: 'Playfair Display', Georgia, serif;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin: 0 0 6px 0;
+        display: flex;
+        align-items: center;
+    }
+
+    .category-prompt-subtext {
+        font-size: 0.88rem;
+        color: #64748b;
+        margin: 0;
+    }
+
+    .category-choice-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+    }
+
+    @media (max-width: 768px) {
+        .category-choice-grid {
+            grid-template-columns: 1fr;
+            gap: 14px;
+        }
+    }
+
+    .category-choice-card {
+        position: relative;
+        display: block;
+        cursor: pointer;
+        outline: none;
+        user-select: none;
+        height: 100%;
+    }
+
+    .category-choice-card .category-card-inner {
+        position: relative;
+        height: 100%;
+        min-height: 172px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 22px 24px;
+        border: 1.5px solid #e7e2d8;
+        border-radius: 14px;
+        background: #ffffff;
+        box-shadow: 0 3px 14px rgba(23, 32, 51, 0.04);
+        transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+        overflow: hidden;
+    }
+
+    .category-choice-card:hover .category-card-inner,
+    .category-choice-card:focus-visible .category-card-inner {
+        transform: translateY(-3px);
+        border-color: #c89b3c;
+        box-shadow: 0 10px 26px rgba(46, 58, 45, 0.09);
+    }
+
+    .category-choice-card:hover .category-icon-box {
+        transform: scale(1.08);
+    }
+
+    .category-choice-card.is-selected .category-card-inner {
+        transform: translateY(-2px);
+        border-color: #c89b3c;
+        border-width: 2px;
+        background: #fffdf9;
+        box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.18), 0 10px 24px rgba(46, 58, 45, 0.08);
+    }
+
+    .category-choice-card.is-selected .category-card-inner::after {
+        content: "\f00c";
+        font-family: "Font Awesome 6 Free";
+        font-weight: 900;
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        width: 24px;
+        height: 24px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        color: #ffffff;
+        background: #c89b3c;
+        font-size: 11px;
+        box-shadow: 0 2px 6px rgba(200, 155, 60, 0.4);
+    }
+
+    .category-card-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+    }
+
+    .category-icon-box {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        transition: transform 0.2s ease;
+    }
+
+    .category-icon-box.certification-color {
+        color: #b45309;
+        background: #fef3c7;
+    }
+
+    .category-icon-box.certificate-color {
+        color: #0369a1;
+        background: #e0f2fe;
+    }
+
+    .category-card-title {
+        color: #1e293b;
+        font-size: 1.15rem;
+        font-weight: 700;
+        line-height: 1.3;
+        margin: 0 0 6px 0;
+        display: block;
+    }
+
+    .category-card-desc {
+        color: #64748b;
+        font-size: 0.86rem;
+        line-height: 1.45;
+        margin: 0;
+    }
+
+    .category-card-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 6px;
+        padding-top: 12px;
+        border-top: 1px solid #f1f5f9;
+    }
+
+    .category-count-pill {
+        font-size: 0.76rem;
+        font-weight: 600;
+        color: #475569;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 999px;
+        padding: 3px 10px;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .category-action-btn {
+        font-size: 0.8rem;
+        font-weight: 650;
+        color: #c89b3c;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        transition: transform 0.15s ease;
+    }
+
+    .category-choice-card:hover .category-action-btn {
+        transform: translateX(3px);
+        color: #9a6e1a;
+    }
+
+    .btn-change-category {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        font-size: 0.78rem;
+        font-weight: 650;
+        color: #475569;
+        background: #ffffff;
+        border: 1.5px solid #d1d5db;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.18s ease;
+        text-decoration: none;
+    }
+
+    .btn-change-category:hover {
+        background: #fdf8ed;
+        color: #8c6427;
+        border-color: #c89b3c;
+        box-shadow: 0 2px 8px rgba(200, 155, 60, 0.15);
+    }
+
+    .category-step-fade {
+        animation: categoryStepFadeIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes categoryStepFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(6px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
     .request-form-control {
         min-height: 46px;
         border-radius: 8px;
@@ -1644,14 +1865,44 @@ if ($stmt) {
             line-height: 1.35 !important;
         }
 
-        body.certificate-mobile-page .certificate-option-grid,
-        body.certificate-mobile-page .certificate-option-grid + .mt-3,
-        body.certificate-mobile-page .certificate-mobile-type-field + .mt-3 {
+        body.certificate-mobile-page .certificate-mobile-type-field,
+        body.certificate-mobile-page .certificate-mobile-type-field + .mt-3,
+        body.certificate-mobile-page .certificate-option-grid + .mt-3 {
             display: none !important;
         }
 
-        body.certificate-mobile-page .certificate-mobile-type-field {
-            display: block !important;
+        body.certificate-mobile-page .category-choice-grid {
+            grid-template-columns: 1fr !important;
+            gap: 10px !important;
+        }
+
+        body.certificate-mobile-page .category-choice-card .category-card-inner {
+            min-height: auto !important;
+            padding: 14px 14px !important;
+            gap: 10px !important;
+        }
+
+        body.certificate-mobile-page .category-icon-box {
+            width: 38px !important;
+            height: 38px !important;
+            font-size: 16px !important;
+        }
+
+        body.certificate-mobile-page .category-card-title {
+            font-size: 1rem !important;
+        }
+
+        body.certificate-mobile-page .category-card-desc {
+            font-size: 0.78rem !important;
+        }
+
+        body.certificate-mobile-page .category-prompt-heading {
+            font-size: 1.05rem !important;
+        }
+
+        body.certificate-mobile-page .btn-change-category {
+            padding: 4px 10px !important;
+            font-size: 0.72rem !important;
         }
 
         body.certificate-mobile-page .form-label {
@@ -1839,23 +2090,83 @@ if ($stmt) {
         <form method="POST" action="" enctype="multipart/form-data" id="certificateRequestForm">
             <?php echo csrfInput(); ?>
             <input type="hidden" name="idempotency_key" value="<?php echo e($request_idempotency_key); ?>">
-            <section class="form-step">
+            <section class="form-step" id="step1Section">
                 <div class="step-heading">
                     <span class="step-number">1</span>
                     <div>
-                        <h3>Certificate Information</h3>
-                        <p>Select the sacramental certificate you need.</p>
+                        <h3 id="step1Title">Certificate Information</h3>
+                        <p id="step1Description">Select the document category and sacramental certificate you need.</p>
+                    </div>
+                </div>
+
+                <?php
+                    $selected_request_type = (string)($_POST['request_type'] ?? $_POST['certificate_mobile_type'] ?? '');
+                    $active_category = $certificate_meta[$selected_request_type]['category'] ?? '';
+                ?>
+
+                <!-- Step 1a: Category Selection ("What do you need?") -->
+                <div class="category-selection-container" id="categorySelectionView" style="<?php echo !empty($active_category) ? 'display: none;' : ''; ?>">
+                    <div class="category-prompt-box">
+                        <h4 class="category-prompt-heading"><i class="fas fa-layer-group text-warning me-2"></i> What do you need?</h4>
+                        <p class="category-prompt-subtext">Please choose a category below to view the available sacramental document options.</p>
+                    </div>
+
+                    <div class="category-choice-grid" role="radiogroup" aria-label="What do you need?">
+                        <!-- Category 1: Certification -->
+                        <div class="category-choice-card <?php echo ($active_category === 'certification') ? 'is-selected' : ''; ?>" data-category="certification" tabindex="0" role="button" aria-pressed="<?php echo ($active_category === 'certification') ? 'true' : 'false'; ?>">
+                            <div class="category-card-inner">
+                                <div class="category-card-top">
+                                    <span class="category-icon-box certification-color">
+                                        <i class="fas fa-file-signature"></i>
+                                    </span>
+                                    <span class="cert-group-badge certification"><i class="fas fa-stamp me-1"></i> Registry Extract</span>
+                                </div>
+                                <div class="category-card-body">
+                                    <strong class="category-card-title">Certification</strong>
+                                    <p class="category-card-desc">A certified extract transcribed directly from the parish's official canonical registry books.</p>
+                                </div>
+                                <div class="category-card-footer">
+                                    <span class="category-count-pill"><i class="fas fa-layer-group text-warning me-1"></i> 5 types available</span>
+                                    <span class="category-action-btn">Select <i class="fas fa-arrow-right ms-1"></i></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Category 2: Original Certificate -->
+                        <div class="category-choice-card <?php echo ($active_category === 'certificate') ? 'is-selected' : ''; ?>" data-category="certificate" tabindex="0" role="button" aria-pressed="<?php echo ($active_category === 'certificate') ? 'true' : 'false'; ?>">
+                            <div class="category-card-inner">
+                                <div class="category-card-top">
+                                    <span class="category-icon-box certificate-color">
+                                        <i class="fas fa-scroll"></i>
+                                    </span>
+                                    <span class="cert-group-badge certificate"><i class="fas fa-certificate me-1"></i> Canonical Certificate</span>
+                                </div>
+                                <div class="category-card-body">
+                                    <strong class="category-card-title">Original Certificate</strong>
+                                    <p class="category-card-desc">An official canonical commemorative certificate for a sacrament celebrated in this parish.</p>
+                                </div>
+                                <div class="category-card-footer">
+                                    <span class="category-count-pill"><i class="fas fa-layer-group text-info me-1"></i> 3 types available</span>
+                                    <span class="category-action-btn">Select <i class="fas fa-arrow-right ms-1"></i></span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Group 1: Sacramental Certifications -->
-                <div class="cert-group-block">
-                    <div class="cert-group-header">
+                <div class="cert-group-block" data-category="certification" style="<?php echo ($active_category === 'certification') ? '' : 'display: none;'; ?>">
+                    <div class="cert-group-header d-flex align-items-center justify-content-between flex-wrap gap-2">
                         <div class="cert-group-info">
                             <span class="cert-group-title"><i class="fas fa-file-signature text-warning me-2"></i> Sacramental Certifications</span>
                             <span class="cert-group-desc">Certified official extracts transcribed directly from parish canonical registry books.</span>
                         </div>
-                        <span class="cert-group-badge certification"><i class="fas fa-stamp me-1"></i> Registry Extract</span>
+                        <div class="cert-group-actions d-flex align-items-center gap-2">
+                            <span class="cert-group-badge certification"><i class="fas fa-stamp me-1"></i> Registry Extract</span>
+                            <button type="button" class="btn-change-category" data-action="change-category" title="Choose another document category">
+                                <i class="fas fa-arrow-left"></i> Change selection
+                            </button>
+                        </div>
                     </div>
 
                     <div class="certificate-option-grid grid-5" role="radiogroup" aria-label="Sacramental Certifications">
@@ -1879,13 +2190,18 @@ if ($stmt) {
                 </div>
 
                 <!-- Group 2: Sacramental Certificates -->
-                <div class="cert-group-block">
-                    <div class="cert-group-header">
+                <div class="cert-group-block" data-category="certificate" style="<?php echo ($active_category === 'certificate') ? '' : 'display: none;'; ?>">
+                    <div class="cert-group-header d-flex align-items-center justify-content-between flex-wrap gap-2">
                         <div class="cert-group-info">
                             <span class="cert-group-title"><i class="fas fa-scroll text-warning me-2"></i> Sacramental Certificates</span>
                             <span class="cert-group-desc">Official canonical commemorative certificates for sacraments celebrated in this parish.</span>
                         </div>
-                        <span class="cert-group-badge certificate"><i class="fas fa-certificate me-1"></i> Canonical Certificate</span>
+                        <div class="cert-group-actions d-flex align-items-center gap-2">
+                            <span class="cert-group-badge certificate"><i class="fas fa-certificate me-1"></i> Canonical Certificate</span>
+                            <button type="button" class="btn-change-category" data-action="change-category" title="Choose another document category">
+                                <i class="fas fa-arrow-left"></i> Change selection
+                            </button>
+                        </div>
                     </div>
 
                     <div class="certificate-option-grid grid-3" role="radiogroup" aria-label="Sacramental Certificates">
@@ -2115,6 +2431,112 @@ if ($stmt) {
         const form = document.getElementById('certificateRequestForm');
         const submitBtn = document.getElementById('submitRequestBtn');
         const certificateLabels = <?php echo json_encode($certificate_types); ?>;
+        const certificateMeta = <?php echo json_encode($certificate_meta); ?>;
+
+        const categorySelectionView = document.getElementById('categorySelectionView');
+        const categoryCards = document.querySelectorAll('.category-choice-card');
+        const certGroupBlocks = document.querySelectorAll('.cert-group-block');
+        const changeCategoryBtns = document.querySelectorAll('[data-action="change-category"]');
+        let currentCategory = '<?php echo e($active_category); ?>' || (function() {
+            const checked = document.querySelector('input[name="request_type"]:checked');
+            if (checked && checked.value && certificateMeta[checked.value]) {
+                return certificateMeta[checked.value].category || '';
+            }
+            return '';
+        })();
+
+        function showCategoryFlow(cat, options) {
+            options = options || {};
+            const shouldAnimate = options.animate !== false;
+            const isSwitchingCategory = currentCategory && cat && currentCategory !== cat;
+
+            // If switching from one category to another, clear previous selection as per spec
+            if (isSwitchingCategory) {
+                radios.forEach(function(r) {
+                    r.checked = false;
+                });
+                if (mobileSelect) mobileSelect.value = '';
+                if (select) select.value = '';
+                toggleBaptismFields('');
+            }
+
+            currentCategory = cat || '';
+
+            // Update category cards visual state
+            categoryCards.forEach(function(card) {
+                const isMatch = (card.dataset.category === cat);
+                card.classList.toggle('is-selected', isMatch);
+                card.setAttribute('aria-pressed', isMatch ? 'true' : 'false');
+            });
+
+            if (cat) {
+                if (categorySelectionView) {
+                    categorySelectionView.style.display = 'none';
+                }
+                certGroupBlocks.forEach(function(block) {
+                    if (block.dataset.category === cat) {
+                        block.style.display = 'block';
+                        if (shouldAnimate) {
+                            block.classList.remove('category-step-fade');
+                            void block.offsetWidth;
+                            block.classList.add('category-step-fade');
+                        }
+                    } else {
+                        block.style.display = 'none';
+                    }
+                });
+            } else {
+                // Return to category selection screen
+                if (categorySelectionView) {
+                    categorySelectionView.style.display = 'block';
+                    if (shouldAnimate) {
+                        categorySelectionView.classList.remove('category-step-fade');
+                        void categorySelectionView.offsetWidth;
+                        categorySelectionView.classList.add('category-step-fade');
+                    }
+                }
+                certGroupBlocks.forEach(function(block) {
+                    block.style.display = 'none';
+                });
+            }
+        }
+
+        categoryCards.forEach(function(card) {
+            function handleCategorySelect() {
+                const cat = card.dataset.category;
+                categoryCards.forEach(function(c) {
+                    c.classList.remove('is-selected');
+                    c.setAttribute('aria-pressed', 'false');
+                });
+                card.classList.add('is-selected');
+                card.setAttribute('aria-pressed', 'true');
+
+                // Smooth tactile transition delay (160ms) before displaying filtered view
+                setTimeout(function() {
+                    showCategoryFlow(cat, { animate: true });
+                }, 160);
+            }
+
+            card.addEventListener('click', handleCategorySelect);
+            card.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleCategorySelect();
+                }
+            });
+        });
+
+        changeCategoryBtns.forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const prevCat = currentCategory;
+                showCategoryFlow('', { animate: true });
+                if (prevCat) {
+                    const prevCard = document.querySelector('.category-choice-card[data-category="' + prevCat + '"]');
+                    if (prevCard) prevCard.focus();
+                }
+            });
+        });
 
         function updatePurposeField() {
             if (!purposeSelect || !purposeOtherField || !purposeOtherInput) return;
@@ -2158,6 +2580,14 @@ if ($stmt) {
                 select.value = certificateLabels[value];
             }
             toggleBaptismFields(value);
+
+            // Auto-switch to matching category if not already active
+            if (certificateMeta[value] && certificateMeta[value].category) {
+                const targetCat = certificateMeta[value].category;
+                if (currentCategory !== targetCat) {
+                    showCategoryFlow(targetCat, { animate: false });
+                }
+            }
         }
 
         const sponsorsList = document.getElementById('parishionerSponsorsList');
@@ -2310,12 +2740,17 @@ if ($stmt) {
                 if (!selectedType) {
                     event.preventDefault();
                     alert('Please select a certificate type.');
-                    const firstOptionGrid = document.querySelector('.certificate-option-grid');
-                    if (firstOptionGrid && window.getComputedStyle(firstOptionGrid).display !== 'none') {
-                        const firstRadio = firstOptionGrid.querySelector('input[type="radio"]');
-                        if (firstRadio) firstRadio.focus();
-                    } else if (mobileSelect) {
-                        mobileSelect.focus();
+                    if (!currentCategory) {
+                        const firstCatCard = document.querySelector('.category-choice-card');
+                        if (firstCatCard) firstCatCard.focus();
+                    } else {
+                        const activeBlock = document.querySelector('.cert-group-block[data-category="' + currentCategory + '"]');
+                        if (activeBlock && window.getComputedStyle(activeBlock).display !== 'none') {
+                            const firstRadio = activeBlock.querySelector('input[type="radio"]');
+                            if (firstRadio) firstRadio.focus();
+                        } else if (mobileSelect) {
+                            mobileSelect.focus();
+                        }
                     }
                     return false;
                 }
