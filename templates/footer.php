@@ -340,8 +340,7 @@
         body.user-area .card-icon,
         body.user-area .calendar-user-icon,
         body.user-area .notification-icon,
-        body.user-area .tugon-ai-avatar,
-        body.user-area .ai-assistant-panel-mark {
+        body.user-area .tugon-ai-avatar {
             background: rgba(200, 155, 60, 0.12) !important;
             color: var(--tugon-text) !important;
             border-color: var(--tugon-border) !important;
@@ -657,7 +656,6 @@
         body.user-area .calendar-user-icon,
         body.user-area .notification-icon,
         body.user-area .tugon-ai-avatar,
-        body.user-area .ai-assistant-panel-mark,
         body.user-area .user-quick-tile i {
             background: rgba(200, 155, 60, 0.12) !important;
             color: var(--tugon-text) !important;
@@ -1089,19 +1087,19 @@
             min-width: 58px !important;
             min-height: 58px !important;
             border-radius: 50% !important;
-            background: linear-gradient(145deg, #344536 0%, #223023 100%) !important;
-            color: #FFFDF8 !important;
-            border: 2px solid #C9A646 !important;
-            box-shadow: 0 10px 26px rgba(34, 48, 35, 0.38), 0 2px 8px rgba(201, 166, 70, 0.3) !important;
+            background: radial-gradient(circle at center, #F7DC8A 0%, #DEB042 55%, #B8861B 100%) !important;
+            color: #1C261D !important;
+            border: 2px solid #C49226 !important;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16), 0 2px 6px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(184, 134, 27, 0.22) !important;
             display: inline-flex !important;
             align-items: center !important;
             justify-content: center !important;
-            font-size: 1.4rem !important;
+            font-size: 1.45rem !important;
             cursor: grab !important;
             visibility: visible !important;
             opacity: 1 !important;
             pointer-events: auto !important;
-            transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease, border-color 0.22s ease !important;
+            transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease, border-color 0.22s ease, background 0.22s ease !important;
             text-decoration: none !important;
             touch-action: none !important;
             user-select: none !important;
@@ -1110,21 +1108,22 @@
         html body .ai-assistant-trigger:hover,
         html body.user-area .ai-assistant-trigger:hover {
             transform: scale(1.06) translateY(-2px) !important;
-            box-shadow: 0 14px 32px rgba(34, 48, 35, 0.45), 0 4px 14px rgba(201, 166, 70, 0.45) !important;
-            border-color: #E2CE98 !important;
-            color: #FFFFFF !important;
+            background: radial-gradient(circle at center, #FAEC9E 0%, #E5BD52 55%, #C29124 100%) !important;
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.20), 0 4px 8px rgba(0, 0, 0, 0.10), 0 0 0 1px rgba(184, 134, 27, 0.32) !important;
+            border-color: #DDAE3B !important;
+            color: #1C261D !important;
         }
         html body .ai-assistant-widget.is-dragging .ai-assistant-trigger {
             cursor: grabbing !important;
             transform: scale(1.08) !important;
-            box-shadow: 0 16px 36px rgba(34, 48, 35, 0.5), 0 6px 18px rgba(201, 166, 70, 0.5) !important;
+            box-shadow: 0 14px 30px rgba(0, 0, 0, 0.24), 0 6px 12px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(184, 134, 27, 0.4) !important;
             transition: none !important;
         }
         html body .ai-assistant-icon {
             display: inline-flex !important;
             align-items: center !important;
             justify-content: center !important;
-            color: #FFFDF8 !important;
+            color: #1C261D !important;
             position: relative !important;
             transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s ease !important;
         }
@@ -1132,63 +1131,34 @@
             display: none !important;
             align-items: center !important;
             justify-content: center !important;
-            color: #FAF6ED !important;
+            color: #1C261D !important;
             position: relative !important;
             font-size: 1.35rem !important;
             transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s ease !important;
         }
-        html body .ai-assistant-icon i,
+        html body .ai-assistant-icon i {
+            font-size: 1.45rem !important;
+            color: #1C261D !important;
+            filter: drop-shadow(0 1px 1px rgba(255, 255, 255, 0.25));
+        }
         html body .ai-assistant-close-icon i {
             font-size: 1.35rem !important;
-            color: #FAF6ED !important;
-            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25));
-        }
-        html body .ai-assistant-online-indicator {
-            position: absolute !important;
-            top: 2px !important;
-            right: 2px !important;
-            width: 12px !important;
-            height: 12px !important;
-            border-radius: 50% !important;
-            background: #22C55E !important;
-            border: 2px solid #223023 !important;
-            box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.45) !important;
-            animation: aiPulseOnline 2.4s infinite !important;
-        }
-        @keyframes aiPulseOnline {
-            0%, 100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.45); }
-            50% { transform: scale(1.15); opacity: 0.9; box-shadow: 0 0 0 4.5px rgba(34, 197, 94, 0.15); }
-        }
-        html body .ai-assistant-chathead-label {
-            position: absolute !important;
-            bottom: -9px !important;
-            left: 50% !important;
-            transform: translateX(-50%) !important;
-            background: #223023 !important;
-            color: #F8F5ED !important;
-            border: 1px solid #C9A646 !important;
-            padding: 2px 7px !important;
-            border-radius: 999px !important;
-            font-size: 0.64rem !important;
-            font-weight: 700 !important;
-            letter-spacing: 0.5px !important;
-            white-space: nowrap !important;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) !important;
-            pointer-events: none !important;
+            color: #1C261D !important;
+            filter: drop-shadow(0 1px 1px rgba(255, 255, 255, 0.25));
         }
 
         /* ── Open State for Floating Launcher (Stays visible & morphs to active Close button) ── */
         html body .ai-assistant-widget.is-open .ai-assistant-trigger {
             display: inline-flex !important;
-            background: linear-gradient(145deg, #28372A 0%, #1A241C 100%) !important;
-            border-color: #E2CE98 !important;
-            box-shadow: 0 10px 28px rgba(27, 38, 29, 0.45), 0 0 16px rgba(201, 166, 70, 0.35) !important;
+            background: radial-gradient(circle at center, #F7DC8A 0%, #DEB042 55%, #B8861B 100%) !important;
+            border-color: #C49226 !important;
+            box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(184, 134, 27, 0.25) !important;
             transform: scale(1) !important;
         }
         html body .ai-assistant-widget.is-open .ai-assistant-trigger:hover {
             transform: scale(1.08) !important;
-            box-shadow: 0 14px 32px rgba(27, 38, 29, 0.55), 0 0 20px rgba(201, 166, 70, 0.5) !important;
-            border-color: #F8F5ED !important;
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.20), 0 4px 8px rgba(0, 0, 0, 0.10), 0 0 0 1px rgba(184, 134, 27, 0.32) !important;
+            border-color: #DDAE3B !important;
         }
         html body .ai-assistant-widget.is-open .ai-assistant-trigger .ai-assistant-icon {
             display: none !important;
@@ -1196,12 +1166,6 @@
         html body .ai-assistant-widget.is-open .ai-assistant-trigger .ai-assistant-close-icon {
             display: inline-flex !important;
             animation: aiSpinIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) both !important;
-        }
-        html body .ai-assistant-widget.is-open .ai-assistant-trigger .ai-assistant-chathead-label {
-            display: none !important;
-        }
-        html body .ai-assistant-widget.is-open .ai-assistant-trigger .ai-assistant-online-indicator {
-            display: none !important;
         }
         @keyframes aiSpinIn {
             from { transform: rotate(-90deg) scale(0.6); opacity: 0; }
@@ -1281,16 +1245,22 @@
         html body.user-area .ai-assistant-panel-mark {
             width: 36px !important;
             height: 36px !important;
-            border-radius: 10px !important;
-            background: linear-gradient(135deg, rgba(201, 166, 70, 0.25) 0%, rgba(201, 166, 70, 0.1) 100%) !important;
-            border: 1.5px solid #C9A646 !important;
-            color: #FFFDF8 !important;
+            border-radius: 50% !important;
+            background: radial-gradient(circle at center, #F7DC8A 0%, #DEB042 55%, #B8861B 100%) !important;
+            border: 1.5px solid #C49226 !important;
+            color: #1C261D !important;
             display: flex !important;
             align-items: center !important;
             justify-content: center !important;
-            font-size: 1.15rem !important;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2), 0 0 8px rgba(201, 166, 70, 0.25) !important;
+            font-size: 1.05rem !important;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16) !important;
             flex-shrink: 0 !important;
+        }
+        html body .ai-assistant-panel-mark i,
+        html body.user-area .ai-assistant-panel-mark i {
+            color: #1C261D !important;
+            font-size: 1.05rem !important;
+            line-height: 1 !important;
         }
         html body .ai-assistant-panel-identity,
         html body.user-area .ai-assistant-panel-identity {
@@ -1748,15 +1718,13 @@
 
     <?php if (isLoggedIn()): ?>
     <div class="ai-assistant-widget" id="aiAssistantWidget">
-        <button class="ai-assistant-trigger" type="button" id="aiAssistantTrigger" aria-label="Open TUGON Parish Guide" aria-expanded="false" title="Need help? Chat with TUGON Parish Guide">
-            <span class="ai-assistant-online-indicator" aria-hidden="true"></span>
+        <button class="ai-assistant-trigger" type="button" id="aiAssistantTrigger" aria-label="Open TUGON" aria-expanded="false" title="Chat with TUGON">
             <span class="ai-assistant-icon" aria-hidden="true">
-                <i class="fas fa-church"></i>
+                <i class="fas fa-comment-dots"></i>
             </span>
             <span class="ai-assistant-close-icon" aria-hidden="true">
                 <i class="fas fa-xmark"></i>
             </span>
-            <span class="ai-assistant-chathead-label">PARISH GUIDE</span>
         </button>
     </div>
 
@@ -1766,7 +1734,7 @@
                 <i class="fas fa-chevron-left" aria-hidden="true"></i>
             </button>
             <div class="ai-assistant-panel-mark" aria-hidden="true">
-                <i class="fas fa-church"></i>
+                <i class="fas fa-comment-dots"></i>
             </div>
             <div class="ai-assistant-panel-identity">
                 <strong>TUGON</strong>
