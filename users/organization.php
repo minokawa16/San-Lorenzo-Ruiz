@@ -1,6 +1,6 @@
 <?php
 /**
- * Parish Leadership & Organizational Hierarchy View
+ * Parish Organization Chart & Hierarchy View
  * Public / Parishioner interactive 5-tier visual org tree.
  */
 
@@ -14,10 +14,10 @@ if (!isUser()) {
     redirect('../auth/login.php');
 }
 
-$page_title = 'Parish Leadership';
+$page_title = 'Parish Organization Chart';
 $breadcrumbs = [
     'Dashboard' => 'index.php',
-    'Parish Leadership' => null
+    'Parish Organization Chart' => null
 ];
 
 $orgService = new OrganizationService($conn);
@@ -456,7 +456,7 @@ include __DIR__ . '/../includes/back_button.php';
 
     <!-- Hero Card -->
     <div class="org-hero-card">
-        <h1 class="org-hero-title">Parish Leadership & Pastoral Organization</h1>
+        <h1 class="org-hero-title">Parish Organization Chart</h1>
         <p class="org-hero-subtitle">
             The ecclesiastical hierarchy, clergy, Chancery administration, Parish Pastoral Council Executive Board, 
             and dynamic ministry coordinators serving the San Lorenzo Ruiz Mission Station.
