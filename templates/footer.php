@@ -1292,36 +1292,22 @@
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2), 0 0 8px rgba(201, 166, 70, 0.25) !important;
             flex-shrink: 0 !important;
         }
-        html body .ai-assistant-panel-identity {
+        html body .ai-assistant-panel-identity,
+        html body.user-area .ai-assistant-panel-identity {
             display: flex !important;
-            flex-direction: column !important;
+            align-items: center !important;
             flex: 1 1 auto !important;
             min-width: 0 !important;
         }
-        html body .ai-assistant-panel-identity strong {
+        html body .ai-assistant-panel-identity strong,
+        html body.user-area .ai-assistant-panel-identity strong {
             font-family: "Playfair Display", "Cinzel", Georgia, serif !important;
-            font-size: 1.05rem !important;
+            font-size: 1.2rem !important;
             color: #FFFDF8 !important;
             font-weight: 700 !important;
-            line-height: 1.2 !important;
-            letter-spacing: 0.3px !important;
-        }
-        html body .ai-assistant-panel-identity span {
-            font-size: 0.72rem !important;
-            color: #D8CEB8 !important;
-            font-weight: 500 !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            gap: 5px !important;
-            margin-top: 1px !important;
-        }
-        html body .ai-assistant-status-dot {
-            width: 7px !important;
-            height: 7px !important;
-            border-radius: 50% !important;
-            background: #22C55E !important;
-            box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.35) !important;
-            display: inline-block !important;
+            line-height: 1 !important;
+            letter-spacing: 0.5px !important;
+            margin: 0 !important;
         }
         html body .ai-assistant-tool,
         html body .ai-assistant-close {
@@ -1774,7 +1760,7 @@
         </button>
     </div>
 
-    <section class="ai-assistant-panel" id="aiAssistantPanel" aria-hidden="true" role="dialog" aria-label="TUGON Parish Guide">
+    <section class="ai-assistant-panel" id="aiAssistantPanel" aria-hidden="true" role="dialog" aria-label="TUGON">
         <div class="ai-assistant-panel-header">
             <button class="ai-assistant-mobile-back" type="button" id="aiAssistantMobileBack" aria-label="Back to previous screen">
                 <i class="fas fa-chevron-left" aria-hidden="true"></i>
@@ -1783,8 +1769,7 @@
                 <i class="fas fa-church"></i>
             </div>
             <div class="ai-assistant-panel-identity">
-                <strong>TUGON Parish Guide</strong>
-                <span id="aiAssistantStatus"><span class="ai-assistant-status-dot" aria-hidden="true"></span> Online &amp; Ready</span>
+                <strong>TUGON</strong>
             </div>
             <button class="ai-assistant-tool" type="button" id="aiAssistantClear" aria-label="Clear conversation" title="Clear conversation">
                 <i class="fas fa-rotate-left"></i>
@@ -1853,7 +1838,6 @@
             const mobileBack = document.getElementById('aiAssistantMobileBack');
             const clear = document.getElementById('aiAssistantClear');
             const minimize = document.getElementById('aiAssistantMinimize');
-            const status = document.getElementById('aiAssistantStatus');
             const liveForm = document.getElementById('aiAssistantLiveForm');
             const liveInput = document.getElementById('aiAssistantLiveInput');
             const liveAnswer = document.getElementById('aiAssistantLiveAnswer');
@@ -2324,22 +2308,11 @@
             }
 
             function setTyping(isTyping) {
-                if (!status) return;
-                status.innerHTML = isTyping
-                    ? '<span class="ai-assistant-status-dot" aria-hidden="true"></span> Thinking...'
-                    : '<span class="ai-assistant-status-dot" aria-hidden="true"></span> Online &amp; Ready';
+                // Header status subtitle line removed per UI spec
             }
 
             function setHealthStatus(state) {
-                if (!status) return;
-                status.classList.toggle('is-offline', state !== 'online');
-                if (state === 'online') {
-                    status.innerHTML = '<span class="ai-assistant-status-dot" aria-hidden="true"></span> Online &amp; Ready';
-                } else if (state === 'model_unavailable') {
-                    status.innerHTML = '<span class="ai-assistant-status-dot" style="background:#F59E0B;" aria-hidden="true"></span> Model Offline';
-                } else {
-                    status.innerHTML = '<span class="ai-assistant-status-dot" style="background:#EF4444;" aria-hidden="true"></span> AI Offline';
-                }
+                // Header status subtitle line removed per UI spec
             }
 
             function checkAssistantHealth(force) {
