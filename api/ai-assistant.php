@@ -19,7 +19,16 @@ if (!isLoggedIn() || empty($_SESSION['fully_authenticated'])) aiJson(['success'=
 requireValidCsrfToken();
 if (strtolower(trim(explode(';',(string)($_SERVER['CONTENT_TYPE']??''))[0])) !== 'application/json') aiJson(['success'=>false,'message'=>'Content-Type must be application/json.'],415);
 
-$payload=json_decode((string)file_get_contents('php://input'),true);
+$rawInput = (string) file_get_contents('php://input');
+$rawLength = strlen($rawInput);
+if ($rawLength > 1024 * 1024) { // 1MB payload limit for AI assistant requests
+    aiJson(['success' => false, 'error' => 'PAYLOAD_TOO_LARGE', 'message' => 'Your message is too large. Please ask a shorter question.'], 413);
+}
+if ($rawLength > 30000) {
+    (new Logger())->warning('Large AI assistant payload', ['component' => 'ai', 'event' => 'ai.payload.large', 'bytes' => $rawLength, 'user_id' => (int) ($_SESSION['user_id'] ?? 0)]);
+}
+
+$payload=json_decode($rawInput,true);
 if (!is_array($payload)) aiJson(['success'=>false,'message'=>'Invalid JSON request.'],400);
 $staff=hasPermission('ai.staff.use') || hasPermission('ai.admin.use');
 if (!$staff && !hasPermission('ai.parishioner.use')) aiJson(['success'=>false,'message'=>'Your account is not authorized to use TUGON AI.'],403);

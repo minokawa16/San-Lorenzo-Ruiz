@@ -2504,7 +2504,9 @@
 
                 postAssistantMessage(message, false)
                 .then(function(data) {
-                    const answer = data.success ? (data.reply || data.answer || chatLabels.noAnswer) : (data.error || data.message || chatLabels.unable);
+                    const answer = data.success 
+                        ? (data.reply || data.answer || chatLabels.noAnswer) 
+                        : (data.message || (data.error === 'PAYLOAD_TOO_LARGE' ? 'Your message is too large. Please try a shorter question.' : (data.error || chatLabels.unable)));
                     const title = data.success && data.guidance && data.guidance.title ? data.guidance.title : chatLabels.title;
                     const remainingThinking = Math.max(0, thinkingDelayFor(answer) - (Date.now() - startedAt));
                     window.setTimeout(function() {

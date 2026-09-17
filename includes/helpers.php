@@ -103,12 +103,38 @@ function csrfFailureMessage() {
 }
 
 function requireValidCsrfToken() {
-    // 1. Detect if post_max_size was exceeded (PHP automatically clears both $_POST and $_FILES)
-    if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? '')) === 'POST' && empty($_POST) && empty($_FILES) && intval($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) {
-        $postMaxSize = ini_get('post_max_size') ?: '8M';
+    // 1. Detect if post_max_size was truly exceeded.
+    // In PHP, when a form upload (multipart/form-data or application/x-www-form-urlencoded) exceeds post_max_size,
+    // PHP empties both $_POST and $_FILES while CONTENT_LENGTH remains set.
+    // For non-form bodies like application/json, $_POST and $_FILES are naturally empty, so we must not falsely flag them
+    // unless the CONTENT_LENGTH actually exceeds post_max_size.
+    $contentLength = intval($_SERVER['CONTENT_LENGTH'] ?? 0);
+    $postMaxSize = ini_get('post_max_size') ?: '8M';
+    $postMaxBytes = 0;
+    $trimmedLimit = trim($postMaxSize);
+    $unit = strtolower(substr($trimmedLimit, -1));
+    $num = (int) $trimmedLimit;
+    switch ($unit) {
+        case 'g': $postMaxBytes = $num * 1024 * 1024 * 1024; break;
+        case 'm': $postMaxBytes = $num * 1024 * 1024; break;
+        case 'k': $postMaxBytes = $num * 1024; break;
+        default: $postMaxBytes = $num; break;
+    }
+
+    $contentType = strtolower(trim((string) ($_SERVER['CONTENT_TYPE'] ?? '')));
+    $isFormSubmission = str_contains($contentType, 'multipart/form-data') || str_contains($contentType, 'application/x-www-form-urlencoded');
+
+    $isPayloadTooLarge = false;
+    if ($postMaxBytes > 0 && $contentLength > $postMaxBytes) {
+        $isPayloadTooLarge = true;
+    } elseif ($isFormSubmission && empty($_POST) && empty($_FILES) && $contentLength > 0) {
+        $isPayloadTooLarge = true;
+    }
+
+    if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? '')) === 'POST' && $isPayloadTooLarge) {
         $message = "The total file size uploaded exceeds the server limit ({$postMaxSize}). Please upload smaller or compressed files.";
         $accept = strtolower((string) ($_SERVER['HTTP_ACCEPT'] ?? ''));
-        $is_json_request = strpos($accept, 'application/json') !== false || strtolower((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'xmlhttprequest';
+        $is_json_request = strpos($accept, 'application/json') !== false || str_contains($contentType, 'application/json') || strtolower((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'xmlhttprequest';
         if ($is_json_request) {
             http_response_code(413);
             header('Content-Type: application/json; charset=utf-8');
@@ -124,6 +150,16 @@ function requireValidCsrfToken() {
     $submittedToken = is_string($headerToken) && $headerToken !== ''
         ? $headerToken
         : ($_POST[$name] ?? ($_POST['csrf_token'] ?? ($_POST['_csrf_token'] ?? ($_POST['_token'] ?? ''))));
+
+    if (empty($submittedToken) && str_contains($contentType, 'application/json')) {
+        $raw = file_get_contents('php://input');
+        if (!empty($raw)) {
+            $parsed = json_decode($raw, true);
+            if (is_array($parsed)) {
+                $submittedToken = $parsed[$name] ?? ($parsed['csrf_token'] ?? ($parsed['_csrf_token'] ?? ($parsed['_token'] ?? '')));
+            }
+        }
+    }
 
     if (!verifyCsrfToken($submittedToken)) {
         $_SESSION[$name] = bin2hex(random_bytes(32));
