@@ -1237,8 +1237,8 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             --muted: #4c4c4c;
             --line: <?php echo e($layout_border_color); ?>;
             --accent-line: <?php echo e($layout_border_color); ?>;
-            --cert-width: <?php echo $is_communion_cert ? '279.4mm' : ($is_confirmation_cert ? '215.9mm' : ($is_certification ? '215.9mm' : '152.4mm')); ?>;
-            --cert-height: <?php echo $is_communion_cert ? '215.9mm' : ($is_confirmation_cert ? '165.1mm' : ($is_certification ? '165.1mm' : '228.6mm')); ?>;
+            --cert-width: <?php echo $is_communion_cert ? '279.4mm' : ($is_confirmation_cert ? '215.9mm' : (($cert_type === 'baptism' || $is_baptism_certification) ? '8in' : ($is_certification ? '215.9mm' : '8in'))); ?>;
+            --cert-height: <?php echo $is_communion_cert ? '215.9mm' : ($is_confirmation_cert ? '165.1mm' : (($cert_type === 'baptism' || $is_baptism_certification) ? '10in' : ($is_certification ? '165.1mm' : '10in'))); ?>;
             --conf-blue: #006eb3;
             --conf-ink: #111827;
             --conf-gold: #c59b27;
@@ -1257,6 +1257,7 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
         .cert-toolbar { max-width: 900px; margin: 18px auto; display: flex; justify-content: space-between; gap: 12px; align-items: center; }
         .cert-toolbar h1 { font-size: 1.2rem; margin: 0; font-weight: 800; }
         .certificate-page { width: var(--cert-width); height: var(--cert-height); margin: 0 auto 24px; background: #fff; padding: 4mm; box-shadow: 0 18px 42px rgba(15, 23, 42, .18); overflow: hidden; }
+        .certificate-page.baptism-page { width: 8in; height: 10in; max-width: 8in; max-height: 10in; padding: 0; margin: 0 auto 24px; background: #ffffff; box-shadow: 0 18px 45px rgba(15, 23, 42, 0.18); overflow: hidden; position: relative; box-sizing: border-box; }
         .certificate-sheet {
             height: 100%;
             border: <?php echo e($layout_border_width . ' ' . $layout_border_style . ' ' . $layout_border_color); ?>;
@@ -1284,6 +1285,27 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
                 #ffffff;
         }
         .certificate-sheet::before { content: ""; position: absolute; inset: 2.4mm; border: 1px solid var(--line); outline: 1px solid rgba(0, 0, 0, .22); outline-offset: 1.2mm; pointer-events: none; z-index: 2; }
+        .certificate-sheet.baptism-sheet {
+            width: 100%;
+            height: 100%;
+            box-sizing: border-box;
+            padding: 8mm 12mm 9mm;
+            position: relative;
+            overflow: hidden;
+            background: #ffffff;
+            border: 2.5px double #781912;
+            box-shadow: inset 0 0 0 1.2mm rgba(120, 25, 18, 0.05);
+        }
+        .certificate-sheet.baptism-sheet::before {
+            content: "";
+            position: absolute;
+            inset: 3.5mm;
+            border: 1.2px solid rgba(120, 25, 18, 0.45);
+            outline: 0.5px solid rgba(120, 25, 18, 0.22);
+            outline-offset: 1.2mm;
+            pointer-events: none;
+            z-index: 2;
+        }
         <?php if (empty($layout_border['decorative_corners'])): ?>
         .certificate-sheet { background: #ffffff; }
         <?php endif; ?>
@@ -1293,7 +1315,7 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
         .certificate-design-bg { position: absolute; left: 50%; top: 55%; width: 104mm; height: 150mm; transform: translate(-50%, -50%); object-fit: contain; object-position: center; opacity: .12; filter: saturate(.9) contrast(1.05); pointer-events: none; z-index: 0; }
         .certificate-template-layer.certificate-design-bg { inset: 0; left: 0; top: 0; width: 100%; height: 100%; transform: none; object-fit: cover; opacity: 1; filter: none; }
         .certificate-pdf-template { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; opacity: 1; pointer-events: none; z-index: 0; background: #fff; }
-        .certificate-design-bg.baptism { width: 98mm; height: 160mm; opacity: .13; }
+        .certificate-design-bg.baptism { width: 112mm; height: 172mm; opacity: .06; filter: saturate(0.8) contrast(1.05); }
         .certificate-design-bg.confirmation { width: 104mm; height: 164mm; top: 56%; opacity: .12; }
         .certificate-design-bg.communion { width: 116mm; height: 116mm; top: 53%; opacity: .14; }
         .certificate-design-bg.marriage, .certificate-design-bg.other { width: 98mm; height: 98mm; opacity: .08; }
@@ -1302,9 +1324,110 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
         .certificate-template-layer.certificate-design-bg.communion,
         .certificate-template-layer.certificate-design-bg.marriage,
         .certificate-template-layer.certificate-design-bg.other { inset: 0; left: 0; top: 0; width: 100%; height: 100%; transform: none; opacity: 1; }
-        .watermark-text { position: absolute; top: 132mm; left: -20mm; right: -20mm; text-align: center; transform: rotate(-29deg); font-size: 23px; font-weight: 900; letter-spacing: 5px; color: rgba(0,0,0,.045); pointer-events: none; z-index: 1; }
+        .watermark-text { position: absolute; top: 142mm; left: -20mm; right: -20mm; text-align: center; transform: rotate(-28deg); font-family: 'Cinzel', serif; font-size: 24pt; font-weight: 700; letter-spacing: 7px; color: rgba(120, 25, 18, 0.035); pointer-events: none; z-index: 1; }
         .cert-content { position: relative; z-index: 3; }
         .cert-header { display: grid; grid-template-columns: 20mm 1fr 20mm; align-items: center; gap: 2.5mm; text-align: center; margin-bottom: 2.5mm; min-height: 23mm; }
+        .cert-header.baptism-header {
+            display: grid;
+            grid-template-columns: 26mm 1fr 26mm;
+            align-items: center;
+            gap: 3.5mm;
+            text-align: center;
+            margin-bottom: 2mm;
+            min-height: 28mm;
+            width: 100%;
+        }
+        .baptism-header .certificate-logo {
+            width: 23mm;
+            height: 23mm;
+            object-fit: contain;
+            display: block;
+        }
+        .baptism-header .certificate-logo.archdiocese-logo {
+            width: 26mm;
+            height: 26mm;
+        }
+        .baptism-header .church-subhead {
+            font-family: 'Cinzel', 'Times New Roman', Georgia, serif;
+            font-size: 8.2pt;
+            font-weight: 600;
+            letter-spacing: 2.2px;
+            color: #4b5563;
+            text-transform: uppercase;
+            line-height: 1.15;
+            margin: 0 0 0.8mm;
+        }
+        .baptism-header .diocese-head {
+            font-family: 'Cinzel', 'Times New Roman', Georgia, serif;
+            font-size: 11pt;
+            font-weight: 800;
+            letter-spacing: 1.3px;
+            color: #1e293b;
+            text-transform: uppercase;
+            line-height: 1.15;
+            margin: 0 0 0.8mm;
+        }
+        .baptism-header .station-head {
+            font-family: 'EB Garamond', Georgia, 'Times New Roman', serif;
+            font-size: 12.8pt;
+            font-weight: 800;
+            letter-spacing: 0.8px;
+            color: #781912;
+            text-transform: uppercase;
+            line-height: 1.15;
+            margin: 0 0 0.6mm;
+        }
+        .baptism-header .loc-head {
+            font-family: 'EB Garamond', Georgia, 'Times New Roman', serif;
+            font-size: 9.5pt;
+            font-weight: 600;
+            letter-spacing: 1px;
+            color: #374151;
+            text-transform: uppercase;
+            line-height: 1.15;
+            margin: 0 0 1.8mm;
+        }
+        .baptism-header .baptism-title {
+            font-family: 'Cinzel', 'EB Garamond', Georgia, serif;
+            font-size: 17.5pt;
+            font-weight: 800;
+            letter-spacing: 2.4px;
+            color: #781912;
+            text-transform: uppercase;
+            text-decoration: none;
+            margin: 1.2mm 0 0;
+            line-height: 1.1;
+        }
+        .cert-title-divider {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 3mm;
+            margin: 1mm auto 0.6mm;
+            max-width: 70mm;
+        }
+        .cert-title-divider::before,
+        .cert-title-divider::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(to right, transparent, #781912, transparent);
+        }
+        .cert-title-divider .emblem-cross {
+            font-size: 7.5pt;
+            color: #781912;
+            line-height: 1;
+        }
+        .baptism-header .baptism-subline {
+            font-family: 'EB Garamond', Georgia, 'Times New Roman', serif;
+            font-style: italic;
+            font-size: 9.2pt;
+            font-weight: 500;
+            letter-spacing: 0.4px;
+            color: #4b5563;
+            margin-top: 0.6mm;
+            line-height: 1.2;
+        }
         .certificate-logo-slot { display: flex; align-items: center; justify-content: center; min-width: 0; }
         .certificate-logo { width: 17mm; height: 17mm; object-fit: contain; object-position: center; display: block; background: transparent; }
         .certificate-logo.archdiocese-logo { width: 21mm; height: 21mm; }
@@ -1371,67 +1494,180 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
         .qr-row { display: flex; align-items: center; justify-content: flex-end; gap: 2mm; margin-top: 1.5mm; }
         .seal-area { width: 22mm; height: 14mm; border: 1px dashed #777; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 6.6px; color: #555; margin-left: auto; }
 
-        /* Traditional Parish Baptism Record Layout Matching Reference Document */
+        /* Traditional Parish Baptism Record Layout - 8x10 Elevated Design */
         .trad-baptism-form {
             width: 100%;
-            max-width: 124mm;
-            margin: 6mm auto 0;
+            max-width: 164mm;
+            margin: 4.5mm auto 0;
             text-align: left;
-            font-size: 9.5pt;
+            font-size: 10pt;
+            box-sizing: border-box;
         }
         .trad-row {
             display: flex;
             align-items: baseline;
-            min-height: 7mm;
-            border-bottom: 1px solid #852219;
-            margin-bottom: 4.2mm;
-            padding-bottom: 1.2px;
+            min-height: 7.8mm;
+            border-bottom: 1.2px solid #781912;
+            margin-bottom: 3.2mm;
+            padding-bottom: 0.8px;
             width: 100%;
             box-sizing: border-box;
         }
         .trad-row.indent .trad-lbl {
-            margin-left: 8.5mm;
+            padding-left: 9.5mm;
         }
         .trad-row.sponsor-extra .trad-val {
-            margin-left: 21mm;
+            padding-left: 23mm;
         }
         .trad-lbl {
-            font-family: Georgia, 'Times New Roman', serif;
+            font-family: 'EB Garamond', Georgia, 'Times New Roman', serif;
             font-style: italic;
             font-weight: 700;
-            color: #852219;
+            color: #781912;
             white-space: nowrap;
-            margin-right: 2.5mm;
-            font-size: 9.6pt;
+            margin-right: 3mm;
+            font-size: 11pt;
             line-height: 1.15;
+            letter-spacing: 0.2px;
         }
         .trad-val {
             flex: 1;
+            min-width: 0;
             font-family: "Courier New", Courier, monospace, serif;
-            font-size: 10.2pt;
+            font-size: 10.8pt;
             font-weight: 700;
-            color: #111827;
-            letter-spacing: 0.35px;
+            color: #0f172a;
+            letter-spacing: 0.4px;
             line-height: 1.15;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            padding-left: 1.5mm;
+            padding-left: 2mm;
         }
         .trad-val.name-val {
-            font-size: 10.8pt;
+            font-size: 12.5pt;
             font-weight: 800;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 1px;
+            color: #000000;
         }
 
-        .signature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7mm; margin-top: 4mm; align-items: end; }
-        .signature-grid.single-signature { display: flex; justify-content: flex-end; }
-        .signature-grid.single-signature .signature { min-width: 58mm; text-align: center; }
+        .trad-purpose-line {
+            margin: 3.5mm auto 0;
+            font-family: 'EB Garamond', Georgia, 'Times New Roman', serif;
+            font-size: 10.2pt;
+            font-style: italic;
+            color: #781912;
+            text-align: center;
+            line-height: 1.35;
+            max-width: 164mm;
+        }
+        .trad-purpose-val {
+            font-family: "Courier New", Courier, monospace, serif;
+            font-style: normal;
+            font-weight: 700;
+            font-size: 10.5pt;
+            color: #0f172a;
+            border-bottom: 1.2px solid #781912;
+            padding: 0 2.5mm;
+        }
+
+        /* Formal Seal and Signature Block */
+        .signature-grid {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            max-width: 164mm;
+            margin: 4.5mm auto 0;
+            padding: 0 2mm;
+            box-sizing: border-box;
+        }
+        .signature-grid.single-signature {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+        .seal-area {
+            width: 30mm;
+            height: 30mm;
+            border: 1.4px solid #781912;
+            border-radius: 50%;
+            outline: 1px dashed rgba(120, 25, 18, 0.5);
+            outline-offset: -3.2mm;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.75);
+            box-sizing: border-box;
+            margin: 0;
+        }
+        .seal-emblem-text {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .seal-cross {
+            font-size: 9.5pt;
+            color: #781912;
+            line-height: 1;
+            margin-bottom: 0.5mm;
+        }
+        .seal-title {
+            font-family: 'Cinzel', serif;
+            font-size: 6.2pt;
+            font-weight: 700;
+            letter-spacing: 0.6px;
+            color: #781912;
+            line-height: 1.1;
+            text-transform: uppercase;
+        }
+        .seal-dry {
+            font-family: 'Cinzel', serif;
+            font-size: 5.2pt;
+            font-weight: 600;
+            letter-spacing: 0.8px;
+            color: #781912;
+            margin-top: 0.5mm;
+            text-transform: uppercase;
+        }
+        .signature {
+            min-width: 72mm;
+            text-align: center;
+        }
+        .signature-line {
+            border-bottom: 1.2px solid #781912;
+            padding-bottom: 1mm;
+            min-height: 7.5mm;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            font-family: 'Cinzel', 'EB Garamond', Georgia, serif;
+            font-size: 10.5pt;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            color: #0f172a;
+            line-height: 1.15;
+        }
+        .signature-title, .signature span {
+            display: block;
+            font-family: 'EB Garamond', Georgia, serif;
+            font-size: 9.2pt;
+            font-style: italic;
+            font-weight: 600;
+            color: #781912;
+            margin-top: 1.2mm;
+            letter-spacing: 0.3px;
+        }
+        .certificate-signature-img {
+            max-height: 14mm;
+            margin-bottom: -4mm;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
         .seal-signature-row.single-signature { grid-template-columns: 20mm 1fr; }
-        .signature { text-align: center; font-size: 7.5px; }
-        .signature-line { border-bottom: 1px solid #111; padding-bottom: .35mm; font-weight: 900; min-height: 0; line-height: 1.15; }
-        .signature span { display: block; font-size: 6.8px; color: #333; font-weight: 500; margin-top: .3mm; }
         .certificate-number { position: absolute; top: 4mm; right: 5mm; font-family: Arial, sans-serif; font-size: 7px; font-weight: 800; }
         .layout-watermark-image { position: absolute; left: 50%; top: 55%; width: 104mm; height: 120mm; transform: translate(-50%, -50%); object-fit: contain; pointer-events: none; z-index: 1; opacity: .14; }
         .verification-code { position: absolute; bottom: 2.8mm; left: 5mm; right: 5mm; font-family: Arial, sans-serif; font-size: 6.4px; display: flex; justify-content: space-between; gap: 2mm; color: #333; z-index: 3; }
@@ -2365,18 +2601,23 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             <?php if ($is_communion_cert): ?>
             size: landscape;
             margin: 0;
-            <?php elseif ($is_confirmation_cert || $is_certification): ?>
+            <?php elseif ($is_confirmation_cert || ($is_certification && !$is_baptism_certification)): ?>
             size: 8.5in 6.5in landscape;
             margin: 0;
+            <?php elseif ($cert_type === 'baptism' || $is_baptism_certification): ?>
+            size: 8in 10in portrait;
+            margin: 0;
             <?php else: ?>
-            size: 6in 9in;
+            size: 8in 10in;
             margin: 0;
             <?php endif; ?>
         }
         @media print {
-            html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; width: 100% !important; height: auto !important; }
+            html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; width: 100% !important; height: auto !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             .cert-toolbar, .cert-toolbar *, .cert-admin-meta, .cert-admin-meta *, .alert, .alert-warning, .alert-danger, .alert-success, .btn, button, nav, footer { display: none !important; visibility: hidden !important; height: 0 !important; margin: 0 !important; padding: 0 !important; border: 0 !important; }
-            .certificate-page { width: var(--cert-width) !important; height: var(--cert-height) !important; margin: 0 auto !important; padding: 0 !important; box-shadow: none !important; page-break-before: avoid !important; page-break-after: avoid !important; page-break-inside: avoid !important; break-inside: avoid !important; transform: none !important; }
+            .certificate-page { width: var(--cert-width) !important; height: var(--cert-height) !important; margin: 0 auto !important; padding: 0 !important; box-shadow: none !important; page-break-before: avoid !important; page-break-after: avoid !important; page-break-inside: avoid !important; break-inside: avoid !important; transform: none !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            .certificate-page.baptism-page { width: 8in !important; height: 10in !important; max-width: 8in !important; max-height: 10in !important; margin: 0 auto !important; padding: 0 !important; box-shadow: none !important; page-break-inside: avoid !important; break-inside: avoid !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            .certificate-sheet.baptism-sheet { width: 100% !important; height: 100% !important; page-break-inside: avoid !important; break-inside: avoid !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             .confirmation-replica-page { width: 8.5in !important; height: 6.5in !important; margin: 0 auto !important; padding: 0 !important; box-shadow: none !important; page-break-before: avoid !important; page-break-after: avoid !important; page-break-inside: avoid !important; break-inside: avoid !important; transform: none !important; }
             .simple-cert-page { width: 8.5in !important; height: 6.5in !important; margin: 0 auto !important; padding: 0 !important; box-shadow: none !important; background: #fdfbf7 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             .simple-cert-sheet { height: 100% !important; page-break-inside: avoid !important; break-inside: avoid !important; background: #fdfbf7 !important; }
@@ -2389,7 +2630,8 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             .confirmation-sheet { height: 100%; }
         }
         @media (max-width: 900px) {
-            .certificate-page, .simple-preview { transform: none; width: var(--cert-width); max-width: none; margin-left: 12px; margin-right: 12px; }
+            .certificate-page, .simple-preview { transform: none; width: var(--cert-width); max-width: 100%; margin-left: auto; margin-right: auto; }
+            .certificate-page.baptism-page { width: var(--cert-width); max-width: 100%; height: auto; min-height: 10in; }
             .confirmation-replica-page { transform: scale(.8); transform-origin: top center; margin-bottom: -35mm; }
             .simple-cert-page { width: 8.5in !important; }
             .communion-page { transform: scale(.7); transform-origin: top center; margin-bottom: -60mm; }
@@ -2500,8 +2742,8 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
     <?php endif; ?>
 
     <?php if ($cert_type === 'baptism'): ?>
-        <main class="certificate-page" id="certificateDocument">
-            <section class="certificate-sheet">
+        <main class="certificate-page baptism-page" id="certificateDocument">
+            <section class="certificate-sheet baptism-sheet">
                 <?php echo $certificate_template_layer; ?>
                 <?php echo layoutImageTag($certificate_layout_settings, 'watermark', 'layout-watermark-image', 'Certificate watermark'); ?>
                 <div class="watermark-text"><?php echo e($layout_watermark_text); ?></div>
@@ -2509,22 +2751,23 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
                     <div class="certificate-number"><?php echo e($issue['certificate_number']); ?></div>
                 <?php endif; ?>
                 <div class="cert-content">
-                    <header class="cert-header">
+                    <header class="cert-header baptism-header">
                         <div class="certificate-logo-slot">
                             <?php if ($archdiocese_logo): ?>
                                 <img class="certificate-logo archdiocese-logo" src="<?php echo e($archdiocese_logo); ?>" alt="Official Archdiocese of Cotabato crest">
                             <?php endif; ?>
                         </div>
                         <div>
-                            <div class="parish"><?php echo e(strtoupper($layout_church_title)); ?></div>
-                            <div class="diocese"><?php echo e(strtoupper($layout_diocese_name)); ?></div>
-                            <div class="parish"><?php echo e(strtoupper($display_parish_name)); ?></div>
-                            <div class="location"><?php echo e(strtoupper($display_ceremony_place)); ?></div>
-                            <div class="cert-title"><?php echo e($layout_certificate_title); ?></div>
-                            <div class="cert-subline"><?php echo e($layout_certificate_subtitle); ?></div>
+                            <div class="parish church-subhead"><?php echo e(strtoupper($layout_church_title)); ?></div>
+                            <div class="diocese diocese-head"><?php echo e(strtoupper($layout_diocese_name)); ?></div>
+                            <div class="parish station-head"><?php echo e(strtoupper($display_parish_name)); ?></div>
+                            <div class="location loc-head"><?php echo e(strtoupper($display_ceremony_place)); ?></div>
+                            <div class="cert-title baptism-title"><?php echo e($layout_certificate_title); ?></div>
+                            <div class="cert-title-divider"><span class="emblem-cross">❖</span></div>
+                            <div class="cert-subline baptism-subline"><?php echo e($layout_certificate_subtitle); ?></div>
                         </div>
                         <div class="certificate-logo-slot">
-                            <img class="certificate-logo" src="<?php echo e($mission_logo); ?>" alt="San Lorenzo Ruiz Mission Station logo">
+                            <img class="certificate-logo parish-logo" src="<?php echo e($mission_logo); ?>" alt="San Lorenzo Ruiz Mission Station logo">
                         </div>
                     </header>
 
@@ -2736,23 +2979,27 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
                         </div>
 
                         <?php if (!empty($display_purpose_clean) && strtolower(trim((string)$display_purpose_clean)) !== 'whatever lawful purpose it may serve' && strtolower(trim((string)$display_purpose_clean)) !== 'n/a'): ?>
-                        <div class="trad-purpose-line" style="margin: 3.5mm auto 0; font-family: Georgia, 'Times New Roman', serif; font-size: 9.5pt; color: #852219; text-align: center; line-height: 1.35;">
-                            Issued upon request for <span style="font-family: 'Courier New', Courier, monospace, serif; font-size: 9.8pt; font-weight: 700; color: #111827; border-bottom: 1px solid #852219; padding: 0 1.5mm;"><?php echo e($display_purpose_clean); ?></span>.
+                        <div class="trad-purpose-line">
+                            Issued upon request for <span class="trad-purpose-val"><?php echo e($display_purpose_clean); ?></span>.
                         </div>
                         <?php endif; ?>
 
-                        <div class="signature-grid<?php echo !$show_secretary_sign ? ' single-signature' : ''; ?>" style="max-width: 124mm; margin: 5mm auto 0; padding: 0 1mm;">
-                            <div class="seal-area" style="width: 24mm; height: 24mm; border: 1px dashed #852219; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 7.5px; color: #852219; margin: 0 auto 0 2mm;">
-                                Official<br>Parish Seal
+                        <div class="signature-grid<?php echo !$show_secretary_sign ? ' single-signature' : ''; ?>">
+                            <div class="seal-area">
+                                <div class="seal-emblem-text">
+                                    <div class="seal-cross">✠</div>
+                                    <div class="seal-title">OFFICIAL<br>PARISH SEAL</div>
+                                    <div class="seal-dry">DRY SEAL</div>
+                                </div>
                             </div>
-                            <div class="signature" style="min-width: 58mm;">
-                                <div class="signature-line" style="border-bottom: 1px solid #852219;"><?php echo layoutImageTag($certificate_layout_settings, 'priest_signature', 'certificate-logo', 'Priest signature') . e($layout_priest_name); ?></div>
-                                <span style="font-size: 7.5pt; font-style: italic; color: #852219; font-family: Georgia, serif; font-weight: 600; margin-top: 1mm;"><?php echo e($layout_priest_position); ?></span>
+                            <div class="signature priest-sig">
+                                <div class="signature-line"><?php echo layoutImageTag($certificate_layout_settings, 'priest_signature', 'certificate-signature-img', 'Priest signature') . e($layout_priest_name); ?></div>
+                                <span class="signature-title"><?php echo e($layout_priest_position); ?></span>
                             </div>
                             <?php if ($show_secretary_sign): ?>
-                            <div class="signature" style="min-width: 58mm;">
-                                <div class="signature-line" style="border-bottom: 1px solid #852219;"><?php echo layoutImageTag($certificate_layout_settings, 'secretary_signature', 'certificate-logo', 'Secretary signature') . e($layout_secretary_name); ?></div>
-                                <span style="font-size: 7.5pt; font-style: italic; color: #852219; font-family: Georgia, serif; font-weight: 600; margin-top: 1mm;"><?php echo e($layout_secretary_position); ?></span>
+                            <div class="signature sec-sig">
+                                <div class="signature-line"><?php echo layoutImageTag($certificate_layout_settings, 'secretary_signature', 'certificate-signature-img', 'Secretary signature') . e($layout_secretary_name); ?></div>
+                                <span class="signature-title"><?php echo e($layout_secretary_position); ?></span>
                             </div>
                             <?php endif; ?>
                         </div>
