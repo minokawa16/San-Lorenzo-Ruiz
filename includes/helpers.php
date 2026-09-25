@@ -1382,6 +1382,21 @@ function ensureCertificateDuplicateGuardSchema($conn) {
     return true;
 }
 
+// Request Matching Schema - Ensures columns exist for auto-linking requests to sacramental records.
+function ensureRequestMatchingSchema($conn) {
+    if (!($conn instanceof mysqli)) return false;
+    $res = $conn->query("SHOW COLUMNS FROM requests LIKE 'matched_record_id'");
+    if ($res && $res->num_rows === 0) {
+        $conn->query("ALTER TABLE requests ADD COLUMN matched_record_id INT NULL DEFAULT NULL AFTER record_holder_name");
+        $conn->query("ALTER TABLE requests ADD COLUMN matched_record_type VARCHAR(50) NULL DEFAULT NULL AFTER matched_record_id");
+        $conn->query("ALTER TABLE requests ADD COLUMN match_status ENUM('unmatched', 'matched', 'multiple', 'no_match') NOT NULL DEFAULT 'unmatched' AFTER matched_record_type");
+        $conn->query("ALTER TABLE requests ADD COLUMN match_details TEXT NULL DEFAULT NULL AFTER match_status");
+        $conn->query("ALTER TABLE requests ADD INDEX idx_request_matched_record (matched_record_type, matched_record_id)");
+        $conn->query("ALTER TABLE requests ADD INDEX idx_request_match_status (match_status)");
+    }
+    return true;
+}
+
 // Sacramental Record Views - Ensures canonical register views exist for sacramental registries.
 function ensureSacramentalRecordViews($conn = null) {
     if (!$conn && isset($GLOBALS['conn'])) {
@@ -3521,6 +3536,7 @@ function getActivePriestsRoster($conn): array {
     // Canonical defaults ensuring active mission station priests are always available
     $defaults = [
         ['name' => 'Rev. Fr. Alberto G. Cahilig, O.M.I.', 'title' => 'Parish Priest', 'is_default' => true],
+        ['name' => 'Bp. Angelito R. Lampon, O.M.I., D.D.', 'title' => 'Archbishop / Confirming Prelate', 'is_default' => false],
         ['name' => 'Rev. Fr. Alvin Vicente C. Barretto, O.M.I.', 'title' => 'Parochial Vicar', 'is_default' => false],
         ['name' => 'Rev. Fr. Mark Anthony Santos, O.M.I.', 'title' => 'Parochial Vicar', 'is_default' => false],
         ['name' => 'Rev. Fr. Gabriel Reyes, O.M.I.', 'title' => 'Assisting Priest', 'is_default' => false],
@@ -3532,6 +3548,36 @@ function getActivePriestsRoster($conn): array {
         if (!isset($seenNames[$cleanKey])) {
             $seenNames[$cleanKey] = true;
             $roster[] = $def;
+        }
+    }
+
+    // Also include any distinct priests recorded in historical registry records
+    if ($conn instanceof mysqli) {
+        $regQueries = [
+            "SELECT DISTINCT priest AS pname FROM baptism_records WHERE priest IS NOT NULL AND TRIM(priest) != ''",
+            "SELECT DISTINCT parish_priest AS pname FROM baptism_records WHERE parish_priest IS NOT NULL AND TRIM(parish_priest) != ''",
+            "SELECT DISTINCT bishop_priest AS pname FROM confirmation_records WHERE bishop_priest IS NOT NULL AND TRIM(bishop_priest) != ''",
+            "SELECT DISTINCT priest AS pname FROM first_communion_records WHERE priest IS NOT NULL AND TRIM(priest) != ''",
+            "SELECT DISTINCT officiating_priest AS pname FROM marriage_records WHERE officiating_priest IS NOT NULL AND TRIM(officiating_priest) != ''",
+            "SELECT DISTINCT minister AS pname FROM funeral_records WHERE minister IS NOT NULL AND TRIM(minister) != ''",
+        ];
+        foreach ($regQueries as $q) {
+            $r = @$conn->query($q);
+            if ($r) {
+                while ($row = $r->fetch_assoc()) {
+                    $pname = trim((string)($row['pname'] ?? ''));
+                    if ($pname === '' || strcasecmp($pname, 'N/A') === 0) continue;
+                    $cleanKey = strtolower(preg_replace('/[^a-z]/', '', $pname));
+                    if (!isset($seenNames[$cleanKey])) {
+                        $seenNames[$cleanKey] = true;
+                        $roster[] = [
+                            'name' => $pname,
+                            'title' => (stripos($pname, 'Bp.') !== false || stripos($pname, 'Bishop') !== false) ? 'Prelate' : 'Clergy',
+                            'is_default' => false
+                        ];
+                    }
+                }
+            }
         }
     }
 

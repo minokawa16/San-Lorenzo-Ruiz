@@ -442,14 +442,7 @@ if (empty($_SESSION['manual_certificate'])) {
                 }
             }
         }
-        if ($cert_type === 'baptism' && (empty($data['fullname']) || stripos($data['fullname'], 'JUAN MANUEL') !== false || stripos($data['fullname'], 'REY MARK') === false)) {
-            $fallback_stmt = $conn->query("SELECT * FROM baptism_records WHERE fullname LIKE '%REY MARK%' ORDER BY baptism_id ASC LIMIT 1");
-            if ($fallback_stmt && $fb = $fallback_stmt->fetch_assoc()) {
-                $data = array_merge($data, $fb);
-                if ($cur_purpose !== '') $data['purpose'] = $cur_purpose;
-                $_SESSION['certificate_data'] = $data;
-            }
-        }
+
     } elseif (in_array($cert_type, ['communion', 'first_communion', 'first_communion_certificate', 'first_communion_certification'], true)) {
         $cid = intval($data['communion_id'] ?? 0);
         if ($cid > 0) {
@@ -642,13 +635,7 @@ function certificateRecordMeta($cert_type) {
 if (!function_exists('cleanOfficiatingPriest')) {
 function cleanOfficiatingPriest($priest) {
     $p = trim((string)$priest);
-    if ($p === '' || $p === 'N/A') {
-        return 'N/A';
-    }
-    if (preg_match('/^(?:by\s+the\s+)?(?:most\s+rev\.?\s*|rev\.?\s*fr\.?\s*|father\s*|fr\.?\s*|rev\.?\s*)(.*)$/i', $p, $pm)) {
-        $p = trim($pm[1]);
-    }
-    return $p !== '' ? $p : 'N/A';
+    return ($p !== '' && $p !== 'N/A') ? $p : 'N/A';
 }
 }
 
@@ -657,12 +644,7 @@ function formatParishPriestSignature($priest) {
     $p = trim((string)$priest);
     if ($p === '' || $p === 'N/A') {
         global $layout_priest_name;
-        $p = !empty($layout_priest_name) ? $layout_priest_name : 'REV. FR. HERIBERTO C. VILLAS, O.M.I.';
-    }
-    if (!preg_match('/^rev/i', $p)) {
-        $p = 'REV. FR. ' . strtoupper($p);
-    } else {
-        $p = strtoupper($p);
+        $p = !empty($layout_priest_name) ? $layout_priest_name : '';
     }
     return $p;
 }
@@ -841,10 +823,7 @@ if (!$mother_birth_place && !empty($data['remarks'])) {
         $mother_birth_place = trim($m[1]);
     }
 }
-if (stripos($data['fullname'] ?? '', 'REY MARK') !== false) {
-    if (empty($father_birth_place)) $father_birth_place = 'San Mateo, Aleosan, Cotabato';
-    if (empty($mother_birth_place)) $mother_birth_place = 'San Mateo, Aleosan, Cotabato';
-}
+
 $godfather = trim((string) ($data['godfather'] ?? ''));
 if ($godfather === '' && !empty($sponsors['godfather']) && $sponsors['godfather'] !== 'N/A') {
     $godfather = $sponsors['godfather'];
@@ -883,7 +862,7 @@ if (preg_match('/^(?:by\s+the\s+)?(?:rev\.?\s*fr\.?\s*|father\s*|fr\.?\s*)(.*)$/
     $display_officiating_priest = trim($pm[1]);
 }
 if (empty($display_officiating_priest)) {
-    $display_officiating_priest = 'Heriberto C. Villas, O.M.I.';
+    $display_officiating_priest = !empty($baptism_priest) ? $baptism_priest : '';
 }
 
 // Parse multiple sponsors as a clean list
@@ -920,15 +899,7 @@ if (empty($baptism_sponsors)) {
     if (!empty($godmother) && $godmother !== 'N/A') $baptism_sponsors[] = $godmother;
 }
 
-if (stripos($baptism_name, 'REY MARK') !== false) {
-    if (empty($baptism_birth_place)) $baptism_birth_place = 'San Mateo Aleosan, Cotabato';
-    if (empty($baptism_residence)) $baptism_residence = 'San Mateo, Aleosan, Cotabato';
-    if (empty($baptism_father_birthplace)) $baptism_father_birthplace = 'San Mateo, Aleosan, Cotabato';
-    if (empty($baptism_mother_birthplace)) $baptism_mother_birthplace = 'San Matoe, Aleosan, Cotabato';
-    if (count($baptism_sponsors) < 2) {
-        $baptism_sponsors = ['Nida Paredes', 'Reynante Pan'];
-    }
-}
+
 
 $missing_baptism_fields = [];
 if ($cert_type === 'baptism') {
@@ -1032,11 +1003,11 @@ if ($is_confirmation_cert && stripos($data['fullname'] ?? '', 'REY MARK') !== fa
     if (empty($mother_name) || $mother_name === 'N/A') {
         $mother_name = 'JOY C. CANTOMAYOR';
     }
-    if (empty($data['bishop_priest']) || stripos($data['bishop_priest'], 'Lampon') !== false) {
+    if (empty($data['bishop_priest']) || $data['bishop_priest'] === 'N/A') {
         $data['bishop_priest'] = 'BP. ANGELITO R. LAMPON,OMI,DD';
     }
     if (empty($data['parish_priest']) || $data['parish_priest'] === 'N/A') {
-        $data['parish_priest'] = 'REV. FR. ALBERTO G. CAHILIG, O.M.I.';
+        $data['parish_priest'] = !empty($layout_priest_name) ? $layout_priest_name : '';
     }
 }
 
@@ -2613,9 +2584,18 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
                                 <span class="fill medium"><?php echo e($baptism_month); ?></span>
                                 <span class="plain"><?php echo e($baptism_year); ?></span>
                             </div>
+                            <?php
+                            $bap_priest_val = trim((string)($data['priest'] ?? ($data['officiating_priest'] ?? '')));
+                            $bap_priest_prefix = 'by the Rev. Fr.';
+                            if (preg_match('/^(?:most\s+rev|bishop|archbishop|msgr)/i', $bap_priest_val)) {
+                                $bap_priest_prefix = 'by His Excellency';
+                            } elseif (preg_match('/^(?:rev\.?\s*fr\.?|father|fr\.?)/i', $bap_priest_val)) {
+                                $bap_priest_prefix = 'by the';
+                            }
+                            ?>
                             <div class="form-line">
-                                <span class="prompt">by the Rev. Fr.</span>
-                                <span class="fill"><?php echo e($data['priest'] ?? 'N/A'); ?></span>
+                                <span class="prompt"><?php echo $bap_priest_prefix; ?></span>
+                                <span class="fill"><?php echo e($bap_priest_val ?: 'N/A'); ?></span>
                             </div>
                             <div class="form-line">
                                 <span class="prompt">the Sponsors being</span>

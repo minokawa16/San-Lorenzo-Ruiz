@@ -12,8 +12,57 @@ requirePermission('certificates.manage');
 $error = '';
 $success = '';
 
+$get_request_id = intval($_GET['request_id'] ?? ($_POST['request_id'] ?? 0));
+$request_info = null;
+$preselected_record_id = intval($_GET['record_id'] ?? 0);
+$preselected_cert_type = trim($_GET['cert_type'] ?? '');
+$request_match_candidates = [];
+$request_match_status = '';
+
+if ($get_request_id > 0) {
+    require_once __DIR__ . '/../services/SacramentalRecordMatcher.php';
+    ensureRequestMatchingSchema($conn);
+    $req_stmt = $conn->prepare("SELECT * FROM requests WHERE request_id = ? LIMIT 1");
+    if ($req_stmt) {
+        $req_stmt->bind_param('i', $get_request_id);
+        $req_stmt->execute();
+        $request_info = $req_stmt->get_result()->fetch_assoc();
+        $req_stmt->close();
+    }
+    if ($request_info) {
+        if (empty($preselected_cert_type)) {
+            $mapped = SacramentalRecordMatcher::mapRequestTypeToRecordType($request_info['request_type']);
+            if ($mapped) $preselected_cert_type = $mapped;
+        }
+        
+        if (empty($request_info['match_status']) || $request_info['match_status'] === 'unmatched') {
+            $match_res = SacramentalRecordMatcher::matchAndLinkRequest($conn, $get_request_id);
+            if ($match_res && isset($match_res['status'])) {
+                $request_info['match_status'] = $match_res['status'];
+                $request_info['matched_record_id'] = $match_res['record_id'];
+                $request_info['matched_record_type'] = $match_res['record_type'];
+                if (!empty($match_res['candidates'])) {
+                    $request_info['match_details'] = json_encode(['candidates' => $match_res['candidates']]);
+                }
+            }
+        }
+        
+        $request_match_status = $request_info['match_status'] ?? '';
+        if ($preselected_record_id <= 0 && !empty($request_info['matched_record_id'])) {
+            $preselected_record_id = (int)$request_info['matched_record_id'];
+        }
+        if (!empty($request_info['match_details'])) {
+            $md = json_decode((string)$request_info['match_details'], true);
+            if (!empty($md['candidates'])) {
+                $request_match_candidates = $md['candidates'];
+            }
+        }
+    }
+}
+
 // Handle certificate generation
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $post_request_id = intval($_POST['request_id'] ?? 0);
     requireValidCsrfToken();
     $cert_type = $_POST['cert_type'] ?? '';
     $record_id = intval($_POST['record_id'] ?? 0);
@@ -38,8 +87,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $mother_name = trim($_POST['override_mother_name'] ?? ($record['mother_name'] ?? ''));
             $mother_birth_place = trim($_POST['override_mother_birth_place'] ?? ($record['mother_birth_place'] ?? ''));
             $baptism_date = trim($_POST['override_baptism_date'] ?? ($record['baptism_date'] ?? ''));
-            $officiating_priest = trim($_POST['override_officiating_priest'] ?? ($_POST['override_priest'] ?? ''));
-            $priest_in_charge = trim($_POST['override_priest_in_charge'] ?? ($_POST['override_parish_priest'] ?? ''));
+            $officiating_priest = preg_replace('/\s+/', ' ', trim($_POST['override_officiating_priest'] ?? ($_POST['override_priest'] ?? '')));
+            $priest_in_charge = preg_replace('/\s+/', ' ', trim($_POST['override_priest_in_charge'] ?? ($_POST['override_parish_priest'] ?? '')));
 
             // Fallback parsing for parents if still blank
             if (empty($father_name) || empty($mother_name)) {
@@ -124,18 +173,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $record['sponsors'] = $valid_sponsors;
                 $record['godparents'] = implode("\n", $valid_sponsors);
 
-                // Persist any updated parent birthplaces or residence into baptism_records
-                $up = $conn->prepare("UPDATE baptism_records SET father_name = IF(father_name IS NULL OR father_name = '', ?, father_name), father_birth_place = IF(father_birth_place IS NULL OR father_birth_place = '', ?, father_birth_place), mother_name = IF(mother_name IS NULL OR mother_name = '', ?, mother_name), mother_birth_place = IF(mother_birth_place IS NULL OR mother_birth_place = '', ?, mother_birth_place), parent_address = IF(parent_address IS NULL OR parent_address = '', ?, parent_address) WHERE baptism_id = ?");
+                // Persist updated fields into baptism_records
+                $up = $conn->prepare("UPDATE baptism_records SET father_name = IF(father_name IS NULL OR father_name = '', ?, father_name), father_birth_place = IF(father_birth_place IS NULL OR father_birth_place = '', ?, father_birth_place), mother_name = IF(mother_name IS NULL OR mother_name = '', ?, mother_name), mother_birth_place = IF(mother_birth_place IS NULL OR mother_birth_place = '', ?, mother_birth_place), parent_address = IF(parent_address IS NULL OR parent_address = '', ?, parent_address), priest = ?, parish_priest = ? WHERE baptism_id = ?");
                 if ($up) {
-                    $up->bind_param('sssssi', $father_name, $father_birth_place, $mother_name, $mother_birth_place, $residence, $record_id);
+                    $up->bind_param('sssssssi', $father_name, $father_birth_place, $mother_name, $mother_birth_place, $residence, $officiating_priest, $priest_in_charge, $record_id);
                     $up->execute();
                     $up->close();
+                }
+
+                if ($post_request_id > 0) {
+                    $conn->query("UPDATE requests SET matched_record_id = " . intval($record_id) . ", matched_record_type = 'baptism', match_status = 'matched' WHERE request_id = " . intval($post_request_id));
+                    $conn->query("UPDATE baptism_records SET request_id = " . intval($post_request_id) . " WHERE baptism_id = " . intval($record_id));
                 }
 
                 unset($_SESSION['manual_certificate']);
                 $_SESSION['certificate_data'] = $record;
                 $_SESSION['cert_type'] = $cert_type;
-                header('Location: view-certificate.php?id=' . $record_id . '&type=' . urlencode($cert_type));
+                header('Location: view-certificate.php?id=' . $record_id . '&type=' . urlencode($cert_type) . ($post_request_id > 0 ? '&request_id=' . $post_request_id : ''));
                 exit;
             }
         } else {
@@ -151,8 +205,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $ov_comm_date     = trim($_POST['override_communion_date'] ?? '');
             $ov_domicile      = trim($_POST['override_domicile'] ?? '');
             $ov_parents       = trim($_POST['com_override_parents'] ?? ($_POST['override_parents'] ?? ''));
-            $ov_officiating   = trim($_POST['com_override_officiating_priest'] ?? ($_POST['com_override_priest'] ?? ($_POST['override_priest'] ?? '')));
-            $ov_in_charge     = trim($_POST['com_override_priest_in_charge'] ?? ($_POST['com_override_parish_priest'] ?? ($_POST['override_priest_in_charge'] ?? '')));
+            $ov_officiating   = preg_replace('/\s+/', ' ', trim($_POST['com_override_officiating_priest'] ?? ($_POST['com_override_priest'] ?? ($_POST['override_priest'] ?? ''))));
+            $ov_in_charge     = preg_replace('/\s+/', ' ', trim($_POST['com_override_priest_in_charge'] ?? ($_POST['com_override_parish_priest'] ?? ($_POST['override_priest_in_charge'] ?? ''))));
             $ov_catechist     = trim($_POST['override_catechist_coordinator'] ?? '');
             $ov_principal     = trim($_POST['override_principal'] ?? '');
             if ($ov_fullname)  $record['fullname']              = $ov_fullname;
@@ -178,10 +232,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $signers = getFirstCommunionSigners($conn, $record);
                 if (empty($record['catechist_coordinator'])) $record['catechist_coordinator'] = $signers['catechist_coordinator'];
                 if (empty($record['principal']))              $record['principal']              = $signers['principal'];
+                // Persist priest fields into first_communion_records
+                $upCom = $conn->prepare("UPDATE first_communion_records SET priest = ?, parish_priest = ? WHERE communion_id = ?");
+                if ($upCom) {
+                    $upCom->bind_param('ssi', $ov_officiating, $ov_in_charge, $record_id);
+                    $upCom->execute();
+                    $upCom->close();
+                }
+
+                if ($post_request_id > 0) {
+                    $conn->query("UPDATE requests SET matched_record_id = " . intval($record_id) . ", matched_record_type = 'communion', match_status = 'matched' WHERE request_id = " . intval($post_request_id));
+                    $conn->query("UPDATE first_communion_records SET request_id = " . intval($post_request_id) . " WHERE communion_id = " . intval($record_id));
+                }
+
                 unset($_SESSION['manual_certificate']);
                 $_SESSION['certificate_data'] = $record;
                 $_SESSION['cert_type'] = $cert_type;
-                header('Location: view-certificate.php?id=' . $record_id . '&type=' . urlencode($cert_type));
+                header('Location: view-certificate.php?id=' . $record_id . '&type=' . urlencode($cert_type) . ($post_request_id > 0 ? '&request_id=' . $post_request_id : ''));
                 exit;
             }
         } else { $error = 'Communion record not found or inactive.'; }
@@ -195,8 +262,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $ov_conf_date    = trim($_POST['override_confirmation_date'] ?? '');
             $ov_parents      = trim($_POST['conf_override_parents'] ?? ($_POST['override_parents'] ?? ''));
             $ov_sponsor      = trim($_POST['override_sponsor'] ?? '');
-            $ov_officiating  = trim($_POST['conf_override_officiating_priest'] ?? ($_POST['conf_override_priest'] ?? ($_POST['override_priest'] ?? '')));
-            $ov_in_charge    = trim($_POST['conf_override_priest_in_charge'] ?? ($_POST['conf_override_parish_priest'] ?? ($_POST['override_priest_in_charge'] ?? '')));
+            $ov_officiating  = preg_replace('/\s+/', ' ', trim($_POST['conf_override_officiating_priest'] ?? ($_POST['conf_override_priest'] ?? ($_POST['override_priest'] ?? ''))));
+            $ov_in_charge    = preg_replace('/\s+/', ' ', trim($_POST['conf_override_priest_in_charge'] ?? ($_POST['conf_override_parish_priest'] ?? ($_POST['override_priest_in_charge'] ?? ''))));
             if ($ov_fullname)  $record['fullname']           = $ov_fullname;
             if ($ov_conf_name) $record['confirmation_name']  = $ov_conf_name;
             if ($ov_conf_date) $record['confirmation_date']  = $ov_conf_date;
@@ -216,10 +283,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             if (!empty($missing)) {
                 $error = 'Cannot generate certificate. Required fields are missing: ' . implode(', ', $missing) . '.';
             } else {
+                // Persist priest fields into confirmation_records
+                $upConf = $conn->prepare("UPDATE confirmation_records SET bishop_priest = ?, parish_priest = ? WHERE confirmation_id = ?");
+                if ($upConf) {
+                    $upConf->bind_param('ssi', $ov_officiating, $ov_in_charge, $record_id);
+                    $upConf->execute();
+                    $upConf->close();
+                }
+
+                if ($post_request_id > 0) {
+                    $conn->query("UPDATE requests SET matched_record_id = " . intval($record_id) . ", matched_record_type = 'confirmation', match_status = 'matched' WHERE request_id = " . intval($post_request_id));
+                    $conn->query("UPDATE confirmation_records SET request_id = " . intval($post_request_id) . " WHERE confirmation_id = " . intval($record_id));
+                }
+
                 unset($_SESSION['manual_certificate']);
                 $_SESSION['certificate_data'] = $record;
                 $_SESSION['cert_type'] = $cert_type;
-                header('Location: view-certificate.php?id=' . $record_id . '&type=' . urlencode($cert_type));
+                header('Location: view-certificate.php?id=' . $record_id . '&type=' . urlencode($cert_type) . ($post_request_id > 0 ? '&request_id=' . $post_request_id : ''));
                 exit;
             }
         } else { $error = 'Confirmation record not found or inactive.'; }
@@ -232,8 +312,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $ov_wife         = trim($_POST['override_wife_name'] ?? '');
             $ov_wed_date     = trim($_POST['override_wedding_date'] ?? '');
             $ov_wed_loc      = trim($_POST['override_wedding_location'] ?? '');
-            $ov_officiating  = trim($_POST['mar_override_officiating_priest'] ?? ($_POST['mar_override_priest'] ?? ($_POST['override_priest'] ?? '')));
-            $ov_in_charge    = trim($_POST['mar_override_priest_in_charge'] ?? ($_POST['mar_override_parish_priest'] ?? ($_POST['override_priest_in_charge'] ?? '')));
+            $ov_officiating  = preg_replace('/\s+/', ' ', trim($_POST['mar_override_officiating_priest'] ?? ($_POST['mar_override_priest'] ?? ($_POST['override_priest'] ?? ''))));
+            $ov_in_charge    = preg_replace('/\s+/', ' ', trim($_POST['mar_override_priest_in_charge'] ?? ($_POST['mar_override_parish_priest'] ?? ($_POST['override_priest_in_charge'] ?? ''))));
             $ov_h_residence  = trim($_POST['override_husband_residence'] ?? '');
             $ov_w_residence  = trim($_POST['override_wife_residence'] ?? '');
             if ($ov_husband)     $record['husband_name']        = $ov_husband;
@@ -257,10 +337,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             if (!empty($missing)) {
                 $error = 'Cannot generate certificate. Required fields are missing: ' . implode(', ', $missing) . '.';
             } else {
+                $upMar = $conn->prepare("UPDATE marriage_records SET officiating_priest = ?, parish_priest = ? WHERE marriage_id = ?");
+                if ($upMar) {
+                    $upMar->bind_param('ssi', $ov_officiating, $ov_in_charge, $record_id);
+                    $upMar->execute();
+                    $upMar->close();
+                }
+
+                if ($post_request_id > 0) {
+                    $conn->query("UPDATE requests SET matched_record_id = " . intval($record_id) . ", matched_record_type = 'marriage', match_status = 'matched' WHERE request_id = " . intval($post_request_id));
+                    $conn->query("UPDATE marriage_records SET request_id = " . intval($post_request_id) . " WHERE marriage_id = " . intval($record_id));
+                }
+
                 unset($_SESSION['manual_certificate']);
                 $_SESSION['certificate_data'] = $record;
                 $_SESSION['cert_type'] = $cert_type;
-                header('Location: view-certificate.php?id=' . $record_id . '&type=' . urlencode($cert_type));
+                header('Location: view-certificate.php?id=' . $record_id . '&type=' . urlencode($cert_type) . ($post_request_id > 0 ? '&request_id=' . $post_request_id : ''));
                 exit;
             }
         } else { $error = 'Marriage record not found or inactive.'; }
@@ -272,8 +364,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $ov_deceased     = trim($_POST['override_deceased_name'] ?? '');
             $ov_burial_date  = trim($_POST['override_date_of_burial'] ?? '');
             $ov_burial_place = trim($_POST['override_place_of_burial'] ?? '');
-            $ov_officiating  = trim($_POST['fun_override_officiating_priest'] ?? ($_POST['fun_override_priest'] ?? ($_POST['override_priest'] ?? '')));
-            $ov_in_charge    = trim($_POST['fun_override_priest_in_charge'] ?? ($_POST['fun_override_parish_priest'] ?? ($_POST['override_priest_in_charge'] ?? '')));
+            $ov_officiating  = preg_replace('/\s+/', ' ', trim($_POST['fun_override_officiating_priest'] ?? ($_POST['fun_override_priest'] ?? ($_POST['override_priest'] ?? ''))));
+            $ov_in_charge    = preg_replace('/\s+/', ' ', trim($_POST['fun_override_priest_in_charge'] ?? ($_POST['fun_override_parish_priest'] ?? ($_POST['override_priest_in_charge'] ?? ''))));
             if ($ov_deceased)     $record['deceased_name']   = $ov_deceased;
             if ($ov_burial_date)  $record['date_of_burial']  = $ov_burial_date;
             if ($ov_burial_place) $record['place_of_burial'] = $ov_burial_place;
@@ -292,10 +384,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             if (!empty($missing)) {
                 $error = 'Cannot generate certificate. Required fields are missing: ' . implode(', ', $missing) . '.';
             } else {
+                $upFun = $conn->prepare("UPDATE funeral_records SET minister = ?, parish_priest = ? WHERE funeral_id = ?");
+                if ($upFun) {
+                    $upFun->bind_param('ssi', $ov_officiating, $ov_in_charge, $record_id);
+                    $upFun->execute();
+                    $upFun->close();
+                }
+
+                if ($post_request_id > 0) {
+                    $conn->query("UPDATE requests SET matched_record_id = " . intval($record_id) . ", matched_record_type = 'funeral', match_status = 'matched' WHERE request_id = " . intval($post_request_id));
+                    $conn->query("UPDATE funeral_records SET request_id = " . intval($post_request_id) . " WHERE funeral_id = " . intval($record_id));
+                }
+
                 unset($_SESSION['manual_certificate']);
                 $_SESSION['certificate_data'] = $record;
                 $_SESSION['cert_type'] = $cert_type;
-                header('Location: view-certificate.php?id=' . $record_id . '&type=' . urlencode($cert_type));
+                header('Location: view-certificate.php?id=' . $record_id . '&type=' . urlencode($cert_type) . ($post_request_id > 0 ? '&request_id=' . $post_request_id : ''));
                 exit;
             }
         } else { $error = 'Funeral record not found or inactive.'; }
@@ -657,6 +761,47 @@ include __DIR__ . '/../templates/header.php';
                 <?php echo csrfInput(); ?>
                 <div class="modal-body p-4">
                     <input type="hidden" name="cert_type" id="cert_type">
+                    <input type="hidden" name="request_id" id="modalRequestId" value="<?php echo intval($get_request_id); ?>">
+
+                    <!-- Auto-Match Assist Banner -->
+                    <?php if (!empty($request_info)): ?>
+                        <div id="autoMatchBanner" class="mb-3">
+                            <?php if ($request_match_status === 'matched'): ?>
+                                <div class="alert alert-success d-flex align-items-center gap-2 py-2 px-3 mb-0" style="border-radius: 8px; font-size: 0.85rem;">
+                                    <i class="fas fa-check-circle fs-5 text-success"></i>
+                                    <div>
+                                        <strong>Auto-Matched from Request #<?php echo intval($get_request_id); ?></strong> &mdash; 
+                                        Requester: <strong><?php echo e($request_info['record_holder_name'] ?? ''); ?></strong>.
+                                        <div class="text-muted" style="font-size: 0.78rem;">Matching record #<?php echo intval($preselected_record_id); ?> has been pre-selected below. You can keep this record or choose another at any time.</div>
+                                    </div>
+                                </div>
+                            <?php elseif ($request_match_status === 'multiple' && !empty($request_match_candidates)): ?>
+                                <div class="alert alert-warning py-2 px-3 mb-0" style="border-radius: 8px; font-size: 0.85rem;">
+                                    <div class="d-flex align-items-center gap-2 mb-1">
+                                        <i class="fas fa-triangle-exclamation text-warning"></i>
+                                        <strong>Multiple Matches for Request #<?php echo intval($get_request_id); ?> (<?php echo e($request_info['record_holder_name'] ?? ''); ?>)</strong>
+                                    </div>
+                                    <div class="text-muted mb-2" style="font-size: 0.78rem;">Click a verified candidate below to load its details, or choose from the dropdown:</div>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        <?php foreach ($request_match_candidates as $cand): ?>
+                                            <button type="button" class="btn btn-xs btn-outline-secondary btn-candidate-select" data-record-id="<?php echo intval($cand['record_id']); ?>" style="font-size: 0.76rem; padding: 2px 7px;">
+                                                <i class="fas fa-check me-1"></i>Record #<?php echo intval($cand['record_id']); ?> (<?php echo e(!empty($cand['sacrament_date']) ? displayDate($cand['sacrament_date'], 'M Y') : 'No date'); ?>)
+                                            </button>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                            <?php else: ?>
+                                <div class="alert alert-secondary d-flex align-items-center gap-2 py-2 px-3 mb-0" style="border-radius: 8px; font-size: 0.85rem;">
+                                    <i class="fas fa-info-circle text-secondary"></i>
+                                    <div>
+                                        <strong>Request #<?php echo intval($get_request_id); ?> (<?php echo e($request_info['record_holder_name'] ?? ''); ?>)</strong>: 
+                                        No exact registry match found automatically. Please search or select the record manually below.
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
+
                     <div class="mb-3">
                         <label for="record_id" class="form-label fw-bold text-dark">Select Record <span class="text-danger">*</span></label>
                         <select class="form-select" id="record_id" name="record_id" required>
@@ -1063,16 +1208,110 @@ document.addEventListener('DOMContentLoaded', function() {
                 dropdown.classList.add('show');
             }
 
+            function normalizePriestText(text) {
+                if (!text) return '';
+                let str = text.toLowerCase();
+                str = str.replace(/\b(most\s+rev\.?|most\s+reverend|rev\.?\s*fr\.?|rev\.?\s*father|rev\.?|fr\.?|father|bishop|archbishop|msgr\.?|monsignor)\b/gi, ' ');
+                str = str.replace(/\b(o\.?m\.?i\.?|d\.?d\.?|s\.?j\.?|o\.?p\.?|o\.?s\.?a\.?|o\.?f\.?m\.?|c\.?s\.?s\.?r\.?)\b/gi, ' ');
+                str = str.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, ' ');
+                return str.replace(/\s+/g, ' ').trim();
+            }
+
+            function levenshteinDist(a, b) {
+                if (a.length === 0) return b.length;
+                if (b.length === 0) return a.length;
+                const matrix = [];
+                for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+                for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+                for (let i = 1; i <= b.length; i++) {
+                    for (let j = 1; j <= a.length; j++) {
+                        if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                            matrix[i][j] = matrix[i - 1][j - 1];
+                        } else {
+                            matrix[i][j] = Math.min(
+                                matrix[i - 1][j - 1] + 1,
+                                matrix[i][j - 1] + 1,
+                                matrix[i - 1][j] + 1
+                            );
+                        }
+                    }
+                }
+                return matrix[b.length][a.length];
+            }
+
+            function calcSimilarity(s1, s2) {
+                if (!s1 && !s2) return 1;
+                if (!s1 || !s2) return 0;
+                const maxLen = Math.max(s1.length, s2.length);
+                if (maxLen === 0) return 1;
+                return (maxLen - levenshteinDist(s1, s2)) / maxLen;
+            }
+
             function filterPriests(query) {
-                const q = (query || '').trim().toLowerCase();
-                if (!q) {
+                const rawQ = (query || '').trim();
+                if (!rawQ) {
                     return ACTIVE_PRIESTS.slice(0, 8);
                 }
-                return ACTIVE_PRIESTS.filter(p => {
-                    const nameMatch = (p.name || '').toLowerCase().includes(q);
-                    const titleMatch = (p.title || '').toLowerCase().includes(q);
-                    return nameMatch || titleMatch;
+                const qLower = rawQ.toLowerCase();
+                const qNorm = normalizePriestText(rawQ);
+                const qTokens = qNorm.split(' ').filter(Boolean);
+
+                const scored = [];
+
+                ACTIVE_PRIESTS.forEach(p => {
+                    const pName = (p.name || '').trim();
+                    const pLower = pName.toLowerCase();
+                    const pNorm = normalizePriestText(pName);
+                    const pTokens = pNorm.split(' ').filter(Boolean);
+
+                    let tier = 0;
+                    let score = 0;
+
+                    // Tier 1 — Exact match: Case-insensitive, whitespace-normalized
+                    if (pLower.replace(/\s+/g, ' ') === qLower.replace(/\s+/g, ' ')) {
+                        tier = 1;
+                        score = 1.0;
+                    } else if (pNorm !== '' && pNorm === qNorm) {
+                        // Tier 3 — Title/suffix normalized exact match
+                        tier = 3;
+                        score = 0.95;
+                    } else if (pLower.includes(qLower)) {
+                        // Substring direct match
+                        tier = 1.5;
+                        score = 0.90;
+                    } else if (pNorm !== '' && qNorm !== '' && (pNorm.includes(qNorm) || qNorm.includes(pNorm))) {
+                        // Tier 3 — Title/suffix normalized substring match
+                        tier = 3;
+                        score = 0.88;
+                    } else {
+                        // Tier 2 — Fuzzy match (Levenshtein distance >= 85% or high token overlap)
+                        let sim = calcSimilarity(pNorm, qNorm);
+                        
+                        if (qTokens.length > 0 && pTokens.length > 0) {
+                            const matchedTokens = qTokens.filter(t => pTokens.some(pt => pt === t || calcSimilarity(pt, t) >= 0.85));
+                            const tokenRatio = matchedTokens.length / Math.max(qTokens.length, 1);
+                            if (tokenRatio >= 0.75) {
+                                sim = Math.max(sim, 0.85 + (tokenRatio * 0.1));
+                            }
+                        }
+
+                        if (sim >= 0.85) {
+                            tier = 2;
+                            score = sim;
+                        }
+                    }
+
+                    if (tier > 0) {
+                        scored.push({ priest: p, tier, score });
+                    }
                 });
+
+                scored.sort((a, b) => {
+                    if (a.tier !== b.tier) return a.tier - b.tier;
+                    return b.score - a.score;
+                });
+
+                return scored.map(s => s.priest);
             }
 
             input.addEventListener('input', function() {
@@ -1363,7 +1602,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const pic = document.getElementById('override_priest_in_charge');
                     if (pic) pic.value = d.parish_priest || d.priest_in_charge || DEFAULT_PARISH_PRIEST;
                     const op = document.getElementById('override_officiating_priest');
-                    if (op) op.value = ''; // Always starts blank!
+                    if (op) op.value = d.priest || d.officiating_priest || '';
 
                     sponsorsList.innerHTML = '';
                     const sps = (Array.isArray(d.sponsors) && d.sponsors.length >= 2) ? d.sponsors : ['', ''];
@@ -1378,7 +1617,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (fld('com_override_catechist'))        fld('com_override_catechist').value = d.catechist_coordinator || '';
                     if (fld('com_override_principal'))        fld('com_override_principal').value = d.principal || '';
                     if (fld('com_override_priest_in_charge')) fld('com_override_priest_in_charge').value = d.parish_priest || d.priest_in_charge || DEFAULT_PARISH_PRIEST;
-                    if (fld('com_override_officiating_priest')) fld('com_override_officiating_priest').value = '';
+                    if (fld('com_override_officiating_priest')) fld('com_override_officiating_priest').value = d.priest || d.officiating_priest || '';
                 } else if (isConfirmation) {
                     const fld = id => document.getElementById(id);
                     if (fld('conf_override_fullname'))             fld('conf_override_fullname').value = d.fullname || '';
@@ -1387,7 +1626,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (fld('conf_override_parents'))              fld('conf_override_parents').value = d.parents || '';
                     if (fld('conf_override_sponsor'))              fld('conf_override_sponsor').value = d.sponsor || '';
                     if (fld('conf_override_priest_in_charge'))     fld('conf_override_priest_in_charge').value = d.parish_priest || d.priest_in_charge || DEFAULT_PARISH_PRIEST;
-                    if (fld('conf_override_officiating_priest'))   fld('conf_override_officiating_priest').value = '';
+                    if (fld('conf_override_officiating_priest'))   fld('conf_override_officiating_priest').value = d.bishop_priest || d.priest || d.officiating_priest || '';
                 } else if (isMarriage) {
                     const fld = id => document.getElementById(id);
                     if (fld('mar_override_husband_name'))         fld('mar_override_husband_name').value = d.husband_name || '';
@@ -1397,14 +1636,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (fld('mar_override_husband_residence'))    fld('mar_override_husband_residence').value = d.husband_residence || '';
                     if (fld('mar_override_wife_residence'))       fld('mar_override_wife_residence').value = d.wife_residence || '';
                     if (fld('mar_override_priest_in_charge'))     fld('mar_override_priest_in_charge').value = d.parish_priest || d.priest_in_charge || DEFAULT_PARISH_PRIEST;
-                    if (fld('mar_override_officiating_priest'))   fld('mar_override_officiating_priest').value = '';
+                    if (fld('mar_override_officiating_priest'))   fld('mar_override_officiating_priest').value = d.officiating_priest || d.priest || '';
                 } else if (isFuneral) {
                     const fld = id => document.getElementById(id);
                     if (fld('fun_override_deceased_name'))       fld('fun_override_deceased_name').value = d.deceased_name || '';
                     if (fld('fun_override_date_of_burial'))      fld('fun_override_date_of_burial').value = d.date_of_burial || '';
                     if (fld('fun_override_place_of_burial'))     fld('fun_override_place_of_burial').value = d.place_of_burial || '';
                     if (fld('fun_override_priest_in_charge'))     fld('fun_override_priest_in_charge').value = d.parish_priest || d.priest_in_charge || DEFAULT_PARISH_PRIEST;
-                    if (fld('fun_override_officiating_priest'))   fld('fun_override_officiating_priest').value = '';
+                    if (fld('fun_override_officiating_priest'))   fld('fun_override_officiating_priest').value = d.minister || d.priest || d.officiating_priest || '';
                 }
             })
             .catch(err => console.error('Error fetching record details:', err));
@@ -1535,13 +1774,27 @@ document.addEventListener('DOMContentLoaded', function() {
     // Ensure all containers are disabled initially until modal opens
     setActiveContainer(null);
 
-    // Auto-open modal if record_id and cert_type are passed via URL query
+    // Candidate quick-select buttons
+    document.querySelectorAll('.btn-candidate-select').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const candId = this.getAttribute('data-record-id');
+            if (candId && select) {
+                select.value = candId;
+                select.dispatchEvent(new Event('change'));
+            }
+        });
+    });
+
+    // Auto-open modal if record_id and cert_type are passed via URL query or preselected in PHP
     const urlParams = new URLSearchParams(window.location.search);
-    const qCertType = urlParams.get('cert_type');
-    const qRecordId = urlParams.get('record_id');
-    if (qCertType && qRecordId) {
+    const qCertType = urlParams.get('cert_type') || <?php echo json_encode($preselected_cert_type ?: ''); ?>;
+    const qRecordId = urlParams.get('record_id') || <?php echo json_encode($preselected_record_id ? (string)$preselected_record_id : ''); ?>;
+    if (qCertType) {
         certTypeInput.value = qCertType;
-        modalEl.dataset.pendingRecordId = qRecordId;
+        if (qRecordId) {
+            modalEl.dataset.pendingRecordId = qRecordId;
+        }
         bsModal.show();
     }
 });

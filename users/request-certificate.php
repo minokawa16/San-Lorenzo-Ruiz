@@ -171,6 +171,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     }
 
     $is_baptism = in_array($request_type, ['baptismal_certificate', 'baptism_certification', 'baptism'], true);
+    $is_communion = in_array($request_type, ['first_communion_certificate', 'first_communion_certification', 'first_communion', 'communion'], true);
+    $is_confirmation = in_array($request_type, ['confirmation_certificate', 'confirmation_certification', 'confirmation'], true);
 
     // Collect baptism sacramental fields
     $birth_place = trim((string) ($_POST['birth_place'] ?? ''));
@@ -239,6 +241,26 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             'Payment Method: ' . $payment_label,
             'Release Method: ' . $release_label
         ];
+
+        if ($is_communion) {
+            $commDate = trim((string)($_POST['communion_date'] ?? ''));
+            $commFather = trim((string)($_POST['communion_father_name'] ?? ''));
+            $commMother = trim((string)($_POST['communion_mother_name'] ?? ''));
+            if ($commDate !== '') $description_parts[] = 'Date of First Communion: ' . $commDate;
+            if ($commFather !== '') $description_parts[] = "Father's Name: " . $commFather;
+            if ($commMother !== '') $description_parts[] = "Mother's Name: " . $commMother;
+        }
+
+        if ($is_confirmation) {
+            $confDate = trim((string)($_POST['confirmation_date'] ?? ''));
+            $confFather = trim((string)($_POST['conf_father_name'] ?? ''));
+            $confMother = trim((string)($_POST['conf_mother_name'] ?? ''));
+            $confSponsor = trim((string)($_POST['conf_sponsor_name'] ?? ''));
+            if ($confDate !== '') $description_parts[] = 'Date of Confirmation: ' . $confDate;
+            if ($confFather !== '') $description_parts[] = "Father's Name: " . $confFather;
+            if ($confMother !== '') $description_parts[] = "Mother's Name: " . $confMother;
+            if ($confSponsor !== '') $description_parts[] = 'Sponsor: ' . $confSponsor;
+        }
 
         // If baptism, search/match against baptism_records registry by Name + Birthday + Date of Baptism
         $matched_record = null;
@@ -2602,6 +2624,60 @@ if ($stmt) {
                             </div>
                         </div>
                     </div>
+
+                    <!-- Dedicated First Communion Supporting Details (Optional — helps auto-match) -->
+                    <div id="communionSacramentalFields" class="col-12 mt-3 pt-3 border-top" style="<?php echo (in_array(($_POST['request_type'] ?? ''), ['first_communion_certificate', 'first_communion_certification', 'first_communion', 'communion'], true)) ? '' : 'display: none;'; ?>">
+                        <div class="alert alert-warning py-2 px-3 small d-flex align-items-center gap-2 mb-3 rounded-3" style="background: #fefce8; border: 1px solid #fef08a;">
+                            <i class="fas fa-wheat-awn text-warning fs-5"></i>
+                            <div>
+                                <strong class="text-dark">First Communion Verification Details (Optional)</strong>
+                                <div class="text-secondary">Providing these details helps the parish system automatically find and link your sacramental record faster.</div>
+                            </div>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label for="communion_date" class="form-label">Date of First Communion</label>
+                                <input type="date" class="form-control request-form-control" id="communion_date" name="communion_date" value="<?php echo e($_POST['communion_date'] ?? ''); ?>">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="communion_father_name" class="form-label">Father's Full Name</label>
+                                <input type="text" class="form-control request-form-control" id="communion_father_name" name="communion_father_name" value="<?php echo e($_POST['communion_father_name'] ?? ''); ?>" placeholder="Father's name">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="communion_mother_name" class="form-label">Mother's Maiden Name</label>
+                                <input type="text" class="form-control request-form-control" id="communion_mother_name" name="communion_mother_name" value="<?php echo e($_POST['communion_mother_name'] ?? ''); ?>" placeholder="Mother's maiden name">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dedicated Confirmation Supporting Details (Optional — helps auto-match) -->
+                    <div id="confirmationSacramentalFields" class="col-12 mt-3 pt-3 border-top" style="<?php echo (in_array(($_POST['request_type'] ?? ''), ['confirmation_certificate', 'confirmation_certification', 'confirmation'], true)) ? '' : 'display: none;'; ?>">
+                        <div class="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 mb-3 rounded-3" style="background: #eef2ff; border: 1px solid #c7d2fe;">
+                            <i class="fas fa-dove text-primary fs-5"></i>
+                            <div>
+                                <strong class="text-dark">Confirmation Verification Details (Optional)</strong>
+                                <div class="text-secondary">Providing these details helps the parish system automatically find and link your sacramental record faster.</div>
+                            </div>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label for="confirmation_date" class="form-label">Date of Confirmation</label>
+                                <input type="date" class="form-control request-form-control" id="confirmation_date" name="confirmation_date" value="<?php echo e($_POST['confirmation_date'] ?? ''); ?>">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="conf_father_name" class="form-label">Father's Full Name</label>
+                                <input type="text" class="form-control request-form-control" id="conf_father_name" name="conf_father_name" value="<?php echo e($_POST['conf_father_name'] ?? ''); ?>" placeholder="Father's name">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="conf_mother_name" class="form-label">Mother's Maiden Name</label>
+                                <input type="text" class="form-control request-form-control" id="conf_mother_name" name="conf_mother_name" value="<?php echo e($_POST['conf_mother_name'] ?? ''); ?>" placeholder="Mother's maiden name">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="conf_sponsor_name" class="form-label">Sponsor / Godparent Name</label>
+                                <input type="text" class="form-control request-form-control" id="conf_sponsor_name" name="conf_sponsor_name" value="<?php echo e($_POST['conf_sponsor_name'] ?? ''); ?>" placeholder="Sponsor's name">
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -3028,12 +3104,32 @@ if ($stmt) {
             return (type === 'baptismal_certificate' || type === 'baptism_certification' || type === 'baptism');
         }
 
+        function isCommunionType(type) {
+            return (type === 'first_communion_certificate' || type === 'first_communion_certification' || type === 'first_communion' || type === 'communion');
+        }
+
+        function isConfirmationType(type) {
+            return (type === 'confirmation_certificate' || type === 'confirmation_certification' || type === 'confirmation');
+        }
+
         function toggleBaptismFields(type) {
             const isBap = isBaptismType(type);
-            const container = document.getElementById('baptismSacramentalFields');
-            if (container) {
-                container.style.display = isBap ? 'block' : 'none';
+            const isCom = isCommunionType(type);
+            const isConf = isConfirmationType(type);
+
+            const bapContainer = document.getElementById('baptismSacramentalFields');
+            if (bapContainer) {
+                bapContainer.style.display = isBap ? 'block' : 'none';
             }
+            const comContainer = document.getElementById('communionSacramentalFields');
+            if (comContainer) {
+                comContainer.style.display = isCom ? 'block' : 'none';
+            }
+            const confContainer = document.getElementById('confirmationSacramentalFields');
+            if (confContainer) {
+                confContainer.style.display = isConf ? 'block' : 'none';
+            }
+
             const inputs = document.querySelectorAll('.baptism-req-input');
             inputs.forEach(function(inp) {
                 inp.required = isBap;

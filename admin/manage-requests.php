@@ -232,7 +232,12 @@ $request_select = "
         NULL AS event_time,
         COUNT(DISTINCT d.document_id) AS document_count,
         COUNT(DISTINCT p.payment_id) AS payment_count,
-        COUNT(DISTINCT CASE WHEN p.status = 'verified' THEN p.payment_id END) AS verified_payment_count
+        COUNT(DISTINCT CASE WHEN p.status = 'verified' THEN p.payment_id END) AS verified_payment_count,
+        r.record_holder_name AS record_holder_name,
+        r.matched_record_id AS matched_record_id,
+        r.matched_record_type AS matched_record_type,
+        r.match_status AS match_status,
+        r.match_details AS match_details
     FROM requests r
     JOIN users u ON r.user_id = u.id
     LEFT JOIN request_documents d ON d.request_id = r.request_id AND d.document_type = 'requirement' AND d.deleted_at IS NULL
@@ -261,7 +266,12 @@ $reservation_select = "
         r.event_time,
         0 AS document_count,
         0 AS payment_count,
-        0 AS verified_payment_count
+        0 AS verified_payment_count,
+        NULL AS record_holder_name,
+        NULL AS matched_record_id,
+        NULL AS matched_record_type,
+        NULL AS match_status,
+        NULL AS match_details
     FROM reservations r
     JOIN users u ON r.user_id = u.id
     WHERE $reservation_where_sql
@@ -419,6 +429,31 @@ include '../templates/header.php';
                                     <td>
                                         <?php echo e($type_label); ?><br>
                                         <span class="pds-inline-tag"><?php echo e($category_label); ?></span>
+                                        <?php if (($request['item_category'] ?? '') === 'certificate'): ?>
+                                            <?php
+                                                $mStatus = $request['match_status'] ?? 'unmatched';
+                                                $mRecId = intval($request['matched_record_id'] ?? 0);
+                                                if ($mStatus === 'matched' && $mRecId > 0):
+                                            ?>
+                                                <div class="mt-1">
+                                                    <span class="badge bg-success-subtle text-success border border-success-subtle d-inline-flex align-items-center gap-1" style="font-size: 11px; padding: 2px 7px;">
+                                                        <i class="fas fa-circle-check"></i> Record Found
+                                                    </span>
+                                                </div>
+                                            <?php elseif ($mStatus === 'multiple'): ?>
+                                                <div class="mt-1">
+                                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle d-inline-flex align-items-center gap-1" style="font-size: 11px; padding: 2px 7px;" title="Multiple potential matches found - verify record before generating">
+                                                        <i class="fas fa-triangle-exclamation"></i> Possible Matches (Verify)
+                                                    </span>
+                                                </div>
+                                            <?php else: ?>
+                                                <div class="mt-1">
+                                                    <span class="badge bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle d-inline-flex align-items-center gap-1" style="font-size: 11px; padding: 2px 7px;" title="No matching sacramental record found automatically">
+                                                        <i class="fas fa-magnifying-glass"></i> Needs Manual Review
+                                                    </span>
+                                                </div>
+                                            <?php endif; ?>
+                                        <?php endif; ?>
                                     </td>
                                     <td>
                                         <?php if (intval($request['document_count'] ?? 0) > 0): ?>
@@ -446,6 +481,11 @@ include '../templates/header.php';
                                     <td>
                                         <div class="pds-action-btn-group">
                                             <?php if (!$is_reservation): ?>
+                                                <?php if (($request['item_category'] ?? '') === 'certificate' && ($request['match_status'] ?? '') === 'matched' && !empty($request['matched_record_id'])): ?>
+                                                    <a href="certificate-generator.php?request_id=<?php echo intval($request['item_id']); ?>&cert_type=<?php echo urlencode($request['matched_record_type'] ?: 'baptism'); ?>&record_id=<?php echo intval($request['matched_record_id']); ?>" class="btn btn-sm pds-row-action text-success border-success" title="Fast-Track: Open Generator with pre-matched record">
+                                                        <i class="fas fa-file-signature"></i> <span>Gen Cert</span>
+                                                    </a>
+                                                <?php endif; ?>
                                                 <a href="request-workflow.php?id=<?php echo intval($request['item_id']); ?>" class="btn btn-sm pds-row-action">
                                                     <i class="fas fa-eye"></i> <span>View</span>
                                                 </a>

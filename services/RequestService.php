@@ -51,6 +51,17 @@ final class RequestService {
         try {
             $response = $this->createInCurrentTransaction($data, $userId, $idempotencyKey);
             $this->db->commit();
+
+            // Auto-link sacramental records if certificate request
+            if (!empty($response['request_id'])) {
+                require_once __DIR__ . '/SacramentalRecordMatcher.php';
+                try {
+                    SacramentalRecordMatcher::matchAndLinkRequest($this->db, (int)$response['request_id']);
+                } catch (Throwable $ignore) {
+                    // Match assist error should not block request creation
+                }
+            }
+
             return $response;
         } catch (Throwable $e) { $this->db->rollback(); throw $e; }
     }
