@@ -56,7 +56,31 @@ final class CertificateService
             // Non-blocking
         }
     }
-    private function renderPdf(array$s,string$token):string{$url=$this->baseUrl().'verify-certificate.php?code='.rawurlencode($token);$qr=(new QRCode)->render($url);$record=$s['record'];$details='';foreach($record as$k=>$v){if($v===null||in_array($k,['duplicate_fingerprint','locked_by','archived_by','restored_by'],true))continue;$details.='<tr><th>'.htmlspecialchars(ucwords(str_replace('_',' ',$k))).'</th><td>'.htmlspecialchars((string)$v).'</td></tr>';}$html='<!doctype html><html><head><meta charset="utf-8"><style>@page{margin:28px}body{font-family:DejaVu Sans;color:#192033;border:5px double #b88a22;padding:30px}h1{text-align:center;color:#8a681c}h2{text-align:center}table{width:100%;border-collapse:collapse;margin:20px 0}th,td{padding:6px;border-bottom:1px solid #ddd;text-align:left;font-size:11px}.verify{text-align:center;margin-top:20px}.verify img{width:120px;height:120px}.hash{font-size:8px;word-break:break-all}</style></head><body><h2>SAN LORENZO RUIZ MISSION STATION</h2><h1>'.htmlspecialchars(strtoupper(str_replace('_',' ',$s['certificate_type']))).'</h1><p style="text-align:center"><strong>'.htmlspecialchars($s['certificate_number']).'</strong></p><p>This certifies that <strong>'.htmlspecialchars($s['issued_to']).'</strong> appears in the official parish record.</p><table>'.$details.'</table><div class="verify"><img src="'.$qr.'"><p>Scan to verify<br>'.htmlspecialchars($url).'</p></div><p>Issued '.htmlspecialchars($s['issued_at']).'</p></body></html>';$options=new Options();$options->set('isRemoteEnabled',false);$dompdf=new Dompdf($options);$dompdf->loadHtml($html,'UTF-8');$dompdf->setPaper('A4','portrait');$dompdf->render();return$dompdf->output();}
+    private function renderPdf(array$s,string$token):string{
+        $url=$this->baseUrl().'verify-certificate.php?code='.rawurlencode($token);
+        $qr=(new QRCode)->render($url);
+        $record=$s['record'];
+        $details='';
+        foreach($record as$k=>$v){
+            if($v===null||in_array($k,['duplicate_fingerprint','locked_by','archived_by','restored_by'],true))continue;
+            $details.='<tr><th>'.htmlspecialchars(ucwords(str_replace('_',' ',$k))).'</th><td>'.htmlspecialchars((string)$v).'</td></tr>';
+        }
+        $lt=$s['layout']['static_text']??[];
+        $parishName=!empty($lt['parish_name'])?$lt['parish_name']:'SAN LORENZO RUIZ MISSION STATION';
+        $dioceseName=!empty($lt['diocese_name'])?$lt['diocese_name']:'ARCHDIOCESE OF COTABATO';
+        $certTitle=!empty($lt['certificate_title'])?$lt['certificate_title']:strtoupper(str_replace('_',' ',$s['certificate_type']));
+        $certSubtitle=!empty($lt['certificate_subtitle'])?$lt['certificate_subtitle']:'Issued from the Official Parish Records';
+        $priestName=!empty($lt['priest_name'])?$lt['priest_name']:'REV. FR. HERIBERTO C. VILLAS, O.M.I.';
+        $priestPos=!empty($lt['priest_position'])?$lt['priest_position']:'Priest-in-Charge';
+        $html='<!doctype html><html><head><meta charset="utf-8"><style>@page{margin:28px}body{font-family:DejaVu Sans;color:#192033;border:5px double #b88a22;padding:30px}h1{text-align:center;color:#8a681c}h2{text-align:center}p.sub{text-align:center;font-size:11px;color:#555;margin-top:-10px}table{width:100%;border-collapse:collapse;margin:20px 0}th,td{padding:6px;border-bottom:1px solid #ddd;text-align:left;font-size:11px}.verify{text-align:center;margin-top:20px}.verify img{width:120px;height:120px}.hash{font-size:8px;word-break:break-all}.signatory{margin-top:30px;text-align:center}.signatory-line{border-top:1px solid #192033;width:240px;margin:30px auto 4px auto;font-weight:bold;font-size:11px}.signatory-title{font-size:10px;color:#555}</style></head><body><p style="text-align:center;font-size:10px;letter-spacing:1px;margin-bottom:0">'.htmlspecialchars($dioceseName).'</p><h2>'.htmlspecialchars($parishName).'</h2><h1>'.htmlspecialchars($certTitle).'</h1><p class="sub">'.htmlspecialchars($certSubtitle).'</p><p style="text-align:center"><strong>'.htmlspecialchars($s['certificate_number']).'</strong></p><p>This certifies that <strong>'.htmlspecialchars($s['issued_to']).'</strong> appears in the official parish record.</p><table>'.$details.'</table><div class="signatory"><div class="signatory-line">'.htmlspecialchars($priestName).'</div><div class="signatory-title">'.htmlspecialchars($priestPos).'</div></div><div class="verify"><img src="'.$qr.'"><p>Scan to verify<br>'.htmlspecialchars($url).'</p></div><p style="font-size:10px;color:#777">Issued '.htmlspecialchars($s['issued_at']).'</p></body></html>';
+        $options=new Options();
+        $options->set('isRemoteEnabled',false);
+        $dompdf=new Dompdf($options);
+        $dompdf->loadHtml($html,'UTF-8');
+        $dompdf->setPaper('A4','portrait');
+        $dompdf->render();
+        return$dompdf->output();
+    }
     private function nextNumber(string$prefix):string{$year=(int)date('Y');for($attempt=0;$attempt<100;$attempt++){$stmt=$this->db->prepare('INSERT INTO certificate_number_sequences(sequence_year,prefix,next_number) VALUES(?,?,1) ON DUPLICATE KEY UPDATE next_number=LAST_INSERT_ID(next_number+1)');$stmt->bind_param('is',$year,$prefix);$stmt->execute();$n=$stmt->insert_id?(int)$stmt->insert_id:1;$stmt->close();$number=sprintf('%s-%d-%06d',$prefix,$year,$n);$stmt=$this->db->prepare('SELECT 1 FROM certificate_issuances WHERE certificate_number=?');$stmt->bind_param('s',$number);$stmt->execute();$exists=(bool)$stmt->get_result()->fetch_row();$stmt->close();if(!$exists)return$number;}throw new RuntimeException('Unable to allocate a unique certificate number.');}
     private function meta(string$type):array{if(!isset(self::MAP[$type]))throw new DomainException('Unsupported certificate type.');return self::MAP[$type];}
     private function record(array$m,int$id,bool$lock):array{$stmt=$this->db->prepare('SELECT * FROM `'.$m['table'].'` WHERE `'.$m['id'].'`=?'.($lock?' FOR UPDATE':''));$stmt->bind_param('i',$id);$stmt->execute();$r=$stmt->get_result()->fetch_assoc();$stmt->close();if(!$r)throw new DomainException('Source record not found.');return$r;}

@@ -1,7 +1,7 @@
 <?php
 /**
  * User Help Module & Documentation Guide (/users/help.php)
- * Simple, easy-to-understand step-by-step guide for Parishioners.
+ * 100% accurate, step-by-step operational guide for Parishioners in the TUGON Parish System.
  */
 
 require_once '../includes/session.php';
@@ -94,8 +94,8 @@ include '../includes/breadcrumb.php';
   font-size: 1.45rem;
 }
 .usr-hero-badge {
-  background: #fef3c7; /* Light warm gold */
-  color: #92400e; /* Dark bronze */
+  background: #fef3c7;
+  color: #92400e;
   border: 1px solid #fde68a;
   font-size: 0.72rem;
   font-weight: 700;
@@ -107,14 +107,14 @@ include '../includes/breadcrumb.php';
 }
 .usr-hero-sub,
 .usr-hero p {
-  color: #475569 !important; /* Crisp, readable charcoal slate */
+  color: #475569 !important;
   font-size: 0.95rem;
   line-height: 1.6;
   margin: 0.65rem 0 1.5rem 0;
   max-width: 840px;
 }
 
-/* Search Bar with Floating Light Style */
+/* Search Bar */
 .usr-search-wrap {
   position: relative;
   max-width: 740px;
@@ -165,7 +165,7 @@ include '../includes/breadcrumb.php';
   color: #0f172a;
 }
 
-/* Quick Navigation Pills for Light Background */
+/* Quick Navigation Pills */
 .usr-quick-pills {
   display: flex;
   gap: 0.55rem;
@@ -190,7 +190,7 @@ include '../includes/breadcrumb.php';
   border-color: #cbd5e1;
 }
 .usr-pill.active {
-  background: #c9932b; /* Parish gold */
+  background: #c9932b;
   color: #ffffff;
   font-weight: 700;
   border-color: #c9932b;
@@ -250,7 +250,7 @@ include '../includes/breadcrumb.php';
   gap: 10px;
   padding: 10px 12px;
   border-radius: 8px;
-  font-size: 0.85rem;
+  font-size: 0.84rem;
   font-weight: 600;
   color: var(--usr-slate-700);
   text-decoration: none;
@@ -280,7 +280,7 @@ include '../includes/breadcrumb.php';
   color: var(--usr-green-mid);
 }
 
-/* --- Content Section Cards (Tabbed View: Inactive Hidden) --- */
+/* --- Content Section Cards --- */
 .usr-section-card {
   background: #ffffff;
   border: 1px solid var(--usr-slate-200);
@@ -289,10 +289,10 @@ include '../includes/breadcrumb.php';
   margin-bottom: 26px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   scroll-margin-top: 86px;
-  display: none; /* Inactive modules hidden by default */
+  display: none;
 }
 .usr-section-card.active-module {
-  display: block; /* Only active module displayed */
+  display: block;
   animation: usrModuleFadeIn 0.22s ease-out;
 }
 @keyframes usrModuleFadeIn {
@@ -348,6 +348,7 @@ include '../includes/breadcrumb.php';
   color: #ffffff;
   border-color: var(--usr-green-mid);
 }
+
 .usr-section-header {
   display: flex;
   align-items: flex-start;
@@ -378,6 +379,7 @@ include '../includes/breadcrumb.php';
 .icon-teal   { background: var(--usr-teal-light);   color: var(--usr-teal);   border: 1px solid rgba(13,148,136,0.20); }
 .icon-purple { background: var(--usr-purple-light); color: var(--usr-purple); border: 1px solid rgba(124,58,237,0.20); }
 .icon-amber  { background: var(--usr-amber-light);  color: var(--usr-amber);  border: 1px solid rgba(217,119,6,0.20); }
+.icon-rose   { background: var(--usr-rose-light);   color: var(--usr-rose);   border: 1px solid rgba(225,29,72,0.20); }
 
 .usr-section-title {
   font-size: 1.28rem;
@@ -410,7 +412,7 @@ include '../includes/breadcrumb.php';
   margin-bottom: 20px;
 }
 
-/* --- Visual Step Cards (Clean, High-Contrast) --- */
+/* --- Visual Step Cards --- */
 .step-cards-grid {
   display: flex;
   flex-direction: column;
@@ -618,28 +620,30 @@ include '../includes/breadcrumb.php';
   <div class="usr-hero">
     <div class="usr-hero-title">
       <i class="fas fa-book-open"></i>
-      Parishioner User Guide &amp; Manual
-      <span class="usr-hero-badge">TUGON System</span>
+      Parishioner User Guide &amp; Operational Manual
+      <span class="usr-hero-badge">TUGON Parish System</span>
     </div>
     <p class="usr-hero-sub">
-      A simple, step-by-step guide to help you register with your ID, request official church certificates, book baptisms or weddings, and track your requests.
+      A step-by-step guide to help you register with ID verification, request official church certificates, book blessings and sacramental services, track requests in real time, and explore parish calendars and announcements.
     </p>
 
     <!-- Quick Search -->
     <div class="usr-search-wrap">
       <i class="fas fa-search usr-search-icon"></i>
-      <input type="text" id="usrSearchInput" class="usr-search-input" placeholder="Search a topic or step (e.g., register ID, request certificate, baptism, calendar)..." aria-label="Search User Guide">
+      <input type="text" id="usrSearchInput" class="usr-search-input" placeholder="Search a module or keyword (e.g., register ID, certificate, blessing, wedding, GCash, tracking, calendar)..." aria-label="Search User Guide">
       <button type="button" id="usrSearchClear" class="usr-search-clear" title="Clear search"><i class="fas fa-times"></i></button>
     </div>
 
     <!-- Quick Navigation Pills -->
     <div class="usr-quick-pills">
-      <span class="usr-pill active" data-target="#module1">1. Register with an ID</span>
-      <span class="usr-pill" data-target="#module2">2. Update Profile</span>
-      <span class="usr-pill" data-target="#module3">3. Request Certificate</span>
-      <span class="usr-pill" data-target="#module4">4. Book a Church Service</span>
+      <span class="usr-pill active" data-target="#module1">1. Registration &amp; ID</span>
+      <span class="usr-pill" data-target="#module2">2. Profile Settings</span>
+      <span class="usr-pill" data-target="#module3">3. Certificates</span>
+      <span class="usr-pill" data-target="#module4">4. Blessings &amp; Services</span>
       <span class="usr-pill" data-target="#module5">5. Track &amp; Claim</span>
-      <span class="usr-pill" data-target="#module6">6. FAQs</span>
+      <span class="usr-pill" data-target="#module6">6. Calendar &amp; News</span>
+      <span class="usr-pill" data-target="#module7">7. AI &amp; Notifications</span>
+      <span class="usr-pill" data-target="#module8">8. FAQs</span>
     </div>
   </div>
 
@@ -650,14 +654,14 @@ include '../includes/breadcrumb.php';
     <aside class="usr-toc-col">
       <div class="usr-toc-card">
         <div class="usr-toc-header">
-          <span>Guide Topics</span>
+          <span>Manual Modules</span>
           <i class="fas fa-bars-staggered"></i>
         </div>
         <ul class="usr-toc-list">
           <li class="usr-toc-item">
             <a href="#module1" class="usr-toc-link active">
               <i class="fas fa-id-card"></i>
-              <span>1. Register with an ID</span>
+              <span>1. Registration &amp; ID</span>
             </a>
           </li>
           <li class="usr-toc-item">
@@ -669,25 +673,37 @@ include '../includes/breadcrumb.php';
           <li class="usr-toc-item">
             <a href="#module3" class="usr-toc-link">
               <i class="fas fa-certificate"></i>
-              <span>3. Request Certificate</span>
+              <span>3. Certificates</span>
             </a>
           </li>
           <li class="usr-toc-item">
             <a href="#module4" class="usr-toc-link">
               <i class="fas fa-church"></i>
-              <span>4. Book Church Service</span>
+              <span>4. Blessings &amp; Services</span>
             </a>
           </li>
           <li class="usr-toc-item">
             <a href="#module5" class="usr-toc-link">
-              <i class="fas fa-route"></i>
+              <i class="fas fa-list-check"></i>
               <span>5. Track &amp; Claim</span>
             </a>
           </li>
           <li class="usr-toc-item">
             <a href="#module6" class="usr-toc-link">
+              <i class="fas fa-calendar-days"></i>
+              <span>6. Calendar &amp; News</span>
+            </a>
+          </li>
+          <li class="usr-toc-item">
+            <a href="#module7" class="usr-toc-link">
+              <i class="fas fa-robot"></i>
+              <span>7. AI &amp; Notifications</span>
+            </a>
+          </li>
+          <li class="usr-toc-item">
+            <a href="#module8" class="usr-toc-link">
               <i class="fas fa-circle-question"></i>
-              <span>6. Questions &amp; Answers</span>
+              <span>8. FAQs</span>
             </a>
           </li>
         </ul>
@@ -701,7 +717,7 @@ include '../includes/breadcrumb.php';
       <div id="usrSearchEmpty">
         <i class="fas fa-magnifying-glass" style="font-size:2.4rem; opacity:0.3; margin-bottom:12px;"></i>
         <h5 style="font-weight:800; color:var(--usr-slate-900);">No matching topics found</h5>
-        <p style="font-size:0.9rem; margin-bottom:14px;">Try searching for simple words like "register", "ID", "baptism", "wedding", "status", or "pickup".</p>
+        <p style="font-size:0.9rem; margin-bottom:14px;">Try searching for simple words like "register", "ID", "certificate", "blessing", "service", "GCash", "tracking", or "pickup".</p>
         <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetUsrSearch()">Clear Search</button>
       </div>
 
@@ -713,76 +729,75 @@ include '../includes/breadcrumb.php';
               <i class="fas fa-id-card"></i>
             </div>
             <div>
-              <h2 class="usr-section-title">Module 1: How to Register &amp; Take an ID Photo</h2>
-              <p class="usr-section-sub">Create your account by taking a quick photo of your government ID</p>
+              <h2 class="usr-section-title">Module 1: Registration &amp; ID Verification</h2>
+              <p class="usr-section-sub">Create your verified parishioner account using live ID capture and photo verification</p>
             </div>
           </div>
           <span class="usr-section-tag">Account Setup</span>
         </div>
 
         <p class="usr-intro-text">
-          To protect church records and keep our parish community safe, TUGON uses a live camera photo of your ID during registration. Follow these 5 easy steps to register your account.
+          To maintain accurate sacramental records and prevent duplicate entries, TUGON uses real-time ID capture and face verification during registration. Follow these steps to register your account.
         </p>
 
         <!-- Visual Step Cards -->
         <div class="step-cards-grid">
           <div class="step-card">
-            <span class="step-badge">Step 1</span>
+            <span class="step-badge">STEP 1</span>
             <div class="step-card-body">
-              <div class="step-card-title">Allow Camera Access</div>
+              <div class="step-card-title">Go to Register &amp; Select Valid ID Type</div>
               <p class="step-card-desc">
-                When you click Register, your browser or phone will ask to use your camera. Click <span class="action-badge action-badge-green"><i class="fas fa-video"></i> Allow</span> so the live camera opens.
+                Open the <strong>Register</strong> page and select your valid government ID type (e.g. <em>PhilSys National ID</em>, <em>Driver's License</em>, <em>Passport</em>, <em>UMID</em>, <em>Postal ID</em>, <em>Voter's ID</em>, or <em>PRC ID</em>).
               </p>
             </div>
           </div>
 
           <div class="step-card">
-            <span class="step-badge">Step 2</span>
+            <span class="step-badge">STEP 2</span>
             <div class="step-card-body">
-              <div class="step-card-title">Position Your ID Inside the Frame</div>
+              <div class="step-card-title">Capture Live Front ID, Back ID, and Live Photo</div>
               <p class="step-card-desc">
-                Hold your Government ID (PhilSys National ID, Driver's License, UMID, Postal ID, Passport, PRC ID, or Voter's ID) flat inside the box on your screen. Make sure your name and photo are clearly visible.
+                Allow browser camera access, position your physical ID within the frame, and click <span class="action-badge action-badge-blue"><i class="fas fa-camera"></i> Capture Front ID</span>, <span class="action-badge action-badge-blue"><i class="fas fa-camera"></i> Capture Back ID</span>, and <span class="action-badge action-badge-green"><i class="fas fa-user"></i> Capture Live Photo</span>.
               </p>
             </div>
           </div>
 
           <div class="step-card">
-            <span class="step-badge">Step 3</span>
+            <span class="step-badge">STEP 3</span>
             <div class="step-card-body">
-              <div class="step-card-title">Click Capture ID</div>
+              <div class="step-card-title">Review Extracted Information &amp; Complete Details</div>
               <p class="step-card-desc">
-                Press <span class="action-badge action-badge-blue"><i class="fas fa-camera"></i> Capture ID</span>. The system will read your ID card and automatically type your full name, birthdate, and address into the form.
+                Review the scanned personal details, then fill in your <strong>Full Name</strong>, <strong>Birth Date</strong>, <strong>Birthplace</strong>, <strong>Gender</strong>, <strong>Civil Status</strong>, <strong>Address</strong>, <strong>Chapel / District</strong>, <strong>Contact Number</strong>, and <strong>Email Address</strong>.
               </p>
             </div>
           </div>
 
           <div class="step-card">
-            <span class="step-badge">Step 4</span>
+            <span class="step-badge">STEP 4</span>
             <div class="step-card-body">
-              <div class="step-card-title">Check Your Details &amp; Add Mobile Phone</div>
+              <div class="step-card-title">Set Password &amp; Accept Terms and Conditions</div>
               <p class="step-card-desc">
-                Review the information on screen. Fix any small spelling mistakes, enter your active mobile phone number, and choose a password for your account.
+                Enter a secure password, open the <strong>Terms &amp; Conditions</strong> modal, scroll down to read the agreement, check the consent box, and click <span class="action-badge action-badge-green">Complete Registration</span>.
               </p>
             </div>
           </div>
 
           <div class="step-card">
-            <span class="step-badge">Step 5</span>
+            <span class="step-badge">STEP 5</span>
             <div class="step-card-body">
-              <div class="step-card-title">Accept Terms &amp; Create Account</div>
+              <div class="step-card-title">Await Parish Office Verification</div>
               <p class="step-card-desc">
-                Scroll the Terms &amp; Conditions box all the way to the bottom. Click the checkbox to agree, then press <span class="action-badge action-badge-green">Create Account</span>. You're done!
+                Your new account will show <span class="action-badge action-badge-amber"><i class="fas fa-hourglass-half"></i> Pending Verification</span> while staff checks your ID match; once approved, your status turns to <span class="action-badge action-badge-green"><i class="fas fa-circle-check"></i> Verified</span>.
               </p>
             </div>
           </div>
         </div>
 
-        <!-- Tip Box -->
         <div class="callout-box callout-tip">
           <i class="fas fa-lightbulb"></i>
           <div>
-            <strong>Photo Tip:</strong>
-            Place your ID flat on a table in a well-lit room. Avoid glare or strong light bouncing directly off the plastic card so the system can read your name clearly.
+            <strong>Camera Lighting Tip:</strong>
+            Place your ID card on a flat surface with even indoor lighting. Avoid strong shadows and direct glare so the ID scanner and parish staff can clearly read your name and birthdate.
           </div>
         </div>
 
@@ -804,47 +819,55 @@ include '../includes/breadcrumb.php';
               <i class="fas fa-user-pen"></i>
             </div>
             <div>
-              <h2 class="usr-section-title">Module 2: How to Update Your Profile &amp; Password</h2>
-              <p class="usr-section-sub">Change your profile picture, update your phone number, or change your password</p>
+              <h2 class="usr-section-title">Module 2: Profile Settings &amp; Security</h2>
+              <p class="usr-section-sub">Manage your personal information, profile photo, contact details, and account password</p>
             </div>
           </div>
           <span class="usr-section-tag">Profile Settings</span>
         </div>
 
         <p class="usr-intro-text">
-          Keep your contact information up to date so you never miss important church announcements, ceremony reminders, or pickup alerts.
+          Keep your contact information and residential address updated to receive accurate ceremony reminders, SMS alerts, and document pickup notices.
         </p>
 
         <!-- Visual Step Cards -->
         <div class="step-cards-grid">
           <div class="step-card">
-            <span class="step-badge">Step 1</span>
+            <span class="step-badge">STEP 1</span>
             <div class="step-card-body">
-              <div class="step-card-title">Upload a Profile Picture</div>
+              <div class="step-card-title">Go to Profile Settings</div>
               <p class="step-card-desc">
-                Go to <a href="<?php echo BASE_URL; ?>auth/profile.php"><strong>Profile Settings</strong></a>. Click the camera icon on your avatar to upload a friendly photo of yourself.
+                Click <a href="<?php echo BASE_URL; ?>auth/profile.php"><strong>Profile Settings</strong></a> in the sidebar under the Account section.
               </p>
             </div>
           </div>
 
           <div class="step-card">
-            <span class="step-badge">Step 2</span>
+            <span class="step-badge">STEP 2</span>
             <div class="step-card-body">
-              <div class="step-card-title">Update Your Phone and Address</div>
+              <div class="step-card-title">Update Your Avatar &amp; Contact Details</div>
               <p class="step-card-desc">
-                Enter your current 11-digit cellphone number (e.g., <code>09171234567</code>) and home address. Click <span class="action-badge action-badge-green">Save Profile</span>.
+                Upload a new profile picture, update your 11-digit <strong>Contact Number</strong>, <strong>Address</strong>, and <strong>Chapel / District</strong>, then click <span class="action-badge action-badge-green"><i class="fas fa-floppy-disk"></i> Save Profile</span>.
               </p>
             </div>
           </div>
 
           <div class="step-card">
-            <span class="step-badge">Step 3</span>
+            <span class="step-badge">STEP 3</span>
             <div class="step-card-body">
-              <div class="step-card-title">Change Your Password</div>
+              <div class="step-card-title">Change Your Account Password</div>
               <p class="step-card-desc">
-                Click the <strong>Security</strong> tab. Type your old password, then type your new password twice. Click <span class="action-badge action-badge-blue">Update Password</span>.
+                Switch to the <strong>Security</strong> section, type your current password, enter your new password, confirm it, and click <span class="action-badge action-badge-blue"><i class="fas fa-key"></i> Update Password</span>.
               </p>
             </div>
+          </div>
+        </div>
+
+        <div class="callout-box callout-note">
+          <i class="fas fa-shield-halved"></i>
+          <div>
+            <strong>Identity Protection:</strong>
+            Core verified identity fields (such as your registered Full Name and Birthdate) cannot be modified directly once verified. If you need to correct a legal name spelling, please visit the parish office with your supporting PSA documents.
           </div>
         </div>
 
@@ -855,7 +878,7 @@ include '../includes/breadcrumb.php';
             <span>Previous: Module 1</span>
           </button>
           <button type="button" class="usr-module-nav-btn btn-primary-nav" data-target="#module3">
-            <span>Next: Module 3 (Request Certificate)</span>
+            <span>Next: Module 3 (Certificates)</span>
             <i class="fas fa-arrow-right"></i>
           </button>
         </div>
@@ -869,70 +892,85 @@ include '../includes/breadcrumb.php';
               <i class="fas fa-certificate"></i>
             </div>
             <div>
-              <h2 class="usr-section-title">Module 3: How to Request a Church Certificate</h2>
-              <p class="usr-section-sub">Apply for official Baptism, Confirmation, First Communion, or Marriage certificates</p>
+              <h2 class="usr-section-title">Module 3: Requesting Church Certificates</h2>
+              <p class="usr-section-sub">Submit certificate requests with payment selection, release preferences, and document uploads</p>
             </div>
           </div>
           <span class="usr-section-tag">Certificates</span>
         </div>
 
         <p class="usr-intro-text">
-          Need an official church certificate for school enrollment, a wedding requirement, or sponsor duties? You can request it right from your phone or computer.
+          Request official parish certifications (Baptismal, Confirmation, First Communion, Marriage, or Death/Funeral) directly online with flexible payment and release options.
         </p>
 
         <!-- Visual Step Cards -->
         <div class="step-cards-grid">
           <div class="step-card">
-            <span class="step-badge">Step 1</span>
+            <span class="step-badge">STEP 1</span>
             <div class="step-card-body">
-              <div class="step-card-title">Go to Request Certificate</div>
+              <div class="step-card-title">Go to Certificates</div>
               <p class="step-card-desc">
-                Click <a href="<?php echo BASE_URL; ?>users/request-certificate.php"><strong>Request Certificate</strong></a> in the menu.
+                Click <a href="<?php echo BASE_URL; ?>users/request-certificate.php"><strong>Certificates</strong></a> under <strong>My Requests</strong> in the sidebar menu.
               </p>
             </div>
           </div>
 
           <div class="step-card">
-            <span class="step-badge">Step 2</span>
+            <span class="step-badge">STEP 2</span>
             <div class="step-card-body">
-              <div class="step-card-title">Pick the Certificate You Need</div>
+              <div class="step-card-title">Select Certificate Type &amp; Purpose</div>
               <p class="step-card-desc">
-                Select your sacrament:
-                <span class="action-badge action-badge-blue">Baptismal Certificate</span>,
-                <span class="action-badge action-badge-amber">Confirmation Certificate</span>,
-                <span class="action-badge action-badge-green">Marriage Certificate</span>, or
-                <span class="action-badge action-badge-purple">First Communion</span>.
+                Choose your certificate (e.g. <strong>Baptismal Certificate</strong>, <strong>Confirmation Certificate</strong>, <strong>First Communion Certificate</strong>, <strong>Marriage Certificate</strong>, or <strong>Death / Funeral Certification</strong>) and select the purpose (e.g. <em>School Requirement</em>, <em>Marriage Requirement</em>, <em>Sponsor / Godparent</em>, or <em>Personal Copy</em>).
               </p>
             </div>
           </div>
 
           <div class="step-card">
-            <span class="step-badge">Step 3</span>
+            <span class="step-badge">STEP 3</span>
             <div class="step-card-body">
-              <div class="step-card-title">Select the Reason for Request</div>
+              <div class="step-card-title">Fill in Record Details &amp; Upload Requirements</div>
               <p class="step-card-desc">
-                Choose why you need the certificate (e.g., <em>School Requirement</em>, <em>Marriage Requirement</em>, <em>Sponsor / Godparent</em>, or <em>Personal Copy</em>).
+                Enter the certificate holder's name, sacrament date or approximate year, parents' names, and upload required supporting files (such as a <strong>PSA Birth Certificate</strong> or <strong>Valid ID</strong>).
               </p>
             </div>
           </div>
 
           <div class="step-card">
-            <span class="step-badge">Step 4</span>
+            <span class="step-badge">STEP 4</span>
             <div class="step-card-body">
-              <div class="step-card-title">Enter Details &amp; Upload Requirements</div>
+              <div class="step-card-title">Choose Delivery Mode: Online Release or Walk-in Release</div>
               <p class="step-card-desc">
-                Type the approximate year of the sacrament and your parents' names. Attach a clear photo of your PSA Birth Certificate or valid ID, then click <span class="action-badge action-badge-green">Send Request</span>.
+                Select <span class="action-badge action-badge-blue"><i class="fas fa-cloud-arrow-down"></i> Online Release</span> to download your official PDF directly from the portal, or <span class="action-badge action-badge-slate"><i class="fas fa-building"></i> Walk-in Release</span> to pick up a physical signed copy at the parish office.
+              </p>
+            </div>
+          </div>
+
+          <div class="step-card">
+            <span class="step-badge">STEP 5</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Select Payment Method: GCash or Cash</div>
+              <p class="step-card-desc">
+                Choose <span class="action-badge action-badge-blue"><i class="fas fa-mobile-screen-button"></i> GCash</span> (scan the QR code or send payment to <strong>0997 742 8176 - Agnes Calapaan</strong> and upload receipt screenshot) or <span class="action-badge action-badge-green"><i class="fas fa-money-bill-wave"></i> Cash</span> (pay directly upon claiming at the parish office).
+              </p>
+            </div>
+          </div>
+
+          <div class="step-card">
+            <span class="step-badge">STEP 6</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Submit Request &amp; Note Reference Number</div>
+              <p class="step-card-desc">
+                Click <span class="action-badge action-badge-green"><i class="fas fa-paper-plane"></i> Submit Request</span> and keep your generated tracking reference number (e.g. <code>REQ-2026-XXXXXX</code>) for monitoring.
               </p>
             </div>
           </div>
         </div>
 
-        <!-- Warning Callout (Anti-Duplicate Rule) -->
-        <div class="callout-box callout-danger">
-          <i class="fas fa-shield-xmark"></i>
+        <div class="callout-box callout-warning">
+          <i class="fas fa-triangle-exclamation"></i>
           <div>
-            <strong>Important Rule (No Duplicate Requests):</strong>
-            You cannot submit a second request for the same person while an earlier request is still pending or being processed. Please wait for the current request to be completed before making another one.
+            <strong>Active Request Guard:</strong>
+            To prevent accidental duplicate records, the system will not allow a new certificate request for the same person if an existing request is still actively pending or processing.
           </div>
         </div>
 
@@ -943,7 +981,7 @@ include '../includes/breadcrumb.php';
             <span>Previous: Module 2</span>
           </button>
           <button type="button" class="usr-module-nav-btn btn-primary-nav" data-target="#module4">
-            <span>Next: Module 4 (Book Church Service)</span>
+            <span>Next: Module 4 (Blessings &amp; Services)</span>
             <i class="fas fa-arrow-right"></i>
           </button>
         </div>
@@ -957,56 +995,75 @@ include '../includes/breadcrumb.php';
               <i class="fas fa-church"></i>
             </div>
             <div>
-              <h2 class="usr-section-title">Module 4: How to Book a Church Service (Baptism, Wedding, Funeral)</h2>
-              <p class="usr-section-sub">Fill out the simple form and pick an available date and time on the calendar</p>
+              <h2 class="usr-section-title">Module 4: Blessings &amp; Sacramental Services</h2>
+              <p class="usr-section-sub">Book sacred ceremonies, house/vehicle blessings, baptisms, weddings, and funeral masses</p>
             </div>
           </div>
-          <span class="usr-section-tag">Services &amp; Calendar</span>
+          <span class="usr-section-tag">Services &amp; Blessings</span>
         </div>
 
         <p class="usr-intro-text">
-          Follow these steps to schedule a sacred ceremony at our parish with real-time calendar availability.
+          Schedule sacramental ceremonies and off-site blessings with coordinated calendar dates, required documents, and priest scheduling.
         </p>
 
         <!-- Visual Step Cards -->
         <div class="step-cards-grid">
           <div class="step-card">
-            <span class="step-badge">Step 1</span>
+            <span class="step-badge">STEP 1</span>
             <div class="step-card-body">
-              <div class="step-card-title">Go to Book Service</div>
+              <div class="step-card-title">Choose Blessings or Sacramental Services</div>
               <p class="step-card-desc">
-                Click <a href="<?php echo BASE_URL; ?>users/request-service.php"><strong>Sacramental Services</strong></a> (or <em>Blessings</em>) in the menu. Choose whether you want to book a <strong>Baptism</strong>, <strong>Wedding</strong>, <strong>Funeral Mass</strong>, or <strong>Blessing</strong>.
+                In the sidebar under <strong>My Requests</strong>, click <a href="<?php echo BASE_URL; ?>users/request-blessing.php"><strong>Blessings</strong></a> for home/vehicle/business blessings, or <a href="<?php echo BASE_URL; ?>users/request-service.php"><strong>Sacramental Services</strong></a> for Baptisms, Weddings, First Communions, or Funeral Masses.
               </p>
             </div>
           </div>
 
           <div class="step-card">
-            <span class="step-badge">Step 2</span>
+            <span class="step-badge">STEP 2</span>
             <div class="step-card-body">
-              <div class="step-card-title">Fill Out the Information Form</div>
+              <div class="step-card-title">Select Specific Service or Blessing Type</div>
               <p class="step-card-desc">
-                Enter the names of the child/couple, parent details, and chosen godparents (ninong/ninang). Upload your PSA Birth Certificate or Marriage Certificate.
+                For blessings, select <em>House Blessing</em>, <em>Vehicle Blessing</em>, <em>Business Blessing</em>, <em>Office Blessing</em>, <em>Event Blessing</em>, or <em>Other Blessing</em>. For sacramental services, select <em>Baptism</em>, <em>Confirmation</em>, <em>First Communion</em>, <em>Marriage / Wedding</em>, <em>Anointing of the Sick</em>, <em>Funeral Mass</em>, or <em>Patronal Fiesta</em>.
               </p>
             </div>
           </div>
 
           <div class="step-card">
-            <span class="step-badge">Step 3</span>
+            <span class="step-badge">STEP 3</span>
             <div class="step-card-body">
-              <div class="step-card-title">Choose Your Ceremony Date and Time Slot</div>
+              <div class="step-card-title">Fill Out Ceremony Details &amp; Godparents/Sponsors</div>
               <p class="step-card-desc">
-                Select your preferred date from the calendar. The system will show you only available time slots. Click <span class="action-badge action-badge-green">Submit Booking</span>.
+                Fill in the candidate/couple names, parent origins, principal sponsors (Ninong and Ninang), exact location/chapel, and preferred ceremony date and time slot.
+              </p>
+            </div>
+          </div>
+
+          <div class="step-card">
+            <span class="step-badge">STEP 4</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Upload Mandatory Sacramental Documents</div>
+              <p class="step-card-desc">
+                Attach the required photocopies based on the service (e.g. <strong>PSA Live Birth Certificate</strong> and <strong>White Cards</strong> for Baptism; <strong>Pre-Cana Certificate</strong>, <strong>Municipal Marriage License</strong>, and <strong>Permit to Marry</strong> for Weddings; <strong>Death Certificate</strong> for Funerals).
+              </p>
+            </div>
+          </div>
+
+          <div class="step-card">
+            <span class="step-badge">STEP 5</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Submit Booking Request &amp; Monitor Schedule Confirmation</div>
+              <p class="step-card-desc">
+                Click <span class="action-badge action-badge-green"><i class="fas fa-calendar-check"></i> Submit Request</span>; if the parish office proposes an adjusted calendar slot, you can accept or decline the proposal directly from your request details page.
               </p>
             </div>
           </div>
         </div>
 
-        <!-- Real-Time Slot Locking Callout -->
         <div class="callout-box callout-note">
           <i class="fas fa-calendar-check"></i>
           <div>
-            <strong>Calendar Slot Protection:</strong>
-            Our calendar is directly linked to the parish schedule. Any date or time slot that is already reserved by another church service is automatically blocked so no two events are ever double-booked. Once the church office approves your booking, your slot is officially locked!
+            <strong>Schedule Conflict Protection:</strong>
+            The TUGON system cross-checks parish calendar reservations in real time. If your chosen date or time has an existing liturgical conflict, parish staff will contact you or issue an official schedule proposal.
           </div>
         </div>
 
@@ -1028,65 +1085,82 @@ include '../includes/breadcrumb.php';
         <div class="usr-section-header">
           <div class="usr-section-meta">
             <div class="usr-section-icon icon-amber">
-              <i class="fas fa-route"></i>
+              <i class="fas fa-list-check"></i>
             </div>
             <div>
-              <h2 class="usr-section-title">Module 5: How to Track Your Request &amp; Pick Up Documents</h2>
-              <p class="usr-section-sub">Monitor live status progress and know what to bring to the parish office</p>
+              <h2 class="usr-section-title">Module 5: Tracking Requests, Online Downloads &amp; Walk-in Claiming</h2>
+              <p class="usr-section-sub">Monitor live status changes, download released digital certificates, and claim physical copies</p>
             </div>
           </div>
           <span class="usr-section-tag">Track &amp; Claim</span>
         </div>
 
         <p class="usr-intro-text">
-          You never have to guess whether your request is ready. You can check its progress anytime from your account.
+          Track every sacrament, blessing, and certificate request in real time, view staff remarks, download finalized certificates, or prepare for walk-in claiming.
         </p>
 
         <!-- Visual Step Cards -->
         <div class="step-cards-grid">
           <div class="step-card">
-            <span class="step-badge">Step 1</span>
+            <span class="step-badge">STEP 1</span>
             <div class="step-card-body">
-              <div class="step-card-title">Click Track Requests</div>
+              <div class="step-card-title">Go to Track Requests</div>
               <p class="step-card-desc">
-                Go to <a href="<?php echo BASE_URL; ?>users/my-requests.php"><strong>Track Requests</strong></a> in the sidebar menu.
+                Click <a href="<?php echo BASE_URL; ?>users/my-requests.php"><strong>Track Requests</strong></a> in the sidebar under <strong>My Requests</strong>.
               </p>
             </div>
           </div>
 
           <div class="step-card">
-            <span class="step-badge">Step 2</span>
+            <span class="step-badge">STEP 2</span>
             <div class="step-card-body">
-              <div class="step-card-title">Understand Your Request Status</div>
+              <div class="step-card-title">Filter &amp; Search Your Requests</div>
               <p class="step-card-desc">
-                &bull; <span class="action-badge action-badge-amber">Submitted / Pending</span>: We received your request and it is waiting for staff review.
-                <br>&bull; <span class="action-badge action-badge-blue">In Processing</span>: Church staff is checking the physical church record books and printing the certificate.
-                <br>&bull; <span class="action-badge action-badge-green">Ready for Pickup / Completed</span>: Your certificate is signed, sealed, and ready at the parish office!
+                Use the search box, <strong>All Types</strong> filter (<em>Blessings</em>, <em>Certificates</em>, <em>Sacramental Services</em>), or <strong>All Statuses</strong> filter (<em>Pending</em>, <em>Processing</em>, <em>Completed</em>, <em>Rejected</em>) and click <span class="action-badge action-badge-slate"><i class="fas fa-filter"></i> Filter</span>.
               </p>
             </div>
           </div>
 
           <div class="step-card">
-            <span class="step-badge">Step 3</span>
+            <span class="step-badge">STEP 3</span>
             <div class="step-card-body">
-              <div class="step-card-title">Pick Up Your Certificate at the Parish Office</div>
+              <div class="step-card-title">Click View Details on Any Request</div>
               <p class="step-card-desc">
-                Visit the parish office during open office hours. Bring your <strong>Tracking Code</strong> (e.g. <code>REQ-2026-0042</code>) and a <strong>valid ID</strong>.
+                Click <span class="action-badge action-badge-slate"><i class="fas fa-eye"></i> View Details</span> on any row to open the complete timeline, payment receipts, uploaded attachments, and parish remarks.
+              </p>
+            </div>
+          </div>
+
+          <div class="step-card">
+            <span class="step-badge">STEP 4</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Download Certificate (Online Release)</div>
+              <p class="step-card-desc">
+                When an Online Release certificate is finalized, an alert banner will appear; click <span class="action-badge action-badge-green"><i class="fas fa-download"></i> Download Certificate</span> or <span class="action-badge action-badge-slate"><i class="fas fa-eye"></i> Preview</span> to view the signed PDF.
+              </p>
+            </div>
+          </div>
+
+          <div class="step-card">
+            <span class="step-badge">STEP 5</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Claim at Parish Office (Walk-in Release)</div>
+              <p class="step-card-desc">
+                When your status changes to <span class="action-badge action-badge-green"><i class="fas fa-circle-check"></i> Completed</span> or <span class="action-badge action-badge-green"><i class="fas fa-certificate"></i> Released</span>, visit the parish office during open hours, present your <strong>Reference Number</strong> (e.g. <code>REQ-2026-XXXXXX</code>) and a <strong>valid ID</strong>, and settle any pending cash payment.
               </p>
             </div>
           </div>
         </div>
 
-        <!-- Pickup Reminder Box -->
         <div class="callout-box callout-tip">
           <i class="fas fa-user-check"></i>
           <div>
-            <strong>Sending a Representative to Claim for You?</strong>
-            If you cannot visit personally, give your representative:
+            <strong>Authorizing a Representative for Walk-in Claiming:</strong>
+            If you cannot visit the parish office personally, provide your representative with:
             <ul style="margin: 4px 0 0; padding-left: 18px;">
-              <li>A short Authorization Letter signed by you.</li>
-              <li>A photocopy of your valid ID.</li>
-              <li>Their own original valid ID.</li>
+              <li>A signed <strong>Authorization Letter</strong> indicating your Reference Number.</li>
+              <li>A photocopy of your <strong>Valid ID</strong> with signature.</li>
+              <li>Their own original <strong>Valid Government ID</strong>.</li>
             </ul>
           </div>
         </div>
@@ -1098,7 +1172,7 @@ include '../includes/breadcrumb.php';
             <span>Previous: Module 4</span>
           </button>
           <button type="button" class="usr-module-nav-btn btn-primary-nav" data-target="#module6">
-            <span>Next: Module 6 (Questions &amp; Answers)</span>
+            <span>Next: Module 6 (Calendar &amp; News)</span>
             <i class="fas fa-arrow-right"></i>
           </button>
         </div>
@@ -1109,54 +1183,50 @@ include '../includes/breadcrumb.php';
         <div class="usr-section-header">
           <div class="usr-section-meta">
             <div class="usr-section-icon icon-purple">
-              <i class="fas fa-circle-question"></i>
+              <i class="fas fa-calendar-days"></i>
             </div>
             <div>
-              <h2 class="usr-section-title">Module 6: Common Questions &amp; Answers (FAQ)</h2>
-              <p class="usr-section-sub">Quick answers to frequently asked parishioner questions</p>
+              <h2 class="usr-section-title">Module 6: Parish Calendar, Announcements &amp; Organization Chart</h2>
+              <p class="usr-section-sub">Stay informed on Mass schedules, upcoming feast days, parish notices, and church leadership</p>
             </div>
           </div>
-          <span class="usr-section-tag">Help &amp; Answers</span>
+          <span class="usr-section-tag">Parish Information</span>
         </div>
 
-        <!-- Accordions -->
-        <div class="usr-accordion-item">
-          <button type="button" class="usr-accordion-btn">
-            <span>How long does it take to get my certificate?</span>
-            <i class="fas fa-chevron-down"></i>
-          </button>
-          <div class="usr-accordion-body">
-            Standard processing takes <strong>2 to 3 parish office days</strong>. If the record is from many years ago, looking through the physical archive books may take up to 5 days. You will receive an SMS and email as soon as it is ready!
+        <p class="usr-intro-text">
+          Access official church announcements, interactive calendar schedules, and the complete organizational leadership hierarchy of the parish.
+        </p>
+
+        <!-- Visual Step Cards -->
+        <div class="step-cards-grid">
+          <div class="step-card">
+            <span class="step-badge">STEP 1</span>
+            <div class="step-card-body">
+              <div class="step-card-title">View the Parish Calendar</div>
+              <p class="step-card-desc">
+                Click <a href="<?php echo BASE_URL; ?>users/view-schedule.php"><strong>Parish Calendar</strong></a> under the Communication section to view upcoming approved Mass schedules, feast days, confessions, and parish-wide events in month, week, or list views.
+              </p>
+            </div>
           </div>
-        </div>
 
-        <div class="usr-accordion-item">
-          <button type="button" class="usr-accordion-btn">
-            <span>Can I change the date of a booked wedding or baptism?</span>
-            <i class="fas fa-chevron-down"></i>
-          </button>
-          <div class="usr-accordion-body">
-            Yes. Please contact or visit the parish office at least <strong>7 days before</strong> the ceremony so our staff can check priest availability and move your slot on the calendar.
+          <div class="step-card">
+            <span class="step-badge">STEP 2</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Read Parish Announcements</div>
+              <p class="step-card-desc">
+                Click <a href="<?php echo BASE_URL; ?>users/announcements.php"><strong>Announcements</strong></a> to browse pinned bulletins, monthly schedules, pastoral guidelines, fiesta schedules, and download event circulars.
+              </p>
+            </div>
           </div>
-        </div>
 
-        <div class="usr-accordion-item">
-          <button type="button" class="usr-accordion-btn">
-            <span>Why does my account say "Pending Verification"?</span>
-            <i class="fas fa-chevron-down"></i>
-          </button>
-          <div class="usr-accordion-body">
-            When you first sign up, church staff reviews your ID photo to confirm your profile. You can still submit requests while waiting. Once verified, a green <span class="action-badge action-badge-green"><i class="fas fa-circle-check"></i> Verified</span> badge will appear on your profile.
-          </div>
-        </div>
-
-        <div class="usr-accordion-item">
-          <button type="button" class="usr-accordion-btn">
-            <span>What if my phone camera will not turn on during registration?</span>
-            <i class="fas fa-chevron-down"></i>
-          </button>
-          <div class="usr-accordion-body">
-            Check your browser settings (Chrome or Safari) and make sure Camera permissions are set to <strong>Allow</strong>. If your phone is in Low Power mode, turn it off and refresh the page.
+          <div class="step-card">
+            <span class="step-badge">STEP 3</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Explore the Parish Organization Chart</div>
+              <p class="step-card-desc">
+                Click <a href="<?php echo BASE_URL; ?>users/organization.php"><strong>Parish Organization Chart</strong></a> to view the 5-tier leadership tree: Parish Priest, Parochial Vicar, Parish Pastoral Council officers, Commissions/Ministries, and Chapel/BEC leaders with official contact links.
+              </p>
+            </div>
           </div>
         </div>
 
@@ -1165,6 +1235,160 @@ include '../includes/breadcrumb.php';
           <button type="button" class="usr-module-nav-btn" data-target="#module5">
             <i class="fas fa-arrow-left"></i>
             <span>Previous: Module 5</span>
+          </button>
+          <button type="button" class="usr-module-nav-btn btn-primary-nav" data-target="#module7">
+            <span>Next: Module 7 (AI &amp; Notifications)</span>
+            <i class="fas fa-arrow-right"></i>
+          </button>
+        </div>
+      </section>
+
+      <!-- ================= MODULE 7 ================= -->
+      <section id="module7" class="usr-section-card">
+        <div class="usr-section-header">
+          <div class="usr-section-meta">
+            <div class="usr-section-icon icon-rose">
+              <i class="fas fa-robot"></i>
+            </div>
+            <div>
+              <h2 class="usr-section-title">Module 7: Notifications &amp; AI Parish Assistant</h2>
+              <p class="usr-section-sub">Get real-time request alerts and ask 24/7 questions about parish requirements and schedules</p>
+            </div>
+          </div>
+          <span class="usr-section-tag">Communication &amp; AI</span>
+        </div>
+
+        <p class="usr-intro-text">
+          Never miss an update regarding your request approvals or schedule changes, and get instant answers anytime using the TUGON AI Assistant.
+        </p>
+
+        <!-- Visual Step Cards -->
+        <div class="step-cards-grid">
+          <div class="step-card">
+            <span class="step-badge">STEP 1</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Check Notifications for Status Updates</div>
+              <p class="step-card-desc">
+                Click <a href="<?php echo BASE_URL; ?>users/notifications.php"><strong>Notifications</strong></a> in the sidebar (or the bell icon in the top header) to view real-time notifications about request approvals, payment verifications, and certificate readiness.
+              </p>
+            </div>
+          </div>
+
+          <div class="step-card">
+            <span class="step-badge">STEP 2</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Open the AI Assistant</div>
+              <p class="step-card-desc">
+                Click <a href="<?php echo BASE_URL; ?>users/ai-assistant.php"><strong>AI Assistant</strong></a> in the sidebar under Communication to start an interactive chat session.
+              </p>
+            </div>
+          </div>
+
+          <div class="step-card">
+            <span class="step-badge">STEP 3</span>
+            <div class="step-card-body">
+              <div class="step-card-title">Ask Questions or Use Quick Prompts</div>
+              <p class="step-card-desc">
+                Type any question regarding sacramental requirements, mass schedules, donation channels, or office hours, or click one of the suggested quick prompts to receive instant guided answers.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Module Navigation Footer -->
+        <div class="usr-module-nav">
+          <button type="button" class="usr-module-nav-btn" data-target="#module6">
+            <i class="fas fa-arrow-left"></i>
+            <span>Previous: Module 6</span>
+          </button>
+          <button type="button" class="usr-module-nav-btn btn-primary-nav" data-target="#module8">
+            <span>Next: Module 8 (FAQs)</span>
+            <i class="fas fa-arrow-right"></i>
+          </button>
+        </div>
+      </section>
+
+      <!-- ================= MODULE 8 ================= -->
+      <section id="module8" class="usr-section-card">
+        <div class="usr-section-header">
+          <div class="usr-section-meta">
+            <div class="usr-section-icon icon-gold">
+              <i class="fas fa-circle-question"></i>
+            </div>
+            <div>
+              <h2 class="usr-section-title">Module 8: Frequently Asked Questions (FAQ)</h2>
+              <p class="usr-section-sub">Clear answers to common questions about accounts, certificates, payments, and services</p>
+            </div>
+          </div>
+          <span class="usr-section-tag">Help &amp; Answers</span>
+        </div>
+
+        <!-- Accordions -->
+        <div class="usr-accordion-item">
+          <button type="button" class="usr-accordion-btn">
+            <span>How long does it take for a certificate request to be processed?</span>
+            <i class="fas fa-chevron-down"></i>
+          </button>
+          <div class="usr-accordion-body">
+            Standard certificate processing usually takes <strong>1 to 3 parish office days</strong>. If the sacramental record is from an older physical register that requires archival lookup, it may take up to 5 days. You will receive an alert as soon as your certificate is ready.
+          </div>
+        </div>
+
+        <div class="usr-accordion-item">
+          <button type="button" class="usr-accordion-btn">
+            <span>How do I pay with GCash, and when is my payment verified?</span>
+            <i class="fas fa-chevron-down"></i>
+          </button>
+          <div class="usr-accordion-body">
+            During certificate submission, select <strong>GCash</strong> as your payment method, transfer the required amount to <strong>0997 742 8176 (Agnes Calapaan)</strong> or scan the displayed QR code, and upload a clear screenshot of your transaction receipt. The parish cashier will verify the reference number and mark your payment as verified.
+          </div>
+        </div>
+
+        <div class="usr-accordion-item">
+          <button type="button" class="usr-accordion-btn">
+            <span>What is the difference between Online Release and Walk-in Release?</span>
+            <i class="fas fa-chevron-down"></i>
+          </button>
+          <div class="usr-accordion-body">
+            <strong>Online Release</strong> allows you to download an official digital PDF certificate directly from the Track Requests page once approved. <strong>Walk-in Release</strong> prepares a physical, printed copy with the official church dry seal and signature for pickup at the parish office.
+          </div>
+        </div>
+
+        <div class="usr-accordion-item">
+          <button type="button" class="usr-accordion-btn">
+            <span>Why does my account say "Pending Verification"? Can I still make requests?</span>
+            <i class="fas fa-chevron-down"></i>
+          </button>
+          <div class="usr-accordion-body">
+            When you first create an account, parish staff compares your live photo and ID upload to confirm your profile. While awaiting verification, you can explore the portal. Once reviewed, your profile will display the green <span class="action-badge action-badge-green"><i class="fas fa-circle-check"></i> Verified</span> badge.
+          </div>
+        </div>
+
+        <div class="usr-accordion-item">
+          <button type="button" class="usr-accordion-btn">
+            <span>Can I reschedule a booked baptism or wedding?</span>
+            <i class="fas fa-chevron-down"></i>
+          </button>
+          <div class="usr-accordion-body">
+            Yes. If you need to adjust your ceremony date or time, please notify the parish office at least <strong>7 days prior</strong> to the scheduled date. If the parish proposes a schedule adjustment due to liturgical activities, you will see a proposal banner in your request details where you can click <strong>Accept</strong> or <strong>Reject</strong>.
+          </div>
+        </div>
+
+        <div class="usr-accordion-item">
+          <button type="button" class="usr-accordion-btn">
+            <span>What should I bring when picking up documents at the parish office?</span>
+            <i class="fas fa-chevron-down"></i>
+          </button>
+          <div class="usr-accordion-body">
+            Bring your <strong>Reference Number</strong> (e.g. <code>REQ-2026-XXXXXX</code>) and a <strong>valid government ID</strong>. If you selected Cash payment, please prepare the exact fee amount. If sending an authorized representative, provide an authorization letter and a photocopy of your valid ID.
+          </div>
+        </div>
+
+        <!-- Module Navigation Footer -->
+        <div class="usr-module-nav">
+          <button type="button" class="usr-module-nav-btn" data-target="#module7">
+            <i class="fas fa-arrow-left"></i>
+            <span>Previous: Module 7</span>
           </button>
           <a href="<?php echo BASE_URL; ?>index.php" class="usr-module-nav-btn btn-primary-nav">
             <span>Back to Dashboard</span>

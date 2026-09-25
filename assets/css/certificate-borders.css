@@ -1,0 +1,62 @@
+/**
+ * Certificate Ornamental Border Stylesheet
+ * Reusable blue fan/scallop decorative border system for sacramental certificates
+ * Applies uniformly to Baptism, First Communion, and Confirmation certificates.
+ */
+
+:root {
+    --cert-border-blue: #006eb3;
+    --cert-border-ink: #111827;
+}
+
+/* Reusable Ornamental Border Frame */
+.certificate-ornamental-frame {
+    position: relative;
+    background-color: #ffffff;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.certificate-ornamental-frame::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    background-image: url('../img/certificates/ornamental-scallop-border.svg');
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 100% 100%;
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Portrait Orientation Variant (e.g., Traditional Baptism Certificate) */
+.certificate-ornamental-frame.portrait::before,
+.certificate-ornamental-frame-portrait::before {
+    background-image: url('../img/certificates/ornamental-scallop-border-portrait.svg');
+}
+
+/* Ensure all inner content sits cleanly on top of the open interior area */
+.certificate-ornamental-frame > * {
+    position: relative;
+    z-index: 2;
+}
+
+/* Standalone SVG image overlay helper */
+.ornamental-scallop-border-overlay {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+}
+
+@media print {
+    .certificate-ornamental-frame::before,
+    .ornamental-scallop-border-overlay {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+}

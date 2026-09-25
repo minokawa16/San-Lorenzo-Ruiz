@@ -249,7 +249,7 @@ if (isLoggedIn()) {
     <a class="tugon-skip-link" href="#main-content">Skip to main content</a>
     <?php if ($is_user_area): ?>
     <div class="user-shell">
-        <?php include '../includes/user-sidebar.php'; ?>
+        <?php include __DIR__ . '/../includes/user-sidebar.php'; ?>
         <div class="user-main">
             <header class="app-global-header user-topbar user-global-topbar premium-glass">
                 <div class="app-header-left admin-global-title user-global-title">
@@ -291,7 +291,7 @@ if (isLoggedIn()) {
             <main class="user-content" id="main-content" tabindex="-1">
     <?php elseif ($is_admin_area): ?>
     <div class="app-layout premium-admin-shell">
-        <?php include '../includes/admin-sidebar.php'; ?>
+        <?php include __DIR__ . '/../includes/admin-sidebar.php'; ?>
         <main class="premium-admin-content main-content" id="main-content" tabindex="-1">
             <?php if (empty($hide_global_header)): ?>
             <header class="dashboard-header-row parish-top-nav-bar app-global-header admin-global-topbar flex items-center justify-between w-full py-2 mb-3 bg-transparent" style="background: transparent !important; border: none !important; box-shadow: none !important;">

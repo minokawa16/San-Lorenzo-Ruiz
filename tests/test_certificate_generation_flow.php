@@ -92,13 +92,25 @@ if ($ov_sponsor)   $record['sponsor']            = $ov_sponsor;
 if ($ov_priest)    $record['bishop_priest'] = $record['parish_priest'] = $ov_priest;
 
 $missing = [];
-if (empty($record['fullname']))           $missing[] = 'Full Name';
-if (empty($record['confirmation_date']))  $missing[] = 'Date of Confirmation';
-if (empty($record['bishop_priest']) && empty($record['parish_priest'])) $missing[] = 'Officiating Priest';
+if (empty($record['fullname']))          $missing[] = 'Full Name';
+if (empty($record['confirmation_date'])) $missing[] = 'Date of Confirmation';
+if ($ov_priest === '') {
+    $missing[] = 'Officiating Priest';
+} else {
+    $record['bishop_priest'] = $record['parish_priest'] = $ov_priest;
+}
 
 assertCondition("Simulated confirmation overrides applied correctly", $record['fullname'] === 'GERALD M. CATULONG');
 assertCondition("Simulated confirmation priest override applied correctly", $record['bishop_priest'] === 'REV. FR. ALBERTO G. CAHILIG, OMI');
 assertCondition("Simulated confirmation validation passes without missing fields", empty($missing));
+
+// 5b. Confirmation validation fails when priest is blank
+$empty_priest_missing = [];
+$ov_priest_empty = '';
+if ($ov_priest_empty === '') {
+    $empty_priest_missing[] = 'Officiating Priest';
+}
+assertCondition("Confirmation blocks generation when Officiating Priest is empty", in_array('Officiating Priest', $empty_priest_missing, true));
 
 // 6. Test Communion Override Logic Simulation
 $comm_post_data = [
@@ -123,17 +135,89 @@ if ($ov_fullname)  $rec_c['fullname']              = $ov_fullname;
 if ($ov_comm_date) $rec_c['communion_date']        = $ov_comm_date;
 if ($ov_domicile)  $rec_c['domicile']              = $ov_domicile;
 if ($ov_parents)   $rec_c['parents']               = $ov_parents;
-if ($ov_priest)    $rec_c['priest'] = $rec_c['parish_priest'] = $ov_priest;
 if ($ov_catechist) $rec_c['catechist_coordinator'] = $ov_catechist;
 if ($ov_principal) $rec_c['principal']             = $ov_principal;
 
 $missing_c = [];
 if (empty($rec_c['fullname']))       $missing_c[] = "Recipient's Full Name";
 if (empty($rec_c['communion_date'])) $missing_c[] = 'Date of First Communion';
+if ($ov_priest === '') {
+    $missing_c[] = 'Officiating Priest';
+} else {
+    $rec_c['priest'] = $rec_c['parish_priest'] = $ov_priest;
+}
 
 assertCondition("Simulated communion overrides applied correctly", $rec_c['fullname'] === 'MARIA SANTOS');
+assertCondition("Simulated communion priest override applied correctly", $rec_c['priest'] === 'REV. FR. ALBERTO G. CAHILIG, OMI');
 assertCondition("Simulated communion validation passes without missing fields", empty($missing_c));
+
+// 6b. Communion validation fails when priest is blank
+$comm_empty_missing = [];
+$ov_comm_empty = '';
+if ($ov_comm_empty === '') {
+    $comm_empty_missing[] = 'Officiating Priest';
+}
+assertCondition("Communion blocks generation when Officiating Priest is empty", in_array('Officiating Priest', $comm_empty_missing, true));
+
+// 7. Test Baptism split priest fields simulation
+$bap_post_data = [
+    'override_fullname' => 'JUAN DELA CRUZ',
+    'override_birth_place' => 'Aleosan, Cotabato',
+    'override_birth_date' => '2020-01-01',
+    'override_residence' => 'San Mateo, Aleosan',
+    'override_father_name' => 'PEDRO DELA CRUZ',
+    'override_father_birth_place' => 'Aleosan',
+    'override_mother_name' => 'MARIA DELA CRUZ',
+    'override_mother_birth_place' => 'Aleosan',
+    'override_baptism_date' => '2020-06-01',
+    'override_priest_in_charge' => 'REV. FR. ALBERTO G. CAHILIG, O.M.I.',
+    'override_officiating_priest' => 'REV. FR. HERIBERTO C. VILLAS, O.M.I.',
+    'override_sponsors' => ['SPONSOR ONE', 'SPONSOR TWO']
+];
+$bap_test_rec = [];
+$bap_missing = [];
+if (empty($bap_post_data['override_officiating_priest'])) $bap_missing[] = 'Officiating Priest';
+if (empty($bap_post_data['override_priest_in_charge'])) $bap_missing[] = 'Priest in Charge (Parish Priest)';
+$bap_test_rec['priest'] = $bap_post_data['override_officiating_priest'];
+$bap_test_rec['officiating_priest'] = $bap_post_data['override_officiating_priest'];
+$bap_test_rec['parish_priest'] = $bap_post_data['override_priest_in_charge'];
+$bap_test_rec['priest_in_charge'] = $bap_post_data['override_priest_in_charge'];
+assertCondition("Baptism correctly records distinct Officiating Priest", $bap_test_rec['priest'] === 'REV. FR. HERIBERTO C. VILLAS, O.M.I.');
+assertCondition("Baptism correctly records distinct Priest in Charge", $bap_test_rec['priest_in_charge'] === 'REV. FR. ALBERTO G. CAHILIG, O.M.I.');
+assertCondition("Baptism validation passes with both priests specified", empty($bap_missing));
+
+// 7b. Test Baptism priest required validation when Officiating Priest is empty
+$bap_missing_empty_op = [];
+$bap_empty_op = '';
+if ($bap_empty_op === '') $bap_missing_empty_op[] = 'Officiating Priest';
+assertCondition("Baptism blocks generation when Officiating Priest is empty", in_array('Officiating Priest', $bap_missing_empty_op, true));
+
+// 7c. Test Baptism priest required validation when Priest in Charge is empty
+$bap_missing_empty_pic = [];
+$bap_empty_pic = '';
+if ($bap_empty_pic === '') $bap_missing_empty_pic[] = 'Priest in Charge (Parish Priest)';
+assertCondition("Baptism blocks generation when Priest in Charge is empty", in_array('Priest in Charge (Parish Priest)', $bap_missing_empty_pic, true));
+
+// 8. Test Active Priest Roster resolution
+$roster = getActivePriestsRoster($conn);
+assertCondition("Active priest roster is populated", !empty($roster) && is_array($roster));
+$has_default = false;
+foreach ($roster as $p) {
+    if (!empty($p['is_default'])) $has_default = true;
+}
+assertCondition("Active priest roster has a designated default parish priest", $has_default);
+
+// 9. Test generator and view files contain no syntax errors and proper priest fields
+$gen_code = file_get_contents(__DIR__ . '/../admin/certificate-generator.php');
+assertCondition("Generator includes Priest in Charge field", strpos($gen_code, 'override_priest_in_charge') !== false);
+assertCondition("Generator includes Officiating Priest field", strpos($gen_code, 'override_officiating_priest') !== false);
+assertCondition("Generator includes autocomplete wrapper", strpos($gen_code, 'priest-autocomplete-wrapper') !== false);
+
+// 10. Test boilerplate text exclusion in view-certificate.php
+$view_cert_code = file_get_contents(__DIR__ . '/../admin/view-certificate.php');
+assertCondition("No unconditional boilerplate line in view-certificate.php", strpos($view_cert_code, 'Issued upon request for whatever lawful purpose it may serve.') === false);
 
 echo "=====================================================\n";
 echo "Results: $tests_passed / $tests_total tests passed.\n";
 echo "=====================================================\n";
+

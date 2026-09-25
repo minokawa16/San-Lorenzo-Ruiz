@@ -561,13 +561,13 @@ if (!isset($data['purpose']) || $data['purpose'] === null || trim((string)$data[
             }
         }
     }
-    $data['purpose'] = $found_purpose !== '' ? $found_purpose : 'whatever lawful purpose it may serve';
+    $data['purpose'] = $found_purpose !== '' ? $found_purpose : '';
     $_SESSION['certificate_data']['purpose'] = $data['purpose'];
 }
 
 $display_purpose_raw = !empty($data['purpose']) && trim((string)$data['purpose']) !== ''
     ? trim((string)$data['purpose'])
-    : 'whatever lawful purpose it may serve';
+    : '';
 $data['purpose'] = $display_purpose_raw;
 $_SESSION['certificate_data']['purpose'] = $display_purpose_raw;
 $display_purpose_clean = preg_replace('/^for\s+/i', '', $display_purpose_raw);
@@ -872,7 +872,7 @@ $baptism_father_birthplace = $father_birth_place;
 $baptism_mother = $mother_name;
 $baptism_mother_birthplace = $mother_birth_place;
 $baptism_date_str = !empty($data['baptism_date']) ? displayDate($data['baptism_date'], 'F j, Y') : 'N/A';
-$baptism_priest = trim((string)($data['priest'] ?? ''));
+$baptism_priest = trim((string)($data['priest'] ?? ($data['officiating_priest'] ?? '')));
 if ($baptism_priest === '' && !empty($layout_priest_name)) {
     $baptism_priest = $layout_priest_name;
 }
@@ -1206,15 +1206,12 @@ $layout_border_style = layoutCssValue($layout_border['style'] ?? '', 'double');
 $layout_border_color = layoutCssValue($layout_border['color'] ?? '', '#111111');
 $layout_church_title = layoutCssValue($layout_text['church_title'] ?? '', 'ROMAN CATHOLIC CHURCH');
 $layout_diocese_name = layoutCssValue($layout_text['diocese_name'] ?? '', 'ARCHDIOCESE OF COTABATO');
-$layout_certificate_title = layoutCssValue($layout_text['certificate_title'] ?? '', $meta['title']);
-if ($cert_type === 'baptism') {
-    $layout_certificate_title = 'CERTIFICATE OF BAPTISM';
-}
+$layout_certificate_title = layoutCssValue($layout_text['certificate_title'] ?? '', ($cert_type === 'baptism' ? 'CERTIFICATE OF BAPTISM' : $meta['title']));
 $layout_certificate_subtitle = layoutCssValue($layout_text['certificate_subtitle'] ?? '', 'Issued from the Official Parish Records');
 $layout_body_text = layoutCssValue($layout_text['body_text'] ?? '', '');
 $layout_footer_text = layoutCssValue($layout_text['footer_text'] ?? '', 'Unauthorized alteration invalidates this certificate.');
 $layout_watermark_text = layoutCssValue($layout_text['watermark_text'] ?? '', 'OFFICIAL PARISH DOCUMENT');
-$layout_priest_name = layoutCssValue($data['parish_priest'] ?? '', layoutCssValue($layout_text['priest_name'] ?? '', 'REV. FR. HERIBERTO C. VILLAS, O.M.I.'));
+$layout_priest_name = layoutCssValue($data['priest_in_charge'] ?? ($data['parish_priest'] ?? ''), layoutCssValue($layout_text['priest_name'] ?? '', 'REV. FR. ALBERTO G. CAHILIG, O.M.I.'));
 $signatory_title = trim((string)($data['priest_position'] ?? ($data['signatory_title'] ?? '')));
 if (!$signatory_title && !empty($data['remarks'])) {
     if (preg_match('/(?:title|signatory title|position)\s*[:\-]\s*([^\|\n\r;]+)/i', $data['remarks'], $m)) {
@@ -1226,10 +1223,14 @@ $layout_secretary_name = layoutCssValue($data['parish_secretary'] ?? '', layoutC
 $layout_secretary_position = layoutCssValue($layout_text['secretary_position'] ?? '', 'Parish Secretary');
 
 if (stripos($data['fullname'] ?? '', 'REY MARK') !== false) {
-    if ($cert_type === 'confirmation') {
-        $layout_priest_name = !empty($data['parish_priest']) ? $data['parish_priest'] : 'REV. FR. ALBERTO G. CAHILIG, O.M.I.';
+    if (!empty($data['priest_in_charge'])) {
+        $layout_priest_name = $data['priest_in_charge'];
+    } elseif (!empty($data['parish_priest'])) {
+        $layout_priest_name = $data['parish_priest'];
+    } elseif ($cert_type === 'confirmation') {
+        $layout_priest_name = 'REV. FR. ALBERTO G. CAHILIG, O.M.I.';
     } else {
-        $layout_priest_name = !empty($data['parish_priest']) ? $data['parish_priest'] : 'REV. FR. HERIBERTO C. VILLAS, O.M.I.';
+        $layout_priest_name = 'REV. FR. HERIBERTO C. VILLAS, O.M.I.';
     }
     $layout_priest_position = 'Priest-in-Charge';
     $show_secretary_sign = false;
@@ -2028,39 +2029,33 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
-        /* Clean double-line frame in the same blue as headings */
+        .ornamental-scallop-border-overlay {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
         .conf-outer-frame {
             position: relative;
             width: 100%;
             height: 100%;
-            border: 2px solid var(--conf-blue);
-            padding: 2.2mm;
             box-sizing: border-box;
+            z-index: 2;
         }
         .conf-inner-frame {
             position: relative;
             width: 100%;
             height: 100%;
-            border: 1px solid var(--conf-blue);
-            padding: 3.2mm 5.5mm 3mm 5.5mm;
+            padding: 8.5mm 10mm 6.5mm 10mm;
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
             font-family: 'Times New Roman', Times, serif;
             color: var(--conf-ink);
+            z-index: 2;
         }
-        /* Small corner flourishes only at the four corners */
-        .conf-corner {
-            position: absolute;
-            width: 10mm;
-            height: 10mm;
-            pointer-events: none;
-            z-index: 5;
-        }
-        .conf-corner.tl { top: -0.5mm; left: -0.5mm; }
-        .conf-corner.tr { top: -0.5mm; right: -0.5mm; transform: scaleX(-1); }
-        .conf-corner.bl { bottom: -0.5mm; left: -0.5mm; transform: scaleY(-1); }
-        .conf-corner.br { bottom: -0.5mm; right: -0.5mm; transform: scale(-1); }
 
         /* Standardized two-logo header matching Baptismal & Communion templates */
         .conf-header-grid {
@@ -2431,6 +2426,7 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             .cert-toolbar { padding: 0 14px; align-items: flex-start; flex-direction: column; }
         }
     </style>
+    <link rel="stylesheet" href="../assets/css/certificate-borders.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/certificate-borders.css'); ?>">
     <link rel="stylesheet" href="../assets/css/responsive-unified.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/responsive-unified.css'); ?>">
 </head>
 <body>
@@ -2441,20 +2437,10 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             <?php else: ?>
                 <button class="btn btn-primary" id="btnPrintCertificate" onclick="printCertificate()"><i class="fas fa-print"></i> Print Certificate</button>
             <?php endif; ?>
-            <?php if ($cert_type === 'baptism'): ?>
-                <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#editBaptismModal"><i class="fas fa-pen-to-square"></i> Edit Baptism Details</button>
-            <?php elseif ($is_confirmation_cert): ?>
-                <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#editConfirmationModal"><i class="fas fa-pen-to-square"></i> Edit Confirmation Details</button>
-            <?php elseif ($is_communion_cert): ?>
-                <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#editCommunionModal"><i class="fas fa-pen-to-square"></i> Edit Communion Details</button>
-            <?php elseif ($is_certification): ?>
-                <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#editPurposeModal"><i class="fas fa-pen-to-square"></i> Edit Purpose & Details</button>
-            <?php endif; ?>
             <?php if (!$is_manual_certificate && !empty($verification_url)): ?>
                 <a class="btn btn-outline-dark" href="<?php echo e($verification_url); ?>" target="_blank"><i class="fas fa-shield-check"></i> Verify Certificate</a>
             <?php endif; ?>
             <?php if ($is_manual_certificate): ?>
-                <a href="manual-certificate-generator.php" class="btn btn-outline-secondary"><i class="fas fa-sliders"></i> Full Edit</a>
                 <a href="manual-certificate-generator.php?new=1" class="btn btn-outline-success"><i class="fas fa-plus"></i> Generate Another</a>
             <?php endif; ?>
             <a href="certificate-generator.php" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back</a>
@@ -2500,14 +2486,9 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
         </div>
     <?php elseif ($is_confirmation_cert): ?>
         <div class="alert alert-success border-success shadow-sm mx-auto mb-3 py-2" style="max-width: 215.9mm; font-size: 0.88rem;">
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <div>
-                    <i class="fas fa-check-circle text-success me-2"></i>
-                    All required Confirmation fields verified and ready for official printing.
-                </div>
-                <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#editConfirmationModal">
-                    <i class="fas fa-edit"></i> Edit Details
-                </button>
+            <div class="d-flex align-items-center">
+                <i class="fas fa-check-circle text-success me-2"></i>
+                <span>All required Confirmation fields verified and ready for official printing.</span>
             </div>
         </div>
     <?php endif; ?>
@@ -2526,14 +2507,9 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
         </div>
     <?php elseif ($is_communion_cert): ?>
         <div class="alert alert-success border-success shadow-sm mx-auto mb-3 py-2" style="max-width: var(--cert-width); font-size: 0.88rem;">
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <div>
-                    <i class="fas fa-check-circle text-success me-2"></i>
-                    All required First Communion fields verified and ready for official printing.
-                </div>
-                <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#editCommunionModal">
-                    <i class="fas fa-edit"></i> Edit Details
-                </button>
+            <div class="d-flex align-items-center">
+                <i class="fas fa-check-circle text-success me-2"></i>
+                <span>All required First Communion fields verified and ready for official printing.</span>
             </div>
         </div>
     <?php endif; ?>
@@ -2661,12 +2637,19 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
                                 <div class="registry-line-item"><span class="prompt">Year</span><span class="fill"><?php echo e($baptism_year); ?></span></div>
                             </div>
 
+<?php if (!empty($data['purpose']) && strtolower(trim((string)$data['purpose'])) !== 'whatever lawful purpose it may serve' && strtolower(trim((string)$data['purpose'])) !== 'n/a'): ?>
                             <div class="recommendation-purpose">
                                 <span class="prompt">This is issued upon request for</span>
-                                <span class="fill"><?php echo e($data['purpose'] ?? 'whatever lawful purpose it may serve'); ?></span>
+                                <span class="fill"><?php echo e($data['purpose']); ?></span>
                                 <span class="prompt">this</span>
                                 <span class="fill"><?php echo e($issued_day . ' day of ' . $issued_month . ', ' . $issued_year); ?></span>
                             </div>
+<?php else: ?>
+                            <div class="recommendation-purpose" style="grid-template-columns: auto 1fr;">
+                                <span class="prompt">Issued this</span>
+                                <span class="fill"><?php echo e($issued_day . ' day of ' . $issued_month . ', ' . $issued_year); ?></span>
+                            </div>
+<?php endif; ?>
                             <div class="form-line" style="margin-top: 1mm;">
                                 <span class="prompt">in the Lord</span>
                                 <span class="fill"><?php echo e($display_ceremony_place); ?></span>
@@ -2772,9 +2755,11 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
                             <?php endforeach; ?>
                         </div>
 
+                        <?php if (!empty($display_purpose_clean) && strtolower(trim((string)$display_purpose_clean)) !== 'whatever lawful purpose it may serve' && strtolower(trim((string)$display_purpose_clean)) !== 'n/a'): ?>
                         <div class="trad-purpose-line" style="margin: 3.5mm auto 0; font-family: Georgia, 'Times New Roman', serif; font-size: 9.5pt; color: #852219; text-align: center; line-height: 1.35;">
                             Issued upon request for <span style="font-family: 'Courier New', Courier, monospace, serif; font-size: 9.8pt; font-weight: 700; color: #111827; border-bottom: 1px solid #852219; padding: 0 1.5mm;"><?php echo e($display_purpose_clean); ?></span>.
                         </div>
+                        <?php endif; ?>
 
                         <div class="signature-grid<?php echo !$show_secretary_sign ? ' single-signature' : ''; ?>" style="max-width: 124mm; margin: 5mm auto 0; padding: 0 1mm;">
                             <div class="seal-area" style="width: 24mm; height: 24mm; border: 1px dashed #852219; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 7.5px; color: #852219; margin: 0 auto 0 2mm;">
@@ -2862,9 +2847,11 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
                             <div class="communion-parish-subtitle"><?php echo e($communion_parish_address); ?></div>
                         </div>
 
+                        <?php if (!empty($display_purpose_clean) && strtolower(trim((string)$display_purpose_clean)) !== 'whatever lawful purpose it may serve' && strtolower(trim((string)$display_purpose_clean)) !== 'n/a'): ?>
                         <div class="communion-purpose-line" style="margin: 2.5mm auto 2mm; font-family: 'Cinzel', Georgia, serif; font-size: 8.5pt; font-style: italic; color: #2b231a; text-align: center;">
                             Issued upon request for <span class="communion-data-fill" style="display: inline-block; border-bottom: 1px solid #222; font-style: normal; font-weight: 700; padding: 0 4mm;"><?php echo e($display_purpose_clean); ?></span>.
                         </div>
+                        <?php endif; ?>
 
                         <!-- Three Signer Lines at Bottom Right -->
                         <div class="communion-signers-section">
@@ -3003,10 +2990,12 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
                             <div><?php echo $line; ?></div>
                         <?php endforeach; ?>
                     </div>
+                    <?php if (!empty($display_purpose_clean) && strtolower(trim((string)$display_purpose_clean)) !== 'whatever lawful purpose it may serve' && strtolower(trim((string)$display_purpose_clean)) !== 'n/a'): ?>
                     <!-- Purpose of Request Line directly below main certification paragraph -->
                     <div class="simple-cert-purpose-line">
                         Issued upon request for <span class="simple-cert-fill underline"><?php echo e($display_purpose_clean); ?></span>.
                     </div>
+                    <?php endif; ?>
                 </div>
 
                 <!-- Footer with Dashed Parish Seal and Single Priest Signature Line -->
@@ -3026,29 +3015,10 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
     <?php elseif ($cert_type === 'confirmation'): ?>
         <main class="confirmation-replica-page" id="certificateDocument">
             <section class="confirmation-replica-sheet">
-                <div class="conf-outer-frame">
-                    <!-- Corner flourishes with subtle gold accent -->
-                    <svg class="conf-corner tl" viewBox="0 0 36 36" aria-hidden="true">
-                        <path d="M 2 34 L 2 10 C 2 5.5 5.5 2 10 2 L 34 2" fill="none" stroke="var(--conf-blue)" stroke-width="1.6"/>
-                        <circle cx="10" cy="10" r="2.2" fill="var(--conf-gold)"/>
-                        <path d="M 10 5 L 10 15 M 5 10 L 15 10" stroke="var(--conf-gold)" stroke-width="0.9"/>
-                    </svg>
-                    <svg class="conf-corner tr" viewBox="0 0 36 36" aria-hidden="true">
-                        <path d="M 2 34 L 2 10 C 2 5.5 5.5 2 10 2 L 34 2" fill="none" stroke="var(--conf-blue)" stroke-width="1.6"/>
-                        <circle cx="10" cy="10" r="2.2" fill="var(--conf-gold)"/>
-                        <path d="M 10 5 L 10 15 M 5 10 L 15 10" stroke="var(--conf-gold)" stroke-width="0.9"/>
-                    </svg>
-                    <svg class="conf-corner bl" viewBox="0 0 36 36" aria-hidden="true">
-                        <path d="M 2 34 L 2 10 C 2 5.5 5.5 2 10 2 L 34 2" fill="none" stroke="var(--conf-blue)" stroke-width="1.6"/>
-                        <circle cx="10" cy="10" r="2.2" fill="var(--conf-gold)"/>
-                        <path d="M 10 5 L 10 15 M 5 10 L 15 10" stroke="var(--conf-gold)" stroke-width="0.9"/>
-                    </svg>
-                    <svg class="conf-corner br" viewBox="0 0 36 36" aria-hidden="true">
-                        <path d="M 2 34 L 2 10 C 2 5.5 5.5 2 10 2 L 34 2" fill="none" stroke="var(--conf-blue)" stroke-width="1.6"/>
-                        <circle cx="10" cy="10" r="2.2" fill="var(--conf-gold)"/>
-                        <path d="M 10 5 L 10 15 M 5 10 L 15 10" stroke="var(--conf-gold)" stroke-width="0.9"/>
-                    </svg>
+                <!-- Replicated Ornamental Blue Fan / Scallop Border Frame -->
+                <img src="../assets/img/certificates/ornamental-scallop-border.svg" class="ornamental-scallop-border-overlay" alt="" aria-hidden="true">
 
+                <div class="conf-outer-frame">
                     <div class="conf-inner-frame">
                         <!-- Standardized Two-Logo Header (Archdiocese crest on left, Mission medallion on right) -->
                         <header class="conf-header-grid">
@@ -3132,9 +3102,11 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
                             This is to certify that this certificate is a true copy of Confirmation Record kept in this parish.
                         </div>
 
+                        <?php if (!empty($display_purpose_clean) && strtolower(trim((string)$display_purpose_clean)) !== 'whatever lawful purpose it may serve' && strtolower(trim((string)$display_purpose_clean)) !== 'n/a'): ?>
                         <div class="conf-purpose-stmt" style="margin-top: 1.5mm; margin-bottom: 1.5mm; font-style: italic; font-size: 8pt; color: var(--conf-blue); text-align: center; line-height: 1.2;">
                             Issued upon request for <span style="border-bottom: 1px solid var(--conf-blue); font-style: normal; font-weight: 700; padding: 0 3mm;"><?php echo e($display_purpose_clean); ?></span>.
                         </div>
+                        <?php endif; ?>
 
                         <!-- Bottom Grid: Registry, Gold Seal, Clean Signature -->
                         <div class="conf-bottom-grid">
@@ -3212,7 +3184,9 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
                 <p><strong>Officiating Priest:</strong> <?php echo e($data['officiating_priest'] ?? 'N/A'); ?></p>
                 <p><strong>Sponsors/Witnesses:</strong> <?php echo e($data['sponsors'] ?? 'N/A'); ?></p>
             <?php endif; ?>
+            <?php if (!empty($display_purpose_clean) && strtolower(trim((string)$display_purpose_clean)) !== 'whatever lawful purpose it may serve' && strtolower(trim((string)$display_purpose_clean)) !== 'n/a'): ?>
             <p style="margin-top: 10px;">Issued upon request for <span style="text-decoration: underline; font-weight: 600;"><?php echo e($display_purpose_clean); ?></span>.</p>
+            <?php endif; ?>
             <p><strong>Certificate No:</strong> <?php echo e($issue['certificate_number']); ?></p>
             <p><strong>Verification Code:</strong> <?php echo e($issue['verification_code']); ?></p>
         </div>
@@ -3235,22 +3209,22 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
                                 <span class="input-group-text bg-light"><i class="fas fa-clipboard-check text-primary"></i></span>
                                 <select class="form-select" id="purposePresetSelect" onchange="handlePurposePresetChange(this.value)">
                                     <option value="">-- Choose Common Purpose --</option>
-                                    <option value="whatever lawful purpose it may serve">whatever lawful purpose it may serve (Default)</option>
                                     <option value="School Enrollment">School Enrollment</option>
                                     <option value="First Communion Requirement">First Communion Requirement</option>
                                     <option value="Confirmation Requirement">Confirmation Requirement</option>
                                     <option value="Marriage Requirement">Marriage Requirement</option>
+                                    <option value="Personal Copy">Personal Copy</option>
                                     <option value="__OTHER__">Other (Enter custom purpose below)</option>
                                 </select>
                             </div>
-                            <input type="text" class="form-control" id="edit_purpose" name="purpose" value="<?php echo e($display_purpose_raw); ?>" placeholder="e.g. School Enrollment, Marriage Requirement, or custom purpose">
+                            <input type="text" class="form-control" id="edit_purpose" name="purpose" value="<?php echo e($display_purpose_raw); ?>" placeholder="e.g. School Enrollment, Marriage Requirement, Personal Copy">
                             <div class="d-flex flex-wrap gap-1 mt-2 align-items-center">
                                 <small class="text-muted fw-semibold me-1">Quick Select:</small>
-                                <span class="badge bg-light text-dark border" style="cursor:pointer;" onclick="setPurposeValue('whatever lawful purpose it may serve')">Default (Lawful Purpose)</span>
                                 <span class="badge bg-light text-dark border" style="cursor:pointer;" onclick="setPurposeValue('School Enrollment')">School Enrollment</span>
                                 <span class="badge bg-light text-dark border" style="cursor:pointer;" onclick="setPurposeValue('First Communion Requirement')">First Communion Requirement</span>
                                 <span class="badge bg-light text-dark border" style="cursor:pointer;" onclick="setPurposeValue('Confirmation Requirement')">Confirmation Requirement</span>
                                 <span class="badge bg-light text-dark border" style="cursor:pointer;" onclick="setPurposeValue('Marriage Requirement')">Marriage Requirement</span>
+                                <span class="badge bg-light text-dark border" style="cursor:pointer;" onclick="setPurposeValue('Personal Copy')">Personal Copy</span>
                                 <span class="badge bg-light text-dark border" style="cursor:pointer;" onclick="focusCustomPurpose()">Other (Custom)</span>
                             </div>
                         </div>
@@ -3465,7 +3439,7 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
                             </div>
                             <div class="col-12">
                                 <label class="form-label fw-bold small">Purpose of Request</label>
-                                <input type="text" class="form-control form-control-sm" name="purpose" value="<?php echo e($display_purpose_raw); ?>" placeholder="e.g. School Enrollment, whatever lawful purpose it may serve">
+                                <input type="text" class="form-control form-control-sm" name="purpose" value="<?php echo e($display_purpose_raw); ?>" placeholder="e.g. School Enrollment, Marriage Requirement, Personal Copy">
                             </div>
 
                             <div class="col-12"><hr class="my-1"></div>
@@ -3552,7 +3526,7 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
                             </div>
                             <div class="col-md-12">
                                 <label class="form-label fw-bold small">Purpose of Request</label>
-                                <input type="text" class="form-control" name="purpose" value="<?php echo e($display_purpose_raw); ?>" placeholder="e.g. School Enrollment, whatever lawful purpose it may serve">
+                                <input type="text" class="form-control" name="purpose" value="<?php echo e($display_purpose_raw); ?>" placeholder="e.g. School Enrollment, Marriage Requirement, Personal Copy">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold small">Date of First Communion <span class="text-danger">*</span></label>
@@ -3617,7 +3591,7 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
                         <div class="row g-3 mb-3">
                             <div class="col-12">
                                 <label class="form-label fw-bold small">Purpose of Request</label>
-                                <input type="text" class="form-control form-control-sm" name="purpose" value="<?php echo e($display_purpose_raw); ?>" placeholder="e.g. School Enrollment, whatever lawful purpose it may serve">
+                                <input type="text" class="form-control form-control-sm" name="purpose" value="<?php echo e($display_purpose_raw); ?>" placeholder="e.g. School Enrollment, Marriage Requirement, Personal Copy">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold small">Full Name of Baptized <span class="text-danger">*</span></label>

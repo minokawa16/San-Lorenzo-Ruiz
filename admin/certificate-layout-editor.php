@@ -64,6 +64,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         editorRedirect($certificate_type, ucwords(str_replace('_', ' ', $asset_key)) . ' removed successfully.');
     }
 
+    if ($action === 'reset_layout') {
+        if (!resetCertificateLayoutToDefault($conn, $certificate_type, $current_user_id)) {
+            editorRedirect($certificate_type, 'Failed to reset layout.', 'error');
+        }
+        createAuditLog($conn, $current_user_id, 'RESET_CERTIFICATE_LAYOUT', 'certificate_layouts', 0, null, ['certificate_type' => $certificate_type]);
+        editorRedirect($certificate_type, certificateTemplateTypeLabel($certificate_type) . ' layout reset to original defaults successfully.');
+    }
+
     if ($action === 'save_layout') {
         $posted_settings = json_decode($_POST['layout_settings'] ?? '', true);
         if (!is_array($posted_settings)) {
@@ -74,12 +82,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             editorRedirect($certificate_type, 'Failed to save layout.', 'error');
         }
         createAuditLog($conn, $current_user_id, 'SAVE_CERTIFICATE_LAYOUT', 'certificate_layouts', 0, null, ['certificate_type' => $certificate_type]);
-        editorRedirect($certificate_type, 'Layout saved successfully.');
+        editorRedirect($certificate_type, 'Layout saved successfully and is now active for all issued certificates.');
     }
 }
 
 $layout = getCertificateLayout($conn, $certificate_type);
 $settings = $layout['settings'];
+$is_custom = isCustomCertificateLayout($layout, $certificate_type);
+$last_saved_display = ($is_custom && !empty($layout['updated_at'])) 
+    ? 'Last saved: ' . date('M d, Y h:i A', strtotime($layout['updated_at'])) 
+    : 'Last saved: Original defaults';
 $page_title = 'Edit Certificate Layout';
 $notifications = consumeActionNotifications();
 $asset_labels = [
@@ -145,8 +157,24 @@ $simple_text_fields = [
     include '../includes/page_header.php';
     ?>
 
-    <div class="d-flex justify-content-end mb-3 layout-editor-actions">
-        <button class="btn btn-primary" id="topSaveLayoutBtn" type="button"><i class="fas fa-save"></i> Save Layout</button>
+    <div class="d-flex justify-content-between align-items-center mb-3 layout-editor-actions flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-<?php echo $is_custom ? 'success' : 'secondary'; ?> fs-6">
+                <?php echo $is_custom ? 'Custom' : 'Original'; ?>
+            </span>
+            <span class="text-muted small"><?php echo e($last_saved_display); ?></span>
+        </div>
+        <div class="d-flex gap-2">
+            <?php if ($is_custom): ?>
+                <form method="POST" onsubmit="return confirm('Are you sure you want to reset this layout to original defaults? This will immediately replace the certificate layout currently issued to parishioners.');" class="d-inline">
+                    <?php echo csrfInput(); ?>
+                    <input type="hidden" name="action" value="reset_layout">
+                    <input type="hidden" name="certificate_type" value="<?php echo e($certificate_type); ?>">
+                    <button type="submit" class="btn btn-outline-danger"><i class="fas fa-rotate-left"></i> Reset to Original Defaults</button>
+                </form>
+            <?php endif; ?>
+            <button class="btn btn-primary" id="topSaveLayoutBtn" type="button"><i class="fas fa-save"></i> Save Layout</button>
+        </div>
     </div>
 
     <?php foreach ($notifications as $notice): ?>
@@ -417,9 +445,12 @@ document.addEventListener('pointermove', (event) => {
     syncPositionInputs();
     applyPreview();
 });
-document.addEventListener('pointerup', () => drag = null);
-
+let isConfirmingSave = false;
 function submitLayoutEditor() {
+    if (!confirm('This will replace the certificate layout currently issued to parishioners. Continue?')) {
+        return;
+    }
+    isConfirmingSave = true;
     const form = document.getElementById('layoutEditorForm');
     document.getElementById('layoutSettingsInput').value = JSON.stringify(settings);
     if (form.requestSubmit) {
@@ -428,10 +459,19 @@ function submitLayoutEditor() {
         form.submit();
     }
 }
-document.getElementById('layoutEditorForm').addEventListener('submit', () => {
+document.getElementById('layoutEditorForm').addEventListener('submit', (e) => {
+    if (!isConfirmingSave) {
+        if (!confirm('This will replace the certificate layout currently issued to parishioners. Continue?')) {
+            e.preventDefault();
+            return false;
+        }
+    }
     document.getElementById('layoutSettingsInput').value = JSON.stringify(settings);
 });
-document.getElementById('topSaveLayoutBtn').addEventListener('click', submitLayoutEditor);
+document.getElementById('topSaveLayoutBtn').addEventListener('click', (e) => {
+    e.preventDefault();
+    submitLayoutEditor();
+});
 selectedElement.value = 'church_info';
 applyPreview();
 syncPositionInputs();

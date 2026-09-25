@@ -634,9 +634,9 @@ include '../templates/header.php';
     <!-- Quick Navigation Pills -->
     <div class="adm-quick-pills">
       <span class="adm-pill active" data-target="#module1">1. Member Verification</span>
-      <span class="adm-pill" data-target="#module2">2. Requests Workflow</span>
-      <span class="adm-pill" data-target="#module3">3. Official Church Records</span>
-      <span class="adm-pill" data-target="#module4">4. Schedule Calendar</span>
+      <span class="adm-pill" data-target="#module2">2. Request Workflows</span>
+      <span class="adm-pill" data-target="#module3">3. Sacramental Records</span>
+      <span class="adm-pill" data-target="#module4">4. Parish Calendar</span>
       <span class="adm-pill" data-target="#module5">5. Analytics &amp; Reports</span>
       <span class="adm-pill" data-target="#module6">6. Audit Logs</span>
     </div>
@@ -668,13 +668,13 @@ include '../templates/header.php';
           <li class="adm-toc-item">
             <a href="#module3" class="adm-toc-link">
               <i class="fas fa-book-bible"></i>
-              <span>3. Church Records</span>
+              <span>3. Sacramental Records</span>
             </a>
           </li>
           <li class="adm-toc-item">
             <a href="#module4" class="adm-toc-link">
-              <i class="fas fa-calendar-check"></i>
-              <span>4. Schedule Calendar</span>
+              <i class="fas fa-calendar-days"></i>
+              <span>4. Parish Calendar</span>
             </a>
           </li>
           <li class="adm-toc-item">
@@ -712,15 +712,15 @@ include '../templates/header.php';
               <i class="fas fa-id-card"></i>
             </div>
             <div>
-              <h2 class="adm-section-title">Module 1: Member Verification (How to Approve Accounts)</h2>
-              <p class="adm-section-sub">Check ID photos and activate new parishioner accounts</p>
+              <h2 class="adm-section-title">Module 1: Member Verification (Reviewing Registrations)</h2>
+              <p class="adm-section-sub">Inspect uploaded ID photos and approve verified parishioner accounts</p>
             </div>
           </div>
-          <span class="adm-section-tag">Member Profiles</span>
+          <span class="adm-section-tag">Parish Management</span>
         </div>
 
         <p class="adm-intro-text">
-          When someone registers on TUGON, they take a live photo of their government ID card. Follow these simple steps to review their profile and approve their account.
+          When parishioners register on TUGON, they upload a photo of their valid government ID and a live selfie. Follow these steps to review their credentials and activate their account.
         </p>
 
         <!-- Visual Step Cards -->
@@ -728,9 +728,9 @@ include '../templates/header.php';
           <div class="step-card">
             <span class="step-badge">Step 1</span>
             <div class="step-card-body">
-              <div class="step-card-title">Go to the Parishioners Page</div>
+              <div class="step-card-title">Go to Verify Registrations</div>
               <p class="step-card-desc">
-                Click <a href="<?php echo BASE_URL; ?>admin/parishioners.php"><strong>Parishioners</strong></a> in the menu. At the top of the list, click the <span class="action-badge action-badge-amber"><i class="fas fa-clock"></i> Pending Verification</span> tab to see everyone waiting for review.
+                Click <a href="<?php echo BASE_URL; ?>admin/verify-registrations.php"><strong>Verify Registrations</strong></a> in the sidebar under <strong>Parish Management</strong> to view all newly registered accounts waiting for review.
               </p>
             </div>
           </div>
@@ -738,9 +738,9 @@ include '../templates/header.php';
           <div class="step-card">
             <span class="step-badge">Step 2</span>
             <div class="step-card-body">
-              <div class="step-card-title">Open Member Details &amp; Compare ID Photo</div>
+              <div class="step-card-title">Compare ID and Live Photo</div>
               <p class="step-card-desc">
-                Click <span class="action-badge action-badge-blue">View Details</span> next to the person's name. Look at the ID photo on the screen and compare it with the full name, birthday, and address they typed in.
+                Compare the face on their uploaded ID card with their live selfie photo. Verify that their entered name, birthdate, chapel, and address look clear, authentic, and consistent.
               </p>
             </div>
           </div>
@@ -750,8 +750,8 @@ include '../templates/header.php';
             <div class="step-card-body">
               <div class="step-card-title">Approve or Reject the Account</div>
               <p class="step-card-desc">
-                If the details match: Click <span class="action-badge action-badge-green"><i class="fas fa-check"></i> Approve</span>. Their account will immediately become <span class="action-badge action-badge-green">Active</span> and they will receive a confirmation text.<br>
-                If the photo is too dark, blurry, or does not match: Click <span class="action-badge action-badge-red"><i class="fas fa-times"></i> Reject / Flag</span> and write a short reason so the member knows to retake a clear photo.
+                If the details match: click <span class="action-badge action-badge-green"><i class="fas fa-check"></i> Approve</span>. Their account becomes <span class="action-badge action-badge-green">Active</span> and they can log in immediately.<br>
+                If the photo is blurry, expired, or suspicious: click <span class="action-badge action-badge-red"><i class="fas fa-times"></i> Reject</span> and provide a clear explanation so they can resubmit.
               </p>
             </div>
           </div>
@@ -762,7 +762,7 @@ include '../templates/header.php';
           <i class="fas fa-circle-check"></i>
           <div>
             <strong>Helpful Tip:</strong>
-            Make sure the parishioner's full name and birthdate match their ID card exactly before clicking <strong>Approve</strong>. This keeps our church records accurate and protects members from identity mix-ups.
+            Always ensure the parishioner's full name and birthdate match their valid ID card before approving. This maintains clean church records and prevents duplicate registrations.
           </div>
         </div>
 
@@ -784,15 +784,15 @@ include '../templates/header.php';
               <i class="fas fa-inbox"></i>
             </div>
             <div>
-              <h2 class="adm-section-title">Module 2: Request Workflows (Handling Certificates &amp; Services)</h2>
-              <p class="adm-section-sub">Review certificate requests and approve baptism, wedding, or funeral bookings</p>
+              <h2 class="adm-section-title">Module 2: Request Workflows (Certificates, Blessings &amp; Sacraments)</h2>
+              <p class="adm-section-sub">Process incoming certificate requests, blessing schedules, and sacramental service applications</p>
             </div>
           </div>
-          <span class="adm-section-tag">Requests</span>
+          <span class="adm-section-tag">Request Management</span>
         </div>
 
         <p class="adm-intro-text">
-          Parishioners submit requests online for sacramental certificates (Baptism, Confirmation, Marriage) and bookings for church services (Baptism, Wedding, Funeral, or Blessing).
+          Parishioners submit requests for sacramental certificates (Baptism, Confirmation, Marriage, First Communion, Funeral), blessing appointments (House, Vehicle, Business), and sacramental services.
         </p>
 
         <!-- Visual Step Cards -->
@@ -800,9 +800,9 @@ include '../templates/header.php';
           <div class="step-card">
             <span class="step-badge">Step 1</span>
             <div class="step-card-body">
-              <div class="step-card-title">Open the Requests Page</div>
+              <div class="step-card-title">Open Manage Requests</div>
               <p class="step-card-desc">
-                Click <a href="<?php echo BASE_URL; ?>admin/request-workflow.php"><strong>Requests</strong></a> (or <em>Request Workflow</em>) in the sidebar menu to see all incoming applications.
+                Click <a href="<?php echo BASE_URL; ?>admin/manage-requests.php"><strong>Requests</strong></a> in the sidebar under <strong>Request Management</strong> to view all submissions. Use the status tabs (<span class="action-badge action-badge-slate">All</span>, <span class="action-badge action-badge-amber">Pending</span>, <span class="action-badge action-badge-blue">Processing</span>, <span class="action-badge action-badge-green">Completed</span>, <span class="action-badge action-badge-red">Rejected</span>) or search bar to filter items.
               </p>
             </div>
           </div>
@@ -810,11 +810,9 @@ include '../templates/header.php';
           <div class="step-card">
             <span class="step-badge">Step 2</span>
             <div class="step-card-body">
-              <div class="step-card-title">Review the Submitted Details</div>
+              <div class="step-card-title">Review the Request in Request Workflow</div>
               <p class="step-card-desc">
-                Click on the request to view it:
-                <br>&bull; <strong>For Certificates:</strong> Check the person's name, sacrament year, and attached birth certificate or ID.
-                <br>&bull; <strong>For Church Services (Baptism / Wedding / Funeral):</strong> Review the submitted form with parents, sponsors, and preferred dates.
+                Click <span class="action-badge action-badge-blue"><i class="fas fa-eye"></i> View</span> on any row to open the formal <strong>Request Workflow</strong>. Cross-check sacramental registers for matching entries, inspect attached requirements (birth certificate, ID), and verify submitted GCash/bank payment receipts.
               </p>
             </div>
           </div>
@@ -822,13 +820,12 @@ include '../templates/header.php';
           <div class="step-card">
             <span class="step-badge">Step 3</span>
             <div class="step-card-body">
-              <div class="step-card-title">Update the Request Status</div>
+              <div class="step-card-title">Update Status and Complete Processing</div>
               <p class="step-card-desc">
-                Change the status as you work on the request:
-                <br>&bull; <span class="action-badge action-badge-amber">Pending</span>: Newly received request, waiting for staff review.
-                <br>&bull; <span class="action-badge action-badge-blue">In Progress</span>: Staff is looking up physical church record books or printing the certificate.
-                <br>&bull; <span class="action-badge action-badge-green">Completed</span>: The certificate is signed and sealed, or the service is confirmed!
-                <br>&bull; <span class="action-badge action-badge-red">Rejected</span>: If required papers are missing or incorrect (always enter a helpful remark).
+                Advance the status as you progress:
+                <br>&bull; <span class="action-badge action-badge-blue">Processing</span>: Indicates records are being verified or documents encoded.
+                <br>&bull; <span class="action-badge action-badge-green">Completed</span>: For certificates, upload the released PDF copy; for sacramental services and blessings, selecting the officiating priest registers the official sacramental record and automatically synchronizes the event date to the <strong>Parish Calendar</strong>.
+                <br>&bull; <span class="action-badge action-badge-red">Rejected</span>: If required documents are missing or invalid, enter a remark explaining what is needed.
               </p>
             </div>
           </div>
@@ -839,10 +836,10 @@ include '../templates/header.php';
           <i class="fas fa-wand-magic-sparkles"></i>
           <div>
             <strong>Automatic Calendar &amp; Church Record Sync:</strong>
-            When you mark a service request (like Baptism, Wedding, or Funeral) as <span class="action-badge action-badge-green">Completed</span>:
+            When you complete a sacramental service request (like Baptism, Wedding, or Funeral):
             <ul style="margin: 6px 0 0; padding-left: 18px;">
-              <li>The ceremony date and time are <strong>automatically added to the Parish Calendar</strong> so no other event can take that slot.</li>
-              <li>The details are <strong>automatically saved into our official Church Records</strong>!</li>
+              <li>The ceremony date and time are <strong>automatically scheduled in the Parish Calendar</strong> to prevent double-booking.</li>
+              <li>The sacramental record is <strong>automatically registered into our official digital church records</strong>.</li>
             </ul>
           </div>
         </div>
@@ -854,7 +851,7 @@ include '../templates/header.php';
             <span>Previous: Module 1</span>
           </button>
           <button type="button" class="adm-module-nav-btn btn-primary-nav" data-target="#module3">
-            <span>Next: Module 3 (Church Records)</span>
+            <span>Next: Module 3 (Sacramental Records)</span>
             <i class="fas fa-arrow-right"></i>
           </button>
         </div>
@@ -868,15 +865,15 @@ include '../templates/header.php';
               <i class="fas fa-book-bible"></i>
             </div>
             <div>
-              <h2 class="adm-section-title">Module 3: Church Records (Baptism, Confirmation, Marriage &amp; Funeral)</h2>
-              <p class="adm-section-sub">Look up, add, and manage permanent church record books</p>
+              <h2 class="adm-section-title">Module 3: Sacramental Records (Church Registers)</h2>
+              <p class="adm-section-sub">Search, encode, correct, and manage official parish church registries</p>
             </div>
           </div>
-          <span class="adm-section-tag">Official Records</span>
+          <span class="adm-section-tag">Sacramental Records</span>
         </div>
 
         <p class="adm-intro-text">
-          The <a href="<?php echo BASE_URL; ?>admin/sacramental-records.php"><strong>Sacramental Records</strong></a> page holds our parish's official historical church registers.
+          The <a href="<?php echo BASE_URL; ?>admin/manage-records.php"><strong>Sacramental Records</strong></a> hub provides access to the parish's official digital church registers for Baptism, First Communion, Confirmation, Marriage, and Funeral records.
         </p>
 
         <!-- Visual Step Cards -->
@@ -884,9 +881,9 @@ include '../templates/header.php';
           <div class="step-card">
             <span class="step-badge">Step 1</span>
             <div class="step-card-body">
-              <div class="step-card-title">Go to Sacramental Records</div>
+              <div class="step-card-title">Open Sacramental Records</div>
               <p class="step-card-desc">
-                Click <a href="<?php echo BASE_URL; ?>admin/sacramental-records.php"><strong>Sacramental Records</strong></a> in the sidebar menu.
+                Click <a href="<?php echo BASE_URL; ?>admin/manage-records.php"><strong>Sacramental Records</strong></a> in the sidebar to view the registry dashboard showing total record counts for all 5 sacraments.
               </p>
             </div>
           </div>
@@ -894,13 +891,14 @@ include '../templates/header.php';
           <div class="step-card">
             <span class="step-badge">Step 2</span>
             <div class="step-card-body">
-              <div class="step-card-title">Choose the Record Book</div>
+              <div class="step-card-title">Select a Specific Sacrament Registry</div>
               <p class="step-card-desc">
-                Click the book you want to see:
-                <span class="action-badge action-badge-blue">Baptism</span>,
-                <span class="action-badge action-badge-amber">Confirmation</span>,
-                <span class="action-badge action-badge-green">Marriage</span>, or
-                <span class="action-badge action-badge-purple">Funeral</span>.
+                Click on any registry card to open its dedicated records page:
+                <a href="<?php echo BASE_URL; ?>admin/baptism-records.php"><span class="action-badge action-badge-blue">Baptism</span></a>,
+                <a href="<?php echo BASE_URL; ?>admin/communion-records.php"><span class="action-badge action-badge-gold">First Communion</span></a>,
+                <a href="<?php echo BASE_URL; ?>admin/confirmation-records.php"><span class="action-badge action-badge-amber">Confirmation</span></a>,
+                <a href="<?php echo BASE_URL; ?>admin/marriage-records.php"><span class="action-badge action-badge-green">Marriage</span></a>, or
+                <a href="<?php echo BASE_URL; ?>admin/funeral-records.php"><span class="action-badge action-badge-purple">Funeral</span></a>.
               </p>
             </div>
           </div>
@@ -908,9 +906,9 @@ include '../templates/header.php';
           <div class="step-card">
             <span class="step-badge">Step 3</span>
             <div class="step-card-body">
-              <div class="step-card-title">Search, View, or Add Entries</div>
+              <div class="step-card-title">Search, Add, or Issue Certificates</div>
               <p class="step-card-desc">
-                Type a name into the search bar to find someone quickly. You can also search by Book Number, Page Number, or year. Click <strong>Add New Record</strong> to enter an older paper record into the digital system.
+                Use the search filters to find records by person's name, parents' names, Book, or Page number. Click <span class="action-badge action-badge-green"><i class="fas fa-plus"></i> Add New Record</span> to encode historical records, or click <span class="action-badge action-badge-blue"><i class="fas fa-certificate"></i> Generate Certificate</span> on any record to issue an official certificate.
               </p>
             </div>
           </div>
@@ -920,8 +918,8 @@ include '../templates/header.php';
         <div class="callout-box callout-warning">
           <i class="fas fa-lock"></i>
           <div>
-            <strong>Church Records are Permanent:</strong>
-            Under Catholic Church rules, official church records cannot be deleted once created. If a mistake was made during encoding, edit the entry to correct it or mark it as archived.
+            <strong>Sacramental Records Preservation:</strong>
+            Church records represent permanent canonical registries. If an encoding error is identified, use the record's <strong>Edit</strong> or <strong>Record Corrections</strong> tool to fix the data while preserving the audit history.
           </div>
         </div>
 
@@ -932,7 +930,7 @@ include '../templates/header.php';
             <span>Previous: Module 2</span>
           </button>
           <button type="button" class="adm-module-nav-btn btn-primary-nav" data-target="#module4">
-            <span>Next: Module 4 (Schedule Calendar)</span>
+            <span>Next: Module 4 (Parish Calendar)</span>
             <i class="fas fa-arrow-right"></i>
           </button>
         </div>
@@ -943,18 +941,18 @@ include '../templates/header.php';
         <div class="adm-section-header">
           <div class="adm-section-meta">
             <div class="adm-section-icon icon-teal">
-              <i class="fas fa-calendar-check"></i>
+              <i class="fas fa-calendar-days"></i>
             </div>
             <div>
-              <h2 class="adm-section-title">Module 4: Schedule Calendar (Viewing &amp; Managing Events)</h2>
-              <p class="adm-section-sub">Oversee parish masses, blessings, and community events</p>
+              <h2 class="adm-section-title">Module 4: Parish Calendar (Scheduling &amp; Event Management)</h2>
+              <p class="adm-section-sub">Oversee parish Masses, blessings, meetings, and confirmed sacramental schedules</p>
             </div>
           </div>
-          <span class="adm-section-tag">Calendar</span>
+          <span class="adm-section-tag">Request Management</span>
         </div>
 
         <p class="adm-intro-text">
-          The <a href="<?php echo BASE_URL; ?>admin/schedule.php"><strong>Schedule Calendar</strong></a> displays all upcoming parish masses, confirmed baptisms and weddings, and special feast day schedules in one place.
+          The <a href="<?php echo BASE_URL; ?>admin/manage-calendar.php"><strong>Parish Calendar</strong></a> provides an interactive scheduling calendar for parish Masses, blessings, meetings, and confirmed sacramental events.
         </p>
 
         <!-- Visual Step Cards -->
@@ -962,9 +960,9 @@ include '../templates/header.php';
           <div class="step-card">
             <span class="step-badge">Step 1</span>
             <div class="step-card-body">
-              <div class="step-card-title">Open the Schedule Calendar</div>
+              <div class="step-card-title">Open Parish Calendar</div>
               <p class="step-card-desc">
-                Click <a href="<?php echo BASE_URL; ?>admin/schedule.php"><strong>Schedule Calendar</strong></a> in the menu to view the monthly, weekly, or daily view.
+                Click <a href="<?php echo BASE_URL; ?>admin/manage-calendar.php"><strong>Parish Calendar</strong></a> in the sidebar under <strong>Request Management</strong>. You can switch between <span class="action-badge action-badge-slate">Month</span>, <span class="action-badge action-badge-slate">Week</span>, <span class="action-badge action-badge-slate">Day</span>, and <span class="action-badge action-badge-slate">List</span> views.
               </p>
             </div>
           </div>
@@ -972,9 +970,9 @@ include '../templates/header.php';
           <div class="step-card">
             <span class="step-badge">Step 2</span>
             <div class="step-card-body">
-              <div class="step-card-title">Add a Parish Mass or Event</div>
+              <div class="step-card-title">Filter and Search Schedules</div>
               <p class="step-card-desc">
-                Click <span class="action-badge action-badge-green"><i class="fas fa-plus"></i> Add Event</span>. Enter the event title (e.g. <em>Sunday Mass</em> or <em>Fiesta Novena</em>), select the date and time, and set visibility to <strong>Public</strong> so parishioners can see it on their calendar.
+                Use the left sidebar filters to narrow down schedules by Category (<span class="action-badge action-badge-green">Mass</span>, <span class="action-badge action-badge-blue">Event</span>, <span class="action-badge action-badge-purple">Sacramental</span>, <span class="action-badge action-badge-gold">Blessing</span>, <span class="action-badge action-badge-amber">Meeting</span>) or Status (<span class="action-badge action-badge-blue">Upcoming</span>, <span class="action-badge action-badge-green">Ongoing</span>, <span class="action-badge action-badge-slate">Finished</span>).
               </p>
             </div>
           </div>
@@ -982,9 +980,9 @@ include '../templates/header.php';
           <div class="step-card">
             <span class="step-badge">Step 3</span>
             <div class="step-card-body">
-              <div class="step-card-title">Preventing Double Bookings</div>
+              <div class="step-card-title">Add or Manage Events</div>
               <p class="step-card-desc">
-                The calendar automatically checks for schedule conflicts. If a time slot already has a confirmed wedding or baptism, the system will warn you so two events are never booked at the same time.
+                Click the floating <span class="action-badge action-badge-gold"><i class="fas fa-plus"></i></span> button or click directly on any time slot on the calendar. Fill in the event title, category, date, time, and location in the <strong>Add Schedule</strong> modal. The system automatically detects and prevents double-booking conflicts.
               </p>
             </div>
           </div>
@@ -1011,15 +1009,15 @@ include '../templates/header.php';
               <i class="fas fa-chart-line"></i>
             </div>
             <div>
-              <h2 class="adm-section-title">Module 5: Reports &amp; Statistics (Printing PDF Summaries)</h2>
-              <p class="adm-section-sub">Check monthly numbers and download official printed PDF reports</p>
+              <h2 class="adm-section-title">Module 5: Analytics &amp; Reports (KPIs &amp; PDF Export)</h2>
+              <p class="adm-section-sub">Monitor parish growth, sacramental statistics, and generate printable PDF summaries</p>
             </div>
           </div>
-          <span class="adm-section-tag">Reports &amp; PDF</span>
+          <span class="adm-section-tag">Reports &amp; Monitoring</span>
         </div>
 
         <p class="adm-intro-text">
-          Use the <a href="<?php echo BASE_URL; ?>admin/reports.php"><strong>Analytics &amp; Reports</strong></a> page to review parish numbers and print official monthly reports for the Parish Priest or Diocese.
+          The <a href="<?php echo BASE_URL; ?>admin/reports.php"><strong>Analytics &amp; Reports</strong></a> dashboard provides real-time metrics, interactive charts, and formal PDF/CSV reporting tools for parish operations and diocesan reviews.
         </p>
 
         <!-- Visual Step Cards -->
@@ -1029,7 +1027,7 @@ include '../templates/header.php';
             <div class="step-card-body">
               <div class="step-card-title">Open Analytics &amp; Reports</div>
               <p class="step-card-desc">
-                Click <a href="<?php echo BASE_URL; ?>admin/reports.php"><strong>Analytics &amp; Reports</strong></a> in the sidebar menu.
+                Click <a href="<?php echo BASE_URL; ?>admin/reports.php"><strong>Analytics &amp; Reports</strong></a> in the sidebar under <strong>Reports &amp; Monitoring</strong>.
               </p>
             </div>
           </div>
@@ -1037,9 +1035,9 @@ include '../templates/header.php';
           <div class="step-card">
             <span class="step-badge">Step 2</span>
             <div class="step-card-body">
-              <div class="step-card-title">View Monthly Charts and Numbers</div>
+              <div class="step-card-title">Review KPIs and Interactive Charts</div>
               <p class="step-card-desc">
-                You will see cards and charts showing total registered parishioners, how many certificates were requested, and monthly sacrament numbers.
+                Review the top KPI summary cards for Total Parishioners, Sacramental Records, Service Requests, and Monthly Events. Examine dynamic charts including monthly sacramental trends, request status breakdowns, and parishioner registration growth.
               </p>
             </div>
           </div>
@@ -1047,9 +1045,9 @@ include '../templates/header.php';
           <div class="step-card">
             <span class="step-badge">Step 3</span>
             <div class="step-card-body">
-              <div class="step-card-title">Print or Download an Official PDF</div>
+              <div class="step-card-title">Export Official PDF or CSV Reports</div>
               <p class="step-card-desc">
-                Click <span class="action-badge action-badge-amber"><i class="fas fa-file-pdf"></i> Export PDF</span> at the top right. The system captures the charts on your screen and creates a beautiful, print-ready A4 PDF complete with our church letterhead and summary tables. You can also click <span class="action-badge action-badge-slate"><i class="fas fa-file-csv"></i> Export CSV</span> to download into Excel.
+                Click <span class="action-badge action-badge-amber"><i class="fas fa-file-pdf"></i> Export PDF</span> to generate a clean, print-ready document formatted with parish crest branding, KPI metrics, and high-resolution chart snapshots. Click <span class="action-badge action-badge-slate"><i class="fas fa-file-csv"></i> Export CSV</span> for spreadsheet analysis.
               </p>
             </div>
           </div>
@@ -1076,15 +1074,15 @@ include '../templates/header.php';
               <i class="fas fa-clipboard-list"></i>
             </div>
             <div>
-              <h2 class="adm-section-title">Module 6: Audit Logs (Tracking System Activity)</h2>
-              <p class="adm-section-sub">See who made changes, approved requests, or printed certificates</p>
+              <h2 class="adm-section-title">Module 6: Audit Logs (System Activity &amp; Security)</h2>
+              <p class="adm-section-sub">Inspect staff actions, track modifications, and maintain complete system transparency</p>
             </div>
           </div>
-          <span class="adm-section-tag">History &amp; Security</span>
+          <span class="adm-section-tag">Reports &amp; Monitoring</span>
         </div>
 
         <p class="adm-intro-text">
-          To maintain honesty, transparency, and security, TUGON keeps an automatic record of every action taken by church staff.
+          TUGON automatically logs every administrative action taken across the system to maintain canonical integrity, data accountability, and operational security.
         </p>
 
         <!-- Visual Step Cards -->
@@ -1092,9 +1090,9 @@ include '../templates/header.php';
           <div class="step-card">
             <span class="step-badge">Step 1</span>
             <div class="step-card-body">
-              <div class="step-card-title">Go to Audit Logs</div>
+              <div class="step-card-title">Open Audit Logs</div>
               <p class="step-card-desc">
-                Click <a href="<?php echo BASE_URL; ?>admin/audit-logs.php"><strong>Audit Logs</strong></a> in the menu.
+                Click <a href="<?php echo BASE_URL; ?>admin/audit-logs.php"><strong>Audit Logs</strong></a> in the sidebar under <strong>Reports &amp; Monitoring</strong>.
               </p>
             </div>
           </div>
@@ -1102,9 +1100,9 @@ include '../templates/header.php';
           <div class="step-card">
             <span class="step-badge">Step 2</span>
             <div class="step-card-body">
-              <div class="step-card-title">See the Full Activity History</div>
+              <div class="step-card-title">Browse Chronological Event Logs</div>
               <p class="step-card-desc">
-                You will see a list showing which staff member approved a request, who edited a church record, who exported a report, and the exact date and time it happened.
+                Review the activity stream showing the timestamp, staff actor name, action type (e.g. <em>APPROVE_REGISTRATION</em>, <em>UPDATE_REQUEST_STATUS</em>, <em>SAVE_CERTIFICATE_LAYOUT</em>), target record, and client IP address.
               </p>
             </div>
           </div>
@@ -1112,9 +1110,9 @@ include '../templates/header.php';
           <div class="step-card">
             <span class="step-badge">Step 3</span>
             <div class="step-card-body">
-              <div class="step-card-title">Filter and Search Logs</div>
+              <div class="step-card-title">Filter, Inspect Details, or Export</div>
               <p class="step-card-desc">
-                You can filter by staff name or action type (e.g. <em>APPROVE_USER</em>, <em>EXPORT_REPORT</em>, <em>UPDATE_REQUEST</em>) anytime you need to double-check a transaction.
+                Use the search box, Date Range, Category, and Severity filters (<span class="action-badge action-badge-blue">INFO</span>, <span class="action-badge action-badge-amber">WARNING</span>, <span class="action-badge action-badge-red">CRITICAL</span>) to locate specific events. Click <span class="action-badge action-badge-blue">View Details</span> on any row for raw technical metadata, or export via <span class="action-badge action-badge-slate"><i class="fas fa-file-csv"></i> Export CSV</span> / <span class="action-badge action-badge-amber"><i class="fas fa-file-pdf"></i> Export PDF</span>.
               </p>
             </div>
           </div>
@@ -1125,7 +1123,7 @@ include '../templates/header.php';
           <i class="fas fa-shield-halved"></i>
           <div>
             <strong>Parish Privacy &amp; Data Protection:</strong>
-            Member phone numbers and government IDs are private. Never share parishioner contact information or personal documents with outside parties.
+            Parishioner records and government IDs are strictly confidential. Audit logs ensure that all data access and administrative updates are tracked and attributable.
           </div>
         </div>
 
@@ -1135,7 +1133,7 @@ include '../templates/header.php';
             <i class="fas fa-arrow-left"></i>
             <span>Previous: Module 5</span>
           </button>
-          <a href="<?php echo BASE_URL; ?>admin/index.php" class="adm-module-nav-btn btn-primary-nav">
+          <a href="<?php echo BASE_URL; ?>admin/dashboard.php" class="adm-module-nav-btn btn-primary-nav">
             <span>Back to Dashboard</span>
             <i class="fas fa-house"></i>
           </a>

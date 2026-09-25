@@ -58,6 +58,21 @@ function ensureCertificateTemplateSchema($conn) {
             'created_by', 'updated_by', 'created_at', 'updated_at'
         ], 'certificate layouts');
 
+    if ($conn instanceof mysqli) {
+        @$conn->query("CREATE TABLE IF NOT EXISTS `certificate_layout_history` (
+            `history_id` INT AUTO_INCREMENT PRIMARY KEY,
+            `layout_id` INT NOT NULL DEFAULT 0,
+            `certificate_type` VARCHAR(80) NOT NULL,
+            `layout_name` VARCHAR(150) NOT NULL,
+            `layout_settings` LONGTEXT NOT NULL,
+            `saved_by` INT NOT NULL DEFAULT 0,
+            `action_type` VARCHAR(50) NOT NULL DEFAULT 'save',
+            `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            KEY `idx_cert_type` (`certificate_type`),
+            KEY `idx_layout_id` (`layout_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    }
+
     if (!is_dir(CERTIFICATE_TEMPLATE_UPLOAD_DIR)) {
         @mkdir(CERTIFICATE_TEMPLATE_UPLOAD_DIR, 0755, true);
     }
@@ -145,20 +160,33 @@ function mergeCertificateLayoutSettings($settings, $defaults) {
     return $settings;
 }
 
+function isCustomCertificateLayout($layout, $certificate_type = '') {
+    if (empty($layout) || !is_array($layout)) {
+        return false;
+    }
+    if (empty($layout['layout_id']) || intval($layout['layout_id']) <= 0) {
+        return false;
+    }
+    if (empty($layout['layout_settings']) && empty($layout['updated_at'])) {
+        return false;
+    }
+    return true;
+}
+
 function getCertificateLayout($conn, $certificate_type) {
     ensureCertificateTemplateSchema($conn);
     $certificate_type = normalizeCertificateTemplateType($certificate_type);
     $defaults = defaultCertificateLayoutSettings($certificate_type);
     $stmt = $conn->prepare("SELECT * FROM certificate_layouts WHERE certificate_type = ? LIMIT 1");
     if (!$stmt) {
-        return ['layout_id' => 0, 'certificate_type' => $certificate_type, 'layout_name' => certificateTemplateTypeLabel($certificate_type), 'settings' => $defaults];
+        return ['layout_id' => 0, 'certificate_type' => $certificate_type, 'layout_name' => certificateTemplateTypeLabel($certificate_type), 'settings' => $defaults, 'updated_at' => null];
     }
     $stmt->bind_param('s', $certificate_type);
     $stmt->execute();
     $layout = $stmt->get_result()->fetch_assoc();
     $stmt->close();
     if (!$layout) {
-        return ['layout_id' => 0, 'certificate_type' => $certificate_type, 'layout_name' => certificateTemplateTypeLabel($certificate_type), 'settings' => $defaults];
+        return ['layout_id' => 0, 'certificate_type' => $certificate_type, 'layout_name' => certificateTemplateTypeLabel($certificate_type), 'settings' => $defaults, 'updated_at' => null];
     }
     $settings = json_decode($layout['layout_settings'], true);
     if (!is_array($settings)) {
@@ -178,11 +206,23 @@ function saveCertificateLayout($conn, $certificate_type, $settings, $user_id = n
     $uid = intval($user_id ?? 0);
 
     $existing = getCertificateLayout($conn, $certificate_type);
+    
+    // Backup/History Safety: archive existing layout before overwriting
+    if (!empty($existing['layout_id']) && !empty($existing['layout_settings'])) {
+        $hist_stmt = $conn->prepare("INSERT INTO certificate_layout_history (layout_id, certificate_type, layout_name, layout_settings, saved_by, action_type, created_at) VALUES (?, ?, ?, ?, ?, 'update', NOW())");
+        if ($hist_stmt) {
+            $hist_layout_id = intval($existing['layout_id']);
+            $hist_stmt->bind_param('isssi', $hist_layout_id, $certificate_type, $existing['layout_name'], $existing['layout_settings'], $uid);
+            $hist_stmt->execute();
+            $hist_stmt->close();
+        }
+    }
+
     if (!empty($existing['layout_id'])) {
-        $stmt = $conn->prepare("UPDATE certificate_layouts SET layout_name = ?, layout_settings = ?, updated_by = ? WHERE certificate_type = ?");
+        $stmt = $conn->prepare("UPDATE certificate_layouts SET layout_name = ?, layout_settings = ?, updated_by = ?, updated_at = NOW() WHERE certificate_type = ?");
         $stmt->bind_param('ssis', $layout_name, $json, $uid, $certificate_type);
     } else {
-        $stmt = $conn->prepare("INSERT INTO certificate_layouts (certificate_type, layout_name, layout_settings, created_by, updated_by) VALUES (?, ?, ?, ?, ?)");
+        $stmt = $conn->prepare("INSERT INTO certificate_layouts (certificate_type, layout_name, layout_settings, created_by, updated_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NOW(), NOW())");
         $stmt->bind_param('sssii', $certificate_type, $layout_name, $json, $uid, $uid);
     }
     if (!$stmt) {
@@ -191,6 +231,53 @@ function saveCertificateLayout($conn, $certificate_type, $settings, $user_id = n
     $ok = $stmt->execute();
     $stmt->close();
     return $ok;
+}
+
+function resetCertificateLayoutToDefault($conn, $certificate_type, $user_id = null) {
+    ensureCertificateTemplateSchema($conn);
+    $certificate_type = normalizeCertificateTemplateType($certificate_type);
+    $uid = intval($user_id ?? 0);
+    $existing = getCertificateLayout($conn, $certificate_type);
+
+    if (!empty($existing['layout_id'])) {
+        // Archive custom layout prior to resetting
+        if (!empty($existing['layout_settings'])) {
+            $hist_stmt = $conn->prepare("INSERT INTO certificate_layout_history (layout_id, certificate_type, layout_name, layout_settings, saved_by, action_type, created_at) VALUES (?, ?, ?, ?, ?, 'reset', NOW())");
+            if ($hist_stmt) {
+                $hist_layout_id = intval($existing['layout_id']);
+                $hist_stmt->bind_param('isssi', $hist_layout_id, $certificate_type, $existing['layout_name'], $existing['layout_settings'], $uid);
+                $hist_stmt->execute();
+                $hist_stmt->close();
+            }
+        }
+        $stmt = $conn->prepare("DELETE FROM certificate_layouts WHERE certificate_type = ?");
+        if ($stmt) {
+            $stmt->bind_param('s', $certificate_type);
+            $ok = $stmt->execute();
+            $stmt->close();
+            return $ok;
+        }
+    }
+    return true;
+}
+
+function getCertificateLayoutHistory($conn, $certificate_type, $limit = 10) {
+    ensureCertificateTemplateSchema($conn);
+    $certificate_type = normalizeCertificateTemplateType($certificate_type);
+    $limit = max(1, min(50, intval($limit)));
+    $stmt = $conn->prepare("SELECT * FROM certificate_layout_history WHERE certificate_type = ? ORDER BY history_id DESC LIMIT ?");
+    if (!$stmt) {
+        return [];
+    }
+    $stmt->bind_param('si', $certificate_type, $limit);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $history = [];
+    while ($row = $res->fetch_assoc()) {
+        $history[] = $row;
+    }
+    $stmt->close();
+    return $history;
 }
 
 function certificateLayoutAllowedMimes() {
