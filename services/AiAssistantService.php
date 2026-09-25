@@ -425,7 +425,21 @@ final class AiAssistantService
             ];
         }
 
-        // J. Sacramental Requirements (Baptism, Confirmation, Marriage, Communion, Blessings)
+        // J-CERT. Certificate Requirements — fixed canonical answer: Birth Certificate / PSA only.
+        // This covers any rephrasing of "what do I need for a certificate/certification" regardless of type.
+        if (preg_match('/\b(?:ano(?:ng)?\s+(?:kailangan|requirement|dokumento)|what(?:\s+do\s+i\s+need|\s+are\s+the\s+requirements?|\s+documents?\s+(?:do\s+i\s+need|are\s+needed|are\s+required))|requirements?\s+(?:for\s+(?:(?:a|the)\s+)?(?:baptis(?:mal?)?|first\s+communion|communion|confirmation|kumpil|binyag)\s*(?:certificate|certification|cert)?|po|naman)|kailangan\s+(?:ko|namin|po)?\s+(?:para\s+sa)?(?:\s+(?:baptis(?:mal?)?|first\s+communion|communion|confirmation|kumpil|binyag))?(?:\s*(?:certificate|certification|cert|sertipiko))|(?:para\s+makakuha|to\s+get|to\s+request|to\s+apply)\s+(?:ng\s+)?(?:a\s+)?(?:baptis(?:mal?)?|first\s+communion|communion|confirmation)\s*(?:certificate|certification|cert))\b/iu', $normalized)
+            && !preg_match('/\b(?:wedding|kasal|marriage|blessing|basbas|binyag\s+service|baptism\s+service|funeral)\b/iu', $normalized)
+        ) {
+            $answer = $isFil
+                ? "Ang tanging kinakailangan para makakuha ng anumang **sertipiko o sertipikasyon** (Baptismal, First Communion, o Confirmation) ay:\n\n📄 **Birth Certificate o PSA (Philippine Statistics Authority) copy.**\n\n[Humiling ng Sertipiko](../users/request-certificate.php)"
+                : "The only requirement to obtain any **certificate or certification** (Baptismal, First Communion, or Confirmation) is:\n\n📄 **Birth Certificate or PSA (Philippine Statistics Authority) copy.**\n\n[Request Certificate](../users/request-certificate.php)";
+            return [
+                'answer' => $answer,
+                'prompts' => ['Request Certificate', 'How to request a certificate', 'Track My Requests']
+            ];
+        }
+
+        // J-SACRAMENT. Sacramental Requirements (for sacrament services, not certificates — Marriage, Baptism Service, Confirmation, Communion, Blessings)
         if (preg_match('/\b(?:what are the requirements for (?:baptism|confirmation|marriage|first communion|wedding)|requirements for (?:baptism|confirmation|marriage|communion|kasal|binyag|kumpil)|what information should i provide for a blessing request)\b/iu', $normalized)) {
             if (preg_match('/\bblessing/i', $normalized)) {
                 $answer = $isFil

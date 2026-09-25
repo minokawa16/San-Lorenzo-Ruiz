@@ -107,8 +107,17 @@ if ($action === 'add' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $origin_parish = trim($_POST['origin_parish'] ?? '');
     $origin_province = trim($_POST['origin_province'] ?? '');
     $baptismal_place = trim($_POST['baptismal_place'] ?? '');
-    $parents = trim($_POST['parents'] ?? '');
-    $sponsor = trim($_POST['sponsor'] ?? '');
+    $father_name = trim($_POST['father_name'] ?? '');
+    $mother_name = trim($_POST['mother_name'] ?? '');
+    $parents = $father_name !== '' || $mother_name !== ''
+        ? trim($father_name . ($mother_name !== '' ? ' & ' . $mother_name : ''))
+        : trim($_POST['parents'] ?? '');
+    $raw_sponsors = $_POST['sponsors'] ?? $_POST['sponsor'] ?? [];
+    if (!is_array($raw_sponsors)) {
+        $raw_sponsors = preg_split('/[\r\n]+/', (string)$raw_sponsors);
+    }
+    $sponsor_list = array_filter(array_map('trim', $raw_sponsors), fn($s) => $s !== '');
+    $sponsor = implode('; ', $sponsor_list);
     $bishop_priest = trim($_POST['minister'] ?? $_POST['bishop_priest'] ?? '');
     $stipend_pesos = trim($_POST['stipend_pesos'] ?? '');
     $stipend_cents = trim($_POST['stipend_cents'] ?? '');
@@ -149,8 +158,17 @@ if ($action === 'edit' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $origin_parish = trim($_POST['origin_parish'] ?? '');
     $origin_province = trim($_POST['origin_province'] ?? '');
     $baptismal_place = trim($_POST['baptismal_place'] ?? '');
-    $parents = trim($_POST['parents'] ?? '');
-    $sponsor = trim($_POST['sponsor'] ?? '');
+    $father_name = trim($_POST['father_name'] ?? '');
+    $mother_name = trim($_POST['mother_name'] ?? '');
+    $parents = $father_name !== '' || $mother_name !== ''
+        ? trim($father_name . ($mother_name !== '' ? ' & ' . $mother_name : ''))
+        : trim($_POST['parents'] ?? '');
+    $raw_sponsors = $_POST['sponsors'] ?? $_POST['sponsor'] ?? [];
+    if (!is_array($raw_sponsors)) {
+        $raw_sponsors = preg_split('/[\r\n]+/', (string)$raw_sponsors);
+    }
+    $sponsor_list = array_filter(array_map('trim', $raw_sponsors), fn($s) => $s !== '');
+    $sponsor = implode('; ', $sponsor_list);
     $bishop_priest = trim($_POST['minister'] ?? $_POST['bishop_priest'] ?? '');
     $stipend_pesos = trim($_POST['stipend_pesos'] ?? '');
     $stipend_cents = trim($_POST['stipend_cents'] ?? '');
@@ -933,13 +951,19 @@ include '../templates/header.php';
                         </div>
 
                         <div class="form-group">
-                            <label>Parents *</label>
-                            <input type="text" id="parents" name="parents" placeholder="Parents" required>
+                            <label>Father's Name <span style="color:#dc3545;">*</span></label>
+                            <input type="text" id="fatherName" name="father_name" placeholder="Father's full name" required>
                         </div>
 
                         <div class="form-group">
-                            <label>Sponsor / Godparent *</label>
-                            <input type="text" id="sponsor" name="sponsor" placeholder="Sponsor / godparent" required>
+                            <label>Mother's Maiden Name <span style="color:#dc3545;">*</span></label>
+                            <input type="text" id="motherName" name="mother_name" placeholder="Mother's maiden name" required>
+                        </div>
+
+                        <div class="form-group full-width">
+                            <label>Sponsors / Godparents <span style="color:#dc3545;">*</span></label>
+                            <textarea id="sponsors" name="sponsors" rows="3" placeholder="Enter each sponsor on a new line (at least 1 required)&#10;e.g. Juan de la Cruz&#10;Maria Santos" required style="width:100%;padding:10px;border:1px solid #dee2e6;border-radius:6px;font-size:0.95rem;"></textarea>
+                            <small class="text-muted">Enter one sponsor name per line. At least one sponsor is required.</small>
                         </div>
 
                         <div class="form-group">
@@ -1066,8 +1090,13 @@ include '../templates/header.php';
             document.getElementById('originParish').value = record.origin_parish || '';
             document.getElementById('originProvince').value = record.origin_province || '';
             document.getElementById('baptismalPlace').value = record.baptismal_place || '';
-            document.getElementById('parents').value = record.parents || '';
-            document.getElementById('sponsor').value = record.sponsor || '';
+            // Split parents into father/mother sub-fields
+            var parentsRaw = record.parents || '';
+            var parentParts = parentsRaw.split(' & ');
+            document.getElementById('fatherName').value = (parentParts[0] || '').trim();
+            document.getElementById('motherName').value = (parentParts[1] || '').trim();
+            // Sponsors: stored as semicolon-delimited, display as one per line in textarea
+            document.getElementById('sponsors').value = (record.sponsor || '').replace(/;\s*/g, '\n');
             document.getElementById('ministerName').value = record.minister || '';
             document.getElementById('stipendPesos').value = record.stipend_pesos || '';
             document.getElementById('stipendCents').value = record.stipend_cents || '';

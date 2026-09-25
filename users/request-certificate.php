@@ -173,6 +173,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $is_baptism = in_array($request_type, ['baptismal_certificate', 'baptism_certification', 'baptism'], true);
     $is_communion = in_array($request_type, ['first_communion_certificate', 'first_communion_certification', 'first_communion', 'communion'], true);
     $is_confirmation = in_array($request_type, ['confirmation_certificate', 'confirmation_certification', 'confirmation'], true);
+    // Cert types that require an extra supporting document
+    $needs_supporting_doc = $is_baptism || $is_communion || $is_confirmation;
+    // For communion, both docs are required
+    $communion_baptism_file  = $_FILES['communion_baptismal_doc'] ?? null;
+    $communion_seminar_file  = $_FILES['communion_seminar_doc'] ?? null;
+    $has_communion_baptism   = ($communion_baptism_file && is_array($communion_baptism_file) && !empty($communion_baptism_file['tmp_name']) && ($communion_baptism_file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK);
+    $has_communion_seminar   = ($communion_seminar_file && is_array($communion_seminar_file) && !empty($communion_seminar_file['tmp_name']) && ($communion_seminar_file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK);
+    $supporting_doc_file = $_FILES['supporting_doc'] ?? null;
+    $has_supporting_doc = ($supporting_doc_file && is_array($supporting_doc_file) && !empty($supporting_doc_file['tmp_name']) && ($supporting_doc_file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK);
 
     // Collect baptism sacramental fields
     $birth_place = trim((string) ($_POST['birth_place'] ?? ''));
@@ -224,7 +233,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     } elseif ($purpose === 'others' && strlen($purpose_other) > 180) {
         $error = 'The custom purpose must be 180 characters or fewer.';
     } elseif (!requestUploadHasFiles($_FILES['requirement_files'] ?? null)) {
-        $error = 'Please upload a copy of the required supporting document (e.g. PSA / Valid ID) before submitting your certificate request.';
+        $error = 'Please upload a copy of the required supporting document (e.g. PSA / Birth Certificate) before submitting your certificate request.';
+    } elseif ($is_communion && !$has_communion_baptism) {
+        $error = 'First Communion requests require a Baptismal Certificate upload. Please attach your Baptismal Certificate.';
+    } elseif ($is_communion && !$has_communion_seminar) {
+        $error = 'First Communion requests require a Seminar Certificate / Proof of Attendance upload. Please attach your seminar certificate or attendance proof.';
     } elseif ($payment_method === 'gcash' && $payment_amount <= 0) {
         $error = 'Please enter the amount paid via GCash.';
     } elseif ($payment_method === 'gcash' && !$has_receipt) {
@@ -331,6 +344,20 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $request_id = (int) $requestResult['request_id'];
             $reference_number = $requestResult['reference_number'];
             $documents = saveMultipleRequirementDocuments($conn, $request_id, $user_id, $_FILES['requirement_files'] ?? null);
+            // Save communion-specific required docs if present
+            if ($is_communion && $has_communion_baptism) {
+                saveRequestDocument($conn, $request_id, $user_id, $communion_baptism_file, 'requirement', 'First Communion — Baptismal Certificate');
+                $documents['saved'] = ($documents['saved'] ?? 0) + 1;
+            }
+            if ($is_communion && $has_communion_seminar) {
+                saveRequestDocument($conn, $request_id, $user_id, $communion_seminar_file, 'requirement', 'First Communion — Seminar/Attendance Certificate');
+                $documents['saved'] = ($documents['saved'] ?? 0) + 1;
+            }
+            // Save optional single supporting doc for baptism/confirmation
+            if (($is_baptism || $is_confirmation) && $has_supporting_doc) {
+                saveRequestDocument($conn, $request_id, $user_id, $supporting_doc_file, 'requirement', 'Supporting Document');
+                $documents['saved'] = ($documents['saved'] ?? 0) + 1;
+            }
             $paymentResult = createRequestPayment($conn, $request_id, $user_id, $payment_amount, $payment_method, $payment_reference, $payment_notes, $receipt_file);
 
             if (!$documents['ok'] && empty($documents['saved'])) {
@@ -2728,6 +2755,71 @@ if ($stmt) {
                     </div>
                     <div class="upload-progress" aria-hidden="true"><span></span></div>
                 </div>
+
+                <!-- Supporting Document - Baptism / Confirmation (single, optional) -->
+                <div id="supportingDocSection" style="display:none; margin-top: 18px;">
+                    <div class="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 mb-3 rounded-3" style="background:#eef6ff;border:1px solid #bfdbfe;">
+                        <i class="fas fa-paperclip text-primary fs-5"></i>
+                        <div>
+                            <strong class="text-dark">Attach Supporting Document <span class="text-muted fw-normal">(Optional)</span></strong>
+                            <div class="text-secondary">You may attach any additional document to help verify your sacramental record (e.g. a photocopy of the original certificate for re-issuance, or a registration confirmation).</div>
+                        </div>
+                    </div>
+                    <label class="upload-zone" style="background:#f8faff;border-color:#93c5fd;" for="supporting_doc">
+                        <i class="fas fa-file-arrow-up" style="color:#3b82f6;"></i>
+                        <strong>Attach Supporting Document</strong>
+                        <small>PDF, JPG, or PNG &mdash; max 5MB</small>
+                        <input type="file" id="supporting_doc" name="supporting_doc" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf">
+                    </label>
+                    <div id="supportingDocPreview" style="display:none; margin-top:8px;" class="file-preview">
+                        <div class="text-muted small" id="supportingDocName"></div>
+                    </div>
+                </div>
+
+                <!-- First Communion - Two required docs -->
+                <div id="communionDocsSection" style="display:none; margin-top: 18px;">
+                    <div class="alert alert-warning py-2 px-3 d-flex align-items-start gap-2 mb-3 rounded-3" style="background:#fffbeb;border:1px solid #fcd34d;">
+                        <i class="fas fa-circle-exclamation text-warning fs-5 mt-1"></i>
+                        <div>
+                            <strong class="text-dark">First Communion &mdash; Two Required Documents</strong>
+                            <div class="text-secondary small mt-1">Both documents below are <strong>required</strong> before your First Communion certificate request can be submitted. These allow the parish office to verify your eligibility.</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" style="color:#1e293b;">
+                            <i class="fas fa-water text-primary me-1"></i>
+                            Baptismal Certificate <span class="text-danger">*</span>
+                        </label>
+                        <p class="text-muted small mb-2">Upload a copy of your Baptismal Certificate &mdash; required as proof of Baptism before receiving First Communion.</p>
+                        <label class="upload-zone" style="background:#f8faff;border-color:#93c5fd;" for="communion_baptismal_doc">
+                            <i class="fas fa-file-arrow-up" style="color:#3b82f6;"></i>
+                            <strong>Attach Baptismal Certificate</strong>
+                            <small>PDF, JPG, or PNG &mdash; max 5MB</small>
+                            <input type="file" id="communion_baptismal_doc" name="communion_baptismal_doc" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf">
+                        </label>
+                        <div id="communionBaptismalPreview" style="display:none; margin-top:8px;" class="file-preview">
+                            <div class="text-muted small" id="communionBaptismalName"></div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="form-label fw-semibold" style="color:#1e293b;">
+                            <i class="fas fa-graduation-cap" style="color:#b45309;"></i>
+                            Seminar Certificate / Proof of Attendance <span class="text-danger">*</span>
+                        </label>
+                        <p class="text-muted small mb-2">Upload your First Communion Seminar Certificate or proof that you completed the required formation/catechism sessions.</p>
+                        <label class="upload-zone" style="background:#fffdf5;border-color:#fcd34d;" for="communion_seminar_doc">
+                            <i class="fas fa-file-arrow-up" style="color:#b45309;"></i>
+                            <strong>Attach Seminar Certificate / Proof of Attendance</strong>
+                            <small>PDF, JPG, or PNG &mdash; max 5MB</small>
+                            <input type="file" id="communion_seminar_doc" name="communion_seminar_doc" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf">
+                        </label>
+                        <div id="communionSeminarPreview" style="display:none; margin-top:8px;" class="file-preview">
+                            <div class="text-muted small" id="communionSeminarName"></div>
+                        </div>
+                    </div>
+                </div>
             </section>
 
             <section class="form-step" id="paymentReleaseStep">
@@ -3134,7 +3226,45 @@ if ($stmt) {
             inputs.forEach(function(inp) {
                 inp.required = isBap;
             });
+
+            // Toggle supporting doc upload zones
+            const communionDocsSection  = document.getElementById('communionDocsSection');
+            const supportingDocSection  = document.getElementById('supportingDocSection');
+
+            // First Communion — two required docs
+            if (communionDocsSection) {
+                communionDocsSection.style.display = isCom ? 'block' : 'none';
+                const cbDoc = document.getElementById('communion_baptismal_doc');
+                const csDoc = document.getElementById('communion_seminar_doc');
+                if (cbDoc) cbDoc.required = isCom;
+                if (csDoc) csDoc.required = isCom;
+            }
+            // Baptism / Confirmation — optional single supporting doc
+            if (supportingDocSection) {
+                supportingDocSection.style.display = (isBap || isConf) ? 'block' : 'none';
+            }
         }
+
+        // File preview helpers for extra upload inputs
+        (function initExtraUploadPreviews() {
+            function bindFilePreview(inputId, previewDivId, nameElId) {
+                const inp = document.getElementById(inputId);
+                const previewDiv = document.getElementById(previewDivId);
+                const nameEl = document.getElementById(nameElId);
+                if (!inp || !previewDiv || !nameEl) return;
+                inp.addEventListener('change', function() {
+                    if (inp.files && inp.files.length > 0) {
+                        nameEl.textContent = inp.files[0].name + ' (' + (inp.files[0].size / 1024).toFixed(1) + ' KB)';
+                        previewDiv.style.display = 'block';
+                    } else {
+                        previewDiv.style.display = 'none';
+                    }
+                });
+            }
+            bindFilePreview('communion_baptismal_doc', 'communionBaptismalPreview', 'communionBaptismalName');
+            bindFilePreview('communion_seminar_doc',   'communionSeminarPreview',   'communionSeminarName');
+            bindFilePreview('supporting_doc',          'supportingDocPreview',      'supportingDocName');
+        })();
 
         function setCertificateType(value) {
             if (!value) return;

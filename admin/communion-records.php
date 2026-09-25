@@ -105,7 +105,11 @@ if ($action === 'add' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $birth_date = !empty($_POST['birth_date']) ? $_POST['birth_date'] : null;
     $communion_date = !empty($_POST['communion_date']) ? $_POST['communion_date'] : '';
     $domicile = trim($_POST['domicile'] ?? '');
-    $parents = trim($_POST['parents'] ?? '');
+    $father_name = trim($_POST['father_name'] ?? '');
+    $mother_name = trim($_POST['mother_name'] ?? '');
+    $parents = $father_name !== '' || $mother_name !== ''
+        ? trim($father_name . ($mother_name !== '' ? ' & ' . $mother_name : ''))
+        : trim($_POST['parents'] ?? '');
     $sponsor = trim($_POST['sponsor'] ?? '');
     $priest = trim($_POST['minister'] ?? $_POST['priest'] ?? '');
     $folio = trim($_POST['folio'] ?? '');
@@ -144,7 +148,11 @@ if ($action === 'edit' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $birth_date = !empty($_POST['birth_date']) ? $_POST['birth_date'] : null;
     $communion_date = !empty($_POST['communion_date']) ? $_POST['communion_date'] : '';
     $domicile = trim($_POST['domicile'] ?? '');
-    $parents = trim($_POST['parents'] ?? '');
+    $father_name = trim($_POST['father_name'] ?? '');
+    $mother_name = trim($_POST['mother_name'] ?? '');
+    $parents = $father_name !== '' || $mother_name !== ''
+        ? trim($father_name . ($mother_name !== '' ? ' & ' . $mother_name : ''))
+        : trim($_POST['parents'] ?? '');
     $sponsor = trim($_POST['sponsor'] ?? '');
     $priest = trim($_POST['minister'] ?? $_POST['priest'] ?? '');
     $folio = trim($_POST['folio'] ?? '');
@@ -904,8 +912,13 @@ include '../templates/header.php';
                         </div>
 
                         <div class="form-group">
-                            <label>Parents *</label>
-                            <input type="text" id="parents" name="parents" placeholder="Names of parents" required>
+                            <label>Father's Name <span style="color:#dc3545;">*</span></label>
+                            <input type="text" id="fatherName" name="father_name" placeholder="Father's full name" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Mother's Maiden Name <span style="color:#dc3545;">*</span></label>
+                            <input type="text" id="motherName" name="mother_name" placeholder="Mother's maiden name" required>
                         </div>
 
                         <div class="form-group">
@@ -1048,7 +1061,11 @@ include '../templates/header.php';
             document.getElementById('birthDate').value = record.birth_date || '';
             document.getElementById('communionDate').value = record.communion_date || '';
             document.getElementById('domicile').value = record.domicile || '';
-            document.getElementById('parents').value = record.parents || '';
+            // Split parents into father/mother sub-fields
+            var parentsRaw = record.parents || '';
+            var parentParts = parentsRaw.split(' & ');
+            document.getElementById('fatherName').value = (parentParts[0] || '').trim();
+            document.getElementById('motherName').value = (parentParts[1] || '').trim();
             document.getElementById('sponsor').value = record.sponsor || '';
             document.getElementById('ministerName').value = record.priest || '';
             document.getElementById('folio').value = record.folio || '';
