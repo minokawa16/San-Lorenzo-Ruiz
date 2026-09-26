@@ -66,6 +66,82 @@ if ($stmt) {
     $stmt->close();
 }
 
+// 8 Stat Cards KPI Data
+$kpis = array(
+    'total_users' => 0,
+    'total_requests' => 0,
+    'pending_requests' => 0,
+    'total_records' => 0,
+    'total_reservations' => 0,
+    'active_announcements' => 0,
+    'active_schedules' => 0
+);
+
+if (function_exists('ensureScheduleEventsTable')) {
+    ensureScheduleEventsTable($conn);
+}
+
+// Total Users
+$stmt = $conn->prepare("SELECT COUNT(*) as count FROM users WHERE role = 'user'");
+if ($stmt) {
+    $stmt->execute();
+    $kpis['total_users'] = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
+    $stmt->close();
+}
+
+// Total Requests
+$stmt = $conn->prepare("SELECT COUNT(*) as count FROM requests WHERE deleted_at IS NULL");
+if ($stmt) {
+    $stmt->execute();
+    $kpis['total_requests'] = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
+    $stmt->close();
+}
+
+// Pending Requests
+$stmt = $conn->prepare("SELECT COUNT(*) as count FROM requests WHERE status = 'pending' AND deleted_at IS NULL");
+if ($stmt) {
+    $stmt->execute();
+    $kpis['pending_requests'] = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
+    $stmt->close();
+}
+
+// Total Records (all sacramental records)
+$stmt = $conn->prepare("SELECT COUNT(*) as count FROM baptism_records UNION ALL SELECT COUNT(*) FROM confirmation_records UNION ALL SELECT COUNT(*) FROM first_communion_records UNION ALL SELECT COUNT(*) FROM marriage_records");
+if ($stmt) {
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $total = 0;
+    while ($row = $result->fetch_assoc()) {
+        $total += $row['count'] ?? 0;
+    }
+    $kpis['total_records'] = $total;
+    $stmt->close();
+}
+
+// Total Reservations
+$stmt = $conn->prepare("SELECT COUNT(*) as count FROM reservations");
+if ($stmt) {
+    $stmt->execute();
+    $kpis['total_reservations'] = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
+    $stmt->close();
+}
+
+// Active Announcements
+$stmt = $conn->prepare("SELECT COUNT(*) as count FROM announcements WHERE status = 'active' AND deleted_at IS NULL");
+if ($stmt) {
+    $stmt->execute();
+    $kpis['active_announcements'] = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
+    $stmt->close();
+}
+
+// Active Public Schedules
+$stmt = $conn->prepare("SELECT COUNT(*) as count FROM schedule_events WHERE status != 'cancelled' AND approval_status = 'approved'");
+if ($stmt) {
+    $stmt->execute();
+    $kpis['active_schedules'] = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
+    $stmt->close();
+}
+
 $recent_requests = [];
 $stmt = $conn->prepare("SELECT request_id, reference_number, request_type, status, date_requested
                         FROM requests
@@ -491,15 +567,148 @@ $body_extra_class = $show_mobile_dashboard_features ? 'user-dashboard-feature-vi
         }
     }
 
+    /* ── 8 Stat Cards High Density Grid ───────────────────── */
+    .dashboard-stats-grid,
+    body.user-area .dashboard-stats-grid {
+        display: grid !important;
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+        gap: 12px !important;
+        margin-bottom: 20px !important;
+        width: 100% !important;
+    }
+
+    .stat-card-compact,
+    body.user-area .stat-card-compact {
+        background: #ffffff !important;
+        border: 1px solid #d8d6cc !important;
+        border-radius: 8px !important;
+        padding: 12px 14px !important;
+        text-decoration: none !important;
+        color: #1e293b !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
+        min-height: 94px !important;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+        transition: all 0.15s ease !important;
+    }
+
+    .stat-card-compact:hover,
+    body.user-area .stat-card-compact:hover {
+        transform: translateY(-2px) !important;
+        border-color: #c4c1b5 !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+        color: #1e293b !important;
+    }
+
+    .stat-card-header,
+    body.user-area .stat-card-header {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 8px !important;
+        margin-bottom: 3px !important;
+    }
+
+    .stat-card-label,
+    body.user-area .stat-card-label {
+        font-size: 0.7rem !important;
+        font-weight: 700 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.5px !important;
+        color: #6b6a63 !important;
+        margin: 0 !important;
+        line-height: 1.2 !important;
+    }
+
+    .stat-card-icon,
+    body.user-area .stat-card-icon {
+        width: 28px !important;
+        height: 28px !important;
+        border-radius: 6px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 12px !important;
+        flex-shrink: 0 !important;
+    }
+
+    .icon-blue { background: #eff6ff !important; color: #2563eb !important; }
+    .icon-indigo { background: #eef2ff !important; color: #4f46e5 !important; }
+    .icon-amber { background: #fffbeb !important; color: #d97706 !important; }
+    .icon-emerald { background: #ecfdf5 !important; color: #059669 !important; }
+    .icon-purple { background: #faf5ff !important; color: #7c3aed !important; }
+    .icon-teal { background: #f0fdfa !important; color: #0d9488 !important; }
+    .icon-cyan { background: #ecfeff !important; color: #0891b2 !important; }
+    .icon-slate { background: #f1f5f9 !important; color: #475569 !important; }
+
+    .stat-card-value,
+    body.user-area .stat-card-value {
+        font-size: 1.4rem !important;
+        font-weight: 800 !important;
+        color: #0f172a !important;
+        line-height: 1.15 !important;
+        margin: 2px 0 4px 0 !important;
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    }
+
+    .stat-card-footer,
+    body.user-area .stat-card-footer {
+        display: flex !important;
+        align-items: center !important;
+        gap: 4px !important;
+        font-size: 0.68rem !important;
+        font-weight: 500 !important;
+        color: #6b6a63 !important;
+    }
+
+    .trend-pill,
+    body.user-area .trend-pill {
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 3px !important;
+        padding: 1px 6px !important;
+        border-radius: 4px !important;
+        font-size: 0.65rem !important;
+        font-weight: 700 !important;
+        line-height: 1.2 !important;
+        letter-spacing: 0.2px !important;
+    }
+
+    .trend-pill.success { background: #dcfce7 !important; color: #166534 !important; }
+    .trend-pill.warning { background: #fef3c7 !important; color: #92400e !important; }
+    .trend-pill.danger { background: #fee2e2 !important; color: #991b1b !important; }
+    .trend-pill.neutral { background: #f1f5f9 !important; color: #475569 !important; }
+
+    @media (max-width: 1200px) {
+        .dashboard-stats-grid,
+        body.user-area .dashboard-stats-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+        }
+    }
+
+    @media (max-width: 900px) {
+        .dashboard-stats-grid,
+        body.user-area .dashboard-stats-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .dashboard-stats-grid,
+        body.user-area .dashboard-stats-grid {
+            grid-template-columns: 1fr !important;
+        }
+    }
+
     /* ── Desktop: always show full dashboard, hide mobile-only sections ── */
     @media (min-width: 900px) {
-        /* Show desktop panels regardless of body class */
         .client-dashboard > .dashboard-removed {
             display: grid !important;
         }
 
-        /* Hide mobile-only summary and nav */
         .dashboard-mobile-summary,
+        body.user-area .dashboard-mobile-summary,
         .mobile-dashboard-quick-label,
         .mobile-dashboard-section-label,
         .user-mobile-card-nav,
@@ -517,29 +726,8 @@ $body_extra_class = $show_mobile_dashboard_features ? 'user-dashboard-feature-vi
 </style>
 
 <div class="client-dashboard<?php echo $show_mobile_dashboard_features ? ' show-dashboard-features' : ' show-mobile-menu'; ?>">
-    <section class="dashboard-mobile-summary" aria-labelledby="mobileRequestSummaryTitle">
-        <h2 id="mobileRequestSummaryTitle">My Requests</h2>
-        <div class="dashboard-mobile-summary-grid">
-            <a href="my-requests.php?status=pending">
-                <strong><?php echo intval($request_counts['pending']); ?></strong>
-                <span>Pending</span>
-            </a>
-            <a href="my-requests.php?status=approved">
-                <strong><?php echo intval($request_counts['approved']); ?></strong>
-                <span>Approved</span>
-            </a>
-            <a href="my-requests.php?status=completed">
-                <strong><?php echo intval($request_counts['completed']); ?></strong>
-                <span>Completed</span>
-            </a>
-        </div>
-    </section>
-
-    <div class="mobile-dashboard-quick-label">Quick Access</div>
-    <?php $dashboard_mobile_quick_access = true; ?>
-    <?php include __DIR__ . '/../includes/user-mobile-nav.php'; ?>
-
-    <section class="client-welcome-panel dashboard-removed" aria-label="Parishioner welcome dashboard">
+    <!-- Parishioner Welcome Banner -->
+    <section class="client-welcome-panel" aria-label="Parishioner welcome dashboard">
         <div>
             <h1>Welcome back,<span class="client-welcome-name"><?php echo e($user_name); ?></span></h1>
             <p class="client-verse">
@@ -548,6 +736,109 @@ $body_extra_class = $show_mobile_dashboard_features ? 'user-dashboard-feature-vi
             </p>
         </div>
     </section>
+
+    <!-- Compact 4-Column Stat Cards Grid (8 Key Metrics) -->
+    <div class="dashboard-stats-grid">
+        <!-- 1. Total Parishioners -->
+        <a href="<?php echo isAdmin() ? '../admin/manage-users.php' : 'javascript:void(0);'; ?>" class="stat-card-compact" aria-label="View total parishioners">
+            <div class="stat-card-header">
+                <span class="stat-card-label">Total Parishioners</span>
+                <span class="stat-card-icon icon-blue"><i class="fas fa-users"></i></span>
+            </div>
+            <div class="stat-card-value"><?php echo number_format($kpis['total_users']); ?></div>
+            <div class="stat-card-footer">
+                <span class="trend-pill success"><i class="fas fa-arrow-up"></i> Active users</span>
+            </div>
+        </a>
+
+        <!-- 2. Total Requests -->
+        <a href="my-requests.php" class="stat-card-compact" aria-label="View all requests">
+            <div class="stat-card-header">
+                <span class="stat-card-label">Total Requests</span>
+                <span class="stat-card-icon icon-indigo"><i class="fas fa-list-check"></i></span>
+            </div>
+            <div class="stat-card-value"><?php echo number_format($kpis['total_requests']); ?></div>
+            <div class="stat-card-footer">
+                <span class="trend-pill neutral"><i class="fas fa-chart-line"></i> All time</span>
+            </div>
+        </a>
+
+        <!-- 3. Pending Requests -->
+        <a href="my-requests.php?status=pending" class="stat-card-compact" aria-label="View pending requests">
+            <div class="stat-card-header">
+                <span class="stat-card-label">Pending Requests</span>
+                <span class="stat-card-icon icon-amber"><i class="fas fa-hourglass-half"></i></span>
+            </div>
+            <div class="stat-card-value"><?php echo number_format($kpis['pending_requests']); ?></div>
+            <div class="stat-card-footer">
+                <?php if ($kpis['pending_requests'] > 5): ?>
+                    <span class="trend-pill danger"><i class="fas fa-circle-exclamation"></i> Action needed</span>
+                <?php else: ?>
+                    <span class="trend-pill success"><i class="fas fa-check"></i> Under control</span>
+                <?php endif; ?>
+            </div>
+        </a>
+
+        <!-- 4. Sacramental Records -->
+        <a href="<?php echo isAdmin() ? '../admin/manage-records.php' : 'my-requests.php'; ?>" class="stat-card-compact" aria-label="View sacramental records">
+            <div class="stat-card-header">
+                <span class="stat-card-label">Sacramental Records</span>
+                <span class="stat-card-icon icon-emerald"><i class="fas fa-book-bible"></i></span>
+            </div>
+            <div class="stat-card-value"><?php echo number_format($kpis['total_records']); ?></div>
+            <div class="stat-card-footer">
+                <span class="trend-pill neutral"><i class="fas fa-database"></i> Digitized</span>
+            </div>
+        </a>
+
+        <!-- 5. Event Reservations -->
+        <a href="make-reservation.php" class="stat-card-compact" aria-label="View event reservations">
+            <div class="stat-card-header">
+                <span class="stat-card-label">Event Reservations</span>
+                <span class="stat-card-icon icon-purple"><i class="fas fa-calendar-check"></i></span>
+            </div>
+            <div class="stat-card-value"><?php echo number_format($kpis['total_reservations']); ?></div>
+            <div class="stat-card-footer">
+                <span class="trend-pill neutral"><i class="fas fa-box-archive"></i> Scheduled</span>
+            </div>
+        </a>
+
+        <!-- 6. Active Announcements -->
+        <a href="announcements.php" class="stat-card-compact" aria-label="View active announcements">
+            <div class="stat-card-header">
+                <span class="stat-card-label">Announcements</span>
+                <span class="stat-card-icon icon-teal"><i class="fas fa-bullhorn"></i></span>
+            </div>
+            <div class="stat-card-value"><?php echo number_format($kpis['active_announcements']); ?></div>
+            <div class="stat-card-footer">
+                <span class="trend-pill success"><i class="fas fa-signal"></i> Live now</span>
+            </div>
+        </a>
+
+        <!-- 7. Calendar Schedules -->
+        <a href="view-schedule.php" class="stat-card-compact" aria-label="View calendar schedules">
+            <div class="stat-card-header">
+                <span class="stat-card-label">Schedules &amp; Events</span>
+                <span class="stat-card-icon icon-cyan"><i class="fas fa-calendar-days"></i></span>
+            </div>
+            <div class="stat-card-value"><?php echo number_format($kpis['active_schedules']); ?></div>
+            <div class="stat-card-footer">
+                <span class="trend-pill neutral"><i class="fas fa-clock"></i> Approved</span>
+            </div>
+        </a>
+
+        <!-- 8. System Audit -->
+        <a href="<?php echo isAdmin() ? '../admin/audit-logs.php' : 'javascript:void(0);'; ?>" class="stat-card-compact" aria-label="View system audit">
+            <div class="stat-card-header">
+                <span class="stat-card-label">System Audit</span>
+                <span class="stat-card-icon icon-slate"><i class="fas fa-shield-halved"></i></span>
+            </div>
+            <div class="stat-card-value">Live</div>
+            <div class="stat-card-footer">
+                <span class="trend-pill success"><i class="fas fa-lock"></i> Tracking active</span>
+            </div>
+        </a>
+    </div>
 
     <section class="client-dashboard-grid dashboard-removed">
         <div class="client-stack">
