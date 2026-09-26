@@ -479,7 +479,7 @@ $dashboard_avatar_letter = 'P';
         .stat-card-icon {
             width: 28px;
             height: 28px;
-            border-radius: 50%;
+            border-radius: 6px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -742,7 +742,7 @@ $dashboard_avatar_letter = 'P';
                 </div>
             </header>
 
-            <!-- Compact Stat Cards Grid (6 Key Metrics) -->
+            <!-- Compact 4-Column Stat Cards Grid (8 Key Metrics) -->
             <div class="dashboard-stats-grid">
                 <!-- 1. Total Parishioners -->
                 <a href="manage-users.php" class="stat-card-compact" aria-label="View total parishioners">
@@ -778,8 +778,6 @@ $dashboard_avatar_letter = 'P';
                     <div class="stat-card-footer">
                         <?php if ($kpis['pending_requests'] > 5): ?>
                             <span class="trend-pill danger"><i class="fas fa-circle-exclamation"></i> Action needed</span>
-                        <?php elseif ($kpis['pending_requests'] > 0): ?>
-                            <span class="trend-pill warning"><i class="fas fa-check"></i> Under control</span>
                         <?php else: ?>
                             <span class="trend-pill success"><i class="fas fa-check"></i> Under control</span>
                         <?php endif; ?>
@@ -831,6 +829,18 @@ $dashboard_avatar_letter = 'P';
                     <div class="stat-card-value"><?php echo number_format($kpis['active_schedules']); ?></div>
                     <div class="stat-card-footer">
                         <span class="trend-pill neutral"><i class="fas fa-clock"></i> Approved</span>
+                    </div>
+                </a>
+
+                <!-- 8. System Audit -->
+                <a href="audit-logs.php" class="stat-card-compact" aria-label="View system audit">
+                    <div class="stat-card-header">
+                        <span class="stat-card-label">System Audit</span>
+                        <span class="stat-card-icon icon-slate"><i class="fas fa-shield-halved"></i></span>
+                    </div>
+                    <div class="stat-card-value">Live</div>
+                    <div class="stat-card-footer">
+                        <span class="trend-pill success"><i class="fas fa-lock"></i> Tracking active</span>
                     </div>
                 </a>
             </div>
