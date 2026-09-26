@@ -2494,6 +2494,41 @@ body.user-area {
         grid-template-columns: minmax(0, 1.5fr) minmax(18rem, 0.8fr) !important;
         gap: clamp(1rem, 1.5vw, 1.5rem) !important;
     }
+
+    /* Ensure full desktop dashboard always shows on wide screens,
+       regardless of any mobile/tablet body-class overrides. */
+    body.user-area .client-dashboard > .dashboard-removed {
+        display: grid !important;
+    }
+
+    body.user-area.user-dashboard-menu-view .client-dashboard > .dashboard-removed {
+        display: grid !important;
+    }
+
+    body.user-area.user-dashboard-feature-view .client-dashboard > .dashboard-removed {
+        display: grid !important;
+    }
+
+    /* Hide mobile-only nav elements that should never appear on desktop */
+    body.user-area .user-mobile-card-nav,
+    body.user-area .dashboard-mobile-section-label,
+    body.user-area .mobile-dashboard-quick-label,
+    body.user-area .user-bottom-nav {
+        display: none !important;
+    }
+
+    /* Always show the topbar on desktop regardless of dashboard view mode */
+    body.user-area.user-dashboard-menu-view .user-global-topbar {
+        display: flex !important;
+    }
+
+    body.user-area.user-dashboard-menu-view .app-header-right {
+        display: flex !important;
+    }
+
+    body.user-area.user-dashboard-menu-view .app-header-center {
+        display: flex !important;
+    }
 }
 
 /* Dedicated TUGON AI page: native, full-screen phone conversation. */
