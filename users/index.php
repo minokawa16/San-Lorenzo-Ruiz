@@ -490,6 +490,30 @@ $body_extra_class = $show_mobile_dashboard_features ? 'user-dashboard-feature-vi
             flex-direction: column;
         }
     }
+
+    /* ── Desktop: always show full dashboard, hide mobile-only sections ── */
+    @media (min-width: 900px) {
+        /* Show desktop panels regardless of body class */
+        .client-dashboard > .dashboard-removed {
+            display: grid !important;
+        }
+
+        /* Hide mobile-only summary and nav */
+        .dashboard-mobile-summary,
+        .mobile-dashboard-quick-label,
+        .mobile-dashboard-section-label,
+        .user-mobile-card-nav,
+        .user-bottom-nav {
+            display: none !important;
+        }
+    }
+
+    /* ── Mobile/Tablet (<900px): hide desktop panels, show mobile sections ── */
+    @media (max-width: 899px) {
+        .client-dashboard > .dashboard-removed {
+            display: none !important;
+        }
+    }
 </style>
 
 <div class="client-dashboard<?php echo $show_mobile_dashboard_features ? ' show-dashboard-features' : ' show-mobile-menu'; ?>">
