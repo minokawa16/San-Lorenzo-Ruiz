@@ -257,18 +257,13 @@ if (isLoggedIn()) {
         <div class="user-main">
             <header class="app-global-header user-topbar user-global-topbar premium-glass">
                 <div class="app-header-left admin-global-title user-global-title">
-                    <div class="mobile-brand-badge" aria-label="TUGON Parish System">
-                        <span class="church-brand-tile">
-                            <svg class="church-brand-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
-                                <path d="M11 1h2v2h2v1.5h-2V6h-2V4.5H9V3h2V1z"/>
-                                <path d="M12 5.2L4 10.8v1.6l1.5-1V21h13V11.4l1.5 1v-1.6L12 5.2zM8.5 12.5a1 1 0 0 1 1-1h.2a1 1 0 0 1 1 1v2.5a.8.8 0 0 1-.8.8h-.6a.8.8 0 0 1-.8-.8v-2.5zm4.8 7.3h-2.6v-4.2a1.3 1.3 0 0 1 1.3-1.3 1.3 1.3 0 0 1 1.3 1.3v4.2zm2.2-4.8a.8.8 0 0 1-.8.8h-.6a.8.8 0 0 1-.8-.8v-2.5a1 1 0 0 1 1-1h.2a1 1 0 0 1 1 1v2.5zM12 8a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4z"/>
-                            </svg>
-                        </span>
-                        <span class="church-brand-name">TUGON</span>
-                    </div>
                     <div class="user-header-text">
-                        <h1 class="user-header-title"><?php echo e($user_header_title); ?></h1>
-                        <p class="user-header-sub"><?php echo e($user_header_description); ?></p>
+                        <h1><?php echo e($user_header_title); ?></h1>
+                        <p><?php echo e($user_header_description); ?></p>
+                    </div>
+                    <div class="mobile-dashboard-brand" aria-hidden="true">
+                        <strong><span>TUGON</span></strong>
+                        <small>Welcome back, <?php echo e($header_user_first_name); ?></small>
                     </div>
                 </div>
                 <div class="app-header-right admin-global-actions user-global-actions">

@@ -518,42 +518,19 @@ $body_extra_class = $show_mobile_dashboard_features ? 'user-dashboard-feature-vi
 
 <div class="client-dashboard<?php echo $show_mobile_dashboard_features ? ' show-dashboard-features' : ' show-mobile-menu'; ?>">
     <section class="dashboard-mobile-summary" aria-labelledby="mobileRequestSummaryTitle">
-        <div class="summary-card-header">
-            <div class="summary-greeting-pill">
-                <span class="greeting-bullet" aria-hidden="true"></span>
-                <span class="greeting-text">Welcome back, <strong><?php echo e(strtoupper($user_first_name)); ?></strong></span>
-            </div>
-            <a href="my-requests.php" class="summary-view-all-link">
-                <span>View all</span>
-                <i class="fas fa-chevron-right" aria-hidden="true"></i>
-            </a>
-        </div>
-        <div class="summary-headline-row">
-            <h2 id="mobileRequestSummaryTitle" class="summary-title">My Requests</h2>
-        </div>
+        <h2 id="mobileRequestSummaryTitle">My Requests</h2>
         <div class="dashboard-mobile-summary-grid">
-            <a href="my-requests.php?status=pending" class="summary-stat-col stat-pending">
-                <div class="stat-indicator-chip pending-chip">
-                    <i class="fas fa-hourglass-half" aria-hidden="true"></i>
-                </div>
-                <strong class="stat-count pending-count"><?php echo intval($request_counts['pending']); ?></strong>
-                <span class="stat-label">Pending</span>
+            <a href="my-requests.php?status=pending">
+                <strong><?php echo intval($request_counts['pending']); ?></strong>
+                <span>Pending</span>
             </a>
-            <div class="summary-col-divider" aria-hidden="true"></div>
-            <a href="my-requests.php?status=approved" class="summary-stat-col stat-approved">
-                <div class="stat-indicator-chip approved-chip">
-                    <i class="fas fa-circle-check" aria-hidden="true"></i>
-                </div>
-                <strong class="stat-count approved-count"><?php echo intval($request_counts['approved']); ?></strong>
-                <span class="stat-label">Approved</span>
+            <a href="my-requests.php?status=approved">
+                <strong><?php echo intval($request_counts['approved']); ?></strong>
+                <span>Approved</span>
             </a>
-            <div class="summary-col-divider" aria-hidden="true"></div>
-            <a href="my-requests.php?status=completed" class="summary-stat-col stat-completed">
-                <div class="stat-indicator-chip completed-chip">
-                    <i class="fas fa-award" aria-hidden="true"></i>
-                </div>
-                <strong class="stat-count completed-count"><?php echo intval($request_counts['completed']); ?></strong>
-                <span class="stat-label">Completed</span>
+            <a href="my-requests.php?status=completed">
+                <strong><?php echo intval($request_counts['completed']); ?></strong>
+                <span>Completed</span>
             </a>
         </div>
     </section>
