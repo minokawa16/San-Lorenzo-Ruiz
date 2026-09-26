@@ -431,7 +431,7 @@ $dashboard_avatar_letter = 'P';
         /* ── 3. High Density Stat Cards ──────────────────── */
         .dashboard-stats-grid {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: 12px;
             margin-bottom: 16px;
         }
@@ -654,7 +654,19 @@ $dashboard_avatar_letter = 'P';
         .dashboard-activity-icon.rejected { background: #fee2e2; color: #991b1b; }
 
         /* ── Responsiveness ───────────────────────────────────────── */
+        @media (max-width: 1300px) {
+            .dashboard-stats-grid {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+            }
+        }
+
         @media (max-width: 1100px) {
+            .dashboard-stats-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 760px) {
             .dashboard-stats-grid {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
@@ -678,7 +690,7 @@ $dashboard_avatar_letter = 'P';
             }
         }
 
-        @media (max-width: 580px) {
+        @media (max-width: 480px) {
             .dashboard-stats-grid {
                 grid-template-columns: 1fr;
             }
@@ -784,7 +796,19 @@ $dashboard_avatar_letter = 'P';
                     </div>
                 </a>
 
-                <!-- 5. Active Announcements -->
+                <!-- 5. Event Reservations -->
+                <a href="manage-reservations.php" class="stat-card-compact" aria-label="View event reservations">
+                    <div class="stat-card-header">
+                        <span class="stat-card-label">Event Reservations</span>
+                        <span class="stat-card-icon icon-purple"><i class="fas fa-calendar-check"></i></span>
+                    </div>
+                    <div class="stat-card-value"><?php echo number_format($kpis['total_reservations']); ?></div>
+                    <div class="stat-card-footer">
+                        <span class="trend-pill neutral"><i class="fas fa-box-archive"></i> Scheduled</span>
+                    </div>
+                </a>
+
+                <!-- 6. Active Announcements -->
                 <a href="manage-announcements.php" class="stat-card-compact" aria-label="View active announcements">
                     <div class="stat-card-header">
                         <span class="stat-card-label">Announcements</span>
@@ -796,7 +820,7 @@ $dashboard_avatar_letter = 'P';
                     </div>
                 </a>
 
-                <!-- 6. Calendar Schedules -->
+                <!-- 7. Calendar Schedules -->
                 <a href="manage-calendar.php" class="stat-card-compact" aria-label="View calendar schedules">
                     <div class="stat-card-header">
                         <span class="stat-card-label">Schedules &amp; Events</span>
