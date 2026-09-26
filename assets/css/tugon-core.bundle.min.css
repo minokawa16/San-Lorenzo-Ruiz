@@ -1017,7 +1017,7 @@ transform: translateY(-1px) !important;
 .stat-card-icon {
 width: 28px !important;
 height: 28px !important;
-border-radius: 6px !important;
+border-radius: 50% !important;
 display: inline-flex !important;
 align-items: center !important;
 justify-content: center !important;

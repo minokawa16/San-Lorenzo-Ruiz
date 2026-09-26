@@ -479,7 +479,7 @@ $dashboard_avatar_letter = 'P';
         .stat-card-icon {
             width: 28px;
             height: 28px;
-            border-radius: 6px;
+            border-radius: 50%;
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -778,6 +778,8 @@ $dashboard_avatar_letter = 'P';
                     <div class="stat-card-footer">
                         <?php if ($kpis['pending_requests'] > 5): ?>
                             <span class="trend-pill danger"><i class="fas fa-circle-exclamation"></i> Action needed</span>
+                        <?php elseif ($kpis['pending_requests'] > 0): ?>
+                            <span class="trend-pill warning"><i class="fas fa-check"></i> Under control</span>
                         <?php else: ?>
                             <span class="trend-pill success"><i class="fas fa-check"></i> Under control</span>
                         <?php endif; ?>
