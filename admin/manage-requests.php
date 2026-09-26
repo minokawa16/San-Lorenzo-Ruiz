@@ -19,6 +19,8 @@ if (!hasAnyPermission(['requests.manage', 'reservations.manage'])) {
 ensureEmailNotificationSchema($conn);
 ensureRequestDocumentsSchema($conn);
 ensureRequestPaymentsSchema($conn);
+ensureCertificateDuplicateGuardSchema($conn);
+ensureRequestMatchingSchema($conn);
 
 $error = '';
 $success = '';
@@ -212,6 +214,18 @@ $reservation_where_sql = implode(' AND ', $reservation_where);
 $page = intval($_GET['page'] ?? 1);
 $limit = 10;
 
+$has_record_holder_col = columnExists($conn, 'requests', 'record_holder_name');
+$has_matched_id_col = columnExists($conn, 'requests', 'matched_record_id');
+$has_matched_type_col = columnExists($conn, 'requests', 'matched_record_type');
+$has_match_status_col = columnExists($conn, 'requests', 'match_status');
+$has_match_details_col = columnExists($conn, 'requests', 'match_details');
+
+$record_holder_select = $has_record_holder_col ? "r.record_holder_name" : "NULL";
+$matched_id_select = $has_matched_id_col ? "r.matched_record_id" : "NULL";
+$matched_type_select = $has_matched_type_col ? "r.matched_record_type" : "NULL";
+$match_status_select = $has_match_status_col ? "r.match_status" : "'unmatched'";
+$match_details_select = $has_match_details_col ? "r.match_details" : "NULL";
+
 $request_select = "
     SELECT
         'request' AS item_source,
@@ -233,11 +247,11 @@ $request_select = "
         COUNT(DISTINCT d.document_id) AS document_count,
         COUNT(DISTINCT p.payment_id) AS payment_count,
         COUNT(DISTINCT CASE WHEN p.status = 'verified' THEN p.payment_id END) AS verified_payment_count,
-        r.record_holder_name AS record_holder_name,
-        r.matched_record_id AS matched_record_id,
-        r.matched_record_type AS matched_record_type,
-        r.match_status AS match_status,
-        r.match_details AS match_details
+        $record_holder_select AS record_holder_name,
+        $matched_id_select AS matched_record_id,
+        $matched_type_select AS matched_record_type,
+        $match_status_select AS match_status,
+        $match_details_select AS match_details
     FROM requests r
     JOIN users u ON r.user_id = u.id
     LEFT JOIN request_documents d ON d.request_id = r.request_id AND d.document_type = 'requirement' AND d.deleted_at IS NULL

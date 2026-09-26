@@ -1385,14 +1385,34 @@ function ensureCertificateDuplicateGuardSchema($conn) {
 // Request Matching Schema - Ensures columns exist for auto-linking requests to sacramental records.
 function ensureRequestMatchingSchema($conn) {
     if (!($conn instanceof mysqli)) return false;
-    $res = $conn->query("SHOW COLUMNS FROM requests LIKE 'matched_record_id'");
-    if ($res && $res->num_rows === 0) {
-        $conn->query("ALTER TABLE requests ADD COLUMN matched_record_id INT NULL DEFAULT NULL AFTER record_holder_name");
-        $conn->query("ALTER TABLE requests ADD COLUMN matched_record_type VARCHAR(50) NULL DEFAULT NULL AFTER matched_record_id");
-        $conn->query("ALTER TABLE requests ADD COLUMN match_status ENUM('unmatched', 'matched', 'multiple', 'no_match') NOT NULL DEFAULT 'unmatched' AFTER matched_record_type");
-        $conn->query("ALTER TABLE requests ADD COLUMN match_details TEXT NULL DEFAULT NULL AFTER match_status");
-        $conn->query("ALTER TABLE requests ADD INDEX idx_request_matched_record (matched_record_type, matched_record_id)");
-        $conn->query("ALTER TABLE requests ADD INDEX idx_request_match_status (match_status)");
+    
+    // Ensure record_holder_name exists first
+    if (function_exists('ensureCertificateDuplicateGuardSchema')) {
+        ensureCertificateDuplicateGuardSchema($conn);
+    } elseif (!columnExists($conn, 'requests', 'record_holder_name')) {
+        @$conn->query("ALTER TABLE requests ADD COLUMN record_holder_name VARCHAR(191) NULL AFTER request_type");
+    }
+    
+    if (!columnExists($conn, 'requests', 'matched_record_id')) {
+        @$conn->query("ALTER TABLE requests ADD COLUMN matched_record_id INT NULL DEFAULT NULL AFTER record_holder_name");
+    }
+    if (!columnExists($conn, 'requests', 'matched_record_type')) {
+        @$conn->query("ALTER TABLE requests ADD COLUMN matched_record_type VARCHAR(50) NULL DEFAULT NULL AFTER matched_record_id");
+    }
+    if (!columnExists($conn, 'requests', 'match_status')) {
+        @$conn->query("ALTER TABLE requests ADD COLUMN match_status ENUM('unmatched', 'matched', 'multiple', 'no_match') NOT NULL DEFAULT 'unmatched' AFTER matched_record_type");
+    }
+    if (!columnExists($conn, 'requests', 'match_details')) {
+        @$conn->query("ALTER TABLE requests ADD COLUMN match_details TEXT NULL DEFAULT NULL AFTER match_status");
+    }
+    
+    $idx1 = @$conn->query("SHOW INDEX FROM requests WHERE Key_name = 'idx_request_matched_record'");
+    if ($idx1 && $idx1->num_rows === 0) {
+        @$conn->query("ALTER TABLE requests ADD INDEX idx_request_matched_record (matched_record_type, matched_record_id)");
+    }
+    $idx2 = @$conn->query("SHOW INDEX FROM requests WHERE Key_name = 'idx_request_match_status'");
+    if ($idx2 && $idx2->num_rows === 0) {
+        @$conn->query("ALTER TABLE requests ADD INDEX idx_request_match_status (match_status)");
     }
     return true;
 }
