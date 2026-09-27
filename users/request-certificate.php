@@ -2969,9 +2969,6 @@ if ($stmt) {
                     </div>
 
                     <!-- Release Notes Info -->
-                    <div id="onlineReleaseInfo" class="alert alert-info py-2 px-3 mt-3 rounded-3 small" style="<?php echo (($_POST['release_method'] ?? 'online') === 'walk_in') ? 'display: none;' : ''; ?> background: #f0f7ff; border: 1px solid #cce3fe;">
-                        <i class="fas fa-envelope-circle-check text-primary me-1"></i> Digital certificate notification will be sent to <strong><?php echo e($_SESSION['email'] ?? 'your registered email'); ?></strong> and available in your request details once signed and ready.
-                    </div>
                     <div id="walkinReleaseInfo" class="alert alert-secondary py-2 px-3 mt-3 rounded-3 small" style="<?php echo (($_POST['release_method'] ?? '') === 'walk_in') ? '' : 'display: none;'; ?> background: #f8fafc; border: 1px solid #e2e8f0;">
                         <i class="fas fa-clock text-secondary me-1"></i> Office pickup hours: <strong>Tuesday to Sunday, 8:00 AM – 5:00 PM</strong> at San Lorenzo Ruiz Parish Office.
                     </div>
