@@ -224,7 +224,7 @@ final class AiAssistantService
         $isFil = ($language === 'fil' || $language === 'taglish');
 
         // A. User's Own Request Count, Listing & Status Inquiry
-        $isRequestQuery = (bool) preg_match('/\b(?:(?:how|hoy|hw)\s*many\s*requests?|count\s*(?:of\s*)?(?:my\s*)?requests?|number\s*of\s*(?:my\s*)?requests?|show\s*(?:me\s*)?(?:all\s*)?(?:the\s*)?(?:my\s*)?requests?|list\s*(?:all\s*)?(?:the\s*)?(?:my\s*)?requests?|view\s*(?:all\s*)?(?:the\s*)?(?:my\s*)?requests?|see\s*(?:all\s*)?(?:the\s*)?(?:my\s*)?requests?|display\s*(?:all\s*)?(?:the\s*)?(?:my\s*)?requests?|all\s*(?:the\s*)?requests?\s*(?:that\s*)?i\s*(?:did|have|made|submitted)?|requests?\s*(?:that\s*)?i\s*(?:did|have|made|submitted)|what\s*(?:are\s*)?(?:all\s*)?my\s*requests?|what\s*requests?\s*(?:do\s*i\s*have|did\s*i\s*(?:make|do|submit))|status\s*of\s*(?:my|the)\s*(?:request|certificate|blessing)|check\s*(?:my|the)\s*requests?|my\s*requests?(?:\s*status)?|kumusta\s*(?:ang\s*|yung\s*)?request|anong\s*status\s*ng\s*request|follow[- ]?up\s*(?:sa\s*)?request|check\s*certificate\s*status|mga\s*request\s*ko|lahat\s*ng\s*request\s*ko|ilan\s*(?:ang\s*|na\s*ang\s*)?request\s*ko|ilang\s*request\s*(?:meron\s*ako|ang\s*(?:nagawa|isinumite)\s*ko)|pakita\s*(?:ang\s*)?mga\s*request\s*ko|tingnan\s*(?:ang\s*)?mga\s*request\s*ko)\b/iu', $normalized);
+        $isRequestQuery = (bool) preg_match('/\b(?:(?:how|hoy|hw)\s*many\s*requests?|count\s*(?:of\s*)?(?:my\s*)?requests?|number\s*of\s*(?:my\s*)?requests?|show\s*(?:me\s*)?(?:all\s*)?(?:the\s*)?(?:my\s*)?requests?|list\s*(?:all\s*)?(?:the\s*)?(?:my\s*)?requests?|view\s*(?:all\s*)?(?:the\s*)?(?:my\s*)?requests?|see\s*(?:all\s*)?(?:the\s*)?(?:my\s*)?requests?|display\s*(?:all\s*)?(?:the\s*)?(?:my\s*)?requests?|all\s*(?:the\s*)?requests?\s*(?:that\s*)?i\s*(?:did|have|made|submitted)?|requests?\s*(?:that\s*)?i\s*(?:did|have|made|submitted)|what\s*(?:are\s*)?(?:all\s*)?my\s*requests?|what\s*requests?\s*(?:do\s*i\s*have|did\s*i\s*(?:make|do|submit))|status\s*of\s*(?:my|the)\s*(?:request|certificate|blessing)|check\s*(?:my|the)\s*requests?|my\s*requests?(?:\s*status)?|track\s*(?:my\s*)?(?:submitted\s*)?requests?|how\s*(?:do|can)\s*i\s*track\s*(?:my\s*)?(?:submitted\s*)?requests?|where\s*(?:is|'s)\s*(?:my\s*)?requests?|nasaan\s*(?:ang\s*)?request\s*ko|kumusta\s*(?:ang\s*|yung\s*)?request|anong\s*status\s*ng\s*request|follow[- ]?up\s*(?:sa\s*)?request|check\s*certificate\s*status|mga\s*request\s*ko|lahat\s*ng\s*request\s*ko|ilan\s*(?:ang\s*|na\s*ang\s*)?request\s*ko|ilang\s*request\s*(?:meron\s*ako|ang\s*(?:nagawa|isinumite)\s*ko)|pakita\s*(?:ang\s*)?mga\s*request\s*ko|tingnan\s*(?:ang\s*)?mga\s*request\s*ko)\b/iu', $normalized);
         if ($isRequestQuery) {
             $countStmt = $this->db->prepare("SELECT COUNT(*) AS c FROM requests WHERE user_id=? AND deleted_at IS NULL");
             $totalCount = 0;
@@ -258,20 +258,17 @@ final class AiAssistantService
                 }
                 $listStr = implode("\n\n", $lines);
 
-                $isCounting = (bool) preg_match('/\b(?:how\s*many|hoy\s*many|hw\s*many|count|number\s*of|ilan|ilang)\b/iu', $normalized);
-                if ($isCounting) {
-                    $answer = $isFil
-                        ? "Mayroon po kayong kabuuang **{$totalCount}** na naisumiteng request sa TUGON:\n\n{$listStr}\n\nMaaari ninyong buksan ang inyong kahilingan upang makita ang buong detalye, admin notes, o mag-upload ng GCash receipt:\n[View My Requests](../users/my-requests.php)"
-                        : "You have submitted a total of **{$totalCount}** request(s) on record in TUGON:\n\n{$listStr}\n\nYou can track details, read admin notes, or upload your GCash payment receipt anytime:\n[View My Requests](../users/my-requests.php)";
-                } else {
-                    $answer = $isFil
-                        ? "Narito po ang tala ng inyong **{$totalCount}** na isinumiteng request sa parokya:\n\n{$listStr}\n\nMaaari ninyong buksan ang inyong kahilingan upang makita ang buong detalye, admin notes, o mag-upload ng GCash receipt:\n[View My Requests](../users/my-requests.php)"
-                        : "Here are your **{$totalCount}** submitted request(s) on record in TUGON:\n\n{$listStr}\n\nYou can track details, read admin notes, or upload your GCash payment receipt anytime:\n[View My Requests](../users/my-requests.php)";
-                }
+                $statusMeanings = $isFil
+                    ? "📌 **Kahulugan ng Status:**\n• **Pending**: Kasalukuyang sinusuri ng parish staff\n• **Approved**: Kumpirmado at nakatakda / sinisimulan na ang proseso\n• **Rejected**: Tingnan ang admin remarks sa request o makipag-ugnayan sa opisina\n• **Ready for Pickup**: Handa nang kunin sa opisina ng parokya"
+                    : "📌 **Status Meanings:**\n• **Pending**: Awaiting review by parish staff\n• **Approved**: Confirmed and added to calendar / processing started\n• **Rejected**: See admin remarks on request or contact parish office\n• **Ready for Pickup**: Ready to claim at parish office";
+
+                $answer = $isFil
+                    ? "Sumainyo ang kapayapaan! Narito po ang inyong **{$totalCount}** na naisumiteng request sa TUGON:\n\n{$listStr}\n\n{$statusMeanings}\n\nUpang makita ang kumpletong detalye o mag-upload ng karagdagang requirements gamit ang inyong Reference Number:\n[View My Requests](../users/my-requests.php)"
+                    : "Peace be with you! Here is the status of your **{$totalCount}** submitted request(s) on record in TUGON:\n\n{$listStr}\n\n{$statusMeanings}\n\nYou can track details, read admin notes, or upload requirements using your Reference Number anytime:\n[View My Requests](../users/my-requests.php)";
             } else {
                 $answer = $isFil
-                    ? "Wala pa po kayong naitalang request sa kasalukuyan (**0 requests**). Kung nais ninyong kumuha ng sertipiko o humiling ng basbas, maaari po kayong magsumite dito:\n\n[Request Certificate](../users/request-certificate.php) • [Request Blessing](../users/request-blessing.php)"
-                    : "You currently have **0** submitted requests on record in TUGON. If you need a parish certificate or blessing, you can submit one below:\n\n[Request Certificate](../users/request-certificate.php) • [Request Blessing](../users/request-blessing.php)";
+                    ? "Sumainyo ang kapayapaan! Wala pa po kayong naitalang aktibong request sa kasalukuyan (**0 requests**).\n\nPara subaybayan ang inyong kahilingan:\n• Ihanda ang inyong **Reference Number** (hal. `TUGON-2026-XXXX`)\n• Buksan ang [My Requests](../users/my-requests.php)\n\n📌 **Kahulugan ng mga Status:**\n• **Pending**: Awaiting staff review\n• **Approved**: Confirmed and added to calendar\n• **Rejected**: May kailangang iwasto — tingnan ang remarks\n\nNais po ba ninyong tulungan ko kayo sa pagsumite ng bagong request?"
+                    : "Peace be with you! You currently have **0** submitted requests on record in TUGON.\n\nTo track any request:\n• Have your **Reference Number** ready (e.g., `TUGON-2026-XXXX`)\n• Open [Track My Requests](../users/my-requests.php)\n\n📌 **Status Meanings:**\n• **Pending**: Awaiting parish staff review\n• **Approved**: Confirmed and added to calendar / processing\n• **Rejected**: See notes on request or contact office\n\nWould you like me to show you how to submit a new certificate or blessing request?";
             }
             return [
                 'answer' => $answer,
@@ -425,42 +422,52 @@ final class AiAssistantService
             ];
         }
 
-        // J-CERT. Certificate Requirements — fixed canonical answer: Birth Certificate / PSA only.
-        // This covers any rephrasing of "what do I need for a certificate/certification" regardless of type.
+        // J-CERT. Certificate Requirements — fixed canonical answer: Birth Certificate / PSA copy + ₱100 fee.
         if (preg_match('/\b(?:ano(?:ng)?\s+(?:kailangan|requirement|dokumento)|what(?:\s+do\s+i\s+need|\s+are\s+the\s+requirements?|\s+documents?\s+(?:do\s+i\s+need|are\s+needed|are\s+required))|requirements?\s+(?:for\s+(?:(?:a|the)\s+)?(?:baptis(?:mal?)?|first\s+communion|communion|confirmation|kumpil|binyag)\s*(?:certificate|certification|cert)?|po|naman)|kailangan\s+(?:ko|namin|po)?\s+(?:para\s+sa)?(?:\s+(?:baptis(?:mal?)?|first\s+communion|communion|confirmation|kumpil|binyag))?(?:\s*(?:certificate|certification|cert|sertipiko))|(?:para\s+makakuha|to\s+get|to\s+request|to\s+apply)\s+(?:ng\s+)?(?:a\s+)?(?:baptis(?:mal?)?|first\s+communion|communion|confirmation)\s*(?:certificate|certification|cert))\b/iu', $normalized)
             && !preg_match('/\b(?:wedding|kasal|marriage|blessing|basbas|binyag\s+service|baptism\s+service|funeral)\b/iu', $normalized)
         ) {
-            $answer = $isFil
-                ? "Ang tanging kinakailangan para makakuha ng anumang **sertipiko o sertipikasyon** (Baptismal, First Communion, o Confirmation) ay:\n\n📄 **Birth Certificate o PSA (Philippine Statistics Authority) copy.**\n\n[Humiling ng Sertipiko](../users/request-certificate.php)"
-                : "The only requirement to obtain any **certificate or certification** (Baptismal, First Communion, or Confirmation) is:\n\n📄 **Birth Certificate or PSA (Philippine Statistics Authority) copy.**\n\n[Request Certificate](../users/request-certificate.php)";
+            $isBaptismCert = (bool) preg_match('/\bbaptis/i', $normalized);
+            if ($isBaptismCert) {
+                $answer = $isFil
+                    ? "Para sa **Baptismal Certificate** request, ihanda po ang mga sumusunod:\n\n• **PSA / Birth Certificate** copy ng bininyagan\n• Kumpletong detalye: Buong pangalan, petsa ng kapanganakan, at pangalan ng mga magulang\n• Bayad (Fee): **₱100.00** bawat kopya\n\nMaaari po kayong magsumite nang direkta sa pamamagitan ng [Baptism Certificate Request](../users/request-certificate.php).\n\nNais po ba ninyong tulungan ko kayo sa pagsumite ng kahilingang ito?"
+                    : "For a **Baptism Certificate** request, please prepare the following:\n\n• Copy of **PSA / Birth Certificate**\n• Complete record details: Full name, date of birth, and parents' names\n• Processing Fee: **₱100.00** per copy\n\nYou can submit your request directly through the [Baptism Certificate](../users/request-certificate.php) request feature.\n\nWould you like me to show you how to submit this request?";
+            } else {
+                $answer = $isFil
+                    ? "Para makakuha ng **sertipiko** (Baptismal, First Communion, o Confirmation), narito ang mga kailangan:\n\n• **PSA Birth Certificate** copy\n• Personal na detalye ng may-ari ng talaan\n• Bayad (Fee): **₱100.00** bawat kopya\n\nMaaari po kayong magsumite sa [Request Certificate](../users/request-certificate.php).\n\nNais po ba ninyong tulungan ko kayo sa pagsumite ng form?"
+                    : "To obtain an official parish **certificate** (Baptismal, First Communion, or Confirmation):\n\n• Copy of **PSA / Birth Certificate**\n• Personal record details (Full Name, Date of Birth, Parents' Names)\n• Processing Fee: **₱100.00** per copy\n\nYou can submit your request directly through [Request Certificate](../users/request-certificate.php).\n\nWould you like me to show you how to submit this request?";
+            }
             return [
                 'answer' => $answer,
                 'prompts' => ['Request Certificate', 'How to request a certificate', 'Track My Requests']
             ];
         }
 
-        // J-SACRAMENT. Sacramental Requirements (for sacrament services, not certificates — Marriage, Baptism Service, Confirmation, Communion, Blessings)
-        if (preg_match('/\b(?:what are the requirements for (?:baptism|confirmation|marriage|first communion|wedding)|requirements for (?:baptism|confirmation|marriage|communion|kasal|binyag|kumpil)|what information should i provide for a blessing request)\b/iu', $normalized)) {
+        // J-SACRAMENT. Sacramental Requirements (for sacrament services, not certificates — Marriage, Baptism Service, Confirmation, Communion, Funeral Mass, Blessings)
+        if (preg_match('/\b(?:what are the requirements for (?:baptism|confirmation|marriage|first communion|wedding|funeral)|requirements for (?:baptism|confirmation|marriage|communion|kasal|binyag|kumpil|funeral|libing|patay)|what information should i provide for a blessing request|funeral mass requirements?)\b/iu', $normalized)) {
             if (preg_match('/\bblessing/i', $normalized)) {
                 $answer = $isFil
                     ? "Mga kailangan para sa **Blessing Request**:\n1. Uri ng blessing (Bahay, Sasakyan, Negosyo, Imahen)\n2. Kumpletong address at landmark\n3. Nais na petsa at oras\n4. Pangalan at contact number ng humihiling\n5. Karagdagang paalala para sa pari.\n\n[Request Blessing](../users/request-blessing.php)"
                     : "Information required for a **Blessing Request**:\n1. Blessing category (House, Vehicle, Business, Religious Articles)\n2. Complete physical address and landmark\n3. Preferred date and time\n4. Contact person name and mobile number\n5. Any special notes for the priest.\n\n[Request Blessing](../users/request-blessing.php)";
             } elseif (preg_match('/\bmarriage|wedding|kasal/i', $normalized)) {
                 $answer = $isFil
-                    ? "Requirements para sa **Kasal (Holy Matrimony)**:\n1. PSA Birth Certificate (Groom & Bride)\n2. PSA CENOMAR (Certificate of No Marriage Record)\n3. Updated Baptismal & Confirmation Certificates na may tatak na 'For Marriage Purposes'\n4. Pre-Cana Marriage Preparation Seminar Certificate\n5. Canonical Interview sa Kura Paroko\n6. Tawag sa Simbahan (Marriage Banns - 3 Linggo)\n7. Marriage License o Article 34 Affidavit.\n\n[Reserve Wedding](../users/request-service.php)"
-                    : "Requirements for **Holy Matrimony / Wedding**:\n1. PSA Birth Certificates (Bride & Groom)\n2. PSA CENOMAR (Certificate of No Marriage Record)\n3. Updated Baptismal & Confirmation Certificates annotated 'For Marriage Purposes'\n4. Pre-Cana Marriage Seminar Certificate\n5. Canonical Interview with Parish Priest\n6. Publication of Marriage Banns (3 consecutive Sundays)\n7. Marriage License or Article 34 Affidavit.\n\n[Reserve Wedding](../users/request-service.php)";
+                    ? "Requirements para sa **Kasal (Holy Matrimony)**:\n• PSA Birth Certificate (Groom & Bride)\n• PSA CENOMAR (Certificate of No Marriage Record)\n• Updated Baptismal & Confirmation Certificates na may tatak na 'For Marriage Purposes'\n• Pre-Cana Marriage Preparation Seminar Certificate\n• Canonical Interview sa Kura Paroko\n• Tawag sa Simbahan (Marriage Banns - 3 Linggo)\n• Marriage License o Article 34 Affidavit.\n\n[Reserve Wedding](../users/request-service.php)"
+                    : "Requirements for **Holy Matrimony / Wedding**:\n• PSA Birth Certificates (Bride & Groom)\n• PSA CENOMAR (Certificate of No Marriage Record)\n• Updated Baptismal & Confirmation Certificates annotated 'For Marriage Purposes'\n• Pre-Cana Marriage Seminar Certificate\n• Canonical Interview with Parish Priest\n• Publication of Marriage Banns (3 consecutive Sundays)\n• Marriage License or Article 34 Affidavit.\n\n[Reserve Wedding](../users/request-service.php)";
+            } elseif (preg_match('/\bfuneral|patay|libing|burial/i', $normalized)) {
+                $answer = $isFil
+                    ? "Requirements para sa **Funeral Mass / Pagbabasbas ng Yumao**:\n• Kopya ng **PSA o Local Civil Registrar Death Certificate**\n• Burial Permit o detalye ng sementeryo / crematorium\n• Buong pangalan ng yumao, petsa ng kapanganakan, at petsa ng pagpanaw\n• Pangalan at contact number ng kinatawan ng pamilya\n• Pakikipag-ugnayan sa opisina ng parokya para sa takdang iskedyul ng pari.\n\n[Request Service](../users/request-service.php)"
+                    : "Requirements for a **Funeral Mass / Blessing**:\n• Certified copy of **PSA or Civil Registrar Death Certificate**\n• Burial permit or cemetery / crematorium coordination details\n• Deceased's full name, date of birth, and date of passing\n• Contact person name and mobile number of immediate kin\n• Coordination with parish office for priest availability.\n\n[Request Service](../users/request-service.php)";
             } elseif (preg_match('/\bbaptism|binyag/i', $normalized)) {
                 $answer = $isFil
-                    ? "Requirements para sa **Binyag (Baptism)**:\n1. PSA / Local Civil Registrar Birth Certificate ng bata\n2. Catholic Marriage Certificate ng mga magulang (kung kasal)\n3. Listahan ng mga Ninong at Ninang (kahit isa ay Katoliko)\n4. Pagdalo sa Pre-Baptismal Seminar\n5. Parish Permission Letter (kung nakatira sa labas ng nasasakupan ng parokya).\n\n[Reserve Baptism](../users/request-service.php)"
-                    : "Requirements for **Baptism**:\n1. Child's PSA / Civil Registrar Birth Certificate\n2. Parents' Catholic Marriage Certificate (if married)\n3. Godparent / Sponsor list (at least 1 Catholic sponsor)\n4. Pre-Baptismal Seminar attendance\n5. Parish Permission Letter (if living outside parish territory).\n\n[Reserve Baptism](../users/request-service.php)";
+                    ? "Requirements para sa **Binyag (Baptism)**:\n• PSA / Local Civil Registrar Birth Certificate ng bata\n• Catholic Marriage Certificate ng mga magulang (kung kasal)\n• Listahan ng mga Ninong at Ninang (kahit isa ay Katoliko)\n• Pagdalo sa Pre-Baptismal Seminar\n• Parish Permission Letter (kung nakatira sa labas ng nasasakupan ng parokya).\n\n[Reserve Baptism](../users/request-service.php)"
+                    : "Requirements for **Baptism**:\n• Child's PSA / Civil Registrar Birth Certificate\n• Parents' Catholic Marriage Certificate (if married)\n• Godparent / Sponsor list (at least 1 Catholic sponsor)\n• Pre-Baptismal Seminar attendance\n• Parish Permission Letter (if living outside parish territory).\n\n[Reserve Baptism](../users/request-service.php)";
             } elseif (preg_match('/\bconfirmation|kumpil/i', $normalized)) {
                 $answer = $isFil
-                    ? "Requirements para sa **Kumpil (Confirmation)**:\n1. PSA Birth Certificate\n2. Baptismal Certificate na may tatak na 'For Confirmation Purposes'\n3. Isang Katolikong Ninong o Ninang\n4. Pagdalo sa Confirmation Catechesis.\n\n[Request Service](../users/request-service.php)"
-                    : "Requirements for **Confirmation**:\n1. PSA Birth Certificate\n2. Baptismal Certificate annotated 'For Confirmation Purposes'\n3. One Catholic sponsor (Ninong/Ninang)\n4. Attendance in parish Confirmation Catechesis.\n\n[Request Service](../users/request-service.php)";
+                    ? "Requirements para sa **Kumpil (Confirmation)**:\n• PSA Birth Certificate\n• Baptismal Certificate na may tatak na 'For Confirmation Purposes'\n• Isang Katolikong Ninong o Ninang\n• Pagdalo sa Confirmation Catechesis.\n\n[Request Service](../users/request-service.php)"
+                    : "Requirements for **Confirmation**:\n• PSA Birth Certificate\n• Baptismal Certificate annotated 'For Confirmation Purposes'\n• One Catholic sponsor (Ninong/Ninang)\n• Attendance in parish Confirmation Catechesis.\n\n[Request Service](../users/request-service.php)";
             } else {
                 $answer = $isFil
-                    ? "Requirements para sa **First Holy Communion**:\n1. PSA Birth Certificate\n2. Baptismal Certificate\n3. Pagkakatapos ng First Communion Catechism classes at unang kumpisal.\n\n[Request Service](../users/request-service.php)"
-                    : "Requirements for **First Holy Communion**:\n1. PSA Birth Certificate\n2. Baptismal Certificate\n3. Completion of First Communion Catechism instruction and First Confession.\n\n[Request Service](../users/request-service.php)";
+                    ? "Requirements para sa **First Holy Communion**:\n• PSA Birth Certificate\n• Baptismal Certificate\n• Pagkakatapos ng First Communion Catechism classes at unang kumpisal.\n\n[Request Service](../users/request-service.php)"
+                    : "Requirements for **First Holy Communion**:\n• PSA Birth Certificate\n• Baptismal Certificate\n• Completion of First Communion Catechism instruction and First Confession.\n\n[Request Service](../users/request-service.php)";
             }
             return [
                 'answer' => $answer,
@@ -657,10 +664,37 @@ final class AiAssistantService
         }
 
         // S. Schedules and Events
-        if (preg_match('/\b(?:where can i (?:see|view|find|check) (?:the )?(?:parish )?schedule|how can i check upcoming (?:parish )?events?|upcoming (?:parish )?events?|parish events?|parish schedule|mass schedule|mass times?|parish calendar|oras ng misa|iskedyul ng misa|upcoming mass schedules|what schedules are available)\b/iu', $normalized)) {
-            $answer = $isFil
-                ? "Maaari ninyong tingnan ang kumpletong iskedyul ng mga Misa (Linggo at Araw-araw), mga kaganapan, at banal na pagdiriwang sa ating **Parish Calendar**:\n\n• **Misa tuwing Linggo**: 6:00 AM, 8:00 AM, 10:00 AM, 4:00 PM, 5:30 PM, 7:00 PM\n• **Araw-araw (Martes - Sabado)**: 6:30 AM, 6:00 PM\n\n[View Schedule](../users/view-schedule.php)"
-                : "You can view the comprehensive parish schedule, regular Sunday and weekday Mass times, feast day celebrations, and sacramental calendar here:\n\n• **Sunday Masses**: 6:00 AM, 8:00 AM, 10:00 AM, 4:00 PM, 5:30 PM, 7:00 PM\n• **Weekday Masses (Tue - Sat)**: 6:30 AM, 6:00 PM\n\n[View Schedule](../users/view-schedule.php)";
+        if (preg_match('/\b(?:where can i (?:see|view|find|check) (?:the )?(?:parish )?schedule|how can i check upcoming (?:parish )?events?|upcoming (?:parish )?events?|parish events?|parish schedule|mass schedule|mass times?|parish calendar|oras ng misa|iskedyul ng misa|upcoming mass schedules|what schedules are available|is (?:there )?(?:a )?(?:sunday|weekday|daily)?\s*(?:\d{1,2}(?::\d{2})?\s*(?:am|pm)?)?\s*mass (?:still )?(?:happening|available|going on)|is sunday 9am mass still happening)\b/iu', $normalized)) {
+            $isSpecificMass = (bool) preg_match('/\b(?:is (?:there )?(?:a )?(?:sunday|weekday|daily)?\s*(?:\d{1,2}(?::\d{2})?\s*(?:am|pm)?)|9am|9:00|is sunday.*happening)\b/iu', $normalized);
+            if ($isSpecificMass) {
+                $answer = $isFil
+                    ? "Sumainyo ang kapayapaan! Batay sa kasalukuyang iskedyul ng ating parokya:\n\n" .
+                      "• **Misa tuwing Linggo**: 6:00 AM, 8:00 AM, 10:00 AM, 4:00 PM, 5:30 PM, at 7:00 PM\n" .
+                      "• **Martes hanggang Sabado**: 6:30 AM at 6:00 PM\n\n" .
+                      "*(Paunawa: Walang regular na 9:00 AM Misa tuwing Linggo; ang pinakamalapit na oras sa umaga ay 8:00 AM at 10:00 AM.)*\n\n" .
+                      "Kung may kapistahan o espesyal na solemnidad, maaaring magkaroon ng kaunting pagbabago. Maaari po ninyong kumpirmahin sa ating [Parish Calendar](../users/view-schedule.php) o makipag-ugnayan sa opisina ng parokya sa **0997 742 8176**.\n\n" .
+                      "Nais po ba ninyong tingnan ang iba pang iskedyul ng misa?"
+                    : "Peace be with you! Based on our official parish schedule:\n\n" .
+                      "• **Sunday Masses**: 6:00 AM, 8:00 AM, 10:00 AM, 4:00 PM, 5:30 PM, and 7:00 PM\n" .
+                      "• **Weekday Masses (Tue - Sat)**: 6:30 AM and 6:00 PM\n\n" .
+                      "*(Note: There is no regular 9:00 AM Sunday Mass; the nearest morning slots are 8:00 AM and 10:00 AM.)*\n\n" .
+                      "Please confirm any special feast day or holiday schedules on the [Parish Calendar](../users/view-schedule.php) or contact the parish office at **0997 742 8176** to confirm.\n\n" .
+                      "Would you like me to check any other mass times for you?";
+            } else {
+                $answer = $isFil
+                    ? "Sumainyo ang kapayapaan! Narito ang regular na iskedyul ng Banal na Misa sa ating parokya:\n\n" .
+                      "• **Misa tuwing Linggo**: 6:00 AM, 8:00 AM, 10:00 AM, 4:00 PM, 5:30 PM, 7:00 PM\n" .
+                      "• **Araw-araw (Martes - Sabado)**: 6:30 AM, 6:00 PM\n" .
+                      "• **Fiesta / Espesyal na Pagdiriwang**: Tingnan ang mga anunsyo sa kalendaryo\n\n" .
+                      "Maaari ninyong tingnan ang live calendar dito:\n[View Parish Schedule](../users/view-schedule.php)\n\n" .
+                      "Nais po ba ninyong tulungan ko kayo sa paghahanap ng iskedyul ng pista o sakramento?"
+                    : "Peace be with you! Here is the regular Holy Mass schedule of our parish:\n\n" .
+                      "• **Sunday Masses**: 6:00 AM, 8:00 AM, 10:00 AM, 4:00 PM, 5:30 PM, 7:00 PM\n" .
+                      "• **Weekday Masses (Tue - Sat)**: 6:30 AM, 6:00 PM\n" .
+                      "• **Feast Days / Special Schedules**: Published on the parish calendar\n\n" .
+                      "You can view the full live calendar here:\n[View Parish Schedule](../users/view-schedule.php)\n\n" .
+                      "Would you like me to help you check upcoming feast day or special event schedules?";
+            }
             return [
                 'answer' => $answer,
                 'prompts' => ['View Schedule', 'Request Certificate', 'Make Reservation']

@@ -20,6 +20,7 @@ final class TugonConversationalIntent
     const NICE = 'NICE';
     const WHO_ARE_YOU = 'WHO_ARE_YOU';
     const WHAT_CAN_YOU_DO = 'WHAT_CAN_YOU_DO';
+    const ABOUT_ASSISTANT = 'WHAT_CAN_YOU_DO';
     const HELP = 'HELP';
 
     /**
@@ -68,7 +69,7 @@ final class TugonConversationalIntent
 
         // 4. Good night
         if (preg_match('/^(?:good night|goodnight|gud night|gud nyt|tulog na po|pahinga na po|matulog na ko)(?: po)?(?: tugon(?: ai)?)?$/u', $normalized)) {
-            return self::withResponse($result, self::GOOD_NIGHT, self::goodNightResponses($language), true);
+            return self::withResponse($result, self::FAREWELL, self::goodNightResponses($language), true);
         }
 
         // 5. Thanks / Gratitude
@@ -99,9 +100,8 @@ final class TugonConversationalIntent
 
             // If the user's message is ONLY a greeting without a follow-up question
             if ($greetingMatch['remainder'] === '') {
-                $specificIntent = $greetingMatch['specific_intent'] ?: self::GREETING;
                 $prompts = ['Baptism Requirements', 'Certificate Request', 'Mass Schedule', 'Reservations'];
-                return self::withResponse($result, $specificIntent, self::greetingResponses($language, $period, $specificIntent), true, $prompts);
+                return self::withResponse($result, self::GREETING, self::greetingResponses($language, $period, $greetingMatch['specific_intent']), true, $prompts);
             }
         }
 
