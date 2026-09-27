@@ -159,7 +159,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     if (!in_array($payment_method, ['gcash', 'cash'], true)) {
         $payment_method = 'gcash';
     }
-    $payment_amount = floatval($_POST['payment_amount'] ?? 150.00);
+    $payment_amount = floatval($_POST['payment_amount'] ?? 100.00);
     $payment_reference = trim((string) ($_POST['payment_reference'] ?? ''));
     $payment_notes = trim((string) ($_POST['payment_notes'] ?? ''));
     $receipt_file = $_FILES['receipt_file'] ?? null;
@@ -2870,7 +2870,7 @@ if ($stmt) {
                                 <h6 class="fw-bold text-dark"><i class="fas fa-money-bill-wave text-warning me-1"></i> How to Pay via GCash</h6>
                                 <ul class="payment-guide-list mb-0">
                                     <li>Send your certificate fee via GCash to the name and number provided above.</li>
-                                    <li>Standard certificate offering is <strong>PHP 150.00</strong> (or the amount advised by parish office).</li>
+                                    <li>Standard certificate offering is <strong>PHP 100.00</strong> (or the amount advised by parish office).</li>
                                     <li>Save a screenshot or photo of your payment transaction confirmation.</li>
                                     <li>Attach the receipt below so parish staff can verify your payment immediately.</li>
                                 </ul>
@@ -2880,7 +2880,7 @@ if ($stmt) {
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label fw-bold" for="payment_amount">Amount (PHP) <span class="text-danger">*</span></label>
-                                <input type="number" class="form-control request-form-control" id="payment_amount" name="payment_amount" min="1" step="0.01" inputmode="decimal" placeholder="e.g. 150.00" value="<?php echo e($_POST['payment_amount'] ?? '150.00'); ?>">
+                                <input type="number" class="form-control request-form-control" id="payment_amount" name="payment_amount" min="1" step="0.01" inputmode="decimal" placeholder="e.g. 100.00" value="<?php echo e($_POST['payment_amount'] ?? '100.00'); ?>">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold" for="payment_reference">GCash Reference Number <span class="text-muted small fw-normal">(Optional)</span></label>
