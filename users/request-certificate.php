@@ -170,6 +170,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $release_method = 'online';
     }
 
+    $selected_category = trim((string) ($_POST['certificate_category'] ?? ''));
+    if ($selected_category === '' && isset($certificate_meta[$request_type])) {
+        $selected_category = $certificate_meta[$request_type]['category'] ?? '';
+    }
+    $is_original_certificate = ($selected_category === 'certificate') || (($certificate_meta[$request_type]['category'] ?? '') === 'certificate');
+
     $is_baptism = in_array($request_type, ['baptismal_certificate', 'baptism_certification', 'baptism'], true);
     $is_communion = in_array($request_type, ['first_communion_certificate', 'first_communion_certification', 'first_communion', 'communion'], true);
     $is_confirmation = in_array($request_type, ['confirmation_certificate', 'confirmation_certification', 'confirmation'], true);
@@ -226,11 +232,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $error = 'Please provide the full legal name of the person named on the certificate.';
     } elseif ($is_baptism && !empty($baptism_missing)) {
         $error = 'Please complete all required fields for the baptismal record: ' . implode(', ', $baptism_missing) . '.';
-    } elseif (!array_key_exists($purpose, $certificate_purposes)) {
+    } elseif (!$is_original_certificate && !array_key_exists($purpose, $certificate_purposes)) {
         $error = 'Please select the purpose of your certificate request.';
-    } elseif ($purpose === 'others' && $purpose_other === '') {
+    } elseif (!$is_original_certificate && $purpose === 'others' && $purpose_other === '') {
         $error = 'Please specify the purpose of your certificate request.';
-    } elseif ($purpose === 'others' && strlen($purpose_other) > 180) {
+    } elseif (!$is_original_certificate && $purpose === 'others' && strlen($purpose_other) > 180) {
         $error = 'The custom purpose must be 180 characters or fewer.';
     } elseif (!requestUploadHasFiles($_FILES['requirement_files'] ?? null)) {
         $error = 'Please upload a copy of the required supporting document (e.g. PSA / Birth Certificate) before submitting your certificate request.';
@@ -243,17 +249,21 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     } elseif ($payment_method === 'gcash' && !$has_receipt) {
         $error = 'Please upload your GCash payment confirmation receipt or screenshot.';
     } else {
-        $purpose_description = $purpose === 'others' ? $purpose_other : $certificate_purposes[$purpose];
+        $purpose_description = (!$is_original_certificate && $purpose !== '')
+            ? ($purpose === 'others' ? $purpose_other : ($certificate_purposes[$purpose] ?? ''))
+            : '';
         $release_label = ($release_method === 'walk_in') ? 'Walk-in Pickup (Parish Office)' : 'Online Release (Digital Delivery)';
         $payment_label = ($payment_method === 'gcash') ? 'GCash Transfer' : 'Cash (Parish Office Settlement)';
 
         $description_parts = [
             'Record Holder Name: ' . $record_holder_name,
             'Required document: ' . $certificate_required_document,
-            'Purpose: ' . $purpose_description,
-            'Payment Method: ' . $payment_label,
-            'Release Method: ' . $release_label
         ];
+        if (!$is_original_certificate && $purpose_description !== '') {
+            $description_parts[] = 'Purpose: ' . $purpose_description;
+        }
+        $description_parts[] = 'Payment Method: ' . $payment_label;
+        $description_parts[] = 'Release Method: ' . $release_label;
 
         if ($is_communion) {
             $commDate = trim((string)($_POST['communion_date'] ?? ''));
@@ -353,8 +363,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 saveRequestDocument($conn, $request_id, $user_id, $communion_seminar_file, 'requirement', 'First Communion — Seminar/Attendance Certificate');
                 $documents['saved'] = ($documents['saved'] ?? 0) + 1;
             }
-            // Save optional single supporting doc for baptism/confirmation
-            if (($is_baptism || $is_confirmation) && $has_supporting_doc) {
+            // Save optional single supporting doc for baptism/confirmation (Certification flow only)
+            if (!$is_original_certificate && ($is_baptism || $is_confirmation) && $has_supporting_doc) {
                 saveRequestDocument($conn, $request_id, $user_id, $supporting_doc_file, 'requirement', 'Supporting Document');
                 $documents['saved'] = ($documents['saved'] ?? 0) + 1;
             }
@@ -2404,8 +2414,10 @@ if ($stmt) {
 
                 <?php
                     $selected_request_type = (string)($_POST['request_type'] ?? $_POST['certificate_mobile_type'] ?? '');
-                    $active_category = $certificate_meta[$selected_request_type]['category'] ?? '';
+                    $active_category = $certificate_meta[$selected_request_type]['category'] ?? ($_POST['certificate_category'] ?? '');
+                    $is_original_post = ($active_category === 'certificate');
                 ?>
+                <input type="hidden" name="certificate_category" id="certificateCategoryInput" value="<?php echo e($active_category); ?>">
 
                 <!-- Step 1a: Category Selection ("What do you need?") -->
                 <div class="category-selection-container" id="categorySelectionView" style="<?php echo !empty($active_category) ? 'display: none;' : ''; ?>">
@@ -2708,9 +2720,9 @@ if ($stmt) {
                 </div>
             </section>
 
-            <section class="form-step">
+            <section class="form-step" id="stepPurposeSection" <?php echo ($is_original_post) ? 'style="display: none;"' : ''; ?>>
                 <div class="step-heading">
-                    <span class="step-number">3</span>
+                    <span class="step-number" id="stepPurposeNumber">3</span>
                     <div>
                         <h3>Certificate Details</h3>
                         <p>Select the purpose of your request. Staff will use this to help verify the record.</p>
@@ -2718,14 +2730,14 @@ if ($stmt) {
                 </div>
 
                 <label for="purpose" class="form-label">Purpose</label>
-                <select class="form-select request-form-control" id="purpose" name="purpose" required>
+                <select class="form-select request-form-control" id="purpose" name="purpose" <?php echo ($is_original_post) ? '' : 'required'; ?>>
                     <option value="">Select purpose</option>
                     <?php foreach ($certificate_purposes as $purpose_value => $purpose_label): ?>
                         <option value="<?php echo e($purpose_value); ?>" <?php echo (($_POST['purpose'] ?? '') === $purpose_value) ? 'selected' : ''; ?>><?php echo e($purpose_label); ?></option>
                     <?php endforeach; ?>
                 </select>
 
-                <div class="certificate-purpose-other" id="purposeOtherField" <?php echo (($_POST['purpose'] ?? '') === 'others') ? '' : 'hidden'; ?>>
+                <div class="certificate-purpose-other" id="purposeOtherField" <?php echo (!$is_original_post && ($_POST['purpose'] ?? '') === 'others') ? '' : 'hidden'; ?>>
                     <label for="purpose_other" class="form-label">Please specify</label>
                     <input type="text" class="form-control request-form-control" id="purpose_other" name="purpose_other" maxlength="180" value="<?php echo e($_POST['purpose_other'] ?? ''); ?>" placeholder="e.g. School enrollment, employment requirement">
                 </div>
@@ -2733,9 +2745,9 @@ if ($stmt) {
                 <div class="form-text"><i class="fas fa-wand-magic-sparkles"></i> TUGON tip: choose “Others” if your purpose is not listed, then briefly describe it so staff can verify your record faster.</div>
             </section>
 
-            <section class="form-step">
+            <section class="form-step" id="stepUploadSection">
                 <div class="step-heading">
-                    <span class="step-number">4</span>
+                    <span class="step-number" id="stepUploadNumber"><?php echo ($is_original_post) ? '3' : '4'; ?></span>
                     <div>
                         <h3>Upload All Requirements</h3>
                         <p>Upload all required documents for your certificate request (e.g. PSA / Birth Certificate, Valid ID, or supporting records).</p>
@@ -2824,7 +2836,7 @@ if ($stmt) {
 
             <section class="form-step" id="paymentReleaseStep">
                 <div class="step-heading">
-                    <span class="step-number">5</span>
+                    <span class="step-number" id="stepPaymentNumber"><?php echo ($is_original_post) ? '4' : '5'; ?></span>
                     <div>
                         <h3>Payment &amp; Release</h3>
                         <p>Select your payment method and choose how you would like to receive your official certificate.</p>
@@ -3085,6 +3097,67 @@ if ($stmt) {
             });
         });
 
+        function updateCategoryUI(cat) {
+            const isOriginal = (cat === 'certificate');
+            const stepPurposeSection = document.getElementById('stepPurposeSection');
+            const stepUploadNumber = document.getElementById('stepUploadNumber');
+            const stepPaymentNumber = document.getElementById('stepPaymentNumber');
+            const supportingDocSection = document.getElementById('supportingDocSection');
+            const categoryInput = document.getElementById('certificateCategoryInput');
+
+            if (categoryInput) {
+                categoryInput.value = cat || '';
+            }
+
+            if (stepPurposeSection) {
+                stepPurposeSection.style.display = isOriginal ? 'none' : '';
+                if (purposeSelect) {
+                    if (isOriginal) {
+                        purposeSelect.required = false;
+                        purposeSelect.removeAttribute('required');
+                    } else {
+                        purposeSelect.required = true;
+                        purposeSelect.setAttribute('required', 'required');
+                    }
+                }
+                if (purposeOtherInput) {
+                    if (isOriginal) {
+                        purposeOtherInput.required = false;
+                        purposeOtherInput.removeAttribute('required');
+                    } else if (purposeSelect && purposeSelect.value === 'others') {
+                        purposeOtherInput.required = true;
+                        purposeOtherInput.setAttribute('required', 'required');
+                    }
+                }
+            }
+
+            if (stepUploadNumber) {
+                stepUploadNumber.textContent = isOriginal ? '3' : '4';
+            }
+            if (stepPaymentNumber) {
+                stepPaymentNumber.textContent = isOriginal ? '4' : '5';
+            }
+
+            if (supportingDocSection) {
+                if (isOriginal) {
+                    supportingDocSection.style.display = 'none';
+                    const supportingInput = document.getElementById('supporting_doc');
+                    if (supportingInput) supportingInput.value = '';
+                    const supportingPreview = document.getElementById('supportingDocPreview');
+                    if (supportingPreview) supportingPreview.style.display = 'none';
+                } else {
+                    const checkedRadio = document.querySelector('input[name="request_type"]:checked');
+                    const val = (checkedRadio ? checkedRadio.value : '') || (mobileSelect ? mobileSelect.value : '');
+                    const isBap = isBaptismType(val);
+                    const isConf = (val === 'confirmation_certificate' || val === 'confirmation_certification' || val === 'confirmation');
+                    supportingDocSection.style.display = (isBap || isConf) ? 'block' : 'none';
+                }
+            }
+
+            updatePurposeField();
+            window.dispatchEvent(new CustomEvent('tugon:categorychange', { detail: { category: cat } }));
+        }
+
         function showCategoryFlow(cat, options) {
             options = options || {};
             const shouldAnimate = options.animate !== false;
@@ -3101,6 +3174,7 @@ if ($stmt) {
             }
 
             currentCategory = cat || '';
+            updateCategoryUI(currentCategory);
 
             // Update category cards visual state
             categoryCards.forEach(function(card) {
@@ -3180,6 +3254,13 @@ if ($stmt) {
 
         function updatePurposeField() {
             if (!purposeSelect || !purposeOtherField || !purposeOtherInput) return;
+            const isOriginal = (currentCategory === 'certificate');
+            if (isOriginal) {
+                purposeOtherField.hidden = true;
+                purposeOtherInput.required = false;
+                purposeOtherInput.removeAttribute('required');
+                return;
+            }
             const showOther = purposeSelect.value === 'others';
             purposeOtherField.hidden = !showOther;
             purposeOtherInput.required = showOther;
@@ -3239,9 +3320,16 @@ if ($stmt) {
                 if (cbDoc) cbDoc.required = isCom;
                 if (csDoc) csDoc.required = isCom;
             }
-            // Baptism / Confirmation — optional single supporting doc
+            // Baptism / Confirmation — optional single supporting doc (Certification flow only)
             if (supportingDocSection) {
-                supportingDocSection.style.display = (isBap || isConf) ? 'block' : 'none';
+                const isOriginal = (currentCategory === 'certificate') || (certificateMeta[type] && certificateMeta[type].category === 'certificate');
+                supportingDocSection.style.display = (!isOriginal && (isBap || isConf)) ? 'block' : 'none';
+                if (isOriginal) {
+                    const supportingInput = document.getElementById('supporting_doc');
+                    if (supportingInput) supportingInput.value = '';
+                    const supportingPreview = document.getElementById('supportingDocPreview');
+                    if (supportingPreview) supportingPreview.style.display = 'none';
+                }
             }
         }
 
@@ -3284,6 +3372,8 @@ if ($stmt) {
                 const targetCat = certificateMeta[value].category;
                 if (currentCategory !== targetCat) {
                     showCategoryFlow(targetCat, { animate: false });
+                } else {
+                    updateCategoryUI(targetCat);
                 }
             }
         }
@@ -3373,6 +3463,7 @@ if ($stmt) {
         if (initialType) {
             toggleBaptismFields(initialType);
         }
+        updateCategoryUI(currentCategory);
 
         function renderFiles(files) {
             if (!files || files.length === 0 || !filePreview) {
@@ -3507,18 +3598,22 @@ if ($stmt) {
                     setCertificateType(mobileVal);
                 }
 
-                if (purposeSelect && !purposeSelect.value) {
-                    event.preventDefault();
-                    alert('Please select the purpose of your certificate request.');
-                    purposeSelect.focus();
-                    return false;
-                }
+                const isOriginalCert = (currentCategory === 'certificate') || (certificateMeta[selectedType] && certificateMeta[selectedType].category === 'certificate');
 
-                if (purposeSelect && purposeSelect.value === 'others' && purposeOtherInput && !purposeOtherInput.value.trim()) {
-                    event.preventDefault();
-                    alert('Please specify the purpose of your certificate request.');
-                    purposeOtherInput.focus();
-                    return false;
+                if (!isOriginalCert) {
+                    if (purposeSelect && !purposeSelect.value) {
+                        event.preventDefault();
+                        alert('Please select the purpose of your certificate request.');
+                        purposeSelect.focus();
+                        return false;
+                    }
+
+                    if (purposeSelect && purposeSelect.value === 'others' && purposeOtherInput && !purposeOtherInput.value.trim()) {
+                        event.preventDefault();
+                        alert('Please specify the purpose of your certificate request.');
+                        purposeOtherInput.focus();
+                        return false;
+                    }
                 }
 
                 if (fileInput && (!fileInput.files || fileInput.files.length === 0)) {
@@ -3572,7 +3667,23 @@ if ($stmt) {
         }
 
         function syncMobileSteps() {
-            steps.forEach(function(step, index) {
+            steps.forEach(function(step) {
+                const isHidden = (step.style.display === 'none');
+                const heading = step.querySelector('.step-heading');
+                if (!heading) return;
+                if (isHidden) {
+                    step.classList.remove('is-collapsed');
+                    heading.removeAttribute('role');
+                    heading.removeAttribute('tabindex');
+                    heading.removeAttribute('aria-expanded');
+                    delete step.dataset.mobileAccordionReady;
+                }
+            });
+
+            const visibleSteps = steps.filter(function(step) {
+                return step.style.display !== 'none';
+            });
+            visibleSteps.forEach(function(step, index) {
                 const heading = step.querySelector('.step-heading');
                 if (!heading) return;
 
@@ -3592,6 +3703,8 @@ if ($stmt) {
                 }
             });
         }
+
+        window.addEventListener('tugon:categorychange', syncMobileSteps);
 
         const mobileBack = document.querySelector('[data-certificate-mobile-back]');
         if (mobileBack) {
