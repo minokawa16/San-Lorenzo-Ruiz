@@ -106,6 +106,16 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         } elseif ($location === '') {
             $respond(false, 'Please provide the blessing location.', ['status_code' => 422]);
         } else {
+            // Double-booking check: Prevent creating schedule requests for already occupied slots
+            $conflictCheck = checkScheduleConflict($conn, $preferred_date, $preferred_time, $location);
+            if (!empty($conflictCheck['has_conflict'])) {
+                $respond(false, $conflictCheck['message'], [
+                    'status_code' => 409,
+                    'conflict' => true,
+                    'conflict_details' => $conflictCheck['conflicting_schedule'] ?? []
+                ]);
+            }
+
             $description_parts = [];
             if ($request_type === 'other_blessing') {
                 $description_parts[] = 'Requested blessing: ' . $other_blessing_name;

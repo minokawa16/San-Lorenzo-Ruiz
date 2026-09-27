@@ -3085,6 +3085,20 @@ function calendarSlotConflict($conn, $event_date, $start_time, $end_time = null,
     return ['conflict' => false, 'message' => 'Schedule is available.'];
 }
 
+require_once __DIR__ . '/../services/ScheduleConflictService.php';
+
+// Schedule Conflict Checking - Checks date, time, and location conflicts against approved/reserved schedules.
+function checkScheduleConflict($conn, $date, $time, $location, $options = []) {
+    $service = new ScheduleConflictService($conn);
+    return $service->checkConflict((string) $date, (string) $time, (string) $location, (array) $options);
+}
+
+// Occupied Schedule Slots - Retrieves occupied time slots for a given date and location.
+function getOccupiedScheduleSlots($conn, $date, $location = null, $options = []) {
+    $service = new ScheduleConflictService($conn);
+    return $service->getOccupiedSlots((string) $date, $location !== null ? (string) $location : null, (array) $options);
+}
+
 // Reservation Approval Conflict Function - Documents this helper's role in the parish management workflow.
 function reservationApprovalConflict($conn, $reservation_id) {
     $reservation_id = intval($reservation_id);
@@ -3154,6 +3168,14 @@ function requestApprovalConflict($conn, $request_id) {
     }
 
     $start_time = normalizeRequestCalendarTime(requestCalendarField($description, ['Preferred time', 'Event time', 'Time']));
+    $location = requestCalendarField($description, ['Location', 'Address', 'Venue']);
+    if ($location === '') {
+        $location = 'Main Church';
+    }
+    $scCheck = checkScheduleConflict($conn, $event_date, $start_time, $location, ['exclude_request_id' => $request_id]);
+    if ($scCheck['has_conflict']) {
+        return ['conflict' => true, 'message' => $scCheck['message']];
+    }
     return calendarSlotConflict($conn, $event_date, $start_time, null, 'request', $request_id);
 }
 
