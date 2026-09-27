@@ -1,10 +1,11 @@
 <?php
 /**
- * Test Suite for Original Certificate Flow:
- * - Omission of Purpose field (Step 3: Certificate Details)
+ * Test Suite for Certificate Flow:
+ * - Omission of Purpose field (Step 3: Certificate Details) for Original Certificate
  * - Sequential step renumbering (no gaps)
- * - Omission of optional "Attach Supporting Document" block
- * - Preservation of Certification (Registry Extract) flow exactly as-is
+ * - Complete removal of optional "Attach Supporting Document" block
+ * - Removal of 'Please present a valid ID when claiming.'
+ * - Removal of description sentences below Certification and Original Certificate titles
  * - Server-side validation logic
  */
 
@@ -44,24 +45,32 @@ assertTest(strpos($content, 'function updateCategoryUI') !== false, 'JS updateCa
 assertTest(strpos($content, "stepUploadNumber.textContent = isOriginal ? '3' : '4'") !== false, 'JS dynamically renumbers Upload step to 3 for Original Certificate');
 assertTest(strpos($content, "stepPaymentNumber.textContent = isOriginal ? '4' : '5'") !== false, 'JS dynamically renumbers Payment step to 4 for Original Certificate');
 assertTest(strpos($content, "stepPurposeSection.style.display = isOriginal ? 'none' : ''") !== false, 'JS hides Purpose section for Original Certificate');
-assertTest(strpos($content, "supportingDocSection.style.display = 'none'") !== false, 'JS hides supportingDocSection for Original Certificate');
-assertTest(strpos($content, "(!isOriginal && (isBap || isConf)) ? 'block' : 'none'") !== false, 'JS retains supportingDocSection for Certification flow only');
 
-// 4. Client-side Form Validation
+// 4. Removal of Supporting Document block from HTML and JS
+assertTest(strpos($content, 'id="supportingDocSection"') === false, 'supportingDocSection removed from HTML');
+assertTest(strpos($content, 'Attach Supporting Document (Optional)') === false, '"Attach Supporting Document (Optional)" removed from form');
+
+// 5. Removal of "Please present a valid ID when claiming."
+assertTest(strpos($content, 'Please present a valid ID when claiming.') === false, '"Please present a valid ID when claiming." removed from release info');
+
+// 6. Removal of sentences below Certification and Original Certificate
+assertTest(strpos($content, "A certified extract transcribed directly from the parish's official canonical registry books.") === false, 'Certification description sentence removed');
+assertTest(strpos($content, "An official canonical commemorative certificate for a sacrament celebrated in this parish.") === false, 'Original Certificate description sentence removed');
+
+// 7. Client-side Form Validation
 assertTest(strpos($content, 'if (!isOriginalCert) {') !== false, 'JS skips Purpose validation on submit when isOriginalCert is true');
 
-// 5. Server-side PHP Processing & Validation
+// 8. Server-side PHP Processing & Validation
 assertTest(strpos($content, '$is_original_certificate = ($selected_category === \'certificate\') || (($certificate_meta[$request_type][\'category\'] ?? \'\') === \'certificate\');') !== false, 'PHP accurately identifies Original Certificate request');
 assertTest(strpos($content, '!$is_original_certificate && !array_key_exists($purpose, $certificate_purposes)') !== false, 'PHP skips Purpose array validation for Original Certificate');
 assertTest(strpos($content, '!$is_original_certificate && $purpose === \'others\'') !== false, 'PHP skips Purpose other validation for Original Certificate');
-assertTest(strpos($content, '!$is_original_certificate && ($is_baptism || $is_confirmation) && $has_supporting_doc') !== false, 'PHP saves supporting doc only for Certification flow');
 
-// 6. Required Documents Step Intact
+// 9. Required Documents Step Intact
 assertTest(strpos($content, 'name="requirement_files[]"') !== false, 'Required requirement_files[] input is retained');
 assertTest(strpos($content, 'Upload all requirements') !== false, 'Required "Upload all requirements" label is retained');
 
 // Output summary
-echo "=== Original Certificate Flow Test Results ===\n";
+echo "=== Certificate Flow Test Results ===\n";
 foreach ($passes as $p) {
     echo $p . "\n";
 }
@@ -72,5 +81,5 @@ if (!empty($errors)) {
     }
     exit(1);
 } else {
-    echo "\nAll " . count($passes) . " Original Certificate Flow tests passed successfully!\n";
+    echo "\nAll " . count($passes) . " Certificate Flow tests passed successfully!\n";
 }

@@ -2438,7 +2438,6 @@ if ($stmt) {
                                 </div>
                                 <div class="category-card-body">
                                     <strong class="category-card-title">Certification</strong>
-                                    <p class="category-card-desc">A certified extract transcribed directly from the parish's official canonical registry books.</p>
                                 </div>
                                 <div class="category-card-footer">
                                     <span class="category-count-pill"><i class="fas fa-layer-group text-warning me-1"></i> 5 types available</span>
@@ -2458,7 +2457,6 @@ if ($stmt) {
                                 </div>
                                 <div class="category-card-body">
                                     <strong class="category-card-title">Original Certificate</strong>
-                                    <p class="category-card-desc">An official canonical commemorative certificate for a sacrament celebrated in this parish.</p>
                                 </div>
                                 <div class="category-card-footer">
                                     <span class="category-count-pill"><i class="fas fa-layer-group text-info me-1"></i> 3 types available</span>
@@ -2474,7 +2472,6 @@ if ($stmt) {
                     <div class="cert-group-header d-flex align-items-center justify-content-between flex-wrap gap-2">
                         <div class="cert-group-info">
                             <span class="cert-group-title"><i class="fas fa-file-signature text-warning me-2"></i> Sacramental Certifications</span>
-                            <span class="cert-group-desc">Certified official extracts transcribed directly from parish canonical registry books.</span>
                         </div>
                         <div class="cert-group-actions d-flex align-items-center gap-2">
                             <span class="cert-group-badge certification"><i class="fas fa-stamp me-1"></i> Registry Extract</span>
@@ -2509,7 +2506,6 @@ if ($stmt) {
                     <div class="cert-group-header d-flex align-items-center justify-content-between flex-wrap gap-2">
                         <div class="cert-group-info">
                             <span class="cert-group-title"><i class="fas fa-scroll text-warning me-2"></i> Sacramental Certificates</span>
-                            <span class="cert-group-desc">Official canonical commemorative certificates for sacraments celebrated in this parish.</span>
                         </div>
                         <div class="cert-group-actions d-flex align-items-center gap-2">
                             <span class="cert-group-badge certificate"><i class="fas fa-certificate me-1"></i> Canonical Certificate</span>
@@ -2768,25 +2764,7 @@ if ($stmt) {
                     <div class="upload-progress" aria-hidden="true"><span></span></div>
                 </div>
 
-                <!-- Supporting Document - Baptism / Confirmation (single, optional) -->
-                <div id="supportingDocSection" style="display:none; margin-top: 18px;">
-                    <div class="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 mb-3 rounded-3" style="background:#eef6ff;border:1px solid #bfdbfe;">
-                        <i class="fas fa-paperclip text-primary fs-5"></i>
-                        <div>
-                            <strong class="text-dark">Attach Supporting Document <span class="text-muted fw-normal">(Optional)</span></strong>
-                            <div class="text-secondary">You may attach any additional document to help verify your sacramental record (e.g. a photocopy of the original certificate for re-issuance, or a registration confirmation).</div>
-                        </div>
-                    </div>
-                    <label class="upload-zone" style="background:#f8faff;border-color:#93c5fd;" for="supporting_doc">
-                        <i class="fas fa-file-arrow-up" style="color:#3b82f6;"></i>
-                        <strong>Attach Supporting Document</strong>
-                        <small>PDF, JPG, or PNG &mdash; max 5MB</small>
-                        <input type="file" id="supporting_doc" name="supporting_doc" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf">
-                    </label>
-                    <div id="supportingDocPreview" style="display:none; margin-top:8px;" class="file-preview">
-                        <div class="text-muted small" id="supportingDocName"></div>
-                    </div>
-                </div>
+
 
                 <!-- First Communion - Two required docs -->
                 <div id="communionDocsSection" style="display:none; margin-top: 18px;">
@@ -2995,7 +2973,7 @@ if ($stmt) {
                         <i class="fas fa-envelope-circle-check text-primary me-1"></i> Digital certificate notification will be sent to <strong><?php echo e($_SESSION['email'] ?? 'your registered email'); ?></strong> and available in your request details once signed and ready.
                     </div>
                     <div id="walkinReleaseInfo" class="alert alert-secondary py-2 px-3 mt-3 rounded-3 small" style="<?php echo (($_POST['release_method'] ?? '') === 'walk_in') ? '' : 'display: none;'; ?> background: #f8fafc; border: 1px solid #e2e8f0;">
-                        <i class="fas fa-clock text-secondary me-1"></i> Office pickup hours: <strong>Tuesday to Sunday, 8:00 AM – 5:00 PM</strong> at San Lorenzo Ruiz Parish Office. Please present a valid ID when claiming.
+                        <i class="fas fa-clock text-secondary me-1"></i> Office pickup hours: <strong>Tuesday to Sunday, 8:00 AM – 5:00 PM</strong> at San Lorenzo Ruiz Parish Office.
                     </div>
                 </div>
             </section>
@@ -3139,19 +3117,11 @@ if ($stmt) {
             }
 
             if (supportingDocSection) {
-                if (isOriginal) {
-                    supportingDocSection.style.display = 'none';
-                    const supportingInput = document.getElementById('supporting_doc');
-                    if (supportingInput) supportingInput.value = '';
-                    const supportingPreview = document.getElementById('supportingDocPreview');
-                    if (supportingPreview) supportingPreview.style.display = 'none';
-                } else {
-                    const checkedRadio = document.querySelector('input[name="request_type"]:checked');
-                    const val = (checkedRadio ? checkedRadio.value : '') || (mobileSelect ? mobileSelect.value : '');
-                    const isBap = isBaptismType(val);
-                    const isConf = (val === 'confirmation_certificate' || val === 'confirmation_certification' || val === 'confirmation');
-                    supportingDocSection.style.display = (isBap || isConf) ? 'block' : 'none';
-                }
+                supportingDocSection.style.display = 'none';
+                const supportingInput = document.getElementById('supporting_doc');
+                if (supportingInput) supportingInput.value = '';
+                const supportingPreview = document.getElementById('supportingDocPreview');
+                if (supportingPreview) supportingPreview.style.display = 'none';
             }
 
             updatePurposeField();
@@ -3320,16 +3290,13 @@ if ($stmt) {
                 if (cbDoc) cbDoc.required = isCom;
                 if (csDoc) csDoc.required = isCom;
             }
-            // Baptism / Confirmation — optional single supporting doc (Certification flow only)
+            // Optional single supporting doc removed per specification
             if (supportingDocSection) {
-                const isOriginal = (currentCategory === 'certificate') || (certificateMeta[type] && certificateMeta[type].category === 'certificate');
-                supportingDocSection.style.display = (!isOriginal && (isBap || isConf)) ? 'block' : 'none';
-                if (isOriginal) {
-                    const supportingInput = document.getElementById('supporting_doc');
-                    if (supportingInput) supportingInput.value = '';
-                    const supportingPreview = document.getElementById('supportingDocPreview');
-                    if (supportingPreview) supportingPreview.style.display = 'none';
-                }
+                supportingDocSection.style.display = 'none';
+                const supportingInput = document.getElementById('supporting_doc');
+                if (supportingInput) supportingInput.value = '';
+                const supportingPreview = document.getElementById('supportingDocPreview');
+                if (supportingPreview) supportingPreview.style.display = 'none';
             }
         }
 
