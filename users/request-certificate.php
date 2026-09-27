@@ -2378,19 +2378,6 @@ if ($stmt) {
         </div>
     <?php endif; ?>
 
-    <section class="certificate-status-grid">
-        <?php foreach ($status_counts as $status_name => $count): ?>
-            <?php $status_info = $status_meta[$status_name] ?? ['icon' => 'fa-circle', 'description' => 'Request status', 'tone' => 'secondary']; ?>
-            <a class="certificate-status-card status-<?php echo e($status_name); ?>" href="my-requests.php?status=<?php echo urlencode($status_name); ?>">
-                <div class="status-card-top">
-                    <i class="fas <?php echo e($status_info['icon']); ?> text-<?php echo e($status_info['tone']); ?>"></i>
-                    <strong><?php echo intval($count); ?></strong>
-                </div>
-                <span><?php echo e(certificateLabel($status_name)); ?></span>
-            </a>
-        <?php endforeach; ?>
-    </section>
-
     <div class="certificate-form-card">
         <div class="certificate-form-header">
             <div>

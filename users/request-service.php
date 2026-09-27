@@ -550,20 +550,6 @@ if ($stmt) {
         </div>
     <?php endif; ?>
 
-    <section class="request-status-grid">
-        <?php foreach ($status_counts as $status_name => $count): ?>
-            <?php $status_info = $status_meta[$status_name] ?? ['icon' => 'fa-circle', 'description' => 'Request status', 'tone' => 'secondary']; ?>
-            <a class="request-status-card" href="?status=<?php echo urlencode($status_name); ?>">
-                <div class="status-card-top">
-                    <i class="fas <?php echo e($status_info['icon']); ?> text-<?php echo e($status_info['tone']); ?>"></i>
-                    <strong><?php echo intval($count); ?></strong>
-                </div>
-                <span><?php echo e(serviceLabel($status_name)); ?></span>
-                <small><?php echo e($status_info['description']); ?></small>
-            </a>
-        <?php endforeach; ?>
-    </section>
-
     <?php echo mobileStepRail(['Details', 'Requirements', 'Review'], 1, 'Sacramental service request progress'); ?>
 
     <div class="request-form-card">
