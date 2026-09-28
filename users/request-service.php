@@ -348,6 +348,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $respond(false, 'Please provide a valid date of Marriage.', ['status_code' => 422]);
         } elseif (in_array($request_type, ['baptism_service', 'marriage_wedding_service', 'funeral_mass'], true) && !empty($missing_requirement_uploads)) {
             $respond(false, 'Please upload a file for each requirement. Missing: ' . implode(', ', array_slice($missing_requirement_uploads, 0, 4)) . (count($missing_requirement_uploads) > 4 ? ', and more.' : '.'), ['status_code' => 422]);
+        } elseif (!empty($requirement_upload_files) && ($fileGroupVal = validateUploadedDocumentGroup($requirement_upload_files)) && !$fileGroupVal['ok']) {
+            $respond(false, $fileGroupVal['error'], ['status_code' => 422]);
         } elseif ($request_type === 'patronal_fiesta' && $patronal_fiesta_date === '') {
             $respond(false, 'Please choose the date of the Patronal Fiesta.', ['status_code' => 422]);
         } elseif ($preferred_date === '') {
@@ -382,7 +384,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 $description_parts[] = 'Service: Anointing of the Sick (Pastoral Care)';
             }
             if ($request_type === 'baptism_service') {
-                $description_parts[] = 'Baptism requirement uploads: ' . implode(', ', array_values($baptism_requirements));
+                $baptism_labels = [];
+                foreach ($baptism_requirements as $b_req) {
+                    $baptism_labels[] = is_array($b_req) ? ($b_req['label'] ?? '') : (string) $b_req;
+                }
+                $description_parts[] = 'Baptism requirement uploads: ' . implode(', ', array_filter($baptism_labels));
                 $description_parts[] = "\n--- PRE-BAPTISMAL INVESTIGATION SHEET ---";
                 $description_parts[] = "1. Child's Information:";
                 $description_parts[] = "Name of Child: " . $baptism_sheet['child_name'];
@@ -425,7 +431,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 $description_parts[] = "Date of Marriage: " . $marriage_sheet['wedding_date'];
             }
             if ($request_type === 'funeral_mass') {
-                $description_parts[] = 'Funeral Mass requirement uploads: ' . implode(', ', array_values($funeral_requirements));
+                $funeral_labels = [];
+                foreach ($funeral_requirements as $f_req) {
+                    $funeral_labels[] = is_array($f_req) ? ($f_req['label'] ?? '') : (string) $f_req;
+                }
+                $description_parts[] = 'Funeral Mass requirement uploads: ' . implode(', ', array_filter($funeral_labels));
             }
             $description_parts[] = 'Details: ' . ($details !== '' ? $details : 'None');
 
@@ -624,6 +634,7 @@ if ($stmt) {
                             <span class="request-kicker"><i class="fas fa-water"></i> Requirements for Baptism</span>
                             <h3>Baptism Requirements</h3>
                             <p>Upload one clear supporting document for each requirement so the parish office can review every item separately.</p>
+                            <small class="text-muted d-block mt-1">Accepted formats: PDF, JPG, PNG, WEBP (max 5 MB each).</small>
                         </div>
                         <div class="baptism-review-badge">
                             <i class="fas fa-clipboard-check"></i>
@@ -643,7 +654,7 @@ if ($stmt) {
                                 <div class="requirement-upload-actions">
                                     <label class="requirement-upload-btn">
                                         <i class="fas fa-folder-open"></i> <span data-upload-label>Choose File</span>
-                                        <input type="file" class="requirement-file-input" name="baptism_requirement_files[<?php echo e($key); ?>]" accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,image/jpeg,image/png,image/gif,application/pdf,text/plain" data-requirement-file data-requirement-group="baptism">
+                                        <input type="file" class="requirement-file-input" name="baptism_requirement_files[<?php echo e($key); ?>]" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*" data-requirement-file data-requirement-group="baptism">
                                     </label>
                                     <a class="requirement-view-btn" href="#" target="_blank" rel="noopener" data-file-view hidden>
                                         <i class="fas fa-eye"></i> View
@@ -776,6 +787,7 @@ if ($stmt) {
                             <span class="request-kicker"><i class="fas fa-ring"></i> Marriage Requirements</span>
                             <h3>Requirements for Marriage</h3>
                             <p>Upload one file for the Male applicant and one file for the Female applicant for each requirement.</p>
+                            <small class="text-muted d-block mt-1">Accepted formats: PDF, JPG, PNG, WEBP (max 5 MB each).</small>
                         </div>
                         <div class="baptism-review-badge">
                             <i class="fas fa-file-shield"></i>
@@ -805,7 +817,7 @@ if ($stmt) {
                                 <div role="cell" class="marriage-upload-cell">
                                     <label class="requirement-upload-btn">
                                         <i class="fas fa-folder-open"></i> <span data-upload-label>Choose File</span>
-                                        <input type="file" class="requirement-file-input" name="marriage_requirement_files[male][<?php echo e($key); ?>]" accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,image/jpeg,image/png,image/gif,application/pdf,text/plain" data-requirement-file data-requirement-group="marriage" data-requirement-mandatory="<?php echo $is_mandatory ? 'true' : 'false'; ?>">
+                                        <input type="file" class="requirement-file-input" name="marriage_requirement_files[male][<?php echo e($key); ?>]" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*" data-requirement-file data-requirement-group="marriage" data-requirement-mandatory="<?php echo $is_mandatory ? 'true' : 'false'; ?>">
                                     </label>
                                     <a class="requirement-view-btn marriage-file-view" href="#" target="_blank" rel="noopener" data-file-view hidden>
                                         <i class="fas fa-eye"></i> View
@@ -814,7 +826,7 @@ if ($stmt) {
                                 <div role="cell" class="marriage-upload-cell">
                                     <label class="requirement-upload-btn">
                                         <i class="fas fa-folder-open"></i> <span data-upload-label>Choose File</span>
-                                        <input type="file" class="requirement-file-input" name="marriage_requirement_files[female][<?php echo e($key); ?>]" accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,image/jpeg,image/png,image/gif,application/pdf,text/plain" data-requirement-file data-requirement-group="marriage" data-requirement-mandatory="<?php echo $is_mandatory ? 'true' : 'false'; ?>">
+                                        <input type="file" class="requirement-file-input" name="marriage_requirement_files[female][<?php echo e($key); ?>]" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*" data-requirement-file data-requirement-group="marriage" data-requirement-mandatory="<?php echo $is_mandatory ? 'true' : 'false'; ?>">
                                     </label>
                                     <a class="requirement-view-btn marriage-file-view" href="#" target="_blank" rel="noopener" data-file-view hidden>
                                         <i class="fas fa-eye"></i> View
@@ -962,6 +974,7 @@ if ($stmt) {
                             <span class="request-kicker"><i class="fas fa-cross"></i> Funeral Mass Requirements</span>
                             <h3>Requirements for Funeral Mass</h3>
                             <p>Upload a clear copy of the Death Certificate before submitting the Funeral Mass request.</p>
+                            <small class="text-muted d-block mt-1">Accepted formats: PDF, JPG, PNG, WEBP (max 5 MB each).</small>
                         </div>
                         <div class="baptism-review-badge">
                             <i class="fas fa-file-shield"></i>
@@ -971,7 +984,9 @@ if ($stmt) {
                     </div>
 
                     <div class="baptism-requirements-grid">
-                        <?php foreach ($funeral_requirements as $key => $label): ?>
+                        <?php foreach ($funeral_requirements as $key => $meta): 
+                            $label = is_array($meta) ? ($meta['label'] ?? '') : $meta;
+                        ?>
                             <div class="baptism-requirement-item requirement-upload-item">
                                 <span><i class="fas fa-file-arrow-up"></i></span>
                                 <div class="requirement-upload-main">
@@ -981,7 +996,7 @@ if ($stmt) {
                                 <div class="requirement-upload-actions">
                                     <label class="requirement-upload-btn">
                                         <i class="fas fa-folder-open"></i> <span data-upload-label>Choose File</span>
-                                        <input type="file" class="requirement-file-input" name="funeral_requirement_files[<?php echo e($key); ?>]" accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,image/jpeg,image/png,image/gif,application/pdf,text/plain" data-requirement-file data-requirement-group="funeral">
+                                        <input type="file" class="requirement-file-input" name="funeral_requirement_files[<?php echo e($key); ?>]" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*" data-requirement-file data-requirement-group="funeral">
                                     </label>
                                     <a class="requirement-view-btn" href="#" target="_blank" rel="noopener" data-file-view hidden>
                                         <i class="fas fa-eye"></i> View
@@ -1186,39 +1201,97 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    function validateSelectedFile(file) {
+        if (!file) return { ok: true };
+        const maxBytes = 5 * 1024 * 1024;
+        const allowedExts = ['pdf', 'jpg', 'jpeg', 'png', 'webp'];
+        const allowedMimes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+        const invalidMsg = 'Only PDF or image files (JPG, PNG, WEBP) up to 5 MB are allowed. Please convert your document and upload again.';
+
+        if (file.size <= 0 || file.size > maxBytes) {
+            return { ok: false, error: invalidMsg };
+        }
+        const ext = (file.name || '').split('.').pop().toLowerCase();
+        if (!allowedExts.includes(ext)) {
+            return { ok: false, error: invalidMsg };
+        }
+        if (file.type && !allowedMimes.includes(file.type.toLowerCase()) && !file.type.startsWith('image/')) {
+            return { ok: false, error: invalidMsg };
+        }
+        const isPdf = ext === 'pdf' || file.type === 'application/pdf';
+        const isImg = !isPdf;
+        return { ok: true, isPdf, isImg, ext };
+    }
+
     function updateRequirementFileLabel(input) {
         const button = input.closest('.requirement-upload-btn');
         const container = input.closest('.marriage-upload-cell') || input.closest('.requirement-upload-item') || button;
         const fileLabel = container ? container.querySelector('[data-file-name]') : null;
         const uploadLabel = button ? button.querySelector('[data-upload-label]') : null;
         const viewButton = container ? container.querySelector('[data-file-view]') : null;
+        const itemIcon = container ? container.querySelector(':scope > span i') : null;
         const hasFile = input.files && input.files.length > 0;
-        if (fileLabel) {
-            fileLabel.textContent = hasFile ? input.files[0].name : (input.dataset.requirementGroup === 'marriage' ? 'No file' : 'No file selected');
-        }
-        if (uploadLabel && hasFile) {
-            uploadLabel.textContent = 'Change File';
-        } else if (uploadLabel) {
-            uploadLabel.textContent = 'Choose File';
-        }
-        if (button) {
-            button.classList.toggle('has-file', hasFile);
-        }
-        if (container) {
-            container.classList.toggle('has-file', hasFile);
-        }
-        if (viewButton) {
-            if (viewButton.dataset.objectUrl) {
-                URL.revokeObjectURL(viewButton.dataset.objectUrl);
-                delete viewButton.dataset.objectUrl;
+
+        if (hasFile) {
+            const file = input.files[0];
+            const check = validateSelectedFile(file);
+            if (!check.ok) {
+                input.value = '';
+                if (typeof ParishToast !== 'undefined' && typeof ParishToast.show === 'function') {
+                    ParishToast.show({ title: 'Invalid File', message: check.error, type: 'error', duration: 7000 });
+                } else {
+                    alert(check.error);
+                }
+                if (fileLabel) {
+                    fileLabel.textContent = (input.dataset.requirementGroup === 'marriage' ? 'No file' : 'No file selected');
+                }
+                if (uploadLabel) uploadLabel.textContent = 'Choose File';
+                if (button) button.classList.remove('has-file');
+                if (container) container.classList.remove('has-file');
+                if (viewButton) {
+                    if (viewButton.dataset.objectUrl) URL.revokeObjectURL(viewButton.dataset.objectUrl);
+                    delete viewButton.dataset.objectUrl;
+                    viewButton.hidden = true;
+                }
+                return;
             }
-            if (hasFile) {
-                const objectUrl = URL.createObjectURL(input.files[0]);
+
+            const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
+            if (fileLabel) {
+                fileLabel.innerHTML = '<strong>' + escapeHtml(file.name) + '</strong> (' + sizeMb + ' MB)';
+            }
+            if (uploadLabel) uploadLabel.textContent = 'Change File';
+            if (button) button.classList.add('has-file');
+            if (container) container.classList.add('has-file');
+            if (itemIcon) {
+                if (check.isPdf) {
+                    itemIcon.className = 'fas fa-file-pdf text-danger';
+                } else {
+                    itemIcon.className = 'fas fa-file-image text-success';
+                }
+            }
+
+            if (viewButton) {
+                if (viewButton.dataset.objectUrl) {
+                    URL.revokeObjectURL(viewButton.dataset.objectUrl);
+                    delete viewButton.dataset.objectUrl;
+                }
+                const objectUrl = URL.createObjectURL(file);
                 viewButton.href = objectUrl;
                 viewButton.dataset.objectUrl = objectUrl;
                 viewButton.hidden = false;
-            } else {
-                viewButton.href = '#';
+            }
+        } else {
+            if (fileLabel) {
+                fileLabel.textContent = (input.dataset.requirementGroup === 'marriage' ? 'No file' : 'No file selected');
+            }
+            if (uploadLabel) uploadLabel.textContent = 'Choose File';
+            if (button) button.classList.remove('has-file');
+            if (container) container.classList.remove('has-file');
+            if (itemIcon) itemIcon.className = 'fas fa-file-arrow-up';
+            if (viewButton) {
+                if (viewButton.dataset.objectUrl) URL.revokeObjectURL(viewButton.dataset.objectUrl);
+                delete viewButton.dataset.objectUrl;
                 viewButton.hidden = true;
             }
         }
@@ -1739,24 +1812,28 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // 1. Client-side file size validation (prevent silent post_max_size drop)
+        // 1. Client-side file size and format validation (enforce 5 MB and PDF/images only)
         let totalFileSize = 0;
         const oversizedFiles = [];
+        const invalidFormatFiles = [];
+        const allowedExts = ['pdf', 'jpg', 'jpeg', 'png', 'webp'];
+        const invalidMsg = 'Only PDF or image files (JPG, PNG, WEBP) up to 5 MB are allowed. Please convert your document and upload again.';
+
         requirementFileInputs.forEach(function(input) {
             if (input.files && input.files[0]) {
                 const f = input.files[0];
                 totalFileSize += f.size;
-                if (f.size > 10 * 1024 * 1024) {
+                const ext = (f.name || '').split('.').pop().toLowerCase();
+                if (!allowedExts.includes(ext)) {
+                    invalidFormatFiles.push(f.name);
+                }
+                if (f.size > 5 * 1024 * 1024) {
                     oversizedFiles.push(f.name + ' (' + (f.size / (1024 * 1024)).toFixed(1) + ' MB)');
                 }
             }
         });
-        if (oversizedFiles.length > 0) {
-            showServiceError('The following files exceed the 10 MB limit: ' + oversizedFiles.join(', ') + '. Please compress or use smaller files.');
-            return;
-        }
-        if (totalFileSize > 25 * 1024 * 1024) {
-            showServiceError('Total uploaded files (' + (totalFileSize / (1024 * 1024)).toFixed(1) + ' MB) exceed the 25 MB server upload limit. Please compress your files before submitting.');
+        if (invalidFormatFiles.length > 0 || oversizedFiles.length > 0) {
+            showServiceError(invalidMsg);
             return;
         }
 

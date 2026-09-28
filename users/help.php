@@ -930,7 +930,7 @@ include '../includes/breadcrumb.php';
             <div class="step-card-body">
               <div class="step-card-title">Fill in Record Details &amp; Upload Requirements</div>
               <p class="step-card-desc">
-                Enter the certificate holder's name, sacrament date or approximate year, parents' names, and upload required supporting files (such as a <strong>PSA Birth Certificate</strong> or <strong>Valid ID</strong>).
+                Enter the certificate holder's name, sacrament date or approximate year, parents' names, and upload required supporting files (such as a <strong>PSA Birth Certificate</strong> or <strong>Valid ID</strong>). Accepted formats are strictly <strong>PDF and images (JPG, PNG, WEBP)</strong> up to <strong>5 MB</strong> per file for immediate in-browser viewing and verification.
               </p>
             </div>
           </div>
@@ -1043,7 +1043,7 @@ include '../includes/breadcrumb.php';
             <div class="step-card-body">
               <div class="step-card-title">Upload Mandatory Sacramental Documents</div>
               <p class="step-card-desc">
-                Attach the required photocopies based on the service (e.g. <strong>PSA Live Birth Certificate</strong> and <strong>White Cards</strong> for Baptism; <strong>Pre-Cana Certificate</strong>, <strong>Municipal Marriage License</strong>, and <strong>Permit to Marry</strong> for Weddings; <strong>Death Certificate</strong> for Funerals).
+                Attach the required photocopies based on the service (e.g. <strong>PSA Live Birth Certificate</strong> and <strong>White Cards</strong> for Baptism; <strong>Pre-Cana Certificate</strong>, <strong>Municipal Marriage License</strong>, and <strong>Permit to Marry</strong> for Weddings; <strong>Death Certificate</strong> for Funerals). All uploads must be in <strong>PDF or image format (JPG, PNG, WEBP)</strong> with a maximum size of <strong>5 MB</strong> per document.
               </p>
             </div>
           </div>

@@ -1466,24 +1466,16 @@ function saveRequestDocument($conn, $request_id, $uploaded_by, $file, $document_
         $document_type = 'requirement';
     }
 
-    $config = getRequestDocumentConfig();
-    $original_name = basename($file['name']);
-    $extension = strtolower(pathinfo($original_name, PATHINFO_EXTENSION));
-    $size = intval($file['size']);
+    $validation = validateUploadedDocument($file);
+    if (!$validation['ok']) {
+        return ['ok' => false, 'error' => $validation['error']];
+    }
+
+    $original_name = $validation['original_name'];
+    $extension = $validation['extension'];
+    $size = (int) $validation['size'];
+    $mime_type = $validation['mime'];
     $tmp_name = $file['tmp_name'];
-    $finfo = function_exists('finfo_open') ? finfo_open(FILEINFO_MIME_TYPE) : false;
-    $mime_type = $finfo ? finfo_file($finfo, $tmp_name) : mime_content_type($tmp_name);
-    if ($finfo) {
-        finfo_close($finfo);
-    }
-
-    if ($size > $config['max_size']) {
-        return ['ok' => false, 'error' => 'Uploaded file must not exceed 10MB.'];
-    }
-
-    if (!in_array($extension, $config['extensions'], true) || !in_array($mime_type, $config['mime_types'], true)) {
-        return ['ok' => false, 'error' => 'Uploaded file type is not allowed. Use an image, PDF, Office document, or text file.'];
-    }
 
     $upload_dir = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'request_requirements';
     if (!is_dir($upload_dir)) {
@@ -1535,6 +1527,17 @@ function saveRequestRequirementDocument($conn, $request_id, $uploaded_by, $file)
 function saveMultipleRequirementDocuments($conn, $request_id, $uploaded_by, $files) {
     if (empty($files) || !is_array($files)) {
         return ['ok' => true, 'saved' => 0, 'documents' => []];
+    }
+
+    $groupValidation = validateUploadedDocumentGroup($files);
+    if (!$groupValidation['ok']) {
+        return [
+            'ok' => false,
+            'saved' => 0,
+            'documents' => [],
+            'error' => $groupValidation['error'],
+            'errors' => [$groupValidation['error']]
+        ];
     }
 
     $results = ['ok' => true, 'saved' => 0, 'documents' => [], 'errors' => []];

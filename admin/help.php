@@ -812,7 +812,7 @@ include '../templates/header.php';
             <div class="step-card-body">
               <div class="step-card-title">Review the Request in Request Workflow</div>
               <p class="step-card-desc">
-                Click <span class="action-badge action-badge-blue"><i class="fas fa-eye"></i> View</span> on any row to open the formal <strong>Request Workflow</strong>. Cross-check sacramental registers for matching entries, inspect attached requirements (birth certificate, ID), and verify submitted GCash/bank payment receipts.
+                Click <span class="action-badge action-badge-blue"><i class="fas fa-eye"></i> View</span> on any row to open the formal <strong>Request Workflow</strong>. Cross-check sacramental registers for matching entries, inspect attached requirements (birth certificate, ID &mdash; strictly PDF/images up to 5 MB with inline Document Preview), and verify submitted GCash/bank payment receipts.
               </p>
             </div>
           </div>

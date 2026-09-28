@@ -240,14 +240,24 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $error = 'The custom purpose must be 180 characters or fewer.';
     } elseif (!requestUploadHasFiles($_FILES['requirement_files'] ?? null)) {
         $error = 'Please upload a copy of the required supporting document (e.g. PSA / Birth Certificate) before submitting your certificate request.';
+    } elseif (($reqVal = validateUploadedDocumentGroup($_FILES['requirement_files'] ?? null)) && !$reqVal['ok']) {
+        $error = $reqVal['error'];
     } elseif ($is_communion && !$has_communion_baptism) {
         $error = 'First Communion requests require a Baptismal Certificate upload. Please attach your Baptismal Certificate.';
+    } elseif ($is_communion && $has_communion_baptism && ($val = validateUploadedDocument($communion_baptism_file)) && !$val['ok']) {
+        $error = $val['error'];
     } elseif ($is_communion && !$has_communion_seminar) {
         $error = 'First Communion requests require a Seminar Certificate / Proof of Attendance upload. Please attach your seminar certificate or attendance proof.';
+    } elseif ($is_communion && $has_communion_seminar && ($val = validateUploadedDocument($communion_seminar_file)) && !$val['ok']) {
+        $error = $val['error'];
+    } elseif ($has_supporting_doc && ($val = validateUploadedDocument($supporting_doc_file)) && !$val['ok']) {
+        $error = $val['error'];
     } elseif ($payment_method === 'gcash' && $payment_amount <= 0) {
         $error = 'Please enter the amount paid via GCash.';
     } elseif ($payment_method === 'gcash' && !$has_receipt) {
         $error = 'Please upload your GCash payment confirmation receipt or screenshot.';
+    } elseif ($has_receipt && ($val = validateUploadedDocument($receipt_file)) && !$val['ok']) {
+        $error = $val['error'];
     } else {
         $purpose_description = (!$is_original_certificate && $purpose !== '')
             ? ($purpose === 'others' ? $purpose_other : ($certificate_purposes[$purpose] ?? ''))
@@ -2740,8 +2750,8 @@ if ($stmt) {
                 <label class="upload-zone" id="uploadZone" for="requirement_files">
                     <i class="fas fa-cloud-arrow-up"></i>
                     <strong>Upload all requirements</strong>
-                    <small>Accepted formats: PDF, JPG, or PNG. Maximum 10MB per file. You can select and upload multiple files.</small>
-                    <input type="file" id="requirement_files" name="requirement_files[]" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" multiple required>
+                    <small>Accepted formats: PDF, JPG, PNG, WEBP (max 5 MB each). You can select and upload multiple files.</small>
+                    <input type="file" id="requirement_files" name="requirement_files[]" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*" multiple required>
                 </label>
                 <div class="file-preview" id="filePreview">
                     <div id="fileList">
@@ -2772,8 +2782,8 @@ if ($stmt) {
                         <label class="upload-zone" style="background:#f8faff;border-color:#93c5fd;" for="communion_baptismal_doc">
                             <i class="fas fa-file-arrow-up" style="color:#3b82f6;"></i>
                             <strong>Attach Baptismal Certificate</strong>
-                            <small>PDF, JPG, or PNG &mdash; max 5MB</small>
-                            <input type="file" id="communion_baptismal_doc" name="communion_baptismal_doc" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf">
+                            <small>Accepted formats: PDF, JPG, PNG, WEBP (max 5 MB each).</small>
+                            <input type="file" id="communion_baptismal_doc" name="communion_baptismal_doc" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*">
                         </label>
                         <div id="communionBaptismalPreview" style="display:none; margin-top:8px;" class="file-preview">
                             <div class="text-muted small" id="communionBaptismalName"></div>
@@ -2789,8 +2799,8 @@ if ($stmt) {
                         <label class="upload-zone" style="background:#fffdf5;border-color:#fcd34d;" for="communion_seminar_doc">
                             <i class="fas fa-file-arrow-up" style="color:#b45309;"></i>
                             <strong>Attach Seminar Certificate / Proof of Attendance</strong>
-                            <small>PDF, JPG, or PNG &mdash; max 5MB</small>
-                            <input type="file" id="communion_seminar_doc" name="communion_seminar_doc" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf">
+                            <small>Accepted formats: PDF, JPG, PNG, WEBP (max 5 MB each).</small>
+                            <input type="file" id="communion_seminar_doc" name="communion_seminar_doc" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*">
                         </label>
                         <div id="communionSeminarPreview" style="display:none; margin-top:8px;" class="file-preview">
                             <div class="text-muted small" id="communionSeminarName"></div>
@@ -2888,8 +2898,8 @@ if ($stmt) {
                             </div>
                             <div class="col-12">
                                 <label class="form-label fw-bold" for="receipt_file">Receipt / Proof of Payment <span class="text-danger">*</span></label>
-                                <input type="file" class="form-control request-form-control" id="receipt_file" name="receipt_file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf">
-                                <div class="form-text text-muted">Upload your GCash confirmation receipt (JPG, PNG, PDF up to 10MB).</div>
+                                <input type="file" class="form-control request-form-control" id="receipt_file" name="receipt_file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*">
+                                <div class="form-text text-muted">Upload your GCash confirmation receipt (Accepted formats: PDF, JPG, PNG, WEBP, max 5 MB).</div>
                             </div>
                             <div class="col-12">
                                 <label class="form-label fw-bold" for="payment_notes">Payment Notes <span class="text-muted small fw-normal">(Optional)</span></label>

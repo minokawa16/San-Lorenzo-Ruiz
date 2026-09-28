@@ -412,10 +412,20 @@ final class AiAssistantService
         }
 
         // I. Document Submission & Valid ID Upload Guidance
+        if (preg_match('/\b(?:allowed file (?:types|formats)|what file (?:types|formats) (?:are allowed|can i upload)|file upload (?:limits?|size)|maximum file size|can i upload (?:word|docx?|excel|xlsx?|zip)|anong format ng file|anong file type|sukat ng file|file size limit)\b/iu', $normalized)) {
+            $answer = $isFil
+                ? "Patakaran sa **File Uploads sa TUGON**:\n\n• **Mga Tinatanggap na Format**: Mga dokumentong **PDF** (`.pdf`) at mga litrato (**JPG, JPEG, PNG, WEBP**).\n• **Sukat ng File**: Hanggang **5 MB** bawat file.\n• **Iba pang format**: Hindi po tinatanggap ang mga Word document (`.docx`, `.doc`), spreadsheets (`.xlsx`), text files (`.txt`), o ZIP archives upang matiyak na ang bawat dokumento ay agad na ma-preview sa browser nang walang abala.\n\n[Request Certificate](../users/request-certificate.php) • [Request Service](../users/request-service.php)"
+                : "Rules for **Document Uploads in TUGON**:\n\n• **Accepted Formats**: **PDF** (`.pdf`) and image files (**JPG, JPEG, PNG, WEBP**).\n• **File Size Limit**: Up to **5 MB** per file.\n• **Other Formats**: Word documents (`.docx`, `.doc`), spreadsheets (`.xlsx`), text files (`.txt`), or ZIP archives are not accepted so that all submitted requirements can be previewed inline immediately.\n\n[Request Certificate](../users/request-certificate.php) • [Request Service](../users/request-service.php)";
+            return [
+                'answer' => $answer,
+                'prompts' => ['How to upload valid ID', 'Request Certificate', 'Track My Requests']
+            ];
+        }
+
         if (preg_match('/\b(?:how (?:do|can) i upload (?:my )?valid id|what documents (?:do i need to submit|to submit)|what documents do i need|paano mag-?upload ng id|anong dokumento ang kailangan)\b/iu', $normalized)) {
             $answer = $isFil
-                ? "Gabay sa **Pag-upload ng Valid ID at Dokumento**:\n\n• **Paano mag-upload**: Sa form, i-click ang 'Choose File' o i-drag ang malinaw na kopya (JPG, PNG, o PDF, hanggang 10MB). Tiyaking maliwanag at kitang-kita ang 4 na sulok ng ID.\n• **Mga Tinatanggap na Valid ID**: PhilSys National ID, Driver's License, Passport, UMID, Postal ID, PRC ID, Voter's ID.\n• **Pangunahing Dokumento**:\n  - *Sertipiko*: PSA Birth Certificate, Valid ID\n  - *Binyag*: PSA Birth Certificate ng bata, Marriage Contract ng magulang\n  - *Kasal*: PSA Birth Certs, CENOMAR, Annotated Baptismal/Confirmation certs, Pre-Cana cert, Marriage License.\n\n[Request Certificate](../users/request-certificate.php)"
-                : "Guide for **Uploading Valid ID and Supporting Documents**:\n\n• **How to upload**: Click 'Choose File' or drag your file (JPG, PNG, or PDF, up to 10MB) into the upload box. Ensure good lighting and all 4 corners are visible.\n• **Accepted Valid IDs**: PhilSys National ID, Driver's License, Passport, UMID, Postal ID, PRC ID, Voter's ID.\n• **Required Documents**:\n  - *Certificates*: PSA Birth Certificate & Valid ID\n  - *Baptism Service*: Child's PSA Birth Certificate & Parents' Marriage Contract\n  - *Wedding Service*: PSA Birth Certs, CENOMAR, Annotated Baptismal/Confirmation certs, Pre-Cana cert, Marriage License.\n\n[Request Certificate](../users/request-certificate.php)";
+                ? "Gabay sa **Pag-upload ng Valid ID at Dokumento**:\n\n• **Paano mag-upload**: Sa form, i-click ang 'Choose File' o i-drag ang malinaw na kopya (JPG, PNG, WEBP, o PDF, hanggang 5MB). Tiyaking maliwanag at kitang-kita ang 4 na sulok ng ID.\n• **Mga Tinatanggap na Valid ID**: PhilSys National ID, Driver's License, Passport, UMID, Postal ID, PRC ID, Voter's ID.\n• **Pangunahing Dokumento**:\n  - *Sertipiko*: PSA Birth Certificate, Valid ID\n  - *Binyag*: PSA Birth Certificate ng bata, Marriage Contract ng magulang\n  - *Kasal*: PSA Birth Certs, CENOMAR, Annotated Baptismal/Confirmation certs, Pre-Cana cert, Marriage License.\n\n[Request Certificate](../users/request-certificate.php)"
+                : "Guide for **Uploading Valid ID and Supporting Documents**:\n\n• **How to upload**: Click 'Choose File' or drag your file (JPG, PNG, WEBP, or PDF, up to 5MB) into the upload box. Ensure good lighting and all 4 corners are visible.\n• **Accepted Valid IDs**: PhilSys National ID, Driver's License, Passport, UMID, Postal ID, PRC ID, Voter's ID.\n• **Required Documents**:\n  - *Certificates*: PSA Birth Certificate & Valid ID\n  - *Baptism Service*: Child's PSA Birth Certificate & Parents' Marriage Contract\n  - *Wedding Service*: PSA Birth Certs, CENOMAR, Annotated Baptismal/Confirmation certs, Pre-Cana cert, Marriage License.\n\n[Request Certificate](../users/request-certificate.php)";
             return [
                 'answer' => $answer,
                 'prompts' => ['Requirements for Baptism', 'Requirements for Marriage', 'Request Certificate']
@@ -982,6 +992,6 @@ final class AiAssistantService
 
     private function isParishRelated(string $text): bool
     {
-        return (bool) preg_match('/parish|parokya|church|mass|misa|office|opisina|bapt|binyag|confirm|kumpil|communion|komunyon|marriage|wedding|kasal|bless|basbas|certificate|sertipiko|request|kahilingan|reserv|venue|schedule|iskedyul|announcement|anunsyo|payment|bayad|funeral|burial|libing|priest|pari|secretary|kalihim|agnes|calapaan|vicar|record|tala|sacrament|analytics|report|ulat|TUGON|requirement|kailangan|cost|magkano/i', $text);
+        return (bool) preg_match('/parish|parokya|church|mass|misa|office|opisina|bapt|binyag|confirm|kumpil|communion|komunyon|marriage|wedding|kasal|bless|basbas|certificate|sertipiko|request|kahilingan|reserv|venue|schedule|iskedyul|announcement|anunsyo|payment|bayad|funeral|burial|libing|priest|pari|secretary|kalihim|agnes|calapaan|vicar|record|tala|sacrament|analytics|report|ulat|TUGON|requirement|kailangan|cost|magkano|upload|format|docx|pdf|file/i', $text);
     }
 }

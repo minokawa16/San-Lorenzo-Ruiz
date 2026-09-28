@@ -32,28 +32,93 @@
     });
     syncOtherRequestField();
 
-    // Render File(s) Function - Handles both single and multiple files
+    const maxFileBytes = 5 * 1024 * 1024; // 5 MB
+    const allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'webp'];
+    const invalidFileMsg = 'Only PDF or image files (JPG, PNG, WEBP) up to 5 MB are allowed. Please convert your document and upload again.';
+
+    function validateSingleFile(f) {
+        if (!f) return false;
+        if (f.size > maxFileBytes || f.size <= 0) return false;
+        const ext = (f.name || '').split('.').pop().toLowerCase();
+        if (!allowedExtensions.includes(ext)) return false;
+        if (f.type && !f.type.startsWith('image/') && f.type.toLowerCase() !== 'application/pdf') return false;
+        return true;
+    }
+
+    function validateFileList(files) {
+        if (!files || files.length === 0) return true;
+        for (let i = 0; i < files.length; i++) {
+            if (!validateSingleFile(files[i])) return false;
+        }
+        return true;
+    }
+
+    function showFileError(message) {
+        if (typeof ParishToast !== 'undefined' && typeof ParishToast.show === 'function') {
+            ParishToast.show({ title: 'Invalid File', message: message, type: 'error', duration: 7000 });
+        } else {
+            alert(message);
+        }
+    }
+
+    // Render File(s) Function - Handles both single and multiple files with thumbnail / PDF icon previews
     function renderFiles(files) {
-        if (!files || files.length === 0 || !filePreview) {
+        if (!files || files.length === 0) {
+            if (filePreview) filePreview.classList.remove('is-visible');
             return;
         }
+
+        if (!validateFileList(files)) {
+            if (fileInput) fileInput.value = '';
+            if (filePreview) filePreview.classList.remove('is-visible');
+            showFileError(invalidFileMsg);
+            return;
+        }
+
+        if (!filePreview) return;
         filePreview.classList.add('is-visible');
-        
-        if (files.length === 1) {
-            // Single file
-            fileName.textContent = files[0].name;
-            fileSize.textContent = (files[0].size / 1024 / 1024).toFixed(2) + ' MB selected';
+
+        const fileListEl = document.getElementById('fileList');
+        if (fileListEl) {
+            fileListEl.innerHTML = '';
+            Array.from(files).forEach(function(f) {
+                const ext = (f.name || '').split('.').pop().toLowerCase();
+                const isPdf = ext === 'pdf' || f.type === 'application/pdf';
+                const itemEl = document.createElement('div');
+                itemEl.className = 'd-flex align-items-center gap-2 mb-1.5 p-1 rounded';
+                itemEl.style.background = '#f8fafc';
+                itemEl.style.border = '1px solid #e2e8f0';
+                const sizeMb = (f.size / (1024 * 1024)).toFixed(2);
+                if (isPdf) {
+                    itemEl.innerHTML = `
+                        <i class="fas fa-file-pdf text-danger fa-2x flex-shrink-0 ms-1"></i>
+                        <div class="text-truncate ms-1" style="flex:1;">
+                            <span class="fw-bold text-dark d-block text-truncate" style="font-size: 13px;">${escapeHtml(f.name)}</span>
+                            <small class="text-muted">${sizeMb} MB</small>
+                        </div>
+                    `;
+                } else {
+                    const thumbUrl = URL.createObjectURL(f);
+                    itemEl.innerHTML = `
+                        <img src="${thumbUrl}" alt="Thumbnail" class="rounded flex-shrink-0 shadow-sm" style="width: 36px; height: 36px; object-fit: cover;">
+                        <div class="text-truncate ms-1" style="flex:1;">
+                            <span class="fw-bold text-dark d-block text-truncate" style="font-size: 13px;">${escapeHtml(f.name)}</span>
+                            <small class="text-muted">${sizeMb} MB</small>
+                        </div>
+                    `;
+                }
+                fileListEl.appendChild(itemEl);
+            });
         } else {
-            // Multiple files
-            let total_size = 0;
-            let file_names = [];
-            for (let i = 0; i < files.length; i++) {
-                total_size += files[i].size;
-                file_names.push(files[i].name);
+            if (files.length === 1) {
+                if (fileName) fileName.textContent = files[0].name;
+                if (fileSize) fileSize.textContent = (files[0].size / 1024 / 1024).toFixed(2) + ' MB selected';
+            } else {
+                let total_size = 0;
+                for (let i = 0; i < files.length; i++) total_size += files[i].size;
+                if (fileName) fileName.textContent = files.length + ' files selected';
+                if (fileSize) fileSize.textContent = (total_size / 1024 / 1024).toFixed(2) + ' MB total';
             }
-            
-            fileName.textContent = file_names.length + ' files selected';
-            fileSize.textContent = (total_size / 1024 / 1024).toFixed(2) + ' MB total';
         }
     }
 
@@ -62,6 +127,19 @@
             renderFiles(fileInput.files);
         });
     }
+
+    // Bind validation to any other file inputs on the form
+    document.querySelectorAll('input[type="file"]').forEach(function(inp) {
+        if (inp === fileInput) return;
+        inp.addEventListener('change', function() {
+            if (inp.files && inp.files.length > 0) {
+                if (!validateFileList(inp.files)) {
+                    inp.value = '';
+                    showFileError(invalidFileMsg);
+                }
+            }
+        });
+    });
 
     if (uploadZone) {
         ['dragenter', 'dragover'].forEach(function(eventName) {
@@ -80,8 +158,30 @@
 
         uploadZone.addEventListener('drop', function(event) {
             if (event.dataTransfer.files.length && fileInput) {
+                if (!validateFileList(event.dataTransfer.files)) {
+                    showFileError(invalidFileMsg);
+                    return;
+                }
                 fileInput.files = event.dataTransfer.files;
                 renderFiles(fileInput.files);
+            }
+        });
+    }
+
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const allFileInputs = form.querySelectorAll('input[type="file"]');
+            for (let i = 0; i < allFileInputs.length; i++) {
+                const inp = allFileInputs[i];
+                if (inp.files && inp.files.length > 0) {
+                    if (!validateFileList(inp.files)) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        inp.value = '';
+                        showFileError(invalidFileMsg);
+                        return false;
+                    }
+                }
             }
         });
     }

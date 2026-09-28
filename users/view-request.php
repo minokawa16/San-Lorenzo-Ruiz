@@ -250,9 +250,17 @@ $page_title = 'View Request';
                                                         </div>
                                                     </div>
                                                     <div class="d-flex align-items-center gap-2 flex-wrap">
-                                                        <a class="btn btn-sm btn-outline-secondary" href="../request-document.php?id=<?php echo intval($cert['document_id']); ?>" target="_blank" rel="noopener">
+                                                        <button type="button" 
+                                                                class="btn btn-sm btn-outline-secondary btn-preview-doc"
+                                                                data-bs-toggle="modal"
+                                                                data-bs-target="#documentPreviewModal"
+                                                                data-doc-id="<?php echo intval($cert['document_id']); ?>"
+                                                                data-doc-name="<?php echo e($cert['original_name']); ?>"
+                                                                data-doc-file="<?php echo e($cert['original_name']); ?>"
+                                                                data-doc-size="<?php echo formatFileSize($cert['file_size']); ?>"
+                                                                data-doc-mime="<?php echo e($cert['mime_type'] ?? ''); ?>">
                                                             <i class="fas fa-eye me-1"></i> Preview
-                                                        </a>
+                                                        </button>
                                                         <a class="btn btn-sm btn-success fw-bold px-3 shadow-sm" href="../request-document.php?id=<?php echo intval($cert['document_id']); ?>&download=1" download>
                                                             <i class="fas fa-download me-1"></i> Download Certificate
                                                         </a>
@@ -306,22 +314,41 @@ $page_title = 'View Request';
 
                     <?php if (!empty($documents_by_type['requirement'])): ?>
                         <div class="mb-4">
-                            <h6 class="text-muted mb-2">Submitted Requirements</h6>
-                            <div class="list-group">
+                            <h6 class="text-muted mb-2">Submitted Requirements</                            <div class="list-group">
                                 <?php foreach ($documents_by_type['requirement'] as $document): ?>
-                                    <a class="list-group-item list-group-item-action request-attachment-row" href="../request-document.php?id=<?php echo intval($document['document_id']); ?>" target="_blank" rel="noopener">
-                                        <span class="request-attachment-icon" aria-hidden="true"><i class="fas fa-paperclip"></i></span>
-                                        <span class="request-attachment-info">
-                                            <?php if (!empty($document['requirement_name'])): ?>
-                                                <strong class="request-attachment-requirement"><?php echo e($document['requirement_name']); ?></strong>
-                                            <?php endif; ?>
-                                            <span class="request-attachment-name" title="<?php echo e($document['original_name']); ?>"><?php echo e($document['original_name']); ?></span>
-                                            <small class="request-attachment-size"><?php echo e(formatFileSize($document['file_size'])); ?></small>
-                                        </span>
-                                        <span class="request-attachment-view"><i class="fas fa-eye" aria-hidden="true"></i> View</span>
-                                    </a>
+                                    <div class="list-group-item d-flex align-items-center justify-content-between p-3 request-attachment-row">
+                                        <div class="d-flex align-items-center gap-3 text-truncate me-2">
+                                            <span class="request-attachment-icon flex-shrink-0" aria-hidden="true"><i class="fas fa-file-lines"></i></span>
+                                            <div class="text-truncate">
+                                                <?php if (!empty($document['requirement_name'])): ?>
+                                                    <strong class="request-attachment-requirement d-block text-truncate"><?php echo e($document['requirement_name']); ?></strong>
+                                                <?php endif; ?>
+                                                <span class="request-attachment-name text-truncate d-block" title="<?php echo e($document['original_name']); ?>"><?php echo e($document['original_name']); ?></span>
+                                                <small class="request-attachment-size text-muted"><?php echo e(formatFileSize($document['file_size'])); ?></small>
+                                            </div>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-outline-primary btn-preview-doc d-inline-flex align-items-center gap-1"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#documentPreviewModal"
+                                                    data-doc-id="<?php echo intval($document['document_id']); ?>"
+                                                    data-doc-name="<?php echo e(!empty($document['requirement_name']) ? $document['requirement_name'] : $document['original_name']); ?>"
+                                                    data-doc-file="<?php echo e($document['original_name']); ?>"
+                                                    data-doc-size="<?php echo formatFileSize($document['file_size']); ?>"
+                                                    data-doc-mime="<?php echo e($document['mime_type'] ?? ''); ?>">
+                                                <i class="fas fa-eye"></i> <span>View</span>
+                                            </button>
+                                            <a class="btn btn-sm btn-outline-secondary" 
+                                               href="../request-document.php?id=<?php echo intval($document['document_id']); ?>&download=1" 
+                                               title="Download" 
+                                               download>
+                                                <i class="fas fa-download"></i>
+                                            </a>
+                                        </div>
+                                    </div>
                                 <?php endforeach; ?>
-                            </div>
+                            </div>div>
                         </div>
                     <?php endif; ?>
 
@@ -367,10 +394,24 @@ $page_title = 'View Request';
                                                     </div>
                                                 <?php endif; ?>
                                             </div>
-                                            <div class="text-end">
+                                            <div class="text-end d-flex align-items-center gap-1">
                                                 <?php if (!empty($payment['receipt_document_id'])): ?>
-                                                    <a class="btn btn-sm btn-outline-primary" href="../request-document.php?id=<?php echo intval($payment['receipt_document_id']); ?>" target="_blank" rel="noopener">
-                                                        <i class="fas fa-receipt me-1"></i> View Receipt
+                                                    <button type="button" 
+                                                            class="btn btn-sm btn-outline-primary btn-preview-doc d-inline-flex align-items-center gap-1"
+                                                            data-bs-toggle="modal"
+                                                            data-bs-target="#documentPreviewModal"
+                                                            data-doc-id="<?php echo intval($payment['receipt_document_id']); ?>"
+                                                            data-doc-name="Payment Receipt - <?php echo e($payment['reference_number'] ?: 'Ref #' . $payment['payment_id']); ?>"
+                                                            data-doc-file="<?php echo e($payment['original_name'] ?: 'receipt'); ?>"
+                                                            data-doc-size="<?php echo !empty($payment['file_size']) ? formatFileSize($payment['file_size']) : ''; ?>"
+                                                            data-doc-mime="<?php echo e($payment['mime_type'] ?? ''); ?>">
+                                                        <i class="fas fa-receipt me-1"></i> <span>View Receipt</span>
+                                                    </button>
+                                                    <a class="btn btn-sm btn-outline-secondary" 
+                                                       href="../request-document.php?id=<?php echo intval($payment['receipt_document_id']); ?>&download=1" 
+                                                       title="Download Receipt" 
+                                                       download>
+                                                        <i class="fas fa-download"></i>
                                                     </a>
                                                 <?php endif; ?>
                                             </div>
@@ -386,13 +427,34 @@ $page_title = 'View Request';
                             <h6 class="text-muted mb-2">Certificates from Parish Office</h6>
                             <div class="list-group">
                                 <?php foreach (array_merge($documents_by_type['released_certificate'], $documents_by_type['admin_file']) as $document): ?>
-                                    <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" href="../request-document.php?id=<?php echo intval($document['document_id']); ?>" target="_blank">
-                                        <span>
-                                            <i class="fas fa-file-circle-check"></i>
-                                            <?php echo e($document['original_name']); ?>
-                                        </span>
-                                        <small class="text-muted"><?php echo e(formatFileSize($document['file_size'])); ?></small>
-                                    </a>
+                                    <div class="list-group-item d-flex justify-content-between align-items-center p-3">
+                                        <div class="d-flex align-items-center gap-2 text-truncate me-2">
+                                            <i class="fas fa-file-circle-check text-success flex-shrink-0"></i>
+                                            <div class="text-truncate">
+                                                <span class="fw-semibold text-dark d-block text-truncate"><?php echo e($document['original_name']); ?></span>
+                                                <small class="text-muted"><?php echo e(formatFileSize($document['file_size'])); ?></small>
+                                            </div>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-outline-primary btn-preview-doc d-inline-flex align-items-center gap-1"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#documentPreviewModal"
+                                                    data-doc-id="<?php echo intval($document['document_id']); ?>"
+                                                    data-doc-name="<?php echo e($document['original_name']); ?>"
+                                                    data-doc-file="<?php echo e($document['original_name']); ?>"
+                                                    data-doc-size="<?php echo formatFileSize($document['file_size']); ?>"
+                                                    data-doc-mime="<?php echo e($document['mime_type'] ?? ''); ?>">
+                                                <i class="fas fa-eye"></i> <span>Preview</span>
+                                            </button>
+                                            <a class="btn btn-sm btn-outline-secondary" 
+                                               href="../request-document.php?id=<?php echo intval($document['document_id']); ?>&download=1" 
+                                               title="Download" 
+                                               download>
+                                                <i class="fas fa-download"></i>
+                                            </a>
+                                        </div>
+                                    </div>
                                 <?php endforeach; ?>
                             </div>
                         </div>
@@ -421,6 +483,6 @@ $page_title = 'View Request';
     </div>
 </div>
 
-
+<?php include '../templates/document-preview-modal.php'; ?>
 
 <?php include '../templates/footer.php'; ?>

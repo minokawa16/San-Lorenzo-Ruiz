@@ -126,6 +126,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 'Location: ' . $location,
                 'Details: ' . ($details !== '' ? $details : 'None'),
             ]);
+            if (!empty($_FILES['requirement_files']) && ($blessVal = validateUploadedDocumentGroup($_FILES['requirement_files'])) && !$blessVal['ok']) {
+                $respond(false, $blessVal['error'], ['status_code' => 422]);
+            }
+
             $description = implode("\n", $description_parts);
             $reference_number = generateReferenceNumber();
             $status = 'pending';
@@ -390,8 +394,8 @@ if ($stmt) {
                 <label class="upload-zone" id="uploadZone" for="requirement_files">
                     <i class="fas fa-cloud-arrow-up"></i>
                     <strong>Drag and drop your requirements here or click to browse.</strong>
-                    <small>Accepted formats: PDF, JPG, PNG, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT. Maximum 10MB per file. Multiple files allowed.</small>
-                    <input type="file" id="requirement_files" name="requirement_files[]" accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,image/jpeg,image/png,image/gif,application/pdf,text/plain" multiple>
+                    <small>Accepted formats: PDF, JPG, PNG, WEBP (max 5 MB each). Multiple files allowed.</small>
+                    <input type="file" id="requirement_files" name="requirement_files[]" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*" multiple>
                 </label>
                 <div class="file-preview" id="filePreview">
                     <div id="fileList">
