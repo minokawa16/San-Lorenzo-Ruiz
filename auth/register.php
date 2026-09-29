@@ -3313,13 +3313,6 @@ $has_logo = is_file($logo_file);
                             <i class="fas fa-user-shield"></i>
                             <span>Upload your Face Photo and Front ID to verify your identity.</span>
                         </div>
-
-                        <!-- Manual entry fallback -->
-                        <div style="margin-top:14px;text-align:center">
-                            <button type="button" class="id-manual-btn" id="manualEntryBtn">
-                                <i class="fas fa-pen"></i> Enter details manually instead
-                            </button>
-                        </div>
                     </div><!-- /.id-scanner-wrap -->
 
                     <input type="hidden" id="face_capture" name="face_capture">
