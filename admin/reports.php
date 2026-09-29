@@ -647,7 +647,6 @@ $kpi_completion_rate = $kpi_requests_total > 0
       <div class="ar-kpi-card-accent accent-gold"></div>
       <div class="ar-kpi-top">
         <div class="ar-kpi-icon-ring ring-gold"><i class="fas fa-users"></i></div>
-        <span class="ar-kpi-trend trend-up"><i class="fas fa-arrow-up" style="font-size:.6em;"></i> Active</span>
       </div>
       <div class="ar-kpi-number"><?php echo number_format($kpi_parishioners_total); ?></div>
       <div class="ar-kpi-label">Registered Parishioners</div>
@@ -664,7 +663,6 @@ $kpi_completion_rate = $kpi_requests_total > 0
       <div class="ar-kpi-card-accent accent-teal"></div>
       <div class="ar-kpi-top">
         <div class="ar-kpi-icon-ring ring-teal"><i class="fas fa-book-bible"></i></div>
-        <span class="ar-kpi-trend trend-neutral"><i class="fas fa-minus" style="font-size:.6em;"></i> All time</span>
       </div>
       <div class="ar-kpi-number"><?php echo number_format($kpi_sacraments_total); ?></div>
       <div class="ar-kpi-label">Sacramental Records</div>
@@ -680,11 +678,6 @@ $kpi_completion_rate = $kpi_requests_total > 0
       <div class="ar-kpi-card-accent accent-blue"></div>
       <div class="ar-kpi-top">
         <div class="ar-kpi-icon-ring ring-blue"><i class="fas fa-inbox"></i></div>
-        <?php if ($kpi_requests_pending > 0): ?>
-        <span class="ar-kpi-trend trend-down"><i class="fas fa-clock" style="font-size:.65em;"></i> <?php echo $kpi_requests_pending; ?> pending</span>
-        <?php else: ?>
-        <span class="ar-kpi-trend trend-up"><i class="fas fa-check" style="font-size:.65em;"></i> All clear</span>
-        <?php endif; ?>
       </div>
       <div class="ar-kpi-number"><?php echo number_format($kpi_requests_total); ?></div>
       <div class="ar-kpi-label">Service &amp; Certificate Requests</div>
@@ -701,7 +694,6 @@ $kpi_completion_rate = $kpi_requests_total > 0
       <div class="ar-kpi-card-accent accent-emerald"></div>
       <div class="ar-kpi-top">
         <div class="ar-kpi-icon-ring ring-emerald"><i class="fas fa-calendar-days"></i></div>
-        <span class="ar-kpi-trend trend-neutral"><i class="fas fa-calendar" style="font-size:.65em;"></i> This month</span>
       </div>
       <div class="ar-kpi-number"><?php echo number_format($kpi_events_month); ?></div>
       <div class="ar-kpi-label">Scheduled Events</div>
