@@ -165,7 +165,7 @@ assertCondition($marEvent['category'] === 'sacramental', '3i. Event category set
 echo "\n--- Testing Funeral Request Approval ---\n";
 $funDate = date('Y-m-d', strtotime('+5 days'));
 $deceased = 'Don Teodoro Test ' . time();
-$funDesc = "Preferred date: {$funDate}\nPreferred time: 01:00 PM\nLocation: San Lorenzo Ruiz Parish Church\n\nDeceased Full Name: {$deceased}\nDate of Death: 2026-08-30\nDate of Funeral: {$funDate}\nCause of Death: Natural Causes / Old Age\nPlace of Burial: San Lorenzo Ruiz Memorial Park\nSurviving Family: Maria Elena Test\nAge: 84\nResidence: Dagat-Dagatan, Caloocan City";
+$funDesc = "Preferred date: {$funDate}\nPreferred time: 01:00 PM\nLocation: San Lorenzo Ruiz Parish Church\n\n--- FUNERAL INVESTIGATION SHEET ---\nDeceased Full Name: {$deceased}\nDate of Death: 2026-08-30\nDate of Burial: {$funDate}\nCivil Status: Married\nType of Funeral Rites: Full Catholic Rites\nCause of Death: Natural Causes / Old Age\nPlace of Burial: San Lorenzo Ruiz Memorial Park\nSurviving Family: Maria Elena Test\nAge: 84\nResidence: Dagat-Dagatan, Caloocan City";
 
 $refFun = 'REQ-TEST-FUN-' . time();
 $conn->query("INSERT INTO requests (user_id, request_type, status, description, reference_number, date_requested) VALUES ({$testUserId}, 'funeral_mass', 'pending', '" . $conn->real_escape_string($funDesc) . "', '{$refFun}', NOW())");
@@ -187,7 +187,10 @@ $funRecStmt->close();
 assertCondition(!empty($funRecord), '4b. Funeral record created in database');
 assertCondition($funRecord['deceased_name'] === $deceased, '4c. Deceased name mapped correctly: ' . ($funRecord['deceased_name'] ?? ''));
 assertCondition($funRecord['date_of_burial'] === $funDate, '4d. Date of burial mapped correctly: ' . ($funRecord['date_of_burial'] ?? ''));
+assertCondition($funRecord['civil_status'] === 'Married', '4e-1. Civil status mapped correctly: ' . ($funRecord['civil_status'] ?? ''));
+assertCondition($funRecord['funeral_rites'] === 'Full Catholic Rites', '4e-2. Funeral rites mapped correctly: ' . ($funRecord['funeral_rites'] ?? ''));
 assertCondition($funRecord['cause_of_death'] === 'Natural Causes / Old Age', '4e. Cause of death mapped correctly: ' . ($funRecord['cause_of_death'] ?? ''));
+assertCondition($funRecord['place_of_burial'] === 'San Lorenzo Ruiz Memorial Park', '4e-3. Place of burial mapped correctly: ' . ($funRecord['place_of_burial'] ?? ''));
 
 $funSchedStmt = $conn->prepare("SELECT * FROM schedule_events WHERE source_type = 'request' AND source_id = ?");
 $funSchedStmt->bind_param('i', $funRequestId);

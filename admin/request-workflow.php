@@ -56,6 +56,29 @@ if (str_contains($raw_type, 'certif')) {
 $is_certificate = ($request_category === 'certificate');
 $is_blessing = ($request_category === 'blessing');
 $is_sacramental = ($request_category === 'sacramental');
+$is_funeral = ($raw_type === 'funeral_mass' || $raw_type === 'funeral' || str_contains($raw_type, 'funeral'));
+
+$linked_funeral_record = null;
+if ($is_funeral) {
+    $stmtFun = $conn->prepare("SELECT * FROM funeral_records WHERE request_id = ? LIMIT 1");
+    if ($stmtFun) {
+        $stmtFun->bind_param('i', $request_id);
+        $stmtFun->execute();
+        $linked_funeral_record = $stmtFun->get_result()->fetch_assoc();
+        $stmtFun->close();
+    }
+}
+$funeral_fields = extractFuneralSheetFields((string)($request['description'] ?? ''), $request);
+if ($linked_funeral_record) {
+    if (!empty($linked_funeral_record['deceased_name'])) $funeral_fields['deceased_name'] = $linked_funeral_record['deceased_name'];
+    if (!empty($linked_funeral_record['date_of_death'])) $funeral_fields['date_of_death'] = $linked_funeral_record['date_of_death'];
+    if (!empty($linked_funeral_record['date_of_burial'])) $funeral_fields['date_of_burial'] = $linked_funeral_record['date_of_burial'];
+    if (!empty($linked_funeral_record['civil_status'])) $funeral_fields['civil_status'] = $linked_funeral_record['civil_status'];
+    if (!empty($linked_funeral_record['funeral_rites'])) $funeral_fields['funeral_rites'] = $linked_funeral_record['funeral_rites'];
+    if (!empty($linked_funeral_record['cause_of_death'])) $funeral_fields['cause_of_death'] = $linked_funeral_record['cause_of_death'];
+    if (!empty($linked_funeral_record['place_of_burial'])) $funeral_fields['place_of_burial'] = $linked_funeral_record['place_of_burial'];
+    if (!empty($linked_funeral_record['minister'])) $funeral_fields['minister'] = $linked_funeral_record['minister'];
+}
 
 $category_labels = [
     'certificate' => 'Certificate Request',
@@ -85,11 +108,81 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $current_payment_summary = getRequestPaymentSummary($conn, $request_id);
 
         $request_type = strtolower(trim((string)($request['request_type'] ?? '')));
+        $is_funeral_action = ($request_type === 'funeral_mass' || $request_type === 'funeral' || str_contains($request_type, 'funeral'));
         $zero_requirement_services = ['patronal_fiesta', 'anointing_of_the_sick', 'mass_offering', 'mass_intention', 'blessing_service', 'general_blessing'];
         $requires_supporting_docs = !in_array($request_type, $zero_requirement_services, true);
 
+        $funeral_validation_error = null;
+        $updated_funeral_in_db = false;
+
+        if ($is_funeral_action && isset($_POST['funeral_sheet']) && is_array($_POST['funeral_sheet'])) {
+            $f_deceased = trim((string)($_POST['funeral_sheet']['deceased_name'] ?? ''));
+            $f_death_date = trim((string)($_POST['funeral_sheet']['date_of_death'] ?? ''));
+            $f_burial_date = trim((string)($_POST['funeral_sheet']['date_of_burial'] ?? ''));
+            $f_civil_status = trim((string)($_POST['funeral_sheet']['civil_status'] ?? ''));
+            $f_rites = trim((string)($_POST['funeral_sheet']['funeral_rites'] ?? ''));
+            $f_cause = trim((string)($_POST['funeral_sheet']['cause_of_death'] ?? ''));
+            $f_place = trim((string)($_POST['funeral_sheet']['place_of_burial'] ?? ''));
+            $f_minister = trim((string)($_POST['officiating_priest'] ?? $_POST['funeral_sheet']['minister'] ?? ''));
+
+            if ($status === 'completed') {
+                $missing_fun = [];
+                if ($f_deceased === '') $missing_fun[] = 'Deceased Name';
+                if ($f_death_date === '' || !validDateValue($f_death_date)) $missing_fun[] = 'Date of Death';
+                if ($f_burial_date === '' || !validDateValue($f_burial_date)) $missing_fun[] = 'Date of Burial';
+                if ($f_civil_status === '') $missing_fun[] = 'Civil Status';
+                if ($f_rites === '') $missing_fun[] = 'Funeral Rites';
+                if ($f_place === '') $missing_fun[] = 'Place of Burial';
+
+                if (!empty($missing_fun)) {
+                    $funeral_validation_error = 'Cannot mark request as Completed: The following required Funeral Records fields are missing: ' . implode(', ', $missing_fun) . '. Please fill them in before completing.';
+                }
+            }
+
+            if (!$funeral_validation_error) {
+                // Update description with updated funeral sheet block
+                $updated_desc = updateFuneralDescriptionBlock((string)($request['description'] ?? ''), [
+                    'deceased_name' => $f_deceased,
+                    'date_of_death' => $f_death_date,
+                    'date_of_burial' => $f_burial_date,
+                    'civil_status' => $f_civil_status,
+                    'funeral_rites' => $f_rites,
+                    'cause_of_death' => $f_cause,
+                    'place_of_burial' => $f_place,
+                    'minister' => $f_minister
+                ]);
+                $stmtDesc = $conn->prepare("UPDATE requests SET description = ? WHERE request_id = ?");
+                if ($stmtDesc) {
+                    $stmtDesc->bind_param('si', $updated_desc, $request_id);
+                    $stmtDesc->execute();
+                    $stmtDesc->close();
+                    $request['description'] = $updated_desc;
+                }
+
+                // If a linked record already exists in funeral_records, update it too
+                $chkFun = $conn->prepare("SELECT funeral_id FROM funeral_records WHERE request_id = ? LIMIT 1");
+                if ($chkFun) {
+                    $chkFun->bind_param('i', $request_id);
+                    $chkFun->execute();
+                    $existFun = $chkFun->get_result()->fetch_assoc();
+                    $chkFun->close();
+                    if ($existFun) {
+                        $updFun = $conn->prepare("UPDATE funeral_records SET deceased_name = ?, date_of_death = ?, date_of_burial = ?, civil_status = ?, funeral_rites = ?, cause_of_death = ?, place_of_burial = ?, minister = ?, updated_at = NOW() WHERE request_id = ?");
+                        if ($updFun) {
+                            $updFun->bind_param('ssssssssi', $f_deceased, $f_death_date, $f_burial_date, $f_civil_status, $f_rites, $f_cause, $f_place, $f_minister, $request_id);
+                            $updFun->execute();
+                            $updFun->close();
+                            $updated_funeral_in_db = true;
+                        }
+                    }
+                }
+            }
+        }
+
         if (!in_array($status, $allowed_statuses, true)) {
             $error = 'Invalid request status. Allowed: Pending, Processing, Completed, Rejected.';
+        } elseif ($funeral_validation_error !== null) {
+            $error = $funeral_validation_error;
         } elseif (in_array($status, ['processing', 'completed'], true) && $requires_supporting_docs && $requirement_count <= 0) {
             $error = 'This request cannot move forward until at least one supporting requirement is attached.';
         } elseif ($status === 'completed' && $is_certificate && $released_count <= 0 && $requires_supporting_docs) {
@@ -113,7 +206,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     ]);
                     $request['status'] = 'completed';
                     $request['admin_response'] = $admin_response;
-                    $success = 'Request marked as completed! Sacramental record registered and calendar schedule updated.';
+                    if ($is_funeral_action) {
+                        $success = 'Funeral record has been added to Funeral Records. Request marked as completed and calendar schedule updated.';
+                    } else {
+                        $success = 'Request marked as completed! Sacramental record registered and calendar schedule updated.';
+                    }
                 } catch (Throwable $e) {
                     $error = $e->getMessage();
                 }
@@ -150,7 +247,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     createRequestStatusNotification($conn, $request, $status, $admin_response);
                     $request['status'] = $status;
                     $request['admin_response'] = $admin_response;
-                    $success = 'Request status updated to ' . ucfirst($status) . '.';
+                    if (in_array($status, ['pending', 'processing', 'rejected'], true)) {
+                        cancelLinkedRequestCalendarEvent($conn, $request_id);
+                    }
+                    $noticePrefix = $updated_funeral_in_db ? 'Funeral record updated! ' : '';
+                    $success = $noticePrefix . 'Request status updated to ' . ucfirst($status) . '.';
                 } else {
                     $error = 'Unable to update request status.';
                 }
@@ -409,7 +510,7 @@ if (!function_exists('extractFormalDocumentDetails')) {
         // Section 1: Application Overview & Schedule
         $prefDate = $linked_reservation['event_date'] ?? null;
         if (!$prefDate) {
-            $prefDate = $kv['preferred date'] ?? $kv['date of baptism'] ?? $kv['date of marriage'] ?? $kv['wedding date'] ?? $kv['date of patronal fiesta'] ?? null;
+            $prefDate = $kv['date of burial'] ?? $kv['preferred date'] ?? $kv['date of baptism'] ?? $kv['date of marriage'] ?? $kv['wedding date'] ?? $kv['date of patronal fiesta'] ?? null;
         }
         $displayDate = $prefDate ? formatDate($prefDate) : formatDate($request['date_requested']);
 
@@ -421,7 +522,7 @@ if (!function_exists('extractFormalDocumentDetails')) {
 
         $assignedPriest = $request['assigned_staff_name'] ?? null;
         if (!$assignedPriest) {
-            $assignedPriest = $kv['assigned priest'] ?? $kv['priest'] ?? $kv['minister'] ?? $kv['celebrant'] ?? 'Parish Priest / Assigned Minister';
+            $assignedPriest = $kv['minister / officiant name'] ?? $kv['minister'] ?? $kv['officiant'] ?? $kv['assigned priest'] ?? $kv['priest'] ?? $kv['celebrant'] ?? 'Parish Priest / Assigned Minister';
         }
 
         $venue = $kv['location'] ?? $kv['venue'] ?? null;
@@ -434,6 +535,7 @@ if (!function_exists('extractFormalDocumentDetails')) {
         $candidateName = !empty($request['record_holder_name']) ? $request['record_holder_name'] : null;
         $rawType = strtolower(trim((string)($request['request_type'] ?? '')));
         $isMarriage = str_contains($rawType, 'marriage') || str_contains($rawType, 'wedding');
+        $isFuneral = str_contains($rawType, 'funeral') || str_contains($rawType, 'burial');
 
         if ($isMarriage && (!empty($kv['full name']) || !empty($kv['groom'])) && (!empty($kv['full maiden name']) || !empty($kv['bride']))) {
             $groom = $kv['full name'] ?? $kv['groom'] ?? 'Groom';
@@ -448,6 +550,10 @@ if (!function_exists('extractFormalDocumentDetails')) {
             if (preg_match('/Groom.*?Mother:\s*([^\|\n]+)/i', $desc, $gm) && preg_match('/Bride.*?Mother:\s*([^\|\n]+)/i', $desc, $bm)) {
                 $motherName = 'Groom: ' . trim($gm[1]) . ' | Bride: ' . trim($bm[1]);
             }
+        } elseif ($isFuneral) {
+            $candidateName = $kv['deceased full name'] ?? $kv['deceased name'] ?? $kv['name of deceased'] ?? $request['record_holder_name'] ?? $request['fullname'];
+            $fatherName = 'Civil Status: ' . ($kv['civil status'] ?? 'N/A');
+            $motherName = 'Rites: ' . ($kv['type of funeral rites'] ?? $kv['funeral rites'] ?? 'Full Catholic Rites');
         } else {
             if (!$candidateName) {
                 $candidateName = $kv['name of child'] ?? $kv['child\'s name'] ?? $kv['full name'] ?? $kv['full maiden name'] ?? $kv['record holder name'] ?? $request['fullname'];
@@ -1609,9 +1715,11 @@ $breadcrumbs = [
                             <div class="col-md-6">
                                 <label for="workflow_minister" class="micro-label">Minister / Officiating Priest <span class="text-danger">*</span></label>
                                 <select class="form-select border-secondary-subtle py-1 fw-semibold" id="workflow_minister" name="officiating_priest" style="font-size: 11.5px; height: 30px;">
-                                    <option value="">-- Select Minister (Who performed sacrament) --</option>
+                                    <option value="">-- Select Minister / Officiating Priest --</option>
                                     <?php foreach ($priest_roster as $p_opt): ?>
-                                        <option value="<?php echo htmlspecialchars($p_opt); ?>"><?php echo htmlspecialchars($p_opt); ?></option>
+                                        <option value="<?php echo htmlspecialchars($p_opt); ?>" <?php echo (!empty($funeral_fields['minister']) && strcasecmp($funeral_fields['minister'], $p_opt) === 0) ? 'selected' : ''; ?>>
+                                            <?php echo htmlspecialchars($p_opt); ?>
+                                        </option>
                                     <?php endforeach; ?>
                                 </select>
                                 <div class="text-muted small mt-1" style="font-size: 10.5px;">Required when marking sacramental request completed.</div>
@@ -1627,6 +1735,80 @@ $breadcrumbs = [
                                     <?php endforeach; ?>
                                 </select>
                                 <div class="text-muted small mt-1" style="font-size: 10.5px;">Confirmed canonical Parish Priest for official registry.</div>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if ($is_funeral): ?>
+                            <div class="col-12 mt-2">
+                                <div class="p-3 rounded-3 border" style="background: #fafaf8;">
+                                    <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-2 flex-wrap gap-2">
+                                        <div class="fw-bold text-dark small">
+                                            <i class="fas fa-cross text-secondary me-1"></i> FUNERAL INVESTIGATION SHEET &amp; PARISH RECORD DETAILS
+                                        </div>
+                                        <?php if ($linked_funeral_record): ?>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style="font-size: 11px;">
+                                                    <i class="fas fa-check-circle me-1"></i> Linked Record: <?php echo htmlspecialchars($linked_funeral_record['registry_no'] ?: ('#' . $linked_funeral_record['funeral_id'])); ?>
+                                                </span>
+                                                <a href="funeral-records.php?search=<?php echo urlencode($linked_funeral_record['deceased_name']); ?>" target="_blank" class="btn btn-sm btn-outline-success py-0 px-2" style="font-size: 11px;">
+                                                    View in Funeral Records <i class="fas fa-arrow-up-right-from-square ms-1"></i>
+                                                </a>
+                                            </div>
+                                        <?php else: ?>
+                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1" style="font-size: 11px;">
+                                                <i class="fas fa-info-circle me-1"></i> Auto-creates Funeral Record on Completion
+                                            </span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <p class="text-muted mb-3" style="font-size: 11px;">
+                                        Review and adjust the information below. Once this request is marked <strong>Completed</strong>, these exact fields are stored in the official <strong>Parish Records &gt; Funeral Records</strong> table. Any edits made after completion will update the official record.
+                                    </p>
+
+                                    <div class="row g-2">
+                                        <div class="col-md-6">
+                                            <label for="wf_deceased_name" class="micro-label">Deceased Full Name <span class="text-danger">*</span></label>
+                                            <input type="text" class="form-control border-secondary-subtle py-1" id="wf_deceased_name" name="funeral_sheet[deceased_name]" value="<?php echo htmlspecialchars($funeral_fields['deceased_name'] ?? ''); ?>" style="font-size: 11.5px; height: 30px;" placeholder="Deceased name">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="wf_date_of_death" class="micro-label">Date of Death <span class="text-danger">*</span></label>
+                                            <input type="date" class="form-control border-secondary-subtle py-1" id="wf_date_of_death" name="funeral_sheet[date_of_death]" value="<?php echo htmlspecialchars($funeral_fields['date_of_death'] ?? ''); ?>" style="font-size: 11.5px; height: 30px;">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="wf_date_of_burial" class="micro-label">Date of Burial / Mass <span class="text-danger">*</span></label>
+                                            <input type="date" class="form-control border-secondary-subtle py-1" id="wf_date_of_burial" name="funeral_sheet[date_of_burial]" value="<?php echo htmlspecialchars($funeral_fields['date_of_burial'] ?? ''); ?>" style="font-size: 11.5px; height: 30px;">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="wf_civil_status" class="micro-label">Civil Status <span class="text-danger">*</span></label>
+                                            <select class="form-select border-secondary-subtle py-1 fw-semibold" id="wf_civil_status" name="funeral_sheet[civil_status]" style="font-size: 11.5px; height: 30px;">
+                                                <option value="">— Select —</option>
+                                                <?php foreach (['Single', 'Married', 'Widowed', 'Separated', 'Annulled'] as $cs): ?>
+                                                    <option value="<?php echo $cs; ?>" <?php echo (strcasecmp($funeral_fields['civil_status'] ?? '', $cs) === 0) ? 'selected' : ''; ?>>
+                                                        <?php echo $cs; ?>
+                                                    </option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="wf_funeral_rites" class="micro-label">Funeral Rites <span class="text-danger">*</span></label>
+                                            <select class="form-select border-secondary-subtle py-1 fw-semibold" id="wf_funeral_rites" name="funeral_sheet[funeral_rites]" style="font-size: 11.5px; height: 30px;">
+                                                <option value="">— Select —</option>
+                                                <?php foreach (['Full Catholic Rites', 'Simple Blessing', 'Graveside Service', 'Memorial Mass', 'Cremation Blessing', 'Other'] as $fr): ?>
+                                                    <option value="<?php echo $fr; ?>" <?php echo (strcasecmp($funeral_fields['funeral_rites'] ?? '', $fr) === 0) ? 'selected' : ''; ?>>
+                                                        <?php echo $fr; ?>
+                                                    </option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="wf_cause_of_death" class="micro-label">Cause of Death</label>
+                                            <input type="text" class="form-control border-secondary-subtle py-1" id="wf_cause_of_death" name="funeral_sheet[cause_of_death]" value="<?php echo htmlspecialchars($funeral_fields['cause_of_death'] ?? ''); ?>" style="font-size: 11.5px; height: 30px;" placeholder="e.g. Natural causes">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="wf_place_of_burial" class="micro-label">Place of Burial <span class="text-danger">*</span></label>
+                                            <input type="text" class="form-control border-secondary-subtle py-1" id="wf_place_of_burial" name="funeral_sheet[place_of_burial]" value="<?php echo htmlspecialchars($funeral_fields['place_of_burial'] ?? ''); ?>" style="font-size: 11.5px; height: 30px;" placeholder="e.g. Cemetery name">
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         <?php endif; ?>
                     </div>

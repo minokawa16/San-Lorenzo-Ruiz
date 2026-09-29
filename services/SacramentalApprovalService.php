@@ -461,6 +461,31 @@ class SacramentalApprovalService {
         $registryNo = !empty($existing['registry_no']) ? $existing['registry_no'] : $this->generateRegistryNumber('FUN');
         $status = 'active';
 
+        // Server-side validation before completion (Part 3): Block completion if required fields are missing
+        $missingFields = [];
+        if (empty(trim((string)($parsed['deceased_name'] ?? '')))) {
+            $missingFields[] = 'Deceased Name';
+        }
+        if (empty($parsed['date_of_death']) || !validDateValue($parsed['date_of_death'])) {
+            $missingFields[] = 'Date of Death';
+        }
+        if (empty($parsed['date_of_burial']) || !validDateValue($parsed['date_of_burial'])) {
+            $missingFields[] = 'Date of Burial';
+        }
+        if (empty(trim((string)($parsed['civil_status'] ?? '')))) {
+            $missingFields[] = 'Civil Status';
+        }
+        if (empty(trim((string)($parsed['funeral_rites'] ?? '')))) {
+            $missingFields[] = 'Funeral Rites';
+        }
+        if (empty(trim((string)($parsed['place_of_burial'] ?? '')))) {
+            $missingFields[] = 'Place of Burial';
+        }
+
+        if (!empty($missingFields)) {
+            throw new DomainException('Cannot complete funeral request: The following required Funeral Records fields are missing: ' . implode(', ', $missingFields) . '. Please ensure all details are filled in before completing.');
+        }
+
         if ($existing) {
             $recordId = intval($existing['funeral_id']);
             $upd = $this->conn->prepare("
@@ -927,22 +952,23 @@ class SacramentalApprovalService {
         $residence      = $this->extractField($desc, ['Residence', 'Address', 'Place of Origin']);
         $details        = $this->extractField($desc, ['Details', 'Additional Details']);
 
-        // 2. Fallbacks if required fields are still empty
+        // 2. Normalization and fallback only for non-critical/inferred fields
         if ($deceasedName === '') {
-            $deceasedName = $request['record_holder_name'] ?? $request['applicant_fullname'];
+            $deceasedName = $request['record_holder_name'] ?? $request['applicant_fullname'] ?? '';
         }
-        if (!validDateValue($burialDate)) {
-            $burialDate = date('Y-m-d');
+        if (!validDateValue($burialDate) && !empty($request['preferred_date']) && validDateValue($request['preferred_date'])) {
+            $burialDate = $request['preferred_date'];
         }
-        if (!validDateValue($deathDate)) {
-            $deathDate = date('Y-m-d', strtotime('-3 days'));
-        }
-        if ($burialPlace === '') {
-            $burialPlace = 'San Lorenzo Ruiz Cemetery';
+        if ($burialPlace === '' && !empty($request['location'])) {
+            $burialPlace = $request['location'];
         }
         if ($causeOfDeath === '') {
             $causeOfDeath = 'Not specified';
         }
+        if ($funeralRites === '') {
+            $funeralRites = 'Full Catholic Rites';
+        }
+
 
         $remarksParts = [];
         if ($age !== '') {

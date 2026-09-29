@@ -3000,6 +3000,65 @@ function validDateValue($date) {
     return $dt && $dt->format('Y-m-d') === $date;
 }
 
+/**
+ * Extracts Funeral Investigation Sheet fields from request description.
+ */
+function extractFuneralSheetFields(string $desc, array $request = []): array {
+    $extract = static function($labels) use ($desc): string {
+        foreach ((array) $labels as $label) {
+            $pattern = '/^' . preg_quote($label, '/') . '\s*:\s*(.+)$/mi';
+            if (preg_match($pattern, $desc, $matches)) {
+                $val = trim($matches[1]);
+                return in_array(strtolower($val), ['not specified', 'none', 'n/a'], true) ? '' : $val;
+            }
+        }
+        return '';
+    };
+
+    $deceased = $extract(['Deceased Full Name', 'Deceased Name', 'Deceased', 'Name of Deceased']);
+    if ($deceased === '' && !empty($request['record_holder_name'])) {
+        $deceased = (string)$request['record_holder_name'];
+    }
+
+    return [
+        'deceased_name'  => $deceased,
+        'date_of_death'  => $extract(['Date of Death', 'Death Date']),
+        'date_of_burial' => $extract(['Date of Burial', 'Date of Funeral', 'Preferred date']),
+        'civil_status'   => $extract(['Civil Status']),
+        'funeral_rites'  => $extract(['Type of Funeral Rites', 'Funeral Rites']) ?: 'Full Catholic Rites',
+        'cause_of_death' => $extract(['Cause of Death']),
+        'place_of_burial'=> $extract(['Place of Burial / Cemetery', 'Place of Burial', 'Cemetery', 'Location']),
+        'minister'       => $extract(['Minister / Officiant Name', 'Minister', 'Officiant'])
+    ];
+}
+
+/**
+ * Replaces or appends the structured FUNERAL INVESTIGATION SHEET block in a request description.
+ */
+function updateFuneralDescriptionBlock(string $desc, array $fields): string {
+    $lines = [
+        '--- FUNERAL INVESTIGATION SHEET ---',
+        'Deceased Full Name: ' . trim((string)($fields['deceased_name'] ?? '')),
+        'Date of Death: ' . trim((string)($fields['date_of_death'] ?? '')),
+        'Date of Burial: ' . trim((string)($fields['date_of_burial'] ?? '')),
+        'Civil Status: ' . trim((string)($fields['civil_status'] ?? '')),
+        'Type of Funeral Rites: ' . trim((string)($fields['funeral_rites'] ?? '')),
+        'Cause of Death: ' . trim((string)($fields['cause_of_death'] ?? '')),
+        'Place of Burial: ' . trim((string)($fields['place_of_burial'] ?? ''))
+    ];
+    if (!empty($fields['minister'])) {
+        $lines[] = 'Minister / Officiant Name: ' . trim((string)$fields['minister']);
+    }
+    $block = implode("\n", $lines);
+
+    if (preg_match('/--- FUNERAL INVESTIGATION SHEET ---[\s\S]*?(?=\n---|\nDetails:|$)/i', $desc)) {
+        return (string) preg_replace('/--- FUNERAL INVESTIGATION SHEET ---[\s\S]*?(?=\n---|\nDetails:|$)/i', $block . "\n", $desc);
+    }
+
+    return trim($desc) . "\n\n" . $block;
+}
+
+
 // Normalize Request Calendar Time Function - Documents this helper's role in the parish management workflow.
 function normalizeRequestCalendarTime($time) {
     $time = trim((string) $time);
