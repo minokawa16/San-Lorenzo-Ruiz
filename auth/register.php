@@ -4227,11 +4227,13 @@ $has_logo = is_file($logo_file);
             return existing && existing.value ? existing.value : '';
         }
 
-        // ── OCR trigger — fires when both IDs are present ────────────────────
+        // ── OCR trigger & state ──────────────────────────────────────────────
+        let ocrScanInProgress = false;
+        let pendingOcrScan    = false;
+
         function maybeTriggerOcr() {
             const front = fields.valid_id_capture.value;
-            const back  = fields.valid_id_back_capture.value;
-            if (front && front !== 'manual' && back && back !== 'manual') {
+            if (front && front !== 'manual') {
                 scanCapturedIdText();
             }
         }
@@ -4248,40 +4250,62 @@ $has_logo = is_file($logo_file);
 
         function setIdOcrStatus(type, message, aiEnhanced) {
             if (!idOcrStatus) return;
-            idOcrStatus.className = 'id-ocr-status ' + type;
-            const icon = type === 'success' ? 'fa-circle-check' : (type === 'error' ? 'fa-circle-xmark' : 'fa-id-card-clip');
+            idOcrStatus.style.display = 'block';
+            idOcrStatus.className = 'id-ocr-status ' + (type === 'scanning' ? 'warning' : (type === 'review' ? 'warning' : type));
+            const icon = type === 'success'
+                ? 'fa-circle-check'
+                : (type === 'error'
+                    ? 'fa-circle-xmark'
+                    : (type === 'scanning' ? 'fa-spinner fa-spin' : 'fa-id-card-clip'));
             const aiBadge = aiEnhanced
                 ? ' <span style="display:inline-flex;align-items:center;gap:4px;background:linear-gradient(135deg,#D4A94E,#B07D2A);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:12px;letter-spacing:.4px;vertical-align:middle">✦ AI Enhanced</span>'
                 : '';
             idOcrStatus.innerHTML = '<i class="fas ' + icon + '"></i><span>' + message + aiBadge + '</span>';
             if (idOcrStatusInput) idOcrStatusInput.value = type === 'success' ? 'verified' : (type === 'error' ? 'mismatch' : 'pending');
-            _updateStepBadges(type);
+            _updateStepBadges(type, message);
         }
 
-        function _updateStepBadges(ocrType) {
+        function _updateStepBadges(ocrType, customBannerMsg) {
             const step1Pill  = document.getElementById('step1Pill');
             const step2Pill  = document.getElementById('step2Pill');
             const step1El    = document.getElementById('regStep1');
             const banner     = document.getElementById('regFieldsBanner');
             const bannerTxt  = document.getElementById('regFieldsBannerText');
-            const hasFront   = fields.valid_id_capture && fields.valid_id_capture.value;
-            const hasBack    = fields.valid_id_back_capture && fields.valid_id_back_capture.value;
+            const hasFront   = fields.valid_id_capture && fields.valid_id_capture.value && fields.valid_id_capture.value !== 'manual';
+            const hasBack    = fields.valid_id_back_capture && fields.valid_id_back_capture.value && fields.valid_id_back_capture.value !== 'manual';
 
-            if (ocrType === 'success') {
-                if (step1Pill)  { step1Pill.textContent = '\u2713 Scanned'; step1Pill.className = 'step-pill done'; }
-                if (step2Pill)  { step2Pill.textContent = 'Auto-filled';   step2Pill.className = 'step-pill done'; }
-                if (step1El)    step1El.classList.add('step-complete');
-                if (banner)     banner.classList.add('is-unlocked');
-                if (bannerTxt)  bannerTxt.textContent = '\u2726 OCR complete \u2014 fields auto-filled from your ID. Review and edit if needed.';
+            if (ocrType === 'scanning') {
+                if (step1Pill) { step1Pill.textContent = 'Scanning…'; step1Pill.className = 'step-pill pending'; }
+                if (step2Pill) { step2Pill.textContent = 'Scanning…'; step2Pill.className = 'step-pill pending'; }
+                if (banner) banner.classList.add('is-unlocked');
+                if (bannerTxt) bannerTxt.textContent = customBannerMsg || 'Scanning ID… OCR is extracting your details.';
+            } else if (ocrType === 'success') {
+                if (step1Pill) { step1Pill.textContent = '✓ Scanned'; step1Pill.className = 'step-pill done'; }
+                if (step2Pill) { step2Pill.textContent = 'ID Scanned ✓'; step2Pill.className = 'step-pill done'; }
+                if (step1El) step1El.classList.add('step-complete');
+                if (banner) banner.classList.add('is-unlocked');
+                if (bannerTxt) bannerTxt.textContent = customBannerMsg || '✦ OCR complete — fields auto-filled from your ID. Review and edit if needed.';
                 ['first_name','surname','middle_initial','address','birth_place','id_number','birthdate'].forEach(n => {
                     const f = fields[n]; if (f && f.value.trim()) f.classList.add('ocr-autofilled');
                 });
-            } else if ((ocrType === 'warning' || ocrType === 'error') && (hasFront || hasBack)) {
-                if (step1Pill)  { step1Pill.textContent = ocrType === 'error' ? '\u2715 Scan Failed' : '\u26a0 Review'; step1Pill.className = 'step-pill error'; }
-                if (banner)     banner.classList.add('is-unlocked');
-                if (bannerTxt)  bannerTxt.textContent = ocrType === 'error'
-                    ? 'OCR scan failed \u2014 please fill in your details manually below.'
-                    : 'Some fields need your review \u2014 check and correct the highlighted fields below.';
+            } else if (ocrType === 'review') {
+                if (step1Pill) { step1Pill.textContent = '⚠ Review'; step1Pill.className = 'step-pill pending'; }
+                if (step2Pill) { step2Pill.textContent = 'Needs Review'; step2Pill.className = 'step-pill pending'; }
+                if (banner) banner.classList.add('is-unlocked');
+                if (bannerTxt) bannerTxt.textContent = customBannerMsg || 'Some fields need your review — check and correct the highlighted fields below.';
+                ['first_name','surname','middle_initial','address','birth_place','id_number','birthdate'].forEach(n => {
+                    const f = fields[n]; if (f && f.value.trim()) f.classList.add('ocr-autofilled');
+                });
+            } else if (ocrType === 'error') {
+                if (step1Pill) { step1Pill.textContent = '✕ Scan Failed'; step1Pill.className = 'step-pill error'; }
+                if (step2Pill) { step2Pill.textContent = 'Scan Failed'; step2Pill.className = 'step-pill error'; }
+                if (banner) banner.classList.add('is-unlocked');
+                if (bannerTxt) bannerTxt.textContent = customBannerMsg || 'OCR scan failed — please fill in your details manually below.';
+            } else if (ocrType === 'warning' && (hasFront || hasBack)) {
+                if (step1Pill) { step1Pill.textContent = '⚠ Review'; step1Pill.className = 'step-pill error'; }
+                if (step2Pill) { step2Pill.textContent = 'Needs Review'; step2Pill.className = 'step-pill pending'; }
+                if (banner) banner.classList.add('is-unlocked');
+                if (bannerTxt) bannerTxt.textContent = customBannerMsg || 'Some fields need your review — check and correct the highlighted fields below.';
             }
             updateSubmitGate();
         }
@@ -4297,7 +4321,7 @@ $has_logo = is_file($logo_file);
 
         // ── Date helpers ─────────────────────────────────────────────────────
         function formatIsoDateForDisplay(value) {
-            if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return '';
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return value || '';
             const parts = value.split('-').map(Number);
             return new Date(parts[0], parts[1] - 1, parts[2]).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
         }
@@ -4346,95 +4370,110 @@ $has_logo = is_file($logo_file);
 
         // ── OCR scan ─────────────────────────────────────────────────────────
         async function scanCapturedIdText() {
-            if (!fields.valid_id_capture.value || !fields.valid_id_back_capture.value) {
-                setIdOcrStatus('warning', 'Upload both the Front ID and Back ID before scanning.');
+            if (!fields.valid_id_capture.value) {
+                setIdOcrStatus('warning', 'Please capture or upload your Front ID before scanning.');
                 return;
             }
-            if (fields.valid_id_capture.value === 'manual' || fields.valid_id_back_capture.value === 'manual') return;
+            if (fields.valid_id_capture.value === 'manual') return;
 
-            setIdOcrStatus('warning', 'Scanning ID text\u2026 this may take a moment.');
-
-            let csrfToken = '';
-            try { csrfToken = await refreshRegistrationCsrfToken(); } catch (e) {
-                const existing = currentCsrfField();
-                csrfToken = existing && existing.value ? existing.value : '';
+            if (ocrScanInProgress) {
+                pendingOcrScan = true;
+                return;
             }
-            const fd = new FormData();
-            fd.append('id_photo_data',      fields.valid_id_capture.value);
-            fd.append('id_back_photo_data', fields.valid_id_back_capture.value);
-            fd.append('first_name',   fields.first_name.value);
-            fd.append('surname',      fields.surname.value);
-            fd.append('middle_initial', fields.middle_initial.value);
-            fd.append('address',      fields.address.value);
-            fd.append('birthdate',    fields.birthdate.value);
-            fd.append('birth_place',  fields.birth_place.value);
-            fd.append('id_number',    fields.id_number.value);
-            fd.append('registration_id', registrationVerificationId || '');
-            if (csrfToken) fd.append(csrfTokenName, csrfToken);
+            ocrScanInProgress = true;
+
+            setIdOcrStatus('scanning', 'Scanning ID text… extracting your personal details.');
 
             try {
+                let csrfToken = '';
+                try { csrfToken = await refreshRegistrationCsrfToken(); } catch (e) {
+                    const existing = currentCsrfField();
+                    csrfToken = existing && existing.value ? existing.value : '';
+                }
+                const fd = new FormData();
+                fd.append('id_photo_data', fields.valid_id_capture.value);
+                if (fields.valid_id_back_capture.value && fields.valid_id_back_capture.value !== 'manual') {
+                    fd.append('id_back_photo_data', fields.valid_id_back_capture.value);
+                }
+                fd.append('first_name', fields.first_name.value);
+                fd.append('surname', fields.surname.value);
+                fd.append('middle_initial', fields.middle_initial.value);
+                fd.append('address', fields.address.value);
+                fd.append('birthdate', fields.birthdate.value);
+                fd.append('birth_place', fields.birth_place.value);
+                fd.append('id_number', fields.id_number.value);
+                fd.append('registration_id', registrationVerificationId || '');
+                if (csrfToken) fd.append(csrfTokenName, csrfToken);
+
                 const headers = { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' };
                 if (csrfToken) headers['X-CSRF-Token'] = csrfToken;
+
                 const res = await fetch('../ocr/api_process_id.php?t=' + Date.now(), {
                     method: 'POST', body: fd, cache: 'no-store', credentials: 'same-origin', headers
                 });
                 const responseText = await res.text();
                 let data;
-                try { data = JSON.parse(extractFirstJsonObject(responseText)); }
-                catch (parseError) { throw new Error('The ID text could not be scanned clearly. Retake the ID photo and try again.'); }
+                try {
+                    data = JSON.parse(extractFirstJsonObject(responseText));
+                } catch (parseError) {
+                    throw new Error('The ID text could not be scanned clearly. Retake the ID photo and try again.');
+                }
 
-                if (!res.ok || !data.success) throw new Error(data.error || 'The ID text could not be scanned.');
+                if (!res.ok || !data.success) {
+                    throw new Error(data.error || 'The ID text could not be scanned.');
+                }
 
                 const idData = data.id_data || {};
-                const fieldConfidence = idData.field_confidence || {};
-                const thresholds = { last_name: 0.67, first_name: 0.67, middle_name: 0.65, address: 0.58, date_of_birth: 0.65, birth_place: 0.58, id_number: 0.65 };
-                const isTrusted = key => Number(fieldConfidence[key] || 0) >= (thresholds[key] || 0.67);
-                if (!idData.birth_place) idData.birth_place = inferBirthPlaceFromAddress(idData.address);
 
-                function fillFromOcr(fieldName, ocrKey, value, fmt) {
-                    if (!value || !fields[fieldName] || !isTrusted(ocrKey)) return false;
+                function fillFromOcr(fieldName, value, fmt) {
+                    if (!value || !fields[fieldName]) return false;
                     const next = fmt ? fmt(value) : value;
-                    if (!next) return false;
+                    if (!next || String(next).trim() === '') return false;
                     fields[fieldName].value = next;
+                    fields[fieldName].classList.add('ocr-autofilled');
                     setFieldError(fieldName, '');
+                    try {
+                        fields[fieldName].dispatchEvent(new Event('input', { bubbles: true }));
+                        fields[fieldName].dispatchEvent(new Event('change', { bubbles: true }));
+                    } catch (e) {}
                     return true;
                 }
+
                 let filledCount = 0;
-                if (fillFromOcr('surname',        'last_name',    idData.last_name)) filledCount++;
-                if (fillFromOcr('first_name',     'first_name',   idData.first_name)) filledCount++;
-                if (fillFromOcr('middle_initial', 'middle_name',  idData.middle_name, v => String(v).replace(/[^A-Za-z]/g,'').slice(0,1).toUpperCase())) filledCount++;
-                if (fillFromOcr('address',        'address',      idData.address)) filledCount++;
-                if (fillFromOcr('birth_place',    'birth_place',  idData.birth_place)) filledCount++;
-                if (fillFromOcr('id_number',      'id_number',    idData.id_number)) filledCount++;
-                if (fillFromOcr('birthdate',      'date_of_birth',idData.date_of_birth, formatIsoDateForDisplay)) filledCount++;
+                if (fillFromOcr('surname', idData.last_name)) filledCount++;
+                if (fillFromOcr('first_name', idData.first_name)) filledCount++;
+                if (fillFromOcr('middle_initial', idData.middle_name, v => String(v).replace(/[^A-Za-z]/g, '').slice(0, 1).toUpperCase())) filledCount++;
+                if (fillFromOcr('address', idData.address)) filledCount++;
+                if (fillFromOcr('birth_place', idData.birth_place)) filledCount++;
+                if (fillFromOcr('id_number', idData.id_number_formatted || idData.id_number)) filledCount++;
+                if (fillFromOcr('birthdate', idData.date_of_birth_display || idData.date_of_birth, v => /^\d{4}-\d{2}-\d{2}$/.test(v) ? formatIsoDateForDisplay(v) : v)) filledCount++;
+
                 // Sex field (if present)
                 if (idData.sex && fields.sex) {
                     const s = String(idData.sex).trim().toUpperCase();
                     if (s === 'MALE' || s === 'M') fields.sex.value = 'male';
                     else if (s === 'FEMALE' || s === 'F') fields.sex.value = 'female';
+                    try { fields.sex.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
                 }
 
-                const isAiEnhanced  = Boolean(data.ai_enhanced);
-                const idTypeLabel   = data.id_type_detected ? ' (' + data.id_type_detected + ')' : '';
-                const uncertainKeys = Object.keys(thresholds).filter(k => idData[k] && !isTrusted(k));
-                const readLabels    = ['last_name','first_name','middle_name','address','date_of_birth','birth_place','id_number']
-                    .filter(k => idData[k] && isTrusted(k))
-                    .map(k => k.replace(/_/g,' '));
+                const isAiEnhanced = Boolean(data.ai_enhanced);
+                const idTypeLabel  = data.id_type_detected ? ' (' + data.id_type_detected + ')' : '';
+                const readLabels   = ['last_name', 'first_name', 'middle_name', 'address', 'date_of_birth', 'birth_place', 'id_number']
+                    .filter(k => Boolean(idData[k]))
+                    .map(k => k.replace(/_/g, ' '));
+                const readSummary  = readLabels.length ? ' Read: ' + readLabels.join(', ') + '.' : '';
 
-                if (uncertainKeys.length) {
-                    const uncertLabels = uncertainKeys.map(k => k.replace(/_/g,' ')).join(', ');
-                    setIdOcrStatus('warning', 'Some fields need review: ' + uncertLabels + '. Retake the ID closer and in bright light if wrong.', isAiEnhanced);
-                    return;
-                }
                 if (filledCount === 0) {
-                    setIdOcrStatus('warning', 'OCR could not read the ID text. Retake the Front and Back ID photos upright, sharp, and filling the frame.');
+                    setIdOcrStatus('error', 'OCR could not read text from the ID. You can enter your details manually below.');
                     return;
                 }
-                const readSummary = readLabels.length ? ' Read: ' + readLabels.join(', ') + '.' : '';
-                setIdOcrStatus('success', filledCount > 0
-                    ? 'ID scanned successfully' + idTypeLabel + ' and filled registration details.' + readSummary
-                    : 'ID scanned.' + idTypeLabel + readSummary,
-                    isAiEnhanced);
+
+                const hasCore = Boolean(idData.first_name || idData.last_name);
+                if (hasCore) {
+                    setIdOcrStatus('success', 'ID scanned successfully' + idTypeLabel + ' and auto-filled registration details.' + readSummary, isAiEnhanced);
+                } else {
+                    setIdOcrStatus('review', 'Some fields need your review — check and correct the highlighted fields below.' + readSummary, isAiEnhanced);
+                }
 
                 // Face validation (non-blocking)
                 if (fields.face_capture.value && fields.face_capture.value !== 'manual' && window.FaceVerification && typeof window.FaceVerification.verifyLiveAgainstId === 'function') {
@@ -4453,7 +4492,14 @@ $has_logo = is_file($logo_file);
                 }
 
             } catch (error) {
-                setIdOcrStatus('warning', error && error.message ? error.message : 'The ID text could not be scanned.');
+                console.error('[ID OCR]', error);
+                setIdOcrStatus('error', error && error.message ? error.message : 'The ID text could not be scanned. Please fill in details manually.');
+            } finally {
+                ocrScanInProgress = false;
+                if (pendingOcrScan) {
+                    pendingOcrScan = false;
+                    scanCapturedIdText();
+                }
             }
         }
 

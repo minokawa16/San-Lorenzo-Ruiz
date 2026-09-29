@@ -51,7 +51,7 @@ class IDOCRProcessor
             return runCloudOcr($base64Image);
         }
 
-        $apiKey = getenv('OCR_SPACE_API_KEY');
+        $apiKey = getenv('OCR_SPACE_API_KEY') ?: (defined('OCR_SPACE_API_KEY') ? OCR_SPACE_API_KEY : 'K81271400388957');
         if (!$apiKey) {
             throw new Exception('OCR service is not configured. Missing OCR_SPACE_API_KEY environment variable on server.');
         }
@@ -59,13 +59,13 @@ class IDOCRProcessor
         curl_setopt_array($ch, [
             CURLOPT_POST => true,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 20,
+            CURLOPT_TIMEOUT => 25,
             CURLOPT_POSTFIELDS => http_build_query([
                 'apikey' => $apiKey,
                 'base64Image' => $base64Image,
                 'OCREngine' => 2,
-                'scale' => true,
-                'isTable' => false,
+                'scale' => 'true',
+                'isTable' => 'false',
             ]),
         ]);
         $response = curl_exec($ch);
@@ -77,7 +77,8 @@ class IDOCRProcessor
         }
         $data = json_decode($response, true);
         if (empty($data['ParsedResults'][0]['ParsedText'])) {
-            throw new Exception('The ID text could not be read. Retake the photo in better lighting.');
+            $err = $data['ErrorMessage'][0] ?? 'The ID text could not be read. Retake the photo in better lighting.';
+            throw new Exception($err);
         }
         return $data['ParsedResults'][0]['ParsedText'];
     }
@@ -91,8 +92,34 @@ class IDOCRProcessor
      */
     public function scanID(string $uploadedImagePath): array
     {
-        $cleanedImage = $this->preprocessImage($uploadedImagePath);
-        $texts        = $this->extractTextCandidates($cleanedImage);
+        $texts = [];
+
+        // 1. First, try Cloud OCR (OCR.space Engine 2) on the raw uploaded image.
+        // Neural Engine 2 handles color, tilt, and contrast natively and excels on Philippine IDs.
+        $cloudKey = getenv('OCR_SPACE_API_KEY') ?: (defined('OCR_SPACE_API_KEY') ? OCR_SPACE_API_KEY : 'K81271400388957');
+        if (!empty($cloudKey) && is_file($uploadedImagePath)) {
+            try {
+                $mime = @mime_content_type($uploadedImagePath) ?: 'image/jpeg';
+                $binary = @file_get_contents($uploadedImagePath);
+                if ($binary !== false && $binary !== '') {
+                    $base64Image = 'data:' . $mime . ';base64,' . base64_encode($binary);
+                    $cloudText = $this->runCloudOcr($base64Image);
+                    if (trim((string) $cloudText) !== '') {
+                        $texts[] = trim((string) $cloudText);
+                    }
+                }
+            } catch (Throwable $cloudErr) {
+                error_log('[IDOCRProcessor] Direct cloud OCR note: ' . $cloudErr->getMessage());
+            }
+        }
+
+        // 2. Fall back to local preprocessing + Tesseract if Cloud OCR returned no text
+        $cleanedImage = null;
+        if (empty($texts)) {
+            $cleanedImage = $this->preprocessImage($uploadedImagePath);
+            $texts = $this->extractTextCandidates($cleanedImage);
+        }
+
         $rawText      = $texts[0] ?? '';
         $bestScore    = -1;
         $parsed       = [];
@@ -107,8 +134,8 @@ class IDOCRProcessor
         $fields       = $this->mergeFieldCandidates($parsed);
         $fields['raw_text'] = $rawText;
 
-        // clean up temp file
-        if (is_file($cleanedImage) && $cleanedImage !== $uploadedImagePath) {
+        // Clean up temp file
+        if ($cleanedImage && is_file($cleanedImage) && $cleanedImage !== $uploadedImagePath) {
             @unlink($cleanedImage);
         }
 
@@ -181,13 +208,21 @@ class IDOCRProcessor
 
     private function loadImageGD(string $path)
     {
-        $info = getimagesize($path);
+        $info = @getimagesize($path);
+        if (!$info || empty($info['mime'])) {
+            throw new RuntimeException('Unable to inspect image metadata.');
+        }
+        $src = false;
         switch ($info['mime']) {
-            case 'image/jpeg': return imagecreatefromjpeg($path);
-            case 'image/png':  return imagecreatefrompng($path);
-            case 'image/webp': return imagecreatefromwebp($path);
+            case 'image/jpeg': $src = @imagecreatefromjpeg($path); break;
+            case 'image/png':  $src = @imagecreatefrompng($path); break;
+            case 'image/webp': $src = @imagecreatefromwebp($path); break;
             default: throw new RuntimeException('Unsupported image type: ' . $info['mime']);
         }
+        if (!$src) {
+            throw new RuntimeException('Failed to decode image data.');
+        }
+        return $src;
     }
 
     public static function findTesseractBinary(): ?string
@@ -252,19 +287,35 @@ class IDOCRProcessor
 
     private function extractTextCandidates(string $imagePath): array
     {
-        $localTexts = $this->runLocalTesseract($imagePath);
-        if (!empty($localTexts)) {
-            return $localTexts;
+        $texts = [];
+
+        // 1. Prioritize Cloud OCR (OCR.space Engine 2) — superior on Philippine IDs with security background
+        $cloudKey = getenv('OCR_SPACE_API_KEY') ?: (defined('OCR_SPACE_API_KEY') ? OCR_SPACE_API_KEY : 'K81271400388957');
+        if (!empty($cloudKey)) {
+            try {
+                $mime = @mime_content_type($imagePath) ?: 'image/jpeg';
+                $binary = @file_get_contents($imagePath);
+                if ($binary !== false && $binary !== '') {
+                    $base64Image = 'data:' . $mime . ';base64,' . base64_encode($binary);
+                    $cloudText = $this->runCloudOcr($base64Image);
+                    if (trim((string) $cloudText) !== '') {
+                        $texts[] = trim((string) $cloudText);
+                    }
+                }
+            } catch (Throwable $e) {
+                error_log('[IDOCRProcessor] Cloud OCR notice: ' . $e->getMessage());
+            }
         }
 
-        $mime = @mime_content_type($imagePath) ?: 'image/png';
-        $binary = @file_get_contents($imagePath);
-        if ($binary === false || $binary === '') {
-            throw new RuntimeException('Failed to read image file for OCR processing.');
+        // 2. If Cloud OCR didn't return text (or as additional fallback), run local Tesseract
+        if (empty($texts)) {
+            $localTexts = $this->runLocalTesseract($imagePath);
+            if (!empty($localTexts)) {
+                return $localTexts;
+            }
         }
-        $base64Image = 'data:' . $mime . ';base64,' . base64_encode($binary);
-        $text = $this->runCloudOcr($base64Image);
-        return [trim($text)];
+
+        return $texts;
     }
 
     private function mergeFieldCandidates(array $passes): array
@@ -304,8 +355,9 @@ class IDOCRProcessor
             $winner = reset($clusters);
             usort($winner['values'], static fn($a, $b) => mb_strlen($b) <=> mb_strlen($a));
             $result[$field] = $winner['values'][0];
-            $agreement = $winner['count'] / $passCount;
-            $confidence[$field] = round(min(0.98, 0.45 + ($agreement * 0.55)), 2);
+            $extractedPasses = count(array_filter($passes, fn($p) => !empty($p[$field])));
+            $agreement = $winner['count'] / max(1, $extractedPasses);
+            $confidence[$field] = round(min(0.98, 0.75 + ($agreement * 0.23)), 2);
         }
 
         $result['field_confidence'] = $confidence;
@@ -608,6 +660,8 @@ class IDOCRProcessor
             'ADDRESS', 'RESIDENCE', 'TIRAHAN', 'DATE OF BIRTH', 'BIRTHDATE',
             'SEX', 'GENDER', 'NATIONALITY', 'CIVIL STATUS', 'SIGNATURE',
             'ID NO', 'ID NUMBER', 'EXPIRATION', 'EXPIRY', 'DATE ISSUED',
+            'IF FOUND', 'PLEASE RETURN', 'PSA OFFICE', 'WWW.PSA', 'PSA.GOV',
+            'ARAW NG', 'DATE OF ISSUE', 'URI NG DUGO', 'BLOOD TYPE',
         ];
         $upper = mb_strtoupper($text);
 
@@ -628,8 +682,20 @@ class IDOCRProcessor
                 }
             }
 
-            $place = mb_substr($rest, 0, $cutAt);
-            $place = str_replace("\n", ' ', $place);
+            $placeBlock = mb_substr($rest, 0, $cutAt);
+            $lines = array_values(array_filter(array_map('trim', preg_split('/\r?\n/', $placeBlock)), fn($l) => $l !== ''));
+            if (!empty($lines)) {
+                $firstLine = trim($lines[0], " \t\n\r\0\x0B.,-");
+                if (mb_strlen($firstLine) >= 3 && !preg_match('/\b(IF FOUND|PLEASE RETURN|PSA|WWW)\b/i', $firstLine)) {
+                    // Check if second line is also part of the place (e.g. municipality, province)
+                    if (isset($lines[1]) && !preg_match('/\b(IF FOUND|PLEASE RETURN|PSA|WWW|ARAW|DATE|SEX|STATUS|KASARIAN|URI)\b/i', $lines[1]) && mb_strlen($lines[1]) <= 35) {
+                        return $firstLine . ', ' . trim($lines[1], " \t\n\r\0\x0B.,-");
+                    }
+                    return $firstLine;
+                }
+            }
+
+            $place = str_replace("\n", ' ', $placeBlock);
             $place = preg_replace('/\s+/', ' ', $place);
             $place = trim($place, " \t\n\r\0\x0B.,-");
             if ($place !== '' && mb_strlen($place) >= 3) {

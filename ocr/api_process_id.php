@@ -71,7 +71,7 @@ function inferBirthPlaceFromAddress(?string $address): ?string
 if (!function_exists('runCloudOcr')) {
     function runCloudOcr(string $base64Image): string
     {
-        $apiKey = getenv('OCR_SPACE_API_KEY');
+        $apiKey = getenv('OCR_SPACE_API_KEY') ?: (defined('OCR_SPACE_API_KEY') ? OCR_SPACE_API_KEY : 'K81271400388957');
         if (!$apiKey) {
             throw new Exception('OCR service is not configured. Missing OCR_SPACE_API_KEY.');
         }
@@ -79,13 +79,13 @@ if (!function_exists('runCloudOcr')) {
         curl_setopt_array($ch, [
             CURLOPT_POST => true,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 20,
+            CURLOPT_TIMEOUT => 25,
             CURLOPT_POSTFIELDS => http_build_query([
                 'apikey' => $apiKey,
                 'base64Image' => $base64Image,
                 'OCREngine' => 2,
-                'scale' => true,
-                'isTable' => false,
+                'scale' => 'true',
+                'isTable' => 'false',
             ]),
         ]);
         $response = curl_exec($ch);
@@ -97,7 +97,8 @@ if (!function_exists('runCloudOcr')) {
         }
         $data = json_decode($response, true);
         if (empty($data['ParsedResults'][0]['ParsedText'])) {
-            throw new Exception('The ID text could not be read. Retake the photo in better lighting.');
+            $err = $data['ErrorMessage'][0] ?? 'The ID text could not be read. Retake the photo in better lighting.';
+            throw new Exception($err);
         }
         return $data['ParsedResults'][0]['ParsedText'];
     }
@@ -273,19 +274,20 @@ try {
         try {
             $backData = $processor->scanID($backDestPath);
             $backConfidence = $backData['field_confidence'] ?? [];
-            foreach ($backData as $field => $value) {
-                if ($field === 'raw_text') {
-                    $idData['raw_text'] = trim(($idData['raw_text'] ?? '') . "\n" . ($value ?? ''));
-                    continue;
-                }
-                if ($field === 'field_confidence') {
-                    continue;
-                }
-                $curScore = (float) ($idData['field_confidence'][$field] ?? 0);
-                $backScore = (float) ($backConfidence[$field] ?? 0);
-                if ($value !== null && $value !== '' && (empty($idData[$field]) || $backScore > $curScore)) {
-                    $idData[$field] = $value;
-                    $idData['field_confidence'][$field] = $backScore;
+            if (!empty($backData['raw_text'])) {
+                $idData['raw_text'] = trim(($idData['raw_text'] ?? '') . "\n" . (string) $backData['raw_text']);
+            }
+            // Philippine National ID back side contains Sex, Place of Birth, and Blood Type.
+            // NEVER allow back ID to overwrite or populate cardholder name fields or PCN!
+            foreach (['sex', 'birth_place', 'address'] as $field) {
+                $value = $backData[$field] ?? null;
+                if ($value !== null && $value !== '') {
+                    $curScore = (float) ($idData['field_confidence'][$field] ?? 0);
+                    $backScore = (float) ($backConfidence[$field] ?? 0.85);
+                    if (empty($idData[$field]) || $backScore >= $curScore) {
+                        $idData[$field] = $value;
+                        $idData['field_confidence'][$field] = $backScore;
+                    }
                 }
             }
         } catch (Throwable $backErr) {
@@ -369,6 +371,7 @@ try {
         'confidence_score' => $confidenceScore,
     ];
 } catch (Throwable $e) {
+    error_log('[api_process_id] OCR processing failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
     $responseStatus = 500;
     $responsePayload = ['success' => false, 'error' => 'OCR processing failed: ' . $e->getMessage()];
 } finally {
