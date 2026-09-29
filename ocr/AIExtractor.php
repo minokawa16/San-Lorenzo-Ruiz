@@ -44,18 +44,21 @@ class AIExtractor
         'date_of_birth',
         'address',
         'birth_place',
+        'sex',
     ];
 
     private const SYSTEM_PROMPT = <<<'PROMPT'
-You are an expert e-KYC document parser specialised in Philippine government-issued IDs.
+You are an expert e-KYC document parser specialised in Philippine government-issued IDs, especially the Philippine National ID (PhilSys ID / ePhilID).
 
-Given raw, noisy OCR text extracted from a scanned Philippine ID, your task is to:
+Given an image or raw OCR text of a Philippine ID, your task is to:
 1. Identify the type of ID (PhilSys National ID / ePhilID, Driver's License, UMID, SSS, PRC, Voter's ID, or Philippine Passport).
 2. Correct common OCR character misreads (e.g. 0↔O, 1↔I, rn↔m, clumped words, broken letters).
 3. Split the full name correctly into first_name, middle_name, last_name, and suffix.
-4. Normalise the date of birth to YYYY-MM-DD format.
+4. Normalise the date of birth to YYYY-MM-DD format (convert Tagalog or English months like "DECEMBER 16, 2005" to 2005-12-16).
 5. Normalise the address (Street, Barangay, Municipality/City, Province).
-6. Return ONLY a valid JSON object — no markdown fences, no explanation text, no trailing commas.
+6. Format PhilSys Card Number (PCN) as 16 digits: XXXX-XXXX-XXXX-XXXX.
+7. Extract sex (Male or Female) from Kasarian / Sex if present.
+8. Return ONLY a valid JSON object — no markdown fences, no explanation text, no trailing commas.
 
 Output schema (use null for any field you cannot determine with confidence):
 {
@@ -68,7 +71,8 @@ Output schema (use null for any field you cannot determine with confidence):
   "id_number":         "<string or null>",
   "date_of_birth":     "<YYYY-MM-DD or null>",
   "address":           "<string or null>",
-  "birth_place":       "<string or null>"
+  "birth_place":       "<string or null>",
+  "sex":               "<Male|Female or null>"
 }
 PROMPT;
 
@@ -113,6 +117,63 @@ PROMPT;
 
         // No AI backend available — caller falls back to regex-parsed result
         return null;
+    }
+
+    /**
+     * Direct multimodal document extraction: sends ID image directly to Gemini API.
+     * High accuracy through security backgrounds (guilloche patterns).
+     */
+    public function parseImage(string $imagePath, ?string $mimeType = 'image/jpeg'): ?array
+    {
+        $apiKey = trim((string) getenv('GEMINI_API_KEY'));
+        if ($apiKey === '' || !is_file($imagePath)) {
+            return null;
+        }
+
+        $imageBytes = (string) file_get_contents($imagePath);
+        if ($imageBytes === '') {
+            return null;
+        }
+
+        $url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' . urlencode($apiKey);
+
+        $payload = json_encode([
+            'system_instruction' => ['parts' => [['text' => self::SYSTEM_PROMPT]]],
+            'contents' => [[
+                'role' => 'user',
+                'parts' => [
+                    ['text' => "Carefully read this Philippine National ID (PhilSys ID) image. Extract Last Name (Apelyido), Given Name(s) (Mga Pangalan), Middle Name (Gitnang Apelyido), Date of Birth (Petsa ng Kapanganakan), Address (Tirahan), and PhilSys Card Number / PCN (numeric ID in XXXX-XXXX-XXXX-XXXX format). Return valid JSON matching the schema."],
+                    [
+                        'inlineData' => [
+                            'mimeType' => $mimeType ?: 'image/jpeg',
+                            'data' => base64_encode($imageBytes)
+                        ]
+                    ]
+                ]
+            ]],
+            'generationConfig' => [
+                'temperature' => 0.1,
+                'maxOutputTokens' => 768,
+                'responseMimeType' => 'application/json',
+            ],
+        ]);
+
+        $responseText = $this->httpPost($url, $payload, [
+            'Content-Type' => 'application/json',
+        ]);
+
+        if ($responseText === null) {
+            $urlFallback = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' . urlencode($apiKey);
+            $responseText = $this->httpPost($urlFallback, $payload, ['Content-Type' => 'application/json']);
+        }
+
+        if ($responseText === null) {
+            return null;
+        }
+
+        $data = json_decode($responseText, true);
+        $content = $data['candidates'][0]['content']['parts'][0]['text'] ?? null;
+        return $this->parseAiContent((string) ($content ?? ''));
     }
 
     /* ─── Railway Gemini Gateway ─────────────────────────────────────────── */

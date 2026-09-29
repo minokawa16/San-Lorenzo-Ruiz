@@ -193,12 +193,35 @@ include '../templates/header.php';
             addMessage('assistant', {loading: true});
             sendBtn.disabled = true;
 
+            const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+            const timeoutId = controller ? setTimeout(function() { controller.abort(); }, 18000) : null;
+
             fetch('../api/ai-assistant.php', {
                 method: 'POST',
+                signal: controller ? controller.signal : undefined,
                 headers: {'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-Token': assistantCsrfToken, 'X-Requested-With': 'XMLHttpRequest'},
                 body: JSON.stringify({message: message, mode: mode || 'chat', conversation: conversationHistory.slice(-8)})
             })
-            .then(function(response) { return response.json(); })
+            .then(function(response) {
+                if (timeoutId) clearTimeout(timeoutId);
+                return response.text().then(function(rawText) {
+                    let data = null;
+                    try {
+                        data = JSON.parse(rawText);
+                    } catch (parseErr) {
+                        console.error('[TUGON AI Admin] Non-JSON response (HTTP ' + response.status + '):', rawText.substring(0, 300));
+                    }
+                    if (data && typeof data === 'object') {
+                        return data;
+                    }
+                    return {
+                        success: false,
+                        message: response.status >= 500
+                            ? 'The assistant service is temporarily experiencing an issue. Please try again.'
+                            : 'Unable to reach the assistant endpoint (HTTP ' + response.status + ').'
+                    };
+                });
+            })
             .then(function(data) {
                 const answer = data.success ? (data.answer || 'I prepared a parish administration response.') : (data.message || 'Unable to answer right now.');
                 const title = data.success && data.guidance && data.guidance.title ? data.guidance.title : 'AI Parish Assistant';
@@ -222,8 +245,12 @@ include '../templates/header.php';
                     }
                 }, typingDelayFor(answer));
             })
-            .catch(function() {
-                const answer = 'Unable to reach the assistant endpoint. Please try again.';
+            .catch(function(err) {
+                if (timeoutId) clearTimeout(timeoutId);
+                console.error('[TUGON AI Admin] Error:', err);
+                const answer = err && err.name === 'AbortError'
+                    ? 'The assistant took too long to respond. Please try again.'
+                    : 'Unable to reach the assistant endpoint. Please try again.';
                 window.setTimeout(function() {
                     removeLoading();
                     sendBtn.disabled = false;

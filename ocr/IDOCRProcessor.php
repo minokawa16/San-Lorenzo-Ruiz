@@ -120,6 +120,11 @@ class IDOCRProcessor
      * ID photos taken with a phone camera are usually low-contrast / small,
      * and OCR accuracy drops sharply without this step.
      */
+    /**
+     * Improves OCR accuracy: grayscale, upscale, boost contrast, sharpen, noise reduction.
+     * The Philippine National ID has a busy, textured security background (guilloche patterns)
+     * which can interfere with OCR accuracy. Preprocessing isolates the dark text characters.
+     */
     private function preprocessImage(string $imagePath): string
     {
         $outputPath = $this->workDir . '/' . uniqid('id_clean_', true) . '.png';
@@ -128,11 +133,12 @@ class IDOCRProcessor
             $img = new Imagick($imagePath);
             $img->setImageColorspace(Imagick::COLORSPACE_GRAY);
             $img->normalizeImage();                 // stretch contrast
-            $img->sharpenImage(0, 1);
+            $img->sharpenImage(0, 1.2);
             // Upscale small images — OCR likes ~300dpi-equivalent text height
             $geo = $img->getImageGeometry();
-            if ($geo['width'] < 1500) {
-                $img->resizeImage($geo['width'] * 2, $geo['height'] * 2, Imagick::FILTER_LANCZOS, 1);
+            if ($geo['width'] < 1600) {
+                $scaleFactor = max(2.0, 1600.0 / max(1, $geo['width']));
+                $img->resizeImage((int)($geo['width'] * $scaleFactor), (int)($geo['height'] * $scaleFactor), Imagick::FILTER_LANCZOS, 1);
             }
             $img->setImageFormat('png');
             $img->writeImage($outputPath);
@@ -142,11 +148,18 @@ class IDOCRProcessor
             $src = $this->loadImageGD($imagePath);
             $w = imagesx($src);
             $h = imagesy($src);
-            $scale = $w < 1500 ? 2 : 1;
+            $scale = $w < 1600 ? max(2, (int) ceil(1600 / max(1, $w))) : 1;
+            if ($scale > 4) {
+                $scale = 4;
+            }
             $dst = imagecreatetruecolor($w * $scale, $h * $scale);
             imagecopyresampled($dst, $src, 0, 0, 0, 0, $w * $scale, $h * $scale, $w, $h);
             imagefilter($dst, IMG_FILTER_GRAYSCALE);
-            imagefilter($dst, IMG_FILTER_CONTRAST, -20);
+            // Contrast boost to overcome guilloche textured security background
+            imagefilter($dst, IMG_FILTER_CONTRAST, -25);
+            // Light smoothing followed by edge sharpening
+            imagefilter($dst, IMG_FILTER_SMOOTH, 1);
+            imagefilter($dst, IMG_FILTER_MEAN_REMOVAL);
             imagepng($dst, $outputPath);
             imagedestroy($src);
             imagedestroy($dst);
@@ -256,7 +269,7 @@ class IDOCRProcessor
 
     private function mergeFieldCandidates(array $passes): array
     {
-        $fields = ['last_name', 'first_name', 'middle_name', 'date_of_birth', 'birth_place', 'id_number', 'address'];
+        $fields = ['last_name', 'first_name', 'middle_name', 'date_of_birth', 'birth_place', 'id_number', 'address', 'sex'];
         $result = array_fill_keys($fields, null);
         $confidence = array_fill_keys($fields, 0.0);
         $passCount = max(1, count($passes));
@@ -316,6 +329,9 @@ class IDOCRProcessor
         if ($field === 'id_number') {
             return strlen(preg_replace('/[^A-Z0-9]/i', '', $value)) >= 5;
         }
+        if ($field === 'sex') {
+            return in_array(strtolower($value), ['male', 'female', 'lalaki', 'babae', 'm', 'f'], true);
+        }
         if (in_array($field, ['last_name', 'first_name', 'middle_name'], true)) {
             return (bool) preg_match("/^[\\p{L}][\\p{L}\\p{M}' .\\-]{0,59}$/u", $value)
                 && !preg_match('/\b(NAME|PANGALAN|APELYIDO|REPUBLIC|PHILIPPINES|ADDRESS|BIRTH)\b/ui', $value);
@@ -358,17 +374,25 @@ class IDOCRProcessor
             'birth_place'   => null,
             'id_number'     => null,
             'address'       => null,
+            'sex'           => null,
         ];
 
         // ---- 1) Try labeled fields (name fields — short, single-line values) ----
-        // NOTE: middle_name may come back as just a single letter (e.g. "R") on
-        // IDs that only print a middle INITIAL rather than the full middle name.
-        // That's handled specially in compareMiddleName() below — don't treat a
-        // single letter here as a parsing failure.
+        // Philippine National ID (PhilSys) bilingual labels:
+        // "APELYIDO / LAST NAME", "MGA PANGALAN / GIVEN NAMES", "GITNANG APELYIDO / MIDDLE NAME"
         $labelMap = [
-            'last_name'   => ['LAST NAME', 'SURNAME', 'APELYIDO', 'APELYIDO/SURNAME'],
-            'first_name'  => ['FIRST NAME', 'GIVEN NAME', 'GIVEN NAMES', 'PANGALAN'],
-            'middle_name' => ['MIDDLE NAME', 'MIDDLE NAMES', 'MIDDLE INITIAL', 'M.I.', 'GITNANG APELYIDO'],
+            'last_name'   => [
+                'APELYIDO / LAST NAME', 'APELYIDO/LAST NAME', 'APELYIDO / SURNAME',
+                'APELYIDO', 'LAST NAME', 'SURNAME'
+            ],
+            'first_name'  => [
+                'MGA PANGALAN / GIVEN NAMES', 'MGA PANGALAN/GIVEN NAMES',
+                'MGA PANGALAN', 'GIVEN NAMES', 'GIVEN NAME', 'FIRST NAME', 'PANGALAN'
+            ],
+            'middle_name' => [
+                'GITNANG APELYIDO / MIDDLE NAME', 'GITNANG APELYIDO/MIDDLE NAME',
+                'GITNANG APELYIDO', 'MIDDLE NAME', 'MIDDLE NAMES', 'MIDDLE INITIAL', 'M.I.'
+            ],
         ];
 
         foreach ($labelMap as $field => $labels) {
@@ -377,7 +401,7 @@ class IDOCRProcessor
                 if (preg_match('/' . preg_quote($label, '/') . '\s*[:\-]?\s*\n?([A-ZÑ\.\-\' ]{1,40})/u', $upperText, $m)) {
                     $candidate = trim($m[1]);
                     // Cut off if it accidentally captured the next label
-                    $candidate = preg_split('/\b(FIRST|LAST|MIDDLE|GIVEN|DATE|SEX|ADDRESS|NATIONALITY)\b/', $candidate)[0];
+                    $candidate = preg_split('/\b(FIRST|LAST|MIDDLE|GIVEN|DATE|SEX|ADDRESS|NATIONALITY|PETSA|KAPANGANAKAN|TIRAHAN|KASARIAN)\b/', $candidate)[0];
                     $candidate = trim($candidate, " \t\n\r\0\x0B.-");
                     if ($candidate !== '') {
                         $result[$field] = $candidate;
@@ -398,15 +422,16 @@ class IDOCRProcessor
         // ---- Address (long, potentially multi-line free text — handled separately) ----
         $result['address'] = $this->parseAddress($text);
 
-        // ---- 2) Date of birth (several common formats) ----
-        if (preg_match('/(DATE OF BIRTH|BIRTH ?DATE|DOB|PETSA NG KAPANGANAKAN|KAPANGANAKAN)\s*[:\-]?\s*([0-9]{1,2}[\/\-. ][A-Za-z0-9]{1,9}[\/\-. ][0-9]{2,4}|[A-Z]{3,9}\s+[0-9]{1,2},?\s+[0-9]{4}|[0-9]{4}[\/\-. ][0-9]{1,2}[\/\-. ][0-9]{1,2})/u', $upperText, $m)) {
-            $result['date_of_birth'] = $this->normalizeDate($m[2]);
+        // ---- 2) Date of birth (PhilSys shows e.g. "DECEMBER 16, 2005" or Tagalog format) ----
+        if (preg_match('/(?:PETSA NG KAPANGANAKAN|DATE OF BIRTH|BIRTH ?DATE|DOB|KAPANGANAKAN)\s*[:\/\-]?\s*(?:PETSA NG KAPANGANAKAN|DATE OF BIRTH)?\s*[:\-]?\s*([0-9]{1,2}[\/\-. ][A-Za-z0-9]{1,12}[\/\-. ][0-9]{2,4}|[A-Z]{3,12}\s+[0-9]{1,2},?\s+[0-9]{4}|[0-9]{1,2}\s+[A-Z]{3,12},?\s+[0-9]{4}|[0-9]{4}[\/\-. ][0-9]{1,2}[\/\-. ][0-9]{1,2})/u', $upperText, $m)) {
+            $result['date_of_birth'] = self::normalizeDate($m[1]);
         } elseif (preg_match('/\b([0-9]{1,2}[\/\-][0-9]{1,2}[\/\-][0-9]{4})\b/', $text, $m)) {
-            $result['date_of_birth'] = $this->normalizeDate($m[1]);
+            $result['date_of_birth'] = self::normalizeDate($m[1]);
         }
 
         $result['id_number'] = $this->parseIdNumber($text);
         $result['birth_place'] = $this->parseBirthPlace($text);
+        $result['sex'] = $this->parseSexField($text);
 
         // ---- 3) Fallback: unlabeled "LASTNAME, FIRSTNAME MIDDLENAME" line ----
         if (!$result['last_name'] || !$result['first_name']) {
@@ -439,7 +464,7 @@ class IDOCRProcessor
                 $after = trim((string) preg_replace('/^.*?' . preg_quote($label, '/') . '\s*[:\-]?\s*/ui', '', $line));
                 $candidates = $after !== '' ? [$after, $lines[$index + 1] ?? ''] : [$lines[$index + 1] ?? ''];
                 foreach ($candidates as $candidate) {
-                    if (preg_match('/\b(NAME|PANGALAN|APELYIDO|SURNAME|GIVEN|MIDDLE)\b/ui', $candidate)) {
+                    if (preg_match('/\b(NAME|PANGALAN|APELYIDO|SURNAME|GIVEN|MIDDLE|PETSA|KASARIAN|TIRAHAN)\b/ui', $candidate)) {
                         continue;
                     }
                     $clean = $this->cleanNameCandidate($candidate, $field === 'middle_name' ? 'middle' : ($field === 'last_name' ? 'last' : 'first'));
@@ -475,7 +500,11 @@ class IDOCRProcessor
         }
 
         if (!$result['date_of_birth'] && preg_match('/([A-Z ]{3,14})\s+([0-9]{1,2}),?\s+([0-9]{4})/u', mb_strtoupper($text), $m)) {
-            $result['date_of_birth'] = $this->normalizeDate(trim($m[1]) . ' ' . $m[2] . ' ' . $m[3]);
+            $result['date_of_birth'] = self::normalizeDate(trim($m[1]) . ' ' . $m[2] . ' ' . $m[3]);
+        }
+
+        if (!$result['sex']) {
+            $result['sex'] = $this->parseSexField($text);
         }
 
         if ($result['address']) {
@@ -534,16 +563,27 @@ class IDOCRProcessor
     private function parseIdNumber(string $text): ?string
     {
         $upperText = mb_strtoupper($text);
+        // Prioritize 16-digit PhilSys Card Number / PCN pattern
+        if (preg_match('/\b([0-9]{4}[\- ]?[0-9]{4}[\- ]?[0-9]{4}[\- ]?[0-9]{4})\b/u', $upperText, $m)) {
+            $formatted = self::formatPhilSysCardNumber($m[1]);
+            if ($formatted) {
+                return $formatted;
+            }
+        }
+
         $patterns = [
-            '/\b(?:ID|CARD|CRN|PCN|TIN|SSS|UMID|LICENSE|LICENCE|DL|DLN|DOCUMENT|REFERENCE)\s*(?:NO\.?|NUMBER|#)?\s*[:\-]?\s*([A-Z0-9\- ]{5,32})/u',
             '/\b(?:PHILSYS|PHILIPPINE IDENTIFICATION)\s*(?:CARD)?\s*(?:NO\.?|NUMBER|#)?\s*[:\-]?\s*([0-9\- ]{8,32})/u',
-            '/\b([0-9]{4}[\- ]?[0-9]{4}[\- ]?[0-9]{4}[\- ]?[0-9]{4})\b/u',
+            '/\b(?:ID|CARD|CRN|PCN|TIN|SSS|UMID|LICENSE|LICENCE|DL|DLN|DOCUMENT|REFERENCE)\s*(?:NO\.?|NUMBER|#)?\s*[:\-]?\s*([A-Z0-9\- ]{5,32})/u',
         ];
 
         foreach ($patterns as $pattern) {
             if (preg_match($pattern, $upperText, $m)) {
-                $candidate = preg_split('/\b(NAME|SURNAME|ADDRESS|DATE|SEX|NATIONALITY|BIRTH)\b/', trim($m[1]))[0];
+                $candidate = preg_split('/\b(NAME|SURNAME|ADDRESS|DATE|SEX|NATIONALITY|BIRTH|PETSA|KAPANGANAKAN|TIRAHAN)\b/', trim($m[1]))[0];
                 $candidate = trim(preg_replace('/\s+/', ' ', $candidate), " \t\n\r\0\x0B.-");
+                $digits = preg_replace('/[^0-9]/', '', $candidate);
+                if (strlen($digits) === 16) {
+                    return self::formatPhilSysCardNumber($digits);
+                }
                 if (strlen(preg_replace('/[^A-Z0-9]/', '', $candidate)) >= 5) {
                     return $candidate;
                 }
@@ -607,20 +647,166 @@ class IDOCRProcessor
         return null;
     }
 
-    private function normalizeDate(string $raw): ?string
+    public static function validatePhilSysCardNumber(?string $pcn): bool
     {
-        $raw = preg_replace('/\s+/', ' ', mb_strtoupper(trim($raw)));
-        if (strpos($raw, 'EMBER') !== false) {
-            $raw = preg_replace('/[A-Z ]*EMBER/u', 'DECEMBER', $raw);
+        if ($pcn === null || trim($pcn) === '') {
+            return false;
         }
-        $formats = ['d/m/Y', 'm/d/Y', 'd-m-Y', 'm-d-Y', 'd.m.Y', 'd M Y', 'd F Y', 'M d Y', 'M d, Y', 'F d Y', 'F d, Y', 'Y-m-d'];
-        foreach ($formats as $fmt) {
-            $d = DateTime::createFromFormat($fmt, $raw);
-            if ($d instanceof DateTime) {
-                return $d->format('Y-m-d');
+        $digits = preg_replace('/\D/', '', $pcn);
+        return strlen($digits) === 16;
+    }
+
+    public static function formatPhilSysCardNumber(?string $pcn): ?string
+    {
+        if ($pcn === null || trim($pcn) === '') {
+            return null;
+        }
+        $digits = preg_replace('/\D/', '', $pcn);
+        if (strlen($digits) === 16) {
+            return substr($digits, 0, 4) . '-' . substr($digits, 4, 4) . '-' . substr($digits, 8, 4) . '-' . substr($digits, 12, 4);
+        }
+        return trim($pcn);
+    }
+
+    public static function maskPhilSysCardNumber(?string $pcn): ?string
+    {
+        if ($pcn === null || trim($pcn) === '') {
+            return null;
+        }
+        $digits = preg_replace('/\D/', '', $pcn);
+        if (strlen($digits) === 16) {
+            return '••••-••••-••••-' . substr($digits, 12, 4);
+        }
+        if (strlen($digits) >= 4) {
+            return str_repeat('•', max(0, strlen($digits) - 4)) . substr($digits, -4);
+        }
+        return $pcn;
+    }
+
+    public static function parseSex(?string $raw): ?string
+    {
+        if ($raw === null || trim($raw) === '') {
+            return null;
+        }
+        $upper = mb_strtoupper(trim($raw));
+        if (preg_match('/\b(LALAKI|MALE)\b/u', $upper) || $upper === 'M') {
+            return 'Male';
+        }
+        if (preg_match('/\b(BABAE|FEMALE)\b/u', $upper) || $upper === 'F') {
+            return 'Female';
+        }
+        return null;
+    }
+
+    private function parseSexField(string $text): ?string
+    {
+        $upper = mb_strtoupper($text);
+        if (preg_match('/(?:KASARIAN|SEX)\s*[:\/\-]?\s*(?:KASARIAN|SEX)?\s*[:\-]?\s*([A-Z]{3,8})/u', $upper, $m)) {
+            $parsed = self::parseSex($m[1]);
+            if ($parsed) {
+                return $parsed;
             }
         }
-        return null; // couldn't confidently parse — leave it to manual review
+        if (preg_match('/\b(LALAKI|MALE)\b/u', $upper)) {
+            return 'Male';
+        }
+        if (preg_match('/\b(BABAE|FEMALE)\b/u', $upper)) {
+            return 'Female';
+        }
+        return null;
+    }
+
+    public static function normalizeDate(?string $raw): ?string
+    {
+        if ($raw === null || trim($raw) === '') {
+            return null;
+        }
+        $raw = preg_replace('/\s+/', ' ', mb_strtoupper(trim($raw)));
+
+        // Translate Tagalog / Filipino month names to English
+        $tagalogMonths = [
+            'ENERO' => 'JANUARY',
+            'PEBRERO' => 'FEBRUARY',
+            'PEBREO' => 'FEBRUARY',
+            'MARSO' => 'MARCH',
+            'ABRIL' => 'APRIL',
+            'MAYO' => 'MAY',
+            'HUNYO' => 'JUNE',
+            'HULYO' => 'JULY',
+            'AGOSTO' => 'AUGUST',
+            'SETYEMBRE' => 'SEPTEMBER',
+            'SIYEMBRE' => 'SEPTEMBER',
+            'SEPTYEMBRE' => 'SEPTEMBER',
+            'OKTUBRE' => 'OCTOBER',
+            'NOBYEMBRE' => 'NOVEMBER',
+            'DISYEMBRE' => 'DECEMBER',
+            'DESYEMBRE' => 'DECEMBER',
+        ];
+
+        foreach ($tagalogMonths as $tagalogMonth => $englishMonth) {
+            if (strpos($raw, $tagalogMonth) !== false) {
+                $raw = str_replace($tagalogMonth, $englishMonth, $raw);
+                break;
+            }
+        }
+
+        if (strpos($raw, 'EMBER') !== false && !preg_match('/\b(SEPTEMBER|NOVEMBER|DECEMBER)\b/', $raw)) {
+            $raw = preg_replace('/[A-Z ]*EMBER/u', 'DECEMBER', $raw);
+        }
+
+        // If numeric date has day > 12 first (e.g. 16/12/2005 or 16-12-2005), prioritize d/m/Y
+        if (preg_match('/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/', $raw, $m)) {
+            $num1 = (int) $m[1];
+            $num2 = (int) $m[2];
+            $yr = (int) $m[3];
+            if ($num1 > 12 && $num2 <= 12) {
+                $d = DateTime::createFromFormat('!d-m-Y', "{$num1}-{$num2}-{$yr}");
+                if ($d instanceof DateTime && $yr >= 1900 && $d <= new DateTime('today')) {
+                    return $d->format('Y-m-d');
+                }
+            } elseif ($num2 > 12 && $num1 <= 12) {
+                $d = DateTime::createFromFormat('!m-d-Y', "{$num1}-{$num2}-{$yr}");
+                if ($d instanceof DateTime && $yr >= 1900 && $d <= new DateTime('today')) {
+                    return $d->format('Y-m-d');
+                }
+            }
+        }
+
+        $formats = [
+            'F d, Y', 'F d Y', 'd F Y', 'd F, Y',
+            'M d, Y', 'M d Y', 'd M Y', 'd M, Y',
+            'Y-m-d', 'Y/m/d',
+            'm/d/Y', 'd/m/Y', 'm-d-Y', 'd-m-Y', 'd.m.Y'
+        ];
+        foreach ($formats as $fmt) {
+            $d = DateTime::createFromFormat('!' . $fmt, $raw);
+            $errs = DateTime::getLastErrors();
+            if ($d instanceof DateTime && empty($errs['warning_count']) && empty($errs['error_count'])) {
+                $year = (int) $d->format('Y');
+                if ($year >= 1900 && $d <= new DateTime('today')) {
+                    return $d->format('Y-m-d');
+                }
+            }
+        }
+
+        $ts = strtotime($raw);
+        if ($ts !== false && $ts > 0 && $ts <= time()) {
+            return date('Y-m-d', $ts);
+        }
+
+        return null;
+    }
+
+    public static function formatDateDisplay(?string $isoDate): ?string
+    {
+        if ($isoDate === null || trim($isoDate) === '') {
+            return null;
+        }
+        $ts = strtotime($isoDate);
+        if ($ts !== false) {
+            return date('F d, Y', $ts);
+        }
+        return $isoDate;
     }
 
     private function cleanAddressValue(string $address): string

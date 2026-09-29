@@ -202,77 +202,158 @@ $responseStatus = 200;
 
 try {
     $processor = new IDOCRProcessor($workDir, 65); // 65% similarity threshold, tweak as needed
-    $idData    = $processor->scanID($destPath);
-    if ($backDestPath) {
-        $backData = $processor->scanID($backDestPath);
-        $frontConfidence = $idData['field_confidence'] ?? [];
-        $backConfidence = $backData['field_confidence'] ?? [];
-        foreach ($backData as $field => $value) {
+    $idData    = [
+        'last_name'     => null,
+        'first_name'    => null,
+        'middle_name'   => null,
+        'date_of_birth' => null,
+        'birth_place'   => null,
+        'id_number'     => null,
+        'address'       => null,
+        'sex'           => null,
+        'field_confidence' => [
+            'last_name'     => 0.0,
+            'first_name'    => 0.0,
+            'middle_name'   => 0.0,
+            'date_of_birth' => 0.0,
+            'birth_place'   => 0.0,
+            'id_number'     => 0.0,
+            'address'       => 0.0,
+            'sex'           => 0.0,
+        ],
+    ];
+
+    $aiEnhanced     = false;
+    $idTypeDetected = null;
+    $confidenceScore = null;
+
+    // ── STEP 1: Try direct Gemini multimodal document vision on the front ID ──
+    $mimeForAi = @mime_content_type($destPath) ?: 'image/jpeg';
+    try {
+        $extractor = new AIExtractor();
+        $aiDirect = $extractor->parseImage($destPath, $mimeForAi);
+        if ($aiDirect !== null && is_array($aiDirect)) {
+            $aiEnhanced     = true;
+            $idTypeDetected = $aiDirect['id_type_detected'] ?? 'Philippine National ID';
+            $confidenceScore = (float) ($aiDirect['confidence_score'] ?? 0.95);
+
+            foreach (['first_name', 'middle_name', 'last_name', 'id_number', 'date_of_birth', 'address', 'birth_place', 'sex'] as $k) {
+                if (!empty($aiDirect[$k])) {
+                    $idData[$k] = $aiDirect[$k];
+                    $idData['field_confidence'][$k] = max(0.90, $confidenceScore);
+                }
+            }
+        }
+    } catch (Throwable $aiDirectError) {
+        error_log('[api_process_id] AIExtractor::parseImage direct multimodal error: ' . $aiDirectError->getMessage());
+    }
+
+    // ── STEP 2: If any core field is missing or AI is unavailable, run OCR processor ──
+    $needsOcr = empty($idData['last_name']) || empty($idData['first_name']) || empty($idData['id_number']);
+    if ($needsOcr) {
+        $scannedFront = $processor->scanID($destPath);
+        $scannedConfidence = $scannedFront['field_confidence'] ?? [];
+        foreach ($scannedFront as $field => $val) {
             if ($field === 'raw_text') {
-                $idData['raw_text'] = trim(($idData['raw_text'] ?? '') . "\n" . ($value ?? ''));
+                $idData['raw_text'] = $val;
                 continue;
             }
             if ($field === 'field_confidence') {
                 continue;
             }
-            $frontScore = (float) ($frontConfidence[$field] ?? 0);
-            $backScore = (float) ($backConfidence[$field] ?? 0);
-            if ($value !== null && $value !== '' && (($idData[$field] ?? null) === null || $backScore > $frontScore)) {
-                $idData[$field] = $value;
-                $frontConfidence[$field] = $backScore;
+            if (!empty($val) && empty($idData[$field])) {
+                $idData[$field] = $val;
+                $idData['field_confidence'][$field] = (float) ($scannedConfidence[$field] ?? 0.70);
             }
         }
-        $idData['field_confidence'] = $frontConfidence;
-        if (!empty($backData['birth_place'])) {
-            $backBirthScore = (float) ($backConfidence['birth_place'] ?? 0);
-            if ($backBirthScore > (float) ($frontConfidence['birth_place'] ?? 0)) {
-                $idData['birth_place'] = $backData['birth_place'];
-                $idData['field_confidence']['birth_place'] = $backBirthScore;
-            }
-        }
-    }
-    if (empty($idData['birth_place'])) {
-        $idData['birth_place'] = inferBirthPlaceFromAddress($idData['address'] ?? null);
-        $idData['field_confidence']['birth_place'] = 0.45;
     }
 
-    // ── AI Layer: pass raw OCR text through Gemini for noise correction ──
-    $aiEnhanced    = false;
-    $idTypeDetected = null;
-    $confidenceScore = null;
-    $rawOcrText = trim((string) ($idData['raw_text'] ?? ''));
-    if ($rawOcrText !== '') {
+    // ── STEP 3: If back ID was provided, scan and merge back side details ──
+    if ($backDestPath) {
+        try {
+            $backData = $processor->scanID($backDestPath);
+            $backConfidence = $backData['field_confidence'] ?? [];
+            foreach ($backData as $field => $value) {
+                if ($field === 'raw_text') {
+                    $idData['raw_text'] = trim(($idData['raw_text'] ?? '') . "\n" . ($value ?? ''));
+                    continue;
+                }
+                if ($field === 'field_confidence') {
+                    continue;
+                }
+                $curScore = (float) ($idData['field_confidence'][$field] ?? 0);
+                $backScore = (float) ($backConfidence[$field] ?? 0);
+                if ($value !== null && $value !== '' && (empty($idData[$field]) || $backScore > $curScore)) {
+                    $idData[$field] = $value;
+                    $idData['field_confidence'][$field] = $backScore;
+                }
+            }
+        } catch (Throwable $backErr) {
+            error_log('[api_process_id] Back ID scan notice: ' . $backErr->getMessage());
+        }
+    }
+
+    // ── STEP 4: If AI was not used yet and raw OCR text is present, run text-based AI cleaning ──
+    if (!$aiEnhanced && !empty($idData['raw_text'])) {
         try {
             $extractor = new AIExtractor();
-            $aiResult  = $extractor->parse($rawOcrText);
+            $aiResult  = $extractor->parse((string) $idData['raw_text']);
             if ($aiResult !== null) {
                 $aiEnhanced     = true;
                 $idTypeDetected = $aiResult['id_type_detected'] ?? null;
-                $confidenceScore = $aiResult['confidence_score'] ?? null;
-                // Merge: AI result wins on non-null values (higher quality)
-                $aiFieldMap = [
-                    'first_name'    => 'first_name',
-                    'middle_name'   => 'middle_name',
-                    'last_name'     => 'last_name',
-                    'id_number'     => 'id_number',
-                    'date_of_birth' => 'date_of_birth',
-                    'address'       => 'address',
-                    'birth_place'   => 'birth_place',
-                ];
-                foreach ($aiFieldMap as $aiKey => $idKey) {
-                    $aiVal = $aiResult[$aiKey] ?? null;
-                    if ($aiVal !== null && $aiVal !== '') {
-                        $idData[$idKey] = $aiVal;
-                        // Boost confidence to 0.95 for AI-verified fields
-                        if (isset($idData['field_confidence'][$idKey])) {
-                            $idData['field_confidence'][$idKey] = 0.95;
-                        }
+                $confidenceScore = (float) ($aiResult['confidence_score'] ?? 0.90);
+                foreach (['first_name', 'middle_name', 'last_name', 'id_number', 'date_of_birth', 'address', 'birth_place', 'sex'] as $k) {
+                    if (!empty($aiResult[$k])) {
+                        $idData[$k] = $aiResult[$k];
+                        $idData['field_confidence'][$k] = max(0.92, $confidenceScore);
                     }
                 }
             }
         } catch (Throwable $aiError) {
-            // AI failure is non-fatal — log and continue with regex result
-            error_log('[api_process_id] AIExtractor failed: ' . $aiError->getMessage());
+            error_log('[api_process_id] AIExtractor::parse text error: ' . $aiError->getMessage());
+        }
+    }
+
+    // ── STEP 5: PhilSys Normalization & Validation ──
+    // Date of Birth normalization (ISO YYYY-MM-DD + Display format)
+    if (!empty($idData['date_of_birth'])) {
+        $normalizedDob = IDOCRProcessor::normalizeDate($idData['date_of_birth']);
+        if ($normalizedDob) {
+            $idData['date_of_birth'] = $normalizedDob;
+            $idData['date_of_birth_display'] = IDOCRProcessor::formatDateDisplay($normalizedDob);
+        } else {
+            $idData['date_of_birth_display'] = $idData['date_of_birth'];
+        }
+    } else {
+        $idData['date_of_birth_display'] = null;
+    }
+
+    // Sex normalization
+    if (!empty($idData['sex'])) {
+        $idData['sex'] = IDOCRProcessor::parseSex($idData['sex']);
+    }
+
+    // PhilSys Card Number / PCN formatting and masking
+    if (!empty($idData['id_number'])) {
+        $rawPcn = (string) $idData['id_number'];
+        $idData['id_number_formatted'] = IDOCRProcessor::formatPhilSysCardNumber($rawPcn);
+        $idData['id_number_masked']    = IDOCRProcessor::maskPhilSysCardNumber($rawPcn);
+        $idData['id_number_valid']     = IDOCRProcessor::validatePhilSysCardNumber($rawPcn);
+        // Use formatted 16-digit PCN as main id_number value
+        if ($idData['id_number_formatted']) {
+            $idData['id_number'] = $idData['id_number_formatted'];
+        }
+    } else {
+        $idData['id_number_formatted'] = null;
+        $idData['id_number_masked']    = null;
+        $idData['id_number_valid']     = false;
+    }
+
+    // Birth place inference if still empty
+    if (empty($idData['birth_place'])) {
+        $idData['birth_place'] = inferBirthPlaceFromAddress($idData['address'] ?? null);
+        if ($idData['birth_place']) {
+            $idData['field_confidence']['birth_place'] = 0.50;
         }
     }
 

@@ -2407,9 +2407,13 @@
             }
 
             function postAssistantMessage(message, retried) {
+                const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+                const timeoutId = controller ? setTimeout(function() { controller.abort(); }, 18000) : null;
+
                 return fetch('<?php echo BASE_URL; ?>api/ai-assistant.php', {
                     method: 'POST',
                     credentials: 'same-origin',
+                    signal: controller ? controller.signal : undefined,
                     headers: {
                         'Content-Type': 'application/json',
                         'Accept': 'application/json',
@@ -2419,14 +2423,75 @@
                     body: JSON.stringify({message: message, mode: 'chat', conversation: conversationHistory.slice(-8)})
                 })
                 .then(function(response) {
-                    return response.json().then(function(data) {
+                    if (timeoutId) clearTimeout(timeoutId);
+                    return response.text().then(function(rawText) {
+                        let data = null;
+                        try {
+                            data = JSON.parse(rawText);
+                        } catch (parseErr) {
+                            console.error('[TUGON AI] Non-JSON response (HTTP ' + response.status + '):', rawText.substring(0, 300));
+                        }
+
                         if (response.status === 403 && !retried) {
                             return refreshAssistantCsrfToken().then(function() {
                                 return postAssistantMessage(message, true);
+                            }).catch(function() {
+                                return data || {
+                                    success: false,
+                                    error: 'SESSION_EXPIRED',
+                                    message: 'Your security session has expired. Please refresh the page to continue.'
+                                };
                             });
                         }
-                        return data;
+
+                        if (data && typeof data === 'object') {
+                            return data;
+                        }
+
+                        if (response.status === 401) {
+                            return {
+                                success: false,
+                                error: 'AUTH_REQUIRED',
+                                message: 'Please log in to your account to chat with the TUGON AI Assistant.'
+                            };
+                        }
+                        if (response.status === 403) {
+                            return {
+                                success: false,
+                                error: 'FORBIDDEN',
+                                message: 'Your account is not authorized to use the AI assistant.'
+                            };
+                        }
+                        if (response.status >= 500) {
+                            return {
+                                success: false,
+                                error: 'SERVER_ERROR',
+                                message: 'The assistant is temporarily unavailable. Please try again in a moment or contact the parish office.'
+                            };
+                        }
+
+                        return {
+                            success: false,
+                            error: 'HTTP_' + response.status,
+                            message: 'Unable to communicate with the parish assistant. Please check your connection and try again.'
+                        };
                     });
+                })
+                .catch(function(err) {
+                    if (timeoutId) clearTimeout(timeoutId);
+                    console.error('[TUGON AI] Communication failure:', err);
+                    if (err && err.name === 'AbortError') {
+                        return {
+                            success: false,
+                            error: 'TIMEOUT',
+                            message: 'The assistant took too long to respond. Please try again in a moment.'
+                        };
+                    }
+                    return {
+                        success: false,
+                        error: 'NETWORK_ERROR',
+                        message: chatLabels.endpointError || 'Unable to reach the chatbot endpoint. Please try again.'
+                    };
                 });
             }
 
@@ -2465,7 +2530,8 @@
                         }
                     }, remainingThinking);
                 })
-                .catch(function() {
+                .catch(function(err) {
+                    console.error('[TUGON AI] UI fallback error:', err);
                     const remainingThinking = Math.max(0, thinkingDelayFor(chatLabels.endpointError) - (Date.now() - startedAt));
                     window.setTimeout(function() {
                         if (loading) {

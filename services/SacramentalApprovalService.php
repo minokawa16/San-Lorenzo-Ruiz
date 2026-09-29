@@ -486,55 +486,110 @@ class SacramentalApprovalService {
             throw new DomainException('Cannot complete funeral request: The following required Funeral Records fields are missing: ' . implode(', ', $missingFields) . '. Please ensure all details are filled in before completing.');
         }
 
+        $requestedBy = !empty($request['applicant_fullname']) ? trim($request['applicant_fullname']) : null;
+        $hasRequestedByCol = schemaColumnExists($this->conn, 'funeral_records', 'requested_by');
+
         if ($existing) {
             $recordId = intval($existing['funeral_id']);
-            $upd = $this->conn->prepare("
-                UPDATE funeral_records
-                SET deceased_name = ?, family_name = ?, date_of_death = ?, date_of_burial = ?,
-                    civil_status = ?, funeral_rites = ?,
-                    cause_of_death = ?, place_of_burial = ?, minister = ?, remarks = ?, status = ?, updated_at = NOW()
-                WHERE funeral_id = ?
-            ");
-            $upd->bind_param(
-                'sssssssssssi',
-                $parsed['deceased_name'],
-                $parsed['family_name'],
-                $parsed['date_of_death'],
-                $parsed['date_of_burial'],
-                $parsed['civil_status'],
-                $parsed['funeral_rites'],
-                $parsed['cause_of_death'],
-                $parsed['place_of_burial'],
-                $priest,
-                $parsed['remarks'],
-                $status,
-                $recordId
-            );
+            if ($hasRequestedByCol) {
+                $upd = $this->conn->prepare("
+                    UPDATE funeral_records
+                    SET deceased_name = ?, family_name = ?, requested_by = ?, date_of_death = ?, date_of_burial = ?,
+                        civil_status = ?, funeral_rites = ?,
+                        cause_of_death = ?, place_of_burial = ?, minister = ?, remarks = ?, status = ?, updated_at = NOW()
+                    WHERE funeral_id = ?
+                ");
+                $upd->bind_param(
+                    'ssssssssssssi',
+                    $parsed['deceased_name'],
+                    $parsed['family_name'],
+                    $requestedBy,
+                    $parsed['date_of_death'],
+                    $parsed['date_of_burial'],
+                    $parsed['civil_status'],
+                    $parsed['funeral_rites'],
+                    $parsed['cause_of_death'],
+                    $parsed['place_of_burial'],
+                    $priest,
+                    $parsed['remarks'],
+                    $status,
+                    $recordId
+                );
+            } else {
+                $upd = $this->conn->prepare("
+                    UPDATE funeral_records
+                    SET deceased_name = ?, family_name = ?, date_of_death = ?, date_of_burial = ?,
+                        civil_status = ?, funeral_rites = ?,
+                        cause_of_death = ?, place_of_burial = ?, minister = ?, remarks = ?, status = ?, updated_at = NOW()
+                    WHERE funeral_id = ?
+                ");
+                $upd->bind_param(
+                    'sssssssssssi',
+                    $parsed['deceased_name'],
+                    $parsed['family_name'],
+                    $parsed['date_of_death'],
+                    $parsed['date_of_burial'],
+                    $parsed['civil_status'],
+                    $parsed['funeral_rites'],
+                    $parsed['cause_of_death'],
+                    $parsed['place_of_burial'],
+                    $priest,
+                    $parsed['remarks'],
+                    $status,
+                    $recordId
+                );
+            }
             $upd->execute();
             $upd->close();
         } else {
-            $ins = $this->conn->prepare("
-                INSERT INTO funeral_records
-                (request_id, registry_no, deceased_name, family_name, date_of_death, date_of_burial,
-                 civil_status, funeral_rites, cause_of_death, place_of_burial, minister, remarks, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ");
-            $ins->bind_param(
-                'issssssssssss',
-                $requestId,
-                $registryNo,
-                $parsed['deceased_name'],
-                $parsed['family_name'],
-                $parsed['date_of_death'],
-                $parsed['date_of_burial'],
-                $parsed['civil_status'],
-                $parsed['funeral_rites'],
-                $parsed['cause_of_death'],
-                $parsed['place_of_burial'],
-                $priest,
-                $parsed['remarks'],
-                $status
-            );
+            if ($hasRequestedByCol) {
+                $ins = $this->conn->prepare("
+                    INSERT INTO funeral_records
+                    (request_id, registry_no, deceased_name, family_name, requested_by, date_of_death, date_of_burial,
+                     civil_status, funeral_rites, cause_of_death, place_of_burial, minister, remarks, status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ");
+                $ins->bind_param(
+                    'isssssssssssss',
+                    $requestId,
+                    $registryNo,
+                    $parsed['deceased_name'],
+                    $parsed['family_name'],
+                    $requestedBy,
+                    $parsed['date_of_death'],
+                    $parsed['date_of_burial'],
+                    $parsed['civil_status'],
+                    $parsed['funeral_rites'],
+                    $parsed['cause_of_death'],
+                    $parsed['place_of_burial'],
+                    $priest,
+                    $parsed['remarks'],
+                    $status
+                );
+            } else {
+                $ins = $this->conn->prepare("
+                    INSERT INTO funeral_records
+                    (request_id, registry_no, deceased_name, family_name, date_of_death, date_of_burial,
+                     civil_status, funeral_rites, cause_of_death, place_of_burial, minister, remarks, status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ");
+                $ins->bind_param(
+                    'issssssssssss',
+                    $requestId,
+                    $registryNo,
+                    $parsed['deceased_name'],
+                    $parsed['family_name'],
+                    $parsed['date_of_death'],
+                    $parsed['date_of_burial'],
+                    $parsed['civil_status'],
+                    $parsed['funeral_rites'],
+                    $parsed['cause_of_death'],
+                    $parsed['place_of_burial'],
+                    $priest,
+                    $parsed['remarks'],
+                    $status
+                );
+            }
             $ins->execute();
             $recordId = $ins->insert_id;
             $ins->close();
@@ -770,8 +825,8 @@ class SacramentalApprovalService {
      */
     private function parseBaptismDescription(string $desc, array $request): array {
         $fullname = $this->extractField($desc, ['Name of Child', 'Child Name', 'Child', 'Full Name']);
-        if ($fullname === '') {
-            $fullname = $request['record_holder_name'] ?? $request['applicant_fullname'];
+        if ($fullname === '' && !empty($request['record_holder_name'])) {
+            $fullname = trim((string)$request['record_holder_name']);
         }
 
         $birthDate = $this->extractField($desc, ['Date of Birth', 'Birth Date', 'DOB']);
@@ -953,9 +1008,11 @@ class SacramentalApprovalService {
         $details        = $this->extractField($desc, ['Details', 'Additional Details']);
 
         // 2. Normalization and fallback only for non-critical/inferred fields
-        if ($deceasedName === '') {
-            $deceasedName = $request['record_holder_name'] ?? $request['applicant_fullname'] ?? '';
+        if ($deceasedName === '' && !empty($request['record_holder_name'])) {
+            $deceasedName = trim((string)$request['record_holder_name']);
         }
+        // IMPORTANT: The deceased person is NEVER the requesting applicant.
+        // Never fall back to $request['applicant_fullname'] for deceased_name.
         if (!validDateValue($burialDate) && !empty($request['preferred_date']) && validDateValue($request['preferred_date'])) {
             $burialDate = $request['preferred_date'];
         }
@@ -988,7 +1045,7 @@ class SacramentalApprovalService {
         // (the actual minister used is passed separately via $priest; we store it for reference in remarks only)
         return [
             'deceased_name'  => $deceasedName,
-            'family_name'    => $familyContact ?: $request['applicant_fullname'],
+            'family_name'    => $familyContact ?: null,
             'date_of_death'  => $deathDate,
             'date_of_burial' => $burialDate,
             'civil_status'   => $civilStatus ?: null,

@@ -110,12 +110,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $error = 'Passwords do not match.';
     } elseif (empty($id_number)) {
         $error = 'ID number is required.';
-    } elseif (empty($_POST['face_capture']) || empty($_POST['valid_id_capture']) || empty($_POST['valid_id_back_capture'])) {
-        $error = 'Live face capture and front/back ID verification must be completed before registration.';
     } elseif (empty($_POST['terms_check'])) {
         $error = 'You must read and agree to the Terms & Conditions and parish verification policy.';
-    } elseif (($_POST['id_ocr_status'] ?? 'pending') === 'mismatch') {
-        $error = 'Please correct the fields flagged by the front ID scan before registration.';
     } else {
         $identifier_type = $verification_method === 'mobile' ? 'mobile' : 'email';
         $identifier_value = $verification_method === 'mobile' ? $phone_number : $email;
@@ -124,58 +120,65 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
 
         if (!$error) {
-            $face_capture = decodeCameraCapture($_POST['face_capture'], 10 * 1024 * 1024);
-            $id_capture = decodeCameraCapture($_POST['valid_id_capture'], 10 * 1024 * 1024);
-            $id_back_capture = decodeCameraCapture($_POST['valid_id_back_capture'], 10 * 1024 * 1024);
+            $id_upload_dir = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'valid_ids';
+            $face_upload_dir = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'live_faces';
+            $id_number_hash = hashIdentityNumber($id_number);
+            $id_number_hash_safe = $conn->real_escape_string($id_number_hash);
+            $duplicate_id_result = $conn->query("SELECT id FROM users WHERE id_number_hash = '$id_number_hash_safe' LIMIT 1");
+            if ($duplicate_id_result && $duplicate_id_result->num_rows > 0) {
+                $error = 'This ID number has already been registered in the system.';
+            }
 
-            if (!$face_capture['ok']) {
-                $error = $face_capture['error'];
-            } elseif (!$id_capture['ok']) {
-                $error = $id_capture['error'];
-            } elseif (!$id_back_capture['ok']) {
-                $error = $id_back_capture['error'];
-            } else {
-                $id_upload_dir = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'valid_ids';
-                $face_upload_dir = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'live_faces';
-                $id_number_hash = hashIdentityNumber($id_number);
-                $id_number_hash_safe = $conn->real_escape_string($id_number_hash);
-                $duplicate_id_result = $conn->query("SELECT id FROM users WHERE id_number_hash = '$id_number_hash_safe' LIMIT 1");
-                if ($duplicate_id_result && $duplicate_id_result->num_rows > 0) {
-                    $error = 'This ID has already been registered in the system.';
+            if (!$error) {
+                $fullname = trim($first_name . ' ' . ($middle_initial !== '' ? $middle_initial . '. ' : '') . $surname);
+                $id_saved = null;
+                $id_back_saved = null;
+                $face_saved = null;
+                $db_path = null;
+                $back_db_path = null;
+                $face_db_path = null;
+                $mime_type = null;
+                $back_mime_type = null;
+                $face_mime_type = null;
+                $original_name = null;
+
+                if (!empty($_POST['valid_id_capture'])) {
+                    $id_capture = decodeCameraCapture($_POST['valid_id_capture'], 10 * 1024 * 1024);
+                    if ($id_capture['ok']) {
+                        $id_saved = saveEncryptedCameraCapture($id_capture, $id_upload_dir, 'live-valid-id-front');
+                        if ($id_saved) {
+                            $db_path = 'uploads/valid_ids/' . $id_saved['filename'];
+                            $mime_type = $id_capture['mime_type'];
+                            $original_name = 'philsys-id-front.' . $id_capture['extension'];
+                        }
+                    }
                 }
 
-                if (!$error) {
-                    $fullname = trim($first_name . ' ' . ($middle_initial !== '' ? $middle_initial . '. ' : '') . $surname);
-                    $id_saved = saveEncryptedCameraCapture($id_capture, $id_upload_dir, 'live-valid-id-front');
-                    $id_back_saved = saveEncryptedCameraCapture($id_back_capture, $id_upload_dir, 'live-valid-id-back');
-                    $face_saved = saveEncryptedCameraCapture($face_capture, $face_upload_dir, 'live-face');
+                if (!empty($_POST['valid_id_back_capture'])) {
+                    $id_back_capture = decodeCameraCapture($_POST['valid_id_back_capture'], 10 * 1024 * 1024);
+                    if ($id_back_capture['ok']) {
+                        $id_back_saved = saveEncryptedCameraCapture($id_back_capture, $id_upload_dir, 'live-valid-id-back');
+                        if ($id_back_saved) {
+                            $back_db_path = 'uploads/valid_ids/' . $id_back_saved['filename'];
+                            $back_mime_type = $id_back_capture['mime_type'];
+                        }
+                    }
+                }
 
-                    if (!$id_saved || !$id_back_saved || !$face_saved) {
-                        if ($id_saved && is_file($id_saved['path'])) {
-                            unlink($id_saved['path']);
+                if (!empty($_POST['face_capture'])) {
+                    $face_capture = decodeCameraCapture($_POST['face_capture'], 10 * 1024 * 1024);
+                    if ($face_capture['ok']) {
+                        $face_saved = saveEncryptedCameraCapture($face_capture, $face_upload_dir, 'live-face');
+                        if ($face_saved) {
+                            $face_db_path = 'uploads/live_faces/' . $face_saved['filename'];
+                            $face_mime_type = $face_capture['mime_type'];
                         }
-                        if ($id_back_saved && is_file($id_back_saved['path'])) {
-                            unlink($id_back_saved['path']);
-                        }
-                        if ($face_saved && is_file($face_saved['path'])) {
-                            unlink($face_saved['path']);
-                        }
-                        $error = 'Unable to save the live verification captures. Please try again.';
-                    } else {
-                        $db_path = 'uploads/valid_ids/' . $id_saved['filename'];
-                        $back_db_path = 'uploads/valid_ids/' . $id_back_saved['filename'];
-                        $face_db_path = 'uploads/live_faces/' . $face_saved['filename'];
-                        $mime_type = $id_capture['mime_type'];
-                        $back_mime_type = $id_back_capture['mime_type'];
-                        $face_mime_type = $face_capture['mime_type'];
-                        $original_name = 'front-back-id-verification.' . $id_capture['extension'];
-                    $hashed_password = hashPassword($password);
-                    $id_number_encrypted = encryptSensitiveValue($id_number);
-                    // Browser-side face matching is a usability signal only. A hidden
-                    // form value must never establish server-side identity assurance.
-                    // Every testing/production registration remains pending until an
-                    // authorized parish reviewer compares the protected captures.
-                    $face_status = 'admin_review';
+                    }
+                }
+
+                $hashed_password = hashPassword($password);
+                $id_number_encrypted = encryptSensitiveValue($id_number);
+                $face_status = $face_saved ? 'admin_review' : 'pending';
 
                     $phone_number_db = $phone_number !== '' ? $phone_number : null;
                     $email_db = $email !== '' ? $email : null;
@@ -281,8 +284,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
         }
     }
-}
-}
 
 $chapel_options = [
     'District 1',
@@ -2550,6 +2551,122 @@ $has_logo = is_file($logo_file);
             color: var(--register-text) !important;
         }
 
+        .ocr-autofilled {
+            background-color: #f0fdf4 !important;
+            border-color: #86efac !important;
+            transition: all 0.3s ease;
+        }
+
+        .is-low-confidence {
+            background-color: #fffbeb !important;
+            border-color: #fcd34d !important;
+        }
+
+        .ocr-confidence-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.73rem;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 6px;
+            margin-top: 4px;
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fde68a;
+        }
+
+        .id-scan-consent-wrap {
+            background: rgba(212, 169, 78, 0.1) !important;
+            border: 1px solid rgba(212, 169, 78, 0.35) !important;
+            color: var(--register-text) !important;
+            transition: border-color 0.2s ease, background 0.2s ease;
+        }
+
+        .id-scan-consent-wrap.is-consented {
+            background: rgba(34, 197, 94, 0.08) !important;
+            border-color: rgba(34, 197, 94, 0.35) !important;
+        }
+
+        .id-quality-notice {
+            background: rgba(8, 115, 154, 0.08) !important;
+            border: 1px solid rgba(8, 115, 154, 0.25) !important;
+            color: var(--register-text) !important;
+        }
+
+        .id-mode-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .id-mode-tab {
+            flex: 1;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--register-border);
+            background: #ffffff;
+            color: var(--register-text);
+            font-size: 0.85rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .id-mode-tab.active {
+            background: linear-gradient(135deg, var(--register-gold-soft), var(--register-gold));
+            border-color: var(--register-gold);
+            color: #14100d;
+        }
+
+        .capture-preview-card {
+            position: relative;
+        }
+
+        .capture-preview-card .retake-btn {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            padding: 2px 8px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            border-radius: 6px;
+            background: rgba(0,0,0,0.72);
+            color: #ffffff;
+            border: none;
+            cursor: pointer;
+        }
+
+        .capture-preview-card .retake-btn:hover {
+            background: #b91c1c;
+        }
+
+        .pcn-wrap {
+            position: relative;
+        }
+
+        .pcn-toggle-btn {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            border: none;
+            background: transparent;
+            color: var(--register-muted);
+            font-size: 0.9rem;
+            cursor: pointer;
+            padding: 4px 8px;
+            z-index: 7;
+        }
+
+        .pcn-toggle-btn:hover {
+            color: var(--register-link);
+        }
+
         @media (max-width: 640px) {
             .reg-step { padding: 14px 12px; gap: 12px; }
             .reg-step-header { gap: 10px; }
@@ -2658,94 +2775,145 @@ $has_logo = is_file($logo_file);
                     <div class="reg-step-header">
                         <div class="reg-step-badge-num" id="step1Num">1</div>
                         <div class="reg-step-info">
-                            <strong><i class="fas fa-camera" style="margin-right:5px;opacity:.7"></i>Identity Verification</strong>
-                            <span>Capture your live face and valid ID — OCR will auto-fill your details below.</span>
+                            <strong><i class="fas fa-id-card" style="margin-right:5px;opacity:.7"></i>Philippine National ID Verification &amp; Scan</strong>
+                            <span>Scan or upload your Philippine National ID (PhilSys ID) — OCR will auto-fill your personal details below.</span>
                         </div>
                         <div class="reg-step-status">
                             <span class="step-pill pending" id="step1Pill">Pending</span>
                         </div>
                     </div>
 
+                    <!-- Mandatory Privacy & Security Consent Checkbox -->
+                    <div class="id-scan-consent-wrap p-3 rounded-3 mb-3" id="idConsentBox">
+                        <label class="d-flex align-items-start gap-2 mb-0" style="cursor: pointer;">
+                            <input class="form-check-input mt-1" type="checkbox" id="idScanConsent" style="width:19px;height:19px;flex-shrink:0;cursor:pointer;">
+                            <span style="font-size: 0.88rem; font-weight: 600; line-height: 1.45;">
+                                I consent to my ID being scanned and my information being used to complete this registration.
+                                <span class="d-block text-muted fw-normal mt-1" style="font-size: 0.78rem;">Your ID photo is processed securely in real time and raw temporary images are not permanently stored.</span>
+                            </span>
+                        </label>
+                    </div>
+
+                    <!-- Quality Guidance Tips -->
+                    <div class="id-quality-notice p-3 rounded-3 mb-3">
+                        <div class="d-flex align-items-center gap-2 mb-1" style="font-weight: 700; color: var(--register-ocean);">
+                            <i class="fas fa-lightbulb text-warning"></i> Guidelines for High-Accuracy ID Scanning:
+                        </div>
+                        <ul class="mb-0 ps-3" style="font-size: 0.82rem; line-height: 1.45;">
+                            <li>Make sure the ID is well-lit, completely flat, and fully visible inside the frame.</li>
+                            <li>Avoid glare, flash reflections, finger shadows, or tilted/blurry angles.</li>
+                            <li>Supports JPG, PNG, and WEBP formats (max 8MB).</li>
+                        </ul>
+                    </div>
+
+                    <!-- Capture Mode Tabs -->
+                    <div class="id-mode-tabs" id="idModeTabs">
+                        <button type="button" class="id-mode-tab active" id="tabCameraMode">
+                            <i class="fas fa-camera"></i> Live Camera Scan
+                        </button>
+                        <button type="button" class="id-mode-tab" id="tabUploadMode">
+                            <i class="fas fa-cloud-arrow-up"></i> Upload ID Image
+                        </button>
+                    </div>
+
                     <div class="live-verification" id="liveVerification">
-                        <div class="camera-stage">
-                            <video id="verificationVideo" playsinline muted></video>
-                            <canvas id="captureCanvas" hidden></canvas>
-                            <div class="face-guide" id="faceGuide" aria-hidden="true"></div>
-                            <div class="id-guide" id="idGuide" aria-hidden="true">
-                                <span>Fill this frame with the ID</span>
+                        <!-- Camera Viewport Container -->
+                        <div id="cameraSection">
+                            <div class="camera-stage">
+                                <video id="verificationVideo" playsinline muted></video>
+                                <canvas id="captureCanvas" hidden></canvas>
+                                <div class="face-guide" id="faceGuide" aria-hidden="true"></div>
+                                <div class="id-guide" id="idGuide" aria-hidden="true">
+                                    <span>Position PhilSys ID inside this frame</span>
+                                </div>
+                                <div class="camera-placeholder" id="cameraPlaceholder">
+                                    <i class="fas fa-camera"></i>
+                                    <strong>Camera Verification</strong>
+                                    <small>Check the consent box above, then click Start Camera or Open Scanner to capture your PhilSys ID.</small>
+                                </div>
                             </div>
-                            <div class="camera-placeholder" id="cameraPlaceholder">
-                                <i class="fas fa-camera"></i>
-                                <strong>Camera verification required</strong>
-                                <small>No gallery uploads are allowed. Tugon will capture your live face and valid ID using the device camera.</small>
+
+                            <div class="verification-steps">
+                                <div class="verification-step is-current" id="faceStep">
+                                    <i class="fas fa-user-check"></i>
+                                    <span>Face</span>
+                                </div>
+                                <div class="verification-step" id="idFrontStep">
+                                    <i class="fas fa-id-card"></i>
+                                    <span>Front ID</span>
+                                </div>
+                                <div class="verification-step" id="idBackStep">
+                                    <i class="fas fa-address-card"></i>
+                                    <span>Back ID</span>
+                                </div>
+                            </div>
+
+                            <div class="camera-actions">
+                                <button type="button" class="camera-btn" id="startCameraBtn" disabled>
+                                    <i class="fas fa-video"></i> Start Camera
+                                </button>
+                                <button type="button" class="camera-btn secondary" id="captureIdFrontBtn" disabled>
+                                    <i class="fas fa-camera-retro"></i> Scan Front ID
+                                </button>
+                                <button type="button" class="camera-btn secondary" id="captureIdBackBtn" disabled>
+                                    <i class="fas fa-camera"></i> Scan Back ID
+                                </button>
                             </div>
                         </div>
 
-                        <div class="verification-steps">
-                            <div class="verification-step is-current" id="faceStep">
-                                <i class="fas fa-user-check"></i>
-                                <span>Face</span>
-                            </div>
-                            <div class="verification-step" id="idFrontStep">
-                                <i class="fas fa-id-card"></i>
-                                <span>Front ID</span>
-                            </div>
-                            <div class="verification-step" id="idBackStep">
-                                <i class="fas fa-address-card"></i>
-                                <span>Back ID</span>
+                        <!-- File Upload Container -->
+                        <div id="uploadSection" style="display: none;">
+                            <div class="id-upload-actions mb-3">
+                                <label class="id-side-upload" for="frontIdUpload" id="frontIdUploadLabel">
+                                    <i class="fas fa-upload"></i>
+                                    <span>Upload Front PhilSys ID</span>
+                                    <input type="file" id="frontIdUpload" accept="image/png,image/jpeg,image/webp" disabled>
+                                </label>
+                                <label class="id-side-upload" for="backIdUpload" id="backIdUploadLabel">
+                                    <i class="fas fa-upload"></i>
+                                    <span>Upload Back ID (Optional)</span>
+                                    <input type="file" id="backIdUpload" accept="image/png,image/jpeg,image/webp" disabled>
+                                </label>
                             </div>
                         </div>
 
-                        <div class="camera-actions">
-                            <button type="button" class="camera-btn" id="startCameraBtn">
-                                <i class="fas fa-video"></i> Start Camera
-                            </button>
-                            <button type="button" class="camera-btn secondary" id="captureIdFrontBtn" disabled>
-                                <i class="fas fa-camera-retro"></i> Capture Front
-                            </button>
-                            <button type="button" class="camera-btn secondary" id="captureIdBackBtn" disabled>
-                                <i class="fas fa-camera"></i> Capture Back
-                            </button>
-                        </div>
+                        <p class="camera-status" id="cameraStatus">Please check the consent box above to enable camera or file upload.</p>
 
-                        <div class="id-upload-actions">
-                            <label class="id-side-upload" for="frontIdUpload">
-                                <i class="fas fa-upload"></i>
-                                <span>Upload Front ID</span>
-                                <input type="file" id="frontIdUpload" accept="image/png,image/jpeg">
-                            </label>
-                            <label class="id-side-upload" for="backIdUpload">
-                                <i class="fas fa-upload"></i>
-                                <span>Upload Back ID</span>
-                                <input type="file" id="backIdUpload" accept="image/png,image/jpeg">
-                            </label>
-                        </div>
-
-                        <p class="camera-status" id="cameraStatus">Start the camera and position your face inside the guide.</p>
-
+                        <!-- Previews with Retake Buttons -->
                         <div class="capture-previews">
-                            <div class="capture-preview">
+                            <div class="capture-preview capture-preview-card">
                                 <span>Live Face</span>
+                                <button type="button" class="retake-btn" id="retakeFaceBtn" style="display: none;" title="Retake face">Retake</button>
                                 <img id="facePreviewImage" alt="Captured live face preview">
                             </div>
-                            <div class="capture-preview">
-                                <span>Front ID</span>
+                            <div class="capture-preview capture-preview-card">
+                                <span>Front PhilSys ID</span>
+                                <button type="button" class="retake-btn" id="retakeFrontBtn" style="display: none;" title="Retake or re-upload Front ID">Retake</button>
                                 <img id="idFrontPreviewImage" alt="Captured front ID preview">
                             </div>
-                            <div class="capture-preview">
+                            <div class="capture-preview capture-preview-card">
                                 <span>Back ID</span>
+                                <button type="button" class="retake-btn" id="retakeBackBtn" style="display: none;" title="Retake or re-upload Back ID">Retake</button>
                                 <img id="idBackPreviewImage" alt="Captured back ID preview">
                             </div>
                         </div>
 
                         <div class="face-match-status warning" id="faceMatchStatus">
                             <i class="fas fa-user-shield"></i>
-                            <span>Capture your live face and valid ID to compare identity details.</span>
+                            <span>Capture your live face and PhilSys ID to compare identity details.</span>
                         </div>
 
                         <div class="id-ocr-status warning" id="idOcrStatus">
                             <i class="fas fa-id-card-clip"></i>
-                            <span>Front and back ID text will be scanned to auto-fill identity details.</span>
+                            <span>PhilSys ID text will be scanned to auto-fill your personal information below.</span>
+                        </div>
+
+                        <!-- Always-Visible Manual Entry Fallback -->
+                        <div class="d-flex justify-content-between align-items-center mt-3 pt-2" style="border-top: 1px dashed rgba(20,16,13,0.18);">
+                            <span style="font-size: 0.84rem; color: var(--register-muted);"><i class="fas fa-circle-info me-1"></i> Prefer typing or scanner not available?</span>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="skipToManualBtn" style="font-weight: 700; border-radius: 8px;">
+                                <i class="fas fa-pen-to-square me-1"></i> Enter details manually instead
+                            </button>
                         </div>
                     </div>
 
@@ -2777,7 +2945,18 @@ $has_logo = is_file($logo_file);
 
                     <div class="reg-fields-lock-banner" id="regFieldsBanner">
                         <i class="fas fa-wand-magic-sparkles"></i>
-                        <span id="regFieldsBannerText">Complete Step 1 to scan your ID — OCR will auto-fill most fields below.</span>
+                        <span id="regFieldsBannerText">Scan or upload your PhilSys ID above — OCR will auto-fill your personal details below.</span>
+                    </div>
+
+                    <!-- OCR Auto-fill Confirmation Banner -->
+                    <div class="ocr-success-confirmation mb-3" id="ocrSuccessBanner" style="display: none;">
+                        <div class="alert alert-success d-flex align-items-start gap-2 mb-0" style="border-radius: 10px; background: rgba(34, 197, 94, 0.12); border: 1px solid rgba(34, 197, 94, 0.35); color: #15803d;">
+                            <i class="fas fa-circle-check fs-5 mt-1" style="color: #16a34a;"></i>
+                            <div>
+                                <strong>We've filled in your details from your ID.</strong>
+                                <div style="font-size: 0.86rem; color: #166534;">Please review before continuing. All fields are editable so you can make any corrections.</div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="field-group full">
@@ -2802,6 +2981,7 @@ $has_logo = is_file($logo_file);
                                 <i class="fas fa-user field-icon"></i>
                                 <input type="text" class="form-control" id="first_name" name="first_name" value="<?php echo e($form_data['first_name']); ?>" autocomplete="given-name" required autofocus>
                             </div>
+                            <div class="ocr-field-flag" id="flag_first_name"></div>
                             <div class="field-message" data-error-for="first_name"></div>
                         </div>
 
@@ -2811,6 +2991,7 @@ $has_logo = is_file($logo_file);
                                 <i class="fas fa-user-tag field-icon"></i>
                                 <input type="text" class="form-control" id="surname" name="surname" value="<?php echo e($form_data['surname']); ?>" autocomplete="family-name" required>
                             </div>
+                            <div class="ocr-field-flag" id="flag_surname"></div>
                             <div class="field-message" data-error-for="surname"></div>
                         </div>
 
@@ -2820,6 +3001,7 @@ $has_logo = is_file($logo_file);
                                 <i class="fas fa-signature field-icon"></i>
                                 <input type="text" class="form-control" id="middle_initial" name="middle_initial" value="<?php echo e($form_data['middle_initial']); ?>" autocomplete="additional-name" maxlength="1" placeholder="Optional">
                             </div>
+                            <div class="ocr-field-flag" id="flag_middle_initial"></div>
                             <div class="field-message" data-error-for="middle_initial"></div>
                         </div>
 
@@ -2864,6 +3046,7 @@ $has_logo = is_file($logo_file);
                                 <i class="fas fa-map-location-dot field-icon"></i>
                                 <input type="text" class="form-control" id="address" name="address" value="<?php echo e($form_data['address']); ?>" autocomplete="street-address" placeholder="Complete Aleosan address" required>
                             </div>
+                            <div class="ocr-field-flag" id="flag_address"></div>
                             <div class="field-message" data-error-for="address"></div>
                         </div>
 
@@ -2873,6 +3056,7 @@ $has_logo = is_file($logo_file);
                                 <i class="fas fa-calendar-day field-icon"></i>
                                 <input type="text" class="form-control" id="birthdate" name="birthdate" value="<?php echo e($form_data['birthdate']); ?>" autocomplete="bday" placeholder="December 16, 2005" required>
                             </div>
+                            <div class="ocr-field-flag" id="flag_birthdate"></div>
                             <div class="field-message" data-error-for="birthdate"></div>
                         </div>
 
@@ -2882,18 +3066,41 @@ $has_logo = is_file($logo_file);
                                 <i class="fas fa-map-pin field-icon"></i>
                                 <input type="text" class="form-control" id="birth_place" name="birth_place" value="<?php echo e($form_data['birth_place']); ?>" autocomplete="off" placeholder="City / Municipality / Province" required>
                             </div>
+                            <div class="ocr-field-flag" id="flag_birth_place"></div>
                             <div class="field-message" data-error-for="birth_place"></div>
                         </div>
 
-                        <div class="field-group full">
-                            <label for="id_number" class="field-label">ID Number</label>
+                        <div class="field-group">
+                            <label for="sex" class="field-label">Sex</label>
                             <div class="input-wrap">
-                                <i class="fas fa-fingerprint field-icon"></i>
-                                <input type="text" class="form-control" id="id_number" name="id_number" value="<?php echo e($form_data['id_number']); ?>" autocomplete="off" placeholder="Enter ID number" required>
+                                <i class="fas fa-venus-mars field-icon"></i>
+                                <select class="form-select" id="sex" name="sex">
+                                    <option value="">Select Sex (Optional)</option>
+                                    <option value="Male" <?php echo ($form_data['sex'] ?? '') === 'Male' ? 'selected' : ''; ?>>Male</option>
+                                    <option value="Female" <?php echo ($form_data['sex'] ?? '') === 'Female' ? 'selected' : ''; ?>>Female</option>
+                                </select>
                             </div>
-                            <div class="form-hint">Enter the ID number shown on your valid ID.</div>
+                            <div class="ocr-field-flag" id="flag_sex"></div>
+                            <div class="field-message" data-error-for="sex"></div>
+                        </div>
+
+                        <div class="field-group full">
+                            <label for="id_number" class="field-label d-flex justify-content-between align-items-center">
+                                <span>PhilSys Card Number (PCN) / ID Number</span>
+                                <span id="pcnValidationBadge" class="badge" style="display:none; font-size:0.75rem;"></span>
+                            </label>
+                            <div class="input-wrap pcn-wrap">
+                                <i class="fas fa-fingerprint field-icon"></i>
+                                <input type="text" class="form-control" id="id_number" name="id_number" value="<?php echo e($form_data['id_number']); ?>" autocomplete="off" placeholder="XXXX-XXXX-XXXX-XXXX" required style="padding-right: 48px !important;">
+                                <button type="button" class="pcn-toggle-btn" id="pcnToggleBtn" aria-label="Toggle ID number visibility" title="Show/Hide ID Number">
+                                    <i class="fas fa-eye-slash" id="pcnToggleIcon"></i>
+                                </button>
+                            </div>
+                            <div class="form-hint" id="pcnHint">16-digit PhilSys Card Number (XXXX-XXXX-XXXX-XXXX). Auto-filled fields remain editable.</div>
+                            <div class="ocr-field-flag" id="flag_id_number"></div>
                             <div class="field-message" data-error-for="id_number"></div>
                         </div>
+                    </div>
                     </div>
                 </div>
 
@@ -3072,6 +3279,7 @@ $has_logo = is_file($logo_file);
             address: document.getElementById('address'),
             birthdate: document.getElementById('birthdate'),
             birth_place: document.getElementById('birth_place'),
+            sex: document.getElementById('sex'),
             id_number: document.getElementById('id_number'),
             password: document.getElementById('password'),
             confirm_password: document.getElementById('confirm_password'),
@@ -3080,6 +3288,20 @@ $has_logo = is_file($logo_file);
             valid_id_back_capture: document.getElementById('valid_id_back_capture'),
             terms_check: document.getElementById('terms_check')
         };
+
+        const idScanConsent = document.getElementById('idScanConsent');
+        const tabCameraMode = document.getElementById('tabCameraMode');
+        const tabUploadMode = document.getElementById('tabUploadMode');
+        const cameraSection = document.getElementById('cameraSection');
+        const uploadSection = document.getElementById('uploadSection');
+        const skipToManualBtn = document.getElementById('skipToManualBtn');
+        const retakeFrontBtn = document.getElementById('retakeFrontBtn');
+        const retakeBackBtn = document.getElementById('retakeBackBtn');
+        const retakeFaceBtn = document.getElementById('retakeFaceBtn');
+        const ocrSuccessBanner = document.getElementById('ocrSuccessBanner');
+        const pcnToggleBtn = document.getElementById('pcnToggleBtn');
+        const pcnToggleIcon = document.getElementById('pcnToggleIcon');
+        const pcnValidationBadge = document.getElementById('pcnValidationBadge');
 
         function currentCsrfField() {
             return form.querySelector('input[name="' + csrfTokenName + '"]');
@@ -3139,26 +3361,29 @@ $has_logo = is_file($logo_file);
         let faceDetectedSince = 0;
         let detectionTimer = null;
 
-        // Set Field Error Function - Documents this helper's role in the parish management workflow.
-        function setFieldError(fieldName, message) {
-            const field = fields[fieldName];
-            const messageTarget = document.querySelector('[data-error-for="' + fieldName + '"]');
-            if (!messageTarget) {
-                return;
-            }
+        function isConsentGiven() {
+            return Boolean(idScanConsent && idScanConsent.checked);
+        }
 
+        // Set Field Error Function
+        function setFieldError(fieldName, message) {
+            const field = fields[fieldName] || document.getElementById(fieldName);
+            const messageTarget = document.querySelector('[data-error-for="' + fieldName + '"]');
             if (field) {
                 field.classList.toggle('is-invalid-field', Boolean(message));
             }
-            messageTarget.textContent = message || '';
+            if (messageTarget) {
+                messageTarget.textContent = message || '';
+            }
         }
 
-        // Validate Form Function - Documents this helper's role in the parish management workflow.
+        // Validate Form Function — Supports graceful fallback to manual entry
         function validateForm() {
             let isValid = true;
             const emailPattern = /^[^\s@]+@gmail\.com$/i;
             const phonePattern = /^(09\d{9}|\+639\d{9})$/;
             const registrationMethod = getRegistrationMethod();
+            const isManualMode = idOcrStatusInput.value === 'manual';
 
             Object.keys(fields).forEach((fieldName) => setFieldError(fieldName, ''));
 
@@ -3210,7 +3435,7 @@ $has_logo = is_file($logo_file);
                 const minimumAgeDate = new Date();
                 minimumAgeDate.setFullYear(minimumAgeDate.getFullYear() - 13);
                 if (Number.isNaN(birthdate.getTime()) || birthdate > minimumAgeDate) {
-                    setFieldError('birthdate', 'Use Month DD, YYYY format and make sure the registrant is at least 13 years old.');
+                    setFieldError('birthdate', 'Use Month DD, YYYY format and make sure registrant is at least 13 years old.');
                     isValid = false;
                 }
             }
@@ -3221,7 +3446,7 @@ $has_logo = is_file($logo_file);
             }
 
             if (!fields.id_number.value.trim()) {
-                setFieldError('id_number', 'ID number must be scanned from your valid ID.');
+                setFieldError('id_number', 'PhilSys ID number is required.');
                 isValid = false;
             }
 
@@ -3235,11 +3460,9 @@ $has_logo = is_file($logo_file);
                 isValid = false;
             }
 
-            if (!fields.face_capture.value || !fields.valid_id_capture.value || !fields.valid_id_back_capture.value) {
-                setFieldError('live_verification', 'Complete live face capture plus front and back ID images.');
-                isValid = false;
-            } else if (idOcrStatusInput.value === 'mismatch') {
-                setFieldError('live_verification', 'Fix the fields flagged by the front ID scan before registration.');
+            // Only require ID capture if not in explicit manual mode
+            if (!isManualMode && !fields.valid_id_capture.value) {
+                setFieldError('live_verification', 'Please scan or upload your PhilSys ID above, or click "Enter details manually instead".');
                 isValid = false;
             }
 
@@ -3251,7 +3474,7 @@ $has_logo = is_file($logo_file);
             return isValid;
         }
 
-        // Update Password Strength Function - Documents this helper's role in the parish management workflow.
+        // Update Password Strength Function
         function updatePasswordStrength() {
             const value = fields.password.value;
             let score = 0;
@@ -3268,9 +3491,10 @@ $has_logo = is_file($logo_file);
             strengthText.textContent = 'Password strength: ' + labels[score] + '.';
         }
 
-        // Show Toast Function - Documents this helper's role in the parish management workflow.
+        // Show Toast Function
         function showToast(type, title, message) {
             const toastStack = document.getElementById('toastStack');
+            if (!toastStack) return;
             const toast = document.createElement('div');
             toast.className = 'auth-toast ' + type;
             toast.setAttribute('role', type === 'success' ? 'status' : 'alert');
@@ -3315,46 +3539,43 @@ $has_logo = is_file($logo_file);
 
         function setIdOcrStatus(type, message, aiEnhanced) {
             idOcrStatus.className = 'id-ocr-status ' + type;
-            const icon = type === 'success' ? 'fa-circle-check' : (type === 'error' ? 'fa-circle-xmark' : 'fa-id-card-clip');
+            const icon = type === 'success' ? 'fa-circle-check' : (type === 'error' ? 'fa-circle-xmark' : (type === 'info' ? 'fa-circle-info' : 'fa-id-card-clip'));
             const aiBadge = aiEnhanced
                 ? ' <span style="display:inline-flex;align-items:center;gap:4px;background:linear-gradient(135deg,#D4A94E,#B07D2A);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:12px;letter-spacing:.4px;vertical-align:middle">✦ AI Enhanced</span>'
                 : '';
             idOcrStatus.innerHTML = '<i class="fas ' + icon + '"></i><span>' + message + aiBadge + '</span>';
-            idOcrStatusInput.value = type === 'success' ? 'verified' : (type === 'error' ? 'mismatch' : 'pending');
-            // Update 3-step UI badges
+            if (idOcrStatusInput.value !== 'manual') {
+                idOcrStatusInput.value = type === 'success' ? 'verified' : (type === 'error' ? 'mismatch' : 'pending');
+            }
             _updateStepBadges(type);
         }
 
-        // Step badge & banner updater — tied to OCR scan result
         function _updateStepBadges(ocrType) {
             const step1Pill  = document.getElementById('step1Pill');
             const step2Pill  = document.getElementById('step2Pill');
             const step1El    = document.getElementById('regStep1');
             const banner     = document.getElementById('regFieldsBanner');
             const bannerTxt  = document.getElementById('regFieldsBannerText');
-            const hasCaptures = fields.face_capture.value && fields.valid_id_capture.value && fields.valid_id_back_capture.value;
 
             if (ocrType === 'success') {
                 if (step1Pill)  { step1Pill.textContent = '\u2713 Scanned'; step1Pill.className = 'step-pill done'; }
                 if (step2Pill)  { step2Pill.textContent = 'Auto-filled';   step2Pill.className = 'step-pill done'; }
                 if (step1El)    step1El.classList.add('step-complete');
                 if (banner)     banner.classList.add('is-unlocked');
-                if (bannerTxt)  bannerTxt.textContent = '\u2726 OCR complete \u2014 fields auto-filled from your ID. Review and edit if needed.';
-                // Highlight auto-filled fields
-                ['first_name','surname','middle_initial','address','birth_place','id_number','birthdate'].forEach(function(n) {
-                    const f = fields[n]; if (f && f.value.trim()) f.classList.add('ocr-autofilled');
-                });
-            } else if (ocrType === 'warning' && hasCaptures) {
-                if (step1Pill)  { step1Pill.textContent = '\u26a0 Review';     step1Pill.className = 'step-pill error'; }
-                if (step2Pill)  { step2Pill.textContent = 'Needs Review';   step2Pill.className = 'step-pill error'; }
+                if (bannerTxt)  bannerTxt.textContent = '\u2726 PhilSys ID scanned \u2014 fields auto-filled below. Review and edit if needed.';
+            } else if (ocrType === 'info') {
+                if (step1Pill)  { step1Pill.textContent = 'Manual Entry'; step1Pill.className = 'step-pill manual'; }
+                if (step1El)    step1El.classList.add('step-complete');
                 if (banner)     banner.classList.add('is-unlocked');
-                if (bannerTxt)  bannerTxt.textContent = 'Some fields need your review \u2014 check and correct the highlighted fields below.';
-            } else if (ocrType === 'warning' && !hasCaptures) {
-                if (step1Pill)  { step1Pill.textContent = 'Scanning\u2026'; step1Pill.className = 'step-pill scanning'; }
+                if (bannerTxt)  bannerTxt.textContent = 'Manual entry mode active \u2014 please fill in your details accurately.';
+            } else if (ocrType === 'warning') {
+                if (step1Pill)  { step1Pill.textContent = '\u26a0 Review'; step1Pill.className = 'step-pill error'; }
+                if (banner)     banner.classList.add('is-unlocked');
+                if (bannerTxt)  bannerTxt.textContent = 'Some details could not be read clearly. You can fill or correct them manually below.';
             } else if (ocrType === 'error') {
                 if (step1Pill)  { step1Pill.textContent = '\u2715 Scan Failed'; step1Pill.className = 'step-pill error'; }
                 if (banner)     banner.classList.add('is-unlocked');
-                if (bannerTxt)  bannerTxt.textContent = 'OCR scan failed \u2014 please fill in your details manually below.';
+                if (bannerTxt)  bannerTxt.textContent = 'ID scan could not read the text. Please enter your details manually below.';
             }
             updateSubmitGate();
         }
@@ -3454,11 +3675,10 @@ $has_logo = is_file($logo_file);
 
             if (!submitBtn) return;
 
-            // Step 1: Live face & front/back valid ID
-            const hasFace = Boolean(fields.face_capture && fields.face_capture.value);
+            // Step 1: ID scanned, uploaded, or manual entry chosen
+            const isManual = idOcrStatusInput.value === 'manual';
             const hasFront = Boolean(fields.valid_id_capture && fields.valid_id_capture.value);
-            const hasBack = Boolean(fields.valid_id_back_capture && fields.valid_id_back_capture.value);
-            const step1Complete = hasFace && hasFront && hasBack;
+            const step1Complete = isManual || hasFront;
 
             if (step1Complete) {
                 if (regStep1) regStep1.classList.add('step-complete');
@@ -3525,9 +3745,9 @@ $has_logo = is_file($logo_file);
                 submitBtn.disabled = true;
                 if (gateNotice) {
                     gateNotice.classList.remove('is-ready');
-                    let hint = 'Complete all 4 steps above to enable account creation.';
+                    let hint = 'Complete all steps above to enable account creation.';
                     if (!step1Complete) {
-                        hint = 'Step 1: Capture live face, front ID, and back ID.';
+                        hint = 'Step 1: Scan or upload your PhilSys ID, or click "Enter details manually instead".';
                     } else if (!personalFilled) {
                         hint = 'Step 2: Fill in all required personal information fields.';
                     } else if (!step3Complete) {
@@ -3542,17 +3762,6 @@ $has_logo = is_file($logo_file);
                     gateNotice.innerHTML = '<i class="fas fa-circle-info"></i><span>' + hint + '</span>';
                 }
             }
-        }
-
-        function hasFilledIdDetails() {
-            return Boolean(
-                fields.first_name.value.trim() &&
-                fields.surname.value.trim() &&
-                fields.address.value.trim() &&
-                fields.birthdate.value.trim() &&
-                fields.birth_place.value.trim() &&
-                fields.id_number.value.trim()
-            );
         }
 
         function formatIsoDateForDisplay(value) {
@@ -3629,9 +3838,35 @@ $has_logo = is_file($logo_file);
             return source.slice(start);
         }
 
+        // Apply OCR extracted field with confidence check and visual tagging
+        function applyOcrField(fieldName, value, confidence, isTrusted) {
+            const field = fields[fieldName] || document.getElementById(fieldName);
+            const flagTarget = document.getElementById('flag_' + fieldName);
+            if (!field || !value) return false;
+
+            field.value = value;
+            field.classList.add('ocr-autofilled');
+            setFieldError(fieldName, '');
+
+            if (!isTrusted) {
+                field.classList.add('is-low-confidence');
+                if (flagTarget) {
+                    const scorePct = Math.round((confidence || 0) * 100);
+                    flagTarget.innerHTML = '<span class="ocr-confidence-badge"><i class="fas fa-triangle-exclamation"></i> Low OCR confidence (' + scorePct + '%) \u2014 please verify</span>';
+                }
+            } else {
+                field.classList.remove('is-low-confidence');
+                if (flagTarget) {
+                    flagTarget.innerHTML = '';
+                }
+            }
+            return true;
+        }
+
+        // Main OCR Scanning Function
         async function scanCapturedIdText() {
-            if (!fields.valid_id_capture.value || !fields.valid_id_back_capture.value) {
-                setIdOcrStatus('warning', 'Capture both the front and back ID before scanning registration details.');
+            if (!fields.valid_id_capture.value) {
+                setIdOcrStatus('warning', 'Please capture or upload the front of your PhilSys ID.');
                 return;
             }
 
@@ -3642,9 +3877,12 @@ $has_logo = is_file($logo_file);
                 const existing = currentCsrfField();
                 csrfToken = existing && existing.value ? existing.value : '';
             }
+
             const fd = new FormData();
             fd.append('id_photo_data', fields.valid_id_capture.value);
-            fd.append('id_back_photo_data', fields.valid_id_back_capture.value);
+            if (fields.valid_id_back_capture.value) {
+                fd.append('id_back_photo_data', fields.valid_id_back_capture.value);
+            }
             fd.append('first_name', fields.first_name.value);
             fd.append('surname', fields.surname.value);
             fd.append('middle_initial', fields.middle_initial.value);
@@ -3658,7 +3896,7 @@ $has_logo = is_file($logo_file);
             }
 
             try {
-                setIdOcrStatus('warning', 'Scanning the front and back ID text for registration details...');
+                setIdOcrStatus('warning', 'Reading PhilSys ID text and extracting personal information...');
                 const headers = { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' };
                 if (csrfToken) {
                     headers['X-CSRF-Token'] = csrfToken;
@@ -3675,7 +3913,7 @@ $has_logo = is_file($logo_file);
                 try {
                     data = JSON.parse(extractFirstJsonObject(responseText));
                 } catch (parseError) {
-                    throw new Error('The ID text could not be scanned clearly. Please retake the ID photo and try again.');
+                    throw new Error('The ID text could not be parsed clearly. You can still enter your details manually.');
                 }
 
                 if (!res.ok || !data.success) {
@@ -3684,156 +3922,120 @@ $has_logo = is_file($logo_file);
 
                 const idData = data.id_data || {};
                 const fieldConfidence = idData.field_confidence || {};
-                const confidenceThresholds = {
-                    last_name: 0.67,
-                    first_name: 0.67,
-                    middle_name: 0.67,
-                    address: 0.60,
-                    date_of_birth: 0.67,
-                    birth_place: 0.60,
-                    id_number: 0.67
-                };
-                const isTrustedOcr = (key) => Number(fieldConfidence[key] || 0) >= (confidenceThresholds[key] || 0.67);
-                if (!idData.birth_place) {
-                    idData.birth_place = inferBirthPlaceFromAddress(idData.address);
-                }
-                const readableFields = {
-                    last_name: 'last name',
-                    first_name: 'first name',
-                    middle_name: 'middle name',
-                    address: 'address',
-                    date_of_birth: 'birthdate',
-                    birth_place: 'place of birth',
-                    id_number: 'ID number'
-                };
-                const readLabels = Object.keys(readableFields)
-                    .filter((key) => Boolean(idData[key]) && isTrustedOcr(key))
-                    .map((key) => readableFields[key]);
-                const uncertainLabels = Object.keys(readableFields)
-                    .filter((key) => Boolean(idData[key]) && !isTrustedOcr(key))
-                    .map((key) => readableFields[key]);
+                const confThreshold = 0.65;
+                const isTrustedOcr = (key) => Number(fieldConfidence[key] || 0) >= confThreshold;
+
                 let filledCount = 0;
-                function fillFromOcr(fieldName, ocrKey, value, formatter = null) {
-                    if (!value || !fields[fieldName] || !isTrustedOcr(ocrKey)) {
-                        return false;
+
+                // 1. Surname (Apelyido)
+                if (idData.last_name) {
+                    if (applyOcrField('surname', idData.last_name, fieldConfidence['last_name'], isTrustedOcr('last_name'))) {
+                        filledCount++;
                     }
-                    const nextValue = formatter ? formatter(value) : value;
-                    if (!nextValue) {
-                        return false;
-                    }
-                    fields[fieldName].value = nextValue;
-                    setFieldError(fieldName, '');
-                    return true;
                 }
 
-                if (fillFromOcr('surname', 'last_name', idData.last_name)) {
-                    setFieldError('surname', '');
-                    filledCount++;
+                // 2. Given Names (Mga Pangalan)
+                if (idData.first_name) {
+                    if (applyOcrField('first_name', idData.first_name, fieldConfidence['first_name'], isTrustedOcr('first_name'))) {
+                        filledCount++;
+                    }
                 }
-                if (fillFromOcr('first_name', 'first_name', idData.first_name)) {
-                    setFieldError('first_name', '');
-                    filledCount++;
+
+                // 3. Middle Initial (Gitnang Apelyido)
+                if (idData.middle_name) {
+                    const mi = String(idData.middle_name).replace(/[^A-Za-z]/g, '').slice(0, 1).toUpperCase();
+                    if (applyOcrField('middle_initial', mi, fieldConfidence['middle_name'], isTrustedOcr('middle_name'))) {
+                        filledCount++;
+                    }
                 }
-                if (fillFromOcr('middle_initial', 'middle_name', idData.middle_name, (value) => String(value).replace(/[^A-Za-z]/g, '').slice(0, 1).toUpperCase())) {
-                    setFieldError('middle_initial', '');
-                    filledCount++;
+
+                // 4. Date of Birth (Petsa ng Kapanganakan)
+                const dobDisplay = idData.date_of_birth_display || formatIsoDateForDisplay(idData.date_of_birth) || idData.date_of_birth;
+                if (dobDisplay) {
+                    if (applyOcrField('birthdate', dobDisplay, fieldConfidence['date_of_birth'], isTrustedOcr('date_of_birth'))) {
+                        filledCount++;
+                    }
                 }
-                if (fillFromOcr('address', 'address', idData.address)) {
-                    setFieldError('address', '');
-                    filledCount++;
+
+                // 5. Address (Tirahan)
+                if (idData.address) {
+                    if (applyOcrField('address', idData.address, fieldConfidence['address'], isTrustedOcr('address'))) {
+                        filledCount++;
+                    }
                 }
-                if (fillFromOcr('birth_place', 'birth_place', idData.birth_place)) {
-                    setFieldError('birth_place', '');
-                    filledCount++;
+
+                // 6. Place of Birth
+                const birthPlaceVal = idData.birth_place || inferBirthPlaceFromAddress(idData.address);
+                if (birthPlaceVal) {
+                    if (applyOcrField('birth_place', birthPlaceVal, fieldConfidence['birth_place'] || 0.70, true)) {
+                        filledCount++;
+                    }
                 }
-                if (fillFromOcr('id_number', 'id_number', idData.id_number)) {
+
+                // 7. Sex (if present)
+                if (idData.sex && fields.sex) {
+                    const parsedSex = String(idData.sex).toLowerCase().startsWith('f') ? 'Female' : 'Male';
+                    fields.sex.value = parsedSex;
+                    fields.sex.classList.add('ocr-autofilled');
+                }
+
+                // 8. PhilSys Card Number (PCN)
+                if (idData.id_number) {
+                    const rawPcn = String(idData.id_number).replace(/\D/g, '');
+                    const maskedPcn = idData.id_number_masked || (rawPcn.length === 16 ? '\u2022\u2022\u2022\u2022-\u2022\u2022\u2022\u2022-\u2022\u2022\u2022\u2022-' + rawPcn.slice(12) : rawPcn);
+                    fields.id_number.dataset.rawPcn = rawPcn;
+                    fields.id_number.dataset.maskedPcn = maskedPcn;
+                    fields.id_number.value = maskedPcn;
+                    fields.id_number.classList.add('ocr-autofilled');
                     setFieldError('id_number', '');
+
+                    if (pcnValidationBadge) {
+                        if (idData.id_number_valid) {
+                            pcnValidationBadge.className = 'badge bg-success';
+                            pcnValidationBadge.textContent = '\u2713 Valid 16-Digit PCN';
+                            pcnValidationBadge.style.display = 'inline-block';
+                        } else {
+                            pcnValidationBadge.className = 'badge bg-warning text-dark';
+                            pcnValidationBadge.textContent = 'Check PCN Format';
+                            pcnValidationBadge.style.display = 'inline-block';
+                        }
+                    }
                     filledCount++;
                 }
-                if (fillFromOcr('birthdate', 'date_of_birth', idData.date_of_birth, formatIsoDateForDisplay)) {
-                    setFieldError('birthdate', '');
-                    filledCount++;
+
+                // Show confirmation banner
+                if (ocrSuccessBanner) {
+                    ocrSuccessBanner.style.display = 'block';
                 }
 
-                const fieldMap = {
-                    last_name: 'surname',
-                    first_name: 'first_name',
-                    middle_name: 'middle_initial',
-                    address: 'address'
-                };
-                let hasMismatch = false;
-                let correctedCount = 0;
-                let readableCount = filledCount;
+                // Unlock Step 2
+                const banner = document.getElementById('regFieldsBanner');
+                if (banner) banner.classList.add('is-unlocked');
 
-                Object.keys(fieldMap).forEach((ocrField) => {
-                    const result = data.comparison && data.comparison[ocrField];
-                    const inputName = fieldMap[ocrField];
-                    if (!result || !fields[inputName] || !isTrustedOcr(ocrField)) {
-                        return;
-                    }
-
-                    if (result.status === 'corrected') {
-                        fields[inputName].value = inputName === 'middle_initial'
-                            ? String(result.final_value || '').replace(/[^A-Za-z]/g, '').slice(0, 1).toUpperCase()
-                            : result.final_value;
-                        setFieldError(inputName, '');
-                        correctedCount++;
-                        readableCount++;
-                    } else if (result.status === 'match' || result.status === 'id_field_not_found') {
-                        setFieldError(inputName, '');
-                        if (result.status === 'match') {
-                            readableCount++;
-                        }
-                    } else if (result.status === 'mismatch') {
-                        const ocrValue = idData[ocrField] || result.final_value;
-                        if (ocrValue) {
-                            fields[inputName].value = inputName === 'middle_initial'
-                                ? String(ocrValue || '').replace(/[^A-Za-z]/g, '').slice(0, 1).toUpperCase()
-                                : ocrValue;
-                            setFieldError(inputName, '');
-                            correctedCount++;
-                            readableCount++;
-                            return;
-                        }
-                        hasMismatch = true;
-                        const similarity = result.similarity === null ? '' : ' Similarity: ' + result.similarity + '%.';
-                        setFieldError(inputName, 'This does not match the ID scan.' + similarity);
-                    }
-                });
-
-                if (hasMismatch) {
-                    setIdOcrStatus('error', 'ID scan found field mismatches. Review the highlighted values before submitting.');
-                    showToast('error', 'ID scan mismatch', 'Please correct the fields highlighted by the ID scan.');
-                    return;
-                }
-
-                if (readableCount === 0) {
-                    setIdOcrStatus('warning', 'OCR could not read the ID text. Retake the front and back ID photos upright, sharp, and filling the frame.');
-                    return;
-                }
-
-                const changedTotal = correctedCount + filledCount;
-                const readSummary = readLabels.length ? ' Read: ' + readLabels.join(', ') + '.' : '';
                 const isAiEnhanced = Boolean(data.ai_enhanced);
                 const idTypeLabel = data.id_type_detected ? ' (' + data.id_type_detected + ')' : '';
-                if (uncertainLabels.length) {
-                    setIdOcrStatus('warning', 'Some ID text needs your review: ' + uncertainLabels.join(', ') + '. Retake the ID closer and in bright, even light if a value is wrong.' + readSummary, isAiEnhanced);
-                    return;
+
+                if (filledCount > 0) {
+                    setIdOcrStatus('success', 'PhilSys ID scanned successfully' + idTypeLabel + '. Details auto-filled below \u2014 please review and edit if needed.', isAiEnhanced);
+                    showToast('success', 'PhilSys ID Scanned', 'Registration fields auto-filled! Please review your details before continuing.');
+                    // Smoothly scroll to Step 2
+                    const regStep2 = document.getElementById('regStep2');
+                    if (regStep2) {
+                        regStep2.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                } else {
+                    setIdOcrStatus('warning', 'OCR could not read the ID text clearly. Please enter your details manually below.');
                 }
-                setIdOcrStatus('success', changedTotal > 0
-                    ? 'ID scanned successfully' + idTypeLabel + ' and filled the registration details.' + readSummary
-                    : 'ID scanned successfully' + idTypeLabel + '. Typed details match the readable ID fields.' + readSummary,
-                    isAiEnhanced
-                );
             } catch (error) {
-                const rawMessage = error && error.message ? error.message : '';
-                const message = rawMessage || 'The ID text could not be scanned.';
-                setIdOcrStatus('warning', message);
+                const message = (error && error.message) ? error.message : 'The ID text could not be scanned.';
+                setIdOcrStatus('warning', message + ' You may fill in your details manually below.');
+                const banner = document.getElementById('regFieldsBanner');
+                if (banner) banner.classList.add('is-unlocked');
             }
         }
 
         async function verifyCapturedFace() {
-            if (!fields.face_capture.value || !fields.valid_id_capture.value || !fields.valid_id_back_capture.value) return;
+            if (!fields.face_capture.value || !fields.valid_id_capture.value) return;
 
             try {
                 if (!window.FaceVerification || typeof window.FaceVerification.verifyLiveAgainstId !== 'function') {
@@ -3849,23 +4051,32 @@ $has_logo = is_file($logo_file);
                     setFaceStatus('success', 'Face Verification Successful', Math.round(faceScore));
                     setFieldError('live_verification', '');
                 } else {
-                    setFaceStatus('warning', 'Face verification needs admin review. You can continue because the ID details will be checked manually.', Math.round(faceScore));
+                    setFaceStatus('warning', 'Face verification will be reviewed by admin. You can continue registration.', Math.round(faceScore));
                     setFieldError('live_verification', '');
                 }
             } catch (error) {
-                const rawMessage = error && error.message ? error.message : '';
-                const isModelJsonError = rawMessage.includes('Unexpected non-whitespace character after JSON');
-                const message = isModelJsonError
-                    ? 'Face verification needs admin review. You can continue because the ID details will be checked manually.'
-                    : 'Face verification needs admin review. You can continue because the ID details will be checked manually.';
-                setFaceStatus('warning', message);
+                setFaceStatus('warning', 'Face verification will be reviewed by admin. You can continue registration.');
                 setFieldError('live_verification', '');
             }
         }
-        Object.values(fields).forEach((field) => {
-            if (!field) {
-                return;
+
+        // Clear low-confidence flags when parishioner edits any field
+        ['first_name', 'surname', 'middle_initial', 'address', 'birthdate', 'birth_place', 'id_number', 'sex'].forEach((name) => {
+            const el = fields[name] || document.getElementById(name);
+            if (el) {
+                el.addEventListener('input', () => {
+                    el.classList.remove('is-low-confidence');
+                    const flag = document.getElementById('flag_' + name);
+                    if (flag) flag.innerHTML = '';
+                    if (name === 'id_number') {
+                        el.dataset.rawPcn = el.value;
+                    }
+                });
             }
+        });
+
+        Object.values(fields).forEach((field) => {
+            if (!field) return;
             field.addEventListener('input', () => {
                 if (field === fields.middle_initial) {
                     field.value = field.value.replace(/[^A-Za-z]/g, '').slice(0, 1).toUpperCase();
@@ -3906,7 +4117,6 @@ $has_logo = is_file($logo_file);
         });
         syncRegistrationMethod();
 
-        // Set Camera Status Function - Documents this helper's role in the parish management workflow.
         function setCameraStatus(message, isError = false) {
             cameraStatus.textContent = message;
             cameraStatus.style.color = isError ? '#fecaca' : 'rgba(255, 248, 235, 0.78)';
@@ -3937,7 +4147,6 @@ $has_logo = is_file($logo_file);
                     if (preferredError && ['NotAllowedError', 'SecurityError'].includes(preferredError.name)) {
                         throw preferredError;
                     }
-                    // Desktop webcams and older mobile browsers may reject facingMode.
                     cameraStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
                 }
                 video.srcObject = cameraStream;
@@ -3971,7 +4180,6 @@ $has_logo = is_file($logo_file);
             }
         }
 
-        // Capture Frame Function - Documents this helper's role in the parish management workflow.
         function captureFrame(mode = 'full') {
             if (!cameraStream || video.readyState < 2 || !video.videoWidth || !video.videoHeight) {
                 throw new Error('The camera is not ready yet. Wait for the live preview, then capture again.');
@@ -3991,8 +4199,6 @@ $has_logo = is_file($logo_file);
                 source.width = Math.round(width * 0.52);
                 source.height = Math.round(height * 0.82);
             } else if (mode === 'id') {
-                // Crop to the physical ID-1 card ratio (85.60 x 53.98 mm).
-                // This stays correct whether the camera preview is portrait or landscape.
                 const cardRatio = 1.586;
                 const maxWidth = width * 0.92;
                 const maxHeight = height * 0.80;
@@ -4025,13 +4231,12 @@ $has_logo = is_file($logo_file);
             return canvas.toDataURL('image/jpeg', mode === 'id' ? 0.95 : 0.88);
         }
 
-        // Mark Step Done Function - Documents this helper's role in the parish management workflow.
         function markStepDone(step) {
+            if (!step) return;
             step.classList.remove('is-current');
             step.classList.add('is-done');
         }
 
-        // Switch To ID Capture Function - Documents this helper's role in the parish management workflow.
         async function switchToIdCapture(side = 'front') {
             verificationMode = 'id';
             activeIdSide = side;
@@ -4048,7 +4253,7 @@ $has_logo = is_file($logo_file);
             if (started) {
                 captureIdFrontBtn.disabled = false;
                 captureIdBackBtn.disabled = false;
-                setCameraStatus('Capture or upload the ' + (side === 'front' ? 'front' : 'back') + ' side of the ID. Fill the yellow frame and keep text sharp.');
+                setCameraStatus('Capture or upload the ' + (side === 'front' ? 'front' : 'back') + ' side of your PhilSys ID. Align within the frame.');
             }
             updateSubmitGate();
         }
@@ -4078,6 +4283,7 @@ $has_logo = is_file($logo_file);
                             if (Date.now() - faceDetectedSince > 900) {
                                 fields.face_capture.value = captureFrame('face');
                                 facePreviewImage.src = fields.face_capture.value;
+                                if (retakeFaceBtn) retakeFaceBtn.style.display = 'inline-flex';
                                 switchToIdCapture();
                             }
                             return;
@@ -4096,6 +4302,7 @@ $has_logo = is_file($logo_file);
                             if (Date.now() - faceDetectedSince > 900) {
                                 fields.face_capture.value = captureFrame('face');
                                 facePreviewImage.src = fields.face_capture.value;
+                                if (retakeFaceBtn) retakeFaceBtn.style.display = 'inline-flex';
                                 switchToIdCapture();
                             }
                             return;
@@ -4111,6 +4318,7 @@ $has_logo = is_file($logo_file);
                 if (Date.now() - faceDetectedSince > 2200) {
                     fields.face_capture.value = captureFrame('face');
                     facePreviewImage.src = fields.face_capture.value;
+                    if (retakeFaceBtn) retakeFaceBtn.style.display = 'inline-flex';
                     switchToIdCapture();
                 }
             } catch (error) {
@@ -4119,12 +4327,23 @@ $has_logo = is_file($logo_file);
                 if (Date.now() - faceDetectedSince > 2600) {
                     fields.face_capture.value = captureFrame('face');
                     facePreviewImage.src = fields.face_capture.value;
+                    if (retakeFaceBtn) retakeFaceBtn.style.display = 'inline-flex';
                     switchToIdCapture();
                 }
             }
         }
 
+        // Start Camera Button with Consent Guard
         startCameraBtn.addEventListener('click', async () => {
+            if (!isConsentGiven()) {
+                showToast('warning', 'Consent Required', 'Please check the consent box above before scanning or capturing your ID.');
+                if (idScanConsent) {
+                    idScanConsent.focus();
+                    idScanConsent.parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                return;
+            }
+
             verificationMode = 'face';
             activeIdSide = 'front';
             fields.face_capture.value = '';
@@ -4135,8 +4354,12 @@ $has_logo = is_file($logo_file);
             facePreviewImage.removeAttribute('src');
             idFrontPreviewImage.removeAttribute('src');
             idBackPreviewImage.removeAttribute('src');
-            setFaceStatus('warning', 'Capture your live face and valid ID to compare identity details.');
-            setIdOcrStatus('warning', 'Front and back ID text will be scanned to auto-fill identity details.');
+            if (retakeFaceBtn) retakeFaceBtn.style.display = 'none';
+            if (retakeFrontBtn) retakeFrontBtn.style.display = 'none';
+            if (retakeBackBtn) retakeBackBtn.style.display = 'none';
+
+            setFaceStatus('warning', 'Capture your live face and PhilSys ID to auto-fill registration details.');
+            setIdOcrStatus('warning', 'PhilSys ID will be scanned to auto-fill registration details.');
             faceStep.className = 'verification-step is-current';
             idFrontStep.className = 'verification-step';
             idBackStep.className = 'verification-step';
@@ -4153,35 +4376,45 @@ $has_logo = is_file($logo_file);
             updateSubmitGate();
         });
 
+        // Update ID Side Image (from Camera or File Upload)
         function updateIdSide(side, dataUrl) {
             if (side === 'back') {
                 fields.valid_id_back_capture.value = dataUrl;
                 idBackPreviewImage.src = dataUrl;
                 markStepDone(idBackStep);
+                if (retakeBackBtn) retakeBackBtn.style.display = 'inline-flex';
             } else {
                 fields.valid_id_capture.value = dataUrl;
                 idFrontPreviewImage.src = dataUrl;
                 markStepDone(idFrontStep);
+                if (retakeFrontBtn) retakeFrontBtn.style.display = 'inline-flex';
             }
 
             setFieldError('live_verification', '');
 
-            if (fields.valid_id_capture.value && fields.valid_id_back_capture.value) {
-                cameraStage.classList.remove('is-id-mode');
-                setCameraStatus('Front and back ID images are ready. Scanning ID text and comparing the front ID face...');
+            // Trigger ID OCR scanning immediately whenever front ID is supplied!
+            if (fields.valid_id_capture.value) {
+                setCameraStatus('PhilSys ID front is ready. Scanning text to auto-fill registration details...');
                 scanCapturedIdText();
+            }
+
+            if (fields.valid_id_capture.value && fields.valid_id_back_capture.value && fields.face_capture.value) {
+                cameraStage.classList.remove('is-id-mode');
                 verifyCapturedFace();
-            } else {
-                const nextSide = fields.valid_id_capture.value ? 'back' : 'front';
-                switchToIdCapture(nextSide);
+            } else if (side === 'front' && !fields.valid_id_back_capture.value) {
+                switchToIdCapture('back');
             }
             updateSubmitGate();
         }
 
+        // Live Capture Front Button
         captureIdFrontBtn.addEventListener('click', async () => {
+            if (!isConsentGiven()) {
+                showToast('warning', 'Consent Required', 'Please check the consent box above before capturing your ID.');
+                return;
+            }
             if (verificationMode !== 'id') return;
             try {
-                // Try GCash-style scanner modal first; fall back to captureFrame on cancel
                 if (window.IDScanner) {
                     setCameraStatus('Opening ID scanner…');
                     try {
@@ -4189,11 +4422,10 @@ $has_logo = is_file($logo_file);
                         updateIdSide('front', dataUrl);
                     } catch (scanErr) {
                         if (scanErr.message !== 'Scanner cancelled.') {
-                            // Fallback to legacy in-frame capture if scanner fails
                             activeIdSide = 'front';
                             updateIdSide('front', captureFrame('id'));
                         } else {
-                            setCameraStatus('Scanner closed. Capture or upload the front side of the ID.');
+                            setCameraStatus('Scanner closed. Capture or upload the front of your PhilSys ID.');
                         }
                     }
                 } else {
@@ -4205,7 +4437,12 @@ $has_logo = is_file($logo_file);
             }
         });
 
+        // Live Capture Back Button
         captureIdBackBtn.addEventListener('click', async () => {
+            if (!isConsentGiven()) {
+                showToast('warning', 'Consent Required', 'Please check the consent box above before capturing your ID.');
+                return;
+            }
             if (verificationMode !== 'id') return;
             try {
                 if (window.IDScanner) {
@@ -4218,7 +4455,7 @@ $has_logo = is_file($logo_file);
                             activeIdSide = 'back';
                             updateIdSide('back', captureFrame('id'));
                         } else {
-                            setCameraStatus('Scanner closed. Capture or upload the back side of the ID.');
+                            setCameraStatus('Scanner closed. Capture or upload the back of your PhilSys ID.');
                         }
                     }
                 } else {
@@ -4230,10 +4467,19 @@ $has_logo = is_file($logo_file);
             }
         });
 
+        // Read image upload supporting JPG, PNG, and WEBP formats up to 8MB
         function readImageUpload(file) {
             return new Promise((resolve, reject) => {
-                if (!file || !/^image\/(jpeg|png)$/i.test(file.type)) {
-                    reject(new Error('Please upload a JPG or PNG image.'));
+                if (!file) {
+                    reject(new Error('Please select an image file.'));
+                    return;
+                }
+                if (!/^image\/(jpeg|png|webp)$/i.test(file.type)) {
+                    reject(new Error('Please upload a JPG, PNG, or WEBP image.'));
+                    return;
+                }
+                if (file.size > 8 * 1024 * 1024) {
+                    reject(new Error('Image file size exceeds the 8MB limit.'));
                     return;
                 }
                 const reader = new FileReader();
@@ -4244,10 +4490,20 @@ $has_logo = is_file($logo_file);
         }
 
         async function handleIdUpload(side, input) {
+            if (!isConsentGiven()) {
+                showToast('warning', 'Consent Required', 'Please check the consent box above before uploading your ID.');
+                input.value = '';
+                if (idScanConsent) {
+                    idScanConsent.focus();
+                    idScanConsent.parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                return;
+            }
+
             try {
                 const dataUrl = await readImageUpload(input.files[0]);
                 updateIdSide(side, dataUrl);
-                showToast('success', side === 'front' ? 'Front ID uploaded' : 'Back ID uploaded', 'The image is ready for verification.');
+                showToast('success', side === 'front' ? 'Front ID uploaded' : 'Back ID uploaded', 'The image is ready and being scanned.');
             } catch (error) {
                 showToast('error', 'Upload failed', error.message);
             } finally {
@@ -4255,9 +4511,131 @@ $has_logo = is_file($logo_file);
             }
         }
 
-        frontIdUpload.addEventListener('change', () => handleIdUpload('front', frontIdUpload));
-        backIdUpload.addEventListener('change', () => handleIdUpload('back', backIdUpload));
+        if (frontIdUpload) frontIdUpload.addEventListener('change', () => handleIdUpload('front', frontIdUpload));
+        if (backIdUpload) backIdUpload.addEventListener('change', () => handleIdUpload('back', backIdUpload));
 
+        // Retake Button Handlers
+        if (retakeFrontBtn) {
+            retakeFrontBtn.addEventListener('click', () => {
+                fields.valid_id_capture.value = '';
+                idFrontPreviewImage.removeAttribute('src');
+                retakeFrontBtn.style.display = 'none';
+                idFrontStep.className = 'verification-step is-current';
+                captureIdFrontBtn.disabled = false;
+                setCameraStatus('Front ID cleared. Ready to capture or upload again.');
+                updateSubmitGate();
+            });
+        }
+
+        if (retakeBackBtn) {
+            retakeBackBtn.addEventListener('click', () => {
+                fields.valid_id_back_capture.value = '';
+                idBackPreviewImage.removeAttribute('src');
+                retakeBackBtn.style.display = 'none';
+                idBackStep.className = 'verification-step is-current';
+                captureIdBackBtn.disabled = false;
+                setCameraStatus('Back ID cleared. Ready to capture or upload again.');
+                updateSubmitGate();
+            });
+        }
+
+        if (retakeFaceBtn) {
+            retakeFaceBtn.addEventListener('click', () => {
+                fields.face_capture.value = '';
+                facePreviewImage.removeAttribute('src');
+                retakeFaceBtn.style.display = 'none';
+                faceStep.className = 'verification-step is-current';
+                setCameraStatus('Face capture cleared. Click Start Camera to capture your face.');
+                updateSubmitGate();
+            });
+        }
+
+        // Tab Switching: Live Camera vs Upload Mode
+        if (tabCameraMode && tabUploadMode) {
+            tabCameraMode.addEventListener('click', () => {
+                tabCameraMode.classList.add('active');
+                tabUploadMode.classList.remove('active');
+                if (cameraSection) cameraSection.style.display = 'block';
+                if (uploadSection) uploadSection.style.display = 'none';
+            });
+
+            tabUploadMode.addEventListener('click', () => {
+                tabUploadMode.classList.add('active');
+                tabCameraMode.classList.remove('active');
+                if (cameraSection) cameraSection.style.display = 'none';
+                if (uploadSection) uploadSection.style.display = 'block';
+                // Stop camera stream when switching to upload mode
+                if (cameraStream) {
+                    cameraStream.getTracks().forEach((track) => track.stop());
+                    cameraStream = null;
+                    cameraStage.classList.remove('is-active', 'is-face-mode', 'is-id-mode');
+                    setCameraStatus('Camera closed. Select your ID files using the upload boxes below.');
+                }
+            });
+        }
+
+        // Fallback: Skip to Manual Entry
+        if (skipToManualBtn) {
+            skipToManualBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (cameraStream) {
+                    cameraStream.getTracks().forEach((track) => track.stop());
+                    cameraStream = null;
+                    cameraStage.classList.remove('is-active', 'is-face-mode', 'is-id-mode');
+                }
+                idOcrStatusInput.value = 'manual';
+                setIdOcrStatus('info', 'Manual entry selected. Please type your details in the fields below.');
+
+                const banner = document.getElementById('regFieldsBanner');
+                const bannerTxt = document.getElementById('regFieldsBannerText');
+                if (banner) banner.classList.add('is-unlocked');
+                if (bannerTxt) bannerTxt.textContent = 'Manual entry mode active \u2014 please enter your information accurately.';
+
+                const step1Pill = document.getElementById('step1Pill');
+                if (step1Pill) {
+                    step1Pill.textContent = 'Manual Entry';
+                    step1Pill.className = 'step-pill manual';
+                }
+                const regStep1 = document.getElementById('regStep1');
+                if (regStep1) regStep1.classList.add('step-complete');
+
+                const regStep2 = document.getElementById('regStep2');
+                if (regStep2) {
+                    regStep2.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+                if (fields.first_name) {
+                    fields.first_name.focus();
+                }
+                showToast('info', 'Manual Entry', 'You can now fill in all registration fields manually.');
+                updateSubmitGate();
+            });
+        }
+
+        // PCN Masking & Eye Toggle
+        if (pcnToggleBtn && fields.id_number) {
+            pcnToggleBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const raw = fields.id_number.dataset.rawPcn;
+                const masked = fields.id_number.dataset.maskedPcn;
+                if (!raw) return;
+
+                if (fields.id_number.value === masked) {
+                    fields.id_number.value = raw;
+                    if (pcnToggleIcon) {
+                        pcnToggleIcon.classList.remove('fa-eye-slash');
+                        pcnToggleIcon.classList.add('fa-eye');
+                    }
+                } else {
+                    fields.id_number.value = masked;
+                    if (pcnToggleIcon) {
+                        pcnToggleIcon.classList.remove('fa-eye');
+                        pcnToggleIcon.classList.add('fa-eye-slash');
+                    }
+                }
+            });
+        }
+
+        // Password Show/Hide Toggle
         document.querySelectorAll('[data-toggle-password]').forEach((toggle) => {
             toggle.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -4279,11 +4657,17 @@ $has_logo = is_file($logo_file);
             });
         });
 
+        // Form Submit Handler
         form.addEventListener('submit', async (event) => {
             if (registrationSubmitInProgress) {
                 return;
             }
             event.preventDefault();
+
+            // Restore raw unmasked PCN before form submission if currently masked
+            if (fields.id_number && fields.id_number.dataset.rawPcn && fields.id_number.value.includes('\u2022')) {
+                fields.id_number.value = fields.id_number.dataset.rawPcn;
+            }
 
             if (!validateForm()) {
                 showToast('error', 'Check the form', 'Please correct the highlighted fields before creating your account.');

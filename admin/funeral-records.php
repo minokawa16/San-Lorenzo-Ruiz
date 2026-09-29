@@ -32,8 +32,11 @@ function funeral_fetch_all_assoc($stmt) {
 // Ensure Funeral Records Schema Function - Documents this helper's role in the parish management workflow.
 if (!function_exists('ensure_funeral_records_schema')) {
 function ensure_funeral_records_schema($conn) {
+    if (!schemaColumnExists($conn, 'funeral_records', 'requested_by')) {
+        @$conn->query("ALTER TABLE `funeral_records` ADD COLUMN `requested_by` VARCHAR(150) NULL DEFAULT NULL AFTER `family_name`");
+    }
     return requireSchemaColumns($conn, 'funeral_records', [
-        'funeral_id', 'request_id', 'registry_no', 'deceased_name', 'family_name',
+        'funeral_id', 'request_id', 'registry_no', 'deceased_name',
         'date_of_death', 'date_of_burial', 'civil_status', 'funeral_rites',
         'cause_of_death', 'place_of_burial', 'minister', 'remarks', 'status',
         'created_at', 'updated_at'
@@ -68,9 +71,6 @@ $alert_type = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['add','edit','archive','restore'], true)) {
     requireValidCsrfToken();
     try {
-        if (!empty($_POST['family_name']) && !empty($_POST['deceased_name']) && stripos($_POST['deceased_name'], trim($_POST['family_name'])) === false) {
-            $_POST['deceased_name'] = trim($_POST['deceased_name'] . ' ' . trim($_POST['family_name']));
-        }
         if (empty($_POST['status'])) {
             $_POST['status'] = 'active';
         }
@@ -87,10 +87,7 @@ if (($action === 'add' || $action === 'edit') && $_SERVER['REQUEST_METHOD'] === 
     $record_id = (int)($_POST['record_id'] ?? 0);
     $registry_no = trim($_POST['registry_no'] ?? '');
     $deceased_name = trim($_POST['deceased_name'] ?? '');
-    $family_name = trim($_POST['family_name'] ?? '');
-    if ($family_name !== '' && stripos($deceased_name, $family_name) === false) {
-        $deceased_name = trim($deceased_name . ' ' . $family_name);
-    }
+    $requested_by = !empty($_POST['requested_by']) ? trim($_POST['requested_by']) : null;
     $family_name = null;
     $date_of_death = !empty($_POST['date_of_death']) ? $_POST['date_of_death'] : null;
     $date_of_burial = !empty($_POST['date_of_burial']) ? $_POST['date_of_burial'] : null;
@@ -105,9 +102,9 @@ if (($action === 'add' || $action === 'edit') && $_SERVER['REQUEST_METHOD'] === 
 
     if ($deceased_name && $date_of_burial) {
         if ($action === 'add') {
-            $stmt = $conn->prepare("INSERT INTO funeral_records (request_id, registry_no, deceased_name, family_name, date_of_death, date_of_burial, civil_status, funeral_rites, cause_of_death, place_of_burial, minister, remarks, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt = $conn->prepare("INSERT INTO funeral_records (request_id, registry_no, deceased_name, family_name, requested_by, date_of_death, date_of_burial, civil_status, funeral_rites, cause_of_death, place_of_burial, minister, remarks, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             if ($stmt) {
-                $stmt->bind_param("issssssssssss", $request_id, $registry_no, $deceased_name, $family_name, $date_of_death, $date_of_burial, $civil_status, $funeral_rites, $cause_of_death, $place_of_burial, $minister, $remarks, $status);
+                $stmt->bind_param("isssssssssssss", $request_id, $registry_no, $deceased_name, $family_name, $requested_by, $date_of_death, $date_of_burial, $civil_status, $funeral_rites, $cause_of_death, $place_of_burial, $minister, $remarks, $status);
                 if ($stmt->execute()) {
                     $message = "Funeral record added successfully!";
                     $alert_type = "success";
@@ -118,9 +115,9 @@ if (($action === 'add' || $action === 'edit') && $_SERVER['REQUEST_METHOD'] === 
                 $stmt->close();
             }
         } else {
-            $stmt = $conn->prepare("UPDATE funeral_records SET request_id=?, registry_no=?, deceased_name=?, family_name=?, date_of_death=?, date_of_burial=?, civil_status=?, funeral_rites=?, cause_of_death=?, place_of_burial=?, minister=?, remarks=?, status=? WHERE funeral_id=?");
+            $stmt = $conn->prepare("UPDATE funeral_records SET request_id=?, registry_no=?, deceased_name=?, family_name=?, requested_by=?, date_of_death=?, date_of_burial=?, civil_status=?, funeral_rites=?, cause_of_death=?, place_of_burial=?, minister=?, remarks=?, status=? WHERE funeral_id=?");
             if ($stmt) {
-                $stmt->bind_param("issssssssssssi", $request_id, $registry_no, $deceased_name, $family_name, $date_of_death, $date_of_burial, $civil_status, $funeral_rites, $cause_of_death, $place_of_burial, $minister, $remarks, $status, $record_id);
+                $stmt->bind_param("isssssssssssssi", $request_id, $registry_no, $deceased_name, $family_name, $requested_by, $date_of_death, $date_of_burial, $civil_status, $funeral_rites, $cause_of_death, $place_of_burial, $minister, $remarks, $status, $record_id);
                 if ($stmt->execute()) {
                     $message = "Funeral record updated successfully!";
                     $alert_type = "success";
@@ -193,7 +190,7 @@ $params = array();
 $param_types = "";
 
 if ($search !== '') {
-    $where_clauses[] = "(registry_no LIKE ? OR deceased_name LIKE ? OR family_name LIKE ? OR civil_status LIKE ? OR funeral_rites LIKE ? OR cause_of_death LIKE ? OR place_of_burial LIKE ? OR minister LIKE ? OR remarks LIKE ?)";
+    $where_clauses[] = "(f.registry_no LIKE ? OR f.deceased_name LIKE ? OR f.requested_by LIKE ? OR f.civil_status LIKE ? OR f.funeral_rites LIKE ? OR f.cause_of_death LIKE ? OR f.place_of_burial LIKE ? OR f.minister LIKE ? OR f.remarks LIKE ?)";
     $search_param = "%$search%";
     for ($i = 0; $i < 9; $i++) {
         $params[] = $search_param;
@@ -203,30 +200,30 @@ if ($search !== '') {
 
 // Calendar Date Range Filter (queries Date of Death, falling back to Date of Burial)
 if ($date_from !== '' && $date_to !== '') {
-    $where_clauses[] = "(COALESCE(date_of_death, date_of_burial) BETWEEN ? AND ?)";
+    $where_clauses[] = "(COALESCE(f.date_of_death, f.date_of_burial) BETWEEN ? AND ?)";
     $params[] = $date_from;
     $params[] = $date_to;
     $param_types .= "ss";
 } elseif ($date_from !== '') {
-    $where_clauses[] = "(COALESCE(date_of_death, date_of_burial) >= ?)";
+    $where_clauses[] = "(COALESCE(f.date_of_death, f.date_of_burial) >= ?)";
     $params[] = $date_from;
     $param_types .= "s";
 } elseif ($date_to !== '') {
-    $where_clauses[] = "(COALESCE(date_of_death, date_of_burial) <= ?)";
+    $where_clauses[] = "(COALESCE(f.date_of_death, f.date_of_burial) <= ?)";
     $params[] = $date_to;
     $param_types .= "s";
 }
 
 if ($status_filter === 'active') {
-    $where_clauses[] = "status = 'active'";
+    $where_clauses[] = "f.status = 'active'";
 } elseif ($status_filter === 'archived') {
-    $where_clauses[] = "status = 'archived'";
+    $where_clauses[] = "f.status = 'archived'";
 }
 
 $where = implode(" AND ", $where_clauses);
 
 $total_records = 0;
-$count_stmt = $conn->prepare("SELECT COUNT(*) AS count FROM funeral_records WHERE $where");
+$count_stmt = $conn->prepare("SELECT COUNT(*) AS count FROM funeral_records f WHERE $where");
 if ($count_stmt) {
     if (!empty($params)) {
         $count_stmt->bind_param($param_types, ...$params);
@@ -247,7 +244,15 @@ $list_params[] = $per_page;
 $list_params[] = $offset;
 $list_types .= "ii";
 
-$stmt = $conn->prepare("SELECT * FROM funeral_records WHERE $where ORDER BY date_of_burial DESC, funeral_id DESC LIMIT ? OFFSET ?");
+$stmt = $conn->prepare("
+    SELECT f.*, u.fullname AS requester_fullname, r.reference_number AS req_ref_no
+    FROM funeral_records f
+    LEFT JOIN requests r ON f.request_id = r.request_id
+    LEFT JOIN users u ON r.user_id = u.id
+    WHERE $where
+    ORDER BY f.date_of_burial DESC, f.funeral_id DESC
+    LIMIT ? OFFSET ?
+");
 if ($stmt) {
     $stmt->bind_param($list_types, ...$list_params);
     $stmt->execute();
@@ -853,14 +858,12 @@ include '../templates/header.php';
                                 <?php foreach ($records as $record): ?>
                                     <?php
                                         $deceased_display_name = trim($record['deceased_name'] ?? '');
-                                        $fam = trim($record['family_name'] ?? '');
-                                        if ($fam !== '' && stripos($deceased_display_name, $fam) === false) {
-                                            $deceased_display_name = trim($deceased_display_name . ' ' . $fam);
-                                        }
+                                        $req_by_display = trim((string)($record['requested_by'] ?? ($record['requester_fullname'] ?? '')));
                                         $record_payload = array(
                                             'id' => $record['funeral_id'],
                                             'registry_no' => $record['registry_no'] ?? '',
                                             'deceased_name' => $deceased_display_name,
+                                            'requested_by' => $req_by_display,
                                             'date_of_death' => $record['date_of_death'] ?? '',
                                             'date_of_burial' => $record['date_of_burial'] ?? '',
                                             'civil_status' => $record['civil_status'] ?? '',
@@ -876,7 +879,14 @@ include '../templates/header.php';
                                     ?>
                                     <tr>
                                         <td><?php echo htmlspecialchars($record['registry_no'] ?: $record['funeral_id']); ?></td>
-                                        <td><span class="text-strong"><?php echo htmlspecialchars($deceased_display_name); ?></span></td>
+                                        <td>
+                                            <span class="text-strong"><?php echo htmlspecialchars($deceased_display_name); ?></span>
+                                            <?php if (!empty($req_by_display) && strcasecmp($req_by_display, $deceased_display_name) !== 0): ?>
+                                                <div style="font-size: 0.75rem; color: #64748b; margin-top: 3px;" title="Submitted by Parishioner Account">
+                                                    <i class="fas fa-user-circle me-1"></i>Requested by: <?php echo htmlspecialchars($req_by_display); ?>
+                                                </div>
+                                            <?php endif; ?>
+                                        </td>
                                         <td><?php echo funeral_format_date($record['date_of_death']); ?></td>
                                         <td><?php echo funeral_format_date($record['date_of_burial']); ?></td>
                                         <td><?php echo htmlspecialchars($record['civil_status'] ?: 'N/A'); ?></td>
@@ -977,6 +987,11 @@ include '../templates/header.php';
                                     </option>
                                 <?php endforeach; ?>
                             </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Requested By (Submitted By)</label>
+                            <input type="text" id="requestedBy" name="requested_by" placeholder="Parishioner account name (optional)">
                         </div>
 
                         <div class="form-group">
@@ -1107,10 +1122,8 @@ include '../templates/header.php';
             document.getElementById('pageNo').value = record.page_no || '';
             document.getElementById('entryNo').value = record.entry_no || '';
             document.getElementById('birthDate').value = record.birth_date || '';
+            document.getElementById('requestedBy').value = record.requested_by || '';
             let fullName = record.deceased_name || '';
-            if (record.family_name && !fullName.toLowerCase().includes(record.family_name.toLowerCase())) {
-                fullName = (fullName + ' ' + record.family_name).trim();
-            }
             document.getElementById('deceasedName').value = fullName;
             document.getElementById('dateOfDeath').value = record.date_of_death || '';
             document.getElementById('dateOfBurial').value = record.date_of_burial || '';

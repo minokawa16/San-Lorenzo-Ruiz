@@ -64,8 +64,18 @@ if ($is_funeral_request) {
     }
 }
 $funeral_fields = extractFuneralSheetFields((string)($request['description'] ?? ''), $request);
+$applicant_name = trim((string)($request['fullname'] ?? ''));
 if ($linked_funeral_record) {
-    if (!empty($linked_funeral_record['deceased_name'])) $funeral_fields['deceased_name'] = $linked_funeral_record['deceased_name'];
+    if (!empty($linked_funeral_record['deceased_name'])) {
+        $linked_dec = trim($linked_funeral_record['deceased_name']);
+        if (empty($funeral_fields['deceased_name'])) {
+            $funeral_fields['deceased_name'] = $linked_dec;
+        } elseif ($applicant_name !== '' && stripos($linked_dec, $applicant_name) !== false) {
+            // Preserve clean name from request description
+        } else {
+            $funeral_fields['deceased_name'] = $linked_dec;
+        }
+    }
     if (!empty($linked_funeral_record['date_of_death'])) $funeral_fields['date_of_death'] = $linked_funeral_record['date_of_death'];
     if (!empty($linked_funeral_record['date_of_burial'])) $funeral_fields['date_of_burial'] = $linked_funeral_record['date_of_burial'];
     if (!empty($linked_funeral_record['civil_status'])) $funeral_fields['civil_status'] = $linked_funeral_record['civil_status'];

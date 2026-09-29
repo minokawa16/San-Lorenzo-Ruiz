@@ -2297,7 +2297,7 @@ function decryptStoredFile($path) {
 
 // Camera Capture - Decodes browser camera images for live ID and face verification.
 function decodeCameraCapture($data_url, $max_bytes = 5242880) {
-    if (!is_string($data_url) || !preg_match('/^data:image\/(jpeg|png);base64,([A-Za-z0-9+\/=\r\n]+)$/', $data_url, $matches)) {
+    if (!is_string($data_url) || !preg_match('/^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+\/=\r\n]+)$/', $data_url, $matches)) {
         return ['ok' => false, 'error' => 'Invalid camera capture format.'];
     }
 
@@ -2311,15 +2311,15 @@ function decodeCameraCapture($data_url, $max_bytes = 5242880) {
     }
 
     $image_info = @getimagesizefromstring($binary);
-    if (!$image_info || !in_array($image_info['mime'], ['image/jpeg', 'image/png'], true)) {
-        return ['ok' => false, 'error' => 'Camera capture must be a valid JPG or PNG image.'];
+    if (!$image_info || !in_array($image_info['mime'], ['image/jpeg', 'image/png', 'image/webp'], true)) {
+        return ['ok' => false, 'error' => 'Camera capture must be a valid JPG, PNG, or WEBP image.'];
     }
 
     return [
         'ok' => true,
         'binary' => $binary,
         'mime_type' => $image_info['mime'],
-        'extension' => $image_info['mime'] === 'image/png' ? 'png' : 'jpg'
+        'extension' => $image_info['mime'] === 'image/png' ? 'png' : ($image_info['mime'] === 'image/webp' ? 'webp' : 'jpg')
     ];
 }
 

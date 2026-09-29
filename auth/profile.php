@@ -474,9 +474,23 @@ $page_title = $is_admin ? 'Profile Settings' : 'My Profile';
 
                         <!-- 2. Personal Details Section -->
                         <div class="form-section-group mb-4">
-                            <h6 class="fw-bold mb-3 d-flex align-items-center" style="color: #2E3A2D; font-size: 0.95rem;">
-                                <i class="fas fa-user-circle me-2" style="color: #c89b3c;"></i> Personal Information
-                            </h6>
+                            <!-- OCR Auto-fill Success Notice -->
+                            <div class="alert alert-success d-flex align-items-center gap-2 mb-3 rounded-3" id="profileOcrSuccessAlert" style="display: none; border-color: rgba(34, 197, 94, 0.4); background: rgba(34, 197, 94, 0.12); color: #15803d;">
+                                <i class="fas fa-circle-check fs-5 text-success"></i>
+                                <div>
+                                    <strong>We've filled in your details from your PhilSys ID.</strong>
+                                    <div class="small" style="color: #166534;">Please review and edit any fields if needed, then click "Save Changes" below.</div>
+                                </div>
+                            </div>
+
+                            <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                                <h6 class="fw-bold mb-0 d-flex align-items-center" style="color: #2E3A2D; font-size: 0.95rem;">
+                                    <i class="fas fa-user-circle me-2" style="color: #c89b3c;"></i> Personal Information
+                                </h6>
+                                <button type="button" class="btn btn-sm rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-2" id="openProfileIdScannerBtn" data-bs-toggle="modal" data-bs-target="#profileIdScannerModal" style="border: 1.5px solid #c89b3c; color: #8e681c; font-size: 0.82rem; background: rgba(200, 155, 60, 0.08);">
+                                    <i class="fas fa-id-card text-warning"></i> Auto-fill from PhilSys ID
+                                </button>
+                            </div>
                             <div class="row g-3">
                                 <div class="col-12 col-md-4">
                                     <label for="first_name" class="form-label fw-semibold small text-secondary">First Name <span class="text-danger">*</span></label>
@@ -649,7 +663,115 @@ $page_title = $is_admin ? 'Profile Settings' : 'My Profile';
     <span>Log Out</span>
 </a>
 
+<!-- PhilSys ID Scanner Modal for Profile -->
+<div class="modal fade" id="profileIdScannerModal" tabindex="-1" aria-labelledby="profileIdScannerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content" style="border-radius: 16px; border: none; overflow: hidden; box-shadow: 0 16px 40px rgba(0,0,0,0.18);">
+            <div class="modal-header py-3 px-4" style="background: linear-gradient(135deg, #2E3A2D, #1d251d); color: #fff;">
+                <div class="d-flex align-items-center gap-2">
+                    <div style="width: 36px; height: 36px; border-radius: 50%; background: rgba(200, 155, 60, 0.2); display: flex; align-items: center; justify-content: center; color: #c89b3c;">
+                        <i class="fas fa-id-card fs-5"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title mb-0 fw-bold" id="profileIdScannerModalLabel" style="font-size: 1.05rem;">Scan Philippine National ID (PhilSys)</h5>
+                        <small style="color: rgba(255, 248, 235, 0.75); font-size: 0.78rem;">Auto-populate your profile information with AI/OCR</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <!-- Consent Box -->
+                <div class="p-3 rounded-3 mb-3" style="background: rgba(200, 155, 60, 0.08); border: 1.5px solid rgba(200, 155, 60, 0.35);">
+                    <label class="d-flex align-items-start gap-2 mb-0" style="cursor: pointer;">
+                        <input class="form-check-input mt-1" type="checkbox" id="profileIdConsent" style="width: 19px; height: 19px; flex-shrink: 0; cursor: pointer;">
+                        <span style="font-size: 0.88rem; font-weight: 600; line-height: 1.45; color: #2E3A2D;">
+                            I consent to my ID being scanned and my information being used to complete/update my profile details.
+                            <span class="d-block text-muted fw-normal mt-1" style="font-size: 0.78rem;">Your ID is processed securely in real-time and raw images are not permanently stored.</span>
+                        </span>
+                    </label>
+                </div>
+
+                <!-- Guidelines Notice -->
+                <div class="p-3 rounded-3 mb-3" style="background: #f8fafc; border: 1px solid #e2e8f0; font-size: 0.82rem;">
+                    <div class="fw-bold mb-1 text-dark"><i class="fas fa-lightbulb text-warning me-1"></i> ID Scanning Tips:</div>
+                    <ul class="mb-0 ps-3 text-secondary" style="line-height: 1.45;">
+                        <li>Make sure the PhilSys ID is well-lit, completely flat, and in sharp focus.</li>
+                        <li>Avoid glare, reflections, finger obstructions, and heavy shadows.</li>
+                        <li>Supports JPG, PNG, and WEBP formats (max 8MB).</li>
+                    </ul>
+                </div>
+
+                <!-- Capture / Upload Actions -->
+                <div id="profileScanActionArea">
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-6">
+                            <div class="card h-100 text-center p-3 border-2 border-dashed rounded-3" style="border-style: dashed; border-color: #cbd5e1; background: #fafafa;">
+                                <i class="fas fa-cloud-arrow-up fs-2 mb-2 text-primary"></i>
+                                <div class="fw-bold mb-1" style="font-size: 0.92rem;">Upload ID Photo</div>
+                                <div class="small text-muted mb-3" style="font-size: 0.78rem;">Select a clear photo or scan of your PhilSys ID</div>
+                                <input type="file" id="profileIdInput" accept="image/jpeg,image/png,image/webp" class="d-none">
+                                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 mt-auto" id="profilePickFileBtn">
+                                    <i class="fas fa-file-image me-1"></i> Choose File
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <div class="card h-100 text-center p-3 border-2 border-dashed rounded-3" style="border-style: dashed; border-color: #cbd5e1; background: #fafafa;">
+                                <i class="fas fa-camera fs-2 mb-2 text-success"></i>
+                                <div class="fw-bold mb-1" style="font-size: 0.92rem;">Capture with Camera</div>
+                                <div class="small text-muted mb-3" style="font-size: 0.78rem;">Take a photo using your phone or webcam</div>
+                                <button type="button" class="btn btn-sm btn-outline-success rounded-pill px-3 mt-auto" id="profileOpenCamBtn">
+                                    <i class="fas fa-camera me-1"></i> Open Camera
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Preview Area (hidden until image loaded) -->
+                <div id="profileImagePreviewArea" style="display: none;">
+                    <div class="position-relative text-center p-2 mb-3 rounded-3" style="background: #0f172a; border-radius: 12px; overflow: hidden; max-height: 280px;">
+                        <img id="profilePreviewImg" src="" alt="ID Preview" style="max-height: 260px; max-width: 100%; object-fit: contain; border-radius: 8px;">
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" id="profileModalRetakeBtn">
+                            <i class="fas fa-rotate-right me-1"></i> Retake / Re-upload
+                        </button>
+                        <button type="button" class="btn btn-sm text-white rounded-pill px-4 fw-semibold" id="profileProcessOcrBtn" style="background: linear-gradient(135deg, #2E3A2D, #1d251d); border: 1px solid #c89b3c;">
+                            <i class="fas fa-bolt text-warning me-1"></i> Read ID &amp; Auto-fill Form
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Status Feedback -->
+                <div id="profileOcrLoading" class="text-center py-3" style="display: none;">
+                    <div class="spinner-border text-warning mb-2" role="status" style="width: 2rem; height: 2rem;"></div>
+                    <div class="fw-bold text-dark" style="font-size: 0.95rem;">Reading Philippine National ID...</div>
+                    <div class="small text-muted">Applying OCR preprocessing and document parsing</div>
+                </div>
+
+                <div id="profileOcrMsg" class="alert alert-warning py-2 px-3 small rounded-3 mt-2" style="display: none;"></div>
+            </div>
+            <div class="modal-footer py-2 px-4 bg-light d-flex justify-content-between">
+                <button type="button" class="btn btn-link text-secondary p-0 text-decoration-none small" data-bs-dismiss="modal">
+                    Enter details manually instead
+                </button>
+                <button type="button" class="btn btn-sm btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
+.ocr-autofilled {
+    background-color: rgba(34, 197, 94, 0.08) !important;
+    border-color: #22c55e !important;
+    transition: background-color 0.4s ease, border-color 0.4s ease;
+}
+.is-low-confidence {
+    background-color: rgba(245, 158, 11, 0.08) !important;
+    border-color: #f59e0b !important;
+}
 .parish-input {
     border-radius: 10px;
     border: 1.5px solid #e2d9cc;
@@ -826,17 +948,215 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Auto dismiss success alert after 6 seconds
-    const successAlert = document.getElementById('profileSuccessAlert');
-    if (successAlert) {
-        setTimeout(function() {
-            try {
-                const bsAlert = bootstrap.Alert.getOrCreateInstance(successAlert);
-                if (bsAlert) bsAlert.close();
-            } catch (e) {
-                successAlert.style.display = 'none';
+    // PhilSys ID Scanner for Profile
+    const profileIdConsent = document.getElementById('profileIdConsent');
+    const profilePickFileBtn = document.getElementById('profilePickFileBtn');
+    const profileIdInput = document.getElementById('profileIdInput');
+    const profileOpenCamBtn = document.getElementById('profileOpenCamBtn');
+    const profileScanActionArea = document.getElementById('profileScanActionArea');
+    const profileImagePreviewArea = document.getElementById('profileImagePreviewArea');
+    const profilePreviewImg = document.getElementById('profilePreviewImg');
+    const profileModalRetakeBtn = document.getElementById('profileModalRetakeBtn');
+    const profileProcessOcrBtn = document.getElementById('profileProcessOcrBtn');
+    const profileOcrLoading = document.getElementById('profileOcrLoading');
+    const profileOcrMsg = document.getElementById('profileOcrMsg');
+    const profileOcrSuccessAlert = document.getElementById('profileOcrSuccessAlert');
+    let profileCapturedDataUrl = null;
+
+    function showProfileOcrMsg(text, isError = true) {
+        if (!profileOcrMsg) return;
+        profileOcrMsg.className = 'alert ' + (isError ? 'alert-danger' : 'alert-info') + ' py-2 px-3 small rounded-3 mt-2';
+        profileOcrMsg.textContent = text;
+        profileOcrMsg.style.display = 'block';
+    }
+
+    function resetProfileModal() {
+        profileCapturedDataUrl = null;
+        if (profileIdInput) profileIdInput.value = '';
+        if (profilePreviewImg) profilePreviewImg.src = '';
+        if (profileScanActionArea) profileScanActionArea.style.display = 'block';
+        if (profileImagePreviewArea) profileImagePreviewArea.style.display = 'none';
+        if (profileOcrLoading) profileOcrLoading.style.display = 'none';
+        if (profileOcrMsg) profileOcrMsg.style.display = 'none';
+    }
+
+    if (profilePickFileBtn && profileIdInput) {
+        profilePickFileBtn.addEventListener('click', function() {
+            if (!profileIdConsent.checked) {
+                showProfileOcrMsg('Please check the consent box above before uploading your ID.');
+                profileIdConsent.focus();
+                return;
             }
-        }, 6000);
+            profileIdInput.click();
+        });
+
+        profileIdInput.addEventListener('change', function() {
+            const file = this.files && this.files[0];
+            if (!file) return;
+
+            if (!/^image\/(jpeg|png|webp)$/i.test(file.type)) {
+                showProfileOcrMsg('Please upload a JPG, PNG, or WEBP image.');
+                this.value = '';
+                return;
+            }
+            if (file.size > 8 * 1024 * 1024) {
+                showProfileOcrMsg('File size exceeds the 8MB limit.');
+                this.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                profileCapturedDataUrl = e.target.result;
+                if (profilePreviewImg) profilePreviewImg.src = profileCapturedDataUrl;
+                if (profileScanActionArea) profileScanActionArea.style.display = 'none';
+                if (profileImagePreviewArea) profileImagePreviewArea.style.display = 'block';
+                if (profileOcrMsg) profileOcrMsg.style.display = 'none';
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    if (profileOpenCamBtn) {
+        profileOpenCamBtn.addEventListener('click', async function() {
+            if (!profileIdConsent.checked) {
+                showProfileOcrMsg('Please check the consent box above before using the camera.');
+                profileIdConsent.focus();
+                return;
+            }
+            try {
+                if (window.IDScanner) {
+                    const dataUrl = await window.IDScanner.openModal('front');
+                    profileCapturedDataUrl = dataUrl;
+                    if (profilePreviewImg) profilePreviewImg.src = profileCapturedDataUrl;
+                    if (profileScanActionArea) profileScanActionArea.style.display = 'none';
+                    if (profileImagePreviewArea) profileImagePreviewArea.style.display = 'block';
+                    if (profileOcrMsg) profileOcrMsg.style.display = 'none';
+                } else if (profileIdInput) {
+                    profileIdInput.click();
+                }
+            } catch (err) {
+                if (err && err.message !== 'Scanner cancelled.') {
+                    showProfileOcrMsg('Camera error: ' + err.message);
+                }
+            }
+        });
+    }
+
+    if (profileModalRetakeBtn) {
+        profileModalRetakeBtn.addEventListener('click', resetProfileModal);
+    }
+
+    if (profileProcessOcrBtn) {
+        profileProcessOcrBtn.addEventListener('click', async function() {
+            if (!profileCapturedDataUrl) {
+                showProfileOcrMsg('Please select or capture an ID image first.');
+                return;
+            }
+
+            if (!profileIdConsent.checked) {
+                showProfileOcrMsg('Consent is required to process your ID.');
+                return;
+            }
+
+            if (profileOcrLoading) profileOcrLoading.style.display = 'block';
+            if (profileImagePreviewArea) profileImagePreviewArea.style.display = 'none';
+            if (profileOcrMsg) profileOcrMsg.style.display = 'none';
+
+            const fd = new FormData();
+            fd.append('id_photo_data', profileCapturedDataUrl);
+
+            try {
+                const res = await fetch('../ocr/api_process_id.php?t=' + Date.now(), {
+                    method: 'POST',
+                    body: fd,
+                    credentials: 'same-origin',
+                    headers: { 'Accept': 'application/json' }
+                });
+                const resText = await res.text();
+                let data;
+                try {
+                    const jsonStart = resText.indexOf('{');
+                    data = JSON.parse(jsonStart >= 0 ? resText.slice(jsonStart) : resText);
+                } catch (pe) {
+                    throw new Error('Unable to parse ID text response.');
+                }
+
+                if (!res.ok || !data.success) {
+                    throw new Error(data.error || 'Could not extract information from ID.');
+                }
+
+                const idData = data.id_data || {};
+                const fieldConf = idData.field_confidence || {};
+
+                function setAndHighlight(id, val, confKey) {
+                    const el = document.getElementById(id);
+                    if (!el || !val) return;
+                    el.value = val;
+                    el.classList.add('ocr-autofilled');
+                    const conf = Number(fieldConf[confKey] ?? 0.85);
+                    if (conf < 0.65) {
+                        el.classList.add('is-low-confidence');
+                    } else {
+                        el.classList.remove('is-low-confidence');
+                    }
+                }
+
+                if (idData.first_name) setAndHighlight('first_name', idData.first_name, 'first_name');
+                if (idData.middle_name) setAndHighlight('middle_name', idData.middle_name, 'middle_name');
+                if (idData.last_name) setAndHighlight('surname', idData.last_name, 'last_name');
+
+                // Birthdate formatted for <input type="date"> (YYYY-MM-DD)
+                if (idData.date_of_birth) {
+                    setAndHighlight('birthdate', idData.date_of_birth, 'date_of_birth');
+                }
+
+                // Sex / Gender
+                if (idData.sex) {
+                    const parsedSex = String(idData.sex).toLowerCase().startsWith('f') ? 'Female' : 'Male';
+                    setAndHighlight('sex', parsedSex, 'sex');
+                }
+
+                // Address parsing
+                if (idData.address) {
+                    const parts = idData.address.split(',').map(s => s.trim()).filter(Boolean);
+                    if (parts.length >= 4) {
+                        setAndHighlight('street_address', parts[0], 'address');
+                        setAndHighlight('barangay', parts[1], 'address');
+                        setAndHighlight('city', parts[2], 'address');
+                        setAndHighlight('province', parts.slice(3).join(', '), 'address');
+                    } else if (parts.length === 3) {
+                        setAndHighlight('barangay', parts[0], 'address');
+                        setAndHighlight('city', parts[1], 'address');
+                        setAndHighlight('province', parts[2], 'address');
+                    } else if (parts.length === 2) {
+                        setAndHighlight('city', parts[0], 'address');
+                        setAndHighlight('province', parts[1], 'address');
+                    } else if (parts.length === 1) {
+                        setAndHighlight('street_address', parts[0], 'address');
+                    }
+                }
+
+                // Close modal
+                const modalEl = document.getElementById('profileIdScannerModal');
+                if (modalEl) {
+                    const bsModal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                    bsModal.hide();
+                }
+
+                // Show confirmation alert
+                if (profileOcrSuccessAlert) {
+                    profileOcrSuccessAlert.style.display = 'flex';
+                    profileOcrSuccessAlert.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+
+                resetProfileModal();
+            } catch (err) {
+                if (profileOcrLoading) profileOcrLoading.style.display = 'none';
+                if (profileImagePreviewArea) profileImagePreviewArea.style.display = 'block';
+                showProfileOcrMsg((err && err.message) ? err.message : 'ID scan failed. You can retake the photo or enter details manually.');
+            }
+        });
     }
 });
 </script>
