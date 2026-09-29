@@ -433,9 +433,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         } elseif (trim(strip_tags($content)) === '') {
             $error = 'Please provide the announcement description (WHAT).';
         } elseif ($publish_mode === 'later' && empty($scheduled_at)) {
-            $error = 'Please specify a future date and time for publication.';
+            $error = 'Please specify a future post date and time.';
         } elseif ($publish_mode === 'later' && strtotime($scheduled_value) !== false && strtotime($scheduled_value) <= time()) {
-            $error = 'The scheduled publication date and time must be in the future.';
+            $error = 'The scheduled post date and time must be in the future.';
         } else {
             $attachment = saveAnnouncementAttachment($_FILES['attachment'] ?? null);
             if (!$attachment['ok']) {
@@ -459,7 +459,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                                 processAnnouncementDeliveryQueue($conn, $new_id, 50);
                                 $queued_announcement_id = $new_id;
                             }
-                            $success = $publish_mode === 'now' ? 'Announcement published successfully.' : ($publish_mode === 'draft' ? 'Announcement saved as draft.' : 'Announcement scheduled successfully.');
+                            $success = $publish_mode === 'now' ? 'Announcement posted successfully.' : ($publish_mode === 'draft' ? 'Announcement saved as draft.' : 'Announcement scheduled successfully.');
                         } catch (Throwable $e) {
                             $error = 'Announcement created, but configuration error occurred: ' . $e->getMessage();
                         }
@@ -793,6 +793,8 @@ $breadcrumbs = [
         border-radius: 999px;
         margin-top: 6px;
         margin-left: 20px;
+        width: fit-content;
+        align-self: flex-start;
         letter-spacing: 0.2px;
     }
     .mode-status-badge.badge-draft {
@@ -1024,7 +1026,7 @@ $breadcrumbs = [
     <!-- Standardized Section Header -->
     <?php
     $page_header_title = 'Announcements';
-    $page_header_subtitle = 'Publish and manage parish notices, bulletins, and event updates.';
+    $page_header_subtitle = 'Post and manage parish notices, bulletins, and event updates.';
     $page_header_icon = 'fa-bullhorn';
     $show_back_button = true;
     $back_button_url = BASE_URL . 'admin/dashboard.php';
@@ -1241,15 +1243,10 @@ $modal_announcements = array_merge([$blank_announcement], $announcements);
     <?php
         $is_edit = !empty($modal_item['announcement_id']);
         $modal_id = $is_edit ? 'editAnnouncement-' . intval($modal_item['announcement_id']) : 'announcementModal';
-        $file_input_id = $is_edit ? 'attachment-' . intval($modal_item['announcement_id']) : 'attachment-new';
-        $file_pill_id = $is_edit ? 'attachment-pill-' . intval($modal_item['announcement_id']) : 'attachment-pill-new';
         $scheduled_local = !empty($modal_item['scheduled_at']) ? date('Y-m-d\TH:i', strtotime($modal_item['scheduled_at'])) : '';
-        $expires_local = !empty($modal_item['expires_at']) ? date('Y-m-d\TH:i', strtotime($modal_item['expires_at'])) : '';
         $is_later = !empty($modal_item['scheduled_at']) && strtotime($modal_item['scheduled_at']) > time() && ($modal_item['status'] === 'inactive' || ($modal_item['lifecycle_status'] ?? '') === 'scheduled');
         $is_draft = ($modal_item['lifecycle_status'] ?? '') === 'draft';
         $current_mode = $is_later ? 'later' : ($is_draft ? 'draft' : 'now');
-        $current_audience = $modal_item['audience_type'] ?? 'everyone';
-        $audience_vals = $modal_item['audience_values_list'] ?? '';
 
         // Extract 5W1H fields
         $parsed_5w1h = parse5W1HAnnouncement($modal_item['content'] ?? '');
@@ -1432,7 +1429,7 @@ $modal_announcements = array_merge([$blank_announcement], $announcements);
                                                         <i class="fas fa-calendar-plus text-primary"></i> Schedule Post
                                                     </div>
                                                     <div class="mode-desc">Set a future date and time for automatic release.</div>
-                                                    <span class="mode-status-badge badge-scheduled" id="scheduled-badge-<?php echo e($modal_id); ?>">🕒 <span class="scheduled-badge-text">Scheduled</span></span>
+                                                    <span class="mode-status-badge badge-scheduled" id="scheduled-badge-<?php echo e($modal_id); ?>">🕒 <span class="scheduled-badge-text"><?php echo (!empty($modal_item['scheduled_at']) && $is_later) ? 'Scheduled · ' . date('M j, Y, g:i A', strtotime($modal_item['scheduled_at'])) : 'Scheduled'; ?></span></span>
                                                 </label>
                                                 <label class="publish-mode-card <?php echo $current_mode === 'draft' ? 'active' : ''; ?>">
                                                     <div class="mode-title">
@@ -1566,14 +1563,24 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!badge) return;
             const val = scheduledInput ? scheduledInput.value : '';
             if (val) {
-                const d = new Date(val);
-                if (!isNaN(d.getTime())) {
-                    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-                    let h = d.getHours(), m = String(d.getMinutes()).padStart(2,'0');
-                    const ampm = h >= 12 ? 'PM' : 'AM';
-                    h = h % 12 || 12;
-                    badge.textContent = 'Scheduled \u00B7 ' + months[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear() + ', ' + h + ':' + m + ' ' + ampm;
-                    return;
+                const parts = val.split('T');
+                if (parts.length === 2) {
+                    const dateParts = parts[0].split('-');
+                    const timeParts = parts[1].split(':');
+                    if (dateParts.length === 3 && timeParts.length >= 2) {
+                        const year = dateParts[0];
+                        const monthIdx = parseInt(dateParts[1], 10) - 1;
+                        const day = parseInt(dateParts[2], 10);
+                        let hour = parseInt(timeParts[0], 10);
+                        const minute = timeParts[1].substring(0, 2);
+                        const ampm = hour >= 12 ? 'PM' : 'AM';
+                        hour = hour % 12 || 12;
+                        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                        if (months[monthIdx]) {
+                            badge.textContent = 'Scheduled \u00B7 ' + months[monthIdx] + ' ' + day + ', ' + year + ', ' + hour + ':' + minute + ' ' + ampm;
+                            return;
+                        }
+                    }
                 }
             }
             badge.textContent = 'Scheduled';
@@ -1608,9 +1615,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         modeCards.forEach(function(card) {
-            card.addEventListener('click', function() {
+            card.addEventListener('click', function(e) {
                 const radio = card.querySelector('input[type="radio"]');
-                if (radio && !radio.checked) {
+                if (radio && e.target !== radio) {
                     radio.checked = true;
                     updatePublishMode();
                 }
@@ -1644,7 +1651,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function showFieldError(fieldElement, message) {
         if (!fieldElement) return;
         fieldElement.classList.add('is-invalid');
-        const container = fieldElement.closest('.col-12, .col-lg-8, .col-lg-6, .col-lg-4, .attachment-box, .form-section-card') || fieldElement.parentElement;
+        const container = fieldElement.closest('.col-12, .col-lg-8, .col-lg-6, .col-lg-4, .form-section-card') || fieldElement.parentElement;
         if (container) {
             const errorDiv = container.querySelector('.field-error-message');
             if (errorDiv) {

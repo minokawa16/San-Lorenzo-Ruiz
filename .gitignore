@@ -41,4 +41,5 @@ backups/*.zip
 .codex-deploy-clean/
 TUGON-AI-PRODUCTION-BACKUP/
 scratch/
+vendor/dompdf/dompdf/lib/fonts/*.json
 
