@@ -269,12 +269,16 @@
             return;
         }
 
+        const requestForm = preferredTime.closest('form');
+
         const dateInputs = [
             document.getElementById('preferred_date'),
             document.getElementById('service_date'),
             document.getElementById('general_service_date'),
             document.getElementById('baptism_date'),
+            document.getElementById('wedding_date'),
             document.getElementById('marriage_wedding_date'),
+            document.getElementById('funeral_burial_date'),
             document.getElementById('patronal_fiesta_date')
         ].filter(Boolean);
 
@@ -287,6 +291,51 @@
             }
             const fallback = document.getElementById('preferred_date');
             return fallback ? fallback.value.trim() : '';
+        }
+
+        function updateSubmitButtonsConflictState(hasConflict) {
+            const btns = [];
+            const rBtn = document.getElementById('submitRequestBtn');
+            const cBtn = document.getElementById('confirmServiceSubmit');
+            if (rBtn) btns.push(rBtn);
+            if (cBtn && !btns.includes(cBtn)) btns.push(cBtn);
+
+            if (requestForm) {
+                requestForm.querySelectorAll('button[type="submit"], .submit-request-btn').forEach(btn => {
+                    if (!btns.includes(btn)) {
+                        btns.push(btn);
+                    }
+                });
+            }
+
+            btns.forEach(btn => {
+                if (!btn) return;
+                if (hasConflict) {
+                    btn.disabled = true;
+                    btn.setAttribute('disabled', 'disabled');
+                    btn.setAttribute('aria-disabled', 'true');
+                    btn.classList.add('disabled-by-conflict');
+                    btn.style.opacity = '0.52';
+                    btn.style.filter = 'grayscale(0.4)';
+                    btn.style.cursor = 'not-allowed';
+                    if (!btn.getAttribute('data-original-title')) {
+                        btn.setAttribute('data-original-title', btn.title || '');
+                    }
+                    btn.title = 'Cannot submit: this date and time is already occupied (30-minute buffer).';
+                } else {
+                    btn.disabled = false;
+                    btn.removeAttribute('disabled');
+                    btn.removeAttribute('aria-disabled');
+                    btn.classList.remove('disabled-by-conflict');
+                    btn.style.opacity = '';
+                    btn.style.filter = '';
+                    btn.style.cursor = '';
+                    const origTitle = btn.getAttribute('data-original-title');
+                    if (origTitle !== null) {
+                        btn.title = origTitle;
+                    }
+                }
+            });
         }
 
         // Create feedback container if not present
@@ -332,6 +381,7 @@
                 preferredTime.classList.remove('is-invalid', 'is-valid');
                 window.hasScheduleConflictState = false;
                 window.lastConflictMessage = '';
+                updateSubmitButtonsConflictState(false);
                 return;
             }
 
@@ -351,17 +401,21 @@
                         occupiedContainer.innerHTML = `
                             <div class="occupied-slots-header">
                                 <i class="fas fa-calendar-xmark text-danger"></i>
-                                <span>Already occupied on this date at this location:</span>
+                                <span>Already scheduled on this date at this location (30m buffer reserved):</span>
                             </div>
                             <div class="occupied-slots-pills">
-                                ${occData.slots.map(s => `
-                                    <span class="occupied-slot-pill" title="${escapeHtml(s.title || 'Reserved')}">
-                                        <i class="fas fa-clock"></i> ${escapeHtml(s.time_display || s.time)}
-                                        <span class="badge-taken">Occupied</span>
-                                    </span>
-                                `).join('')}
+                                ${occData.slots.map(s => {
+                                    const timeLabel = s.time_display || s.time;
+                                    const bufLabel = s.buffer_display ? `Buffer: ${escapeHtml(s.buffer_display)}` : '30-minute buffer';
+                                    return `
+                                        <span class="occupied-slot-pill" title="${escapeHtml(s.title || 'Reserved')} (${bufLabel})">
+                                            <i class="fas fa-clock"></i> ${escapeHtml(timeLabel)}
+                                            <span class="badge-taken">${s.buffer_display ? escapeHtml(s.buffer_display) : 'Occupied &plusmn;30m'}</span>
+                                        </span>
+                                    `;
+                                }).join('')}
                             </div>
-                            <div class="form-text text-muted mt-1 small">Please choose another available schedule.</div>
+                            <div class="form-text text-muted mt-1 small">Please choose a time outside the 30-minute buffer window.</div>
                         `;
                         occupiedContainer.style.display = 'block';
                     } else {
@@ -372,12 +426,13 @@
                 console.warn('Unable to load occupied slots:', err);
             }
 
-            // 2. If time is selected, check exact conflict
+            // 2. If time is selected, check exact conflict with 30-minute buffer
             if (!curTime) {
                 feedbackContainer.style.display = 'none';
                 preferredTime.classList.remove('is-invalid', 'is-valid');
                 window.hasScheduleConflictState = false;
                 window.lastConflictMessage = '';
+                updateSubmitButtonsConflictState(false);
                 return;
             }
 
@@ -391,6 +446,7 @@
                     window.lastConflictMessage = chkData.message;
                     preferredTime.classList.remove('is-valid');
                     preferredTime.classList.add('is-invalid');
+                    updateSubmitButtonsConflictState(true);
                     feedbackContainer.className = 'schedule-conflict-notice';
                     feedbackContainer.innerHTML = `
                         <i class="fas fa-triangle-exclamation text-danger mt-1"></i>
@@ -404,6 +460,7 @@
                     window.lastConflictMessage = '';
                     preferredTime.classList.remove('is-invalid');
                     preferredTime.classList.add('is-valid');
+                    updateSubmitButtonsConflictState(false);
                     feedbackContainer.className = 'schedule-conflict-notice is-available';
                     feedbackContainer.innerHTML = `
                         <i class="fas fa-circle-check text-success mt-1"></i>
@@ -436,18 +493,27 @@
             d.addEventListener('input', triggerDebouncedCheck);
         });
 
+        // Form-level change delegation to catch dynamic date synchronizations
+        if (requestForm) {
+            requestForm.addEventListener('change', function(e) {
+                if (e.target && (e.target.type === 'date' || e.target.type === 'radio')) {
+                    triggerDebouncedCheck();
+                }
+            });
+        }
+
         // Initial check if values are prepopulated
         if (getCurrentDate()) {
             triggerDebouncedCheck();
         }
 
         // Intercept form submission or review step if conflict exists
-        const requestForm = preferredTime.closest('form');
         if (requestForm) {
             requestForm.addEventListener('submit', function(e) {
                 if (window.hasScheduleConflictState) {
                     e.preventDefault();
                     e.stopPropagation();
+                    updateSubmitButtonsConflictState(true);
                     preferredTime.classList.add('is-invalid');
                     preferredTime.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     preferredTime.focus();
@@ -471,6 +537,7 @@
                 if (window.hasScheduleConflictState) {
                     e.preventDefault();
                     e.stopPropagation();
+                    updateSubmitButtonsConflictState(true);
                     preferredTime.classList.add('is-invalid');
                     preferredTime.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     preferredTime.focus();

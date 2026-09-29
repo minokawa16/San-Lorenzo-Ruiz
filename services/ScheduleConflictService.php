@@ -8,10 +8,9 @@
 class ScheduleConflictService {
     /**
      * Default time conflict buffer window in minutes.
-     * 0 = exact-match only (default as specified).
-     * Set to 60 for a 1-hour window or pass in options.
+     * 30 = 30 minutes before and after existing events.
      */
-    public const BUFFER_MINUTES_DEFAULT = 0;
+    public const BUFFER_MINUTES_DEFAULT = 30;
 
     protected $db;
 
@@ -117,9 +116,24 @@ class ScheduleConflictService {
     }
 
     /**
-     * Check whether target time conflicts with an existing schedule
+     * Check whether target time conflicts with an existing schedule (30-minute buffer default)
+     *
+     * @param string $targetTime Target requested start time
+     * @param string $existingStartTime Existing schedule start time
+     * @param string|null $existingEndTime Existing schedule end time (if tracked)
+     * @param bool $exactMatch If true and bufferMinutes <= 0, checks exact match
+     * @param int $bufferMinutes Conflict buffer in minutes (default: 30)
+     * @param string|null $targetEndTime Optional target requested end time
+     * @return bool
      */
-    public static function timesConflict(string $targetTime, string $existingStartTime, ?string $existingEndTime = null, bool $exactMatch = true, int $bufferMinutes = 0): bool {
+    public static function timesConflict(
+        string $targetTime,
+        string $existingStartTime,
+        ?string $existingEndTime = null,
+        bool $exactMatch = false,
+        int $bufferMinutes = self::BUFFER_MINUTES_DEFAULT,
+        ?string $targetEndTime = null
+    ): bool {
         $tNorm = self::normalizeTime($targetTime);
         $eStartNorm = self::normalizeTime($existingStartTime);
 
@@ -127,27 +141,37 @@ class ScheduleConflictService {
             return false;
         }
 
-        if ($exactMatch && $bufferMinutes <= 0) {
+        if ($bufferMinutes <= 0 && $exactMatch && ($targetEndTime === null || $targetEndTime === '')) {
             return $tNorm === $eStartNorm;
         }
 
-        // Overlapping window calculation
         $tTs = strtotime('2000-01-01 ' . $tNorm . ':00');
         $eStartTs = strtotime('2000-01-01 ' . $eStartNorm . ':00');
 
-        $eEndNorm = $existingEndTime ? self::normalizeTime($existingEndTime) : date('H:i', strtotime('+1 hour', $eStartTs));
-        $eEndTs = strtotime('2000-01-01 ' . $eEndNorm . ':00');
-        if ($eEndTs <= $eStartTs) {
-            $eEndTs = $eStartTs + 3600;
+        $bufSec = max(0, $bufferMinutes) * 60;
+        $windowStart = $eStartTs - $bufSec;
+
+        if ($existingEndTime !== null && trim((string) $existingEndTime) !== '') {
+            $eEndNorm = self::normalizeTime($existingEndTime);
+            $eEndTs = strtotime('2000-01-01 ' . $eEndNorm . ':00');
+            if ($eEndTs > $eStartTs) {
+                $windowEnd = $eEndTs + $bufSec;
+            } else {
+                $windowEnd = $eStartTs + $bufSec;
+            }
+        } else {
+            $windowEnd = $eStartTs + $bufSec;
         }
 
-        $targetEndTs = $tTs + 3600;
-        $bufSec = max(0, $bufferMinutes) * 60;
+        if ($targetEndTime !== null && trim((string) $targetEndTime) !== '') {
+            $tEndNorm = self::normalizeTime($targetEndTime);
+            $tEndTs = strtotime('2000-01-01 ' . $tEndNorm . ':00');
+            if ($tEndTs > $tTs) {
+                return ($tTs <= $windowEnd && $tEndTs >= $windowStart);
+            }
+        }
 
-        $effStart = $eStartTs - $bufSec;
-        $effEnd = $eEndTs + $bufSec;
-
-        return ($tTs < $effEnd && $targetEndTs > $effStart);
+        return ($tTs >= $windowStart && $tTs <= $windowEnd);
     }
 
     /**
@@ -157,8 +181,8 @@ class ScheduleConflictService {
      * @param string $time HH:MM or similar time string
      * @param string $location Location/venue string
      * @param array $options [
-     *   'exact_match' => bool (default true),
-     *   'buffer_minutes' => int (default 0),
+     *   'exact_match' => bool (default false),
+     *   'buffer_minutes' => int (default 30),
      *   'exclude_request_id' => int,
      *   'exclude_schedule_id' => int,
      *   'exclude_reservation_id' => int
@@ -178,7 +202,7 @@ class ScheduleConflictService {
             ];
         }
 
-        $exactMatch = $options['exact_match'] ?? true;
+        $exactMatch = isset($options['exact_match']) ? (bool) $options['exact_match'] : false;
         $bufferMinutes = isset($options['buffer_minutes']) ? (int) $options['buffer_minutes'] : self::BUFFER_MINUTES_DEFAULT;
         $excludeRequestId = (int) ($options['exclude_request_id'] ?? 0);
         $excludeScheduleId = (int) ($options['exclude_schedule_id'] ?? 0);
@@ -225,7 +249,10 @@ class ScheduleConflictService {
                             'source' => 'schedule_events',
                             'title' => $row['title'] ?? 'Parish Schedule',
                             'type' => ucfirst(str_replace('_', ' ', (string) ($row['category'] ?? 'Event'))),
-                            'schedule_id' => (int) $row['schedule_id']
+                            'schedule_id' => (int) $row['schedule_id'],
+                            'event_time' => $evStart,
+                            'event_end_time' => $evEnd,
+                            'buffer_minutes' => $bufferMinutes
                         ]);
                     }
                 }
@@ -263,13 +290,17 @@ class ScheduleConflictService {
                 $resLoc = $row['resource_locations'] ?: 'Main Church';
                 if (self::locationsMatch($location, $resLoc)) {
                     $resTime = $row['event_time'] ?: ($row['start_at'] ? date('H:i', strtotime($row['start_at'])) : '08:00');
-                    if (self::timesConflict($normTime, $resTime, null, $exactMatch, $bufferMinutes)) {
+                    $resEndTime = !empty($row['end_at']) ? date('H:i', strtotime($row['end_at'])) : null;
+                    if (self::timesConflict($normTime, $resTime, $resEndTime, $exactMatch, $bufferMinutes)) {
                         $resStmt->close();
                         return $this->formatConflictResponse($normDate, $normTime, $resLoc ?: $location, [
                             'source' => 'reservations',
                             'title' => ucfirst(str_replace('_', ' ', (string) $row['reservation_type'])) . ' Reservation',
                             'type' => ucfirst(str_replace('_', ' ', (string) $row['reservation_type'])),
-                            'reservation_id' => (int) $row['reservation_id']
+                            'reservation_id' => (int) $row['reservation_id'],
+                            'event_time' => $resTime,
+                            'event_end_time' => $resEndTime,
+                            'buffer_minutes' => $bufferMinutes
                         ]);
                     }
                 }
@@ -313,14 +344,16 @@ class ScheduleConflictService {
                         ? requestCalendarField($desc, ['Preferred time', 'Event time', 'Time'])
                         : '';
                     $reqTime = self::normalizeTime($reqTime);
-                    if (self::timesConflict($normTime, $reqTime, null, $exactMatch, $bufferMinutes)) {
+                    if ($reqTime !== '' && self::timesConflict($normTime, $reqTime, null, $exactMatch, $bufferMinutes)) {
                         $reqStmt->close();
                         return $this->formatConflictResponse($normDate, $normTime, $reqLoc ?: $location, [
                             'source' => 'requests',
                             'title' => ucfirst(str_replace('_', ' ', (string) $row['request_type'])),
                             'type' => ucfirst(str_replace('_', ' ', (string) $row['request_type'])),
                             'request_id' => (int) $row['request_id'],
-                            'reference_number' => $row['reference_number'] ?? ''
+                            'reference_number' => $row['reference_number'] ?? '',
+                            'event_time' => $reqTime,
+                            'buffer_minutes' => $bufferMinutes
                         ]);
                     }
                 }
@@ -337,14 +370,42 @@ class ScheduleConflictService {
 
     /**
      * Format polite conflict response matching exact user requirement:
-     * "This date and time (e.g., Sep 29, 2026 at 8:30 AM) at [Location] is already occupied. Please choose another available schedule."
+     * Clear notice explaining that the requested date and time is already occupied
+     * and specifies the occupied slot / 30-minute buffer without exposing private parishioner details.
      */
     protected function formatConflictResponse(string $date, string $time, string $location, array $details = []): array {
         $dateDisplay = date('M j, Y', strtotime($date));
         $timeDisplay = date('g:i A', strtotime($date . ' ' . $time));
         $locDisplay = trim($location) !== '' ? trim($location) : 'San Lorenzo Ruiz Parish Church';
 
-        $message = "This date and time ({$dateDisplay} at {$timeDisplay}) at {$locDisplay} is already occupied. Please choose another available schedule.";
+        $evTime = !empty($details['event_time']) ? self::normalizeTime($details['event_time']) : '';
+        $bufMinutes = isset($details['buffer_minutes']) ? (int) $details['buffer_minutes'] : self::BUFFER_MINUTES_DEFAULT;
+
+        if ($evTime !== '' && $bufMinutes > 0) {
+            $evTimeDisplay = date('g:i A', strtotime($date . ' ' . $evTime));
+            $eStartTs = strtotime($date . ' ' . $evTime . ':00');
+            $bufSec = $bufMinutes * 60;
+            $winStartTs = $eStartTs - $bufSec;
+
+            if (!empty($details['event_end_time'])) {
+                $evEndNorm = self::normalizeTime($details['event_end_time']);
+                $eEndTs = strtotime($date . ' ' . $evEndNorm . ':00');
+                if ($eEndTs > $eStartTs) {
+                    $winEndTs = $eEndTs + $bufSec;
+                } else {
+                    $winEndTs = $eStartTs + $bufSec;
+                }
+            } else {
+                $winEndTs = $eStartTs + $bufSec;
+            }
+
+            $beforeStr = date('g:i A', $winStartTs);
+            $afterStr = date('g:i A', $winEndTs);
+
+            $message = "This date and time is already occupied. {$evTimeDisplay} on {$dateDisplay} at {$locDisplay} is already booked. Please select a time before {$beforeStr} or after {$afterStr}, or choose a different date.";
+        } else {
+            $message = "This date and time ({$dateDisplay} at {$timeDisplay}) at {$locDisplay} is already occupied. Please choose another available schedule.";
+        }
 
         return [
             'has_conflict' => true,
@@ -353,8 +414,11 @@ class ScheduleConflictService {
             'conflicting_schedule' => [
                 'type' => $details['type'] ?? 'Schedule',
                 'date' => $date,
-                'time' => $time,
+                'time' => $evTime ?: $time,
+                'time_display' => $evTime !== '' ? date('g:i A', strtotime($date . ' ' . $evTime)) : $timeDisplay,
                 'location' => $locDisplay,
+                'buffer_start' => isset($winStartTs) ? date('H:i', $winStartTs) : null,
+                'buffer_end' => isset($winEndTs) ? date('H:i', $winEndTs) : null,
                 'reference_number' => $details['reference_number'] ?? ''
             ]
         ];
@@ -375,6 +439,9 @@ class ScheduleConflictService {
             return [];
         }
 
+        $bufferMinutes = isset($options['buffer_minutes']) ? (int) $options['buffer_minutes'] : self::BUFFER_MINUTES_DEFAULT;
+        $bufSec = max(0, $bufferMinutes) * 60;
+
         // 1. From schedule_events
         $stmt = $this->db->prepare("
             SELECT schedule_id, title, event_date, start_time, end_time, location, category
@@ -392,9 +459,21 @@ class ScheduleConflictService {
                 $evLoc = $row['location'] ?? 'Main Church';
                 if ($location === null || $location === '' || self::locationsMatch($location, $evLoc)) {
                     $t = self::normalizeTime($row['start_time']);
+                    $endT = !empty($row['end_time']) ? self::normalizeTime($row['end_time']) : null;
+                    $startTs = strtotime('2000-01-01 ' . $t . ':00');
+                    $endTs = ($endT && strtotime('2000-01-01 ' . $endT . ':00') > $startTs)
+                        ? strtotime('2000-01-01 ' . $endT . ':00')
+                        : $startTs;
+                    $winStartTs = $startTs - $bufSec;
+                    $winEndTs = $endTs + $bufSec;
+
                     $slots[] = [
                         'time' => $t,
                         'time_display' => date('g:i A', strtotime($normDate . ' ' . $t)),
+                        'end_time' => $endT,
+                        'buffer_start' => date('H:i', $winStartTs),
+                        'buffer_end' => date('H:i', $winEndTs),
+                        'buffer_display' => date('g:i A', $winStartTs) . ' – ' . date('g:i A', $winEndTs),
                         'location' => $evLoc,
                         'type' => ucfirst(str_replace('_', ' ', (string) ($row['category'] ?? 'Event'))),
                         'title' => $row['title'] ?? 'Parish Schedule'
@@ -406,7 +485,7 @@ class ScheduleConflictService {
 
         // 2. From reservations
         $resStmt = $this->db->prepare("
-            SELECT r.reservation_id, r.reservation_type, r.event_date, r.event_time, r.start_at,
+            SELECT r.reservation_id, r.reservation_type, r.event_date, r.event_time, r.start_at, r.end_at,
                    GROUP_CONCAT(DISTINCT COALESCE(x.location, x.name) SEPARATOR ', ') AS resource_locations
             FROM reservations r
             LEFT JOIN reservation_resources rr ON rr.reservation_id = r.reservation_id
@@ -429,9 +508,21 @@ class ScheduleConflictService {
                 if ($location === null || $location === '' || self::locationsMatch($location, $resLoc)) {
                     $rawTime = $row['event_time'] ?: ($row['start_at'] ? date('H:i', strtotime($row['start_at'])) : '08:00');
                     $t = self::normalizeTime($rawTime);
+                    $endT = !empty($row['end_at']) ? self::normalizeTime(date('H:i', strtotime($row['end_at']))) : null;
+                    $startTs = strtotime('2000-01-01 ' . $t . ':00');
+                    $endTs = ($endT && strtotime('2000-01-01 ' . $endT . ':00') > $startTs)
+                        ? strtotime('2000-01-01 ' . $endT . ':00')
+                        : $startTs;
+                    $winStartTs = $startTs - $bufSec;
+                    $winEndTs = $endTs + $bufSec;
+
                     $slots[] = [
                         'time' => $t,
                         'time_display' => date('g:i A', strtotime($normDate . ' ' . $t)),
+                        'end_time' => $endT,
+                        'buffer_start' => date('H:i', $winStartTs),
+                        'buffer_end' => date('H:i', $winEndTs),
+                        'buffer_display' => date('g:i A', $winStartTs) . ' – ' . date('g:i A', $winEndTs),
                         'location' => $resLoc,
                         'type' => ucfirst(str_replace('_', ' ', (string) $row['reservation_type'])) . ' Reservation',
                         'title' => ucfirst(str_replace('_', ' ', (string) $row['reservation_type'])) . ' Reservation'

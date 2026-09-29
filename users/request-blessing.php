@@ -429,6 +429,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (blessingForm && submitBtn) {
         async function submitBlessing(isRetry = false) {
+            if (window.hasScheduleConflictState) {
+                const errorMsg = window.lastConflictMessage || 'This date and time is already occupied. Please choose another date or time.';
+                if (typeof ParishToast !== 'undefined' && typeof ParishToast.show === 'function') {
+                    ParishToast.show({
+                        title: 'Schedule Conflict',
+                        message: errorMsg,
+                        type: 'error',
+                        duration: 7000
+                    });
+                } else {
+                    alert(errorMsg);
+                }
+                const prefTime = document.getElementById('preferred_time');
+                if (prefTime) {
+                    prefTime.classList.add('is-invalid');
+                    prefTime.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    prefTime.focus();
+                }
+                return;
+            }
+
             const activeSubmit = submitBtn;
             activeSubmit.classList.add('is-loading');
             activeSubmit.disabled = true;

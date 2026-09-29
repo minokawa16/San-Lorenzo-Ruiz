@@ -1743,6 +1743,22 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 350);
             return false;
         }
+
+        if (window.hasScheduleConflictState) {
+            const prefTime = document.getElementById('preferred_time');
+            if (prefTime) {
+                clearFieldError(prefTime);
+                addFieldError(prefTime);
+                prefTime.classList.add('is-invalid');
+                const timeWrap = validationWrapper(prefTime);
+                if (timeWrap) {
+                    timeWrap.scrollIntoView({behavior: 'smooth', block: 'center'});
+                }
+                prefTime.focus({preventScroll: true});
+            }
+            showServiceError(window.lastConflictMessage || 'This date and time is already occupied. Please choose another date or time.');
+            return false;
+        }
         return true;
     }
 
