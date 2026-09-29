@@ -606,13 +606,6 @@ include '../templates/header.php';
 }
 </style>
 
-<?php
-// Compute completion rate for KPI trend badge
-$kpi_completion_rate = $kpi_requests_total > 0
-    ? round(($kpi_requests_total - $kpi_requests_pending) / $kpi_requests_total * 100)
-    : 0;
-?>
-
 <div class="ar-page container-fluid px-0">
 
   <!-- === PAGE HEADER === -->
@@ -638,71 +631,6 @@ $kpi_completion_rate = $kpi_requests_total > 0
     </div>
     <?php endif; ?>
   </div>
-
-  <!-- === KPI CARDS === -->
-  <div class="ar-kpi-grid">
-
-    <!-- Parishioners -->
-    <div class="ar-kpi-card">
-      <div class="ar-kpi-card-accent accent-gold"></div>
-      <div class="ar-kpi-top">
-        <div class="ar-kpi-icon-ring ring-gold"><i class="fas fa-users"></i></div>
-      </div>
-      <div class="ar-kpi-number"><?php echo number_format($kpi_parishioners_total); ?></div>
-      <div class="ar-kpi-label">Registered Parishioners</div>
-      <div class="ar-kpi-tags">
-        <span class="ar-tag tag-green"><i class="fas fa-circle-check" style="font-size:.65em;"></i> <?php echo number_format($kpi_parishioners_verified); ?> Verified</span>
-        <?php if ($kpi_parishioners_pending > 0): ?>
-        <span class="ar-tag tag-amber"><?php echo number_format($kpi_parishioners_pending); ?> Pending</span>
-        <?php endif; ?>
-      </div>
-    </div>
-
-    <!-- Sacramental Records -->
-    <div class="ar-kpi-card">
-      <div class="ar-kpi-card-accent accent-teal"></div>
-      <div class="ar-kpi-top">
-        <div class="ar-kpi-icon-ring ring-teal"><i class="fas fa-book-bible"></i></div>
-      </div>
-      <div class="ar-kpi-number"><?php echo number_format($kpi_sacraments_total); ?></div>
-      <div class="ar-kpi-label">Sacramental Records</div>
-      <div class="ar-kpi-tags">
-        <?php foreach ($sacrament_counts as $type => $cnt): ?>
-        <span class="ar-tag tag-gold"><?php echo $cnt; ?> <?php echo $type; ?></span>
-        <?php endforeach; ?>
-      </div>
-    </div>
-
-    <!-- Requests -->
-    <div class="ar-kpi-card">
-      <div class="ar-kpi-card-accent accent-blue"></div>
-      <div class="ar-kpi-top">
-        <div class="ar-kpi-icon-ring ring-blue"><i class="fas fa-inbox"></i></div>
-      </div>
-      <div class="ar-kpi-number"><?php echo number_format($kpi_requests_total); ?></div>
-      <div class="ar-kpi-label">Service &amp; Certificate Requests</div>
-      <div class="ar-kpi-tags">
-        <span class="ar-tag tag-blue"><?php echo $kpi_completion_rate; ?>% Completion Rate</span>
-        <?php if ($kpi_requests_pending > 0): ?>
-        <span class="ar-tag tag-red"><?php echo $kpi_requests_pending; ?> Need Action</span>
-        <?php endif; ?>
-      </div>
-    </div>
-
-    <!-- Calendar Events -->
-    <div class="ar-kpi-card">
-      <div class="ar-kpi-card-accent accent-emerald"></div>
-      <div class="ar-kpi-top">
-        <div class="ar-kpi-icon-ring ring-emerald"><i class="fas fa-calendar-days"></i></div>
-      </div>
-      <div class="ar-kpi-number"><?php echo number_format($kpi_events_month); ?></div>
-      <div class="ar-kpi-label">Scheduled Events</div>
-      <div class="ar-kpi-tags">
-        <span class="ar-tag tag-slate"><?php echo date('F Y'); ?></span>
-      </div>
-    </div>
-
-  </div><!-- /kpi-grid -->
 
   <!-- === CHARTS === -->
   <div class="ar-chart-grid">
