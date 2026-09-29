@@ -782,84 +782,31 @@ $breadcrumbs = [
         color: #2e3a2d;
         margin-bottom: 8px;
     }
-    .quick-chips {
-        display: flex;
-        flex-wrap: wrap;
+    /* Status badge pills (Draft / Scheduled) */
+    .mode-status-badge {
+        display: none;
         align-items: center;
-        gap: 6px;
-    }
-    .chip-btn {
-        border: 1px solid #dcd6c8;
-        background: #ffffff;
+        gap: 5px;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 2px 8px;
         border-radius: 999px;
-        font-size: 11.5px;
-        font-weight: 600;
-        padding: 3px 10px;
-        color: #4b5563;
-        cursor: pointer;
-        transition: all 0.15s ease;
-    }
-    .chip-btn:hover {
-        background: #f5efe1;
-        border-color: #c89b3c;
-        color: #2e3a2d;
-    }
-    .announcement-live-preview-box {
-        border: 1.5px dashed #c89b3c;
-        background: #fffdf7;
-        border-radius: 12px;
-        padding: 18px 20px;
         margin-top: 6px;
+        margin-left: 20px;
+        letter-spacing: 0.2px;
     }
-    .live-preview-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 12px;
+    .mode-status-badge.badge-draft {
+        background: #f1f5f9;
+        color: #475569;
+        border: 1px solid #e2e8f0;
     }
-    .live-preview-card {
-        background: #ffffff;
-        border: 1px solid #e6e0d4;
-        border-radius: 10px;
-        padding: 20px 22px;
-        box-shadow: 0 4px 14px rgba(46, 58, 45, 0.04);
+    .mode-status-badge.badge-scheduled {
+        background: #eff6ff;
+        color: #1d4ed8;
+        border: 1px solid #bfdbfe;
     }
-    .attachment-box {
-        border: 1.5px dashed #dcd6c8;
-        background: #fcfbf9;
-        border-radius: 10px;
-        padding: 14px 16px;
-        transition: border-color 0.2s, background 0.2s;
-    }
-    .attachment-box:hover {
-        border-color: #c89b3c;
-        background: #faf6ed;
-    }
-    .attachment-file-pill {
+    .publish-mode-card.active .mode-status-badge {
         display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 6px 12px;
-        background: #edf7f1;
-        border: 1px solid #c2e2cc;
-        color: #1b5e20;
-        border-radius: 6px;
-        font-size: 12.5px;
-        font-weight: 500;
-        margin-top: 8px;
-    }
-    .attachment-file-pill button.btn-remove-file {
-        background: transparent;
-        border: none;
-        color: #dc2626;
-        cursor: pointer;
-        padding: 0 2px;
-        font-size: 14px;
-        display: inline-flex;
-        align-items: center;
-    }
-    .attachment-file-pill button.btn-remove-file:hover {
-        color: #991b1b;
     }
     .publish-mode-group {
         display: grid;
@@ -1419,13 +1366,6 @@ $modal_announcements = array_merge([$blank_announcement], $announcements);
                                         <div class="col-lg-6">
                                             <label class="form-label" for="location-<?php echo e($modal_id); ?>">WHERE? <span class="text-muted fw-normal">(Location / Venue)</span></label>
                                             <input class="form-control announcement-location-input" id="location-<?php echo e($modal_id); ?>" type="text" name="location" value="<?php echo e($val_where); ?>" placeholder="e.g. San Lorenzo Ruiz Mission Station">
-                                            <div class="quick-chips mt-2">
-                                                <span class="small text-muted me-1">Quick fill:</span>
-                                                <button type="button" class="chip-btn quick-chip-btn" data-target="location-<?php echo e($modal_id); ?>">San Lorenzo Ruiz Mission Station</button>
-                                                <button type="button" class="chip-btn quick-chip-btn" data-target="location-<?php echo e($modal_id); ?>">Parish Hall</button>
-                                                <button type="button" class="chip-btn quick-chip-btn" data-target="location-<?php echo e($modal_id); ?>">Mission Station Chapel</button>
-                                                <button type="button" class="chip-btn quick-chip-btn" data-target="location-<?php echo e($modal_id); ?>">Barangay Hall</button>
-                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -1439,16 +1379,6 @@ $modal_announcements = array_merge([$blank_announcement], $announcements);
                                     </div>
                                     <label class="form-label" for="who-<?php echo e($modal_id); ?>">WHO SHOULD ATTEND?</label>
                                     <input class="form-control announcement-who-input" id="who-<?php echo e($modal_id); ?>" type="text" name="who" value="<?php echo e($val_who); ?>" placeholder="e.g. All Parishioners, Parish Youth, Ministry Members">
-                                    <div class="quick-chips mt-2">
-                                        <span class="small text-muted me-1">Quick fill:</span>
-                                        <button type="button" class="chip-btn quick-chip-btn" data-target="who-<?php echo e($modal_id); ?>">All Parishioners</button>
-                                        <button type="button" class="chip-btn quick-chip-btn" data-target="who-<?php echo e($modal_id); ?>">Parish Youth</button>
-                                        <button type="button" class="chip-btn quick-chip-btn" data-target="who-<?php echo e($modal_id); ?>">Parents</button>
-                                        <button type="button" class="chip-btn quick-chip-btn" data-target="who-<?php echo e($modal_id); ?>">Knights of the Altar</button>
-                                        <button type="button" class="chip-btn quick-chip-btn" data-target="who-<?php echo e($modal_id); ?>">Ministry Members</button>
-                                        <button type="button" class="chip-btn quick-chip-btn" data-target="who-<?php echo e($modal_id); ?>">Couples</button>
-                                        <button type="button" class="chip-btn quick-chip-btn" data-target="who-<?php echo e($modal_id); ?>">Volunteers</button>
-                                    </div>
                                 </div>
                             </div>
 
@@ -1477,89 +1407,48 @@ $modal_announcements = array_merge([$blank_announcement], $announcements);
                                 </div>
                             </div>
 
-                            <!-- SECTION 6: ATTACHMENT UPLOAD -->
-                            <div class="col-12">
-                                <div class="form-section-card">
-                                    <div class="section-badge-title">
-                                        <i class="fas fa-paperclip text-muted"></i> 6. Attachment Upload
-                                    </div>
-                                    <div class="attachment-box mt-2">
-                                        <input class="form-control announcement-file-input" id="<?php echo e($file_input_id); ?>" type="file" name="attachment" accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,image/jpeg,image/png,image/gif,application/pdf,text/plain" data-pill="<?php echo e($file_pill_id); ?>">
-                                        <div class="form-text" style="font-size: 11.5px; margin-top: 4px;">PDFs, flyers, event posters, Office documents, or text files (Max 10MB).</div>
-                                        <div class="attachment-file-pill" id="<?php echo e($file_pill_id); ?>" style="<?php echo (!empty($modal_item['attachment_original_name'])) ? '' : 'display:none;'; ?>">
-                                            <i class="fas fa-paperclip me-1"></i>
-                                            <span class="file-name-text"><?php echo e($modal_item['attachment_original_name'] ?: 'Selected file'); ?></span>
-                                            <?php if (!empty($modal_item['attachment_size'])): ?>
-                                                <span class="badge bg-secondary ms-1" style="font-size:10px;"><?php echo formatFileSize($modal_item['attachment_size']); ?></span>
-                                            <?php endif; ?>
-                                            <button type="button" class="btn-remove-file ms-2" title="Remove attached file"><i class="fas fa-times"></i></button>
-                                        </div>
-                                        <div class="field-error-message"></div>
-                                    </div>
-                                </div>
-                            </div>
 
-                            <!-- SECTION 7: PUBLICATION & VISIBILITY SETTINGS -->
+
+                            <!-- SECTION 6: POST SETTINGS -->
                             <div class="col-12">
                                 <div class="form-section-card">
                                     <div class="section-badge-title">
-                                        <i class="fas fa-sliders text-primary"></i> 7. Publication & Visibility Settings
+                                        <i class="fas fa-sliders text-primary"></i> 6. Post Settings
                                     </div>
                                     <div class="row g-3 mt-1">
                                         <div class="col-12">
-                                            <label class="form-label mb-2">Schedule Publication <span class="text-danger">*</span></label>
+                                            <label class="form-label mb-2">Schedule Post <span class="text-danger">*</span></label>
                                             <div class="publish-mode-group">
                                                 <label class="publish-mode-card <?php echo $current_mode === 'now' ? 'active' : ''; ?>">
                                                     <div class="mode-title">
                                                         <input type="radio" name="publish_mode" value="now" <?php echo $current_mode === 'now' ? 'checked' : ''; ?>>
-                                                        <i class="fas fa-bolt text-warning"></i> Publish Now
+                                                        <i class="fas fa-bolt text-warning"></i> Post Now
                                                     </div>
-                                                    <div class="mode-desc">Publish immediately and visible to parishioners.</div>
+                                                    <div class="mode-desc">Post immediately and visible to parishioners.</div>
                                                 </label>
                                                 <label class="publish-mode-card <?php echo $current_mode === 'later' ? 'active' : ''; ?>">
                                                     <div class="mode-title">
                                                         <input type="radio" name="publish_mode" value="later" <?php echo $current_mode === 'later' ? 'checked' : ''; ?>>
-                                                        <i class="fas fa-calendar-plus text-primary"></i> Schedule Publication
+                                                        <i class="fas fa-calendar-plus text-primary"></i> Schedule Post
                                                     </div>
                                                     <div class="mode-desc">Set a future date and time for automatic release.</div>
+                                                    <span class="mode-status-badge badge-scheduled" id="scheduled-badge-<?php echo e($modal_id); ?>">🕒 <span class="scheduled-badge-text">Scheduled</span></span>
                                                 </label>
                                                 <label class="publish-mode-card <?php echo $current_mode === 'draft' ? 'active' : ''; ?>">
                                                     <div class="mode-title">
                                                         <input type="radio" name="publish_mode" value="draft" <?php echo $current_mode === 'draft' ? 'checked' : ''; ?>>
                                                         <i class="fas fa-file-pen text-secondary"></i> Save as Draft
                                                     </div>
-                                                    <div class="mode-desc">Save privately to review and publish later.</div>
+                                                    <div class="mode-desc">Save privately to review and post later.</div>
+                                                    <span class="mode-status-badge badge-draft">📝 Draft</span>
                                                 </label>
                                             </div>
                                         </div>
 
                                         <div class="col-lg-6 schedule-datetime-wrapper" style="<?php echo $current_mode === 'later' ? '' : 'display:none;'; ?>">
-                                            <label class="form-label" for="scheduled_at-<?php echo e($modal_id); ?>">Publication Date and Time <span class="text-danger">*</span></label>
+                                            <label class="form-label" for="scheduled_at-<?php echo e($modal_id); ?>">Post Date and Time <span class="text-danger">*</span></label>
                                             <input class="form-control control-lg announcement-scheduled-input" id="scheduled_at-<?php echo e($modal_id); ?>" type="datetime-local" name="scheduled_at" value="<?php echo e($scheduled_local); ?>" min="<?php echo date('Y-m-d\TH:i'); ?>">
                                             <div class="form-text" style="font-size: 11.5px;">Philippine Standard Time (Asia/Manila). Must be in the future.</div>
-                                            <div class="field-error-message"></div>
-                                        </div>
-
-                                        <div class="col-lg-6">
-                                            <label class="form-label" for="expires_at-<?php echo e($modal_id); ?>">Expiration Date & Time <span class="text-muted fw-normal" style="font-size: 12px;">(Optional)</span></label>
-                                            <input class="form-control control-lg announcement-expires-input" id="expires_at-<?php echo e($modal_id); ?>" type="datetime-local" name="expires_at" value="<?php echo e($expires_local); ?>" min="<?php echo date('Y-m-d\TH:i'); ?>">
-                                            <div class="form-text" style="font-size: 11.5px;">Announcement automatically archives after this date/time.</div>
-                                            <div class="field-error-message"></div>
-                                        </div>
-
-                                        <div class="col-lg-6">
-                                            <label class="form-label" for="audience_type-<?php echo e($modal_id); ?>">Recipients / Visibility</label>
-                                            <select class="form-select control-lg announcement-audience-select" id="audience_type-<?php echo e($modal_id); ?>" name="audience_type">
-                                                <option value="everyone" <?php echo $current_audience === 'everyone' ? 'selected' : ''; ?>>Everyone (Public Parish Announcement)</option>
-                                                <option value="district" <?php echo $current_audience === 'district' ? 'selected' : ''; ?>>Specific District</option>
-                                                <option value="chapel" <?php echo $current_audience === 'chapel' ? 'selected' : ''; ?>>Specific Chapel</option>
-                                                <option value="selected_users" <?php echo $current_audience === 'selected_users' ? 'selected' : ''; ?>>Selected User IDs</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-lg-6 audience-values-wrapper" style="<?php echo $current_audience !== 'everyone' ? '' : 'display:none;'; ?>">
-                                            <label class="form-label" for="audience_values-<?php echo e($modal_id); ?>">Target Audience Values</label>
-                                            <input class="form-control control-lg announcement-audience-values" id="audience_values-<?php echo e($modal_id); ?>" name="audience_values" value="<?php echo e($audience_vals); ?>" placeholder="e.g. San Roque, District 1, or 12, 15">
-                                            <div class="form-text" style="font-size: 11.5px;">Comma-separated chapel/district names or user IDs.</div>
                                             <div class="field-error-message"></div>
                                         </div>
 
@@ -1578,23 +1467,7 @@ $modal_announcements = array_merge([$blank_announcement], $announcements);
                                 </div>
                             </div>
 
-                            <!-- SECTION 8: AUTOMATIC LIVE 5W1H ANNOUNCEMENT PREVIEW -->
-                            <div class="col-12">
-                                <div class="announcement-live-preview-box">
-                                    <div class="live-preview-header">
-                                        <span class="badge" style="background: #c89b3c; color: #2e3a2d; font-size: 12px; font-weight: 700; padding: 6px 10px;">
-                                            <i class="fas fa-wand-magic-sparkles me-1"></i> AUTOMATIC 5W1H LIVE PREVIEW
-                                        </span>
-                                        <small class="text-muted"><i class="fas fa-arrows-rotate me-1"></i> Updates in real time</small>
-                                    </div>
-                                    <div class="live-preview-card">
-                                        <h4 class="preview-title" style="font-family: 'Playfair Display', Georgia, serif; font-weight: 700; color: #1e293b; margin-bottom: 12px; font-size: 1.25rem;">Parish Announcement</h4>
-                                        <div class="preview-5w1h-body">
-                                            <!-- Dynamic JS rendering -->
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+
                         </div>
                     </div>
 
@@ -1603,7 +1476,7 @@ $modal_announcements = array_merge([$blank_announcement], $announcements);
                         <button type="button" class="btn btn-outline-secondary announcement-cancel-btn" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn btn-primary announcement-submit-btn">
                             <i class="fas fa-paper-plane me-1"></i>
-                            <span class="submit-btn-text"><?php echo $is_edit ? 'Save Changes' : ($current_mode === 'later' ? 'Schedule Announcement' : ($current_mode === 'draft' ? 'Save as Draft' : 'Publish Announcement')); ?></span>
+                            <span class="submit-btn-text"><?php echo $is_edit ? 'Save Changes' : ($current_mode === 'later' ? 'Schedule Post' : ($current_mode === 'draft' ? 'Save as Draft' : 'Post Now')); ?></span>
                         </button>
                     </div>
                 </form>
@@ -1678,155 +1551,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 300);
     }
 
-    // 5W1H Live Preview Generator
-    function escapeHtml(str) {
-        if (!str) return '';
-        const div = document.createElement('div');
-        div.textContent = str;
-        return div.innerHTML;
-    }
 
-    function update5W1HPreview(form) {
-        const titleInput = form.querySelector('.announcement-title-input');
-        const whatInput = form.querySelector('.announcement-what-input');
-        const eventDate = form.querySelector('.announcement-event-date');
-        const eventTime = form.querySelector('.announcement-event-time');
-        const isAllDay = form.querySelector('.announcement-allday-check')?.checked;
-        const locationInput = form.querySelector('.announcement-location-input');
-        const whoInput = form.querySelector('.announcement-who-input');
-        const whyInput = form.querySelector('.announcement-why-input');
-        const howInput = form.querySelector('.announcement-how-input');
-        const additionalInput = form.querySelector('.announcement-additional-input');
-
-        const previewTitle = form.querySelector('.preview-title');
-        const previewBody = form.querySelector('.preview-5w1h-body');
-
-        if (previewTitle) {
-            previewTitle.textContent = (titleInput && titleInput.value.trim()) ? titleInput.value.trim() : 'Parish Announcement';
-        }
-
-        if (!previewBody) return;
-
-        let whenText = '';
-        if (eventDate && eventDate.value) {
-            const d = new Date(eventDate.value + 'T00:00:00');
-            const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-            const formattedDate = months[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
-            if (isAllDay) {
-                whenText = formattedDate + ' (All-day event)';
-            } else if (eventTime && eventTime.value) {
-                const timeParts = eventTime.value.split(':');
-                let h = parseInt(timeParts[0], 10);
-                const m = timeParts[1];
-                const ampm = h >= 12 ? 'PM' : 'AM';
-                h = h % 12 || 12;
-                whenText = formattedDate + ' — ' + h + ':' + m + ' ' + ampm;
-            } else {
-                whenText = formattedDate;
-            }
-        }
-
-        const sections = [
-            { key: 'what', badge: 'WHAT', icon: 'fa-bullhorn', val: whatInput ? whatInput.value.trim() : '', color: '#1e3a8a', bg: '#eff6ff', border: '#bfdbfe' },
-            { key: 'when', badge: 'WHEN', icon: 'fa-calendar-day', val: whenText, color: '#854d0e', bg: '#fefce8', border: '#fef08a' },
-            { key: 'where', badge: 'WHERE', icon: 'fa-location-dot', val: locationInput ? locationInput.value.trim() : '', color: '#991b1b', bg: '#fef2f2', border: '#fecaca' },
-            { key: 'who', badge: 'WHO', icon: 'fa-users', val: whoInput ? whoInput.value.trim() : '', color: '#166534', bg: '#f0fdf4', border: '#bbf7d0' },
-            { key: 'why', badge: 'WHY', icon: 'fa-circle-question', val: whyInput ? whyInput.value.trim() : '', color: '#5b21b6', bg: '#f5f3ff', border: '#ddd6fe' },
-            { key: 'how', badge: 'HOW / INSTRUCTIONS', icon: 'fa-list-check', val: howInput ? howInput.value.trim() : '', color: '#0e7490', bg: '#ecfeff', border: '#a5f3fc' },
-            { key: 'additional', badge: 'ADDITIONAL INFORMATION', icon: 'fa-circle-info', val: additionalInput ? additionalInput.value.trim() : '', color: '#334155', bg: '#f8fafc', border: '#e2e8f0' }
-        ];
-
-        let html = '';
-        sections.forEach(function(sec) {
-            if (!sec.val) return;
-            html += '<div class="live-5w1h-item" style="border: 1px solid ' + sec.border + '; border-radius: 8px; padding: 10px 14px; background: #ffffff; margin-bottom: 8px;">';
-            html += '<div class="live-5w1h-badge" style="display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 6px; font-size: 11.5px; font-weight: 700; color: ' + sec.color + '; background: ' + sec.bg + '; margin-bottom: 4px;">';
-            html += '<i class="fas ' + sec.icon + '"></i> ' + sec.badge;
-            html += '</div>';
-            html += '<div class="live-5w1h-content" style="color: #334155; font-size: 13.5px; line-height: 1.55; white-space: pre-wrap;">' + escapeHtml(sec.val) + '</div>';
-            html += '</div>';
-        });
-
-        if (!html) {
-            html = '<div class="text-muted text-center py-3" style="font-size: 13px;"><i class="fas fa-pen-to-square me-1"></i> Fill in the 5W1H fields above to see your structured parish announcement preview.</div>';
-        }
-
-        previewBody.innerHTML = html;
-    }
-
-    // Attachment file validation & pill management
-    const maxFileSize = 10 * 1024 * 1024; // 10MB
-    const allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt'];
-
-    function formatBytes(bytes) {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-    }
-
-    document.querySelectorAll('.announcement-file-input').forEach(function(fileInput) {
-        const pillId = fileInput.dataset.pill;
-        const pill = document.getElementById(pillId);
-        const errorDiv = fileInput.closest('.attachment-box')?.querySelector('.field-error-message');
-
-        fileInput.addEventListener('change', function() {
-            if (errorDiv) {
-                errorDiv.style.display = 'none';
-                errorDiv.textContent = '';
-            }
-            if (fileInput.files && fileInput.files[0]) {
-                const file = fileInput.files[0];
-                const ext = file.name.split('.').pop().toLowerCase();
-
-                if (file.size > maxFileSize) {
-                    fileInput.value = '';
-                    if (pill) pill.style.display = 'none';
-                    if (errorDiv) {
-                        errorDiv.textContent = 'Attachment exceeds 10MB limit. Please choose a smaller file.';
-                        errorDiv.style.display = 'block';
-                    }
-                    return;
-                }
-
-                if (!allowedExtensions.includes(ext)) {
-                    fileInput.value = '';
-                    if (pill) pill.style.display = 'none';
-                    if (errorDiv) {
-                        errorDiv.textContent = 'File type not allowed. Allowed formats: images, PDF, Office documents, and text files.';
-                        errorDiv.style.display = 'block';
-                    }
-                    return;
-                }
-
-                if (pill) {
-                    const nameSpan = pill.querySelector('.file-name-text');
-                    if (nameSpan) nameSpan.textContent = file.name + ' (' + formatBytes(file.size) + ')';
-                    pill.style.display = 'inline-flex';
-                }
-            } else {
-                if (pill) pill.style.display = 'none';
-            }
-        });
-
-        if (pill) {
-            const removeBtn = pill.querySelector('.btn-remove-file');
-            if (removeBtn) {
-                removeBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    fileInput.value = '';
-                    pill.style.display = 'none';
-                    if (errorDiv) {
-                        errorDiv.style.display = 'none';
-                        errorDiv.textContent = '';
-                    }
-                });
-            }
-        }
-    });
-
-    // Form setup: dynamic listeners, quick chips, live preview
+    // Form setup: dynamic listeners, scheduled badge
     document.querySelectorAll('.announcement-form').forEach(function(form) {
         const modeCards = form.querySelectorAll('.publish-mode-card');
         const modeRadios = form.querySelectorAll('input[name="publish_mode"]');
@@ -1835,40 +1561,50 @@ document.addEventListener('DOMContentLoaded', function() {
         const submitBtnText = form.querySelector('.submit-btn-text');
         const isEdit = form.querySelector('input[name="action"]')?.value === 'edit_announcement';
 
+        function updateScheduledBadge() {
+            const badge = form.querySelector('.badge-scheduled .scheduled-badge-text');
+            if (!badge) return;
+            const val = scheduledInput ? scheduledInput.value : '';
+            if (val) {
+                const d = new Date(val);
+                if (!isNaN(d.getTime())) {
+                    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                    let h = d.getHours(), m = String(d.getMinutes()).padStart(2,'0');
+                    const ampm = h >= 12 ? 'PM' : 'AM';
+                    h = h % 12 || 12;
+                    badge.textContent = 'Scheduled \u00B7 ' + months[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear() + ', ' + h + ':' + m + ' ' + ampm;
+                    return;
+                }
+            }
+            badge.textContent = 'Scheduled';
+        }
+
         function updatePublishMode() {
             let selectedValue = 'now';
             modeRadios.forEach(function(radio) {
-                if (radio.checked) {
-                    selectedValue = radio.value;
-                }
+                if (radio.checked) selectedValue = radio.value;
             });
 
             modeCards.forEach(function(card) {
                 const radio = card.querySelector('input[type="radio"]');
-                if (radio && radio.checked) {
-                    card.classList.add('active');
-                } else {
-                    card.classList.remove('active');
-                }
+                card.classList.toggle('active', !!(radio && radio.checked));
             });
 
             if (selectedValue === 'later') {
                 if (scheduleWrapper) scheduleWrapper.style.display = 'block';
                 if (scheduledInput) scheduledInput.required = true;
-                if (!isEdit && submitBtnText) submitBtnText.textContent = 'Schedule Announcement';
+                if (!isEdit && submitBtnText) submitBtnText.textContent = 'Schedule Post';
             } else if (selectedValue === 'draft') {
                 if (scheduleWrapper) scheduleWrapper.style.display = 'none';
-                if (scheduledInput) {
-                    scheduledInput.required = false;
-                }
+                if (scheduledInput) scheduledInput.required = false;
                 if (!isEdit && submitBtnText) submitBtnText.textContent = 'Save as Draft';
             } else {
                 if (scheduleWrapper) scheduleWrapper.style.display = 'none';
-                if (scheduledInput) {
-                    scheduledInput.required = false;
-                }
-                if (!isEdit && submitBtnText) submitBtnText.textContent = 'Publish Announcement';
+                if (scheduledInput) scheduledInput.required = false;
+                if (!isEdit && submitBtnText) submitBtnText.textContent = 'Post Now';
             }
+
+            updateScheduledBadge();
         }
 
         modeCards.forEach(function(card) {
@@ -1885,31 +1621,10 @@ document.addEventListener('DOMContentLoaded', function() {
             radio.addEventListener('change', updatePublishMode);
         });
 
-        // Audience type selection dynamic field
-        const audienceSelect = form.querySelector('.announcement-audience-select');
-        const audienceWrapper = form.querySelector('.audience-values-wrapper');
-        if (audienceSelect && audienceWrapper) {
-            audienceSelect.addEventListener('change', function() {
-                if (audienceSelect.value !== 'everyone') {
-                    audienceWrapper.style.display = 'block';
-                } else {
-                    audienceWrapper.style.display = 'none';
-                }
-            });
+        if (scheduledInput) {
+            scheduledInput.addEventListener('change', updateScheduledBadge);
+            scheduledInput.addEventListener('input', updateScheduledBadge);
         }
-
-        // Quick chip buttons click listener
-        form.querySelectorAll('.quick-chip-btn').forEach(function(btn) {
-            btn.addEventListener('click', function(e) {
-                e.preventDefault();
-                const targetId = btn.dataset.target;
-                const targetInput = document.getElementById(targetId);
-                if (targetInput) {
-                    targetInput.value = btn.textContent.trim();
-                    targetInput.dispatchEvent(new Event('input'));
-                }
-            });
-        });
 
         // All-day checkbox toggles time field
         const allDayCheck = form.querySelector('.announcement-allday-check');
@@ -1917,23 +1632,12 @@ document.addEventListener('DOMContentLoaded', function() {
         if (allDayCheck && timeInput) {
             allDayCheck.addEventListener('change', function() {
                 timeInput.disabled = allDayCheck.checked;
-                if (allDayCheck.checked) {
-                    timeInput.value = '';
-                }
-                update5W1HPreview(form);
+                if (allDayCheck.checked) timeInput.value = '';
             });
         }
 
-        // Live preview listeners on all 5W1H inputs
-        const liveInputs = form.querySelectorAll('.announcement-title-input, .announcement-what-input, .announcement-event-date, .announcement-event-time, .announcement-location-input, .announcement-who-input, .announcement-why-input, .announcement-how-input, .announcement-additional-input');
-        liveInputs.forEach(function(inp) {
-            inp.addEventListener('input', function() { update5W1HPreview(form); });
-            inp.addEventListener('change', function() { update5W1HPreview(form); });
-            inp.addEventListener('keyup', function() { update5W1HPreview(form); });
-        });
-
-        // Initial preview render
-        update5W1HPreview(form);
+        // Initial state
+        updatePublishMode();
     });
 
     // Form validation helper
@@ -1994,37 +1698,25 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!firstErrorElement) firstErrorElement = whatInput;
         }
 
-        // Scheduled Publication validation
+        // Scheduled Post validation
         const publishModeRadio = form.querySelector('input[name="publish_mode"]:checked');
         const publishMode = publishModeRadio ? publishModeRadio.value : 'now';
         if (publishMode === 'later') {
             const scheduledInput = form.querySelector('.announcement-scheduled-input');
             if (scheduledInput) {
                 if (!scheduledInput.value) {
-                    showFieldError(scheduledInput, 'Please specify a future publication date and time.');
+                    showFieldError(scheduledInput, 'Please specify a future post date and time.');
                     isValid = false;
                     if (!firstErrorElement) firstErrorElement = scheduledInput;
                 } else {
                     const selectedTime = new Date(scheduledInput.value).getTime();
                     const nowTime = new Date().getTime();
                     if (isNaN(selectedTime) || selectedTime <= nowTime) {
-                        showFieldError(scheduledInput, 'The scheduled publication date and time must be in the future.');
+                        showFieldError(scheduledInput, 'The scheduled post date and time must be in the future.');
                         isValid = false;
                         if (!firstErrorElement) firstErrorElement = scheduledInput;
                     }
                 }
-            }
-        }
-
-        // Expiration validation
-        const expiresInput = form.querySelector('.announcement-expires-input');
-        if (expiresInput && expiresInput.value) {
-            const expTime = new Date(expiresInput.value).getTime();
-            const nowTime = new Date().getTime();
-            if (isNaN(expTime) || expTime <= nowTime) {
-                showFieldError(expiresInput, 'Expiration date and time must be in the future.');
-                isValid = false;
-                if (!firstErrorElement) firstErrorElement = expiresInput;
             }
         }
 
@@ -2053,7 +1745,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             let loadingLabel = 'Saving...';
             if (!isEdit) {
-                loadingLabel = publishMode === 'later' ? 'Scheduling...' : (publishMode === 'draft' ? 'Saving Draft...' : 'Publishing...');
+                loadingLabel = publishMode === 'later' ? 'Scheduling...' : (publishMode === 'draft' ? 'Saving Draft...' : 'Posting...');
             }
 
             if (submitBtn) {
@@ -2079,7 +1771,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(function(data) {
                 if (data.ok) {
                     if (submitBtn) {
-                        submitBtn.innerHTML = '<i class="fas fa-check me-2"></i>' + (isEdit ? 'Saved Successfully' : (publishMode === 'later' ? 'Scheduled Successfully' : (publishMode === 'draft' ? 'Saved as Draft' : 'Published Successfully')));
+                        submitBtn.innerHTML = '<i class="fas fa-check me-2"></i>' + (isEdit ? 'Saved Successfully' : (publishMode === 'later' ? 'Scheduled Successfully' : (publishMode === 'draft' ? 'Saved as Draft' : 'Posted Successfully')));
                         submitBtn.classList.remove('btn-primary');
                         submitBtn.classList.add('btn-success');
                     }

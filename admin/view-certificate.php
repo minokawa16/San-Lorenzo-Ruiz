@@ -1530,19 +1530,19 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
         }
         .trad-row {
             display: flex;
-            align-items: baseline;
-            min-height: 7.8mm;
-            border-bottom: 1.2px solid #781912;
+            align-items: flex-end;
+            min-height: 7.2mm;
+            border-bottom: none;
             margin-bottom: 3.2mm;
-            padding-bottom: 0.8px;
             width: 100%;
             box-sizing: border-box;
         }
-        .trad-row.indent .trad-lbl {
+        .trad-row.indent {
             padding-left: 9.5mm;
         }
-        .trad-row.sponsor-extra .trad-val {
-            padding-left: 23mm;
+        .trad-row.sponsor-extra {
+            padding-left: 21mm;
+            margin-top: -1mm;
         }
         .trad-lbl {
             font-family: 'EB Garamond', Georgia, 'Times New Roman', serif;
@@ -1551,29 +1551,35 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
             color: #781912;
             white-space: nowrap;
             margin-right: 3mm;
-            font-size: 11pt;
-            line-height: 1.15;
+            padding-bottom: 4.5px;
+            font-size: 11.5pt;
+            line-height: 1.2;
             letter-spacing: 0.2px;
+            flex-shrink: 0;
+            box-sizing: border-box;
         }
         .trad-val {
             flex: 1;
             min-width: 0;
-            font-family: "Courier New", Courier, monospace, serif;
-            font-size: 10.8pt;
+            border-bottom: 1.2px solid #781912;
+            padding-bottom: 4.5px;
+            padding-left: 2mm;
+            font-family: 'EB Garamond', Georgia, 'Times New Roman', serif;
+            font-size: 11.5pt;
             font-weight: 700;
             color: #0f172a;
-            letter-spacing: 0.4px;
-            line-height: 1.15;
+            letter-spacing: 0.2px;
+            line-height: 1.2;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            padding-left: 2mm;
+            box-sizing: border-box;
         }
         .trad-val.name-val {
-            font-size: 12.5pt;
+            font-size: 13pt;
             font-weight: 800;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.8px;
             color: #000000;
         }
 
@@ -1588,13 +1594,13 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
             max-width: 164mm;
         }
         .trad-purpose-val {
-            font-family: "Courier New", Courier, monospace, serif;
+            font-family: 'EB Garamond', Georgia, 'Times New Roman', serif;
             font-style: normal;
             font-weight: 700;
             font-size: 10.5pt;
             color: #0f172a;
             border-bottom: 1.2px solid #781912;
-            padding: 0 2.5mm;
+            padding: 0 2.5mm 3px;
         }
 
         /* Formal Seal and Signature Block */

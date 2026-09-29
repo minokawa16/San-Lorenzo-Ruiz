@@ -296,10 +296,6 @@ class CertificatePdfService
             background: #e9e5dd;
             color: #111111;
             font-family: 'Times New Roman', Times, Georgia, serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
         }
         .cert-outer-frame {
             width: 8.5in;
@@ -317,9 +313,6 @@ class CertificatePdfService
             padding: 58px 64px 44px 64px;
             width: 100%;
             height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
         }
 
         /* ── HEADER ── */
@@ -416,50 +409,62 @@ class CertificatePdfService
             letter-spacing: 0.5px;
         }
 
-        /* ── BODY FIELDS (Continuous Underline Form) ── */
+        /* ── BODY FIELDS (Traditional Fill-in-the-Blank Lines) ── */
         .cert-body-form {
             width: 100%;
             margin-top: 14px;
             margin-bottom: auto;
         }
+        /* Table-based layout for Dompdf compatibility (flexbox not supported) */
         .cert-field-row {
-            display: flex;
-            align-items: flex-end;
+            display: table;
             width: 100%;
             margin-bottom: 7.5px;
-            line-height: 1.15;
+            box-sizing: border-box;
+            table-layout: fixed;
         }
         .cert-field-row.indent {
             padding-left: 36px;
+            width: calc(100% - 36px);
         }
         .cert-field-row.sponsor-extra {
-            padding-left: 104px;
-            margin-top: -2px;
+            padding-left: 84px;
+            width: calc(100% - 84px);
+            margin-top: -1px;
         }
         .field-label {
-            font-family: 'Times New Roman', Georgia, serif;
+            display: table-cell;
+            font-family: 'Times New Roman', Times, Georgia, serif;
             font-size: 11.8pt;
             font-weight: 700;
             font-style: italic;
             color: #561212;
             white-space: nowrap;
-            margin-right: 6px;
-            flex-shrink: 0;
+            padding-right: 8px;
+            padding-bottom: 4.5px;
+            vertical-align: bottom;
+            width: 1%;
+            line-height: 1.2;
+            box-sizing: border-box;
         }
         .field-fill-line {
-            flex-grow: 1;
+            display: table-cell;
+            width: 100%;
             border-bottom: 1.2px solid #561212;
             padding-left: 6px;
-            padding-bottom: 1px;
-            min-height: 20px;
+            padding-bottom: 4.5px;
+            vertical-align: bottom;
+            line-height: 1.2;
+            box-sizing: border-box;
         }
         .field-value {
-            font-family: 'Courier New', Courier, monospace, serif;
-            font-size: 12pt;
+            font-family: 'Times New Roman', Times, Georgia, serif;
+            font-size: 11.8pt;
             font-weight: 700;
             color: #111111;
-            letter-spacing: 0.3px;
+            letter-spacing: 0.2px;
             white-space: nowrap;
+            line-height: 1.2;
         }
         .field-value.name-value {
             font-size: 13.5pt;
@@ -470,29 +475,34 @@ class CertificatePdfService
 
         /* Compact styling if many sponsors */
         .compact-sponsors .cert-field-row {
-            margin-bottom: 4.5px;
+            margin-bottom: 5px;
         }
         .compact-sponsors .field-label {
-            font-size: 10.5pt;
+            font-size: 10.8pt;
+            padding-bottom: 3.5px;
+        }
+        .compact-sponsors .field-fill-line {
+            padding-bottom: 3.5px;
         }
         .compact-sponsors .field-value {
-            font-size: 10.5pt;
+            font-size: 10.8pt;
         }
 
         .cert-purpose-text {
-            font-family: 'Times New Roman', Georgia, serif;
-            font-size: 10pt;
+            font-family: 'Times New Roman', Times, Georgia, serif;
+            font-size: 10.5pt;
             font-style: italic;
             color: #561212;
             text-align: center;
-            margin-top: 6px;
+            margin-top: 8px;
+            line-height: 1.3;
         }
         .cert-purpose-text span {
-            font-family: 'Courier New', monospace;
+            font-family: 'Times New Roman', Times, Georgia, serif;
             font-style: normal;
             font-weight: 700;
-            border-bottom: 1px solid #561212;
-            padding: 0 4px;
+            border-bottom: 1.2px solid #561212;
+            padding: 0 6px 3px 6px;
         }
 
         /* ── FOOTER (Dry Seal, Cross & Priest Signature) ── */
@@ -510,23 +520,22 @@ class CertificatePdfService
             text-align: left;
         }
         .footer-seal-wrapper {
-            display: inline-flex;
-            align-items: center;
-            gap: 16px;
+            display: inline-block;
+        }
+        .footer-seal-wrapper .dry-seal-stamp {
+            margin-right: 16px;
         }
         .dry-seal-stamp {
             width: 82px;
             height: 82px;
             border: 1.5px dashed #7a2323;
             border-radius: 50%;
-            display: inline-flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            display: inline-block;
             text-align: center;
             color: #7a2323;
             padding: 4px;
             box-shadow: inset 0 0 0 2px rgba(122, 35, 35, 0.15);
+            vertical-align: middle;
         }
         .dry-seal-cross {
             font-size: 11pt;
