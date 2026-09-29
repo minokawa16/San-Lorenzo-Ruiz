@@ -94,6 +94,16 @@ $marriage_requirements = [
 $funeral_requirements = [
     'death_certificate' => ['label' => 'Death Certificate', 'mandatory' => true]
 ];
+$funeral_sheet_fields = [
+    'deceased_name'  => 'Deceased Full Name',
+    'date_of_death'  => 'Date of Death',
+    'date_of_burial' => 'Date of Burial / Funeral Mass',
+    'civil_status'   => 'Civil Status of Deceased',
+    'funeral_rites'  => 'Type of Funeral Rites',
+    'cause_of_death' => 'Cause of Death',
+    'place_of_burial'=> 'Place of Burial / Cemetery',
+    'minister'       => 'Minister / Officiant Name',
+];
 $status_meta = [
     'pending' => ['icon' => 'fa-hourglass-half', 'description' => 'Waiting for parish review', 'tone' => 'warning'],
     'approved' => ['icon' => 'fa-circle-check', 'description' => 'Approved by the office', 'tone' => 'success'],
@@ -285,11 +295,20 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $marriage_sheet[$field_key] = trim((string) ($raw_marriage[$field_key] ?? ''));
         }
 
+        // Extract Funeral Investigation Sheet
+        $funeral_sheet = [];
+        $raw_funeral = (isset($_POST['funeral_sheet']) && is_array($_POST['funeral_sheet'])) ? $_POST['funeral_sheet'] : [];
+        foreach ($funeral_sheet_fields as $field_key => $field_label) {
+            $funeral_sheet[$field_key] = trim((string) ($raw_funeral[$field_key] ?? ''));
+        }
+
         // Single source of truth: Bind schedule date automatically from investigation sheets
         if ($request_type === 'baptism_service') {
             $preferred_date = $baptism_sheet['baptism_date'] ?? '';
         } elseif ($request_type === 'marriage_wedding_service') {
             $preferred_date = $marriage_sheet['wedding_date'] ?? '';
+        } elseif ($request_type === 'funeral_mass') {
+            $preferred_date = $funeral_sheet['date_of_burial'] ?? '';
         } elseif ($request_type === 'patronal_fiesta' && $patronal_fiesta_date !== '') {
             $preferred_date = $patronal_fiesta_date;
         } elseif ($service_date !== '') {
@@ -330,8 +349,25 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             }
         }
 
+        // Validate required fields for Funeral Sheet
+        $missing_funeral_sheet = [];
+        if ($request_type === 'funeral_mass') {
+            $required_funeral_keys = ['deceased_name', 'date_of_death', 'date_of_burial', 'civil_status', 'funeral_rites', 'cause_of_death', 'place_of_burial'];
+            foreach ($required_funeral_keys as $k) {
+                if (empty($funeral_sheet[$k])) {
+                    $missing_funeral_sheet[] = $funeral_sheet_fields[$k] ?? $k;
+                }
+            }
+        }
+
         if (!array_key_exists($request_type, $service_types)) {
             $respond(false, 'Please choose a sacramental service.', ['status_code' => 422]);
+        } elseif ($request_type === 'funeral_mass' && !empty($missing_funeral_sheet)) {
+            $respond(false, 'Please complete the Funeral Investigation Sheet before submitting. Missing: ' . implode(', ', array_slice($missing_funeral_sheet, 0, 4)) . (count($missing_funeral_sheet) > 4 ? ', and more.' : '.'), ['status_code' => 422]);
+        } elseif ($request_type === 'funeral_mass' && !serviceValidDate($funeral_sheet['date_of_death'])) {
+            $respond(false, 'Please provide a valid Date of Death.', ['status_code' => 422]);
+        } elseif ($request_type === 'funeral_mass' && !serviceValidDate($funeral_sheet['date_of_burial'])) {
+            $respond(false, 'Please provide a valid Date of Burial / Funeral Mass.', ['status_code' => 422]);
         } elseif ($request_type === 'baptism_service' && !empty($missing_baptism_sheet)) {
             $respond(false, 'Please complete the Pre-Baptismal Investigation Sheet before requesting Baptism. Missing: ' . implode(', ', array_slice($missing_baptism_sheet, 0, 4)) . (count($missing_baptism_sheet) > 4 ? ', and more.' : '.'), ['status_code' => 422]);
         } elseif ($request_type === 'baptism_service' && !serviceValidDate($baptism_sheet['birth_date'])) {
@@ -436,6 +472,17 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     $funeral_labels[] = is_array($f_req) ? ($f_req['label'] ?? '') : (string) $f_req;
                 }
                 $description_parts[] = 'Funeral Mass requirement uploads: ' . implode(', ', array_filter($funeral_labels));
+                $description_parts[] = "\n--- FUNERAL INVESTIGATION SHEET ---";
+                $description_parts[] = "Deceased Full Name: " . $funeral_sheet['deceased_name'];
+                $description_parts[] = "Date of Death: " . $funeral_sheet['date_of_death'];
+                $description_parts[] = "Date of Burial: " . $funeral_sheet['date_of_burial'];
+                $description_parts[] = "Civil Status: " . $funeral_sheet['civil_status'];
+                $description_parts[] = "Type of Funeral Rites: " . $funeral_sheet['funeral_rites'];
+                $description_parts[] = "Cause of Death: " . $funeral_sheet['cause_of_death'];
+                $description_parts[] = "Place of Burial: " . $funeral_sheet['place_of_burial'];
+                if (!empty($funeral_sheet['minister'])) {
+                    $description_parts[] = "Minister / Officiant Name: " . $funeral_sheet['minister'];
+                }
             }
             $description_parts[] = 'Details: ' . ($details !== '' ? $details : 'None');
 
@@ -964,51 +1011,113 @@ if ($stmt) {
 
                 <div class="baptism-requirements-card funeral-requirements-card" id="funeralRequirementsCard" hidden>
                     <div class="baptism-progress" aria-label="Funeral Mass request progress">
-                        <span class="active"><i class="fas fa-list-check"></i> Step 1: Review Requirements</span>
-                        <span><i class="fas fa-calendar-check"></i> Step 2: Fill Request Form</span>
-                        <span><i class="fas fa-paper-plane"></i> Step 3: Submit Request</span>
+                        <span class="active" id="funeralStep1"><i class="fas fa-list-check"></i> Step 1: Requirements &amp; Details</span>
+                        <span><i class="fas fa-calendar-check"></i> Step 2: Schedule</span>
+                        <span><i class="fas fa-paper-plane"></i> Step 3: Submit</span>
                     </div>
 
                     <div class="baptism-requirements-header">
                         <div>
-                            <span class="request-kicker"><i class="fas fa-cross"></i> Funeral Mass Requirements</span>
-                            <h3>Requirements for Funeral Mass</h3>
-                            <p>Upload a clear copy of the Death Certificate before submitting the Funeral Mass request.</p>
-                            <small class="text-muted d-block mt-1">Accepted formats: PDF, JPG, PNG, WEBP (max 5 MB each).</small>
+                            <span class="request-kicker"><i class="fas fa-cross"></i> Funeral Mass Investigation Sheet</span>
+                            <h3>Funeral Mass Details</h3>
+                            <p>Please fill in all details below. This information will directly populate the official Parish Funeral Records upon approval.</p>
+                            <small class="text-muted d-block mt-1">All fields marked <span class="text-danger">*</span> are required.</small>
                         </div>
                         <div class="baptism-review-badge">
                             <i class="fas fa-file-shield"></i>
-                            <strong>Office Review</strong>
-                            <small>Required before scheduling.</small>
+                            <strong>Official Records</strong>
+                            <small>Auto-saved upon completion.</small>
                         </div>
                     </div>
 
-                    <div class="baptism-requirements-grid">
-                        <?php foreach ($funeral_requirements as $key => $meta): 
-                            $label = is_array($meta) ? ($meta['label'] ?? '') : $meta;
-                        ?>
-                            <div class="baptism-requirement-item requirement-upload-item">
-                                <span><i class="fas fa-file-arrow-up"></i></span>
-                                <div class="requirement-upload-main">
-                                    <strong><?php echo e($label); ?></strong>
-                                    <small data-file-name>No file selected</small>
-                                </div>
-                                <div class="requirement-upload-actions">
-                                    <label class="requirement-upload-btn">
-                                        <i class="fas fa-folder-open"></i> <span data-upload-label>Choose File</span>
-                                        <input type="file" class="requirement-file-input" name="funeral_requirement_files[<?php echo e($key); ?>]" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*" data-requirement-file data-requirement-group="funeral">
-                                    </label>
-                                    <a class="requirement-view-btn" href="#" target="_blank" rel="noopener" data-file-view hidden>
-                                        <i class="fas fa-eye"></i> View
-                                    </a>
-                                </div>
+                    <!-- Funeral Investigation Sheet -->
+                    <div class="baptism-sheet-body">
+                        <div class="investigation-section-label"><i class="fas fa-cross"></i> Deceased Information</div>
+                        <div class="investigation-grid">
+                            <div class="investigation-field investigation-grid-full">
+                                <label for="funeral_deceased_name">Deceased Full Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control request-form-control" id="funeral_deceased_name" name="funeral_sheet[deceased_name]" placeholder="e.g. Juan dela Cruz" data-funeral-sheet autocomplete="off">
                             </div>
-                        <?php endforeach; ?>
+                            <div class="investigation-field">
+                                <label for="funeral_date_of_death">Date of Death <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control request-form-control" id="funeral_date_of_death" name="funeral_sheet[date_of_death]" max="<?php echo date('Y-m-d'); ?>" data-funeral-sheet>
+                            </div>
+                            <div class="investigation-field">
+                                <label for="funeral_date_of_burial">Date of Burial / Funeral Mass <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control request-form-control" id="funeral_date_of_burial" name="funeral_sheet[date_of_burial]" data-funeral-sheet>
+                            </div>
+                            <div class="investigation-field">
+                                <label for="funeral_civil_status">Civil Status of Deceased <span class="text-danger">*</span></label>
+                                <select class="form-control request-form-control" id="funeral_civil_status" name="funeral_sheet[civil_status]" data-funeral-sheet>
+                                    <option value="">— Select —</option>
+                                    <option value="Single">Single</option>
+                                    <option value="Married">Married</option>
+                                    <option value="Widowed">Widowed</option>
+                                    <option value="Separated">Separated</option>
+                                    <option value="Annulled">Annulled</option>
+                                </select>
+                            </div>
+                            <div class="investigation-field">
+                                <label for="funeral_rites">Type of Funeral Rites <span class="text-danger">*</span></label>
+                                <select class="form-control request-form-control" id="funeral_rites" name="funeral_sheet[funeral_rites]" data-funeral-sheet>
+                                    <option value="">— Select —</option>
+                                    <option value="Full Catholic Rites">Full Catholic Rites</option>
+                                    <option value="Simple Blessing">Simple Blessing</option>
+                                    <option value="Graveside Service">Graveside Service</option>
+                                    <option value="Memorial Mass">Memorial Mass</option>
+                                    <option value="Cremation Blessing">Cremation Blessing</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div class="investigation-field investigation-grid-full">
+                                <label for="funeral_cause_of_death">Cause of Death <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control request-form-control" id="funeral_cause_of_death" name="funeral_sheet[cause_of_death]" placeholder="e.g. Natural causes, heart disease" data-funeral-sheet autocomplete="off">
+                            </div>
+                            <div class="investigation-field investigation-grid-full">
+                                <label for="funeral_place_of_burial">Place of Burial / Cemetery <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control request-form-control" id="funeral_place_of_burial" name="funeral_sheet[place_of_burial]" placeholder="e.g. Minokawa Municipal Cemetery" data-funeral-sheet autocomplete="off">
+                            </div>
+                            <div class="investigation-field investigation-grid-full">
+                                <label for="funeral_minister">Preferred Minister / Officiant <small class="text-muted">(Optional — leave blank for parish assignment)</small></label>
+                                <input type="text" class="form-control request-form-control" id="funeral_minister" name="funeral_sheet[minister]" placeholder="e.g. Rev. Fr. Parish Priest" data-funeral-sheet autocomplete="off">
+                            </div>
+                        </div>
+
+                        <div class="investigation-section-label mt-3"><i class="fas fa-file-arrow-up"></i> Upload Requirements</div>
+                        <p class="text-muted" style="font-size:13px;margin-bottom:8px;">Accepted formats: PDF, JPG, PNG, WEBP (max 5 MB each).</p>
+                        <div class="baptism-requirements-grid">
+                            <?php foreach ($funeral_requirements as $key => $meta):
+                                $label = is_array($meta) ? ($meta['label'] ?? '') : $meta;
+                                $mandatory = is_array($meta) ? ($meta['mandatory'] ?? true) : true;
+                            ?>
+                                <div class="baptism-requirement-item requirement-upload-item">
+                                    <span><i class="fas fa-file-arrow-up"></i></span>
+                                    <div class="requirement-upload-main">
+                                        <strong><?php echo e($label); ?></strong><?php if ($mandatory): ?><span class="text-danger"> *</span><?php endif; ?>
+                                        <small data-file-name>No file selected</small>
+                                    </div>
+                                    <div class="requirement-upload-actions">
+                                        <label class="requirement-upload-btn">
+                                            <i class="fas fa-folder-open"></i> <span data-upload-label>Choose File</span>
+                                            <input type="file" class="requirement-file-input" name="funeral_requirement_files[<?php echo e($key); ?>]" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*" data-requirement-file data-requirement-group="funeral" data-requirement-mandatory="<?php echo $mandatory ? 'true' : 'false'; ?>">
+                                        </label>
+                                        <a class="requirement-view-btn" href="#" target="_blank" rel="noopener" data-file-view hidden>
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
                     </div>
 
                     <div class="baptism-warning" id="funeralRequirementWarning">
                         <i class="fas fa-triangle-exclamation"></i>
-                        <span>Upload the Death Certificate before submitting.</span>
+                        <span>Complete all Funeral details and upload the Death Certificate before submitting.</span>
+                    </div>
+
+                    <div class="baptism-warning is-complete" id="funeralSheetWarning" style="display:none;">
+                        <i class="fas fa-circle-check"></i>
+                        <span>Funeral Investigation Sheet is complete.</span>
                     </div>
                 </div>
             </section>
@@ -1137,6 +1246,11 @@ if ($stmt) {
                     <dl class="request-review-grid" id="reviewMarriageSponsorsInfo"></dl>
                 </div>
 
+                <div class="request-review-section" id="reviewFuneralSection" hidden>
+                    <h3><i class="fas fa-cross"></i> Funeral Investigation Sheet</h3>
+                    <dl class="request-review-grid" id="reviewFuneralInfo"></dl>
+                </div>
+
                 <div class="request-review-section">
                     <h3><i class="fas fa-calendar-check"></i> Applicant, Schedule, and Location</h3>
                     <dl class="request-review-grid" id="reviewScheduleInfo"></dl>
@@ -1189,6 +1303,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const weddingDateInput = document.getElementById('marriage_wedding_date');
     const funeralRequirementsCard = document.getElementById('funeralRequirementsCard');
     const funeralRequirementWarning = document.getElementById('funeralRequirementWarning');
+    const funeralSheetWarning = document.getElementById('funeralSheetWarning');
+    const funeralSheetFields = Array.from(document.querySelectorAll('[data-funeral-sheet]'));
+    const funeralBurialDateInput = document.getElementById('funeral_date_of_burial');
     const requirementFileInputs = Array.from(document.querySelectorAll('[data-requirement-file]'));
     const submitRequestBtn = document.getElementById('submitRequestBtn');
 
@@ -1324,6 +1441,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (isMarriageSelected()) {
             return weddingDateInput ? weddingDateInput.value.trim() : '';
         }
+        if (isFuneralSelected()) {
+            return funeralBurialDateInput ? funeralBurialDateInput.value.trim() : '';
+        }
         if (isPatronalSelected()) {
             return patronalDate ? patronalDate.value.trim() : '';
         }
@@ -1347,6 +1467,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function toggleDateInputs() {
         const baptismSelected = isBaptismSelected();
         const marriageSelected = isMarriageSelected();
+        const funeralSelected = isFuneralSelected();
         const patronalSelected = isPatronalSelected();
 
         if (baptismSelected) {
@@ -1373,6 +1494,19 @@ document.addEventListener('DOMContentLoaded', function() {
             if (patronalDate) patronalDate.required = false;
             if (generalServiceDateGroup) generalServiceDateGroup.style.display = 'none';
             if (generalServiceDate) generalServiceDate.required = false;
+        } else if (funeralSelected) {
+            // Burial date from the funeral investigation sheet drives the schedule
+            if (scheduleSyncCard) {
+                scheduleSyncCard.hidden = false;
+                scheduleSyncCard.style.display = '';
+            }
+            if (scheduleSyncTitle) {
+                scheduleSyncTitle.textContent = 'Funeral Mass Schedule Synchronized';
+            }
+            if (patronalGroup) patronalGroup.style.display = 'none';
+            if (patronalDate) patronalDate.required = false;
+            if (generalServiceDateGroup) generalServiceDateGroup.style.display = 'none';
+            if (generalServiceDate) generalServiceDate.required = false;
         } else if (patronalSelected) {
             if (scheduleSyncCard) {
                 scheduleSyncCard.hidden = true;
@@ -1383,7 +1517,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (generalServiceDateGroup) generalServiceDateGroup.style.display = 'none';
             if (generalServiceDate) generalServiceDate.required = false;
         } else {
-            // Funeral mass, anointing of the sick, or other services
+            // Anointing of the sick, or other services
             if (scheduleSyncCard) {
                 scheduleSyncCard.hidden = true;
                 scheduleSyncCard.style.display = 'none';
@@ -1422,6 +1556,14 @@ document.addEventListener('DOMContentLoaded', function() {
         marriageSheetFields.forEach(function(field) {
             const isOptional = field.id === 'marriage_additional_sponsors';
             field.required = marriageSelected && !isOptional;
+            if (!field.required) {
+                clearFieldError(field);
+            }
+        });
+
+        funeralSheetFields.forEach(function(field) {
+            const isOptional = field.id === 'funeral_minister';
+            field.required = funeralSelected && !isOptional;
             if (!field.required) {
                 clearFieldError(field);
             }
@@ -1487,12 +1629,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (funeralSelected) {
             const funeralReady = requirementFilesReady('funeral');
+            const requiredFuneralFields = funeralSheetFields.filter(function(f) { return f.required; });
+            const funeralSheetComplete = requiredFuneralFields.every(function(f) {
+                return f.value.trim() !== '';
+            });
             if (funeralRequirementWarning) {
-                funeralRequirementWarning.classList.toggle('is-complete', funeralReady);
-                funeralRequirementWarning.innerHTML = funeralReady
-                    ? '<i class="fas fa-circle-check"></i><span>Death Certificate is ready for parish review.</span>'
-                    : '<i class="fas fa-triangle-exclamation"></i><span>Upload the Death Certificate before submitting.</span>';
+                const allReady = funeralReady && funeralSheetComplete;
+                funeralRequirementWarning.style.display = allReady ? 'none' : '';
+                funeralRequirementWarning.classList.toggle('is-complete', allReady);
+                if (!funeralReady) {
+                    funeralRequirementWarning.innerHTML = '<i class="fas fa-triangle-exclamation"></i><span>Upload the Death Certificate before submitting.</span>';
+                } else if (!funeralSheetComplete) {
+                    funeralRequirementWarning.innerHTML = '<i class="fas fa-pen-to-square"></i><span>Complete all required fields in the Funeral Investigation Sheet.</span>';
+                }
             }
+            if (funeralSheetWarning) {
+                const allReady = funeralReady && funeralSheetComplete;
+                funeralSheetWarning.style.display = allReady ? '' : 'none';
+            }
+        } else {
+            if (funeralRequirementWarning) funeralRequirementWarning.style.display = 'none';
+            if (funeralSheetWarning) funeralSheetWarning.style.display = 'none';
         }
     }
 
@@ -1643,10 +1800,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const baptismSelected = isBaptismSelected();
         const marriageSelected = isMarriageSelected();
+        const funeralSelected = isFuneralSelected();
 
         document.getElementById('reviewChildSection').hidden = !baptismSelected;
         document.getElementById('reviewParentsSection').hidden = !baptismSelected;
         document.getElementById('reviewGodparentsSection').hidden = !baptismSelected;
+        document.getElementById('reviewFuneralSection').hidden = !funeralSelected;
 
         if (baptismSelected) {
             renderReviewItems('reviewChildInfo', [
@@ -1706,12 +1865,27 @@ document.addEventListener('DOMContentLoaded', function() {
             ]);
         }
 
+        if (funeralSelected) {
+            renderReviewItems('reviewFuneralInfo', [
+                ['Deceased Full Name', formValue('funeral_deceased_name')],
+                ['Date of Death', displayDate(formValue('funeral_date_of_death'))],
+                ['Date of Burial / Funeral Mass', displayDate(formValue('funeral_date_of_burial'))],
+                ['Civil Status', formValue('funeral_civil_status') || 'Not provided'],
+                ['Type of Funeral Rites', formValue('funeral_rites') || 'Not provided'],
+                ['Cause of Death', formValue('funeral_cause_of_death') || 'Not provided'],
+                ['Place of Burial', formValue('funeral_place_of_burial') || 'Not provided'],
+                ['Minister / Officiant', formValue('funeral_minister') || 'To be assigned by the parish']
+            ]);
+        }
+
         const scheduleDate = getScheduledDate();
         let scheduleDateLabel = 'Preferred Date';
         if (baptismSelected) {
             scheduleDateLabel = 'Date of Baptism';
         } else if (marriageSelected) {
             scheduleDateLabel = 'Date of Marriage';
+        } else if (funeralSelected) {
+            scheduleDateLabel = 'Date of Burial / Funeral Mass';
         } else if (isPatronalSelected()) {
             scheduleDateLabel = 'Date of Patronal Fiesta';
         }
@@ -1751,6 +1925,10 @@ document.addEventListener('DOMContentLoaded', function() {
             field.addEventListener('input', updateSpecialRequirementsState);
             field.addEventListener('change', updateSpecialRequirementsState);
         });
+        funeralSheetFields.forEach(function(field) {
+            field.addEventListener('input', updateSpecialRequirementsState);
+            field.addEventListener('change', updateSpecialRequirementsState);
+        });
         if (baptismDateInput) {
             baptismDateInput.addEventListener('input', syncScheduleDate);
             baptismDateInput.addEventListener('change', syncScheduleDate);
@@ -1758,6 +1936,10 @@ document.addEventListener('DOMContentLoaded', function() {
         if (weddingDateInput) {
             weddingDateInput.addEventListener('input', syncScheduleDate);
             weddingDateInput.addEventListener('change', syncScheduleDate);
+        }
+        if (funeralBurialDateInput) {
+            funeralBurialDateInput.addEventListener('input', syncScheduleDate);
+            funeralBurialDateInput.addEventListener('change', syncScheduleDate);
         }
         if (patronalDate) {
             patronalDate.addEventListener('input', syncScheduleDate);

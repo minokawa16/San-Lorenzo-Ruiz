@@ -445,6 +445,13 @@ class SacramentalApprovalService {
     private function populateFuneralRecord(int $requestId, string $desc, array $request, string $priest): array {
         $parsed = $this->parseFuneralDescription($desc, $request);
 
+        // If parishioner specified a preferred minister and the admin hasn't assigned a specific one, honour it
+        if (!empty($parsed['preferred_minister'])
+            && (strcasecmp($priest, 'Rev. Fr. Parish Priest') === 0 || $priest === '')
+        ) {
+            $priest = $parsed['preferred_minister'];
+        }
+
         $stmt = $this->conn->prepare("SELECT funeral_id, registry_no FROM funeral_records WHERE request_id = ? LIMIT 1");
         $stmt->bind_param('i', $requestId);
         $stmt->execute();
@@ -459,15 +466,18 @@ class SacramentalApprovalService {
             $upd = $this->conn->prepare("
                 UPDATE funeral_records
                 SET deceased_name = ?, family_name = ?, date_of_death = ?, date_of_burial = ?,
+                    civil_status = ?, funeral_rites = ?,
                     cause_of_death = ?, place_of_burial = ?, minister = ?, remarks = ?, status = ?, updated_at = NOW()
                 WHERE funeral_id = ?
             ");
             $upd->bind_param(
-                'sssssssssi',
+                'sssssssssssi',
                 $parsed['deceased_name'],
                 $parsed['family_name'],
                 $parsed['date_of_death'],
                 $parsed['date_of_burial'],
+                $parsed['civil_status'],
+                $parsed['funeral_rites'],
                 $parsed['cause_of_death'],
                 $parsed['place_of_burial'],
                 $priest,
@@ -480,17 +490,20 @@ class SacramentalApprovalService {
         } else {
             $ins = $this->conn->prepare("
                 INSERT INTO funeral_records
-                (request_id, registry_no, deceased_name, family_name, date_of_death, date_of_burial, cause_of_death, place_of_burial, minister, remarks, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (request_id, registry_no, deceased_name, family_name, date_of_death, date_of_burial,
+                 civil_status, funeral_rites, cause_of_death, place_of_burial, minister, remarks, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
             $ins->bind_param(
-                'issssssssss',
+                'issssssssssss',
                 $requestId,
                 $registryNo,
                 $parsed['deceased_name'],
                 $parsed['family_name'],
                 $parsed['date_of_death'],
                 $parsed['date_of_burial'],
+                $parsed['civil_status'],
+                $parsed['funeral_rites'],
                 $parsed['cause_of_death'],
                 $parsed['place_of_burial'],
                 $priest,
@@ -900,27 +913,36 @@ class SacramentalApprovalService {
      * Parses Funeral mass details from request description.
      */
     private function parseFuneralDescription(string $desc, array $request): array {
-        $deceasedName = $this->extractField($desc, ['Deceased Full Name', 'Deceased Name', 'Deceased', 'Name of Deceased']);
+        // 1. Try to extract from the structured Funeral Investigation Sheet block first
+        $deceasedName   = $this->extractField($desc, ['Deceased Full Name', 'Deceased Name', 'Deceased', 'Name of Deceased']);
+        $deathDate      = $this->extractField($desc, ['Date of Death', 'Death Date']);
+        $burialDate     = $this->extractField($desc, ['Date of Burial', 'Date of Funeral', 'Preferred date']);
+        $civilStatus    = $this->extractField($desc, ['Civil Status']);
+        $funeralRites   = $this->extractField($desc, ['Type of Funeral Rites', 'Funeral Rites']);
+        $causeOfDeath   = $this->extractField($desc, ['Cause of Death']);
+        $burialPlace    = $this->extractField($desc, ['Place of Burial', 'Cemetery', 'Location']);
+        $minister       = $this->extractField($desc, ['Minister / Officiant Name', 'Minister', 'Officiant']);
+        $familyContact  = $this->extractField($desc, ['Surviving Family', 'Family Contact', 'Contact Person']);
+        $age            = $this->extractField($desc, ['Age', 'Deceased Age', 'Age at Death']);
+        $residence      = $this->extractField($desc, ['Residence', 'Address', 'Place of Origin']);
+        $details        = $this->extractField($desc, ['Details', 'Additional Details']);
+
+        // 2. Fallbacks if required fields are still empty
         if ($deceasedName === '') {
             $deceasedName = $request['record_holder_name'] ?? $request['applicant_fullname'];
         }
-
-        $burialDate = $this->extractField($desc, ['Date of Funeral', 'Date of Burial', 'Preferred date']);
         if (!validDateValue($burialDate)) {
             $burialDate = date('Y-m-d');
         }
-
-        $deathDate = $this->extractField($desc, ['Date of Death', 'Death Date']);
         if (!validDateValue($deathDate)) {
             $deathDate = date('Y-m-d', strtotime('-3 days'));
         }
-
-        $burialPlace = $this->extractField($desc, ['Place of Burial', 'Cemetery', 'Location']);
-        $causeOfDeath = $this->extractField($desc, ['Cause of Death']);
-        $familyContact = $this->extractField($desc, ['Surviving Family', 'Family Contact', 'Contact Person']);
-        $age = $this->extractField($desc, ['Age', 'Deceased Age', 'Age at Death']);
-        $residence = $this->extractField($desc, ['Residence', 'Address', 'Place of Origin']);
-        $details = $this->extractField($desc, ['Details', 'Additional Details']);
+        if ($burialPlace === '') {
+            $burialPlace = 'San Lorenzo Ruiz Cemetery';
+        }
+        if ($causeOfDeath === '') {
+            $causeOfDeath = 'Not specified';
+        }
 
         $remarksParts = [];
         if ($age !== '') {
@@ -936,14 +958,20 @@ class SacramentalApprovalService {
         }
         $remarks = implode(' | ', $remarksParts);
 
+        // If minister is provided in the sheet, use it; otherwise fall back to the $priest param from the caller
+        // (the actual minister used is passed separately via $priest; we store it for reference in remarks only)
         return [
-            'deceased_name' => $deceasedName,
-            'family_name' => $familyContact ?: $request['applicant_fullname'],
-            'date_of_death' => $deathDate,
+            'deceased_name'  => $deceasedName,
+            'family_name'    => $familyContact ?: $request['applicant_fullname'],
+            'date_of_death'  => $deathDate,
             'date_of_burial' => $burialDate,
-            'cause_of_death' => $causeOfDeath ?: 'Not specified',
-            'place_of_burial' => $burialPlace ?: 'San Lorenzo Ruiz Cemetery',
-            'remarks' => $remarks
+            'civil_status'   => $civilStatus ?: null,
+            'funeral_rites'  => $funeralRites ?: null,
+            'cause_of_death' => $causeOfDeath,
+            'place_of_burial'=> $burialPlace,
+            // If parishioner specified a preferred minister, store it; the $priest caller arg overrides only if blank
+            'preferred_minister' => $minister,
+            'remarks'        => $remarks
         ];
     }
 
