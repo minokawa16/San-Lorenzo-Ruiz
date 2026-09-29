@@ -1,8 +1,6 @@
 -- Migration 037: Schedule Slot Conflict Controls and Concurrency Locks
 -- Enforces 60-minute schedule slot locking and prevents concurrent double-booking.
 
-USE `parish_management_system`;
-
 CREATE TABLE IF NOT EXISTS `schedule_slot_locks` (
     `lock_id` INT AUTO_INCREMENT PRIMARY KEY,
     `slot_date` DATE NOT NULL,

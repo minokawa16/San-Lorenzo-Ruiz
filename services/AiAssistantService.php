@@ -1136,15 +1136,41 @@ final class AiAssistantService
         ], $sources);
         $snapshot = json_encode($publicSources, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
-        $stmt = $this->db->prepare('INSERT INTO ai_responses(response_reference, user_id, audience, mode, language, question_redacted, answer_redacted, source_snapshot, provider, detected_intent, correlation_id) VALUES(?,?,?,?,?,?,?,?,?,?,?)');
-        $stmt->bind_param('sisssssssss', $reference, $userId, $audience, $mode, $language, $question, $answer, $snapshot, $provider, $detectedIntent, $correlation);
-        $stmt->execute();
-        $stmt->close();
+        try {
+            $stmt = $this->db->prepare('INSERT INTO ai_responses(response_reference, user_id, audience, mode, language, question_redacted, answer_redacted, source_snapshot, provider, detected_intent, correlation_id) VALUES(?,?,?,?,?,?,?,?,?,?,?)');
+            if ($stmt) {
+                $stmt->bind_param('sisssssssss', $reference, $userId, $audience, $mode, $language, $question, $answer, $snapshot, $provider, $detectedIntent, $correlation);
+                $stmt->execute();
+                $stmt->close();
+            } else {
+                $stmt = $this->db->prepare('INSERT INTO ai_responses(response_reference, user_id, audience, mode, language, question_redacted, answer_redacted, source_snapshot, provider, correlation_id) VALUES(?,?,?,?,?,?,?,?,?,?)');
+                if ($stmt) {
+                    $stmt->bind_param('sissssssss', $reference, $userId, $audience, $mode, $language, $question, $answer, $snapshot, $provider, $correlation);
+                    $stmt->execute();
+                    $stmt->close();
+                }
+            }
+        } catch (Throwable $e) {
+            error_log('[TUGON AI persist ai_responses warning] ' . $e->getMessage());
+        }
 
-        $stmt = $this->db->prepare('INSERT INTO chatbot_inquiries(user_id, user_role, question, answer_preview, mode, detected_intent, context_limited, correlation_id, response_reference) VALUES(?,?,?,?,?,?,1,?,?)');
-        $stmt->bind_param('isssssss', $userId, $audience, $question, $answer, $mode, $detectedIntent, $correlation, $reference);
-        $stmt->execute();
-        $stmt->close();
+        try {
+            $stmt = $this->db->prepare('INSERT INTO chatbot_inquiries(user_id, user_role, question, answer_preview, mode, detected_intent, context_limited, correlation_id, response_reference) VALUES(?,?,?,?,?,?,1,?,?)');
+            if ($stmt) {
+                $stmt->bind_param('isssssss', $userId, $audience, $question, $answer, $mode, $detectedIntent, $correlation, $reference);
+                $stmt->execute();
+                $stmt->close();
+            } else {
+                $stmt = $this->db->prepare('INSERT INTO chatbot_inquiries(user_id, user_role, question, answer_preview, mode, context_limited, correlation_id, response_reference) VALUES(?,?,?,?,?,1,?,?)');
+                if ($stmt) {
+                    $stmt->bind_param('issssss', $userId, $audience, $question, $answer, $mode, $correlation, $reference);
+                    $stmt->execute();
+                    $stmt->close();
+                }
+            }
+        } catch (Throwable $e) {
+            error_log('[TUGON AI persist chatbot_inquiries warning] ' . $e->getMessage());
+        }
 
         return [
             'success' => true,
