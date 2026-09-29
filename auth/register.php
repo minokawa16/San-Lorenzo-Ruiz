@@ -2559,6 +2559,482 @@ $has_logo = is_file($logo_file);
             .reg-step-info strong { font-size: 0.9rem; }
             .terms-scroll-box { height: 210px; }
         }
+
+        /* ═════════════════════════════════════════════════════════════
+           ID SCANNER & CAMERA VERIFICATION COMPONENT
+        ═════════════════════════════════════════════════════════════ */
+        .id-scanner-wrap {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 100%;
+        }
+
+        /* 1. Camera Stage */
+        .id-camera-stage {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16 / 9.6;
+            min-height: 250px;
+            max-height: 380px;
+            background: #0d121c;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(212, 169, 78, 0.28);
+            box-shadow: inset 0 2px 12px rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .id-camera-stage video {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+            z-index: 1;
+        }
+
+        .id-camera-stage.is-active video {
+            display: block;
+        }
+
+        /* Mirror video for face verification */
+        .id-camera-stage.is-face-mode video {
+            transform: scaleX(-1);
+        }
+
+        /* Non-mirror for ID scanning so text isn't flipped */
+        .id-camera-stage.is-id-mode video {
+            transform: none;
+        }
+
+        /* Placeholder State */
+        .id-camera-placeholder {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px 20px;
+            text-align: center;
+            background: linear-gradient(180deg, #131b2e 0%, #0a0e17 100%);
+            z-index: 2;
+        }
+
+        .id-camera-stage.is-active .id-camera-placeholder {
+            display: none !important;
+        }
+
+        .id-placeholder-icon {
+            font-size: 34px;
+            color: #D4A94E;
+            margin-bottom: 10px;
+        }
+
+        .id-placeholder-title {
+            color: #ffffff;
+            font-size: 15.5px;
+            font-weight: 700;
+            margin: 0 0 6px 0;
+            letter-spacing: -0.2px;
+        }
+
+        .id-placeholder-desc {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 12px;
+            max-width: 440px;
+            margin: 0;
+            line-height: 1.45;
+        }
+
+        .id-camera-error-msg {
+            color: #fca5a5;
+            background: rgba(239, 68, 68, 0.16);
+            border: 1px solid rgba(239, 68, 68, 0.35);
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-size: 12px;
+            margin-top: 12px;
+            max-width: 460px;
+            line-height: 1.4;
+        }
+
+        /* Guide Overlays */
+        .id-face-guide {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            z-index: 3;
+        }
+
+        .id-face-oval {
+            width: min(44%, 220px);
+            height: min(76%, 250px);
+            border-radius: 50%;
+            border: 3px solid rgba(212, 169, 78, 0.95);
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.38);
+        }
+
+        .id-card-guide {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            z-index: 3;
+        }
+
+        .id-card-frame {
+            width: min(84%, 460px);
+            aspect-ratio: 1.58;
+            border-radius: 12px;
+            border: 2.5px solid rgba(212, 169, 78, 0.92);
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.42);
+            position: relative;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding-bottom: 8px;
+        }
+
+        .id-card-guide-label {
+            background: rgba(0, 0, 0, 0.72);
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 12px;
+            border-radius: 20px;
+            letter-spacing: 0.3px;
+        }
+
+        .id-corner {
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            border-color: #ffd875;
+            border-style: solid;
+        }
+        .id-corner-tl { top: -2px; left: -2px; border-width: 3px 0 0 3px; border-radius: 8px 0 0 0; }
+        .id-corner-tr { top: -2px; right: -2px; border-width: 3px 3px 0 0; border-radius: 0 8px 0 0; }
+        .id-corner-bl { bottom: -2px; left: -2px; border-width: 0 0 3px 3px; border-radius: 0 0 0 8px; }
+        .id-corner-br { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; border-radius: 0 0 8px 0; }
+
+        /* 2. Three Tabs */
+        .id-scanner-tabs {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .id-scanner-tab {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            padding: 10px 10px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            background: #F4EFE6;
+            border: 1px solid #E2D9C8;
+            color: #4A4235;
+            transition: all 0.18s ease;
+        }
+
+        .id-scanner-tab:hover {
+            background: #ECE5D8;
+            border-color: #D4C7B0;
+        }
+
+        .id-scanner-tab.active {
+            background: #E8EFE0;
+            border: 1.5px solid #9FB890;
+            color: #24381C;
+            font-weight: 800;
+            box-shadow: 0 2px 6px rgba(159, 184, 144, 0.25);
+        }
+
+        /* 3. Action Buttons */
+        .id-action-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .id-act-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            padding: 11px 10px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            transition: all 0.18s ease;
+            text-decoration: none;
+        }
+
+        .id-act-btn.primary {
+            background: linear-gradient(135deg, #CCA34B, #B58A35);
+            color: #1E1B18;
+            box-shadow: 0 3px 10px rgba(181, 138, 53, 0.28);
+        }
+
+        .id-act-btn.primary:hover:not(:disabled) {
+            background: linear-gradient(135deg, #D9B159, #C1943D);
+            transform: translateY(-1px);
+        }
+
+        .id-act-btn.secondary {
+            background: #FDFCF9;
+            border: 1px solid #EAE3D5;
+            color: #A89F91;
+            cursor: not-allowed;
+        }
+
+        .id-act-btn.secondary.is-highlighted {
+            background: linear-gradient(135deg, #CCA34B, #B58A35);
+            border: none;
+            color: #1E1B18;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 3px 10px rgba(181, 138, 53, 0.28);
+        }
+
+        .id-act-btn.secondary.is-highlighted:hover {
+            background: linear-gradient(135deg, #D9B159, #C1943D);
+            transform: translateY(-1px);
+        }
+
+        .id-act-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        /* 4. Upload Fallback Row (Front / Back only) */
+        .id-upload-fallback-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .id-fallback-upload-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            background: #FDFCF9;
+            border: 1px solid #E2D9C8;
+            color: #4A4235;
+            margin: 0;
+            transition: all 0.18s ease;
+        }
+
+        .id-fallback-upload-btn:hover {
+            background: #F5EFE4;
+            border-color: #CCA34B;
+            color: #8A6822;
+            transform: translateY(-1px);
+        }
+
+        .id-fallback-upload-btn.is-disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        /* Instruction Line */
+        .id-instruction-line {
+            margin: 4px 0 2px;
+            font-size: 13px;
+            font-weight: 700;
+            color: #3A3226;
+            text-align: left;
+        }
+
+        /* 5. Three Preview Thumbnails */
+        .id-preview-thumbnails {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .id-thumb-card {
+            background: #FBF8F0;
+            border: 1px solid #EAE2D2;
+            border-radius: 10px;
+            padding: 10px 10px 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .id-thumb-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 20px;
+        }
+
+        .id-thumb-title {
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.6px;
+            color: #4A4235;
+            text-transform: uppercase;
+        }
+
+        .id-thumb-retake {
+            background: rgba(220, 38, 38, 0.12);
+            color: #b91c1c;
+            border: 1px solid rgba(220, 38, 38, 0.28);
+            border-radius: 5px;
+            font-size: 10.5px;
+            font-weight: 700;
+            padding: 2px 7px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .id-thumb-retake:hover {
+            background: rgba(220, 38, 38, 0.22);
+        }
+
+        .id-thumb-preview {
+            width: 100%;
+            height: 76px;
+            border-radius: 6px;
+            overflow: hidden;
+            background: #ECE5D8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .id-thumb-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+        }
+
+        .id-thumb-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            color: #8F8473;
+            text-align: center;
+            padding: 6px;
+            font-size: 11px;
+            font-weight: 500;
+            line-height: 1.3;
+        }
+
+        .id-thumb-placeholder i {
+            font-size: 16px;
+            opacity: 0.7;
+        }
+
+        /* 6. Two Helper Text Lines */
+        .id-helper-lines {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 4px;
+        }
+
+        .id-helper-line {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            background: #F6F1E7;
+            border: 1px solid #EAE1D1;
+            font-size: 12.5px;
+            font-weight: 600;
+            color: #4A4235;
+            line-height: 1.4;
+        }
+
+        .id-helper-line i {
+            font-size: 14px;
+            color: #8F8473;
+            flex-shrink: 0;
+        }
+
+        /* Manual Entry Button */
+        .id-manual-btn {
+            background: transparent;
+            border: 1px solid #D4C9B6;
+            color: #6E6352;
+            border-radius: 8px;
+            padding: 8px 18px;
+            font-size: 12.5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .id-manual-btn:hover {
+            border-color: #CCA34B;
+            color: #3A3226;
+            background: rgba(204, 163, 75, 0.08);
+        }
+
+        /* Mobile adjustments for ID Scanner */
+        @media (max-width: 600px) {
+            .id-scanner-tab {
+                padding: 9px 4px;
+                font-size: 11.5px;
+                gap: 5px;
+            }
+            .id-act-btn {
+                padding: 10px 4px;
+                font-size: 11.5px;
+                gap: 5px;
+            }
+            .id-fallback-upload-btn {
+                padding: 9px 8px;
+                font-size: 12px;
+            }
+            .id-thumb-title {
+                font-size: 10px;
+            }
+            .id-thumb-placeholder {
+                font-size: 10px;
+            }
+            .id-thumb-placeholder span {
+                font-size: 9.5px;
+            }
+            .id-helper-line {
+                font-size: 11.5px;
+                padding: 8px 10px;
+            }
+        }
     </style>
     <link rel="stylesheet" href="../assets/css/auth-mobile.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/auth-mobile.css'); ?>">
 </head>
@@ -2685,107 +3161,166 @@ $has_logo = is_file($logo_file);
                         </ul>
                     </div>
 
-                    <!-- Three upload cards -->
-                    <div class="id-upload-cards" id="idUploadCards">
+                    <!-- ID Verification & Scanner Container -->
+                    <div class="id-scanner-wrap" id="idScannerWrap">
 
-                        <!-- Card: Face Photo -->
-                        <div class="id-upload-card" id="faceCard">
-                            <div class="id-upload-card-icon"><i class="fas fa-user-circle"></i></div>
-                            <div class="id-upload-card-title">Face Photo</div>
-                            <div class="id-upload-card-hint">A clear selfie or front-facing photo of your face.</div>
-                            <div class="id-upload-card-preview" id="faceCardPreview" style="display:none">
-                                <img id="facePreviewImage" alt="Face photo preview">
-                                <button type="button" class="id-retake-btn" id="faceRetakeBtn"><i class="fas fa-rotate-left"></i> Retake</button>
+                        <!-- 1. CAMERA PREVIEW BOX -->
+                        <div class="id-camera-stage" id="idCameraStage">
+                            <video id="verificationVideo" autoplay playsinline muted></video>
+                            <canvas id="captureCanvas" style="display:none"></canvas>
+
+                            <!-- Guide overlays -->
+                            <div class="id-face-guide" id="idFaceGuide" aria-hidden="true">
+                                <div class="id-face-oval"></div>
                             </div>
-                            <div class="id-upload-card-actions" id="faceCardActions">
-                                <label class="id-upload-btn primary" for="faceUploadFile" id="faceCameraLabel">
-                                    <i class="fas fa-camera"></i> Take Photo
-                                    <input type="file" id="faceUploadFile" accept="image/jpeg,image/png,image/webp" capture="user" style="display:none">
-                                </label>
-                                <label class="id-upload-btn secondary" for="faceUploadFileGallery">
-                                    <i class="fas fa-upload"></i> Upload
-                                    <input type="file" id="faceUploadFileGallery" accept="image/jpeg,image/png,image/webp" style="display:none">
-                                </label>
+                            <div class="id-card-guide" id="idCardGuide" aria-hidden="true" style="display:none">
+                                <div class="id-card-frame">
+                                    <div class="id-corner id-corner-tl"></div>
+                                    <div class="id-corner id-corner-tr"></div>
+                                    <div class="id-corner id-corner-bl"></div>
+                                    <div class="id-corner id-corner-br"></div>
+                                    <span class="id-card-guide-label" id="idCardGuideLabel">Position Front ID inside frame</span>
+                                </div>
                             </div>
-                            <div class="id-upload-card-status" id="faceCardStatus"></div>
+
+                            <!-- Placeholder State -->
+                            <div class="id-camera-placeholder" id="idCameraPlaceholder">
+                                <div class="id-placeholder-icon">
+                                    <i class="fas fa-camera"></i>
+                                </div>
+                                <h4 class="id-placeholder-title">Camera verification required</h4>
+                                <p class="id-placeholder-desc">No gallery uploads are allowed. You must capture your live face and valid ID using the device camera.</p>
+                                <div class="id-camera-error-msg" id="idCameraErrorMsg" style="display:none"></div>
+                            </div>
                         </div>
 
-                        <!-- Card: Front ID -->
-                        <div class="id-upload-card" id="frontIdCard">
-                            <div class="id-upload-card-icon"><i class="fas fa-id-card"></i></div>
-                            <div class="id-upload-card-title">Front ID</div>
-                            <div class="id-upload-card-hint">Front side of your Philippine government-issued ID.</div>
-                            <div class="id-upload-card-preview" id="frontIdCardPreview" style="display:none">
-                                <img id="idFrontPreviewImage" alt="Front ID preview">
-                                <button type="button" class="id-retake-btn" id="frontIdRetakeBtn"><i class="fas fa-rotate-left"></i> Retake</button>
-                            </div>
-                            <div class="id-upload-card-actions" id="frontIdCardActions">
-                                <label class="id-upload-btn primary" for="frontIdUploadFile">
-                                    <i class="fas fa-camera"></i> Take Photo
-                                    <input type="file" id="frontIdUploadFile" accept="image/jpeg,image/png,image/webp" capture="environment" style="display:none">
-                                </label>
-                                <label class="id-upload-btn secondary" for="frontIdUploadFileGallery">
-                                    <i class="fas fa-upload"></i> Upload
-                                    <input type="file" id="frontIdUploadFileGallery" accept="image/jpeg,image/png,image/webp" style="display:none">
-                                </label>
-                            </div>
-                            <div class="id-upload-card-status" id="frontIdCardStatus"></div>
+                        <!-- 2. THREE TABS -->
+                        <div class="id-scanner-tabs" id="idScannerTabs" role="tablist">
+                            <button type="button" class="id-scanner-tab active" id="tabFace" data-tab="face" role="tab" aria-selected="true">
+                                <i class="fas fa-user"></i> <span>Face verification</span>
+                            </button>
+                            <button type="button" class="id-scanner-tab" id="tabFront" data-tab="front" role="tab" aria-selected="false">
+                                <i class="fas fa-id-card"></i> <span>Front ID</span>
+                            </button>
+                            <button type="button" class="id-scanner-tab" id="tabBack" data-tab="back" role="tab" aria-selected="false">
+                                <i class="fas fa-id-card"></i> <span>Back ID</span>
+                            </button>
                         </div>
 
-                        <!-- Card: Back ID -->
-                        <div class="id-upload-card" id="backIdCard">
-                            <div class="id-upload-card-icon"><i class="fas fa-address-card"></i></div>
-                            <div class="id-upload-card-title">Back ID</div>
-                            <div class="id-upload-card-hint">Back side of your Philippine government-issued ID.</div>
-                            <div class="id-upload-card-preview" id="backIdCardPreview" style="display:none">
-                                <img id="idBackPreviewImage" alt="Back ID preview">
-                                <button type="button" class="id-retake-btn" id="backIdRetakeBtn"><i class="fas fa-rotate-left"></i> Retake</button>
-                            </div>
-                            <div class="id-upload-card-actions" id="backIdCardActions">
-                                <label class="id-upload-btn primary" for="backIdUploadFile">
-                                    <i class="fas fa-camera"></i> Take Photo
-                                    <input type="file" id="backIdUploadFile" accept="image/jpeg,image/png,image/webp" capture="environment" style="display:none">
-                                </label>
-                                <label class="id-upload-btn secondary" for="backIdUploadFileGallery">
-                                    <i class="fas fa-upload"></i> Upload
-                                    <input type="file" id="backIdUploadFileGallery" accept="image/jpeg,image/png,image/webp" style="display:none">
-                                </label>
-                            </div>
-                            <div class="id-upload-card-status" id="backIdCardStatus"></div>
+                        <!-- 3. ACTION BUTTONS -->
+                        <div class="id-action-buttons" id="idActionButtons">
+                            <button type="button" class="id-act-btn primary" id="startCameraBtn" disabled>
+                                <i class="fas fa-video" id="startCameraIcon"></i>
+                                <span id="startCameraText">Start Camera</span>
+                            </button>
+                            <button type="button" class="id-act-btn secondary" id="captureFrontBtn" disabled>
+                                <i class="fas fa-camera"></i>
+                                <span>Capture Front</span>
+                            </button>
+                            <button type="button" class="id-act-btn secondary" id="captureBackBtn" disabled>
+                                <i class="fas fa-camera"></i>
+                                <span>Capture Back</span>
+                            </button>
                         </div>
 
-                    </div><!-- /.id-upload-cards -->
+                        <!-- 4. UPLOAD FALLBACK BUTTONS (Front/Back ID only, NO Face upload) -->
+                        <div class="id-upload-fallback-row" id="idUploadFallbackRow">
+                            <label class="id-fallback-upload-btn is-disabled" for="frontIdUploadFile" id="frontIdUploadLabel">
+                                <i class="fas fa-upload"></i>
+                                <span>Upload Front ID</span>
+                                <input type="file" id="frontIdUploadFile" accept="image/jpeg,image/png,image/webp" disabled style="display:none">
+                            </label>
+                            <label class="id-fallback-upload-btn is-disabled" for="backIdUploadFile" id="backIdUploadLabel">
+                                <i class="fas fa-upload"></i>
+                                <span>Upload Back ID</span>
+                                <input type="file" id="backIdUploadFile" accept="image/jpeg,image/png,image/webp" disabled style="display:none">
+                            </label>
+                        </div>
 
-                    <!-- OCR status bar -->
-                    <div class="id-ocr-status warning" id="idOcrStatus" style="margin-top:14px">
-                        <i class="fas fa-id-card-clip"></i>
-                        <span>Upload your Front ID and Back ID to auto-fill registration details via OCR.</span>
-                    </div>
+                        <!-- Instruction line -->
+                        <div class="id-instruction-line" id="idInstructionLine">
+                            <span id="idInstructionText">Start the camera and position your face inside the guide.</span>
+                        </div>
 
-                    <!-- Face match status -->
-                    <div class="face-match-status warning" id="faceMatchStatus" style="margin-top:8px">
-                        <i class="fas fa-user-shield"></i>
-                        <span>Upload your Face Photo and Front ID to verify your identity.</span>
-                    </div>
+                        <!-- 5. THREE PREVIEW THUMBNAILS -->
+                        <div class="id-preview-thumbnails" id="idPreviewThumbnails">
+                            <!-- Live Face Card -->
+                            <div class="id-thumb-card" id="faceThumbCard">
+                                <div class="id-thumb-header">
+                                    <span class="id-thumb-title">LIVE FACE</span>
+                                    <button type="button" class="id-thumb-retake" id="retakeFaceBtn" style="display:none" title="Retake live face">Retake</button>
+                                </div>
+                                <div class="id-thumb-preview" id="faceThumbPreview">
+                                    <img id="facePreviewImage" alt="Captured live face preview" style="display:none">
+                                    <div class="id-thumb-placeholder" id="faceThumbPlaceholder">
+                                        <i class="fas fa-user-circle"></i>
+                                        <span>Captured live face preview</span>
+                                    </div>
+                                </div>
+                            </div>
 
-                    <!-- Manual entry fallback -->
-                    <div style="margin-top:12px;text-align:center">
-                        <button type="button" class="id-manual-btn" id="manualEntryBtn">
-                            <i class="fas fa-pen"></i> Enter details manually instead
-                        </button>
-                    </div>
+                            <!-- Front ID Card -->
+                            <div class="id-thumb-card" id="frontThumbCard">
+                                <div class="id-thumb-header">
+                                    <span class="id-thumb-title">FRONT ID</span>
+                                    <button type="button" class="id-thumb-retake" id="retakeFrontBtn" style="display:none" title="Retake front ID">Retake</button>
+                                </div>
+                                <div class="id-thumb-preview" id="frontThumbPreview">
+                                    <img id="idFrontPreviewImage" alt="Captured front ID preview" style="display:none">
+                                    <div class="id-thumb-placeholder" id="frontThumbPlaceholder">
+                                        <i class="fas fa-id-card"></i>
+                                        <span>Captured front ID preview</span>
+                                    </div>
+                                </div>
+                            </div>
 
-                    <!-- hidden: keep video/canvas in DOM for face-api compatibility but invisible -->
-                    <video id="verificationVideo" style="display:none" playsinline muted></video>
-                    <canvas id="captureCanvas" hidden></canvas>
-                    <!-- legacy step refs (kept for JS compat) -->
-                    <div id="faceStep" style="display:none"></div>
-                    <div id="idFrontStep" style="display:none"></div>
-                    <div id="idBackStep" style="display:none"></div>
-                    <div id="startCameraBtn" style="display:none"></div>
-                    <div id="captureIdFrontBtn" style="display:none"></div>
-                    <div id="captureIdBackBtn" style="display:none"></div>
-                    <div id="cameraStatus" style="display:none"></div>
+                            <!-- Back ID Card -->
+                            <div class="id-thumb-card" id="backThumbCard">
+                                <div class="id-thumb-header">
+                                    <span class="id-thumb-title">BACK ID</span>
+                                    <button type="button" class="id-thumb-retake" id="retakeBackBtn" style="display:none" title="Retake back ID">Retake</button>
+                                </div>
+                                <div class="id-thumb-preview" id="backThumbPreview">
+                                    <img id="idBackPreviewImage" alt="Captured back ID preview" style="display:none">
+                                    <div class="id-thumb-placeholder" id="backThumbPlaceholder">
+                                        <i class="fas fa-id-card"></i>
+                                        <span>Captured back ID preview</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 6. TWO HELPER TEXT LINES -->
+                        <div class="id-helper-lines">
+                            <div class="id-helper-line">
+                                <i class="fas fa-user"></i>
+                                <span>Capture your live face and valid ID to compare identity details.</span>
+                            </div>
+                            <div class="id-helper-line">
+                                <i class="fas fa-id-card"></i>
+                                <span>Front and back ID text will be scanned to auto-fill identity details.</span>
+                            </div>
+                        </div>
+
+                        <!-- OCR status bar -->
+                        <div class="id-ocr-status warning" id="idOcrStatus" style="display:none;margin-top:12px">
+                            <i class="fas fa-id-card-clip"></i>
+                            <span>Upload your Front ID and Back ID to auto-fill registration details via OCR.</span>
+                        </div>
+
+                        <!-- Face match status -->
+                        <div class="face-match-status warning" id="faceMatchStatus" style="display:none;margin-top:8px">
+                            <i class="fas fa-user-shield"></i>
+                            <span>Upload your Face Photo and Front ID to verify your identity.</span>
+                        </div>
+
+                        <!-- Manual entry fallback -->
+                        <div style="margin-top:14px;text-align:center">
+                            <button type="button" class="id-manual-btn" id="manualEntryBtn">
+                                <i class="fas fa-pen"></i> Enter details manually instead
+                            </button>
+                        </div>
+                    </div><!-- /.id-scanner-wrap -->
 
                     <input type="hidden" id="face_capture" name="face_capture">
                     <input type="hidden" id="valid_id_capture" name="valid_id_capture">
@@ -3121,58 +3656,541 @@ $has_logo = is_file($logo_file);
             sex:                   document.getElementById('sex'),
         };
 
-        // ── Upload card element refs ─────────────────────────────────────────
-        const faceUploadFile         = document.getElementById('faceUploadFile');
-        const faceUploadFileGallery  = document.getElementById('faceUploadFileGallery');
+        // ── ID Scanner Element References ────────────────────────────────────
+        const idScannerWrap          = document.getElementById('idScannerWrap');
+        const idCameraStage          = document.getElementById('idCameraStage');
+        const video                  = document.getElementById('verificationVideo');
+        const captureCanvas          = document.getElementById('captureCanvas');
+        const idFaceGuide            = document.getElementById('idFaceGuide');
+        const idCardGuide            = document.getElementById('idCardGuide');
+        const idCardGuideLabel       = document.getElementById('idCardGuideLabel');
+        const idCameraPlaceholder    = document.getElementById('idCameraPlaceholder');
+        const idCameraErrorMsg       = document.getElementById('idCameraErrorMsg');
+        const tabFace                = document.getElementById('tabFace');
+        const tabFront               = document.getElementById('tabFront');
+        const tabBack                = document.getElementById('tabBack');
+        const startCameraBtn         = document.getElementById('startCameraBtn');
+        const startCameraIcon        = document.getElementById('startCameraIcon');
+        const startCameraText        = document.getElementById('startCameraText');
+        const captureFrontBtn        = document.getElementById('captureFrontBtn');
+        const captureBackBtn         = document.getElementById('captureBackBtn');
         const frontIdUploadFile      = document.getElementById('frontIdUploadFile');
-        const frontIdUploadFileGal   = document.getElementById('frontIdUploadFileGallery');
         const backIdUploadFile       = document.getElementById('backIdUploadFile');
-        const backIdUploadFileGal    = document.getElementById('backIdUploadFileGallery');
-        const faceRetakeBtn          = document.getElementById('faceRetakeBtn');
-        const frontIdRetakeBtn       = document.getElementById('frontIdRetakeBtn');
-        const backIdRetakeBtn        = document.getElementById('backIdRetakeBtn');
-        const faceCardPreview        = document.getElementById('faceCardPreview');
-        const faceCardActions        = document.getElementById('faceCardActions');
-        const frontIdCardPreview     = document.getElementById('frontIdCardPreview');
-        const frontIdCardActions     = document.getElementById('frontIdCardActions');
-        const backIdCardPreview      = document.getElementById('backIdCardPreview');
-        const backIdCardActions      = document.getElementById('backIdCardActions');
-        const faceCardStatus         = document.getElementById('faceCardStatus');
-        const frontIdCardStatus      = document.getElementById('frontIdCardStatus');
-        const backIdCardStatus       = document.getElementById('backIdCardStatus');
+        const frontIdUploadLabel     = document.getElementById('frontIdUploadLabel');
+        const backIdUploadLabel      = document.getElementById('backIdUploadLabel');
+        const idInstructionText      = document.getElementById('idInstructionText');
         const facePreviewImage       = document.getElementById('facePreviewImage');
         const idFrontPreviewImage    = document.getElementById('idFrontPreviewImage');
         const idBackPreviewImage     = document.getElementById('idBackPreviewImage');
+        const faceThumbPlaceholder   = document.getElementById('faceThumbPlaceholder');
+        const frontThumbPlaceholder  = document.getElementById('frontThumbPlaceholder');
+        const backThumbPlaceholder   = document.getElementById('backThumbPlaceholder');
+        const retakeFaceBtn          = document.getElementById('retakeFaceBtn');
+        const retakeFrontBtn         = document.getElementById('retakeFrontBtn');
+        const retakeBackBtn          = document.getElementById('retakeBackBtn');
         const idOcrStatus            = document.getElementById('idOcrStatus');
         const faceMatchStatus        = document.getElementById('faceMatchStatus');
         const faceMatchStatusInput   = document.getElementById('face_match_status_input');
         const idOcrStatusInput       = document.getElementById('id_ocr_status_input');
         const idScanConsent          = document.getElementById('idScanConsent');
-        const idUploadCards          = document.getElementById('idUploadCards');
         const manualEntryBtn         = document.getElementById('manualEntryBtn');
         const verificationMethodInputs = Array.from(document.querySelectorAll('input[name="verification_method"]'));
         const registrationFieldGroups  = Array.from(document.querySelectorAll('[data-registration-field]'));
         const strengthBars  = Array.from(document.querySelectorAll('.password-strength span'));
         const strengthText  = document.getElementById('passwordStrengthText');
 
-        // ── Consent gate — cards disabled until checked ───────────────────────
-        function setConsentState(enabled) {
-            if (!idUploadCards) return;
-            idUploadCards.querySelectorAll('input[type="file"], button.id-retake-btn').forEach(el => {
-                el.disabled = !enabled;
-            });
-            idUploadCards.style.opacity = enabled ? '' : '0.45';
-            idUploadCards.style.pointerEvents = enabled ? '' : 'none';
-        }
-        setConsentState(false); // start locked until consent
-        if (idScanConsent) {
-            idScanConsent.addEventListener('change', () => setConsentState(idScanConsent.checked));
+        // ── Camera & Scanner State ───────────────────────────────────────────
+        let activeCameraTab = 'face'; // 'face' | 'front' | 'back'
+        let cameraStream    = null;
+        let cameraRunning   = false;
+
+        function isConsentGiven() {
+            return Boolean(idScanConsent && idScanConsent.checked);
         }
 
-        // Manual entry bypass
+        function showCameraError(message) {
+            if (idCameraErrorMsg) {
+                idCameraErrorMsg.textContent = message;
+                idCameraErrorMsg.style.display = 'block';
+            }
+        }
+
+        function hideCameraError() {
+            if (idCameraErrorMsg) {
+                idCameraErrorMsg.textContent = '';
+                idCameraErrorMsg.style.display = 'none';
+            }
+        }
+
+        // ── Button and Tab State Synchronizer ─────────────────────────────────
+        function updateActionButtonsState() {
+            const consent = isConsentGiven();
+
+            // When consent is not given, all capture and camera buttons stay disabled
+            if (!consent) {
+                startCameraBtn.disabled = true;
+                captureFrontBtn.disabled = true;
+                captureBackBtn.disabled = true;
+                captureFrontBtn.classList.remove('is-highlighted');
+                captureBackBtn.classList.remove('is-highlighted');
+                if (frontIdUploadFile) frontIdUploadFile.disabled = true;
+                if (backIdUploadFile) backIdUploadFile.disabled = true;
+                if (frontIdUploadLabel) frontIdUploadLabel.classList.add('is-disabled');
+                if (backIdUploadLabel) backIdUploadLabel.classList.add('is-disabled');
+                return;
+            }
+
+            // Fallback uploads are unlocked once consent is checked
+            if (frontIdUploadFile) frontIdUploadFile.disabled = false;
+            if (backIdUploadFile) backIdUploadFile.disabled = false;
+            if (frontIdUploadLabel) frontIdUploadLabel.classList.remove('is-disabled');
+            if (backIdUploadLabel) backIdUploadLabel.classList.remove('is-disabled');
+
+            if (!cameraRunning) {
+                // Camera stopped: "Start Camera" is primary and ready
+                startCameraBtn.disabled = false;
+                startCameraBtn.className = 'id-act-btn primary';
+                if (startCameraIcon) startCameraIcon.className = 'fas fa-video';
+                if (startCameraText) startCameraText.textContent = 'Start Camera';
+
+                captureFrontBtn.disabled = true;
+                captureFrontBtn.className = 'id-act-btn secondary';
+                captureFrontBtn.classList.remove('is-highlighted');
+
+                captureBackBtn.disabled = true;
+                captureBackBtn.className = 'id-act-btn secondary';
+                captureBackBtn.classList.remove('is-highlighted');
+            } else {
+                // Camera actively running
+                if (activeCameraTab === 'face') {
+                    // Face tab: primary action is "Capture Face"
+                    startCameraBtn.disabled = false;
+                    startCameraBtn.className = 'id-act-btn primary';
+                    if (startCameraIcon) startCameraIcon.className = 'fas fa-camera';
+                    if (startCameraText) startCameraText.textContent = 'Capture Face';
+
+                    captureFrontBtn.disabled = true;
+                    captureFrontBtn.className = 'id-act-btn secondary';
+                    captureFrontBtn.classList.remove('is-highlighted');
+
+                    captureBackBtn.disabled = true;
+                    captureBackBtn.className = 'id-act-btn secondary';
+                    captureBackBtn.classList.remove('is-highlighted');
+                } else if (activeCameraTab === 'front') {
+                    // Front ID tab: "Capture Front" is highlighted primary; Button 1 allows "Stop Camera"
+                    startCameraBtn.disabled = false;
+                    startCameraBtn.className = 'id-act-btn secondary';
+                    if (startCameraIcon) startCameraIcon.className = 'fas fa-video-slash';
+                    if (startCameraText) startCameraText.textContent = 'Stop Camera';
+
+                    captureFrontBtn.disabled = false;
+                    captureFrontBtn.className = 'id-act-btn secondary is-highlighted';
+
+                    captureBackBtn.disabled = true;
+                    captureBackBtn.className = 'id-act-btn secondary';
+                    captureBackBtn.classList.remove('is-highlighted');
+                } else if (activeCameraTab === 'back') {
+                    // Back ID tab: "Capture Back" is highlighted primary; Button 1 allows "Stop Camera"
+                    startCameraBtn.disabled = false;
+                    startCameraBtn.className = 'id-act-btn secondary';
+                    if (startCameraIcon) startCameraIcon.className = 'fas fa-video-slash';
+                    if (startCameraText) startCameraText.textContent = 'Stop Camera';
+
+                    captureFrontBtn.disabled = true;
+                    captureFrontBtn.className = 'id-act-btn secondary';
+                    captureFrontBtn.classList.remove('is-highlighted');
+
+                    captureBackBtn.disabled = false;
+                    captureBackBtn.className = 'id-act-btn secondary is-highlighted';
+                }
+            }
+        }
+
+        // ── Tab Switching (Preserves stream if camera is running) ─────────────
+        function switchScannerTab(targetTab) {
+            activeCameraTab = targetTab;
+
+            if (tabFace) {
+                tabFace.classList.toggle('active', targetTab === 'face');
+                tabFace.setAttribute('aria-selected', targetTab === 'face' ? 'true' : 'false');
+            }
+            if (tabFront) {
+                tabFront.classList.toggle('active', targetTab === 'front');
+                tabFront.setAttribute('aria-selected', targetTab === 'front' ? 'true' : 'false');
+            }
+            if (tabBack) {
+                tabBack.classList.toggle('active', targetTab === 'back');
+                tabBack.setAttribute('aria-selected', targetTab === 'back' ? 'true' : 'false');
+            }
+
+            if (targetTab === 'face') {
+                if (idCameraStage) {
+                    idCameraStage.classList.add('is-face-mode');
+                    idCameraStage.classList.remove('is-id-mode');
+                }
+                if (idFaceGuide) idFaceGuide.style.display = 'flex';
+                if (idCardGuide) idCardGuide.style.display = 'none';
+                if (idInstructionText) {
+                    idInstructionText.textContent = cameraRunning
+                        ? 'Position your face clearly inside the oval guide and click Capture Face.'
+                        : 'Start the camera and position your face inside the guide.';
+                }
+            } else if (targetTab === 'front') {
+                if (idCameraStage) {
+                    idCameraStage.classList.remove('is-face-mode');
+                    idCameraStage.classList.add('is-id-mode');
+                }
+                if (idFaceGuide) idFaceGuide.style.display = 'none';
+                if (idCardGuide) idCardGuide.style.display = 'flex';
+                if (idCardGuideLabel) idCardGuideLabel.textContent = 'Position Front ID inside frame';
+                if (idInstructionText) {
+                    idInstructionText.textContent = cameraRunning
+                        ? 'Align the front of your ID within the frame and click Capture Front.'
+                        : 'Align the front of your ID within the frame and capture.';
+                }
+            } else if (targetTab === 'back') {
+                if (idCameraStage) {
+                    idCameraStage.classList.remove('is-face-mode');
+                    idCameraStage.classList.add('is-id-mode');
+                }
+                if (idFaceGuide) idFaceGuide.style.display = 'none';
+                if (idCardGuide) idCardGuide.style.display = 'flex';
+                if (idCardGuideLabel) idCardGuideLabel.textContent = 'Position Back ID inside frame';
+                if (idInstructionText) {
+                    idInstructionText.textContent = cameraRunning
+                        ? 'Align the back of your ID within the frame and click Capture Back.'
+                        : 'Align the back of your ID within the frame and capture.';
+                }
+            }
+
+            updateActionButtonsState();
+        }
+
+        if (tabFace)  tabFace.addEventListener('click', () => switchScannerTab('face'));
+        if (tabFront) tabFront.addEventListener('click', () => switchScannerTab('front'));
+        if (tabBack)  tabBack.addEventListener('click', () => switchScannerTab('back'));
+
+        // ── Camera Control (getUserMedia) ────────────────────────────────────
+        async function startCamera(preferredFacing = null) {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                const msg = window.isSecureContext
+                    ? 'Camera access is not supported by your browser.'
+                    : 'Camera access requires a secure origin (HTTPS or localhost).';
+                showCameraError(msg);
+                showToast('error', 'Camera Error', msg);
+                return false;
+            }
+
+            if (!isConsentGiven()) {
+                showToast('warning', 'Consent Required', 'Please check the consent box above before starting the camera.');
+                if (idScanConsent) {
+                    idScanConsent.focus();
+                    idScanConsent.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                return false;
+            }
+
+            hideCameraError();
+
+            if (cameraStream) {
+                try { cameraStream.getTracks().forEach(t => t.stop()); } catch (e) {}
+                cameraStream = null;
+            }
+
+            const facing = preferredFacing || (activeCameraTab === 'face' ? 'user' : 'environment');
+
+            try {
+                try {
+                    cameraStream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            facingMode: { ideal: facing },
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        },
+                        audio: false
+                    });
+                } catch (constraintErr) {
+                    if (constraintErr && ['NotAllowedError', 'SecurityError'].includes(constraintErr.name)) {
+                        throw constraintErr;
+                    }
+                    cameraStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                }
+
+                if (video) {
+                    video.srcObject = cameraStream;
+                    await new Promise((resolve) => {
+                        if (video.readyState >= 1 && video.videoWidth > 0) return resolve();
+                        video.addEventListener('loadedmetadata', resolve, { once: true });
+                    });
+                    await video.play();
+                }
+
+                cameraRunning = true;
+                if (idCameraStage) idCameraStage.classList.add('is-active');
+                switchScannerTab(activeCameraTab);
+                setFieldError('live_verification', '');
+                return true;
+            } catch (err) {
+                cameraRunning = false;
+                if (idCameraStage) idCameraStage.classList.remove('is-active');
+                const blocked = err && ['NotAllowedError', 'SecurityError'].includes(err.name);
+                const notFound = err && ['NotFoundError', 'DevicesNotFoundError'].includes(err.name);
+                const msg = blocked
+                    ? 'Camera permission denied. Allow camera access for this site in your browser settings, then try again.'
+                    : (notFound
+                        ? 'No usable camera was found on this device.'
+                        : 'Could not access device camera: ' + (err && err.message ? err.message : 'Unknown error'));
+                showCameraError(msg);
+                showToast('error', 'Camera Error', msg);
+                updateActionButtonsState();
+                return false;
+            }
+        }
+
+        function stopCamera() {
+            if (cameraStream) {
+                try { cameraStream.getTracks().forEach(t => t.stop()); } catch (e) {}
+                cameraStream = null;
+            }
+            if (video) { video.srcObject = null; }
+            cameraRunning = false;
+            if (idCameraStage) idCameraStage.classList.remove('is-active');
+            switchScannerTab(activeCameraTab);
+        }
+
+        // ── Frame Snapshot from Video to Base64 ───────────────────────────────
+        function captureFrame() {
+            if (!video || !video.videoWidth || !video.videoHeight) {
+                showToast('error', 'Camera Not Ready', 'The camera video is still initializing. Please wait a moment.');
+                return null;
+            }
+            const canvas = captureCanvas || document.createElement('canvas');
+            canvas.width  = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            return canvas.toDataURL('image/jpeg', 0.92);
+        }
+
+        // ── Data & Thumbnail Updaters ─────────────────────────────────────────
+        function setFaceData(dataUrl) {
+            fields.face_capture.value = dataUrl;
+            if (facePreviewImage) {
+                facePreviewImage.src = dataUrl;
+                facePreviewImage.style.display = 'block';
+            }
+            if (faceThumbPlaceholder) faceThumbPlaceholder.style.display = 'none';
+            if (retakeFaceBtn) retakeFaceBtn.style.display = 'inline-block';
+            setFaceStatus('warning', 'Live face photo captured. Scan your Front ID to verify your identity.');
+            setFieldError('live_verification', '');
+            updateSubmitGate();
+
+            // Run face verification if Front ID already present
+            if (fields.valid_id_capture.value && fields.valid_id_capture.value !== 'manual' && window.FaceVerification && typeof window.FaceVerification.verifyLiveAgainstId === 'function') {
+                setFaceStatus('warning', 'Comparing face photo with ID…');
+                window.FaceVerification.verifyLiveAgainstId(facePreviewImage, idFrontPreviewImage)
+                    .then(res => {
+                        const score = Math.round(Number(res.score ?? res.matchScore ?? 0));
+                        const isMatch = Boolean(res.is_match ?? res.isMatch ?? res.match);
+                        if (isMatch) setFaceStatus('success', 'Face verified', score);
+                        else setFaceStatus('warning', 'Face needs admin review. You can continue — ID details will be checked manually.', score);
+                    })
+                    .catch(() => setFaceStatus('warning', 'Face verification will be reviewed by the Parish Office.'));
+            }
+        }
+
+        function setFrontIdData(dataUrl) {
+            fields.valid_id_capture.value = dataUrl;
+            if (idFrontPreviewImage) {
+                idFrontPreviewImage.src = dataUrl;
+                idFrontPreviewImage.style.display = 'block';
+            }
+            if (frontThumbPlaceholder) frontThumbPlaceholder.style.display = 'none';
+            if (retakeFrontBtn) retakeFrontBtn.style.display = 'inline-block';
+            setIdOcrStatus('warning', 'Front ID ready' + (fields.valid_id_back_capture.value && fields.valid_id_back_capture.value !== 'manual' ? ' — scanning text…' : ' — capture or upload Back ID to start OCR.'));
+            setFieldError('live_verification', '');
+            updateSubmitGate();
+            maybeTriggerOcr();
+
+            // Run face verification if Face capture already present
+            if (fields.face_capture.value && fields.face_capture.value !== 'manual' && window.FaceVerification && typeof window.FaceVerification.verifyLiveAgainstId === 'function') {
+                setFaceStatus('warning', 'Comparing face photo with ID…');
+                window.FaceVerification.verifyLiveAgainstId(facePreviewImage, idFrontPreviewImage)
+                    .then(res => {
+                        const score = Math.round(Number(res.score ?? res.matchScore ?? 0));
+                        const isMatch = Boolean(res.is_match ?? res.isMatch ?? res.match);
+                        if (isMatch) setFaceStatus('success', 'Face verified', score);
+                        else setFaceStatus('warning', 'Face needs admin review. You can continue — ID details will be checked manually.', score);
+                    })
+                    .catch(() => setFaceStatus('warning', 'Face verification will be reviewed by the Parish Office.'));
+            }
+        }
+
+        function setBackIdData(dataUrl) {
+            fields.valid_id_back_capture.value = dataUrl;
+            if (idBackPreviewImage) {
+                idBackPreviewImage.src = dataUrl;
+                idBackPreviewImage.style.display = 'block';
+            }
+            if (backThumbPlaceholder) backThumbPlaceholder.style.display = 'none';
+            if (retakeBackBtn) retakeBackBtn.style.display = 'inline-block';
+            setIdOcrStatus('warning', 'Back ID ready' + (fields.valid_id_capture.value && fields.valid_id_capture.value !== 'manual' ? ' — scanning text…' : ' — capture or upload Front ID too.'));
+            setFieldError('live_verification', '');
+            updateSubmitGate();
+            maybeTriggerOcr();
+        }
+
+        // ── Action Buttons Click Handlers ────────────────────────────────────
+        if (startCameraBtn) {
+            startCameraBtn.addEventListener('click', async () => {
+                if (!cameraRunning) {
+                    await startCamera();
+                } else {
+                    if (activeCameraTab === 'face') {
+                        const dataUrl = captureFrame();
+                        if (dataUrl) {
+                            setFaceData(dataUrl);
+                            showToast('success', 'Face Captured', 'Live face photo saved. You may now switch to Front ID.');
+                            switchScannerTab('front');
+                        }
+                    } else {
+                        // User clicked Stop Camera while on Front or Back ID tab
+                        stopCamera();
+                    }
+                }
+            });
+        }
+
+        if (captureFrontBtn) {
+            captureFrontBtn.addEventListener('click', () => {
+                if (!cameraRunning) return;
+                const dataUrl = captureFrame();
+                if (dataUrl) {
+                    setFrontIdData(dataUrl);
+                    showToast('success', 'Front ID Captured', 'Front ID saved. Now capture or upload the Back ID.');
+                    switchScannerTab('back');
+                }
+            });
+        }
+
+        if (captureBackBtn) {
+            captureBackBtn.addEventListener('click', () => {
+                if (!cameraRunning) return;
+                const dataUrl = captureFrame();
+                if (dataUrl) {
+                    setBackIdData(dataUrl);
+                    showToast('success', 'Back ID Captured', 'Back ID saved. Starting OCR text scan.');
+                }
+            });
+        }
+
+        // ── File Upload Fallback Handlers (Front and Back only, NO Face upload) ─
+        function readImageFile(file) {
+            return new Promise((resolve, reject) => {
+                const ALLOWED = ['image/jpeg', 'image/png', 'image/webp'];
+                if (!file) { reject(new Error('No file selected.')); return; }
+                if (!ALLOWED.includes(file.type)) { reject(new Error('Please upload a JPG, PNG, or WEBP image.')); return; }
+                if (file.size > 8 * 1024 * 1024) { reject(new Error('Image exceeds the 8 MB limit. Please compress it first.')); return; }
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => reject(new Error('Could not read the file. Try again.'));
+                reader.readAsDataURL(file);
+            });
+        }
+
+        if (frontIdUploadFile) {
+            frontIdUploadFile.addEventListener('change', async () => {
+                if (frontIdUploadFile.files && frontIdUploadFile.files[0]) {
+                    try {
+                        const dataUrl = await readImageFile(frontIdUploadFile.files[0]);
+                        setFrontIdData(dataUrl);
+                        showToast('success', 'Front ID Uploaded', 'Front ID image successfully loaded.');
+                    } catch (err) {
+                        showToast('error', 'Upload Failed', err.message);
+                    }
+                    frontIdUploadFile.value = '';
+                }
+            });
+        }
+
+        if (backIdUploadFile) {
+            backIdUploadFile.addEventListener('change', async () => {
+                if (backIdUploadFile.files && backIdUploadFile.files[0]) {
+                    try {
+                        const dataUrl = await readImageFile(backIdUploadFile.files[0]);
+                        setBackIdData(dataUrl);
+                        showToast('success', 'Back ID Uploaded', 'Back ID image successfully loaded.');
+                    } catch (err) {
+                        showToast('error', 'Upload Failed', err.message);
+                    }
+                    backIdUploadFile.value = '';
+                }
+            });
+        }
+
+        // ── Retake Buttons ───────────────────────────────────────────────────
+        if (retakeFaceBtn) {
+            retakeFaceBtn.addEventListener('click', () => {
+                fields.face_capture.value = '';
+                if (facePreviewImage) {
+                    facePreviewImage.removeAttribute('src');
+                    facePreviewImage.style.display = 'none';
+                }
+                if (faceThumbPlaceholder) faceThumbPlaceholder.style.display = 'flex';
+                retakeFaceBtn.style.display = 'none';
+                setFaceStatus('warning', 'Capture your live face and valid ID to verify your identity.');
+                faceMatchStatusInput.value = 'pending';
+                switchScannerTab('face');
+                updateSubmitGate();
+            });
+        }
+
+        if (retakeFrontBtn) {
+            retakeFrontBtn.addEventListener('click', () => {
+                fields.valid_id_capture.value = '';
+                if (idFrontPreviewImage) {
+                    idFrontPreviewImage.removeAttribute('src');
+                    idFrontPreviewImage.style.display = 'none';
+                }
+                if (frontThumbPlaceholder) frontThumbPlaceholder.style.display = 'flex';
+                retakeFrontBtn.style.display = 'none';
+                setIdOcrStatus('warning', 'Capture your Front ID and Back ID to auto-fill registration details via OCR.');
+                idOcrStatusInput.value = 'pending';
+                ['surname','first_name','middle_initial','address','birth_place','id_number','birthdate'].forEach(n => {
+                    if (fields[n]) fields[n].classList.remove('ocr-autofilled');
+                });
+                switchScannerTab('front');
+                updateSubmitGate();
+            });
+        }
+
+        if (retakeBackBtn) {
+            retakeBackBtn.addEventListener('click', () => {
+                fields.valid_id_back_capture.value = '';
+                if (idBackPreviewImage) {
+                    idBackPreviewImage.removeAttribute('src');
+                    idBackPreviewImage.style.display = 'none';
+                }
+                if (backThumbPlaceholder) backThumbPlaceholder.style.display = 'flex';
+                retakeBackBtn.style.display = 'none';
+                setIdOcrStatus('warning', 'Capture your Front ID and Back ID to auto-fill registration details via OCR.');
+                idOcrStatusInput.value = 'pending';
+                switchScannerTab('back');
+                updateSubmitGate();
+            });
+        }
+
+        // ── Consent Checkbox Gate ─────────────────────────────────────────────
+        if (idScanConsent) {
+            idScanConsent.addEventListener('change', () => {
+                updateActionButtonsState();
+            });
+        }
+        updateActionButtonsState(); // initialized with current checkbox state
+
+        // ── Manual Entry Fallback ─────────────────────────────────────────────
         if (manualEntryBtn) {
             manualEntryBtn.addEventListener('click', () => {
-                // Mark step 1 as manually bypassed — accept empty captures
                 fields.face_capture.value = 'manual';
                 fields.valid_id_capture.value = 'manual';
                 fields.valid_id_back_capture.value = 'manual';
@@ -3180,13 +4198,15 @@ $has_logo = is_file($logo_file);
                 setFaceStatus('warning', 'Identity will be verified manually by the Parish Office.');
                 faceMatchStatusInput.value = 'admin_review';
                 idOcrStatusInput.value = 'pending';
-                _updateStepBadges('error'); // unlocks banner
+                _updateStepBadges('error');
                 updateSubmitGate();
-                showToast('info', 'Manual mode', 'Fill in all personal details in Step 2 manually.');
+                showToast('info', 'Manual Mode', 'Fill in all personal details in Step 2 manually.');
+                const step2 = document.getElementById('regStep2');
+                if (step2) step2.scrollIntoView({ behavior: 'smooth', block: 'start' });
             });
         }
 
-        // ── CSRF helpers ────────────────────────────────────────────────────
+        // ── CSRF Helpers ─────────────────────────────────────────────────────
         function currentCsrfField() {
             return form.querySelector('input[name="' + csrfTokenName + '"]');
         }
@@ -3205,111 +4225,6 @@ $has_logo = is_file($logo_file);
             } catch (e) { /* non-blocking */ }
             const existing = currentCsrfField();
             return existing && existing.value ? existing.value : '';
-        }
-
-        // ── Image file reader ────────────────────────────────────────────────
-        function readImageFile(file) {
-            return new Promise((resolve, reject) => {
-                const ALLOWED = ['image/jpeg', 'image/png', 'image/webp'];
-                if (!file) { reject(new Error('No file selected.')); return; }
-                if (!ALLOWED.includes(file.type)) { reject(new Error('Please upload a JPG, PNG, or WEBP image.')); return; }
-                if (file.size > 8 * 1024 * 1024) { reject(new Error('Image exceeds the 8 MB limit. Please compress it first.')); return; }
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = () => reject(new Error('Could not read the file. Try again.'));
-                reader.readAsDataURL(file);
-            });
-        }
-
-        // ── Card state helpers ───────────────────────────────────────────────
-        function showCardPreview(previewEl, actionsEl, imgEl, dataUrl, statusEl, msg) {
-            imgEl.src = dataUrl;
-            previewEl.style.display = '';
-            actionsEl.style.display = 'none';
-            if (statusEl) { statusEl.textContent = msg || '✓ Ready'; statusEl.style.color = '#22c55e'; }
-        }
-        function resetCard(previewEl, actionsEl, imgEl, hiddenInput, statusEl) {
-            imgEl.removeAttribute('src');
-            previewEl.style.display = 'none';
-            actionsEl.style.display = '';
-            hiddenInput.value = '';
-            if (statusEl) { statusEl.textContent = ''; }
-        }
-
-        // ── Face photo handling ───────────────────────────────────────────────
-        async function handleFaceFile(file) {
-            try {
-                const dataUrl = await readImageFile(file);
-                fields.face_capture.value = dataUrl;
-                showCardPreview(faceCardPreview, faceCardActions, facePreviewImage, dataUrl, faceCardStatus, '✓ Face photo ready');
-                setFaceStatus('warning', 'Face photo uploaded. Upload your Front ID to complete identity verification.');
-                updateSubmitGate();
-            } catch (e) { showToast('error', 'Face upload failed', e.message); }
-        }
-        function bindFileInput(input, handler) {
-            if (!input) return;
-            input.addEventListener('change', () => {
-                if (input.files && input.files[0]) handler(input.files[0]);
-                input.value = ''; // reset so same file can be re-selected
-            });
-        }
-        bindFileInput(faceUploadFile,        handleFaceFile);
-        bindFileInput(faceUploadFileGallery, handleFaceFile);
-        if (faceRetakeBtn) {
-            faceRetakeBtn.addEventListener('click', () => {
-                resetCard(faceCardPreview, faceCardActions, facePreviewImage, fields.face_capture, faceCardStatus);
-                setFaceStatus('warning', 'Upload your Face Photo and Front ID to verify your identity.');
-                faceMatchStatusInput.value = 'pending';
-                updateSubmitGate();
-            });
-        }
-
-        // ── Front ID handling ────────────────────────────────────────────────
-        async function handleFrontIdFile(file) {
-            try {
-                const dataUrl = await readImageFile(file);
-                fields.valid_id_capture.value = dataUrl;
-                showCardPreview(frontIdCardPreview, frontIdCardActions, idFrontPreviewImage, dataUrl, frontIdCardStatus, '✓ Front ID ready');
-                setIdOcrStatus('warning', 'Front ID uploaded' + (fields.valid_id_back_capture.value && fields.valid_id_back_capture.value !== 'manual' ? ' — scanning…' : ' — upload Back ID to start OCR.'));
-                updateSubmitGate();
-                maybeTriggerOcr();
-            } catch (e) { showToast('error', 'Front ID upload failed', e.message); }
-        }
-        bindFileInput(frontIdUploadFile,    handleFrontIdFile);
-        bindFileInput(frontIdUploadFileGal, handleFrontIdFile);
-        if (frontIdRetakeBtn) {
-            frontIdRetakeBtn.addEventListener('click', () => {
-                resetCard(frontIdCardPreview, frontIdCardActions, idFrontPreviewImage, fields.valid_id_capture, frontIdCardStatus);
-                setIdOcrStatus('warning', 'Upload your Front ID and Back ID to auto-fill registration details via OCR.');
-                idOcrStatusInput.value = 'pending';
-                // Clear OCR-filled fields so user knows to redo
-                ['surname','first_name','middle_initial','address','birth_place','id_number','birthdate'].forEach(n => {
-                    if (fields[n]) fields[n].classList.remove('ocr-autofilled');
-                });
-                updateSubmitGate();
-            });
-        }
-
-        // ── Back ID handling ─────────────────────────────────────────────────
-        async function handleBackIdFile(file) {
-            try {
-                const dataUrl = await readImageFile(file);
-                fields.valid_id_back_capture.value = dataUrl;
-                showCardPreview(backIdCardPreview, backIdCardActions, idBackPreviewImage, dataUrl, backIdCardStatus, '✓ Back ID ready');
-                setIdOcrStatus('warning', 'Back ID uploaded' + (fields.valid_id_capture.value && fields.valid_id_capture.value !== 'manual' ? ' — scanning…' : ' — upload Front ID too.'));
-                updateSubmitGate();
-                maybeTriggerOcr();
-            } catch (e) { showToast('error', 'Back ID upload failed', e.message); }
-        }
-        bindFileInput(backIdUploadFile,    handleBackIdFile);
-        bindFileInput(backIdUploadFileGal, handleBackIdFile);
-        if (backIdRetakeBtn) {
-            backIdRetakeBtn.addEventListener('click', () => {
-                resetCard(backIdCardPreview, backIdCardActions, idBackPreviewImage, fields.valid_id_back_capture, backIdCardStatus);
-                setIdOcrStatus('warning', 'Upload your Front ID and Back ID to auto-fill registration details via OCR.');
-                idOcrStatusInput.value = 'pending';
-                updateSubmitGate();
-            });
         }
 
         // ── OCR trigger — fires when both IDs are present ────────────────────
@@ -3778,37 +4693,6 @@ $has_logo = is_file($logo_file);
             }
         });
 
-        // ── CSS for upload card UI (injected inline for self-containment) ─────
-        const idCardStyles = document.createElement('style');
-        idCardStyles.textContent = `
-        .id-scan-consent-wrap { margin: 12px 0 10px; padding: 12px 16px; background: rgba(255,248,235,0.07); border: 1px solid rgba(255,248,235,0.18); border-radius: 10px; }
-        .id-scan-consent-label { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; font-size: 13px; color: rgba(255,248,235,0.82); line-height: 1.5; }
-        .id-scan-consent-label input[type="checkbox"] { flex-shrink: 0; width: 16px; height: 16px; margin-top: 2px; accent-color: #D4A94E; cursor: pointer; }
-        .id-scan-guidelines { background: rgba(255,248,235,0.05); border-left: 3px solid #D4A94E; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 12.5px; color: rgba(255,248,235,0.7); }
-        .id-scan-guidelines strong { display: flex; align-items: center; gap: 6px; color: #D4A94E; margin-bottom: 8px; font-size: 13px; }
-        .id-scan-guidelines ul { margin: 0; padding-left: 18px; }
-        .id-scan-guidelines li { margin-bottom: 4px; }
-        .id-upload-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin: 0 0 4px; }
-        .id-upload-card { background: rgba(255,248,235,0.06); border: 1.5px dashed rgba(255,248,235,0.22); border-radius: 14px; padding: 16px 14px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; transition: border-color .2s, background .2s; }
-        .id-upload-card:hover { border-color: #D4A94E; background: rgba(212,169,78,0.08); }
-        .id-upload-card-icon { font-size: 28px; color: rgba(255,248,235,0.45); }
-        .id-upload-card-title { font-weight: 700; font-size: 14px; color: rgba(255,248,235,0.9); }
-        .id-upload-card-hint { font-size: 11.5px; color: rgba(255,248,235,0.5); line-height: 1.4; }
-        .id-upload-card-preview { width: 100%; }
-        .id-upload-card-preview img { width: 100%; max-height: 120px; object-fit: cover; border-radius: 8px; border: 1px solid rgba(255,248,235,0.15); }
-        .id-upload-card-actions { display: flex; flex-direction: column; gap: 7px; width: 100%; }
-        .id-upload-btn { display: flex; align-items: center; justify-content: center; gap: 7px; padding: 9px 14px; border-radius: 8px; font-size: 12.5px; font-weight: 600; cursor: pointer; text-decoration: none; border: none; transition: background .18s, transform .12s; }
-        .id-upload-btn.primary { background: linear-gradient(135deg,#D4A94E,#B07D2A); color: #fff; }
-        .id-upload-btn.primary:hover { background: linear-gradient(135deg,#e0b85a,#c08d36); transform: translateY(-1px); }
-        .id-upload-btn.secondary { background: rgba(255,248,235,0.1); color: rgba(255,248,235,0.82); border: 1px solid rgba(255,248,235,0.2); }
-        .id-upload-btn.secondary:hover { background: rgba(255,248,235,0.18); transform: translateY(-1px); }
-        .id-retake-btn { background: rgba(239,68,68,0.15); color: #fca5a5; border: 1px solid rgba(239,68,68,0.3); border-radius: 7px; padding: 6px 12px; font-size: 12px; cursor: pointer; margin-top: 7px; display: flex; align-items: center; gap: 6px; }
-        .id-retake-btn:hover { background: rgba(239,68,68,0.25); }
-        .id-upload-card-status { font-size: 12px; font-weight: 600; min-height: 16px; }
-        .id-manual-btn { background: none; border: 1px solid rgba(255,248,235,0.2); color: rgba(255,248,235,0.55); border-radius: 8px; padding: 7px 16px; font-size: 12.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: border-color .18s, color .18s; }
-        .id-manual-btn:hover { border-color: rgba(255,248,235,0.4); color: rgba(255,248,235,0.82); }
-        `;
-        document.head.appendChild(idCardStyles);
 
         // ── Initialize ─────────────────────────────────────────────────────────
         initTermsScrollGate();
