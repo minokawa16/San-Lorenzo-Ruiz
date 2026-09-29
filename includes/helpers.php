@@ -3936,3 +3936,51 @@ function format_baptism_sponsors($godparents) {
     return !empty($cleaned) ? $cleaned : 'N/A';
 }
 
+/**
+ * Returns the configured Priest-in-Charge name for official certificates.
+ * Configurable in Parish Settings (parish.priest_in_charge).
+ *
+ * @param mysqli|null $conn
+ * @return string
+ */
+function getPriestInChargeName($conn = null) {
+    global $conn;
+    $db = $conn;
+    if ($db) {
+        $stmt = @$db->prepare("SELECT setting_value FROM system_settings WHERE setting_key IN ('parish.priest_in_charge', 'parish_priest_name') AND setting_value IS NOT NULL AND setting_value != '' ORDER BY CASE WHEN setting_key = 'parish.priest_in_charge' THEN 1 ELSE 2 END LIMIT 1");
+        if ($stmt) {
+            $stmt->execute();
+            $row = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            if ($row && !empty(trim((string)$row['setting_value']))) {
+                return trim((string)$row['setting_value']);
+            }
+        }
+    }
+    return 'REV. FR. HERIBERTO C. VILLAS, O.M.I.';
+}
+
+/**
+ * Returns the configured Priest-in-Charge title for official certificates.
+ * Configurable in Parish Settings (parish.priest_in_charge_title).
+ *
+ * @param mysqli|null $conn
+ * @return string
+ */
+function getPriestInChargeTitle($conn = null) {
+    global $conn;
+    $db = $conn;
+    if ($db) {
+        $stmt = @$db->prepare("SELECT setting_value FROM system_settings WHERE setting_key = 'parish.priest_in_charge_title' LIMIT 1");
+        if ($stmt) {
+            $stmt->execute();
+            $row = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            if ($row && !empty(trim((string)$row['setting_value']))) {
+                return trim((string)$row['setting_value']);
+            }
+        }
+    }
+    return 'Priest-in-Charge';
+}
+

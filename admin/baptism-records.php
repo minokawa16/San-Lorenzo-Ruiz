@@ -121,6 +121,17 @@ if ($action === 'add' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $birth_status = trim($_POST['birth_status'] ?? '');
     $parents = trim($_POST['parents'] ?? '');
     $parent_address = trim($_POST['parent_address'] ?? '');
+    $father_name = trim($_POST['father_name'] ?? '');
+    $father_birth_place = trim($_POST['father_birth_place'] ?? '');
+    $mother_name = trim($_POST['mother_name'] ?? '');
+    $mother_birth_place = trim($_POST['mother_birth_place'] ?? '');
+    if ($parents && (!$father_name || !$mother_name)) {
+        $p_parts = preg_split('/\s+(?:and|&)\s+|\s*\/\s*|\s*,\s*/i', $parents);
+        if (count($p_parts) >= 2) {
+            if (!$father_name) $father_name = trim($p_parts[0]);
+            if (!$mother_name) $mother_name = trim($p_parts[1]);
+        }
+    }
     $baptism_date = !empty($_POST['baptism_date']) ? $_POST['baptism_date'] : null;
     $godparents = trim($_POST['godparents'] ?? '');
     $parish_address = trim($_POST['parish_address'] ?? '');
@@ -132,9 +143,9 @@ if ($action === 'add' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $request_id = !empty($_POST['request_id']) ? (int)$_POST['request_id'] : null;
 
     if ($fullname && $baptism_date && $parents) {
-        $stmt = $conn->prepare("INSERT INTO baptism_records (registry_no, book_no, page_no, fullname, birth_date, birth_place, birth_status, parents, parent_address, baptism_date, godparents, parish_address, priest, remarks, parish_priest, parish_secretary, status, request_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt = $conn->prepare("INSERT INTO baptism_records (registry_no, book_no, page_no, fullname, birth_date, birth_place, birth_status, parents, father_name, father_birth_place, mother_name, mother_birth_place, parent_address, baptism_date, godparents, parish_address, priest, remarks, parish_priest, parish_secretary, status, request_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         if ($stmt) {
-            $stmt->bind_param("sssssssssssssssssi", $registry_no, $book_no, $page_no, $fullname, $birth_date, $birth_place, $birth_status, $parents, $parent_address, $baptism_date, $godparents, $parish_address, $priest, $remarks, $parish_priest, $parish_secretary, $status, $request_id);
+            $stmt->bind_param("sssssssssssssssssssssi", $registry_no, $book_no, $page_no, $fullname, $birth_date, $birth_place, $birth_status, $parents, $father_name, $father_birth_place, $mother_name, $mother_birth_place, $parent_address, $baptism_date, $godparents, $parish_address, $priest, $remarks, $parish_priest, $parish_secretary, $status, $request_id);
             if ($stmt->execute()) {
                 $message = "Baptism record added successfully!";
                 $alert_type = "success";
@@ -162,6 +173,28 @@ if ($action === 'edit' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $birth_status = trim($_POST['birth_status'] ?? '');
     $parents = trim($_POST['parents'] ?? '');
     $parent_address = trim($_POST['parent_address'] ?? '');
+    $father_name = trim($_POST['father_name'] ?? '');
+    $father_birth_place = trim($_POST['father_birth_place'] ?? '');
+    $mother_name = trim($_POST['mother_name'] ?? '');
+    $mother_birth_place = trim($_POST['mother_birth_place'] ?? '');
+    if ($parents && (!$father_name || !$mother_name)) {
+        $p_parts = preg_split('/\s+(?:and|&)\s+|\s*\/\s*|\s*,\s*/i', $parents);
+        if (count($p_parts) >= 2) {
+            if (!$father_name) $father_name = trim($p_parts[0]);
+            if (!$mother_name) $mother_name = trim($p_parts[1]);
+        }
+    }
+    $father_name = trim($_POST['father_name'] ?? '');
+    $father_birth_place = trim($_POST['father_birth_place'] ?? '');
+    $mother_name = trim($_POST['mother_name'] ?? '');
+    $mother_birth_place = trim($_POST['mother_birth_place'] ?? '');
+    if ($parents && (!$father_name || !$mother_name)) {
+        $p_parts = preg_split('/\s+(?:and|&)\s+|\s*\/\s*|\s*,\s*/i', $parents);
+        if (count($p_parts) >= 2) {
+            if (!$father_name) $father_name = trim($p_parts[0]);
+            if (!$mother_name) $mother_name = trim($p_parts[1]);
+        }
+    }
     $baptism_date = !empty($_POST['baptism_date']) ? $_POST['baptism_date'] : null;
     $godparents = trim($_POST['godparents'] ?? '');
     $parish_address = trim($_POST['parish_address'] ?? '');
@@ -173,9 +206,9 @@ if ($action === 'edit' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $request_id = !empty($_POST['request_id']) ? (int)$_POST['request_id'] : null;
 
     if ($record_id && $fullname && $baptism_date && $parents) {
-        $stmt = $conn->prepare("UPDATE baptism_records SET registry_no=?, book_no=?, page_no=?, fullname=?, birth_date=?, birth_place=?, birth_status=?, parents=?, parent_address=?, baptism_date=?, godparents=?, parish_address=?, priest=?, remarks=?, parish_priest=?, parish_secretary=?, status=?, request_id=? WHERE baptism_id=?");
+        $stmt = $conn->prepare("UPDATE baptism_records SET registry_no=?, book_no=?, page_no=?, fullname=?, birth_date=?, birth_place=?, birth_status=?, parents=?, father_name=?, father_birth_place=?, mother_name=?, mother_birth_place=?, parent_address=?, baptism_date=?, godparents=?, parish_address=?, priest=?, remarks=?, parish_priest=?, parish_secretary=?, status=?, request_id=? WHERE baptism_id=?");
         if ($stmt) {
-            $stmt->bind_param("sssssssssssssssssii", $registry_no, $book_no, $page_no, $fullname, $birth_date, $birth_place, $birth_status, $parents, $parent_address, $baptism_date, $godparents, $parish_address, $priest, $remarks, $parish_priest, $parish_secretary, $status, $request_id, $record_id);
+            $stmt->bind_param("sssssssssssssssssssssii", $registry_no, $book_no, $page_no, $fullname, $birth_date, $birth_place, $birth_status, $parents, $father_name, $father_birth_place, $mother_name, $mother_birth_place, $parent_address, $baptism_date, $godparents, $parish_address, $priest, $remarks, $parish_priest, $parish_secretary, $status, $request_id, $record_id);
             if ($stmt->execute()) {
                 $message = "Baptism record updated successfully!";
                 $alert_type = "success";
@@ -1371,6 +1404,10 @@ include '../templates/header.php';
                                         'birth_place' => $record['birth_place'] ?? '',
                                         'birth_status' => $record['birth_status'] ?? '',
                                         'parents' => $record['parents'] ?? '',
+                                        'father_name' => $record['father_name'] ?? '',
+                                        'father_birth_place' => $record['father_birth_place'] ?? '',
+                                        'mother_name' => $record['mother_name'] ?? '',
+                                        'mother_birth_place' => $record['mother_birth_place'] ?? '',
                                         'parent_address' => $record['parent_address'] ?? '',
                                         'baptism_date' => $record['baptism_date'] ?? '',
                                         'godparents' => $record['godparents'] ?? '',
@@ -1447,6 +1484,11 @@ include '../templates/header.php';
                                     </td>
                                     <td style="text-align: center;">
                                         <div class="record-actions-wrap justify-content-center">
+                                            <?php if (!$is_archived): ?>
+                                                <a href="generate-cert.php?id=<?php echo (int)$record['baptism_id']; ?>&type=baptism" class="btn-reg-action" style="color: #92400e; border-color: #fde68a; background: #fffbeb;" title="Generate Official Certificate of Baptism">
+                                                    <i class="fas fa-certificate"></i> Cert
+                                                </a>
+                                            <?php endif; ?>
                                             <?php if ($is_archived): ?>
                                                 <form method="POST" class="d-inline" onsubmit="return confirm('Restore this baptism record to active?');">
                                                     <?php echo csrfInput(); ?>
@@ -1612,11 +1654,27 @@ include '../templates/header.php';
                     </div>
                     <div class="form-grid">
                         <div class="form-group full-width">
-                            <label for="parentsName">Parents (Father & Mother Full Names) <span class="required-mark">*</span></label>
+                            <label for="parentsName">Parents Combined (Father & Mother Full Names) <span class="required-mark">*</span></label>
                             <input type="text" id="parentsName" name="parents" required placeholder="Father's Full Name & Mother's Maiden Name">
                         </div>
+                        <div class="form-group">
+                            <label for="fatherName">Father's Full Name <span class="required-mark">*</span></label>
+                            <input type="text" id="fatherName" name="father_name" placeholder="Father's Full Name">
+                        </div>
+                        <div class="form-group">
+                            <label for="fatherBirthPlace">Father's Place of Birth <span class="required-mark">*</span></label>
+                            <input type="text" id="fatherBirthPlace" name="father_birth_place" placeholder="City / Municipality, Province">
+                        </div>
+                        <div class="form-group">
+                            <label for="motherName">Mother's Full Name <span class="required-mark">*</span></label>
+                            <input type="text" id="motherName" name="mother_name" placeholder="Mother's Maiden Name">
+                        </div>
+                        <div class="form-group">
+                            <label for="motherBirthPlace">Mother's Place of Birth <span class="required-mark">*</span></label>
+                            <input type="text" id="motherBirthPlace" name="mother_birth_place" placeholder="City / Municipality, Province">
+                        </div>
                         <div class="form-group full-width">
-                            <label for="parentAddress">Parents Residence / Address</label>
+                            <label for="parentAddress">Parents Residence / Current Address <span class="required-mark">*</span></label>
                             <input type="text" id="parentAddress" name="parent_address" placeholder="Barangay, Municipality / City, Province">
                         </div>
                     </div>
@@ -1629,7 +1687,7 @@ include '../templates/header.php';
                     <div class="form-grid">
                         <div class="form-group full-width">
                             <label for="godparents">Sponsors / Godparents (Full Names) <span class="required-mark">*</span></label>
-                            <input type="text" id="godparents" name="godparents" required placeholder="Names of Godfathers & Godmothers (separated by commas)">
+                            <textarea id="godparents" name="godparents" rows="3" required placeholder="Names of Godfathers & Godmothers (one per line or separated by commas)" style="width: 100%; border: 1px solid #CBD5E1; border-radius: 7px; padding: 8px 10px; font-size: 0.9rem;"></textarea>
                         </div>
                         <div class="form-group full-width">
                             <label for="parishAddress">Parish / Chapel Address</label>
@@ -1707,6 +1765,7 @@ include '../templates/header.php';
 
                 <div class="modal-footer">
                     <button type="button" class="btn-modal-cancel" onclick="closeModal()">Cancel</button>
+                    <a id="modalGenCertBtn" href="#" class="btn btn-warning text-dark fw-bold me-auto" style="display: none; padding: 9px 18px; border-radius: 7px; text-decoration: none; align-items: center; gap: 6px;"><i class="fas fa-certificate"></i> Generate Certificate</a>
                     <button type="submit" class="btn-modal-save">
                         <i class="fas fa-floppy-disk"></i> Save Record
                     </button>
@@ -1789,6 +1848,11 @@ include '../templates/header.php';
             document.getElementById('priestName').value = '';
             document.getElementById('parishPriest').value = '';
             document.getElementById('modalTitle').textContent = 'Add Baptism Record';
+            document.getElementById('fatherName').value = '';
+            document.getElementById('fatherBirthPlace').value = '';
+            document.getElementById('motherName').value = '';
+            document.getElementById('motherBirthPlace').value = '';
+            document.getElementById('modalGenCertBtn').style.display = 'none';
             const reasonGroup = document.getElementById('correctionReasonGroup');
             if (reasonGroup) {
                 reasonGroup.style.display = 'none';
@@ -1812,6 +1876,15 @@ include '../templates/header.php';
             document.getElementById('birthPlace').value = record.birth_place || '';
             document.getElementById('birthStatus').value = record.birth_status || '';
             document.getElementById('parentsName').value = record.parents || '';
+            document.getElementById('fatherName').value = record.father_name || '';
+            document.getElementById('fatherBirthPlace').value = record.father_birth_place || '';
+            document.getElementById('motherName').value = record.mother_name || '';
+            document.getElementById('motherBirthPlace').value = record.mother_birth_place || '';
+            const genCertBtn = document.getElementById('modalGenCertBtn');
+            if (genCertBtn) {
+                genCertBtn.href = 'generate-cert.php?id=' + (record.id || '') + '&type=baptism';
+                genCertBtn.style.display = 'inline-flex';
+            }
             document.getElementById('parentAddress').value = record.parent_address || '';
             document.getElementById('baptismDate').value = record.baptism_date || '';
             document.getElementById('godparents').value = record.godparents || '';

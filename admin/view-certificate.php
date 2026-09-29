@@ -323,8 +323,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
         $b_fname = $_SESSION['certificate_data']['fullname'] ?? '';
         $b_bdate = !empty($_SESSION['certificate_data']['birth_date']) ? $_SESSION['certificate_data']['birth_date'] : null;
         $b_bplace = $_SESSION['certificate_data']['birth_place'] ?? '';
+        $b_res = $_SESSION['certificate_data']['parent_address'] ?? ($_SESSION['certificate_data']['residence'] ?? '');
         $b_father = $_SESSION['certificate_data']['father_name'] ?? '';
+        $b_f_bp = $_SESSION['certificate_data']['father_birth_place'] ?? '';
         $b_mother = $_SESSION['certificate_data']['mother_name'] ?? '';
+        $b_m_bp = $_SESSION['certificate_data']['mother_birth_place'] ?? '';
         $b_bpdate = !empty($_SESSION['certificate_data']['baptism_date']) ? $_SESSION['certificate_data']['baptism_date'] : null;
         $b_priest = $_SESSION['certificate_data']['priest'] ?? ($_SESSION['certificate_data']['parish_priest'] ?? '');
         $b_ppriest = $_SESSION['certificate_data']['parish_priest'] ?? '';
@@ -332,9 +335,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
         $b_book   = $_SESSION['certificate_data']['book_no'] ?? ($_SESSION['certificate_data']['volume_no'] ?? '');
         $b_page   = $_SESSION['certificate_data']['page_no'] ?? '';
         $b_entry  = $_SESSION['certificate_data']['entry_no'] ?? '';
-        $up_b_stmt = $conn->prepare("UPDATE baptism_records SET fullname=?, birth_date=?, birth_place=?, father_name=?, mother_name=?, baptism_date=?, priest=?, parish_priest=?, godparents=?, book_no=?, page_no=?, entry_no=? WHERE baptism_id=?");
+        $up_b_stmt = $conn->prepare("UPDATE baptism_records SET fullname=?, birth_date=?, birth_place=?, parent_address=?, father_name=?, father_birth_place=?, mother_name=?, mother_birth_place=?, baptism_date=?, priest=?, parish_priest=?, godparents=?, book_no=?, page_no=?, entry_no=? WHERE baptism_id=?");
         if ($up_b_stmt) {
-            $up_b_stmt->bind_param("ssssssssssssi", $b_fname, $b_bdate, $b_bplace, $b_father, $b_mother, $b_bpdate, $b_priest, $b_ppriest, $b_spons, $b_book, $b_page, $b_entry, $b_rec_id);
+            $up_b_stmt->bind_param("sssssssssssssssi", $b_fname, $b_bdate, $b_bplace, $b_res, $b_father, $b_f_bp, $b_mother, $b_m_bp, $b_bpdate, $b_priest, $b_ppriest, $b_spons, $b_book, $b_page, $b_entry, $b_rec_id);
             $up_b_stmt->execute();
             $up_b_stmt->close();
         }
@@ -913,7 +916,7 @@ if ($cert_type === 'baptism') {
     if ($baptism_mother_birthplace === '' || $baptism_mother_birthplace === 'N/A') $missing_baptism_fields[] = "Mother's Birthplace";
     if (empty($data['baptism_date']) || $data['baptism_date'] === '0000-00-00') $missing_baptism_fields[] = 'Date of Baptism';
     if ($baptism_priest === '' || $baptism_priest === 'N/A') $missing_baptism_fields[] = 'Officiating Priest';
-    if (count($baptism_sponsors) < 2) $missing_baptism_fields[] = 'Sponsors (at least 2 required)';
+    if (count($baptism_sponsors) < 1) $missing_baptism_fields[] = 'Sponsors / Godparents';
 }
 
 $communion_parish_name = trim((string)($data['parish_name'] ?? 'San Lorenzo Ruiz Mission Station'));
@@ -1193,7 +1196,13 @@ $layout_priest_position = layoutCssValue($signatory_title, layoutCssValue($layou
 $layout_secretary_name = layoutCssValue($data['parish_secretary'] ?? '', layoutCssValue($layout_text['secretary_name'] ?? '', ''));
 $layout_secretary_position = layoutCssValue($layout_text['secretary_position'] ?? '', 'Parish Secretary');
 
-if (stripos($data['fullname'] ?? '', 'REY MARK') !== false) {
+if ($cert_type === 'baptism' || $cert_type === 'baptism_certification') {
+    $canonical_pic = getPriestInChargeName($conn);
+    $canonical_pic_title = getPriestInChargeTitle($conn);
+    $layout_priest_name = !empty($data['priest_in_charge']) ? $data['priest_in_charge'] : $canonical_pic;
+    $layout_priest_position = !empty($data['priest_position']) ? $data['priest_position'] : $canonical_pic_title;
+    $show_secretary_sign = false;
+} elseif (stripos($data['fullname'] ?? '', 'REY MARK') !== false) {
     if (!empty($data['priest_in_charge'])) {
         $layout_priest_name = $data['priest_in_charge'];
     } elseif (!empty($data['parish_priest'])) {
@@ -1218,6 +1227,23 @@ if (stripos($data['fullname'] ?? '', 'REY MARK') !== false) {
 $display_remarks = trim((string)($data['remarks'] ?? ''));
 if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== false) {
     $display_remarks = 'Issued for parish record purposes.';
+}
+
+// Download PDF handler for Baptism
+if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type === 'baptism' || $cert_type === 'baptism_certification')) {
+    if (!empty($missing_baptism_fields)) {
+        $_SESSION['cert_flash_error'] = 'Cannot download PDF: Missing required fields: ' . implode(', ', $missing_baptism_fields);
+        header('Location: view-certificate.php?id=' . intval($_GET['id'] ?? ($data['baptism_id'] ?? 0)) . '&type=' . urlencode($cert_type));
+        exit;
+    }
+    require_once __DIR__ . '/../services/CertificatePdfService.php';
+    $pdfService = new CertificatePdfService($conn);
+    $pdfData = $data;
+    $pdfData['priest_in_charge'] = $layout_priest_name;
+    $pdfData['signatory_title'] = $layout_priest_position;
+    $pdfData['godparents'] = !empty($baptism_sponsors) ? implode("\n", $baptism_sponsors) : ($data['godparents'] ?? '');
+    $pdfService->streamBaptismPdf($pdfData, '', true);
+    exit;
 }
 ?>
 <!DOCTYPE html>
@@ -1289,22 +1315,21 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
             width: 100%;
             height: 100%;
             box-sizing: border-box;
-            padding: 8mm 12mm 9mm;
+            padding: 9.5mm 12mm 9mm;
             position: relative;
             overflow: hidden;
-            background: #ffffff;
-            border: 2.5px double #781912;
-            box-shadow: inset 0 0 0 1.2mm rgba(120, 25, 18, 0.05);
+            background: #fffdf9 url('../assets/img/certificates/baptism-official-border.svg') no-repeat center center;
+            background-size: 100% 100%;
+            border: none;
+            box-shadow: none;
         }
         .certificate-sheet.baptism-sheet::before {
-            content: "";
-            position: absolute;
-            inset: 3.5mm;
-            border: 1.2px solid rgba(120, 25, 18, 0.45);
-            outline: 0.5px solid rgba(120, 25, 18, 0.22);
-            outline-offset: 1.2mm;
-            pointer-events: none;
-            z-index: 2;
+            display: none;
+        }
+        .baptism-sheet .certificate-template-layer,
+        .baptism-sheet .certificate-design-bg,
+        .baptism-sheet .watermark-text {
+            display: none !important;
         }
         <?php if (empty($layout_border['decorative_corners'])): ?>
         .certificate-sheet { background: #ffffff; }
@@ -2645,10 +2670,16 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
 <body>
     <div class="cert-toolbar">
         <div class="d-flex flex-wrap gap-2">
-            <?php if ($is_confirmation_cert && !empty($missing_confirmation_fields)): ?>
+            <?php if ($cert_type === 'baptism' && !empty($missing_baptism_fields)): ?>
+                <button class="btn btn-secondary" id="btnPrintCertificate" onclick="printCertificate()"><i class="fas fa-ban"></i> Generation Blocked</button>
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#editBaptismModal"><i class="fas fa-pen"></i> Complete Fields</button>
+            <?php elseif ($is_confirmation_cert && !empty($missing_confirmation_fields)): ?>
                 <button class="btn btn-secondary" id="btnPrintCertificate" onclick="printCertificate()"><i class="fas fa-ban"></i> Print Blocked</button>
             <?php else: ?>
                 <button class="btn btn-primary" id="btnPrintCertificate" onclick="printCertificate()"><i class="fas fa-print"></i> Print Certificate</button>
+                <?php if ($cert_type === 'baptism' || $cert_type === 'baptism_certification'): ?>
+                    <a class="btn btn-success fw-bold" href="view-certificate.php?id=<?php echo intval($_GET['id'] ?? ($data['baptism_id'] ?? 0)); ?>&type=<?php echo urlencode($cert_type); ?>&action=download_pdf"><i class="fas fa-file-pdf me-1"></i> Download PDF</a>
+                <?php endif; ?>
             <?php endif; ?>
             <?php if (!$is_manual_certificate && !empty($verification_url)): ?>
                 <a class="btn btn-outline-dark" href="<?php echo e($verification_url); ?>" target="_blank"><i class="fas fa-shield-check"></i> Verify Certificate</a>
@@ -2985,12 +3016,15 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
                         <?php endif; ?>
 
                         <div class="signature-grid<?php echo !$show_secretary_sign ? ' single-signature' : ''; ?>">
-                            <div class="seal-area">
-                                <div class="seal-emblem-text">
-                                    <div class="seal-cross">✠</div>
-                                    <div class="seal-title">OFFICIAL<br>PARISH SEAL</div>
-                                    <div class="seal-dry">DRY SEAL</div>
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="seal-area">
+                                    <div class="seal-emblem-text">
+                                        <div class="seal-cross">✠</div>
+                                        <div class="seal-title">OFFICIAL<br>PARISH SEAL</div>
+                                        <div class="seal-dry">DRY SEAL</div>
+                                    </div>
                                 </div>
+                                <span class="gold-cross-ornament" style="font-size: 32pt; color: #c59b27; line-height: 1; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.15);">✠</span>
                             </div>
                             <div class="signature priest-sig">
                                 <div class="signature-line"><?php echo layoutImageTag($certificate_layout_settings, 'priest_signature', 'certificate-signature-img', 'Priest signature') . e($layout_priest_name); ?></div>
@@ -3002,6 +3036,9 @@ if ($display_remarks === '' || stripos($display_remarks, 'Birthplace:') !== fals
                                 <span class="signature-title"><?php echo e($layout_secretary_position); ?></span>
                             </div>
                             <?php endif; ?>
+                        </div>
+                        <div class="cert-control-number" style="position: absolute; bottom: 5mm; right: 10mm; font-family: 'Courier New', monospace; font-size: 7pt; color: #8c6427; letter-spacing: 0.8px;">
+                            Official Parish Record &bull; Ref # <?php echo e(!empty($data['request_id']) ? 'REQ-' . $data['request_id'] : sprintf('TUGON-BAP-%s-%04d', (!empty($data['baptism_date']) ? date('Y', strtotime($data['baptism_date'])) : date('Y')), intval($data['baptism_id'] ?? 1))); ?>
                         </div>
                     <?php endif; ?>
                 </div>

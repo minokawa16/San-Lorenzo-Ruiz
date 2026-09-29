@@ -1415,6 +1415,21 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     throw new Exception('Backup file not found.');
                 }
             }
+        } elseif ($action === 'save_parish_clergy') {
+            $priest_name = trim((string)($_POST['priest_in_charge'] ?? ''));
+            $priest_title = trim((string)($_POST['priest_in_charge_title'] ?? 'Priest-in-Charge'));
+            if ($priest_name !== '') {
+                writeSetting($conn, 'parish.priest_in_charge', $priest_name);
+                writeSetting($conn, 'parish_priest_name', $priest_name);
+            }
+            if ($priest_title !== '') {
+                writeSetting($conn, 'parish.priest_in_charge_title', $priest_title);
+            }
+            $success = 'Parish Settings & Official Certificate Signatory updated successfully.';
+            createAuditLog($conn, $_SESSION['user_id'], 'UPDATE_PARISH_CLERGY_SETTINGS', 'system_settings', 0, null, [
+                'priest_in_charge' => $priest_name,
+                'priest_in_charge_title' => $priest_title
+            ]);
         }
     } catch (Exception $e) {
         if (($action ?? '') === 'restore_backup') {
@@ -1960,6 +1975,64 @@ $latest_backup_time = !empty($backup_files) ? (is_array($backup_files[0]) ? date
     <?php endif; ?>
 
     <!-- Backup Parish Records Card -->
+    <!-- Parish Settings & Certificate Signatory Card -->
+    <section class="backup-records-card mb-4" role="region" aria-label="Parish Settings & Certificate Signatory">
+        <header class="backup-card-header">
+            <div class="backup-header-left">
+                <div class="backup-badge-icon" style="background-color: #8c6427;" aria-hidden="true">
+                    <i class="fas fa-certificate" style="font-size: 1.25rem;"></i>
+                </div>
+                <div class="backup-title-group">
+                    <h1>Parish Settings & Certificate Signatory</h1>
+                    <p>Official parish clergy signatory configured across all sacramental certificates.</p>
+                </div>
+            </div>
+        </header>
+
+        <form method="POST" id="parishClergyForm">
+            <?php echo csrfInput(); ?>
+            <input type="hidden" name="action" value="save_parish_clergy">
+
+            <div class="backup-card-body">
+                <?php
+                $cur_priest_in_charge = readSetting($conn, 'parish.priest_in_charge', 'REV. FR. HERIBERTO C. VILLAS, O.M.I.');
+                $cur_priest_title = readSetting($conn, 'parish.priest_in_charge_title', 'Priest-in-Charge');
+                ?>
+                <div class="mb-3">
+                    <label for="priest_in_charge" class="form-label fw-bold text-dark" style="font-size: 0.88rem;">
+                        <i class="fas fa-user-tie me-1 text-secondary"></i> Priest-in-Charge Name <span class="text-danger">*</span>
+                    </label>
+                    <input type="text" class="form-control" id="priest_in_charge" name="priest_in_charge" 
+                           value="<?php echo e($cur_priest_in_charge); ?>" required 
+                           style="border-color: #DCD4C4; font-weight: 600; font-size: 0.95rem;"
+                           placeholder="e.g. REV. FR. HERIBERTO C. VILLAS, O.M.I.">
+                    <div class="form-text" style="font-size: 0.78rem;">
+                        Printed on the official Certificate of Baptism signature line (avoids retyping on every certificate).
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="priest_in_charge_title" class="form-label fw-bold text-dark" style="font-size: 0.88rem;">
+                        <i class="fas fa-tag me-1 text-secondary"></i> Clergy Title / Position <span class="text-danger">*</span>
+                    </label>
+                    <input type="text" class="form-control" id="priest_in_charge_title" name="priest_in_charge_title" 
+                           value="<?php echo e($cur_priest_title); ?>" required 
+                           style="border-color: #DCD4C4; font-size: 0.95rem;"
+                           placeholder="e.g. Priest-in-Charge">
+                    <div class="form-text" style="font-size: 0.78rem;">
+                        Printed directly underneath the signature line (e.g. Priest-in-Charge, Parish Priest).
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end pt-2">
+                    <button type="submit" class="btn text-white fw-bold px-4 py-2" style="background: #1E3626; border-radius: 8px;">
+                        <i class="fas fa-save me-1"></i> Save Clergy Settings
+                    </button>
+                </div>
+            </div>
+        </form>
+    </section>
+
     <main class="backup-records-card" role="region" aria-label="Backup Parish Records">
         <header class="backup-card-header">
             <div class="backup-header-left">

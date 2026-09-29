@@ -95,9 +95,20 @@
                                         <i class="fas fa-clock me-1 text-secondary"></i> <?php echo formatDate($request['updated_at']); ?>
                                     </td>
                                     <td class="py-3 px-4 text-end" data-label="Action">
-                                        <a href="view-request.php?id=<?php echo (int) $request['request_id']; ?>" class="btn btn-sm btn-outline-secondary px-3 py-1 fw-semibold" style="border-color: #E8E1D5; border-radius: 8px;">
-                                            <i class="fas fa-eye me-1" style="color: #C89B3C;"></i> View Details
-                                        </a>
+                                        <div class="d-inline-flex gap-1 align-items-center">
+                                            <?php
+                                            $disp_status_lower = strtolower($request['status'] ?? '');
+                                            $req_type_str = strtolower((string)($request['certificate_type'] ?? ($request['request_type'] ?? '')));
+                                            if ($disp_status_lower === 'completed' && str_contains($req_type_str, 'baptism')):
+                                            ?>
+                                                <a href="download-certificate.php?request_id=<?php echo (int) $request['request_id']; ?>&download=1" class="btn btn-sm btn-success px-2.5 py-1 fw-semibold" style="border-radius: 8px;" title="Download Official Certificate of Baptism">
+                                                    <i class="fas fa-file-pdf me-1"></i> Cert
+                                                </a>
+                                            <?php endif; ?>
+                                            <a href="view-request.php?id=<?php echo (int) $request['request_id']; ?>" class="btn btn-sm btn-outline-secondary px-3 py-1 fw-semibold" style="border-color: #E8E1D5; border-radius: 8px;">
+                                                <i class="fas fa-eye me-1" style="color: #C89B3C;"></i> View Details
+                                            </a>
+                                        </div>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
