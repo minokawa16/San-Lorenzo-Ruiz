@@ -23,6 +23,101 @@ final class TugonConversationalIntent
     const ABOUT_ASSISTANT = 'WHAT_CAN_YOU_DO';
     const HELP = 'HELP';
 
+    // 11 Core Parish Intent Topics
+    const TOPIC_CERTIFICATES = 'CERTIFICATES';
+    const TOPIC_SACRAMENT_REQUESTS = 'SACRAMENT_REQUESTS';
+    const TOPIC_BLESSINGS = 'BLESSINGS';
+    const TOPIC_FUNERAL_MEMORIAL = 'FUNERAL_MEMORIAL';
+    const TOPIC_MASS_SERVICE_SCHEDULES = 'MASS_SERVICE_SCHEDULES';
+    const TOPIC_MASS_INTENTIONS = 'MASS_INTENTIONS';
+    const TOPIC_PARISH_OFFICE = 'PARISH_OFFICE';
+    const TOPIC_EVENTS_MINISTRIES = 'EVENTS_MINISTRIES';
+    const TOPIC_HOW_TO_USE_SYSTEM = 'HOW_TO_USE_SYSTEM';
+    const TOPIC_CHURCH_TEACHING = 'CHURCH_TEACHING';
+    const TOPIC_OFF_TOPIC_OR_UNSAFE = 'OFF_TOPIC_OR_UNSAFE';
+
+    /**
+     * Classify user inquiry into exactly ONE of the 11 official parish intent topics.
+     * Prevents intent routing failures (e.g. asking about certificate requirements returning Mass schedule).
+     *
+     * @param string $message
+     * @return string One of self::TOPIC_* constants
+     */
+    public static function classifyTopicIntent(string $message): string
+    {
+        $normalized = self::normalize($message);
+        if ($normalized === '') {
+            return self::TOPIC_OFF_TOPIC_OR_UNSAFE;
+        }
+
+        // 1. Prompt Injection / Security Safeguard Attack Check
+        if (preg_match('/\b(?:ignore (?:all |the )?(?:previous|system|your )?instructions?|tell me (?:your |the )?prompt|what is your prompt|reveal (?:the |your )?(?:prompt|secret|credential)|system prompt|developer instructions|prompt injection|override system|jailbreak)\b/iu', $normalized)) {
+            return self::TOPIC_OFF_TOPIC_OR_UNSAFE;
+        }
+
+        // 2. Off-Topic Trivia, Entertainment, Sports, Coding
+        if (preg_match('/\b(?:nba|basketball|game|score|who won|python|javascript|coding|homework|crypto|bitcoin|weather|movie|actor|actress|politics|president|election)\b/iu', $normalized)
+            && !preg_match('/\b(?:parish|church|mass|sacrament|priest|certificate|blessing)\b/iu', $normalized)
+        ) {
+            return self::TOPIC_OFF_TOPIC_OR_UNSAFE;
+        }
+
+        // 3. CERTIFICATES Intent: Requirements, fees, processing time, how to get/request certificates
+        // Highest priority check: whenever certificate/sertipiko/papeles/katibayan/pamatuod is asked.
+        if (preg_match('/\b(?:certificates?|certs?|certification|sertipiko|papeles|katibayan|pamatuod)\b/iu', $normalized)
+            || preg_match('/\b(?:how (?:do|can) i get (?:a )?(?:baptismal|marriage|confirmation|death|communion) certificate|how to get (?:the )?certificates?|requirements? (?:on )?(?:how )?to (?:get|request) (?:the )?certificates?|requirements? (?:for|sa) (?:mga )?certificates?)\b/iu', $normalized)
+        ) {
+            return self::TOPIC_CERTIFICATES;
+        }
+
+        // 4. BLESSINGS Intent: House, Vehicle, Business, Religious Articles (how to request, offering, lead time)
+        if (preg_match('/\b(?:house blessing|vehicle blessing|car blessing|motorcycle blessing|business blessing|religious articles? blessing|blessing fee|blessing offering|how much (?:is )?(?:a )?(?:house |vehicle |car )?blessing|pabasbas|basbas|bendisyon|bendita|magpa-?bless)\b/iu', $normalized)) {
+            return self::TOPIC_BLESSINGS;
+        }
+
+        // 5. FUNERAL AND MEMORIAL Intent: Funeral Mass, Wake, Novena for the Dead, Death Anniversary
+        if (preg_match('/\b(?:funeral mass|funeral blessing|wake|burial|misa sa patay|libing|burol|lubong|padasal sa patay|babang[- ]luksa|death anniversary mass|pamisa sa kalag)\b/iu', $normalized)) {
+            return self::TOPIC_FUNERAL_MEMORIAL;
+        }
+
+        // 6. MASS AND SERVICE SCHEDULES Intent: Regular Masses, feast days, confession, adoration
+        if (preg_match('/\b(?:confession|confessions|kumpisal|kompisal|kumpisalan|reconciliation|penance|what time is confession|oras ng kumpisal|kailan ang kumpisal|unsang orasa ang kumpisal|mass schedule|mass times?|sunday mass|weekday mass|daily mass|oras ng misa|iskedyul ng misa|what time is (?:sunday |weekday )?mass|kailan ang misa|unsang orasa ang misa|holy hour|adoration schedule)\b/iu', $normalized)) {
+            return self::TOPIC_MASS_SERVICE_SCHEDULES;
+        }
+
+        // 7. MASS INTENTIONS AND OFFERINGS Intent
+        if (preg_match('/\b(?:mass intentions?|mass offerings?|thanksgiving mass|petition mass|intensyon sa misa|pamisa|pa-misa)\b/iu', $normalized)) {
+            return self::TOPIC_MASS_INTENTIONS;
+        }
+
+        // 8. PARISH OFFICE Intent: Hours, contact, location, staff, priest, secretary
+        if (preg_match('/\b(?:office hours|parish office|contact(?: info| number)?|phone(?: number)?|telephone|mobile number|secretary|kalihim|agnes(?: calapaan)?|parish priest|priest|kura paroko|father cahilig|alvin barretto|location|address|saan ang (?:simbahan|parokya|opisina))\b/iu', $normalized)) {
+            return self::TOPIC_PARISH_OFFICE;
+        }
+
+        // 9. EVENTS, ANNOUNCEMENTS, AND MINISTRIES Intent
+        if (preg_match('/\b(?:announcements?|feast day|fiesta|kapistahan|pista|ministr(?:y|ies)|youth ministry|altar servers?|lectors?|choir|mga anunsyo|balita sa parokya)\b/iu', $normalized)) {
+            return self::TOPIC_EVENTS_MINISTRIES;
+        }
+
+        // 10. HOW TO USE THE SYSTEM Intent: Account, requests, tracking, status, password, upload
+        if (preg_match('/\b(?:register|registration|sign up|create (?:an )?account|login|log in|sign in|password|upload (?:valid )?id|file upload|track (?:my )?requests?|request status|my requests?|reference number|notifications?|reschedule|cancel request|paano mag-?(?:register|login|upload))\b/iu', $normalized)) {
+            return self::TOPIC_HOW_TO_USE_SYSTEM;
+        }
+
+        // 11. SACRAMENT REQUESTS Intent: Baptism, Confirmation, Communion, Wedding service bookings
+        if (preg_match('/\b(?:wedding|matrimony|pre-cana|banns|magpakasal|pakasal|kasal|baptism service|magpabinyag|pabinyag|magpabunyag|confirmation service|magpakumpil|magpakumpirma|first holy communion|anointing of the sick|sick call|pahid ng langis)\b/iu', $normalized)) {
+            return self::TOPIC_SACRAMENT_REQUESTS;
+        }
+
+        // 12. CHURCH TEACHING Intent: Catholic doctrine, catechism, practice questions
+        if (preg_match('/\b(?:doctrine|catechism|catholic teaching|church teaching|why do catholics|sin|ten commandments|rosary|lent|advent|bible|aral ng simbahan|katesismo|doktrina)\b/iu', $normalized)) {
+            return self::TOPIC_CHURCH_TEACHING;
+        }
+
+        return self::TOPIC_OFF_TOPIC_OR_UNSAFE;
+    }
+
     /**
      * Analyze a message for conversational intent.
      *

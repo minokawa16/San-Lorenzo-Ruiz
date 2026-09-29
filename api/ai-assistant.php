@@ -80,8 +80,8 @@ try {
 
     $service = new AiAssistantService($conn);
     if (($payload['action'] ?? '') === 'feedback') {
-        if (!$caps['feedback']) {
-            aiJson(['success' => false, 'error' => 'FORBIDDEN', 'message' => 'You are not authorized to review AI feedback.'], 403);
+        if (empty($_SESSION['user_id'])) {
+            aiJson(['success' => false, 'error' => 'UNAUTHORIZED', 'message' => 'Please log in to submit feedback.'], 401);
         }
         $service->saveFeedback((int) $_SESSION['user_id'], (string) ($payload['response_reference'] ?? ''), (string) ($payload['rating'] ?? ''), (string) ($payload['comments'] ?? ''));
         aiJson(['success' => true, 'message' => 'Feedback saved.']);

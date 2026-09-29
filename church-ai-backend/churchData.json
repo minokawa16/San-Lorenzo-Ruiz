@@ -2,134 +2,207 @@
   "parishInfo": {
     "name": "San Lorenzo Ruiz Parish",
     "diocese": "Diocese of Kidapawan",
-    "address": "Poblacion, Midsayap, Cotabato, Philippines 9410",
+    "location": "Poblacion, Midsayap, Cotabato, Philippines 9410",
     "patronSaint": "San Lorenzo Ruiz (Feast Day: September 28)",
-    "parishPriest": "Rev. Fr. Emmanuel M. De Guzman",
-    "parochialVicar": "Rev. Fr. Joseph R. Santos",
-    "emergencyHotline": "+63 917 555 0199",
-    "email": "sanlorenzoruiz.parish@gmail.com",
-    "facebook": "fb.com/SanLorenzoRuizParishOfficial"
+    "parishPriest": "Rev. Fr. Alberto G. Cahilig, OMI",
+    "parochialVicar": "Rev. Fr. Alvin Vicente C. Barretto, OMI",
+    "parishSecretary": "Agnes C. Calapaan",
+    "contactNumber": "0997 742 8176",
+    "emergencyHotline": "0997 742 8176",
+    "email": "sanlorenzoruiz.midsayap@gmail.com",
+    "facebook": "fb.com/SanLorenzoRuizParishMidsayap"
   },
   "officeHours": {
     "schedule": [
       {
         "days": "Tuesday to Saturday",
-        "morningHours": "8:00 AM - 12:00 PM",
-        "afternoonHours": "1:30 PM - 5:00 PM"
+        "hours": "8:00 AM - 5:00 PM",
+        "lunchBreak": "12:00 PM - 1:00 PM"
       },
       {
         "days": "Sunday",
-        "hours": "8:00 AM - 12:00 PM (Morning Only)"
+        "hours": "7:00 AM - 12:00 PM (Morning Only)"
       },
       {
         "days": "Monday",
         "status": "Closed (Priests and Staff Rest Day)"
       }
     ],
-    "notes": "Office transactions, document requests, and sacrament bookings are entertained strictly during regular office hours."
+    "notes": "Parish office transactions, certificate releasing, and booking verifications are entertained strictly during regular office hours."
   },
   "massSchedule": {
     "sunday": [
-      { "time": "6:00 AM", "language": "Cebuano / Bisaya", "type": "Community Mass" },
-      { "time": "7:30 AM", "language": "Tagalog / Filipino", "type": "Family Mass" },
-      { "time": "9:00 AM", "language": "English", "type": "Youth & High Mass" },
+      { "time": "6:00 AM", "language": "Cebuano / Bisaya", "type": "Dawn Community Mass" },
+      { "time": "8:00 AM", "language": "Tagalog / Filipino", "type": "Morning Mass" },
+      { "time": "10:00 AM", "language": "English", "type": "High Mass" },
       { "time": "4:00 PM", "language": "Tagalog", "type": "Afternoon Mass" },
-      { "time": "5:30 PM", "language": "English", "type": "Sunday Evening Mass" }
-    ],
-    "anticipatedSaturday": [
-      { "time": "5:30 PM", "language": "English", "type": "Anticipated Sunday Mass" }
+      { "time": "5:30 PM", "language": "English", "type": "Evening Mass" },
+      { "time": "7:00 PM", "language": "Tagalog / Cebuano", "type": "Youth & Workers Mass" }
     ],
     "weekday": [
-      { "days": "Monday to Friday", "time": "6:00 AM", "language": "Tagalog / Cebuano", "type": "Daily Morning Mass" },
-      { "days": "Wednesday", "time": "5:30 PM", "language": "Tagalog / English", "type": "Novena to Our Mother of Perpetual Help & Holy Mass" },
-      { "days": "First Friday of the Month", "time": "5:30 PM", "language": "English", "type": "Sacred Heart of Jesus Healing Mass & Holy Hour" }
-    ]
+      { "days": "Tuesday to Saturday", "time": "6:30 AM", "language": "Tagalog / Cebuano", "type": "Daily Morning Mass" },
+      { "days": "Tuesday to Saturday", "time": "6:00 PM", "language": "English / Tagalog", "type": "Daily Evening Mass" }
+    ],
+    "notes": "There is no 9:00 AM Sunday Mass. Nearest morning slots are 8:00 AM and 10:00 AM. Schedules are subject to liturgical feast updates."
+  },
+  "confessionSchedule": {
+    "wednesdayAndFriday": "4:30 PM - 5:15 PM (Before evening Mass)",
+    "saturday": "4:00 PM - 5:00 PM",
+    "location": "Confessional Area near the Sacred Heart Shrine",
+    "sickCalls": "Available anytime by emergency appointment through the Parish Office (0997 742 8176)."
+  },
+  "certificates": {
+    "overview": {
+      "topic": "Certificates Overview & General Requirements",
+      "keywords": ["certificate", "certificates", "sertipiko", "papeles", "katibayan", "requirements on how to get the certificates", "how to get certificate", "ano ang kailangan sa sertipiko", "paano kumuha ng sertipiko"],
+      "requirements": [
+        "Valid Government ID of requester (or authorization letter and ID if representative)",
+        "Full name of person on record and approximate date of sacrament",
+        "Full names of parents",
+        "Purpose of request (school, wedding, passport, legal, personal)"
+      ],
+      "fee": "₱100.00 per copy",
+      "processingTime": "1 to 3 working days",
+      "whereToRequest": "Online via TUGON Parish System (users/request-certificate.php) or at the Parish Office during office hours.",
+      "clarifyingQuestion": "Which certificate do you need: Baptismal, Confirmation, Marriage, or Death?"
+    },
+    "baptismalCertificate": {
+      "topic": "Baptismal Certificate",
+      "keywords": ["baptismal certificate", "baptism certificate", "sertipiko ng binyag", "papeles ng binyag", "how do i get a baptismal certificate for my child", "pamatuod sa bunyag"],
+      "requirements": [
+        "Copy of Child's PSA or Local Civil Registrar Birth Certificate",
+        "Full name of the baptized, date of birth, and parents' names",
+        "Valid ID of requesting parent (or authorization letter if representative)",
+        "Purpose of certificate"
+      ],
+      "fee": "₱100.00 per copy",
+      "processingTime": "1 to 3 working days",
+      "whereToRequest": "Online via TUGON portal or at the Parish Office.",
+      "whoCanRequest": "Record owner, parents, or authorized representative with signed authorization letter and valid IDs."
+    },
+    "confirmationCertificate": {
+      "topic": "Confirmation Certificate",
+      "keywords": ["confirmation certificate", "sertipiko ng kumpil", "papeles ng kumpil", "magkano ang confirmation certificate", "kumpil certificate"],
+      "requirements": [
+        "Copy of PSA Birth Certificate or Baptismal Certificate",
+        "Full name of confirmand and approximate year of confirmation",
+        "Names of parents",
+        "Valid ID of requester"
+      ],
+      "fee": "₱100.00 per copy",
+      "processingTime": "1 to 3 working days",
+      "whereToRequest": "Online via TUGON portal or at the Parish Office."
+    },
+    "marriageCertificate": {
+      "topic": "Marriage Certificate",
+      "keywords": ["marriage certificate", "wedding certificate", "sertipiko ng kasal", "papeles ng kasal", "sertipiko ng kasal ano kailangan", "kasulatan sa kasal"],
+      "requirements": [
+        "Valid Government ID of requester (or authorization letter if representative)",
+        "Full names of husband and wife (including bride's maiden name)",
+        "Date and place of church wedding",
+        "Purpose of request"
+      ],
+      "fee": "₱100.00 per copy",
+      "processingTime": "1 to 3 working days",
+      "whereToRequest": "Online via TUGON portal or at the Parish Office."
+    },
+    "deathCertificate": {
+      "topic": "Death / Funeral Certificate",
+      "keywords": ["death certificate", "funeral certificate", "sertipiko ng patay", "papeles ng yumao"],
+      "requirements": [
+        "Copy of PSA or Local Civil Registrar Death Certificate",
+        "Full name of the deceased, birth date, and date of passing",
+        "Date of funeral blessing / burial",
+        "Valid ID of immediate kin"
+      ],
+      "fee": "₱100.00 per copy",
+      "processingTime": "1 to 3 working days",
+      "whereToRequest": "Online via TUGON portal or at the Parish Office."
+    }
+  },
+  "blessings": {
+    "houseAndVehicleBlessing": {
+      "topic": "House and Vehicle Blessing",
+      "keywords": ["house blessing", "vehicle blessing", "car blessing", "basbas ng bahay", "pabasbas ng sasakyan", "how much is a house blessing", "blessing fee"],
+      "feePolicy": "No mandatory fixed fee. The parish welcomes any voluntary offering or free-will donation (love offering) for the officiating priest and parish ministry.",
+      "leadTime": "Please request at least 1 week in advance for priest availability.",
+      "requirements": [
+        "Complete physical address and landmarks (for house) or vehicle model and plate number",
+        "Preferred date and time",
+        "Contact person name and active mobile number"
+      ],
+      "whereToRequest": "Submit online via Request Blessing (users/request-blessing.php) or coordinate with the Parish Office."
+    }
   },
   "sacraments": {
-    "confession": {
-      "schedule": "Every Wednesday and Friday at 4:30 PM - 5:15 PM (Before Mass); Every Saturday at 4:00 PM - 5:00 PM; or by appointment at the Parish Office for sick calls.",
-      "location": "Confessional Area near the Sacred Heart Shrine",
-      "requirements": "Contrite heart, examination of conscience, and sincere confession."
+    "wedding": {
+      "topic": "Holy Matrimony / Wedding Service",
+      "leadTime": "Apply at least 2 to 3 months prior to target wedding date.",
+      "requirements": [
+        "PSA Birth Certificate of Groom and Bride",
+        "PSA CENOMAR (valid within 6 months)",
+        "Updated Baptismal & Confirmation Certificates annotated 'For Marriage Purposes'",
+        "Pre-Cana Marriage Seminar Certificate",
+        "Canonical Interview with Parish Priest",
+        "Publication of Marriage Banns for 3 consecutive Sundays",
+        "Local Civil Registrar Marriage License (or Article 34 Affidavit)"
+      ]
+    },
+    "baptismService": {
+      "topic": "Baptism Sacrament Service",
+      "leadTime": "Register 1 to 2 weeks before desired date.",
+      "requirements": [
+        "Child's PSA / Civil Registrar Birth Certificate",
+        "Parents' Catholic Marriage Certificate (if married)",
+        "Godparent list (at least 1 practicing Catholic sponsor)",
+        "Attendance at Pre-Baptismal Seminar"
+      ]
+    },
+    "funeralMass": {
+      "topic": "Funeral Mass & Blessing",
+      "requirements": [
+        "Copy of PSA or Civil Registrar Death Certificate",
+        "Burial permit / cemetery coordination details",
+        "Deceased person's full name, birth date, and passing date",
+        "Immediate kin contact coordination"
+      ]
     },
     "baptism": {
-      "schedule": {
-        "regularCommunityBaptism": "Every Sunday at 10:30 AM (Pre-Baptismal Seminar on Saturday at 9:00 AM)",
-        "specialSoloBaptism": "By appointment (Tuesday to Saturday mornings upon priest availability)"
-      },
+      "topic": "Baptism Sacrament Service",
       "requirements": [
-        "Photocopy of Child's PSA (Philippine Statistics Authority) or Local Civil Registrar Birth Certificate",
-        "Photocopy of Parents' Catholic Church Marriage Certificate (or Civil Marriage Contract / CENOMAR)",
-        "Parishioner Certificate or Barangay Clearance proving local residency",
-        "Official Godparent (Ninong/Ninang) Catholic Confirmation (Kumpil) Certificate (Must be at least 16 years old and practicing Catholic)",
-        "Attendance of Parents and Godparents at the Pre-Baptismal Seminar (Saturday 9:00 AM at the Parish Hall)"
-      ],
-      "bookingNotice": "Register at the Parish Office at least 1 to 2 weeks before the intended baptism date."
-    },
-    "confirmation": {
-      "schedule": "Annual Parish Confirmation during the Parish Fiesta (September) or quarterly vicariate schedules.",
-      "requirements": [
-        "Photocopy of PSA Birth Certificate",
-        "Original or Certified True Copy of Catholic Baptismal Certificate (marked 'For Confirmation Purposes')",
-        "Parish Catechetical Seminar Completion Certificate",
-        "Sponsor (Ninong/Ninang) Confirmation Certificate"
+        "Photocopy of Child's PSA / Civil Registrar Birth Certificate",
+        "Photocopy of Parents' Catholic Church Marriage Certificate",
+        "Godparent Catholic Confirmation Certificate (at least 1 practicing Catholic)",
+        "Pre-Baptismal Seminar attendance"
       ]
     },
     "holyMatrimony": {
-      "schedule": "Tuesdays to Saturdays (Morning slots: 9:00 AM, 10:30 AM; Afternoon slots: 2:00 PM, 3:30 PM). No regular weddings on Sundays or Good Friday.",
-      "bookingNotice": "Apply and submit documentary requirements at least 2 to 3 months prior to wedding date to complete banns publication.",
+      "topic": "Holy Matrimony / Wedding",
       "requirements": [
-        "PSA Birth Certificate of Groom and Bride (Original & 2 photocopies)",
-        "PSA Certificate of No Marriage Record (CENOMAR) valid within 6 months",
-        "Newly issued Catholic Baptismal Certificate with annotation 'For Marriage Purposes' (Valid within 6 months)",
-        "Newly issued Catholic Confirmation Certificate with annotation 'For Marriage Purposes'",
-        "Pre-Cana / Marriage Preparation Seminar Certificate (2-day seminar conducted by Family and Life Ministry)",
-        "Canonical Interview with the Parish Priest (Scheduled after preliminary document review)",
-        "Publication of Marriage Banns in home parishes for 3 consecutive Sundays",
-        "Local Civil Registrar Marriage License (or Article 34 Affidavit of Cohabitation if living together for over 5 years)",
-        "Confession of Bride and Groom (1 or 2 days prior to the wedding mass)"
+        "PSA Birth Certificate of Groom and Bride",
+        "PSA CENOMAR valid within 6 months",
+        "Updated Baptismal & Confirmation Certificates marked 'For Marriage Purposes'",
+        "Pre-Cana Marriage Seminar Certificate",
+        "Canonical Interview with Parish Priest",
+        "Publication of Marriage Banns for 3 consecutive Sundays",
+        "Civil Registrar Marriage License"
       ]
-    },
-    "anointingOfTheSick": {
-      "availability": "24/7 on call for emergency cases / Viaticum; scheduled hospital and home blessings through the Parish Office.",
-      "instructions": "Call the parish emergency mobile hotline immediately (+63 917 555 0199) or visit the office to request a priest."
-    },
-    "funeralAndBlessing": {
-      "funeralMass": "Tuesday to Saturday at 1:00 PM or 2:30 PM (Must present Death Certificate and coordinate with cemetery/crematorium).",
-      "houseAndVehicleBlessing": "Scheduled Tuesday to Saturday afternoons by appointment at the office."
     }
   },
   "certificateIssuance": {
+    "fee": "₱100.00 per copy",
+    "processingTime": "1 to 3 working days",
     "types": [
       "Baptismal Certificate",
       "Confirmation Certificate",
       "Marriage Certificate",
-      "Certificate of Good Moral Character / Parish Recommendation"
+      "Death Certificate",
+      "Certificate of Good Moral Character"
     ],
-    "processingTime": "1 to 3 working days upon filing",
     "requirements": [
-      "Valid Government-Issued ID of the record owner (or authorization letter and ID of representative)",
-      "Approximate date/year of sacrament and full name of parents recorded in parish registry books"
+      "Valid Government-issued ID of requester (or authorization letter and ID if representative)",
+      "Full name on record, date of sacrament, and parents' names",
+      "Purpose of request"
     ]
-  },
-  "parishMinistries": [
-    "Commission on Liturgy (Eucharistic Ministers of Holy Communion, Lectors & Commentators, Altar Servers)",
-    "Family and Life Ministry (Pre-Cana seminars, counseling, marriage enrichment)",
-    "Parish Youth Ministry (PYM - Youth fellowship, choir, outreach)",
-    "Social Action & Caritas Ministry (Poverty alleviation, feeding programs, calamity response)",
-    "Catechetical Ministry (Sunday school, baptism and confirmation formation)"
-  ],
-  "frequentlyAskedQuestions": [
-    {
-      "question": "Can non-parishioners request sacraments or certificates?",
-      "answer": "Yes, but they must submit a Certificate of Permission / No Objection from their home parish priest for sacraments."
-    },
-    {
-      "question": "What if my baptism was in another parish?",
-      "answer": "You must obtain your Baptismal Certificate directly from the specific parish where you were baptized, as sacramental registries are maintained by the church of origin."
-    },
-    {
-      "question": "Are godparents required to be Roman Catholics?",
-      "answer": "Yes, canon law requires that at least one official godparent be a fully initiated, practicing Roman Catholic who has received Baptism, First Communion, and Confirmation."
-    }
-  ]
+  }
 }

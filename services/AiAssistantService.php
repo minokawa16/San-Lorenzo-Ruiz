@@ -30,7 +30,7 @@ final class AiAssistantService
             $answer = ($lang === 'fil' || $lang === 'taglish')
                 ? 'Hindi ko maaaring balewalain ang mga patakaran, maglabas ng lihim, o lampasan ang pahintulot. Maaari po kitang tulungan sa mga awtorisadong serbisyo ng TUGON.'
                 : 'I cannot ignore safeguards, reveal secrets, or bypass permissions. I can help with authorized TUGON parish services.';
-            return $this->persist($userId, $audience, $mode, $lang, $message, $answer, [], [], null, $correlation, 'security-refusal');
+            return $this->persist($userId, $audience, $mode, $lang, $message, $answer, [], [], null, $correlation, 'security-refusal', [], TugonConversationalIntent::TOPIC_OFF_TOPIC_OR_UNSAFE);
         }
 
         // 2. Security Check: Read-Only Mutation Refusal
@@ -39,7 +39,7 @@ final class AiAssistantService
             $answer = ($lang === 'fil' || $lang === 'taglish')
                 ? 'Read-only po ang TUGON AI at hindi ito maaaring magbago, mag-apruba, mag-isyu, o magtanggal ng tala. Gamitin po ang awtorisadong workflow sa inyong dashboard.'
                 : 'TUGON AI is read-only and cannot change, approve, issue, or delete records. Use the authorized dashboard workflow for that action.';
-            return $this->persist($userId, $audience, $mode, $lang, $message, $answer, [], [], null, $correlation, 'read-only-refusal');
+            return $this->persist($userId, $audience, $mode, $lang, $message, $answer, [], [], null, $correlation, 'read-only-refusal', [], TugonConversationalIntent::TOPIC_OFF_TOPIC_OR_UNSAFE);
         }
 
         // 3. Conversational Layer: Check for pure social / small talk / greeting / identity intent
@@ -57,7 +57,8 @@ final class AiAssistantService
                 null,
                 $correlation,
                 'conversational-intent',
-                $intentAnalysis['suggested_prompts'] ?? []
+                $intentAnalysis['suggested_prompts'] ?? [],
+                'GREETING'
             );
         }
 
@@ -66,12 +67,15 @@ final class AiAssistantService
         // 4. Resolve Context across multi-turn conversation
         $contextualQuery = $this->resolveConversationContext($message, $conversation);
 
-        // 5. Check if query is parish-related or conversational
-        if (!$this->isParishRelated($contextualQuery) && $mode !== 'search') {
+        // 5. Intent-Routing Step: Classify inquiry into exactly ONE of the 11 topics
+        $detectedTopic = TugonConversationalIntent::classifyTopicIntent($contextualQuery);
+
+        // Check if query is off-topic, sports, coding, or unrelated to parish
+        if ($detectedTopic === TugonConversationalIntent::TOPIC_OFF_TOPIC_OR_UNSAFE || (!$this->isParishRelated($contextualQuery) && $mode !== 'search')) {
             $answer = ($language === 'fil' || $language === 'taglish')
-                ? 'Ang TUGON AI po ay nakatuon sa mga serbisyo, iskedyul, sakramento, sertipiko, at kahilingan ng ating parokya. Maaari po kayong magtanong tungkol sa alinman sa mga paksang ito.'
-                : 'TUGON AI is designed to assist with parish services, Mass schedules, sacraments, certificates, requests, and reservations. Please ask about one of those topics.';
-            return $this->persist($userId, $audience, $mode, $language, $message, $answer, [], [], null, $correlation, 'topic-refusal');
+                ? 'Nandito po ako upang tumulong sa mga serbisyo at katanungan tungkol sa parokya. Mayroon po ba akong maitutulong sa inyo tungkol sa ating parokya?'
+                : "I'm here to help with parish services and questions. Is there something about the parish I can help you with?";
+            return $this->persist($userId, $audience, $mode, $language, $message, $answer, [], [], null, $correlation, 'topic-refusal', [], TugonConversationalIntent::TOPIC_OFF_TOPIC_OR_UNSAFE);
         }
 
         // 6. Authorized Records / Smart Search
@@ -83,32 +87,34 @@ final class AiAssistantService
                 $answer = ($language === 'fil' || $language === 'taglish')
                     ? 'Wala po kayong pahintulot na tingnan ang analytics report na ito.'
                     : 'You do not have permission to view that report.';
-                return $this->persist($userId, $audience, $mode, $language, $message, $answer, [], $searchResults, null, $correlation, 'permission-refusal');
+                return $this->persist($userId, $audience, $mode, $language, $message, $answer, [], $searchResults, null, $correlation, 'permission-refusal', [], 'ANALYTICS');
             }
             $analytics = $this->analytics($capabilities);
             $answer = ($language === 'fil' || $language === 'taglish')
                 ? 'Narito po ang awtorisadong buod ng mga tala sa parokya batay sa kasalukuyang rekord:'
                 : 'Here is the authorized summary based on current parish records:';
-            return $this->persist($userId, $audience, 'analytics', $language, $message, $answer, [], $searchResults, $analytics, $correlation, 'authorized-analytics');
+            return $this->persist($userId, $audience, 'analytics', $language, $message, $answer, [], $searchResults, $analytics, $correlation, 'authorized-analytics', [], 'ANALYTICS');
         }
 
         // 8. Grounded System Guidance & Personalized User Transaction Inquiries
-        $systemResponse = $this->resolveSystemOrUserTransactionQuery($userId, $contextualQuery, $language);
+        $systemResponse = $this->resolveSystemOrUserTransactionQuery($userId, $contextualQuery, $language, $detectedTopic);
         if ($systemResponse !== null) {
-            return $this->persist($userId, $audience, $mode, $language, $message, $systemResponse['answer'], $systemResponse['sources'] ?? [], $searchResults, null, $correlation, 'system-transaction-grounded', $systemResponse['prompts'] ?? []);
+            return $this->persist($userId, $audience, $mode, $language, $message, $systemResponse['answer'], $systemResponse['sources'] ?? [], $searchResults, null, $correlation, 'system-transaction-grounded', $systemResponse['prompts'] ?? [], $detectedTopic);
         }
 
         // 9. Smart Proactive Follow-ups for Incomplete Requests
         $proactiveResponse = $this->checkIncompleteRequest($contextualQuery, $language);
         if ($proactiveResponse !== null) {
-            return $this->persist($userId, $audience, $mode, $language, $message, $proactiveResponse['answer'], $proactiveResponse['sources'] ?? [], $searchResults, null, $correlation, 'proactive-guidance', $proactiveResponse['prompts'] ?? []);
+            return $this->persist($userId, $audience, $mode, $language, $message, $proactiveResponse['answer'], $proactiveResponse['sources'] ?? [], $searchResults, null, $correlation, 'proactive-guidance', $proactiveResponse['prompts'] ?? [], $detectedTopic);
         }
 
-        // 10. RAG Knowledge Base Retrieval
-        $sources = $this->knowledge($contextualQuery);
+        // 10. RAG Knowledge Base Retrieval (Filtered strictly by Intent)
+        $sources = $this->knowledge($contextualQuery, $detectedTopic);
         if (!$sources) {
-            $answer = ($language === 'fil' || $language === 'taglish') ? self::UNKNOWN_FIL : self::UNKNOWN_EN;
-            return $this->persist($userId, $audience, $mode, $language, $message, $answer, [], $searchResults, null, $correlation, 'grounded-unknown');
+            $answer = ($language === 'fil' || $language === 'taglish')
+                ? "Hindi ko po tiyak ang impormasyong iyan sa kasalukuyang talaan ng parokya. Para sa tumpak na detalye, mangyaring makipag-ugnayan sa opisina ng parokya sa 0997 742 8176 tuwing Martes hanggang Sabado (8:00 AM - 5:00 PM) o Linggo (7:00 AM - 12:00 PM)."
+                : "I'm not certain about that from our current parish records. For accurate information, please contact the parish office at 0997 742 8176 during office hours (Tuesday to Saturday 8:00 AM - 5:00 PM, Sunday 7:00 AM - 12:00 PM).";
+            return $this->persist($userId, $audience, $mode, $language, $message, $answer, [], $searchResults, null, $correlation, 'grounded-unknown', [], $detectedTopic);
         }
 
         $primary = $sources[0];
@@ -118,17 +124,13 @@ final class AiAssistantService
         }
 
         $answer = $greetingPrefix;
-        if ($language === 'fil' || $language === 'taglish') {
-            $answer .= $primary['content'];
-        } else {
-            $answer .= $primary['content'];
-        }
+        $answer .= $primary['content'];
 
         if (!empty($primary['steps'])) {
             $answer .= "\n\n" . $primary['steps'];
         }
 
-        return $this->persist($userId, $audience, $mode, $language, $message, $answer, $sources, $searchResults, null, $correlation, 'approved-knowledge');
+        return $this->persist($userId, $audience, $mode, $language, $message, $answer, $sources, $searchResults, null, $correlation, 'approved-knowledge', [], $detectedTopic);
     }
 
     public function saveFeedback(int $reviewerId, string $reference, string $rating, string $comments): void
@@ -218,7 +220,7 @@ final class AiAssistantService
     /**
      * Resolve direct parish system guidance and personalized user transaction lookups.
      */
-    private function resolveSystemOrUserTransactionQuery(int $userId, string $query, string $language): ?array
+    private function resolveSystemOrUserTransactionQuery(int $userId, string $query, string $language, string $detectedTopic = ''): ?array
     {
         $normalized = mb_strtolower(trim($query));
         $isFil = ($language === 'fil' || $language === 'taglish');
@@ -432,28 +434,188 @@ final class AiAssistantService
             ];
         }
 
-        // J-CERT. Certificate Requirements — fixed canonical answer: Birth Certificate / PSA copy + ₱100 fee.
-        if (preg_match('/\b(?:ano(?:ng)?\s+(?:kailangan|requirement|dokumento)|what(?:\s+do\s+i\s+need|\s+are\s+the\s+requirements?|\s+documents?\s+(?:do\s+i\s+need|are\s+needed|are\s+required))|requirements?\s+(?:for\s+(?:(?:a|the)\s+)?(?:baptis(?:mal?)?|first\s+communion|communion|confirmation|kumpil|binyag)\s*(?:certificate|certification|cert)?|po|naman)|kailangan\s+(?:ko|namin|po)?\s+(?:para\s+sa)?(?:\s+(?:baptis(?:mal?)?|first\s+communion|communion|confirmation|kumpil|binyag))?(?:\s*(?:certificate|certification|cert|sertipiko))|(?:para\s+makakuha|to\s+get|to\s+request|to\s+apply)\s+(?:ng\s+)?(?:a\s+)?(?:baptis(?:mal?)?|first\s+communion|communion|confirmation)\s*(?:certificate|certification|cert))\b/iu', $normalized)
-            && !preg_match('/\b(?:wedding|kasal|marriage|blessing|basbas|binyag\s+service|baptism\s+service|funeral)\b/iu', $normalized)
-        ) {
-            $isBaptismCert = (bool) preg_match('/\bbaptis/i', $normalized);
-            if ($isBaptismCert) {
+        // J-CERT. Official Certificate Requirements (Strict Priority Handling)
+        $isCertQuery = ($detectedTopic === TugonConversationalIntent::TOPIC_CERTIFICATES)
+            || (bool) preg_match('/\b(?:certificates?|certs?|certification|sertipiko|papeles|katibayan|pamatuod)\b/iu', $normalized)
+            || (bool) preg_match('/\b(?:how (?:do|can) i get (?:a )?(?:baptismal|marriage|confirmation|death|communion) certificate|how to get (?:the )?certificates?|requirements? (?:on )?(?:how )?to (?:get|request) (?:the )?certificates?)\b/iu', $normalized);
+
+        if ($isCertQuery && !preg_match('/\b(?:binyag\s+service|baptism\s+service|wedding\s+service|funeral\s+mass|misa\s+sa\s+patay)\b/iu', $normalized)) {
+            $isBaptism = (bool) preg_match('/\b(?:baptis[a-z]*|binyag|bunyag)\b/iu', $normalized);
+            $isMarriage = (bool) preg_match('/\b(?:marriage[a-z]*|kasal|wedding)\b/iu', $normalized);
+            $isConfirmation = (bool) preg_match('/\b(?:confirm[a-z]*|kumpil|kumpirma)\b/iu', $normalized);
+            $isCommunion = (bool) preg_match('/\b(?:communion|komunyon)\b/iu', $normalized);
+            $isDeath = (bool) preg_match('/\b(?:death|patay|libing|yumao|funeral)\b/iu', $normalized);
+
+            if ($isBaptism) {
                 $answer = $isFil
-                    ? "Para sa **Baptismal Certificate** request, ihanda po ang mga sumusunod:\n\n• **PSA / Birth Certificate** copy ng bininyagan\n• Kumpletong detalye: Buong pangalan, petsa ng kapanganakan, at pangalan ng mga magulang\n• Bayad (Fee): **₱100.00** bawat kopya\n\nMaaari po kayong magsumite nang direkta sa pamamagitan ng [Baptism Certificate Request](../users/request-certificate.php).\n\nNais po ba ninyong tulungan ko kayo sa pagsumite ng kahilingang ito?"
-                    : "For a **Baptism Certificate** request, please prepare the following:\n\n• Copy of **PSA / Birth Certificate**\n• Complete record details: Full name, date of birth, and parents' names\n• Processing Fee: **₱100.00** per copy\n\nYou can submit your request directly through the [Baptism Certificate](../users/request-certificate.php) request feature.\n\nWould you like me to show you how to submit this request?";
-            } else {
-                $answer = $isFil
-                    ? "Para makakuha ng **sertipiko** (Baptismal, First Communion, o Confirmation), narito ang mga kailangan:\n\n• **PSA Birth Certificate** copy\n• Personal na detalye ng may-ari ng talaan\n• Bayad (Fee): **₱100.00** bawat kopya\n\nMaaari po kayong magsumite sa [Request Certificate](../users/request-certificate.php).\n\nNais po ba ninyong tulungan ko kayo sa pagsumite ng form?"
-                    : "To obtain an official parish **certificate** (Baptismal, First Communion, or Confirmation):\n\n• Copy of **PSA / Birth Certificate**\n• Personal record details (Full Name, Date of Birth, Parents' Names)\n• Processing Fee: **₱100.00** per copy\n\nYou can submit your request directly through [Request Certificate](../users/request-certificate.php).\n\nWould you like me to show you how to submit this request?";
+                    ? "Para kumuha ng **Baptismal Certificate** para sa inyong anak o sarili:\n\n" .
+                      "• **Mga Kailangan**:\n" .
+                      "  - Kopya ng **PSA o Local Civil Registrar Birth Certificate** ng bininyagan\n" .
+                      "  - Buong pangalan ng bata, petsa ng kapanganakan, at pangalan ng mga magulang\n" .
+                      "  - Valid Government ID ng magulang o humihiling (o Authorization Letter at ID kung kinatawan)\n" .
+                      "  - Layunin ng request\n" .
+                      "• **Bayad at Pagproseso**: **₱100.00** bawat kopya | **1 hanggang 3 araw ng trabaho**\n" .
+                      "• **Paano Mag-request**: Magsumite online sa pamamagitan ng [Certificate Request](../users/request-certificate.php) o personal sa tanggapan ng parokya (Martes–Sabado 8:00 AM–5:00 PM, Linggo 7:00 AM–12:00 PM).\n\n" .
+                      "Nais po ba ninyong tulungan ko kayo sa pagsumite ng kahilingang ito?"
+                    : "To obtain an official **Baptismal Certificate** for your child or yourself:\n\n" .
+                      "• **Requirements**:\n" .
+                      "  - Photocopy of **PSA / Local Civil Registrar Birth Certificate**\n" .
+                      "  - Complete record details: Full name of the baptized, date of birth, and parents' full names\n" .
+                      "  - Valid Government ID of parent/requester (or authorization letter and ID if representative)\n" .
+                      "  - Purpose of the certificate\n" .
+                      "• **Fee & Processing**: **₱100.00** per copy | **1 to 3 working days**\n" .
+                      "• **Where & How to Request**: Submit online via [Baptismal Certificate Request](../users/request-certificate.php) or at the Parish Office during office hours (Tuesday–Saturday 8:00 AM–5:00 PM, Sunday 7:00 AM–12:00 PM).\n\n" .
+                      "Would you like guidance on submitting this request online?";
+                return [
+                    'answer' => $answer,
+                    'prompts' => ['Request Certificate', 'How long does certificate processing take?', 'Track My Requests']
+                ];
             }
+
+            if ($isMarriage) {
+                $answer = $isFil
+                    ? "Para sa **Sertipiko ng Kasal (Marriage Certificate)**, narito ang mga kailangan:\n\n" .
+                      "• **Mga Kailangan**:\n" .
+                      "  - Valid Government ID ng humihiling (o Authorization Letter at ID kung kinatawan)\n" .
+                      "  - Buong pangalan ng mag-asawa (Groom at Bride kabilang ang maiden name)\n" .
+                      "  - Petsa ng kasal sa simbahan\n" .
+                      "  - Layunin ng paghingi ng sertipiko\n" .
+                      "• **Bayad at Pagproseso**: **₱100.00** bawat kopya | **1 hanggang 3 araw ng trabaho**\n" .
+                      "• **Paano Mag-request**: Maaaring magsumite online sa pamamagitan ng [Certificate Request](../users/request-certificate.php) o personal sa tanggapan ng parokya (Martes–Sabado 8:00 AM–5:00 PM, Linggo 7:00 AM–12:00 PM).\n\n" .
+                      "Nais po ba ninyong tulungan ko kayo sa pagsumite ng kahilingang ito?"
+                    : "To request an official parish **Marriage Certificate**:\n\n" .
+                      "• **Requirements**:\n" .
+                      "  - Valid Government ID of requester (or authorization letter and ID if representative)\n" .
+                      "  - Full names of husband and wife (including bride's maiden name)\n" .
+                      "  - Date and place of church marriage\n" .
+                      "  - Purpose of the certificate\n" .
+                      "• **Fee & Processing**: **₱100.00** per copy | **1 to 3 working days**\n" .
+                      "• **Where & How to Request**: Submit online via [Marriage Certificate Request](../users/request-certificate.php) or visit the Parish Office during office hours (Tuesday–Saturday 8:00 AM–5:00 PM, Sunday 7:00 AM–12:00 PM).\n\n" .
+                      "Would you like guidance on submitting this request online?";
+                return [
+                    'answer' => $answer,
+                    'prompts' => ['Request Certificate', 'Track My Requests', 'Parish Office Hours']
+                ];
+            }
+
+            if ($isConfirmation) {
+                $answer = $isFil
+                    ? "Para sa **Confirmation Certificate (Sertipiko ng Kumpil)**, narito ang mga kailangan:\n\n" .
+                      "• **Mga Kailangan**:\n" .
+                      "  - Kopya ng PSA Birth Certificate o Baptismal Certificate\n" .
+                      "  - Buong pangalan ng kinumpilan at tinatayang taon ng kumpil\n" .
+                      "  - Pangalan ng mga magulang\n" .
+                      "  - Valid Government ID ng humihiling\n" .
+                      "• **Bayad at Pagproseso**: **₱100.00** bawat kopya | **1 hanggang 3 araw ng trabaho**\n" .
+                      "• **Paano Mag-request**: Magsumite sa [Request Certificate](../users/request-certificate.php) o personal sa Parish Office (Martes–Sabado 8:00 AM–5:00 PM, Linggo 7:00 AM–12:00 PM)."
+                    : "For an official parish **Confirmation Certificate**:\n\n" .
+                      "• **Requirements**:\n" .
+                      "  - Copy of PSA Birth Certificate or Baptismal Certificate\n" .
+                      "  - Confirmand's full name and approximate year of confirmation\n" .
+                      "  - Names of parents\n" .
+                      "  - Valid Government ID of requester\n" .
+                      "• **Fee & Processing**: **₱100.00** per copy | **1 to 3 working days**\n" .
+                      "• **Where & How to Request**: Submit online via [Confirmation Certificate Request](../users/request-certificate.php) or at the Parish Office (Tuesday–Saturday 8:00 AM–5:00 PM, Sunday 7:00 AM–12:00 PM).";
+                return [
+                    'answer' => $answer,
+                    'prompts' => ['Request Certificate', 'Track My Requests', 'Parish Office Hours']
+                ];
+            }
+
+            if ($isDeath) {
+                $answer = $isFil
+                    ? "Para sa **Death / Funeral Certificate (Sertipiko ng Yumao)**:\n\n" .
+                      "• **Mga Kailangan**:\n" .
+                      "  - Certified copy ng PSA o Local Civil Registrar Death Certificate\n" .
+                      "  - Buong pangalan ng yumao, petsa ng kapanganakan, at petsa ng pagpanaw\n" .
+                      "  - Petsa ng libing o misa sa patay\n" .
+                      "  - Valid ID ng humihiling na kamag-anak\n" .
+                      "• **Bayad at Pagproseso**: **₱100.00** bawat kopya | **1 hanggang 3 araw ng trabaho**\n" .
+                      "• **Paano Mag-request**: Magsumite sa [Request Certificate](../users/request-certificate.php) o sa Parish Office."
+                    : "For an official parish **Death / Funeral Certificate**:\n\n" .
+                      "• **Requirements**:\n" .
+                      "  - Certified copy of PSA or Local Civil Registrar Death Certificate\n" .
+                      "  - Deceased person's full name, birth date, and date of passing\n" .
+                      "  - Date of funeral blessing / burial\n" .
+                      "  - Valid Government ID of immediate kin\n" .
+                      "• **Fee & Processing**: **₱100.00** per copy | **1 to 3 working days**\n" .
+                      "• **Where & How to Request**: Submit online through [Request Certificate](../users/request-certificate.php) or at the Parish Office.";
+                return [
+                    'answer' => $answer,
+                    'prompts' => ['Request Certificate', 'Track My Requests', 'Contact Parish Staff']
+                ];
+            }
+
+            // General / Vague Certificate Requirements (Part 1 Step 4 & Part 3 Example 1)
+            $answer = $isFil
+                ? "Malugod po kayong tutulungan! Aling sertipiko po ang inyong kailangan: **Baptismal**, **Confirmation**, **Marriage**, o **Death**? Sa pangkalahatan, narito ang mga pangunahing kailangan:\n\n" .
+                  "• **Valid Government ID** ng humihiling (o Authorization Letter at ID kung kinatawan)\n" .
+                  "• **Buong pangalan** ng nasa talaan at **petsa ng sakramento**\n" .
+                  "• **Pangalan ng mga magulang**\n" .
+                  "• **Layunin ng request** (school, kasal, pasaporte, atbp.)\n" .
+                  "• **Bayad**: **₱100.00** bawat kopya | **Pagproseso**: **1 hanggang 3 araw ng trabaho**\n\n" .
+                  "Maaari po kayong magsumite online sa pamamagitan ng [Certificate Request](../users/request-certificate.php) o personal sa opisina ng parokya (Martes–Sabado 8:00 AM–5:00 PM, Linggo 7:00 AM–12:00 PM).\n\n" .
+                  "Sabihin lamang po kung alin sa mga ito ang inyong kailangan, at ibibigay ko ang tiyak na mga kailangan at detalye."
+                : "Happy to help! Which certificate do you need: **Baptismal**, **Confirmation**, **Marriage**, or **Death**? In general, you'll need:\n\n" .
+                  "• A **Valid Government ID** (or authorization letter and ID if requesting on behalf of someone else)\n" .
+                  "• The **full name** of the person on the record and **date of the sacrament**\n" .
+                  "• The **names of the parents**\n" .
+                  "• **Purpose of the request**\n" .
+                  "• **Fee**: **₱100.00** per copy | **Processing Time**: **1 to 3 working days**\n\n" .
+                  "You can submit your request directly online via [Certificate Request](../users/request-certificate.php) or in person at the Parish Office during office hours (Tuesday–Saturday 8:00 AM–5:00 PM, Sunday 7:00 AM–12:00 PM).\n\n" .
+                  "Tell me which one, and I'll give you the exact requirements, fee, and processing time.";
             return [
                 'answer' => $answer,
-                'prompts' => ['Request Certificate', 'How to request a certificate', 'Track My Requests']
+                'prompts' => ['Baptismal Certificate', 'Confirmation Certificate', 'Marriage Certificate', 'Death Certificate']
+            ];
+        }
+
+        // J-CONFESSION. Sacrament of Reconciliation / Confession Schedule
+        if (preg_match('/\b(?:what time is confession|confession schedule|confession times?|kailan ang kumpisal|oras ng kumpisal|unsang orasa ang kumpisal|iskedyul ng kumpisal|kumpisalan|reconciliation schedule|time of confession)\b/iu', $normalized)) {
+            $answer = $isFil
+                ? "Ang iskedyul ng **Kumpisal (Sakramento ng Pakikipagkasundo)** sa Parokya ng San Lorenzo Ruiz ay:\n\n" .
+                  "• **Miyerkules at Biyernes**: 4:30 PM – 5:15 PM (Bago ang Misa sa hapon)\n" .
+                  "• **Sabado**: 4:00 PM – 5:00 PM\n" .
+                  "• **Lugar**: Confessional Area malapit sa Sacred Heart Shrine\n" .
+                  "• **Sick Calls o Kumpisal sa May Sakit**: Maaaring mag-appointment sa Parish Office sa **0997 742 8176**.\n\n" .
+                  "Nais po ba ninyong malaman din ang iskedyul ng Banal na Misa?"
+                : "The Sacrament of Reconciliation (**Confession**) schedule at San Lorenzo Ruiz Parish is:\n\n" .
+                  "• **Wednesday & Friday**: 4:30 PM – 5:15 PM (Before the evening Mass)\n" .
+                  "• **Saturday**: 4:00 PM – 5:00 PM\n" .
+                  "• **Location**: Confessional Area near the Sacred Heart Shrine\n" .
+                  "• **Sick Calls / Emergency Confession**: By appointment through the Parish Office at **0997 742 8176**.\n\n" .
+                  "Would you like to check the Holy Mass schedule as well?";
+            return [
+                'answer' => $answer,
+                'prompts' => ['Mass Schedule', 'Parish Office Hours', 'Contact Parish Staff']
+            ];
+        }
+
+        // J-BLESSING-FEE. House & Vehicle Blessing Offering Policy
+        if (preg_match('/\b(?:how much (?:is )?(?:a )?(?:house |vehicle |car )?blessing|blessing fee|blessing offering|magkano (?:ang )?(?:basbas|blessing)|bayad sa (?:basbas|blessing)|pila ang (?:basbas|blessing)|love offering sa basbas)\b/iu', $normalized)) {
+            $answer = $isFil
+                ? "Para sa **House Blessing** (o Vehicle Blessing), **walang mandatory o nakatakdang bayad**. Kusang-loob na donasyon o voluntary offering (**love offering**) lamang po ang tinatanggap para sa nagbasbas na pari at sa ministeryo ng parokya.\n\n" .
+                  "• **Mga Kailangan sa Request**:\n" .
+                  "  - Kumpletong tirahan at landmark (para sa bahay) o modelo at plaka (para sa sasakyan)\n" .
+                  "  - Nais na petsa at oras (inirerekomendang mag-book nang hindi bababa sa 1 linggo bago ang takdang araw)\n" .
+                  "  - Pangalan at aktibong contact number\n\n" .
+                  "Maaari po kayong magsumite ng booking sa pamamagitan ng [Request Blessing](../users/request-blessing.php) o makipag-ugnayan sa tanggapan ng parokya sa **0997 742 8176**.\n\n" .
+                  "Nais po ba ninyong mag-set ng request para sa pagbabasbas?"
+                : "For a **House Blessing** (or Vehicle Blessing), there is **no mandatory fixed fee**. The parish welcomes any voluntary offering or free-will donation (**love offering**) for the officiating priest and parish ministry.\n\n" .
+                  "• **Information Required**:\n" .
+                  "  - Complete physical address and landmark (for home) or vehicle model and plate number\n" .
+                  "  - Preferred date and time (recommended to book at least 1 week in advance)\n" .
+                  "  - Contact person name and mobile number\n\n" .
+                  "You can submit your booking online via [Request Blessing](../users/request-blessing.php) or coordinate directly with the parish office at **0997 742 8176**.\n\n" .
+                  "Would you like me to help you submit a blessing request?";
+            return [
+                'answer' => $answer,
+                'prompts' => ['Request Blessing', 'Parish Office Hours', 'Contact Parish Staff']
             ];
         }
 
         // J-SACRAMENT. Sacramental Requirements (for sacrament services, not certificates — Marriage, Baptism Service, Confirmation, Communion, Funeral Mass, Blessings)
-        if (preg_match('/\b(?:what are the requirements for (?:baptism|confirmation|marriage|first communion|wedding|funeral)|requirements for (?:baptism|confirmation|marriage|communion|kasal|binyag|kumpil|funeral|libing|patay)|what information should i provide for a blessing request|funeral mass requirements?)\b/iu', $normalized)) {
+        if (!$isCertQuery && preg_match('/\b(?:what are the requirements for (?:baptism|confirmation|marriage|first communion|wedding|funeral)|requirements for (?:baptism|confirmation|marriage|communion|kasal|binyag|kumpil|funeral|libing|patay)|what information should i provide for a blessing request|funeral mass requirements?)\b/iu', $normalized)) {
             if (preg_match('/\bblessing/i', $normalized)) {
                 $answer = $isFil
                     ? "Mga kailangan para sa **Blessing Request**:\n1. Uri ng blessing (Bahay, Sasakyan, Negosyo, Imahen)\n2. Kumpletong address at landmark\n3. Nais na petsa at oras\n4. Pangalan at contact number ng humihiling\n5. Karagdagang paalala para sa pari.\n\n[Request Blessing](../users/request-blessing.php)"
@@ -791,9 +953,9 @@ final class AiAssistantService
     }
 
     /**
-     * Retrieve knowledge records with typo tolerance and synonym expansion.
+     * Retrieve knowledge records with typo tolerance, synonym expansion, and strict intent-based category routing.
      */
-    private function knowledge(string $query): array
+    private function knowledge(string $query, string $topicIntent = ''): array
     {
         $expanded = $this->expandSynonymsAndTypos($query);
         $search = preg_replace('/[^\pL\pN\s]+/u', ' ', $expanded);
@@ -803,10 +965,31 @@ final class AiAssistantService
         $boolean = implode(' ', array_map(static fn($w) => $w . '*', $cleanTokens));
         $rows = [];
 
+        // Route strictly to matching knowledge-base categories by detected intent
+        $intentCategories = [
+            TugonConversationalIntent::TOPIC_CERTIFICATES => ['certificates', 'documents'],
+            TugonConversationalIntent::TOPIC_SACRAMENT_REQUESTS => ['sacraments', 'reservations', 'services'],
+            TugonConversationalIntent::TOPIC_BLESSINGS => ['blessings', 'services'],
+            TugonConversationalIntent::TOPIC_FUNERAL_MEMORIAL => ['funeral', 'reservations', 'sacraments'],
+            TugonConversationalIntent::TOPIC_MASS_SERVICE_SCHEDULES => ['schedule', 'mass'],
+            TugonConversationalIntent::TOPIC_MASS_INTENTIONS => ['mass', 'intentions', 'services'],
+            TugonConversationalIntent::TOPIC_PARISH_OFFICE => ['office', 'contact', 'general'],
+            TugonConversationalIntent::TOPIC_EVENTS_MINISTRIES => ['announcements', 'events', 'ministries'],
+            TugonConversationalIntent::TOPIC_HOW_TO_USE_SYSTEM => ['account', 'tracking', 'status', 'system', 'faq'],
+            TugonConversationalIntent::TOPIC_CHURCH_TEACHING => ['doctrine', 'teaching', 'catechism'],
+        ];
+
+        $categorySql = '';
+        if (!empty($topicIntent) && isset($intentCategories[$topicIntent])) {
+            $cats = array_map(fn($c) => "'" . $this->db->real_escape_string($c) . "'", $intentCategories[$topicIntent]);
+            $categorySql = " AND category IN (" . implode(',', $cats) . ") ";
+        }
+
         if ($boolean !== '') {
             $stmt = $this->db->prepare("SELECT knowledge_id, topic, keywords, answer, steps, category, source, version, effective_date, expiry_date, language, updated_at,
                 MATCH(topic, keywords, answer) AGAINST(? IN BOOLEAN MODE) score
                 FROM chatbot_knowledge WHERE status='active' AND approval_status='approved'
+                {$categorySql}
                 AND (effective_date IS NULL OR effective_date <= CURRENT_DATE) AND (expiry_date IS NULL OR expiry_date >= CURRENT_DATE)
                 AND MATCH(topic, keywords, answer) AGAINST(? IN BOOLEAN MODE) HAVING score >= 1.0 ORDER BY score DESC, updated_at DESC LIMIT 3");
             $stmt->bind_param('ss', $boolean, $boolean);
@@ -818,11 +1001,12 @@ final class AiAssistantService
             $stmt->close();
         }
 
-        // Secondary fallback search if strict boolean yielded no results
+        // Secondary fallback search if strict boolean yielded no results (still scoped to intent category)
         if (empty($rows)) {
             $likeTerm = '%' . mb_strimwidth($query, 0, 50, '') . '%';
             $stmt = $this->db->prepare("SELECT knowledge_id, topic, keywords, answer, steps, category, source, version, effective_date, expiry_date, language, updated_at, 1.0 AS score
                 FROM chatbot_knowledge WHERE status='active' AND approval_status='approved'
+                {$categorySql}
                 AND (topic LIKE ? OR keywords LIKE ?) LIMIT 3");
             $stmt->bind_param('ss', $likeTerm, $likeTerm);
             $stmt->execute();
@@ -938,7 +1122,7 @@ final class AiAssistantService
         ];
     }
 
-    private function persist(int $userId, string $audience, string $mode, string $language, string $question, string $answer, array $sources, array $results, ?array $analytics, string $correlation, string $provider, array $prompts = []): array
+    private function persist(int $userId, string $audience, string $mode, string $language, string $question, string $answer, array $sources, array $results, ?array $analytics, string $correlation, string $provider, array $prompts = [], string $detectedIntent = ''): array
     {
         $hex = bin2hex(random_bytes(16));
         $reference = sprintf('%s-%s-%s-%s-%s', substr($hex, 0, 8), substr($hex, 8, 4), substr($hex, 12, 4), substr($hex, 16, 4), substr($hex, 20));
@@ -952,13 +1136,13 @@ final class AiAssistantService
         ], $sources);
         $snapshot = json_encode($publicSources, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
-        $stmt = $this->db->prepare('INSERT INTO ai_responses(response_reference, user_id, audience, mode, language, question_redacted, answer_redacted, source_snapshot, provider, correlation_id) VALUES(?,?,?,?,?,?,?,?,?,?)');
-        $stmt->bind_param('sissssssss', $reference, $userId, $audience, $mode, $language, $question, $answer, $snapshot, $provider, $correlation);
+        $stmt = $this->db->prepare('INSERT INTO ai_responses(response_reference, user_id, audience, mode, language, question_redacted, answer_redacted, source_snapshot, provider, detected_intent, correlation_id) VALUES(?,?,?,?,?,?,?,?,?,?,?)');
+        $stmt->bind_param('sisssssssss', $reference, $userId, $audience, $mode, $language, $question, $answer, $snapshot, $provider, $detectedIntent, $correlation);
         $stmt->execute();
         $stmt->close();
 
-        $stmt = $this->db->prepare('INSERT INTO chatbot_inquiries(user_id, user_role, question, answer_preview, mode, context_limited, correlation_id, response_reference) VALUES(?,?,?,?,?,1,?,?)');
-        $stmt->bind_param('issssss', $userId, $audience, $question, $answer, $mode, $correlation, $reference);
+        $stmt = $this->db->prepare('INSERT INTO chatbot_inquiries(user_id, user_role, question, answer_preview, mode, detected_intent, context_limited, correlation_id, response_reference) VALUES(?,?,?,?,?,?,1,?,?)');
+        $stmt->bind_param('isssssss', $userId, $audience, $question, $answer, $mode, $detectedIntent, $correlation, $reference);
         $stmt->execute();
         $stmt->close();
 
@@ -970,6 +1154,8 @@ final class AiAssistantService
             'search_results' => $results,
             'analytics' => $analytics,
             'language' => $language,
+            'detected_intent' => $detectedIntent,
+            'category' => $detectedIntent ?: 'general',
             'response_reference' => $reference,
             'correlation_id' => $correlation,
             'suggested_prompts' => $prompts,
@@ -982,7 +1168,7 @@ final class AiAssistantService
 
     private function isInjection(string $text): bool
     {
-        return (bool) preg_match('/ignore (all |the )?(previous|system)|reveal (the )?(prompt|secret|credential)|bypass (permission|authorization)|execute (sql|command)|database password|session (id|token)/i', $text);
+        return (bool) preg_match('/\b(?:ignore (?:all |the )?(?:previous|system|your )?instructions?|tell me (?:your |the )?prompt|what is your prompt|reveal (?:the |your )?(?:prompt|secret|credential)|system prompt|developer instructions|bypass (?:permission|authorization)|execute (?:sql|command)|database password|session (?:id|token)|prompt injection|override system|jailbreak)\b/iu', $text);
     }
 
     private function requestsMutation(string $text): bool
@@ -992,6 +1178,6 @@ final class AiAssistantService
 
     private function isParishRelated(string $text): bool
     {
-        return (bool) preg_match('/parish|parokya|church|mass|misa|office|opisina|bapt|binyag|confirm|kumpil|communion|komunyon|marriage|wedding|kasal|bless|basbas|certificate|sertipiko|request|kahilingan|reserv|venue|schedule|iskedyul|announcement|anunsyo|payment|bayad|funeral|burial|libing|priest|pari|secretary|kalihim|agnes|calapaan|vicar|record|tala|sacrament|analytics|report|ulat|TUGON|requirement|kailangan|cost|magkano|upload|format|docx|pdf|file/i', $text);
+        return (bool) preg_match('/parish|parokya|church|mass|misa|office|opisina|bapt|binyag|confirm|kumpil|communion|komunyon|marriage|wedding|kasal|bless|basbas|bendisyon|bendita|certificate|sertipiko|papeles|confess|kumpisal|kompisal|reconciliation|penance|adoration|novena|nobena|rosary|rosaryo|request|kahilingan|reserv|venue|schedule|iskedyul|announcement|anunsyo|payment|bayad|funeral|burial|libing|priest|pari|secretary|kalihim|agnes|calapaan|vicar|record|tala|sacrament|analytics|report|ulat|TUGON|requirement|kailangan|cost|magkano|upload|format|docx|pdf|file/i', $text);
     }
 }
