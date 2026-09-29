@@ -844,4 +844,558 @@ class CertificatePdfService
         $dompdf->stream($filename, ['Attachment' => $download ? 1 : 0]);
         exit;
     }
+
+    /**
+     * Required fields for an official Certificate of Confirmation.
+     */
+    public static function requiredConfirmationFields(): array
+    {
+        return [
+            'fullname' => 'Confirmand Name',
+            'confirmation_date' => 'Date of Confirmation',
+            'bishop_priest' => 'Administering Bishop',
+            'father_name' => "Father's Name",
+            'mother_name' => "Mother's Name",
+        ];
+    }
+
+    /**
+     * Validates whether a Confirmation record has all required fields.
+     */
+    public function validateConfirmationRecord(array $record): array
+    {
+        $missing = [];
+        $fullname = trim((string)($record['confirmandName'] ?? ($record['fullname'] ?? '')));
+        if ($fullname === '' || $fullname === 'N/A') {
+            $missing[] = 'Confirmand Name';
+        }
+
+        $cdate = trim((string)($record['confirmationDate'] ?? ($record['confirmation_date'] ?? '')));
+        if ($cdate === '' || $cdate === '0000-00-00' || $cdate === 'N/A') {
+            $missing[] = 'Date of Confirmation';
+        }
+
+        $bishop = trim((string)($record['bishopName'] ?? ($record['bishop_priest'] ?? '')));
+        if ($bishop === '' || $bishop === 'N/A') {
+            $missing[] = 'Administering Bishop';
+        }
+
+        $father = trim((string)($record['fatherName'] ?? ($record['father_name'] ?? '')));
+        if ($father === '' || $father === 'N/A') {
+            $missing[] = "Father's Name";
+        }
+
+        $mother = trim((string)($record['motherName'] ?? ($record['mother_name'] ?? '')));
+        if ($mother === '' || $mother === 'N/A') {
+            $missing[] = "Mother's Name";
+        }
+
+        return $missing;
+    }
+
+    /**
+     * Convert an integer day to an ordinal representation (1ST, 2ND, 3RD, 4TH...).
+     */
+    public static function formatConfirmationOrdinalDay(int $day): string
+    {
+        $j = $day % 10;
+        $k = $day % 100;
+        if ($j === 1 && $k !== 11) return $day . 'ST';
+        if ($j === 2 && $k !== 12) return $day . 'ND';
+        if ($j === 3 && $k !== 13) return $day . 'RD';
+        return $day . 'TH';
+    }
+
+    /**
+     * Renders the complete, official HTML template for the Certificate of Confirmation.
+     * Output is landscape A4 / US Letter, 300 DPI print-ready, with pure SVG Greek-key border and gold seal.
+     */
+    public function renderConfirmationCertificateHtml(array $record, array $options = []): string
+    {
+        $root = dirname(__DIR__);
+        $crestPath = !empty($record['logoLeftUrl']) && file_exists($record['logoLeftUrl'])
+            ? $record['logoLeftUrl']
+            : $root . '/assets/img/archdiocese-crest.jpg';
+        $slrPath = !empty($record['logoRightUrl']) && file_exists($record['logoRightUrl'])
+            ? $record['logoRightUrl']
+            : (file_exists($root . '/assets/img/san-lorenzo-logo.png') ? $root . '/assets/img/san-lorenzo-logo.png' : $root . '/assets/img/san-lorenzo-logo.jpg');
+        $borderPath = $root . '/assets/img/certificates/confirmation-greek-border.svg';
+        $sealPath = !empty($record['sealUrl']) && file_exists($record['sealUrl'])
+            ? $record['sealUrl']
+            : $root . '/assets/img/certificates/gold-embossed-parish-seal.svg';
+
+        $crestUri = self::fileToDataUri($crestPath, 'image/jpeg');
+        $slrUri = self::fileToDataUri($slrPath, 'image/png');
+        $borderUri = self::fileToDataUri($borderPath, 'image/svg+xml');
+        $sealUri = self::fileToDataUri($sealPath, 'image/svg+xml');
+
+        // Resolve data model fields
+        $parishName = strtoupper(trim((string)($record['parishName'] ?? 'SAN LORENZO RUIZ MISSION STATION')));
+        $parishLocation = trim((string)($record['parishLocation'] ?? 'Aleosan, Cotabato'));
+        $confirmandName = strtoupper(trim((string)($record['confirmandName'] ?? ($record['fullname'] ?? ''))));
+
+        $rawConfDate = trim((string)($record['confirmationDate'] ?? ($record['confirmation_date'] ?? '')));
+        $confTs = (!empty($rawConfDate) && $rawConfDate !== '0000-00-00') ? strtotime($rawConfDate) : time();
+        $confDayInt = (int)date('j', $confTs);
+        $confOrdinalDay = self::formatConfirmationOrdinalDay($confDayInt);
+        $confMonthUpper = strtoupper(date('F', $confTs));
+        $confYearFull = date('Y', $confTs);
+        $confYearCentury = substr($confYearFull, 0, 2);
+        $confYearShort = substr($confYearFull, 2, 2);
+
+        $bishopName = trim((string)($record['bishopName'] ?? ($record['bishop_priest'] ?? 'Bp. Angelito R. Lampon, O.M.I., D.D.')));
+        $bishopTitle = trim((string)($record['bishopTitle'] ?? 'Archbishop of Cotabato'));
+
+        $fatherName = strtoupper(trim((string)($record['fatherName'] ?? ($record['father_name'] ?? ''))));
+        $motherName = strtoupper(trim((string)($record['motherName'] ?? ($record['mother_name'] ?? ''))));
+
+        // Sponsors
+        $godfatherName = strtoupper(trim((string)($record['godfatherName'] ?? ($record['godfather'] ?? ''))));
+        $godmotherName = strtoupper(trim((string)($record['godmotherName'] ?? ($record['godmother'] ?? ''))));
+        if ($godfatherName === '' && !empty($record['sponsor'])) {
+            $sponsors = self::parseSponsors($record['sponsor']);
+            $godfatherName = strtoupper($sponsors[0] ?? '');
+            if ($godmotherName === '' && isset($sponsors[1])) {
+                $godmotherName = strtoupper($sponsors[1]);
+            }
+        }
+
+        $rawIssueDate = trim((string)($record['issueDate'] ?? ($record['date_issued'] ?? ($record['created_at'] ?? ''))));
+        $issueTs = (!empty($rawIssueDate) && $rawIssueDate !== '0000-00-00') ? strtotime($rawIssueDate) : time();
+        $issueDateFormatted = strtoupper(date('F j, Y', $issueTs));
+
+        $priestName = strtoupper(trim((string)($record['priestName'] ?? ($record['priest_in_charge'] ?? ($record['parish_priest'] ?? 'REV. FR. ALBERTO G. CAHILIG, OMI')))));
+        $priestTitle = trim((string)($record['priestTitle'] ?? 'Priest-in-Charge'));
+
+        $certificateNo = trim((string)($record['certificateNo'] ?? ($record['certificate_number'] ?? '')));
+        if ($certificateNo === '' && !empty($record['registry_no'])) {
+            $certificateNo = 'CONF-' . $confYearFull . '-' . sprintf('%04d', (int)$record['registry_no']);
+        }
+        $includeSecurity = !empty($record['includeSecurity']) || !empty($certificateNo);
+
+        $paper = strtolower(trim((string)($options['paper'] ?? 'a4')));
+        $pageSize = ($paper === 'letter') ? 'letter landscape' : 'a4 landscape';
+        $pageWidth = ($paper === 'letter') ? '279.4mm' : '297mm';
+        $pageHeight = ($paper === 'letter') ? '215.9mm' : '210mm';
+
+        ob_start();
+        ?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Certificate of Confirmation - <?php echo htmlspecialchars($confirmandName); ?></title>
+    <style>
+        @page {
+            size: <?php echo $pageSize; ?>;
+            margin: 0;
+        }
+        *, *::before, *::after {
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            background: #F6F0DC;
+            color: #111827;
+            font-family: 'Times New Roman', Times, Georgia, serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .cert-container {
+            width: <?php echo $pageWidth; ?>;
+            height: <?php echo $pageHeight; ?>;
+            position: relative;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+        }
+        .cert-border-svg {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: <?php echo $pageWidth; ?>;
+            height: <?php echo $pageHeight; ?>;
+            z-index: 1;
+        }
+        .cert-content {
+            position: absolute;
+            left: 20mm;
+            top: 14mm;
+            right: 20mm;
+            bottom: 14mm;
+            z-index: 10;
+            text-align: center;
+        }
+        .header-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 2mm;
+        }
+        .header-logo-cell {
+            width: 22mm;
+            vertical-align: middle;
+            text-align: center;
+        }
+        .header-logo-cell img {
+            max-width: 20mm;
+            max-height: 20mm;
+            display: inline-block;
+        }
+        .header-title-cell {
+            vertical-align: middle;
+            text-align: center;
+            padding: 0 4mm;
+        }
+        .cert-title-text {
+            font-family: 'Cinzel', 'Times New Roman', Georgia, serif;
+            font-size: 26pt;
+            font-weight: 700;
+            color: #1F5A7A;
+            letter-spacing: 0.5px;
+            margin: 0 0 1mm 0;
+            line-height: 1.1;
+        }
+        .parish-name-text {
+            font-family: 'Times New Roman', Arial, sans-serif;
+            font-size: 11pt;
+            font-weight: 800;
+            color: #1F5A7A;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            margin: 0 0 0.5mm 0;
+        }
+        .parish-location-text {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 8.5pt;
+            color: #555555;
+            letter-spacing: 0.3px;
+            margin: 0;
+        }
+        .gold-divider-line {
+            width: 82%;
+            height: 1px;
+            background: #C89B3C;
+            margin: 2mm auto;
+        }
+        .recipient-name {
+            font-family: 'Cinzel', 'Times New Roman', Georgia, serif;
+            font-size: 19pt;
+            font-weight: 800;
+            color: #111827;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin: 1.5mm 0 1mm;
+            line-height: 1.15;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+        .sacrament-line {
+            font-family: 'Cormorant Garamond', 'EB Garamond', Georgia, serif;
+            font-size: 13.5pt;
+            font-style: italic;
+            color: #111827;
+            margin: 1mm 0 1.5mm;
+            line-height: 1.1;
+        }
+        .canon-date-line {
+            font-size: 9pt;
+            color: #111827;
+            margin-bottom: 1.5mm;
+            line-height: 1.3;
+        }
+        .canon-blank {
+            display: inline-block;
+            border-bottom: 1px solid #1F5A7A;
+            color: #111827;
+            font-weight: 700;
+            padding: 0 4px;
+            text-align: center;
+        }
+        .bishop-lead {
+            font-size: 8pt;
+            color: #4b5563;
+            margin-bottom: 0.5mm;
+        }
+        .bishop-name {
+            font-size: 11pt;
+            font-weight: 800;
+            color: #111827;
+            margin-bottom: 0.5mm;
+            line-height: 1.1;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+        .bishop-title {
+            font-size: 8.2pt;
+            color: #374151;
+            line-height: 1.1;
+        }
+        .delegate-confirmed-line {
+            font-size: 8.2pt;
+            color: #374151;
+            margin-top: 0.3mm;
+            margin-bottom: 0.8mm;
+        }
+        .confirmed-name-display {
+            font-size: 9.5pt;
+            font-weight: 700;
+            color: #111827;
+            text-transform: uppercase;
+            margin-bottom: 1mm;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+        .parents-sponsors-table {
+            width: 76%;
+            margin: 0 auto;
+            border-collapse: collapse;
+        }
+        .parent-row-cell {
+            padding: 0.8mm 0;
+            text-align: center;
+        }
+        .parent-val {
+            font-size: 9.5pt;
+            font-weight: 700;
+            color: #111827;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+            overflow: hidden;
+            line-height: 1.1;
+        }
+        .parent-rule {
+            border-bottom: 1px solid #C89B3C;
+            width: 90%;
+            margin: 0.5mm auto 0.4mm;
+        }
+        .parent-caption {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 7.2pt;
+            font-style: italic;
+            color: #555555;
+            line-height: 1;
+        }
+        .cert-statement {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 7.2pt;
+            font-style: italic;
+            color: #4b5563;
+            margin: 2mm auto 1mm;
+            text-align: center;
+        }
+        .footer-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1mm;
+        }
+        .footer-side-cell {
+            width: 38%;
+            vertical-align: bottom;
+            text-align: center;
+            padding-bottom: 2mm;
+        }
+        .footer-seal-cell {
+            width: 24%;
+            vertical-align: middle;
+            text-align: center;
+        }
+        .footer-seal-img {
+            width: 22mm;
+            height: 22mm;
+            display: inline-block;
+        }
+        .footer-val-text {
+            font-size: 8.8pt;
+            font-weight: 700;
+            color: #111827;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            white-space: nowrap;
+            overflow: hidden;
+            line-height: 1.1;
+        }
+        .footer-rule {
+            border-bottom: 1px solid #1F5A7A;
+            width: 82%;
+            margin: 1mm auto 0.6mm;
+        }
+        .footer-sub-caption {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 7.5pt;
+            font-style: italic;
+            color: #1F5A7A;
+        }
+        .security-badge {
+            font-size: 6pt;
+            color: #6b7280;
+            margin-top: 0.8mm;
+            letter-spacing: 0.5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="cert-container">
+        <!-- Pure Vector SVG Greek-Key Meander Frame with Mitered Corners and Gold Line -->
+        <img src="<?php echo $borderUri; ?>" class="cert-border-svg" alt="" />
+
+        <!-- Certificate Inner Content -->
+        <div class="cert-content">
+            <!-- 1. Header Grid -->
+            <table class="header-table">
+                <tr>
+                    <td class="header-logo-cell">
+                        <?php if (!empty($crestUri)): ?>
+                            <img src="<?php echo $crestUri; ?>" alt="Archdiocese Crest" />
+                        <?php endif; ?>
+                    </td>
+                    <td class="header-title-cell">
+                        <div class="cert-title-text">Certificate of Confirmation</div>
+                        <div class="parish-name-text"><?php echo htmlspecialchars($parishName); ?></div>
+                        <div class="parish-location-text"><?php echo htmlspecialchars($parishLocation); ?></div>
+                    </td>
+                    <td class="header-logo-cell">
+                        <?php if (!empty($slrUri)): ?>
+                            <img src="<?php echo $slrUri; ?>" alt="San Lorenzo Ruiz Medallion" />
+                        <?php endif; ?>
+                    </td>
+                </tr>
+            </table>
+
+            <div class="gold-divider-line"></div>
+
+            <!-- 2. Recipient Full Name -->
+            <div class="recipient-name"><?php echo htmlspecialchars($confirmandName); ?></div>
+            <div class="gold-divider-line" style="width: 50%; margin: 1mm auto 1.5mm;"></div>
+
+            <!-- 3. Sacrament Declaration -->
+            <div class="sacrament-line">received the Holy Sacrament of Confirmation</div>
+
+            <!-- 4. Canonical Details: Day, Month, Year -->
+            <div class="canon-date-line">
+                in this parish on the <span class="canon-blank" style="min-width: 14mm;"><?php echo htmlspecialchars($confOrdinalDay); ?></span>
+                day of <span class="canon-blank" style="min-width: 28mm;"><?php echo htmlspecialchars($confMonthUpper); ?></span>,
+                20<span class="canon-blank" style="min-width: 9mm;"><?php echo htmlspecialchars($confYearShort); ?></span>.
+            </div>
+
+            <!-- 5. Administered by His Excellency & Bishop Details -->
+            <div class="bishop-lead">Administered by His Excellency</div>
+            <div class="bishop-name"><?php echo htmlspecialchars($bishopName); ?></div>
+            <div class="bishop-title"><?php echo htmlspecialchars($bishopTitle); ?></div>
+            <div class="delegate-confirmed-line">or his delegate. Confirmed</div>
+
+            <!-- 6. Confirmed Recipient Repeat Line -->
+            <div class="confirmed-name-display"><?php echo htmlspecialchars($confirmandName); ?></div>
+
+            <!-- 7. Four Labeled Lines (Father, Mother, Godfather, Godmother) with Caption directly beneath on Gold Rule -->
+            <table class="parents-sponsors-table">
+                <tr>
+                    <td class="parent-row-cell">
+                        <div class="parent-rule"></div>
+                        <div class="parent-caption">Father's name</div>
+                        <div class="parent-val"><?php echo htmlspecialchars($fatherName); ?></div>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="parent-row-cell">
+                        <div class="parent-rule"></div>
+                        <div class="parent-caption">Mother's name</div>
+                        <div class="parent-val"><?php echo htmlspecialchars($motherName); ?></div>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="parent-row-cell">
+                        <div class="parent-rule"></div>
+                        <div class="parent-caption">Godfather's name</div>
+                        <div class="parent-val"><?php echo htmlspecialchars($godfatherName !== '' ? $godfatherName : 'N/A'); ?></div>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="parent-row-cell">
+                        <div class="parent-rule"></div>
+                        <div class="parent-caption">Godmother's name</div>
+                        <div class="parent-val"><?php echo htmlspecialchars($godmotherName !== '' ? $godmotherName : 'N/A'); ?></div>
+                    </td>
+                </tr>
+            </table>
+
+            <!-- 8. Certification Assurance Statement -->
+            <div class="cert-statement">
+                This is to certify that this certificate is a true copy of Confirmation Record kept in this parish.
+            </div>
+
+            <!-- 9. Footer: Issue Date, Gold Embossed Seal, Priest Signature Block -->
+            <table class="footer-table">
+                <tr>
+                    <td class="footer-side-cell">
+                        <div class="footer-val-text"><?php echo htmlspecialchars($issueDateFormatted); ?></div>
+                        <div class="footer-rule"></div>
+                        <div class="footer-sub-caption">Date</div>
+                    </td>
+                    <td class="footer-seal-cell">
+                        <img src="<?php echo $sealUri; ?>" class="footer-seal-img" alt="Official Parish Seal" />
+                        <?php if ($includeSecurity && !empty($certificateNo)): ?>
+                            <div class="security-badge">NO. <?php echo htmlspecialchars($certificateNo); ?></div>
+                        <?php endif; ?>
+                    </td>
+                    <td class="footer-side-cell">
+                        <div class="footer-val-text"><?php echo htmlspecialchars($priestName); ?></div>
+                        <div class="footer-rule"></div>
+                        <div class="footer-sub-caption"><?php echo htmlspecialchars($priestTitle); ?></div>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+</body>
+</html>
+        <?php
+        return ob_get_clean();
+    }
+
+    /**
+     * Generates a Dompdf instance for Confirmation certificate with landscape orientation.
+     */
+    public function generateConfirmationPdf(array $record, array $options = []): Dompdf
+    {
+        $missing = $this->validateConfirmationRecord($record);
+        if (!empty($missing)) {
+            throw new InvalidArgumentException('Cannot generate Certificate of Confirmation: Missing required fields: ' . implode(', ', $missing));
+        }
+
+        $html = $this->renderConfirmationCertificateHtml($record, $options);
+
+        $paper = strtolower(trim((string)($options['paper'] ?? 'a4')));
+        $paperSize = ($paper === 'letter') ? 'letter' : 'a4';
+
+        $dompdfOptions = new Options();
+        $dompdfOptions->set('isHtml5ParserEnabled', true);
+        $dompdfOptions->set('isRemoteEnabled', true);
+        $dompdfOptions->set('defaultFont', 'Times-Roman');
+        $dompdfOptions->set('dpi', 300);
+
+        $dompdf = new Dompdf($dompdfOptions);
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper($paperSize, 'landscape');
+        $dompdf->render();
+
+        return $dompdf;
+    }
+
+    /**
+     * Streams the Confirmation certificate PDF directly to the browser.
+     */
+    public function streamConfirmationPdf(array $record, string $filename = '', bool $download = true, array $options = []): void
+    {
+        $dompdf = $this->generateConfirmationPdf($record, $options);
+        if (empty($filename)) {
+            $nameSlug = preg_replace('/[^a-zA-Z0-9_\-]/', '_', (string)($record['confirmandName'] ?? ($record['fullname'] ?? 'confirmand')));
+            $filename = 'Certificate_of_Confirmation_' . $nameSlug . '.pdf';
+        }
+        $dompdf->stream($filename, ['Attachment' => $download ? 1 : 0]);
+        exit;
+    }
 }
+

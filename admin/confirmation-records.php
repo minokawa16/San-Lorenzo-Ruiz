@@ -761,6 +761,9 @@ include '../templates/header.php';
                     <button onclick="openAddModal()" class="btn btn-primary-gold">
                         <i class="fas fa-plus"></i> Add Record
                     </button>
+                    <a href="confirmation-certificate.php" class="btn btn-primary-gold" style="background: #1F5A7A; color: #ffffff;" title="Open Confirmation Certificate Studio">
+                        <i class="fas fa-certificate"></i> Certificate Studio
+                    </a>
                 </div>
             </div>
 
@@ -850,6 +853,9 @@ include '../templates/header.php';
                                                         </button>
                                                     </form>
                                                 <?php else: ?>
+                                                    <a href="confirmation-certificate.php?id=<?php echo (int)$record['confirmation_id']; ?>" class="action-btn" style="color: #1e40af; border: 1px solid #bfdbfe; background: #eff6ff;" title="Open in Certificate Studio">
+                                                        <i class="fas fa-certificate"></i> Certificate
+                                                    </a>
                                                     <button class="action-btn btn-delete" onclick="confirmArchive(<?php echo $record['confirmation_id']; ?>)">
                                                         <i class="fas fa-archive"></i> Archive
                                                     </button>

@@ -12,7 +12,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 $isParishMgmtActive = in_array($currentPage, ['manage-users.php', 'manage-parishioners.php', 'organization.php', 'org-chart.php', 'verify-registrations.php'], true);
 $isRequestMgmtActive = in_array($currentPage, ['manage-requests.php', 'request-workflow.php', 'process-request.php', 'manage-reservations.php', 'manage-resources.php', 'manage-calendar.php'], true);
 $isRecordsActive = in_array($currentPage, ['manage-records.php', 'baptism-records.php', 'confirmation-records.php', 'communion-records.php', 'marriage-records.php', 'funeral-records.php', 'sacramental-import.php', 'record-corrections.php', 'archives.php'], true);
-$isCertificatesActive = in_array($currentPage, ['certificate-generator.php', 'manual-certificate-generator.php', 'certificate-workflow.php', 'certificate-templates.php', 'certificate-layout-editor.php'], true);
+$isCertificatesActive = in_array($currentPage, ['certificate-generator.php', 'manual-certificate-generator.php', 'certificate-workflow.php', 'certificate-templates.php', 'certificate-layout-editor.php', 'confirmation-certificate.php'], true);
 $isCommunicationActive = in_array($currentPage, ['manage-announcements.php', 'post-announcement.php'], true);
 $isReportsActive = in_array($currentPage, ['reports.php', 'audit-logs.php'], true);
 $isSystemActive = in_array($currentPage, ['settings.php', 'help.php'], true);
@@ -268,6 +268,10 @@ html body .admin-sidebar.collapsed .nav-section-submenu {
         <a href="<?php echo BASE_URL; ?>admin/certificate-generator.php" class="nav-link <?php echo in_array($currentPage, ['certificate-generator.php', 'manual-certificate-generator.php', 'certificate-workflow.php'], true) ? 'active' : ''; ?>" data-tooltip="<?php echo e(t('nav.generate_certificates', 'Generate Certificates')); ?>">
           <i class="fas fa-certificate"></i>
           <span><?php echo e(t('nav.generate_certificates', 'Generate Certificates')); ?></span>
+        </a>
+        <a href="<?php echo BASE_URL; ?>admin/confirmation-certificate.php" class="nav-link <?php echo ($currentPage === 'confirmation-certificate.php') ? 'active' : ''; ?>" data-tooltip="Confirmation Certificate Studio">
+          <i class="fas fa-stamp"></i>
+          <span>Confirmation Studio</span>
         </a>
         <a href="<?php echo BASE_URL; ?>admin/certificate-templates.php" class="nav-link <?php echo in_array($currentPage, ['certificate-templates.php', 'certificate-layout-editor.php'], true) ? 'active' : ''; ?>" data-tooltip="Certificate Layouts">
           <i class="fas fa-layer-group"></i>

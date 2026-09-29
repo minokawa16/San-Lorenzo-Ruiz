@@ -1245,6 +1245,36 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
     $pdfService->streamBaptismPdf($pdfData, '', true);
     exit;
 }
+
+// Download PDF handler for Confirmation
+if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type === 'confirmation' || $cert_type === 'confirmation_certification')) {
+    if (!empty($missing_confirmation_fields)) {
+        $_SESSION['cert_flash_error'] = 'Cannot download PDF: Missing required fields: ' . implode(', ', $missing_confirmation_fields);
+        header('Location: view-certificate.php?id=' . intval($_GET['id'] ?? ($data['confirmation_id'] ?? 0)) . '&type=' . urlencode($cert_type));
+        exit;
+    }
+    require_once __DIR__ . '/../services/CertificatePdfService.php';
+    $pdfService = new CertificatePdfService($conn);
+    $confRecord = [
+        'parishName' => $display_parish_name,
+        'parishLocation' => $display_ceremony_place,
+        'confirmandName' => $data['fullname'] ?? '',
+        'confirmationDate' => $data['confirmation_date'] ?? '',
+        'bishopName' => $confirmation_bishop,
+        'bishopTitle' => 'Archbishop of Cotabato',
+        'fatherName' => $father_name,
+        'motherName' => $mother_name,
+        'godfatherName' => ($godfather !== 'N/A' ? $godfather : ''),
+        'godmotherName' => ($godmother !== 'N/A' ? $godmother : ''),
+        'issueDate' => $confirmation_issue_date,
+        'priestName' => $confirmation_priest_name,
+        'priestTitle' => $confirmation_priest_title,
+        'certificateNo' => $certificate_number ?? '',
+    ];
+    $paper = $_GET['paper'] ?? 'a4';
+    $pdfService->streamConfirmationPdf($confRecord, '', true, ['paper' => $paper]);
+    exit;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -2685,6 +2715,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
                 <button class="btn btn-primary" id="btnPrintCertificate" onclick="printCertificate()"><i class="fas fa-print"></i> Print Certificate</button>
                 <?php if ($cert_type === 'baptism' || $cert_type === 'baptism_certification'): ?>
                     <a class="btn btn-success fw-bold" href="view-certificate.php?id=<?php echo intval($_GET['id'] ?? ($data['baptism_id'] ?? 0)); ?>&type=<?php echo urlencode($cert_type); ?>&action=download_pdf"><i class="fas fa-file-pdf me-1"></i> Download PDF</a>
+                <?php elseif ($cert_type === 'confirmation' || $cert_type === 'confirmation_certification'): ?>
+                    <a class="btn btn-success fw-bold" href="view-certificate.php?id=<?php echo intval($_GET['id'] ?? ($data['confirmation_id'] ?? 0)); ?>&type=<?php echo urlencode($cert_type); ?>&action=download_pdf"><i class="fas fa-file-pdf me-1"></i> Download PDF</a>
+                    <a class="btn btn-outline-primary fw-bold" href="confirmation-certificate.php?id=<?php echo intval($_GET['id'] ?? ($data['confirmation_id'] ?? 0)); ?>"><i class="fas fa-sliders me-1"></i> Certificate Studio</a>
                 <?php endif; ?>
             <?php endif; ?>
             <?php if (!$is_manual_certificate && !empty($verification_url)): ?>
@@ -3285,8 +3318,8 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
     <?php elseif ($cert_type === 'confirmation'): ?>
         <main class="confirmation-replica-page" id="certificateDocument">
             <section class="confirmation-replica-sheet">
-                <!-- Replicated Ornamental Blue Fan / Scallop Border Frame -->
-                <img src="../assets/img/certificates/ornamental-scallop-border.svg" class="ornamental-scallop-border-overlay" alt="" aria-hidden="true">
+                <!-- Vector Greek-Key Meander Frame Overlay -->
+                <img src="../assets/img/certificates/confirmation-greek-border.svg" class="ornamental-scallop-border-overlay" alt="" aria-hidden="true">
 
                 <div class="conf-outer-frame">
                     <div class="conf-inner-frame">
@@ -3402,11 +3435,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
                             </div>
 
                             <div class="conf-seal-slot">
-                                <div class="conf-seal-circle">
-                                    <div class="conf-seal-star">&#10013;</div>
-                                    <div class="conf-seal-lbl">PARISH SEAL</div>
-                                    <div class="conf-seal-loc">ALEOSAN</div>
-                                </div>
+                                <img src="../assets/img/certificates/gold-embossed-parish-seal.svg" style="width: 24mm; height: 24mm; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(61,42,6,0.3));" alt="Official Parish Seal">
                             </div>
 
                             <div class="conf-sig-col">

@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1188 840" width="100%" height="100%" preserveAspectRatio="none">
+  <defs>
+    <!-- Soft cream parchment gradient (#F6F0DC to #EFE6C8) -->
+    <linearGradient id="parchmentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FAF6E8"/>
+      <stop offset="35%" stop-color="#F6F0DC"/>
+      <stop offset="70%" stop-color="#F1E9D0"/>
+      <stop offset="100%" stop-color="#EFE6C8"/>
+    </linearGradient>
+
+    <!-- Subtle paper grain noise filter -->
+    <filter id="paperGrain" x="0%" y="0%" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="3" result="noise"/>
+      <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.035 0" in="noise" result="coloredNoise"/>
+      <feBlend mode="multiply" in="SourceGraphic" in2="coloredNoise"/>
+    </filter>
+
+    <!-- Top Meander Pattern (24 wide, 24 high) -->
+    <pattern id="greekMeanderH" width="24" height="24" patternUnits="userSpaceOnUse">
+      <path d="M 0,20 H 18 V 6 H 6 V 14 H 12 V 10 M 18,20 H 24" 
+            fill="none" stroke="#1F5A7A" stroke-width="2.2" stroke-linecap="square" stroke-linejoin="miter"/>
+      <line x1="0" y1="2" x2="24" y2="2" stroke="#1F5A7A" stroke-width="1.2"/>
+    </pattern>
+
+    <!-- Bottom Inverted Meander Pattern -->
+    <pattern id="greekMeanderHBottom" width="24" height="24" patternUnits="userSpaceOnUse">
+      <path d="M 0,4 H 18 V 18 H 6 V 10 H 12 V 14 M 18,4 H 24" 
+            fill="none" stroke="#1F5A7A" stroke-width="2.2" stroke-linecap="square" stroke-linejoin="miter"/>
+      <line x1="0" y1="22" x2="24" y2="22" stroke="#1F5A7A" stroke-width="1.2"/>
+    </pattern>
+
+    <!-- Left Vertical Meander Pattern -->
+    <pattern id="greekMeanderVLeft" width="24" height="24" patternUnits="userSpaceOnUse">
+      <path d="M 20,0 V 18 H 6 V 6 H 14 V 12 H 10 M 20,18 V 24" 
+            fill="none" stroke="#1F5A7A" stroke-width="2.2" stroke-linecap="square" stroke-linejoin="miter"/>
+      <line x1="2" y1="0" x2="2" y2="24" stroke="#1F5A7A" stroke-width="1.2"/>
+    </pattern>
+
+    <!-- Right Vertical Meander Pattern -->
+    <pattern id="greekMeanderVRight" width="24" height="24" patternUnits="userSpaceOnUse">
+      <path d="M 4,0 V 18 H 18 V 6 H 10 V 12 H 14 M 4,18 V 24" 
+            fill="none" stroke="#1F5A7A" stroke-width="2.2" stroke-linecap="square" stroke-linejoin="miter"/>
+      <line x1="22" y1="0" x2="22" y2="24" stroke="#1F5A7A" stroke-width="1.2"/>
+    </pattern>
+  </defs>
+
+  <!-- Parchment texture background base with subtle paper grain -->
+  <rect width="1188" height="840" fill="url(#parchmentGrad)" filter="url(#paperGrain)"/>
+
+  <!-- 1. Outermost Teal Line -->
+  <rect x="14" y="14" width="1160" height="812" fill="none" stroke="#1F5A7A" stroke-width="2.8"/>
+
+  <!-- 2. Outer Meander Boundary Line -->
+  <rect x="22" y="22" width="1144" height="796" fill="none" stroke="#1F5A7A" stroke-width="1.5"/>
+
+  <!-- 3. Greek Key Meander Strips -->
+  <!-- Top Horizontal Strip -->
+  <rect x="46" y="22" width="1096" height="24" fill="url(#greekMeanderH)"/>
+  <!-- Bottom Horizontal Strip -->
+  <rect x="46" y="794" width="1096" height="24" fill="url(#greekMeanderHBottom)"/>
+  <!-- Left Vertical Strip -->
+  <rect x="22" y="46" width="24" height="748" fill="url(#greekMeanderVLeft)"/>
+  <!-- Right Vertical Strip -->
+  <rect x="1142" y="46" width="24" height="748" fill="url(#greekMeanderVRight)"/>
+
+  <!-- 4. Corner Meander Blocks (24x24) with Square Fret Spiral -->
+  <!-- Top-Left Corner -->
+  <g transform="translate(22, 22)">
+    <rect width="24" height="24" fill="#F6F0DC"/>
+    <path d="M 0,22 H 22 V 0 M 2,20 H 18 V 6 H 6 V 14 H 12 V 10" fill="none" stroke="#1F5A7A" stroke-width="2.2" stroke-linecap="square"/>
+  </g>
+  <!-- Top-Right Corner -->
+  <g transform="translate(1142, 22)">
+    <rect width="24" height="24" fill="#F6F0DC"/>
+    <path d="M 24,22 H 2 V 0 M 22,20 H 6 V 6 H 18 V 14 H 12 V 10" fill="none" stroke="#1F5A7A" stroke-width="2.2" stroke-linecap="square"/>
+  </g>
+  <!-- Bottom-Left Corner -->
+  <g transform="translate(22, 794)">
+    <rect width="24" height="24" fill="#F6F0DC"/>
+    <path d="M 0,2 H 22 V 24 M 2,4 H 18 V 18 H 6 V 10 H 12 V 14" fill="none" stroke="#1F5A7A" stroke-width="2.2" stroke-linecap="square"/>
+  </g>
+  <!-- Bottom-Right Corner -->
+  <g transform="translate(1142, 794)">
+    <rect width="24" height="24" fill="#F6F0DC"/>
+    <path d="M 24,2 H 2 V 24 M 22,4 H 6 V 18 H 18 V 10 H 12 V 14" fill="none" stroke="#1F5A7A" stroke-width="2.2" stroke-linecap="square"/>
+  </g>
+
+  <!-- 5. Inner Meander Boundary Line -->
+  <rect x="46" y="46" width="1096" height="748" fill="none" stroke="#1F5A7A" stroke-width="1.6"/>
+
+  <!-- 6. Inner Accent Gold Frame with Mitered Corners -->
+  <rect x="56" y="56" width="1076" height="728" fill="none" stroke="#C89B3C" stroke-width="1.8"/>
+
+  <!-- 7. Innermost Subtle Teal Hairline Frame -->
+  <rect x="64" y="64" width="1060" height="712" fill="none" stroke="#1F5A7A" stroke-width="0.8" opacity="0.6"/>
+</svg>
