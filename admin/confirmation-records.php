@@ -783,8 +783,6 @@ include '../templates/header.php';
                                 <th>Place of Baptism</th>
                                 <th>Parents</th>
                                 <th>Sponsor / Godparent</th>
-                                <th>Stipend (Pesos)</th>
-                                <th>Stipend (Cents)</th>
                                 <th>Minister Name</th>
                                 <th>Remarks / Observations</th>
                                 <th>Status</th>
@@ -809,8 +807,6 @@ include '../templates/header.php';
                                             'parents' => $record['parents'] ?? '',
                                             'sponsor' => $record['sponsor'] ?? '',
                                             'minister' => $record['bishop_priest'] ?? '',
-                                            'stipend_pesos' => $record['stipend_pesos'] ?? '',
-                                            'stipend_cents' => $record['stipend_cents'] ?? '',
                                             'observations' => $record['observations'] ?? '',
                                             'parish_priest' => $record['parish_priest'] ?? '',
                                             'parish_secretary' => $record['parish_secretary'] ?? '',
@@ -830,8 +826,6 @@ include '../templates/header.php';
                                         <td><?php echo htmlspecialchars($record['baptismal_place'] ?? 'N/A'); ?></td>
                                         <td><?php echo htmlspecialchars($record['parents'] ?? 'N/A'); ?></td>
                                         <td><?php echo htmlspecialchars($record['sponsor'] ?? 'N/A'); ?></td>
-                                        <td><?php echo htmlspecialchars($record['stipend_pesos'] ?? ''); ?></td>
-                                        <td><?php echo htmlspecialchars($record['stipend_cents'] ?? ''); ?></td>
                                         <td><?php echo htmlspecialchars($record['bishop_priest'] ?? 'N/A'); ?></td>
                                         <td><?php echo htmlspecialchars($record['observations'] ?? ''); ?></td>
                                         <td>
@@ -972,16 +966,6 @@ include '../templates/header.php';
                         </div>
 
                         <div class="form-group">
-                            <label>Stipend (Pesos)</label>
-                            <input type="text" id="stipendPesos" name="stipend_pesos">
-                        </div>
-
-                        <div class="form-group">
-                            <label>Stipend (Cents)</label>
-                            <input type="text" id="stipendCents" name="stipend_cents">
-                        </div>
-
-                        <div class="form-group">
                             <label>Birth Date *</label>
                             <input type="date" id="birthDate" name="birth_date" required max="<?php echo date('Y-m-d'); ?>">
                         </div>
@@ -1098,8 +1082,6 @@ include '../templates/header.php';
             // Sponsors: stored as semicolon-delimited, display as one per line in textarea
             document.getElementById('sponsors').value = (record.sponsor || '').replace(/;\s*/g, '\n');
             document.getElementById('ministerName').value = record.minister || '';
-            document.getElementById('stipendPesos').value = record.stipend_pesos || '';
-            document.getElementById('stipendCents').value = record.stipend_cents || '';
             document.getElementById('observations').value = record.observations || '';
             document.getElementById('parishPriest').value = record.parish_priest || '';
             document.getElementById('parishSecretary').value = record.parish_secretary || '';
