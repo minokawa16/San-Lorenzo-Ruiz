@@ -803,13 +803,6 @@ $kpi_completion_rate = $kpi_requests_total > 0
       <?php endif; ?>
     </div>
 
-    <!-- Report Type Pills -->
-    <div class="ar-type-nav">
-      <?php foreach ($labels as $key => $label): ?>
-      <a class="ar-type-pill <?php echo $report === $key ? 'active' : ''; ?>" href="?report=<?php echo e($key); ?>"><?php echo e($label); ?></a>
-      <?php endforeach; ?>
-    </div>
-
     <!-- Filters -->
     <form method="get" class="ar-filter-row">
       <input type="hidden" name="report" value="<?php echo e($report); ?>">
