@@ -278,6 +278,7 @@
             document.getElementById('baptism_date'),
             document.getElementById('wedding_date'),
             document.getElementById('marriage_wedding_date'),
+            document.getElementById('funeral_date_of_burial'),
             document.getElementById('funeral_burial_date'),
             document.getElementById('patronal_fiesta_date')
         ].filter(Boolean);
@@ -291,6 +292,28 @@
             }
             const fallback = document.getElementById('preferred_date');
             return fallback ? fallback.value.trim() : '';
+        }
+
+        function getExcludeId() {
+            const el = document.querySelector('input[name="request_id"], input[name="exclude_id"], input[name="excludeId"]');
+            if (el && el.value) return el.value.trim();
+            const params = new URLSearchParams(window.location.search);
+            return params.get('request_id') || params.get('id') || params.get('excludeId') || '';
+        }
+
+        function getManilaDateInfo() {
+            const now = new Date();
+            const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+            const manilaNow = new Date(utc + (3600000 * 8));
+            const y = manilaNow.getFullYear();
+            const m = String(manilaNow.getMonth() + 1).padStart(2, '0');
+            const d = String(manilaNow.getDate()).padStart(2, '0');
+            return {
+                todayDate: `${y}-${m}-${d}`,
+                hour: manilaNow.getHours(),
+                minute: manilaNow.getMinutes(),
+                dateObj: manilaNow
+            };
         }
 
         function updateSubmitButtonsConflictState(hasConflict) {
@@ -321,7 +344,7 @@
                     if (!btn.getAttribute('data-original-title')) {
                         btn.setAttribute('data-original-title', btn.title || '');
                     }
-                    btn.title = 'Cannot submit: this date and time is already occupied (30-minute buffer).';
+                    btn.title = 'Cannot submit: this schedule is already occupied and not available.';
                 } else {
                     btn.disabled = false;
                     btn.removeAttribute('disabled');
@@ -367,13 +390,90 @@
             }
         }
 
+        // Handle clicks on suggestion chips inside feedbackContainer
+        feedbackContainer.addEventListener('click', function(e) {
+            const chip = e.target.closest('.suggestion-chip');
+            if (chip && chip.dataset.time) {
+                e.preventDefault();
+                preferredTime.value = chip.dataset.time;
+                preferredTime.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        });
+
+        function updateSelectOptionsAvailability(slots, curDate) {
+            if (!preferredTime || preferredTime.tagName !== 'SELECT') return;
+
+            const manila = getManilaDateInfo();
+            const isToday = (curDate === manila.todayDate);
+
+            Array.from(preferredTime.options).forEach(opt => {
+                if (!opt.value) return;
+                const cleanTime = opt.value.trim().substring(0, 5);
+                const optParts = cleanTime.split(':');
+                const optH = parseInt(optParts[0], 10);
+                const optM = parseInt(optParts[1] || '0', 10);
+
+                let baseLabel = opt.getAttribute('data-base-label');
+                if (!baseLabel) {
+                    baseLabel = opt.textContent.replace(/\s*\((Occupied|Past)\)/g, '').trim();
+                    opt.setAttribute('data-base-label', baseLabel);
+                }
+
+                // Check past
+                let isPast = false;
+                if (curDate < manila.todayDate) {
+                    isPast = true;
+                } else if (isToday && (optH < manila.hour || (optH === manila.hour && optM <= manila.minute))) {
+                    isPast = true;
+                }
+
+                // Check occupied
+                let isOccupied = false;
+                if (!isPast && Array.isArray(slots)) {
+                    const reqStartSec = optH * 3600 + optM * 60;
+                    const reqEndSec = reqStartSec + 3600; // fixed 60-min slot
+
+                    for (const occ of slots) {
+                        const sStr = occ.start || occ.time || occ.slot_time;
+                        if (!sStr) continue;
+                        const sParts = sStr.split(':');
+                        const sSec = parseInt(sParts[0], 10) * 3600 + parseInt(sParts[1] || '0', 10) * 60;
+                        let eSec = sSec + 3600;
+                        if (occ.end || occ.slot_end_time) {
+                            const eParts = (occ.end || occ.slot_end_time).split(':');
+                            eSec = parseInt(eParts[0], 10) * 3600 + parseInt(eParts[1] || '0', 10) * 60;
+                        }
+
+                        // Core rule: newStart < existingEnd && newEnd > existingStart
+                        if (reqStartSec < eSec && reqEndSec > sSec) {
+                            isOccupied = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (isPast) {
+                    opt.disabled = true;
+                    opt.textContent = `${baseLabel} (Past)`;
+                } else if (isOccupied) {
+                    opt.disabled = true;
+                    opt.textContent = `${baseLabel} (Occupied)`;
+                } else {
+                    opt.disabled = false;
+                    opt.textContent = baseLabel;
+                }
+            });
+        }
+
         let debounceTimer = null;
         let lastCheckedKey = '';
+        let checkSequence = 0;
 
         async function evaluateScheduleAvailability() {
             const curDate = getCurrentDate();
             const curTime = preferredTime.value ? preferredTime.value.trim() : '';
             const curLoc = locationInput.value ? locationInput.value.trim() : '';
+            const excludeId = getExcludeId();
 
             if (!curDate) {
                 feedbackContainer.style.display = 'none';
@@ -385,37 +485,41 @@
                 return;
             }
 
-            const checkKey = `${curDate}|${curTime}|${curLoc}`;
+            const checkKey = `${curDate}|${curTime}|${curLoc}|${excludeId}`;
             if (checkKey === lastCheckedKey) {
                 return;
             }
             lastCheckedKey = checkKey;
+            const currentSeq = ++checkSequence;
 
-            // 1. Fetch occupied slots for the selected date & location
+            // 1. Fetch day availability snapshot (occupied slots & suggestions)
             try {
-                const occUrl = `../api/check-schedule-conflict.php?action=occupied_slots&date=${encodeURIComponent(curDate)}&location=${encodeURIComponent(curLoc)}`;
-                const occRes = await fetch(occUrl, { credentials: 'same-origin' });
-                if (occRes.ok) {
-                    const occData = await occRes.json();
-                    if (occData && occData.occupied_times && occData.occupied_times.length > 0) {
+                const dayUrl = `../api/schedule/check.php?date=${encodeURIComponent(curDate)}&location=${encodeURIComponent(curLoc)}&excludeId=${encodeURIComponent(excludeId)}&suppress_409=1`;
+                const dayRes = await fetch(dayUrl, { credentials: 'same-origin' });
+                if (dayRes.ok && currentSeq === checkSequence) {
+                    const dayData = await dayRes.json();
+                    const slots = dayData.conflicts || dayData.slots || [];
+                    updateSelectOptionsAvailability(slots, curDate);
+
+                    if (slots.length > 0) {
                         occupiedContainer.innerHTML = `
                             <div class="occupied-slots-header">
                                 <i class="fas fa-calendar-xmark text-danger"></i>
-                                <span>Already scheduled on this date at this location (30m buffer reserved):</span>
+                                <span>Occupied slots on this date (60-minute duration):</span>
                             </div>
                             <div class="occupied-slots-pills">
-                                ${occData.slots.map(s => {
-                                    const timeLabel = s.time_display || s.time;
-                                    const bufLabel = s.buffer_display ? `Buffer: ${escapeHtml(s.buffer_display)}` : '30-minute buffer';
+                                ${slots.map(s => {
+                                    const timeLabel = s.range_display || s.time_range || s.time_display || s.time;
+                                    const title = s.title || 'Reserved';
                                     return `
-                                        <span class="occupied-slot-pill" title="${escapeHtml(s.title || 'Reserved')} (${bufLabel})">
-                                            <i class="fas fa-clock"></i> ${escapeHtml(timeLabel)}
-                                            <span class="badge-taken">${s.buffer_display ? escapeHtml(s.buffer_display) : 'Occupied &plusmn;30m'}</span>
+                                        <span class="occupied-slot-pill" title="${escapeHtml(title)} (${escapeHtml(timeLabel)})">
+                                            <i class="fas fa-clock"></i> ${escapeHtml(title)}: ${escapeHtml(timeLabel)}
+                                            <span class="badge-taken">Occupied</span>
                                         </span>
                                     `;
                                 }).join('')}
                             </div>
-                            <div class="form-text text-muted mt-1 small">Please choose a time outside the 30-minute buffer window.</div>
+                            <div class="form-text text-muted mt-1 small">Bookings occupy 1-hour slots. Please choose an open hourly slot.</div>
                         `;
                         occupiedContainer.style.display = 'block';
                     } else {
@@ -423,10 +527,14 @@
                     }
                 }
             } catch (err) {
-                console.warn('Unable to load occupied slots:', err);
+                console.warn('Unable to load day availability:', err);
             }
 
-            // 2. If time is selected, check exact conflict with 30-minute buffer
+            if (currentSeq !== checkSequence) {
+                return;
+            }
+
+            // 2. If no time selected yet, clear evaluation and return
             if (!curTime) {
                 feedbackContainer.style.display = 'none';
                 preferredTime.classList.remove('is-invalid', 'is-valid');
@@ -436,22 +544,67 @@
                 return;
             }
 
+            // 3. Check conflict for this specific slot
             try {
-                const chkUrl = `../api/check-schedule-conflict.php?action=check&date=${encodeURIComponent(curDate)}&time=${encodeURIComponent(curTime)}&location=${encodeURIComponent(curLoc || 'Main Church')}`;
+                const chkUrl = `../api/schedule/check.php?date=${encodeURIComponent(curDate)}&time=${encodeURIComponent(curTime)}&location=${encodeURIComponent(curLoc || 'Main Church')}&excludeId=${encodeURIComponent(excludeId)}&suppress_409=1`;
                 const chkRes = await fetch(chkUrl, { credentials: 'same-origin' });
                 const chkData = await chkRes.json();
 
-                if (chkData && chkData.has_conflict) {
+                if (currentSeq !== checkSequence) {
+                    return;
+                }
+
+                const hasConflict = !chkData.available;
+
+                if (hasConflict) {
                     window.hasScheduleConflictState = true;
-                    window.lastConflictMessage = chkData.message;
+                    const primaryMsg = chkData.message || 'This schedule is already occupied and not available. Please choose a different date or time.';
+                    window.lastConflictMessage = primaryMsg;
+
                     preferredTime.classList.remove('is-valid');
                     preferredTime.classList.add('is-invalid');
                     updateSubmitButtonsConflictState(true);
+
                     feedbackContainer.className = 'schedule-conflict-notice';
+
+                    // Build conflict bookings HTML
+                    let conflictListHtml = '';
+                    if (Array.isArray(chkData.conflicts) && chkData.conflicts.length > 0) {
+                        conflictListHtml = `
+                            <ul class="conflict-bookings-list">
+                                ${chkData.conflicts.map(c => `
+                                    <li class="conflict-item">
+                                        <i class="fas fa-calendar-xmark text-danger"></i>
+                                        <span><strong>${escapeHtml(c.title || 'Booking')}</strong>, ${escapeHtml(c.range_display || c.time_range || c.time)}</span>
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        `;
+                    }
+
+                    // Build suggestions HTML
+                    let suggestionsHtml = '';
+                    if (Array.isArray(chkData.suggestions) && chkData.suggestions.length > 0) {
+                        suggestionsHtml = `
+                            <div class="conflict-suggestions">
+                                <span class="suggestions-label"><i class="fas fa-lightbulb"></i> Nearest available slots on this day:</span>
+                                <div class="suggestion-chips-group">
+                                    ${chkData.suggestions.map(s => `
+                                        <button type="button" class="suggestion-chip" data-time="${escapeHtml(s.time)}" title="Select ${escapeHtml(s.display_time || s.time)}">
+                                            <i class="fas fa-clock"></i> ${escapeHtml(s.display_time || s.time)}
+                                        </button>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }
+
                     feedbackContainer.innerHTML = `
                         <i class="fas fa-triangle-exclamation text-danger mt-1"></i>
-                        <div>
-                            <strong>Schedule Occupied:</strong> ${escapeHtml(chkData.message)}
+                        <div class="conflict-content">
+                            <div class="conflict-title">This schedule is already occupied and not available. Please choose a different date or time.</div>
+                            ${conflictListHtml}
+                            ${suggestionsHtml}
                         </div>
                     `;
                     feedbackContainer.style.display = 'flex';
@@ -461,12 +614,16 @@
                     preferredTime.classList.remove('is-invalid');
                     preferredTime.classList.add('is-valid');
                     updateSubmitButtonsConflictState(false);
+
                     feedbackContainer.className = 'schedule-conflict-notice is-available';
                     feedbackContainer.innerHTML = `
                         <i class="fas fa-circle-check text-success mt-1"></i>
-                        <div>This date, time, and location schedule slot is currently available!</div>
+                        <div class="conflict-content">
+                            <div class="conflict-title text-success">This date, time, and location schedule slot is currently available!</div>
+                        </div>
                     `;
                     feedbackContainer.style.display = 'flex';
+
                     window.setTimeout(() => {
                         if (!window.hasScheduleConflictState && feedbackContainer.classList.contains('is-available')) {
                             feedbackContainer.style.display = 'none';
@@ -517,7 +674,7 @@
                     preferredTime.classList.add('is-invalid');
                     preferredTime.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     preferredTime.focus();
-                    const alertMsg = window.lastConflictMessage || 'This schedule is already occupied. Please choose another available date or time.';
+                    const alertMsg = window.lastConflictMessage || 'This schedule is already occupied and not available. Please choose a different date or time.';
                     if (typeof ParishToast !== 'undefined' && typeof ParishToast.show === 'function') {
                         ParishToast.show({ title: 'Schedule Conflict', message: alertMsg, type: 'error', duration: 7000 });
                     } else {
@@ -541,7 +698,7 @@
                     preferredTime.classList.add('is-invalid');
                     preferredTime.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     preferredTime.focus();
-                    const alertMsg = window.lastConflictMessage || 'This schedule is already occupied. Please choose another available date or time.';
+                    const alertMsg = window.lastConflictMessage || 'This schedule is already occupied and not available. Please choose a different date or time.';
                     if (typeof ParishToast !== 'undefined' && typeof ParishToast.show === 'function') {
                         ParishToast.show({ title: 'Schedule Conflict', message: alertMsg, type: 'error', duration: 7000 });
                     } else {

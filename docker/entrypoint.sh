@@ -51,8 +51,10 @@ printf '%s\n' \
     'session.use_strict_mode=1' \
     > /usr/local/etc/php/conf.d/tugon-session.ini
 
-if [ "${APP_ENV:-local}" = "production" ]; then
-    php /var/www/html/database/migrate.php up || true
+if [ "${APP_ENV:-local}" = "production" ] || [ "${TUGON_RUN_MIGRATIONS:-false}" = "true" ]; then
+    if [ "${TUGON_RUN_MIGRATIONS:-true}" = "true" ]; then
+        php /var/www/html/database/migrate.php up || true
+    fi
     php /var/www/html/database/production-readiness.php --startup || true
 fi
 

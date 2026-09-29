@@ -106,47 +106,92 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         } elseif ($location === '') {
             $respond(false, 'Please provide the blessing location.', ['status_code' => 422]);
         } else {
-            // Double-booking check: Prevent creating schedule requests for already occupied slots
-            $conflictCheck = checkScheduleConflict($conn, $preferred_date, $preferred_time, $location);
-            if (!empty($conflictCheck['has_conflict'])) {
-                $respond(false, $conflictCheck['message'], [
-                    'status_code' => 409,
-                    'conflict' => true,
-                    'conflict_details' => $conflictCheck['conflicting_schedule'] ?? []
+            $normPrefTime = ScheduleConflictService::normalizeTime($preferred_time);
+            $allowNonHourly = defined('ALLOW_NON_HOURLY_SLOTS') ? (bool) ALLOW_NON_HOURLY_SLOTS : false;
+            if (!$allowNonHourly) {
+                $timeParts = explode(':', $normPrefTime);
+                if (!isset($timeParts[1]) || $timeParts[1] !== '00') {
+                    $respond(false, 'Schedule time must be on the hour (e.g. 09:00, 10:00). Half-hour or custom minute slots are not permitted.', ['status_code' => 422]);
+                }
+            }
+
+            if (ScheduleConflictService::isPastDateTime($preferred_date, $normPrefTime)) {
+                $respond(false, 'Cannot book a past date or time. Please choose an upcoming schedule.', ['status_code' => 422]);
+            }
+
+            // Concurrency Slot Lock & Transaction to prevent simultaneous race conditions
+            $slotLockName = 'parish_schedule_booking_' . $preferred_date;
+            $lockRes = $conn->query("SELECT GET_LOCK('" . $conn->real_escape_string($slotLockName) . "', 10)");
+            $lockAcquired = $lockRes && ($lRow = $lockRes->fetch_row()) && ((int) $lRow[0] === 1);
+
+            try {
+                $conn->begin_transaction();
+
+                // Double-booking check: Prevent creating schedule requests for already occupied slots
+                $conflictCheck = checkScheduleConflict($conn, $preferred_date, $preferred_time, $location);
+                if (!empty($conflictCheck['has_conflict'])) {
+                    $conn->rollback();
+                    if ($lockAcquired) {
+                        $conn->query("SELECT RELEASE_LOCK('" . $conn->real_escape_string($slotLockName) . "')");
+                    }
+                    $respond(false, $conflictCheck['message'], [
+                        'status_code' => 409,
+                        'conflict' => true,
+                        'conflict_details' => $conflictCheck['conflicting_schedule'] ?? [],
+                        'conflicts' => $conflictCheck['conflicts'] ?? [],
+                        'suggestions' => $conflictCheck['suggestions'] ?? []
+                    ]);
+                }
+
+                $description_parts = [];
+                if ($request_type === 'other_blessing') {
+                    $description_parts[] = 'Requested blessing: ' . $other_blessing_name;
+                }
+                $description_parts = array_merge($description_parts, [
+                    'Preferred date: ' . $preferred_date,
+                    'Preferred time: ' . $preferred_time,
+                    'Location: ' . $location,
+                    'Details: ' . ($details !== '' ? $details : 'None'),
                 ]);
-            }
+                if (!empty($_FILES['requirement_files']) && ($blessVal = validateUploadedDocumentGroup($_FILES['requirement_files'])) && !$blessVal['ok']) {
+                    $conn->rollback();
+                    if ($lockAcquired) {
+                        $conn->query("SELECT RELEASE_LOCK('" . $conn->real_escape_string($slotLockName) . "')");
+                    }
+                    $respond(false, $blessVal['error'], ['status_code' => 422]);
+                }
 
-            $description_parts = [];
-            if ($request_type === 'other_blessing') {
-                $description_parts[] = 'Requested blessing: ' . $other_blessing_name;
-            }
-            $description_parts = array_merge($description_parts, [
-                'Preferred date: ' . $preferred_date,
-                'Preferred time: ' . $preferred_time,
-                'Location: ' . $location,
-                'Details: ' . ($details !== '' ? $details : 'None'),
-            ]);
-            if (!empty($_FILES['requirement_files']) && ($blessVal = validateUploadedDocumentGroup($_FILES['requirement_files'])) && !$blessVal['ok']) {
-                $respond(false, $blessVal['error'], ['status_code' => 422]);
-            }
+                $description = implode("\n", $description_parts);
+                $reference_number = generateReferenceNumber();
+                $status = 'pending';
 
-            $description = implode("\n", $description_parts);
-            $reference_number = generateReferenceNumber();
-            $status = 'pending';
+                $stmt = $conn->prepare("INSERT INTO requests (user_id, request_type, description, status, reference_number) VALUES (?, ?, ?, ?, ?)");
+                if (!$stmt) {
+                    throw new Exception("Unable to prepare your blessing request: " . $conn->error);
+                }
 
-            $stmt = $conn->prepare("INSERT INTO requests (user_id, request_type, description, status, reference_number) VALUES (?, ?, ?, ?, ?)");
-            if (!$stmt) {
-                throw new Exception("Unable to prepare your blessing request: " . $conn->error);
-            }
-
-            $stmt->bind_param('issss', $user_id, $request_type, $description, $status, $reference_number);
-            if (!$stmt->execute()) {
-                $exec_err = $stmt->error;
+                $stmt->bind_param('issss', $user_id, $request_type, $description, $status, $reference_number);
+                if (!$stmt->execute()) {
+                    $exec_err = $stmt->error;
+                    $stmt->close();
+                    throw new Exception("Error submitting blessing request: " . $exec_err);
+                }
+                $request_id = $conn->insert_id;
                 $stmt->close();
-                throw new Exception("Error submitting blessing request: " . $exec_err);
+
+                // Slot lock audit entry
+                $slotEndTime = date('H:i:s', strtotime("2000-01-01 $normPrefTime:00 +" . ScheduleConflictService::SLOT_DURATION_MINUTES . " minutes"));
+                @$conn->query("INSERT INTO schedule_slot_locks (slot_date, slot_time, slot_end_time, source_type, source_id) VALUES ('" . $conn->real_escape_string($preferred_date) . "', '" . $conn->real_escape_string($normPrefTime) . "', '" . $conn->real_escape_string($slotEndTime) . "', 'request', $request_id)");
+
+                $conn->commit();
+            } catch (Throwable $blessEx) {
+                $conn->rollback();
+                throw $blessEx;
+            } finally {
+                if ($lockAcquired) {
+                    $conn->query("SELECT RELEASE_LOCK('" . $conn->real_escape_string($slotLockName) . "')");
+                }
             }
-            $request_id = $conn->insert_id;
-            $stmt->close();
 
             $documents = saveMultipleRequirementDocuments($conn, $request_id, $user_id, $_FILES['requirement_files'] ?? null);
             $doc_count = intval($documents['saved'] ?? 0);
@@ -364,11 +409,23 @@ if ($stmt) {
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label for="preferred_date" class="form-label">Preferred Date</label>
-                        <input type="date" class="form-control request-form-control" id="preferred_date" name="preferred_date" required>
+                        <input type="date" class="form-control request-form-control" id="preferred_date" name="preferred_date" min="<?php echo (new DateTime('now', new DateTimeZone('Asia/Manila')))->format('Y-m-d'); ?>" required>
                     </div>
                     <div class="col-md-6">
-                        <label for="preferred_time" class="form-label">Preferred Time</label>
-                        <input type="time" class="form-control request-form-control" id="preferred_time" name="preferred_time" required>
+                        <label for="preferred_time" class="form-label">Preferred Time (1-Hour Slot)</label>
+                        <select class="form-select request-form-control" id="preferred_time" name="preferred_time" required>
+                            <option value="">-- Select Hourly Slot --</option>
+                            <option value="08:00">08:00 AM</option>
+                            <option value="09:00">09:00 AM</option>
+                            <option value="10:00">10:00 AM</option>
+                            <option value="11:00">11:00 AM</option>
+                            <option value="12:00">12:00 PM</option>
+                            <option value="13:00">01:00 PM</option>
+                            <option value="14:00">02:00 PM</option>
+                            <option value="15:00">03:00 PM</option>
+                            <option value="16:00">04:00 PM</option>
+                            <option value="17:00">05:00 PM</option>
+                        </select>
                     </div>
                     <div class="col-12">
                         <label for="location" class="form-label">Location</label>

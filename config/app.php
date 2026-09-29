@@ -35,6 +35,17 @@ if (!defined('APP_URL')) {
     define('APP_URL', $configuredUrl);
 }
 
+// Parish Schedule Slot & Conflict Scope Configuration
+if (!defined('SLOT_DURATION_MINUTES')) {
+    define('SLOT_DURATION_MINUTES', 60);
+}
+if (!defined('CONFLICT_SCOPE')) {
+    define('CONFLICT_SCOPE', strtolower(trim((string) (getenv('CONFLICT_SCOPE') ?: 'calendar')))); // 'calendar' | 'location'
+}
+if (!defined('ALLOW_NON_HOURLY_SLOTS')) {
+    define('ALLOW_NON_HOURLY_SLOTS', false);
+}
+
 if (!function_exists('appUrl')) {
     function appUrl(string $path = ''): string
     {

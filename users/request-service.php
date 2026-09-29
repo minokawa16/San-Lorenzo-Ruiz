@@ -395,15 +395,42 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         } elseif ($location === '') {
             $respond(false, 'Please provide the service location.', ['status_code' => 422]);
         } else {
-            // Double-booking check: Prevent creating schedule requests for already occupied slots
-            $conflictCheck = checkScheduleConflict($conn, $preferred_date, $preferred_time, $location);
-            if (!empty($conflictCheck['has_conflict'])) {
-                $respond(false, $conflictCheck['message'], [
-                    'status_code' => 409,
-                    'conflict' => true,
-                    'conflict_details' => $conflictCheck['conflicting_schedule'] ?? []
-                ]);
+            $normPrefTime = ScheduleConflictService::normalizeTime($preferred_time);
+            $allowNonHourly = defined('ALLOW_NON_HOURLY_SLOTS') ? (bool) ALLOW_NON_HOURLY_SLOTS : false;
+            if (!$allowNonHourly) {
+                $timeParts = explode(':', $normPrefTime);
+                if (!isset($timeParts[1]) || $timeParts[1] !== '00') {
+                    $respond(false, 'Schedule time must be on the hour (e.g. 09:00, 10:00). Half-hour or custom minute slots are not permitted.', ['status_code' => 422]);
+                }
             }
+
+            if (ScheduleConflictService::isPastDateTime($preferred_date, $normPrefTime)) {
+                $respond(false, 'Cannot book a past date or time. Please choose an upcoming schedule.', ['status_code' => 422]);
+            }
+
+            // Concurrency Slot Lock & Transaction to prevent simultaneous race conditions
+            $slotLockName = 'parish_schedule_booking_' . $preferred_date;
+            $lockRes = $conn->query("SELECT GET_LOCK('" . $conn->real_escape_string($slotLockName) . "', 10)");
+            $lockAcquired = $lockRes && ($lRow = $lockRes->fetch_row()) && ((int) $lRow[0] === 1);
+
+            try {
+                $conn->begin_transaction();
+
+                // Double-booking check: Prevent creating schedule requests for already occupied slots
+                $conflictCheck = checkScheduleConflict($conn, $preferred_date, $preferred_time, $location);
+                if (!empty($conflictCheck['has_conflict'])) {
+                    $conn->rollback();
+                    if ($lockAcquired) {
+                        $conn->query("SELECT RELEASE_LOCK('" . $conn->real_escape_string($slotLockName) . "')");
+                    }
+                    $respond(false, $conflictCheck['message'], [
+                        'status_code' => 409,
+                        'conflict' => true,
+                        'conflict_details' => $conflictCheck['conflicting_schedule'] ?? [],
+                        'conflicts' => $conflictCheck['conflicts'] ?? [],
+                        'suggestions' => $conflictCheck['suggestions'] ?? []
+                    ]);
+                }
 
             $description_parts = [
                 'Preferred date: ' . $preferred_date,
@@ -503,6 +530,20 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             }
             $request_id = $conn->insert_id;
             $stmt->close();
+
+            // Record slot lock in schedule_slot_locks if table exists
+            $slotEndTime = date('H:i:s', strtotime("2000-01-01 $normPrefTime:00 +" . ScheduleConflictService::SLOT_DURATION_MINUTES . " minutes"));
+            @$conn->query("INSERT INTO schedule_slot_locks (slot_date, slot_time, slot_end_time, source_type, source_id) VALUES ('" . $conn->real_escape_string($preferred_date) . "', '" . $conn->real_escape_string($normPrefTime) . "', '" . $conn->real_escape_string($slotEndTime) . "', 'request', $request_id)");
+
+            $conn->commit();
+        } catch (Throwable $svcEx) {
+            $conn->rollback();
+            throw $svcEx;
+        } finally {
+            if ($lockAcquired) {
+                $conn->query("SELECT RELEASE_LOCK('" . $conn->real_escape_string($slotLockName) . "')");
+            }
+        }
 
             $documents = saveServiceRequirementUploads($conn, $request_id, $user_id, $requirement_upload_files, $requirement_upload_plan);
             $doc_count = intval($documents['saved'] ?? 0);
@@ -1044,7 +1085,7 @@ if ($stmt) {
                             </div>
                             <div class="investigation-field">
                                 <label for="funeral_date_of_burial">Date of Burial / Funeral Mass <span class="text-danger">*</span></label>
-                                <input type="date" class="form-control request-form-control" id="funeral_date_of_burial" name="funeral_sheet[date_of_burial]" data-funeral-sheet>
+                                <input type="date" class="form-control request-form-control" id="funeral_date_of_burial" name="funeral_sheet[date_of_burial]" min="<?php echo date('Y-m-d'); ?>" data-funeral-sheet>
                             </div>
                             <div class="investigation-field">
                                 <label for="funeral_civil_status">Civil Status of Deceased <span class="text-danger">*</span></label>
@@ -1161,7 +1202,7 @@ if ($stmt) {
                 <div class="row g-3">
                     <div class="col-md-6" id="patronalDateGroup" style="display:none;">
                         <label for="patronal_fiesta_date" class="form-label">Date of Patronal Fiesta <span class="text-danger">*</span></label>
-                        <input type="date" class="form-control request-form-control" id="patronal_fiesta_date" name="patronal_fiesta_date">
+                        <input type="date" class="form-control request-form-control" id="patronal_fiesta_date" name="patronal_fiesta_date" min="<?php echo date('Y-m-d'); ?>">
                     </div>
                     <div class="col-md-6" id="generalServiceDateGroup" style="display:none;">
                         <label for="general_service_date" class="form-label">Requested Service Date <span class="text-danger">*</span></label>
@@ -1179,7 +1220,20 @@ if ($stmt) {
                     <input type="hidden" id="preferred_date" name="preferred_date">
                     <div class="col-md-6" id="preferredTimeGroup">
                         <label for="preferred_time" class="form-label">Preferred Time <span class="text-danger">*</span></label>
-                        <input type="time" class="form-control request-form-control" id="preferred_time" name="preferred_time" required>
+                        <select class="form-select request-form-control" id="preferred_time" name="preferred_time" required>
+                            <option value="">Select an hourly time slot</option>
+                            <option value="08:00">08:00 AM</option>
+                            <option value="09:00">09:00 AM</option>
+                            <option value="10:00">10:00 AM</option>
+                            <option value="11:00">11:00 AM</option>
+                            <option value="12:00">12:00 PM</option>
+                            <option value="13:00">01:00 PM</option>
+                            <option value="14:00">02:00 PM</option>
+                            <option value="15:00">03:00 PM</option>
+                            <option value="16:00">04:00 PM</option>
+                            <option value="17:00">05:00 PM</option>
+                        </select>
+                        <div class="form-text">Parish service schedules run on fixed 1-hour slots starting on the hour.</div>
                     </div>
                     <div class="col-12">
                         <label for="location" class="form-label">Location <span class="text-danger">*</span></label>
