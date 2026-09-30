@@ -13,6 +13,10 @@
       "dest": "https://tugon-web-production.up.railway.app/$1"
     },
     {
+      "src": "^/api/dashboard/stats/?$",
+      "dest": "https://tugon-web-production.up.railway.app/api/dashboard/stats.php"
+    },
+    {
       "src": "^/(.*)$",
       "dest": "https://tugon-web-production.up.railway.app/$1"
     }
