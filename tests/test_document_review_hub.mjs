@@ -137,7 +137,7 @@ async function run() {
           hasZone: !!zone,
           hasInput: !!input && input.multiple && input.name === 'requirement_files[]',
           inputAccept: input?.getAttribute('accept') || '',
-          tipText: tip?.textContent || '',
+          hasTip: !!tip,
           hasAlertBox: !!alertBox,
           hasHub: !!hub,
           hasGrid: !!grid,
@@ -150,7 +150,7 @@ async function run() {
     assert(s.hasZone, 'Dropzone (#uploadZone) exists');
     assert(s.hasInput, 'File input #requirementFileInput[type="file"][multiple] name="requirement_files[]" exists');
     assert(s.inputAccept.includes('.pdf') && s.inputAccept.includes('.png'), 'Input has strict accept attribute');
-    assert(s.tipText.includes('TUGON Tip: Ensure all details, seals, and signatures on your documents are readable before submitting to ensure fast verification.'), 'Verbatim TUGON Tip guidance banner exists');
+    assert(!s.hasTip, 'TUGON Tip guidance banner (#tugonUploadTip) is removed');
     assert(s.hasAlertBox, 'Validation alert (#uploadValidationAlert) exists');
     assert(s.hasHub, 'Aggregate summary bar (#filePreviewHub) exists');
     assert(s.hasGrid, 'Document cards container (#selectedFilesGrid) exists');

@@ -3227,16 +3227,6 @@ if ($stmt) {
                     <input type="file" id="requirementFileInput" name="requirement_files[]" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*" multiple required>
                 </label>
 
-                <!-- Subtle TUGON Inline Guidance -->
-                <div class="tugon-tip-guidance" id="tugonUploadTip">
-                    <div class="tugon-tip-icon">
-                        <i class="fas fa-lightbulb"></i>
-                    </div>
-                    <div class="tugon-tip-text">
-                        <strong>TUGON Tip:</strong> Ensure all details, seals, and signatures on your documents are readable before submitting to ensure fast verification.
-                    </div>
-                </div>
-
                 <!-- Client-Side Validation Alert -->
                 <div class="upload-validation-alert" id="uploadValidationAlert" role="alert" style="display: none;">
                     <div class="d-flex align-items-center gap-2">
