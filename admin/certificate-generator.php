@@ -687,7 +687,7 @@ include __DIR__ . '/../templates/header.php';
             <div class="pds-cert-icon-wrap" style="background: #e0f2fe; color: #0284c7;">
                 <i class="fas fa-water"></i>
             </div>
-            <h6 class="pds-cert-title">Baptism Certificates</h6>
+            <h6 class="pds-cert-title">Baptism Certificate</h6>
             <div class="pds-cert-count"><strong><?php echo (int)$baptism_count; ?></strong> Active Records</div>
             <button class="btn-primary-gold" data-bs-toggle="modal" data-bs-target="#generateModal" data-cert-type="baptism">
                 <i class="fas fa-file-pdf"></i> Generate
@@ -711,7 +711,7 @@ include __DIR__ . '/../templates/header.php';
             <div class="pds-cert-icon-wrap" style="background: #e0e7ff; color: #4338ca;">
                 <i class="fas fa-dove"></i>
             </div>
-            <h6 class="pds-cert-title">Confirmation Certificates</h6>
+            <h6 class="pds-cert-title">Confirmation Certificate</h6>
             <div class="pds-cert-count"><strong><?php echo (int)$confirmation_count; ?></strong> Active Records</div>
             <button class="btn-primary-gold" data-bs-toggle="modal" data-bs-target="#generateModal" data-cert-type="confirmation">
                 <i class="fas fa-file-pdf"></i> Generate
