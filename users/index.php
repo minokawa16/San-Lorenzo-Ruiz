@@ -13,6 +13,10 @@ if (isSessionExpired()) {
     logoutUser();
 }
 
+// Strict anti-cache headers for personal dashboard privacy behind Vercel/proxies
+header('Cache-Control: private, no-store, max-age=0');
+header('Vary: Cookie');
+
 // Require authentication and parishioner role
 requireAuth();
 requireParishioner();
@@ -968,5 +972,47 @@ $body_extra_class = $show_mobile_dashboard_features ? 'user-dashboard-feature-vi
         </aside>
     </section>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    async function updateDashboardStats() {
+        try {
+            const res = await fetch('../api/dashboard/stats.php', {
+                headers: { 'Accept': 'application/json' },
+                cache: 'no-store'
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (!data || !data.success || !data.stats) return;
+            const s = data.stats;
+            
+            const updateVal = function (id, val) {
+                const el = document.querySelector(id + ' .stat-card-value');
+                if (el) el.textContent = Number(val).toLocaleString();
+            };
+            
+            updateVal('#pcard-total', s.total);
+            updateVal('#pcard-pending', s.pending);
+            updateVal('#pcard-processing', s.processing);
+            updateVal('#pcard-completed', s.completed);
+            updateVal('#pcard-rejected', s.rejected);
+            updateVal('#pcard-ready', s.ready_to_download);
+            updateVal('#pcard-reservations', s.upcoming_reservations);
+            updateVal('#pcard-announcements', s.parish_announcements);
+        } catch (e) {
+            // Retain server-rendered counts if fetch fails
+        }
+    }
+    
+    // Refresh when returning to tab
+    document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') {
+            updateDashboardStats();
+        }
+    });
+    
+    window.refreshDashboardStats = updateDashboardStats;
+});
+</script>
 
 <?php include '../templates/footer.php'; ?>
