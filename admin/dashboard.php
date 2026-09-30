@@ -679,8 +679,24 @@ $dashboard_avatar_letter = 'P';
             }
         }
     </style>
+    <script>
+        (function() {
+            try {
+                var state = sessionStorage.getItem('admin_sidebar_state');
+                if (state === 'expanded' && window.innerWidth >= 1024) {
+                    document.documentElement.classList.add('admin-sidebar-expanded');
+                    document.documentElement.classList.remove('admin-sidebar-collapsed');
+                } else {
+                    document.documentElement.classList.add('admin-sidebar-collapsed');
+                    document.documentElement.classList.remove('admin-sidebar-expanded');
+                }
+            } catch (e) {
+                document.documentElement.classList.add('admin-sidebar-collapsed');
+            }
+        })();
+    </script>
 </head>
-<body class="premium-admin">
+<body class="premium-admin admin-sidebar-collapsed">
     <div class="app-layout premium-admin-shell">
         <!-- Include Admin Sidebar -->
         <?php include '../includes/admin-sidebar.php'; ?>

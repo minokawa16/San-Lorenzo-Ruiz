@@ -248,8 +248,26 @@ if (isLoggedIn()) {
             color: #FFFFFF !important;
         }
     </style>
+    <?php if ($is_admin_area): ?>
+    <script>
+        (function() {
+            try {
+                var state = sessionStorage.getItem('admin_sidebar_state');
+                if (state === 'expanded' && window.innerWidth >= 1024) {
+                    document.documentElement.classList.add('admin-sidebar-expanded');
+                    document.documentElement.classList.remove('admin-sidebar-collapsed');
+                } else {
+                    document.documentElement.classList.add('admin-sidebar-collapsed');
+                    document.documentElement.classList.remove('admin-sidebar-expanded');
+                }
+            } catch (e) {
+                document.documentElement.classList.add('admin-sidebar-collapsed');
+            }
+        })();
+    </script>
+    <?php endif; ?>
 </head>
-<body class="<?php echo $is_user_area ? 'user-area' : ($is_admin_area ? 'premium-admin' : ''); ?> church-theme app-page-<?php echo e(preg_replace('/[^a-z0-9-]+/', '-', strtolower(pathinfo($current_page, PATHINFO_FILENAME)))); ?><?php echo !empty($body_extra_class) ? ' ' . e($body_extra_class) : ''; ?>">
+<body class="<?php echo $is_user_area ? 'user-area' : ($is_admin_area ? 'premium-admin admin-sidebar-collapsed' : ''); ?> church-theme app-page-<?php echo e(preg_replace('/[^a-z0-9-]+/', '-', strtolower(pathinfo($current_page, PATHINFO_FILENAME)))); ?><?php echo !empty($body_extra_class) ? ' ' . e($body_extra_class) : ''; ?>">
     <a class="tugon-skip-link" href="#main-content">Skip to main content</a>
     <?php if ($is_user_area): ?>
     <div class="user-shell">
