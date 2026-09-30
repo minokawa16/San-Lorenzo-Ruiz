@@ -46,81 +46,74 @@ $certificate_purposes = [
     'burial_claim' => 'Burial / Estate / Benefits',
     'others' => 'Others',
 ];
+$certificate_category_config = getCertificateCategoryConfig();
 $certificate_meta = [
-    // Sacramental Certifications
+    // Certification
     'baptism_certification' => [
         'category' => 'certification',
-        'badge' => 'Registry Extract',
         'icon' => 'fa-file-signature',
         'icon_color' => '#0284c7',
         'icon_bg' => '#e0f2fe',
         'title' => 'Baptismal Certification',
-        'hint' => 'Official certified extract from baptism registry records.'
+        'hint' => 'Certified true copy of baptism record.'
     ],
     'confirmation_certification' => [
         'category' => 'certification',
-        'badge' => 'Registry Extract',
         'icon' => 'fa-file-circle-check',
         'icon_color' => '#4338ca',
         'icon_bg' => '#e0e7ff',
         'title' => 'Confirmation Certification',
-        'hint' => 'Official certified extract from confirmation registry records.'
+        'hint' => 'Certified true copy of confirmation record.'
     ],
     'first_communion_certification' => [
         'category' => 'certification',
-        'badge' => 'Registry Extract',
         'icon' => 'fa-file-lines',
         'icon_color' => '#b45309',
         'icon_bg' => '#fef3c7',
         'title' => 'First Communion Certification',
-        'hint' => 'Official certified extract from first communion records.'
+        'hint' => 'Certified true copy of first communion record.'
     ],
     'marriage_certification' => [
         'category' => 'certification',
-        'badge' => 'Registry Extract',
         'icon' => 'fa-ring',
         'icon_color' => '#dc2626',
         'icon_bg' => '#fef2f2',
         'title' => 'Marriage Certification',
-        'hint' => 'Official certified extract from Holy Matrimony records.'
+        'hint' => 'Certified true copy of marriage record.'
     ],
     'funeral_certification' => [
         'category' => 'certification',
-        'badge' => 'Registry Extract',
         'icon' => 'fa-cross',
         'icon_color' => '#475569',
         'icon_bg' => '#f1f5f9',
         'title' => 'Funeral Certification',
-        'hint' => 'Official certified extract from funeral/burial records.'
+        'hint' => 'Certified true copy of funeral or burial record.'
     ],
 
-    // Sacramental Certificates
+    // Original Certificate
     'baptismal_certificate' => [
         'category' => 'certificate',
-        'badge' => 'Canonical Certificate',
         'icon' => 'fa-water',
         'icon_color' => '#0284c7',
         'icon_bg' => '#e0f2fe',
         'title' => 'Baptismal Certificate',
-        'hint' => 'Official canonical certificate of Holy Baptism.'
+        'hint' => 'Official certificate of Holy Baptism.'
     ],
     'confirmation_certificate' => [
         'category' => 'certificate',
-        'badge' => 'Canonical Certificate',
         'icon' => 'fa-cross',
         'icon_color' => '#4338ca',
         'icon_bg' => '#e0e7ff',
         'title' => 'Confirmation Certificate',
-        'hint' => 'Official canonical certificate of Holy Confirmation.'
+        'hint' => 'Official certificate of Holy Confirmation.'
     ],
     'first_communion_certificate' => [
         'category' => 'certificate',
-        'badge' => 'Canonical Certificate',
         'icon' => 'fa-wheat-awn',
         'icon_color' => '#b45309',
         'icon_bg' => '#fef3c7',
         'title' => 'First Communion Certificate',
-        'hint' => 'Official canonical certificate of First Holy Communion.'
+        'hint' => 'Official certificate of First Holy Communion.'
     ],
 ];
 $certificate_required_document = 'Copy of PSA / Birth Certificate, Death Certificate, or Valid ID';
@@ -803,30 +796,6 @@ if ($stmt) {
         color: #64748b;
     }
 
-    .cert-group-badge {
-        font-size: 0.72rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        padding: 4px 11px;
-        border-radius: 999px;
-        display: inline-flex;
-        align-items: center;
-        white-space: nowrap;
-    }
-
-    .cert-group-badge.certification {
-        background: #fef3c7;
-        color: #92400e;
-        border: 1px solid #fde68a;
-    }
-
-    .cert-group-badge.certificate {
-        background: #e0f2fe;
-        color: #0369a1;
-        border: 1px solid #bae6fd;
-    }
-
     .certificate-option-grid {
         display: grid;
         gap: 14px;
@@ -899,18 +868,6 @@ if ($stmt) {
         justify-content: center;
         font-size: 18px;
         transition: transform 0.2s ease;
-    }
-
-    .cert-mini-badge {
-        font-size: 0.68rem;
-        font-weight: 700;
-        color: #64748b;
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 6px;
-        padding: 2px 7px;
-        letter-spacing: 0.2px;
-        text-transform: uppercase;
     }
 
     .cert-card-title {
@@ -996,34 +953,43 @@ if ($stmt) {
     .category-choice-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 18px;
+        gap: 20px;
+        align-items: stretch;
     }
 
     @media (max-width: 768px) {
         .category-choice-grid {
             grid-template-columns: 1fr;
-            gap: 14px;
+            gap: 16px;
         }
     }
 
     .category-choice-card {
         position: relative;
-        display: block;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
         cursor: pointer;
         outline: none;
         user-select: none;
-        height: 100%;
+        border-radius: 14px;
+        transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .category-choice-card:focus-visible {
+        outline: 2px solid #c89b3c;
+        outline-offset: 3px;
     }
 
     .category-choice-card .category-card-inner {
         position: relative;
         height: 100%;
-        min-height: 172px;
+        min-height: 220px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
         gap: 14px;
-        padding: 22px 24px;
+        padding: 24px 24px 20px 24px;
         border: 1.5px solid #e7e2d8;
         border-radius: 14px;
         background: #ffffff;
@@ -1032,42 +998,23 @@ if ($stmt) {
         overflow: hidden;
     }
 
-    .category-choice-card:hover .category-card-inner,
-    .category-choice-card:focus-visible .category-card-inner {
+    /* Hover State: soft lift, gold border */
+    .category-choice-card:hover .category-card-inner {
         transform: translateY(-3px);
         border-color: #c89b3c;
-        box-shadow: 0 10px 26px rgba(46, 58, 45, 0.09);
+        box-shadow: 0 10px 26px rgba(200, 155, 60, 0.12), 0 2px 6px rgba(0, 0, 0, 0.04);
     }
 
     .category-choice-card:hover .category-icon-box {
         transform: scale(1.08);
     }
 
+    /* Selected State: gold border, light gold background, check icon */
     .category-choice-card.is-selected .category-card-inner {
-        transform: translateY(-2px);
         border-color: #c89b3c;
         border-width: 2px;
-        background: #fffdf9;
-        box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.18), 0 10px 24px rgba(46, 58, 45, 0.08);
-    }
-
-    .category-choice-card.is-selected .category-card-inner::after {
-        content: "\f00c";
-        font-family: "Font Awesome 6 Free";
-        font-weight: 900;
-        position: absolute;
-        top: 14px;
-        right: 14px;
-        width: 24px;
-        height: 24px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 50%;
-        color: #ffffff;
-        background: #c89b3c;
-        font-size: 11px;
-        box-shadow: 0 2px 6px rgba(200, 155, 60, 0.4);
+        background: #fdf8ea;
+        box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.2), 0 10px 26px rgba(200, 155, 60, 0.12);
     }
 
     .category-card-top {
@@ -1075,6 +1022,7 @@ if ($stmt) {
         align-items: center;
         justify-content: space-between;
         width: 100%;
+        margin-bottom: 4px;
     }
 
     .category-icon-box {
@@ -1098,57 +1046,111 @@ if ($stmt) {
         background: #e0f2fe;
     }
 
+    .category-check-indicator {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        border: 1.5px solid #d1d5db;
+        color: transparent;
+        background: #ffffff;
+        transition: all 0.2s ease;
+    }
+
+    .category-choice-card.is-selected .category-check-indicator {
+        border-color: #c89b3c;
+        background: #c89b3c;
+        color: #ffffff;
+        box-shadow: 0 2px 6px rgba(200, 155, 60, 0.45);
+    }
+
+    .category-card-content {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        flex-grow: 1;
+    }
+
     .category-card-title {
         color: #1e293b;
-        font-size: 1.15rem;
+        font-size: 1.18rem;
         font-weight: 700;
         line-height: 1.3;
-        margin: 0 0 6px 0;
+        margin: 0;
         display: block;
     }
 
     .category-card-desc {
+        color: #334155;
+        font-size: 0.88rem;
+        line-height: 1.5;
+        margin: 0;
+    }
+
+    .category-card-helper {
         color: #64748b;
-        font-size: 0.86rem;
+        font-size: 0.82rem;
         line-height: 1.45;
         margin: 0;
+        display: inline-flex;
+        align-items: baseline;
+        gap: 5px;
     }
 
     .category-card-footer {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-top: 6px;
-        padding-top: 12px;
-        border-top: 1px solid #f1f5f9;
+        margin-top: 10px;
+        padding-top: 14px;
+        border-top: 1px solid #ede8de;
+        min-height: 44px;
     }
 
     .category-count-pill {
-        font-size: 0.76rem;
+        font-size: 0.78rem;
         font-weight: 600;
         color: #475569;
         background: #f8fafc;
         border: 1px solid #e2e8f0;
         border-radius: 999px;
-        padding: 3px 10px;
+        padding: 5px 12px;
         display: inline-flex;
         align-items: center;
-        gap: 5px;
+        gap: 6px;
+        min-height: 32px;
+    }
+
+    .category-choice-card.is-selected .category-count-pill {
+        background: #fffdf5;
+        border-color: #e5cf9b;
+        color: #785212;
     }
 
     .category-action-btn {
-        font-size: 0.8rem;
+        font-size: 0.84rem;
         font-weight: 650;
         color: #c89b3c;
         display: inline-flex;
         align-items: center;
-        gap: 4px;
-        transition: transform 0.15s ease;
+        gap: 5px;
+        transition: transform 0.15s ease, color 0.15s ease;
+        padding: 6px 12px;
+        border-radius: 8px;
+        min-height: 44px;
     }
 
     .category-choice-card:hover .category-action-btn {
         transform: translateX(3px);
         color: #9a6e1a;
+    }
+
+    .category-choice-card.is-selected .category-action-btn {
+        color: #9a6e1a;
+        font-weight: 700;
     }
 
     .btn-change-category {
@@ -2196,26 +2198,30 @@ if ($stmt) {
 
         body.certificate-mobile-page .category-choice-grid {
             grid-template-columns: 1fr !important;
-            gap: 10px !important;
+            gap: 14px !important;
         }
 
         body.certificate-mobile-page .category-choice-card .category-card-inner {
             min-height: auto !important;
-            padding: 14px 14px !important;
-            gap: 10px !important;
+            padding: 18px 16px !important;
+            gap: 12px !important;
         }
 
         body.certificate-mobile-page .category-icon-box {
-            width: 38px !important;
-            height: 38px !important;
-            font-size: 16px !important;
+            width: 42px !important;
+            height: 42px !important;
+            font-size: 18px !important;
         }
 
         body.certificate-mobile-page .category-card-title {
-            font-size: 1rem !important;
+            font-size: 1.05rem !important;
         }
 
         body.certificate-mobile-page .category-card-desc {
+            font-size: 0.82rem !important;
+        }
+
+        body.certificate-mobile-page .category-card-helper {
             font-size: 0.78rem !important;
         }
 
@@ -2223,9 +2229,18 @@ if ($stmt) {
             font-size: 1.05rem !important;
         }
 
+        body.certificate-mobile-page .category-action-btn {
+            min-height: 44px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+        }
+
         body.certificate-mobile-page .btn-change-category {
-            padding: 4px 10px !important;
-            font-size: 0.72rem !important;
+            min-height: 44px !important;
+            padding: 8px 14px !important;
+            font-size: 0.78rem !important;
+            display: inline-flex !important;
+            align-items: center !important;
         }
 
         body.certificate-mobile-page .form-label {
@@ -2405,7 +2420,7 @@ if ($stmt) {
                     <span class="step-number">1</span>
                     <div>
                         <h3 id="step1Title">Certificate Information</h3>
-                        <p id="step1Description">Select the document category and sacramental certificate you need.</p>
+                        <p id="step1Description">Select the document category and certificate you need.</p>
                     </div>
                 </div>
 
@@ -2417,68 +2432,81 @@ if ($stmt) {
                 <input type="hidden" name="certificate_category" id="certificateCategoryInput" value="<?php echo e($active_category); ?>">
 
                 <!-- Step 1a: Category Selection ("What do you need?") -->
-                <div class="category-selection-container" id="categorySelectionView" style="<?php echo !empty($active_category) ? 'display: none;' : ''; ?>">
+                <div class="category-selection-container" id="categorySelectionView">
                     <div class="category-prompt-box">
                         <h4 class="category-prompt-heading"><i class="fas fa-layer-group text-warning me-2"></i> What do you need?</h4>
-                        <p class="category-prompt-subtext">Please choose a category below to view the available sacramental document options.</p>
+                        <p class="category-prompt-subtext">Please choose a category below to view the available document options.</p>
                     </div>
 
                     <div class="category-choice-grid" role="radiogroup" aria-label="What do you need?">
                         <!-- Category 1: Certification -->
-                        <div class="category-choice-card <?php echo ($active_category === 'certification') ? 'is-selected' : ''; ?>" data-category="certification" tabindex="0" role="button" aria-pressed="<?php echo ($active_category === 'certification') ? 'true' : 'false'; ?>">
+                        <div class="category-choice-card <?php echo ($active_category === 'certification') ? 'is-selected' : ''; ?>" data-category="certification" tabindex="<?php echo ($active_category === 'certification' || empty($active_category)) ? '0' : '-1'; ?>" role="radio" aria-checked="<?php echo ($active_category === 'certification') ? 'true' : 'false'; ?>" aria-label="<?php echo e($certificate_category_config['certification']['title']); ?>">
                             <div class="category-card-inner">
                                 <div class="category-card-top">
                                     <span class="category-icon-box certification-color">
-                                        <i class="fas fa-file-signature"></i>
+                                        <i class="fas <?php echo e($certificate_category_config['certification']['icon']); ?>"></i>
                                     </span>
-                                    <span class="cert-group-badge certification"><i class="fas fa-stamp me-1"></i> Registry Extract</span>
+                                    <span class="category-check-indicator" aria-hidden="true">
+                                        <i class="fas fa-check"></i>
+                                    </span>
                                 </div>
-                                <div class="category-card-body">
-                                    <strong class="category-card-title">Certification</strong>
+                                <div class="category-card-content">
+                                    <strong class="category-card-title"><?php echo e($certificate_category_config['certification']['title']); ?></strong>
+                                    <p class="category-card-desc"><?php echo e($certificate_category_config['certification']['description']); ?></p>
+                                    <p class="category-card-helper"><i class="fas fa-info-circle text-muted me-1"></i> <?php echo e($certificate_category_config['certification']['helper']); ?></p>
                                 </div>
                                 <div class="category-card-footer">
                                     <span class="category-count-pill"><i class="fas fa-layer-group text-warning me-1"></i> 5 types available</span>
-                                    <span class="category-action-btn">Select <i class="fas fa-arrow-right ms-1"></i></span>
+                                    <span class="category-action-btn">
+                                        <span class="action-text"><?php echo ($active_category === 'certification') ? 'Selected' : 'Select'; ?></span>
+                                        <i class="fas <?php echo ($active_category === 'certification') ? 'fa-check' : 'fa-arrow-right'; ?> ms-1"></i>
+                                    </span>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Category 2: Original Certificate -->
-                        <div class="category-choice-card <?php echo ($active_category === 'certificate') ? 'is-selected' : ''; ?>" data-category="certificate" tabindex="0" role="button" aria-pressed="<?php echo ($active_category === 'certificate') ? 'true' : 'false'; ?>">
+                        <div class="category-choice-card <?php echo ($active_category === 'certificate') ? 'is-selected' : ''; ?>" data-category="certificate" tabindex="<?php echo ($active_category === 'certificate') ? '0' : '-1'; ?>" role="radio" aria-checked="<?php echo ($active_category === 'certificate') ? 'true' : 'false'; ?>" aria-label="<?php echo e($certificate_category_config['certificate']['title']); ?>">
                             <div class="category-card-inner">
                                 <div class="category-card-top">
                                     <span class="category-icon-box certificate-color">
-                                        <i class="fas fa-scroll"></i>
+                                        <i class="fas <?php echo e($certificate_category_config['certificate']['icon']); ?>"></i>
                                     </span>
-                                    <span class="cert-group-badge certificate"><i class="fas fa-certificate me-1"></i> Canonical Certificate</span>
+                                    <span class="category-check-indicator" aria-hidden="true">
+                                        <i class="fas fa-check"></i>
+                                    </span>
                                 </div>
-                                <div class="category-card-body">
-                                    <strong class="category-card-title">Original Certificate</strong>
+                                <div class="category-card-content">
+                                    <strong class="category-card-title"><?php echo e($certificate_category_config['certificate']['title']); ?></strong>
+                                    <p class="category-card-desc"><?php echo e($certificate_category_config['certificate']['description']); ?></p>
+                                    <p class="category-card-helper"><i class="fas fa-info-circle text-muted me-1"></i> <?php echo e($certificate_category_config['certificate']['helper']); ?></p>
                                 </div>
                                 <div class="category-card-footer">
                                     <span class="category-count-pill"><i class="fas fa-layer-group text-info me-1"></i> 3 types available</span>
-                                    <span class="category-action-btn">Select <i class="fas fa-arrow-right ms-1"></i></span>
+                                    <span class="category-action-btn">
+                                        <span class="action-text"><?php echo ($active_category === 'certificate') ? 'Selected' : 'Select'; ?></span>
+                                        <i class="fas <?php echo ($active_category === 'certificate') ? 'fa-check' : 'fa-arrow-right'; ?> ms-1"></i>
+                                    </span>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Group 1: Sacramental Certifications -->
+                <!-- Group 1: Certification -->
                 <div class="cert-group-block" data-category="certification" style="<?php echo ($active_category === 'certification') ? '' : 'display: none;'; ?>">
                     <div class="cert-group-header d-flex align-items-center justify-content-between flex-wrap gap-2">
                         <div class="cert-group-info">
-                            <span class="cert-group-title"><i class="fas fa-file-signature text-warning me-2"></i> Sacramental Certifications</span>
+                            <span class="cert-group-title"><i class="fas fa-file-signature text-warning me-2"></i> <?php echo e($certificate_category_config['certification']['group_aria_label']); ?></span>
                         </div>
                         <div class="cert-group-actions d-flex align-items-center gap-2">
-                            <span class="cert-group-badge certification"><i class="fas fa-stamp me-1"></i> Registry Extract</span>
                             <button type="button" class="btn-change-category" data-action="change-category" title="Choose another document category">
                                 <i class="fas fa-arrow-left"></i> Change selection
                             </button>
                         </div>
                     </div>
 
-                    <div class="certificate-option-grid grid-5" role="radiogroup" aria-label="Sacramental Certifications">
+                    <div class="certificate-option-grid grid-5" role="radiogroup" aria-label="<?php echo e($certificate_category_config['certification']['group_aria_label']); ?>">
                         <?php foreach ($certificate_meta as $value => $meta): ?>
                             <?php if (($meta['category'] ?? '') !== 'certification') continue; ?>
                             <label class="certificate-option">
@@ -2488,7 +2516,6 @@ if ($stmt) {
                                         <span class="cert-icon-box" style="<?php echo !empty($meta['icon_color']) ? 'color: ' . $meta['icon_color'] . '; background: ' . $meta['icon_bg'] . ';' : ''; ?>">
                                             <i class="fas <?php echo e($meta['icon']); ?>"></i>
                                         </span>
-                                        <span class="cert-mini-badge"><?php echo e($meta['badge']); ?></span>
                                     </div>
                                     <strong class="cert-card-title"><?php echo e($meta['title']); ?></strong>
                                     <small class="cert-card-hint"><?php echo e($meta['hint']); ?></small>
@@ -2498,21 +2525,20 @@ if ($stmt) {
                     </div>
                 </div>
 
-                <!-- Group 2: Sacramental Certificates -->
+                <!-- Group 2: Original Certificate -->
                 <div class="cert-group-block" data-category="certificate" style="<?php echo ($active_category === 'certificate') ? '' : 'display: none;'; ?>">
                     <div class="cert-group-header d-flex align-items-center justify-content-between flex-wrap gap-2">
                         <div class="cert-group-info">
-                            <span class="cert-group-title"><i class="fas fa-scroll text-warning me-2"></i> Sacramental Certificates</span>
+                            <span class="cert-group-title"><i class="fas fa-scroll text-warning me-2"></i> <?php echo e($certificate_category_config['certificate']['group_aria_label']); ?></span>
                         </div>
                         <div class="cert-group-actions d-flex align-items-center gap-2">
-                            <span class="cert-group-badge certificate"><i class="fas fa-certificate me-1"></i> Canonical Certificate</span>
                             <button type="button" class="btn-change-category" data-action="change-category" title="Choose another document category">
                                 <i class="fas fa-arrow-left"></i> Change selection
                             </button>
                         </div>
                     </div>
 
-                    <div class="certificate-option-grid grid-3" role="radiogroup" aria-label="Sacramental Certificates">
+                    <div class="certificate-option-grid grid-3" role="radiogroup" aria-label="<?php echo e($certificate_category_config['certificate']['group_aria_label']); ?>">
                         <?php foreach ($certificate_meta as $value => $meta): ?>
                             <?php if (($meta['category'] ?? '') !== 'certificate') continue; ?>
                             <label class="certificate-option">
@@ -2522,7 +2548,6 @@ if ($stmt) {
                                         <span class="cert-icon-box" style="<?php echo !empty($meta['icon_color']) ? 'color: ' . $meta['icon_color'] . '; background: ' . $meta['icon_bg'] . ';' : ''; ?>">
                                             <i class="fas <?php echo e($meta['icon']); ?>"></i>
                                         </span>
-                                        <span class="cert-mini-badge"><?php echo e($meta['badge']); ?></span>
                                     </div>
                                     <strong class="cert-card-title"><?php echo e($meta['title']); ?></strong>
                                     <small class="cert-card-hint"><?php echo e($meta['hint']); ?></small>
@@ -2536,9 +2561,18 @@ if ($stmt) {
                     <label for="certificateMobileSelect" class="form-label">Document type</label>
                     <select class="form-select request-form-control" id="certificateMobileSelect" name="certificate_mobile_type">
                         <option value="">Select a certificate</option>
-                        <?php foreach ($certificate_types as $value => $label): ?>
-                            <option value="<?php echo e($value); ?>" <?php echo (($_POST['request_type'] ?? $_POST['certificate_mobile_type'] ?? '') === $value) ? 'selected' : ''; ?>><?php echo e($label); ?></option>
-                        <?php endforeach; ?>
+                        <optgroup label="Certification">
+                            <?php foreach ($certificate_meta as $value => $meta): ?>
+                                <?php if (($meta['category'] ?? '') !== 'certification') continue; ?>
+                                <option value="<?php echo e($value); ?>" <?php echo (($_POST['request_type'] ?? $_POST['certificate_mobile_type'] ?? '') === $value) ? 'selected' : ''; ?>><?php echo e($meta['title']); ?></option>
+                            <?php endforeach; ?>
+                        </optgroup>
+                        <optgroup label="Original Certificate">
+                            <?php foreach ($certificate_meta as $value => $meta): ?>
+                                <?php if (($meta['category'] ?? '') !== 'certificate') continue; ?>
+                                <option value="<?php echo e($value); ?>" <?php echo (($_POST['request_type'] ?? $_POST['certificate_mobile_type'] ?? '') === $value) ? 'selected' : ''; ?>><?php echo e($meta['title']); ?></option>
+                            <?php endforeach; ?>
+                        </optgroup>
                     </select>
                 </div>
 
@@ -2588,7 +2622,7 @@ if ($stmt) {
                         <div class="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 mb-3 rounded-3" style="background: #eef7fc; border: 1px solid #b9e2fe;">
                             <i class="fas fa-water text-primary fs-5"></i>
                             <div>
-                                <strong class="text-dark">Canonical Sacramental Record Details (Baptism)</strong>
+                                <strong class="text-dark">Sacramental Record Details (Baptism)</strong>
                                 <div class="text-secondary">Please enter the exact details as registered in church books. All 10 fields below and at least 2 sponsors are required for record verification.</div>
                             </div>
                         </div>
@@ -3125,9 +3159,9 @@ if ($stmt) {
         function showCategoryFlow(cat, options) {
             options = options || {};
             const shouldAnimate = options.animate !== false;
-            const isSwitchingCategory = currentCategory && cat && currentCategory !== cat;
+            const isSwitchingCategory = !options.preserveSelection && currentCategory && cat && currentCategory !== cat;
 
-            // If switching from one category to another, clear previous selection as per spec
+            // If switching from one category to another without preserveSelection, clear previous selection as per spec
             if (isSwitchingCategory) {
                 radios.forEach(function(r) {
                     r.checked = false;
@@ -3140,17 +3174,29 @@ if ($stmt) {
             currentCategory = cat || '';
             updateCategoryUI(currentCategory);
 
-            // Update category cards visual state
+            // Update category cards visual state and accessible radio attributes
             categoryCards.forEach(function(card) {
                 const isMatch = (card.dataset.category === cat);
                 card.classList.toggle('is-selected', isMatch);
+                card.setAttribute('aria-checked', isMatch ? 'true' : 'false');
                 card.setAttribute('aria-pressed', isMatch ? 'true' : 'false');
+                card.tabIndex = isMatch ? 0 : (cat ? -1 : 0);
+
+                const actionText = card.querySelector('.action-text');
+                const actionIcon = card.querySelector('.category-action-btn i');
+                if (actionText) {
+                    actionText.textContent = isMatch ? 'Selected' : 'Select';
+                }
+                if (actionIcon) {
+                    actionIcon.className = isMatch ? 'fas fa-check ms-1' : 'fas fa-arrow-right ms-1';
+                }
             });
 
+            if (categorySelectionView) {
+                categorySelectionView.style.display = 'block';
+            }
+
             if (cat) {
-                if (categorySelectionView) {
-                    categorySelectionView.style.display = 'none';
-                }
                 certGroupBlocks.forEach(function(block) {
                     if (block.dataset.category === cat) {
                         block.style.display = 'block';
@@ -3164,42 +3210,43 @@ if ($stmt) {
                     }
                 });
             } else {
-                // Return to category selection screen
-                if (categorySelectionView) {
-                    categorySelectionView.style.display = 'block';
-                    if (shouldAnimate) {
-                        categorySelectionView.classList.remove('category-step-fade');
-                        void categorySelectionView.offsetWidth;
-                        categorySelectionView.classList.add('category-step-fade');
-                    }
-                }
                 certGroupBlocks.forEach(function(block) {
                     block.style.display = 'none';
                 });
             }
         }
 
-        categoryCards.forEach(function(card) {
+        categoryCards.forEach(function(card, index) {
             function handleCategorySelect() {
                 const cat = card.dataset.category;
-                categoryCards.forEach(function(c) {
-                    c.classList.remove('is-selected');
-                    c.setAttribute('aria-pressed', 'false');
-                });
-                card.classList.add('is-selected');
-                card.setAttribute('aria-pressed', 'true');
-
-                // Smooth tactile transition delay (160ms) before displaying filtered view
-                setTimeout(function() {
-                    showCategoryFlow(cat, { animate: true });
-                }, 160);
+                showCategoryFlow(cat, { animate: true });
+                card.focus();
             }
 
             card.addEventListener('click', handleCategorySelect);
+
             card.addEventListener('keydown', function(e) {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
                     handleCategorySelect();
+                } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    const nextIdx = (index + 1) % categoryCards.length;
+                    const nextCard = categoryCards[nextIdx];
+                    if (nextCard) {
+                        const nextCat = nextCard.dataset.category;
+                        showCategoryFlow(nextCat, { animate: true });
+                        nextCard.focus();
+                    }
+                } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    const prevIdx = (index - 1 + categoryCards.length) % categoryCards.length;
+                    const prevCard = categoryCards[prevIdx];
+                    if (prevCard) {
+                        const prevCat = prevCard.dataset.category;
+                        showCategoryFlow(prevCat, { animate: true });
+                        prevCard.focus();
+                    }
                 }
             });
         });
@@ -3212,6 +3259,8 @@ if ($stmt) {
                 if (prevCat) {
                     const prevCard = document.querySelector('.category-choice-card[data-category="' + prevCat + '"]');
                     if (prevCard) prevCard.focus();
+                } else if (categoryCards && categoryCards.length > 0) {
+                    categoryCards[0].focus();
                 }
             });
         });
@@ -3317,6 +3366,17 @@ if ($stmt) {
 
         function setCertificateType(value) {
             if (!value) return;
+
+            // Auto-switch to matching category if not already active
+            if (certificateMeta[value] && certificateMeta[value].category) {
+                const targetCat = certificateMeta[value].category;
+                if (currentCategory !== targetCat) {
+                    showCategoryFlow(targetCat, { animate: false, preserveSelection: true });
+                } else {
+                    updateCategoryUI(targetCat);
+                }
+            }
+
             radios.forEach(function(radio) {
                 radio.checked = (radio.value === value);
             });
@@ -3327,16 +3387,6 @@ if ($stmt) {
                 select.value = certificateLabels[value];
             }
             toggleBaptismFields(value);
-
-            // Auto-switch to matching category if not already active
-            if (certificateMeta[value] && certificateMeta[value].category) {
-                const targetCat = certificateMeta[value].category;
-                if (currentCategory !== targetCat) {
-                    showCategoryFlow(targetCat, { animate: false });
-                } else {
-                    updateCategoryUI(targetCat);
-                }
-            }
         }
 
         const sponsorsList = document.getElementById('parishionerSponsorsList');
@@ -3424,7 +3474,11 @@ if ($stmt) {
         if (initialType) {
             toggleBaptismFields(initialType);
         }
-        updateCategoryUI(currentCategory);
+        if (currentCategory) {
+            showCategoryFlow(currentCategory, { animate: false });
+        } else {
+            updateCategoryUI('');
+        }
 
         function renderFiles(files) {
             if (!files || files.length === 0 || !filePreview) {
@@ -3771,7 +3825,7 @@ if ($stmt) {
 
                 <div class="d-flex align-items-start gap-2 text-muted small" style="line-height: 1.45;">
                     <i class="fas fa-shield-halved text-success mt-1"></i>
-                    <span>To preserve canonical record accuracy and prevent duplicate processing, the parish allows only one active certificate request per record holder.</span>
+                    <span>To preserve record accuracy and prevent duplicate processing, the parish allows only one active certificate request per record holder.</span>
                 </div>
             </div>
             <div class="modal-footer border-0 pt-0 px-4 pb-4 gap-2">

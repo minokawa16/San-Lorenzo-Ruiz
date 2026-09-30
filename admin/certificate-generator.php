@@ -11,6 +11,7 @@ requirePermission('certificates.manage');
 
 $error = '';
 $success = '';
+$cert_cat_config = getCertificateCategoryConfig();
 
 $get_request_id = intval($_GET['request_id'] ?? ($_POST['request_id'] ?? 0));
 $request_info = null;
@@ -530,11 +531,40 @@ include __DIR__ . '/../templates/header.php';
         color: #0284c7;
     }
 
+    .pds-cert-section-header {
+        margin-bottom: 16px;
+    }
+    .pds-cert-section-title {
+        font-family: 'Playfair Display', Georgia, serif;
+        font-size: 1.18rem;
+        font-weight: 700;
+        color: #1e293b;
+        display: flex;
+        align-items: center;
+        margin: 0 0 4px 0;
+    }
+    .pds-cert-section-desc {
+        font-size: 0.88rem;
+        color: #64748b;
+        line-height: 1.45;
+        margin: 0;
+    }
+
     .pds-cert-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
         gap: 16px;
-        margin-bottom: 24px;
+        margin-bottom: 28px;
+    }
+    @media (max-width: 576px) {
+        .pds-cert-grid {
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+        .pds-cert-card {
+            min-height: auto;
+            padding: 16px 14px;
+        }
     }
     .pds-cert-card {
         background: #ffffff;
@@ -546,13 +576,17 @@ include __DIR__ . '/../templates/header.php';
         flex-direction: column;
         align-items: center;
         justify-content: space-between;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
-        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+        transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease;
+        min-height: 214px;
     }
     .pds-cert-card:hover {
-        transform: translateY(-2px);
-        border-color: #c4c1b5;
-        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+        transform: translateY(-3px);
+        border-color: #c89b3c;
+        box-shadow: 0 8px 22px rgba(200, 155, 60, 0.12), 0 2px 6px rgba(0, 0, 0, 0.04);
+    }
+    .pds-cert-card:hover .pds-cert-icon-wrap {
+        transform: scale(1.08);
     }
     .pds-cert-icon-wrap {
         width: 52px;
@@ -563,6 +597,7 @@ include __DIR__ . '/../templates/header.php';
         justify-content: center;
         font-size: 1.35rem;
         margin-bottom: 12px;
+        transition: transform 0.2s ease;
     }
     .pds-cert-title {
         font-family: 'Playfair Display', Georgia, serif;
@@ -583,18 +618,24 @@ include __DIR__ . '/../templates/header.php';
         background: #c89b3c !important;
         color: #1e293b !important;
         font-weight: 600 !important;
-        border: none !important;
+        border: 1px solid #b88a2e !important;
         border-radius: 6px !important;
-        padding: 6px 16px !important;
+        padding: 7px 18px !important;
         font-size: 0.82rem !important;
         display: inline-flex !important;
         align-items: center !important;
+        justify-content: center !important;
         gap: 6px !important;
-        transition: all 0.15s ease !important;
+        transition: all 0.18s ease !important;
+        min-height: 38px;
+        cursor: pointer;
     }
-    .btn-primary-gold:hover {
-        background: #b58930 !important;
-        color: #141d24 !important;
+    .btn-primary-gold:hover,
+    .btn-primary-gold:focus-visible {
+        background: #b88a2e !important;
+        color: #ffffff !important;
+        border-color: #a77c27 !important;
+        box-shadow: 0 3px 10px rgba(200, 155, 60, 0.35) !important;
         transform: translateY(-1px) !important;
     }
     .pds-info-card {
@@ -633,10 +674,13 @@ include __DIR__ . '/../templates/header.php';
         </div>
     <?php endif; ?>
 
-    <!-- Sacramental Certificates Grid -->
-    <h5 class="mb-3" style="font-family: 'Playfair Display', Georgia, serif; font-size: 1.15rem; font-weight: 700; color: #1e293b;">
-        <i class="fas fa-scroll me-2 text-warning"></i> Official Sacramental Certificates
-    </h5>
+    <!-- Original Certificate Grid -->
+    <div class="pds-cert-section-header mb-3">
+        <h5 class="pds-cert-section-title mb-1">
+            <i class="fas fa-scroll me-2 text-warning"></i> <?php echo e($cert_cat_config['certificate']['section_title']); ?>
+        </h5>
+        <p class="pds-cert-section-desc mb-0"><?php echo e($cert_cat_config['certificate']['description']); ?></p>
+    </div>
     <div class="pds-cert-grid">
         <!-- Baptism -->
         <div class="pds-cert-card">
@@ -675,10 +719,13 @@ include __DIR__ . '/../templates/header.php';
         </div>
     </div>
 
-    <!-- Sacramental Certifications Grid -->
-    <h5 class="mb-3 mt-4" style="font-family: 'Playfair Display', Georgia, serif; font-size: 1.15rem; font-weight: 700; color: #1e293b;">
-        <i class="fas fa-file-signature me-2 text-warning"></i> Sacramental Certifications
-    </h5>
+    <!-- Certification Grid -->
+    <div class="pds-cert-section-header mb-3 mt-4">
+        <h5 class="pds-cert-section-title mb-1">
+            <i class="fas fa-file-signature me-2 text-warning"></i> <?php echo e($cert_cat_config['certification']['section_title']); ?>
+        </h5>
+        <p class="pds-cert-section-desc mb-0"><?php echo e($cert_cat_config['certification']['description']); ?></p>
+    </div>
     <div class="pds-cert-grid">
         <!-- Baptismal Certification -->
         <div class="pds-cert-card">

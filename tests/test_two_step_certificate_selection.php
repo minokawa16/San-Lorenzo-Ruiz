@@ -26,8 +26,12 @@ assertTest(strpos($content, 'data-category="certification"') !== false, 'Certifi
 assertTest(strpos($content, 'data-category="certificate"') !== false, 'Original Certificate category card exists');
 assertTest(strpos($content, '5 types available') !== false, 'Certification card has "5 types available" badge');
 assertTest(strpos($content, '3 types available') !== false, 'Original Certificate card has "3 types available" badge');
-assertTest(strpos($content, 'Registry Extract') !== false, 'Registry Extract badge is present');
-assertTest(strpos($content, 'Canonical Certificate') !== false, 'Canonical Certificate badge is present');
+assertTest(strpos($content, 'Registry Extract') === false, 'Registry Extract badge is completely removed');
+assertTest(strpos($content, 'Canonical Certificate') === false, 'Canonical Certificate badge is completely removed');
+$helpersContent = file_get_contents($root . '/includes/helpers.php');
+assertTest(strpos($helpersContent, 'The official certificate issued for your sacrament') !== false, 'Original Certificate description is configured');
+assertTest(strpos($helpersContent, 'A certified true copy of your record from the parish register') !== false, 'Certification description is configured');
+assertTest(strpos($content, 'role="radio"') !== false, 'Category cards have accessible role="radio"');
 
 // 2. Check "Change selection" controls
 assertTest(substr_count($content, 'data-action="change-category"') >= 2, 'Change selection buttons present for both filtered views');

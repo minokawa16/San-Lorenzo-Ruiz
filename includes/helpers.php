@@ -3984,3 +3984,54 @@ function getPriestInChargeTitle($conn = null) {
     return 'Priest-in-Charge';
 }
 
+/**
+ * Returns configuration for certificate categories (Original Certificate & Certification).
+ * Centralized config for titles, descriptions, and helper lines across staff and parishioner portals.
+ *
+ * @return array
+ */
+function getCertificateCategoryConfig(): array {
+    return [
+        'certificate' => [
+            'id' => 'certificate',
+            'title' => 'Original Certificate',
+            'section_title' => 'Original Certificate',
+            'description' => "The official certificate issued for your sacrament, with the parish seal and the priest's signature.",
+            'helper' => 'Choose this if you need the main certificate itself.',
+            'count' => 3,
+            'count_label' => '3 types available',
+            'icon' => 'fa-scroll',
+            'icon_color' => '#0369a1',
+            'icon_bg' => '#e0f2fe',
+            'icon_class' => 'certificate-color',
+            'group_aria_label' => 'Original Certificate',
+            'types' => [
+                'baptismal_certificate',
+                'confirmation_certificate',
+                'first_communion_certificate',
+            ],
+        ],
+        'certification' => [
+            'id' => 'certification',
+            'title' => 'Certification',
+            'section_title' => 'Certification',
+            'description' => 'A certified true copy of your record from the parish register.',
+            'helper' => 'Choose this for school, passport, employment, marriage preparation, or other requirements.',
+            'count' => 5,
+            'count_label' => '5 types available',
+            'icon' => 'fa-file-signature',
+            'icon_color' => '#b45309',
+            'icon_bg' => '#fef3c7',
+            'icon_class' => 'certification-color',
+            'group_aria_label' => 'Certification',
+            'types' => [
+                'baptism_certification',
+                'confirmation_certification',
+                'first_communion_certification',
+                'marriage_certification',
+                'funeral_certification',
+            ],
+        ],
+    ];
+}
+

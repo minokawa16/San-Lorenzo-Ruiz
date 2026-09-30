@@ -27,6 +27,8 @@ uploads/avatars/*
 # Local backups and exports
 backups/*.sql
 backups/*.zip
+backups/*/*.bak
+backups/certificate_category_refactor_*
 *.zip
 *_recovery_dump.sql
 
