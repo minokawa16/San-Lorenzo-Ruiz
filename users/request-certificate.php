@@ -1219,21 +1219,22 @@ if ($stmt) {
         display: grid;
         place-items: center;
         gap: 8px;
-        min-height: 190px;
+        min-height: 180px;
         padding: 24px;
-        border: 1px dashed #b6c4d4;
-        border-radius: 8px;
+        border: 2px dashed #b6c4d4;
+        border-radius: 12px;
         background: #f8fafc;
         text-align: center;
         cursor: pointer;
-        transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+        transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
     }
 
     .upload-zone:hover,
     .upload-zone.is-dragover {
         border-color: #d7ad43;
-        background: #fffdf7;
-        transform: translateY(-1px);
+        background: #fffdf5;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(215, 173, 67, 0.12);
     }
 
     .upload-zone input {
@@ -1244,26 +1245,445 @@ if ($stmt) {
     }
 
     .upload-zone i {
-        width: 52px;
-        height: 52px;
+        width: 54px;
+        height: 54px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        border-radius: 8px;
+        border-radius: 12px;
         color: #17446a;
         background: #eef5fb;
-        font-size: 1.25rem;
+        font-size: 1.35rem;
+        transition: transform 0.2s ease, background 0.2s ease;
+    }
+
+    .upload-zone:hover i,
+    .upload-zone.is-dragover i {
+        transform: scale(1.08);
+        background: #e0f2fe;
     }
 
     .upload-zone strong {
         color: #172033;
-        font-size: 1rem;
+        font-size: 1.05rem;
     }
 
     .upload-zone small {
-        color: #667085;
+        color: #64748b;
+        max-width: 480px;
+        line-height: 1.4;
     }
 
+    /* TUGON Tip Guidance Banner */
+    .tugon-tip-guidance {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 14px;
+        margin-bottom: 12px;
+        padding: 10px 16px;
+        border-radius: 10px;
+        background: #f0f7ff;
+        border: 1px solid #bfdbfe;
+        color: #1e3a8a;
+        font-size: 0.86rem;
+        line-height: 1.45;
+        box-shadow: 0 1px 3px rgba(37, 99, 235, 0.04);
+    }
+
+    .tugon-tip-guidance .tugon-tip-icon {
+        flex-shrink: 0;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: #dbeafe;
+        color: #2563eb;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+    }
+
+    .tugon-tip-guidance .tugon-tip-text {
+        flex-grow: 1;
+    }
+
+    /* Upload Validation Alert */
+    .upload-validation-alert {
+        margin-top: 12px;
+        margin-bottom: 14px;
+        padding: 12px 16px;
+        border-radius: 10px;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-left: 4px solid #ef4444;
+        animation: fadeIn 0.2s ease-in;
+    }
+
+    .upload-alert-title {
+        display: block;
+        color: #991b1b;
+        font-size: 0.92rem;
+        font-weight: 700;
+    }
+
+    .upload-alert-message {
+        color: #7f1d1d;
+        font-size: 0.84rem;
+        margin-top: 2px;
+        line-height: 1.4;
+    }
+
+    /* Aggregate Status Bar */
+    .file-preview-hub {
+        margin-top: 14px;
+        margin-bottom: 12px;
+        padding: 10px 16px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+    }
+
+    .preview-hub-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .hub-title {
+        font-weight: 700;
+        color: #0f172a;
+        font-size: 0.92rem;
+    }
+
+    .hub-size-badge {
+        font-size: 0.78rem;
+        padding: 2px 10px;
+        border-radius: 999px;
+        background: #e2e8f0;
+        color: #475569;
+        font-weight: 600;
+        margin-left: 8px;
+    }
+
+    .btn-clear-all {
+        background: transparent;
+        border: none;
+        color: #dc2626;
+        font-size: 0.82rem;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 6px;
+        transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .btn-clear-all:hover {
+        background: #fee2e2;
+        color: #b91c1c;
+    }
+
+    /* Selected Files Grid (#selectedFilesGrid) */
+    .selected-files-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 16px;
+        margin-top: 14px;
+    }
+
+    @media (max-width: 576px) {
+        .selected-files-grid {
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+    }
+
+    /* Document Preview Card */
+    .doc-card {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        border-radius: 12px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+        overflow: hidden;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+
+    .doc-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+        border-color: #cbd5e1;
+    }
+
+    .doc-card.is-invalid {
+        border-color: #ef4444;
+        background: #fffafa;
+        box-shadow: 0 2px 10px rgba(239, 68, 68, 0.12);
+    }
+
+    .doc-card.is-invalid:hover {
+        border-color: #dc2626;
+        box-shadow: 0 6px 18px rgba(239, 68, 68, 0.18);
+    }
+
+    .doc-card-thumb-wrap {
+        position: relative;
+        height: 140px;
+        width: 100%;
+        background: #f1f5f9;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+
+    .doc-card-thumbnail {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.3s ease;
+    }
+
+    .doc-card:hover .doc-card-thumbnail {
+        transform: scale(1.03);
+    }
+
+    .doc-card-pdf-placeholder,
+    .doc-card-invalid-placeholder {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        width: 100%;
+        height: 100%;
+        background: #f8fafc;
+    }
+
+    .doc-card-pdf-placeholder i {
+        font-size: 2.4rem;
+        color: #ef4444;
+    }
+
+    .doc-card-pdf-placeholder .pdf-tag {
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: #64748b;
+        letter-spacing: 0.5px;
+    }
+
+    .doc-card-invalid-placeholder i {
+        font-size: 2.2rem;
+        color: #ef4444;
+    }
+
+    .doc-card-invalid-placeholder .invalid-tag {
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: #dc2626;
+        letter-spacing: 0.5px;
+    }
+
+    .doc-status-badge {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        padding: 3px 8px;
+        border-radius: 999px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        z-index: 2;
+    }
+
+    .doc-status-badge.badge-verified {
+        background: #10b981;
+        color: #ffffff;
+    }
+
+    .doc-status-badge.badge-danger {
+        background: #ef4444;
+        color: #ffffff;
+    }
+
+    .doc-card-body {
+        padding: 12px 14px;
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .doc-name {
+        font-weight: 700;
+        font-size: 0.88rem;
+        color: #1e293b;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .doc-meta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.78rem;
+        color: #64748b;
+        margin-top: 3px;
+    }
+
+    .doc-size {
+        font-weight: 600;
+    }
+
+    .doc-ext {
+        padding: 1px 6px;
+        border-radius: 4px;
+        background: #e2e8f0;
+        font-size: 0.68rem;
+        font-weight: 700;
+        color: #475569;
+    }
+
+    .doc-error-hint {
+        font-size: 0.76rem;
+        color: #dc2626;
+        font-weight: 600;
+        margin-top: 4px;
+        line-height: 1.3;
+    }
+
+    .doc-card-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding-top: 8px;
+        border-top: 1px solid #f1f5f9;
+    }
+
+    .btn-card-action {
+        flex: 1;
+        padding: 6px 10px;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        border: 1px solid transparent;
+        text-decoration: none;
+    }
+
+    .btn-card-action.btn-inspect {
+        background: #f1f5f9;
+        color: #17446a;
+        border-color: #cbd5e1;
+    }
+
+    .btn-card-action.btn-inspect:hover:not(:disabled) {
+        background: #17446a;
+        color: #ffffff;
+        border-color: #17446a;
+    }
+
+    .btn-card-action.btn-inspect:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        background: #f1f5f9;
+        color: #94a3b8;
+    }
+
+    .btn-card-action.btn-remove {
+        background: #ffffff;
+        color: #ef4444;
+        border-color: #fecaca;
+    }
+
+    .btn-card-action.btn-remove:hover {
+        background: #fef2f2;
+        color: #dc2626;
+        border-color: #ef4444;
+    }
+
+    /* Lightbox Modal (#documentPreviewModal) */
+    .doc-inspection-modal-content {
+        border-radius: 16px;
+        overflow: hidden;
+    }
+
+    .doc-modal-icon-badge {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        background: #e0f2fe;
+        color: #0284c7;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .doc-inspection-viewport {
+        background-color: #0b1120;
+        min-height: 520px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .doc-modal-image-wrapper {
+        width: 100%;
+        height: 72vh;
+        min-height: 500px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: auto;
+        user-select: none;
+        cursor: grab;
+        padding: 20px;
+    }
+
+    .doc-modal-image-wrapper:active {
+        cursor: grabbing;
+    }
+
+    .doc-inspect-img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        border-radius: 6px;
+        transition: transform 0.18s cubic-bezier(0.2, 0, 0.2, 1);
+        transform-origin: center center;
+    }
+
+    .doc-modal-pdf-wrapper {
+        width: 100%;
+        height: 75vh;
+        min-height: 520px;
+    }
+
+    .doc-pdf-object {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border: 0;
+    }
+
+    .doc-inspection-toolbar .btn {
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    /* Legacy Preview Container (Kept for backwards compatibility) */
     .file-preview {
         display: none;
         align-items: center;
@@ -2781,13 +3201,54 @@ if ($stmt) {
                     </div>
                 </div>
 
-                <label class="upload-zone" id="uploadZone" for="requirement_files">
+                <label class="upload-zone" id="uploadZone" for="requirementFileInput" tabindex="0" role="button" aria-label="Upload all requirements. Drag and drop files here or click to browse.">
                     <i class="fas fa-cloud-arrow-up"></i>
                     <strong>Upload all requirements</strong>
                     <small>Accepted formats: PDF, JPG, PNG, WEBP (max 5 MB each). You can select and upload multiple files.</small>
-                    <input type="file" id="requirement_files" name="requirement_files[]" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*" multiple required>
+                    <input type="file" id="requirementFileInput" name="requirement_files[]" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*" multiple required>
                 </label>
-                <div class="file-preview" id="filePreview">
+
+                <!-- Subtle TUGON Inline Guidance -->
+                <div class="tugon-tip-guidance" id="tugonUploadTip">
+                    <div class="tugon-tip-icon">
+                        <i class="fas fa-lightbulb"></i>
+                    </div>
+                    <div class="tugon-tip-text">
+                        <strong>TUGON Tip:</strong> Ensure all details, seals, and signatures on your documents are readable before submitting to ensure fast verification.
+                    </div>
+                </div>
+
+                <!-- Client-Side Validation Alert -->
+                <div class="upload-validation-alert" id="uploadValidationAlert" role="alert" style="display: none;">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fas fa-circle-exclamation text-danger fs-5 flex-shrink-0"></i>
+                        <div class="flex-grow-1">
+                            <strong class="upload-alert-title">Requirement Validation Warning</strong>
+                            <div class="upload-alert-message small" id="uploadValidationMessage">Some files violate upload constraints (size limit 5 MB or unsupported format). Remove or replace invalid items to proceed.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Aggregate Status Bar -->
+                <div class="file-preview-hub" id="filePreviewHub" style="display: none;">
+                    <div class="preview-hub-header">
+                        <div class="hub-header-left d-flex align-items-center">
+                            <span class="hub-title" id="aggregateCount">0 files selected</span>
+                            <span class="hub-size-badge" id="aggregateSize">0 MB total</span>
+                        </div>
+                        <div class="hub-header-right">
+                            <button type="button" class="btn-clear-all" id="clearAllUploadsBtn" title="Remove all uploaded requirements">
+                                <i class="fas fa-trash-can me-1"></i> Clear all
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Selected Files Grid Container (#selectedFilesGrid) -->
+                <div class="selected-files-grid" id="selectedFilesGrid" aria-live="polite"></div>
+
+                <!-- Backwards-compatible legacy nodes for any external querySelectors -->
+                <div class="file-preview d-none" id="filePreview" aria-hidden="true">
                     <div id="fileList">
                         <span id="fileName">Selected files</span>
                         <div class="text-muted small" id="fileSize">Ready to upload</div>
@@ -3021,12 +3482,84 @@ if ($stmt) {
     </div>
 </div>
 
+<!-- Interactive Document Inspection Lightbox Modal -->
+<div class="modal fade" id="documentPreviewModal" tabindex="-1" aria-labelledby="documentPreviewModalLabel" aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg doc-inspection-modal-content">
+            <div class="modal-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2 text-truncate me-3">
+                    <div class="doc-modal-icon-badge" id="docModalIconBadge">
+                        <i class="fas fa-file-lines fa-lg"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <h5 class="modal-title fw-bold text-dark mb-0 text-truncate" id="documentPreviewModalLabel">Document Inspection</h5>
+                        <div class="text-muted small text-truncate" id="docModalMeta">Ready to inspect</div>
+                    </div>
+                </div>
+                
+                <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                    <!-- Image Inspection Controls (Zoom In, Zoom Out, Rotate, Reset) -->
+                    <div class="doc-inspection-toolbar btn-group btn-group-sm" id="docImageToolbar" role="group" aria-label="Image Inspection Controls">
+                        <button type="button" class="btn btn-outline-secondary" id="docZoomOutBtn" title="Zoom Out (-)">
+                            <i class="fas fa-magnifying-glass-minus"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" id="docZoomResetBtn" title="Reset Zoom (100%)">
+                            <span id="docZoomLevel">100%</span>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" id="docZoomInBtn" title="Zoom In (+)">
+                            <i class="fas fa-magnifying-glass-plus"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" id="docRotateBtn" title="Rotate Clockwise 90°">
+                            <i class="fas fa-rotate-right"></i> <span id="docRotateAngle" class="d-none d-sm-inline ms-1">0°</span>
+                        </button>
+                    </div>
+
+                    <a id="docModalDownloadBtn" href="#" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1.5 fw-semibold" download title="Download document to inspect locally">
+                        <i class="fas fa-download"></i>
+                        <span class="d-none d-sm-inline">Download</span>
+                    </a>
+                    
+                    <button type="button" class="btn-close ms-2" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+            </div>
+
+            <div class="modal-body p-0 position-relative doc-inspection-viewport">
+                <!-- Image Viewer Container -->
+                <div id="docModalImageContainer" class="doc-modal-image-wrapper">
+                    <img id="docModalImage" src="" alt="Document Preview" class="doc-inspect-img">
+                </div>
+
+                <!-- PDF Viewer Container -->
+                <div id="docModalPdfContainer" class="doc-modal-pdf-wrapper" style="display: none;">
+                    <object id="docModalPdfObject" data="" type="application/pdf" class="w-100 h-100 doc-pdf-object">
+                        <iframe id="docModalPdfFrame" src="" class="w-100 h-100 border-0" title="PDF Document Preview">
+                            <div class="p-4 text-center text-white">
+                                <p class="mb-3">Direct inline PDF preview is not supported by your browser.</p>
+                                <a id="docModalPdfFallbackBtn" href="#" class="btn btn-primary" download>
+                                    <i class="fas fa-download me-1"></i> Download PDF Document
+                                </a>
+                            </div>
+                        </iframe>
+                    </object>
+                </div>
+            </div>
+
+            <div class="modal-footer bg-white border-top py-2.5 px-4 d-flex justify-content-between align-items-center">
+                <div class="text-muted small">
+                    <i class="fas fa-shield-halved text-success me-1"></i> Client-side verification &bull; Check readability of signatures, seals, and text
+                </div>
+                <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     (function() {
         const select = document.getElementById('certificateSearchSelect');
         const mobileSelect = document.getElementById('certificateMobileSelect');
         const radios = document.querySelectorAll('input[name="request_type"]');
-        const fileInput = document.getElementById('requirement_files');
+        const fileInput = document.getElementById('requirementFileInput') || document.getElementById('requirement_files');
         const uploadZone = document.getElementById('uploadZone');
         const purposeSelect = document.getElementById('purpose');
         const purposeOtherField = document.getElementById('purposeOtherField');
@@ -3480,37 +4013,495 @@ if ($stmt) {
             updateCategoryUI('');
         }
 
-        function renderFiles(files) {
-            if (!files || files.length === 0 || !filePreview) {
-                return;
+        // ========================================================
+        // Parishioner Document Review & Verification Hub Controller
+        // ========================================================
+        const selectedFilesGrid = document.getElementById('selectedFilesGrid');
+        const filePreviewHub = document.getElementById('filePreviewHub');
+        const aggregateCount = document.getElementById('aggregateCount');
+        const aggregateSize = document.getElementById('aggregateSize');
+        const clearAllUploadsBtn = document.getElementById('clearAllUploadsBtn');
+        const uploadValidationAlert = document.getElementById('uploadValidationAlert');
+        const uploadValidationMessage = document.getElementById('uploadValidationMessage');
+
+        // Modal Elements
+        const docPreviewModalEl = document.getElementById('documentPreviewModal');
+        const docModalLabel = document.getElementById('documentPreviewModalLabel');
+        const docModalMeta = document.getElementById('docModalMeta');
+        const docModalDownloadBtn = document.getElementById('docModalDownloadBtn');
+        const docImageToolbar = document.getElementById('docImageToolbar');
+        const docZoomOutBtn = document.getElementById('docZoomOutBtn');
+        const docZoomResetBtn = document.getElementById('docZoomResetBtn');
+        const docZoomInBtn = document.getElementById('docZoomInBtn');
+        const docZoomLevel = document.getElementById('docZoomLevel');
+        const docRotateBtn = document.getElementById('docRotateBtn');
+        const docRotateAngle = document.getElementById('docRotateAngle');
+        const docModalImageContainer = document.getElementById('docModalImageContainer');
+        const docModalImage = document.getElementById('docModalImage');
+        const docModalPdfContainer = document.getElementById('docModalPdfContainer');
+        const docModalPdfObject = document.getElementById('docModalPdfObject');
+        const docModalPdfFrame = document.getElementById('docModalPdfFrame');
+        const docModalPdfFallbackBtn = document.getElementById('docModalPdfFallbackBtn');
+        const docModalIconBadge = document.getElementById('docModalIconBadge');
+
+        // Internal State Queue
+        let uploadedQueue = [];
+        let fileIdCounter = 0;
+        let currentZoom = 1.0;
+        let currentRotation = 0;
+        let isDraggingImage = false;
+        let dragStartX = 0, dragStartY = 0, scrollStartX = 0, scrollStartY = 0;
+
+        const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+        const ALLOWED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'webp'];
+        const ALLOWED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function sanitizeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str || '';
+            return div.innerHTML;
+        }
+
+        function validateFile(file) {
+            const ext = (file.name.split('.').pop() || '').toLowerCase();
+            const mime = (file.type || '').toLowerCase();
+            const extValid = ALLOWED_EXTENSIONS.includes(ext);
+            const mimeValid = !mime || ALLOWED_MIME_TYPES.includes(mime);
+
+            if (!extValid || !mimeValid) {
+                return {
+                    valid: false,
+                    reason: 'unsupported_type',
+                    badgeText: 'Invalid Format',
+                    message: 'Format not allowed. Only PDF, JPG, PNG, and WEBP are accepted.'
+                };
             }
-            filePreview.classList.add('is-visible');
-            
-            let total_size = 0;
-            let file_names = [];
-            for (let i = 0; i < files.length; i++) {
-                total_size += files[i].size;
-                file_names.push(files[i].name);
+
+            if (file.size > MAX_FILE_SIZE) {
+                return {
+                    valid: false,
+                    reason: 'exceeds_size',
+                    badgeText: 'Exceeds 5 MB',
+                    message: `File size (${(file.size / 1024 / 1024).toFixed(2)} MB) exceeds the 5 MB limit.`
+                };
             }
-            
-            fileName.textContent = file_names.length === 1 ? file_names[0] : file_names.length + ' files selected';
-            fileSize.textContent = (total_size / 1024 / 1024).toFixed(2) + ' MB total';
-            
-            if (file_names.length > 1) {
-                fileSize.textContent += ' • ' + file_names.join(', ');
+
+            if (file.size === 0) {
+                return {
+                    valid: false,
+                    reason: 'empty_file',
+                    badgeText: 'Empty File',
+                    message: 'This file is empty (0 Bytes).'
+                };
+            }
+
+            return {
+                valid: true,
+                reason: 'ok',
+                badgeText: 'Verified',
+                message: 'Ready for upload'
+            };
+        }
+
+        function syncDataTransfer() {
+            if (!fileInput) return;
+            const dt = new DataTransfer();
+            uploadedQueue.forEach(function(item) {
+                dt.items.add(item.file);
+            });
+            fileInput.files = dt.files;
+
+            if (uploadedQueue.length > 0) {
+                fileInput.removeAttribute('required');
+                fileInput.setCustomValidity('');
+            } else {
+                fileInput.setAttribute('required', 'required');
             }
         }
 
-        if (fileInput) {
-            fileInput.addEventListener('change', function() {
-                renderFiles(fileInput.files);
+        function updateHubSummary() {
+            const totalCount = uploadedQueue.length;
+            const totalBytes = uploadedQueue.reduce(function(acc, item) { return acc + item.file.size; }, 0);
+            const invalidItems = uploadedQueue.filter(function(item) { return !item.validation.valid; });
+
+            if (totalCount === 0) {
+                if (filePreviewHub) filePreviewHub.style.display = 'none';
+                if (uploadValidationAlert) uploadValidationAlert.style.display = 'none';
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.removeAttribute('title');
+                }
+                return;
+            }
+
+            if (filePreviewHub) filePreviewHub.style.display = 'block';
+            if (aggregateCount) {
+                aggregateCount.textContent = totalCount === 1 ? '1 file selected' : `${totalCount} files selected`;
+            }
+            if (aggregateSize) {
+                aggregateSize.textContent = `${(totalBytes / 1024 / 1024).toFixed(2)} MB total`;
+            }
+
+            // Sync legacy nodes if any external code queries them
+            if (fileName) {
+                fileName.textContent = totalCount === 1 ? uploadedQueue[0].file.name : `${totalCount} files selected`;
+            }
+            if (fileSize) {
+                fileSize.textContent = `${(totalBytes / 1024 / 1024).toFixed(2)} MB total`;
+            }
+            if (filePreview) {
+                filePreview.classList.add('is-visible');
+            }
+
+            // Check validation alert state
+            if (invalidItems.length > 0) {
+                if (uploadValidationAlert) {
+                    uploadValidationAlert.style.display = 'block';
+                    if (uploadValidationMessage) {
+                        uploadValidationMessage.textContent = `${invalidItems.length} file(s) violate upload requirements (exceeds 5 MB limit or unsupported format). Remove or replace invalid items to proceed.`;
+                    }
+                }
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.title = 'Please remove or replace invalid files before submitting.';
+                }
+                if (typeof ParishToast !== 'undefined' && typeof ParishToast.show === 'function') {
+                    ParishToast.show({
+                        title: 'Invalid Requirement Upload',
+                        message: `${invalidItems[0].file.name}: ${invalidItems[0].validation.message}`,
+                        type: 'danger',
+                        duration: 5000
+                    });
+                }
+            } else {
+                if (uploadValidationAlert) uploadValidationAlert.style.display = 'none';
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.removeAttribute('title');
+                }
+            }
+        }
+
+        function createCardElement(item) {
+            const card = document.createElement('div');
+            card.className = `doc-card ${item.validation.valid ? 'is-valid' : 'is-invalid'}`;
+            card.id = `docCard_${item.id}`;
+            card.setAttribute('data-file-id', item.id);
+
+            const ext = (item.file.name.split('.').pop() || '').toLowerCase();
+            const isPdf = ext === 'pdf';
+            const isImage = ['jpg', 'jpeg', 'png', 'webp'].includes(ext);
+
+            let thumbHtml = '';
+            if (item.validation.valid && isImage && item.blobUrl) {
+                thumbHtml = `<img src="${item.blobUrl}" alt="${sanitizeHtml(item.file.name)}" class="doc-card-thumbnail" loading="lazy">`;
+            } else if (item.validation.valid && isPdf) {
+                thumbHtml = `
+                    <div class="doc-card-pdf-placeholder">
+                        <i class="fas fa-file-pdf"></i>
+                        <span class="pdf-tag">PDF DOCUMENT</span>
+                    </div>`;
+            } else {
+                thumbHtml = `
+                    <div class="doc-card-invalid-placeholder">
+                        <i class="fas fa-triangle-exclamation"></i>
+                        <span class="invalid-tag text-uppercase">${sanitizeHtml(item.validation.badgeText)}</span>
+                    </div>`;
+            }
+
+            const statusBadgeClass = item.validation.valid ? 'badge-verified' : 'badge-danger';
+            const statusIcon = item.validation.valid ? 'fa-circle-check' : 'fa-circle-exclamation';
+
+            card.innerHTML = `
+                <div class="doc-card-thumb-wrap">
+                    ${thumbHtml}
+                    <span class="doc-status-badge ${statusBadgeClass}">
+                        <i class="fas ${statusIcon} me-1"></i>${sanitizeHtml(item.validation.badgeText)}
+                    </span>
+                </div>
+                <div class="doc-card-body">
+                    <div class="doc-card-info">
+                        <div class="doc-name" title="${sanitizeHtml(item.file.name)}">${sanitizeHtml(item.file.name)}</div>
+                        <div class="doc-meta">
+                            <span class="doc-size">${formatBytes(item.file.size)}</span>
+                            <span class="doc-ext">${ext.toUpperCase()}</span>
+                        </div>
+                        ${!item.validation.valid ? `<div class="doc-error-hint"><i class="fas fa-circle-xmark me-1"></i>${sanitizeHtml(item.validation.message)}</div>` : ''}
+                    </div>
+                    <div class="doc-card-actions">
+                        ${item.validation.valid ? `
+                            <button type="button" class="btn-card-action btn-inspect" data-action="inspect" data-file-id="${item.id}" title="Inspect document clarity and orientation">
+                                <i class="fas fa-eye me-1"></i> Inspect
+                            </button>
+                        ` : `
+                            <button type="button" class="btn-card-action btn-inspect" disabled title="Cannot inspect invalid file">
+                                <i class="fas fa-eye-slash me-1"></i> Inspect
+                            </button>
+                        `}
+                        <button type="button" class="btn-card-action btn-remove" data-action="remove" data-file-id="${item.id}" title="Remove this file">
+                            <i class="fas fa-trash-can me-1"></i> Remove
+                        </button>
+                    </div>
+                </div>
+            `;
+            return card;
+        }
+
+        function handleFilesAdded(fileList) {
+            if (!fileList || fileList.length === 0) return;
+            const newFiles = Array.from(fileList);
+
+            newFiles.forEach(function(file) {
+                // Deduplicate by filename, size, and lastModified
+                const existingIndex = uploadedQueue.findIndex(function(q) {
+                    return q.file.name === file.name && q.file.size === file.size && q.file.lastModified === file.lastModified;
+                });
+                if (existingIndex !== -1) {
+                    return; // Skip identical duplicate
+                }
+
+                const validation = validateFile(file);
+                const id = ++fileIdCounter;
+                let blobUrl = null;
+
+                if (validation.valid) {
+                    try {
+                        blobUrl = URL.createObjectURL(file);
+                    } catch (err) {
+                        console.error('Blob URL creation error:', err);
+                    }
+                }
+
+                const item = {
+                    id: id,
+                    file: file,
+                    validation: validation,
+                    blobUrl: blobUrl
+                };
+
+                uploadedQueue.push(item);
+
+                if (selectedFilesGrid) {
+                    const cardEl = createCardElement(item);
+                    selectedFilesGrid.appendChild(cardEl);
+                }
+            });
+
+            syncDataTransfer();
+            updateHubSummary();
+        }
+
+        function removeFile(fileId) {
+            const index = uploadedQueue.findIndex(function(q) { return q.id === fileId; });
+            if (index === -1) return;
+
+            const item = uploadedQueue[index];
+            if (item.blobUrl) {
+                try {
+                    URL.revokeObjectURL(item.blobUrl);
+                } catch (e) {}
+            }
+
+            uploadedQueue.splice(index, 1);
+
+            const cardEl = document.getElementById(`docCard_${fileId}`);
+            if (cardEl) {
+                cardEl.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+                cardEl.style.opacity = '0';
+                cardEl.style.transform = 'scale(0.95)';
+                setTimeout(function() {
+                    if (cardEl.parentNode) cardEl.parentNode.removeChild(cardEl);
+                }, 200);
+            }
+
+            syncDataTransfer();
+            updateHubSummary();
+        }
+
+        function clearAllUploads() {
+            uploadedQueue.forEach(function(item) {
+                if (item.blobUrl) {
+                    try {
+                        URL.revokeObjectURL(item.blobUrl);
+                    } catch (e) {}
+                }
+            });
+            uploadedQueue = [];
+            if (selectedFilesGrid) {
+                selectedFilesGrid.innerHTML = '';
+            }
+            syncDataTransfer();
+            updateHubSummary();
+        }
+
+        // Event delegation for cards in #selectedFilesGrid
+        if (selectedFilesGrid) {
+            selectedFilesGrid.addEventListener('click', function(e) {
+                const btn = e.target.closest('button[data-action]');
+                if (!btn) return;
+                const action = btn.getAttribute('data-action');
+                const fileId = parseInt(btn.getAttribute('data-file-id'), 10);
+                if (action === 'remove') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    removeFile(fileId);
+                } else if (action === 'inspect') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openInspectionModal(fileId);
+                }
             });
         }
 
+        if (clearAllUploadsBtn) {
+            clearAllUploadsBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                clearAllUploads();
+            });
+        }
+
+        // Lightbox Inspection Modal Logic
+        function resetInspectionTransform() {
+            currentZoom = 1.0;
+            currentRotation = 0;
+            if (docModalImage) {
+                docModalImage.style.transform = 'rotate(0deg) scale(1)';
+            }
+            if (docZoomLevel) docZoomLevel.textContent = '100%';
+            if (docRotateAngle) docRotateAngle.textContent = '0°';
+        }
+
+        function updateImageTransform() {
+            if (!docModalImage) return;
+            docModalImage.style.transform = `rotate(${currentRotation}deg) scale(${currentZoom})`;
+            if (docZoomLevel) docZoomLevel.textContent = `${Math.round(currentZoom * 100)}%`;
+            if (docRotateAngle) docRotateAngle.textContent = `${currentRotation}°`;
+        }
+
+        function openInspectionModal(fileId) {
+            const item = uploadedQueue.find(function(q) { return q.id === fileId; });
+            if (!item || !item.blobUrl || !docPreviewModalEl) return;
+
+            resetInspectionTransform();
+
+            const ext = (item.file.name.split('.').pop() || '').toLowerCase();
+            const isPdf = ext === 'pdf';
+            const isImage = ['jpg', 'jpeg', 'png', 'webp'].includes(ext);
+
+            if (docModalLabel) {
+                docModalLabel.textContent = item.file.name;
+            }
+            if (docModalMeta) {
+                docModalMeta.textContent = `${item.file.size.toLocaleString()} bytes (${formatBytes(item.file.size)}) • ${item.file.type || ext.toUpperCase()}`;
+            }
+            if (docModalDownloadBtn) {
+                docModalDownloadBtn.href = item.blobUrl;
+                docModalDownloadBtn.download = item.file.name;
+            }
+
+            if (isImage) {
+                if (docModalIconBadge) docModalIconBadge.innerHTML = '<i class="fas fa-file-image fa-lg text-primary"></i>';
+                if (docImageToolbar) docImageToolbar.style.display = 'inline-flex';
+                if (docModalPdfContainer) docModalPdfContainer.style.display = 'none';
+                if (docModalImageContainer) docModalImageContainer.style.display = 'flex';
+                if (docModalImage) {
+                    docModalImage.src = item.blobUrl;
+                    docModalImage.alt = item.file.name;
+                }
+            } else if (isPdf) {
+                if (docModalIconBadge) docModalIconBadge.innerHTML = '<i class="fas fa-file-pdf fa-lg text-danger"></i>';
+                if (docImageToolbar) docImageToolbar.style.display = 'none';
+                if (docModalImageContainer) docModalImageContainer.style.display = 'none';
+                if (docModalPdfContainer) docModalPdfContainer.style.display = 'block';
+
+                if (docModalPdfObject) {
+                    docModalPdfObject.data = item.blobUrl + '#toolbar=1';
+                }
+                if (docModalPdfFrame) {
+                    docModalPdfFrame.src = item.blobUrl + '#toolbar=1';
+                }
+                if (docModalPdfFallbackBtn) {
+                    docModalPdfFallbackBtn.href = item.blobUrl;
+                    docModalPdfFallbackBtn.download = item.file.name;
+                }
+            }
+
+            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                const modal = bootstrap.Modal.getOrCreateInstance(docPreviewModalEl);
+                modal.show();
+            }
+        }
+
+        // Lightbox Toolbar Controls
+        if (docZoomInBtn) {
+            docZoomInBtn.addEventListener('click', function() {
+                currentZoom = Math.min(currentZoom + 0.25, 3.0);
+                updateImageTransform();
+            });
+        }
+        if (docZoomOutBtn) {
+            docZoomOutBtn.addEventListener('click', function() {
+                currentZoom = Math.max(currentZoom - 0.25, 0.5);
+                updateImageTransform();
+            });
+        }
+        if (docZoomResetBtn) {
+            docZoomResetBtn.addEventListener('click', function() {
+                currentZoom = 1.0;
+                updateImageTransform();
+            });
+        }
+        if (docRotateBtn) {
+            docRotateBtn.addEventListener('click', function() {
+                currentRotation = (currentRotation + 90) % 360;
+                updateImageTransform();
+            });
+        }
+
+        // Panning handler on image container
+        if (docModalImageContainer) {
+            docModalImageContainer.addEventListener('mousedown', function(e) {
+                if (currentZoom <= 1.0) return;
+                isDraggingImage = true;
+                dragStartX = e.pageX - docModalImageContainer.offsetLeft;
+                dragStartY = e.pageY - docModalImageContainer.offsetTop;
+                scrollStartX = docModalImageContainer.scrollLeft;
+                scrollStartY = docModalImageContainer.scrollTop;
+            });
+            window.addEventListener('mousemove', function(e) {
+                if (!isDraggingImage || !docModalImageContainer) return;
+                e.preventDefault();
+                const x = e.pageX - docModalImageContainer.offsetLeft;
+                const y = e.pageY - docModalImageContainer.offsetTop;
+                docModalImageContainer.scrollLeft = scrollStartX - (x - dragStartX);
+                docModalImageContainer.scrollTop = scrollStartY - (y - dragStartY);
+            });
+            window.addEventListener('mouseup', function() {
+                isDraggingImage = false;
+            });
+        }
+
+        // File Input Change Listener
+        if (fileInput) {
+            fileInput.addEventListener('change', function() {
+                handleFilesAdded(fileInput.files);
+            });
+        }
+
+        // Drag and Drop Listeners
         if (uploadZone) {
             ['dragenter', 'dragover'].forEach(function(eventName) {
                 uploadZone.addEventListener(eventName, function(event) {
                     event.preventDefault();
+                    event.stopPropagation();
                     uploadZone.classList.add('is-dragover');
                 });
             });
@@ -3518,16 +4509,29 @@ if ($stmt) {
             ['dragleave', 'drop'].forEach(function(eventName) {
                 uploadZone.addEventListener(eventName, function(event) {
                     event.preventDefault();
+                    event.stopPropagation();
                     uploadZone.classList.remove('is-dragover');
                 });
             });
 
             uploadZone.addEventListener('drop', function(event) {
-                if (event.dataTransfer.files.length && fileInput) {
-                    fileInput.files = event.dataTransfer.files;
-                    renderFiles(fileInput.files);
+                if (event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files.length) {
+                    handleFilesAdded(event.dataTransfer.files);
                 }
             });
+
+            // Keyboard accessibility for dropzone
+            uploadZone.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    if (fileInput) fileInput.click();
+                }
+            });
+        }
+
+        // Backward compatibility for renderFiles
+        function renderFiles(files) {
+            handleFilesAdded(files);
         }
 
         if (form) {
@@ -3631,10 +4635,18 @@ if ($stmt) {
                     }
                 }
 
-                if (fileInput && (!fileInput.files || fileInput.files.length === 0)) {
+                if (uploadedQueue.length > 0) {
+                    const hasInvalid = uploadedQueue.some(function(item) { return !item.validation.valid; });
+                    if (hasInvalid) {
+                        event.preventDefault();
+                        alert('Please remove or replace invalid files before submitting your certificate request.');
+                        if (uploadValidationAlert) uploadValidationAlert.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        return false;
+                    }
+                } else if (fileInput && (!fileInput.files || fileInput.files.length === 0)) {
                     event.preventDefault();
                     alert('Please upload a copy of the required supporting document before submitting.');
-                    fileInput.focus();
+                    if (uploadZone) uploadZone.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     return false;
                 }
 
@@ -3839,6 +4851,7 @@ if ($stmt) {
         </div>
     </div>
 </div>
+
 
 <script>
     (function() {
