@@ -1,4 +1,4 @@
-import {spawn} from 'node:child_process';
+import {spawn, execSync} from 'node:child_process';
 import {mkdtempSync, rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
@@ -49,6 +49,9 @@ function send(method, params = {}) {
 
 async function run() {
   console.log('=== Starting Parishioner Document Review E2E Tests ===\n');
+  try {
+    execSync('php tests/setup_responsive_sessions.php', {stdio: 'ignore'});
+  } catch {}
   let passCount = 0;
   let failCount = 0;
 
