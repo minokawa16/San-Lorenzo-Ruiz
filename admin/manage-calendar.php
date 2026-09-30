@@ -152,12 +152,16 @@ include '../templates/header.php';
 
     /* Clear filters link */
     .calendar-filter-actions {
-        display: flex !important;
+        display: flex;
         align-items: center !important;
         justify-content: flex-end !important;
         margin-top: 10px !important;
         padding-top: 10px !important;
         border-top: 1px dashed #e8e5dc !important;
+    }
+
+    .calendar-filter-actions.is-hidden {
+        display: none !important;
     }
 
     .btn-clear-filters {
@@ -771,7 +775,7 @@ include '../templates/header.php';
                 </div>
             </div>
 
-            <div class="calendar-filter-actions" id="clearFiltersWrap" style="display: none;">
+            <div class="calendar-filter-actions is-hidden" id="clearFiltersWrap" style="display: none;">
                 <button type="button" class="btn-clear-filters" id="clearFiltersBtn">
                     <i class="fas fa-rotate-left me-1"></i> Clear filters
                 </button>
@@ -933,7 +937,7 @@ include '../templates/header.php';
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="../assets/js/main.js?v=20260930_cal"></script>
+<script src="../assets/js/main.js?v=20261001_cal"></script>
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
 <script>
 const CSRF_TOKEN = '<?php echo e(generateCsrfToken()); ?>';
@@ -997,29 +1001,13 @@ function formatManilaTime(dateInput) {
     const d = (dateInput instanceof Date) ? dateInput : new Date(dateInput);
     if (isNaN(d.getTime())) return '';
 
-    try {
-        const formatter = new Intl.DateTimeFormat('en-US', {
-            timeZone: 'Asia/Manila',
-            hour: 'numeric',
-            minute: 'numeric',
-            hour12: true
-        });
-        const parts = formatter.formatToParts(d);
-        let h = 0, m = 0, ampm = 'am';
-        for (const p of parts) {
-            if (p.type === 'hour') h = parseInt(p.value, 10);
-            if (p.type === 'minute') m = parseInt(p.value, 10);
-            if (p.type === 'dayPeriod') ampm = p.value.toLowerCase();
-        }
-        return m === 0 ? `${h}${ampm}` : `${h}:${String(m).padStart(2, '0')}${ampm}`;
-    } catch (e) {
-        let h = d.getHours();
-        const m = d.getMinutes();
-        const ampm = h >= 12 ? 'pm' : 'am';
-        h = h % 12;
-        if (h === 0) h = 12;
-        return m === 0 ? `${h}${ampm}` : `${h}:${String(m).padStart(2, '0')}${ampm}`;
-    }
+    // If dateInput is a Date instance (e.g. from FullCalendar slotLabelContent):
+    let h = d.getHours();
+    const m = d.getMinutes();
+    const ampm = h >= 12 ? 'pm' : 'am';
+    h = h % 12;
+    if (h === 0) h = 12;
+    return m === 0 ? `${h}${ampm}` : `${h}:${String(m).padStart(2, '0')}${ampm}`;
 }
 
 // Shared Time Range Formatter - e.g. "9am – 10am" or "All day"
@@ -1036,6 +1024,22 @@ function formatManilaTimeRange(start, end, allDay = false) {
 // Shared Date Formatter in Asia/Manila - e.g. "Wed, Oct 5, 2026"
 function formatManilaDate(dateInput) {
     if (!dateInput) return '';
+    if (typeof dateInput === 'string') {
+        const match = dateInput.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (match) {
+            const year = parseInt(match[1], 10);
+            const month = parseInt(match[2], 10) - 1;
+            const day = parseInt(match[3], 10);
+            const utc = new Date(Date.UTC(year, month, day, 12, 0, 0));
+            return utc.toLocaleDateString('en-US', {
+                timeZone: 'UTC',
+                weekday: 'short',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        }
+    }
     const d = (dateInput instanceof Date) ? dateInput : new Date(dateInput);
     if (isNaN(d.getTime())) return '';
     try {
@@ -1153,7 +1157,9 @@ function isFilterActive() {
 function updateClearFiltersVisibility() {
     const wrap = document.getElementById('clearFiltersWrap');
     if (wrap) {
-        wrap.style.display = isFilterActive() ? 'flex' : 'none';
+        const active = isFilterActive();
+        wrap.style.display = active ? 'flex' : 'none';
+        wrap.classList.toggle('is-hidden', !active);
     }
 }
 
@@ -1320,8 +1326,8 @@ document.addEventListener('DOMContentLoaded', function() {
         eventOrder: function(a, b) {
             if (a.allDay && !b.allDay) return -1;
             if (!a.allDay && b.allDay) return 1;
-            const aStart = a.start ? a.start.getTime() : 0;
-            const bStart = b.start ? b.start.getTime() : 0;
+            const aStart = typeof a.start === 'number' ? a.start : (a.start && typeof a.start.getTime === 'function' ? a.start.getTime() : 0);
+            const bStart = typeof b.start === 'number' ? b.start : (b.start && typeof b.start.getTime === 'function' ? b.start.getTime() : 0);
             if (aStart !== bStart) return aStart - bStart;
             return (a.title || '').localeCompare(b.title || '');
         },

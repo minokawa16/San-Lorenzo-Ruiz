@@ -807,29 +807,12 @@ function formatManilaTime(dateInput) {
     const d = (dateInput instanceof Date) ? dateInput : new Date(dateInput);
     if (isNaN(d.getTime())) return '';
 
-    try {
-        const formatter = new Intl.DateTimeFormat('en-US', {
-            timeZone: 'Asia/Manila',
-            hour: 'numeric',
-            minute: 'numeric',
-            hour12: true
-        });
-        const parts = formatter.formatToParts(d);
-        let h = 0, m = 0, ampm = 'am';
-        for (const p of parts) {
-            if (p.type === 'hour') h = parseInt(p.value, 10);
-            if (p.type === 'minute') m = parseInt(p.value, 10);
-            if (p.type === 'dayPeriod') ampm = p.value.toLowerCase();
-        }
-        return m === 0 ? `${h}${ampm}` : `${h}:${String(m).padStart(2, '0')}${ampm}`;
-    } catch (e) {
-        let h = d.getHours();
-        const m = d.getMinutes();
-        const ampm = h >= 12 ? 'pm' : 'am';
-        h = h % 12;
-        if (h === 0) h = 12;
-        return m === 0 ? `${h}${ampm}` : `${h}:${String(m).padStart(2, '0')}${ampm}`;
-    }
+    let h = d.getHours();
+    const m = d.getMinutes();
+    const ampm = h >= 12 ? 'pm' : 'am';
+    h = h % 12;
+    if (h === 0) h = 12;
+    return m === 0 ? `${h}${ampm}` : `${h}:${String(m).padStart(2, '0')}${ampm}`;
 }
 
 // Shared Time Range Formatter - e.g. "9am – 10am" or "All day"
@@ -846,6 +829,22 @@ function formatManilaTimeRange(start, end, allDay = false) {
 // Shared Date Formatter in Asia/Manila - e.g. "Wed, Oct 5, 2026"
 function formatManilaDate(dateInput) {
     if (!dateInput) return '';
+    if (typeof dateInput === 'string') {
+        const match = dateInput.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (match) {
+            const year = parseInt(match[1], 10);
+            const month = parseInt(match[2], 10) - 1;
+            const day = parseInt(match[3], 10);
+            const utc = new Date(Date.UTC(year, month, day, 12, 0, 0));
+            return utc.toLocaleDateString('en-US', {
+                timeZone: 'UTC',
+                weekday: 'short',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        }
+    }
     const d = (dateInput instanceof Date) ? dateInput : new Date(dateInput);
     if (isNaN(d.getTime())) return '';
     try {
@@ -962,7 +961,7 @@ document.addEventListener('DOMContentLoaded', function() {
         eventClick: function(info) {
             const props = info.event.extendedProps || {};
             const timeRange = formatManilaTimeRange(info.event.startStr || info.event.start, info.event.endStr || info.event.end, info.event.allDay);
-            const when = `${formatManilaDate(info.event.start)} (${timeRange})`;
+            const when = `${formatManilaDate(info.event.startStr || info.event.start)} (${timeRange})`;
             showDetails({
                 title: info.event.title,
                 when,
