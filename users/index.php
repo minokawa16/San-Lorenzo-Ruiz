@@ -24,122 +24,85 @@ if ($user_first_name === '') {
     $user_first_name = 'Parishioner';
 }
 
-$request_counts = [
-    'total' => 0,
-    'pending' => 0,
-    'approved' => 0,
-    'completed' => 0,
-];
+// ── Personal Stat Cards (scoped to logged-in parishioner only) ───────────────
 $unread_count = getUnreadNotificationCount($conn, $user_id);
 
+// Status normalisation map (legacy → canonical bucket)
 $status_map = [
-    'submitted' => 'pending',
-    'pending' => 'pending',
+    'submitted'           => 'pending',
+    'pending'             => 'pending',
     'requirements_review' => 'pending',
-    'under_review' => 'pending',
-    'needs_information' => 'pending',
-    'payment_required' => 'pending',
-    'payment_review' => 'pending',
-    'approved' => 'approved',
-    'processing' => 'processing',
-    'scheduled' => 'processing',
-    'ready_for_release' => 'processing',
-    'completed' => 'completed',
-    'rejected' => 'rejected',
-    'cancelled' => 'cancelled',
+    'under_review'        => 'pending',
+    'needs_information'   => 'pending',
+    'payment_required'    => 'pending',
+    'payment_review'      => 'pending',
+    'draft'               => 'pending',
+    'approved'            => 'processing',
+    'processing'          => 'processing',
+    'scheduled'           => 'processing',
+    'ready_for_release'   => 'ready_to_download',
+    'completed'           => 'completed',
+    'rejected'            => 'rejected',
+    'cancelled'           => 'cancelled',
 ];
 
-$stmt = $conn->prepare("SELECT status, COUNT(*) AS count FROM requests WHERE user_id = ? GROUP BY status");
+$personal_stats = [
+    'total'             => 0,
+    'pending'           => 0,
+    'processing'        => 0,
+    'completed'         => 0,
+    'rejected'          => 0,
+    'ready_to_download' => 0,
+];
+
+// Single prepared query – all counts for this user in one round-trip
+$stmt = $conn->prepare(
+    'SELECT status, COUNT(*) AS cnt FROM requests WHERE user_id = ? AND deleted_at IS NULL GROUP BY status'
+);
 if ($stmt) {
     $stmt->bind_param('i', $user_id);
     $stmt->execute();
     $result = $stmt->get_result();
     while ($row = $result->fetch_assoc()) {
-        $raw_status = strtolower(trim((string) $row['status']));
-        $count = intval($row['count']);
-        $request_counts['total'] += $count;
-        $target_status = $status_map[$raw_status] ?? (isset($request_counts[$raw_status]) ? $raw_status : 'pending');
-        if (isset($request_counts[$target_status])) {
-            $request_counts[$target_status] += $count;
+        $raw   = strtolower(trim((string) $row['status']));
+        $cnt   = intval($row['cnt']);
+        $personal_stats['total'] += $cnt;
+        $bucket = $status_map[$raw] ?? 'pending';
+        if (array_key_exists($bucket, $personal_stats)) {
+            $personal_stats[$bucket] += $cnt;
         }
     }
     $stmt->close();
 }
 
-// 8 Stat Cards KPI Data
-$kpis = array(
-    'total_users' => 0,
-    'total_requests' => 0,
-    'pending_requests' => 0,
-    'total_records' => 0,
-    'total_reservations' => 0,
-    'active_announcements' => 0,
-    'active_schedules' => 0
+// Upcoming reservation count (this user, future dates)
+$personal_stats['upcoming_reservations'] = 0;
+$stmt = $conn->prepare(
+    'SELECT COUNT(*) AS cnt FROM reservations WHERE user_id = ? AND event_date >= CURDATE() AND status != \'cancelled\''
 );
+if ($stmt) {
+    $stmt->bind_param('i', $user_id);
+    $stmt->execute();
+    $personal_stats['upcoming_reservations'] = intval($stmt->get_result()->fetch_assoc()['cnt'] ?? 0);
+    $stmt->close();
+}
+
+// Active parish announcements (public, not user-scoped – informational card)
+$personal_stats['parish_announcements'] = 0;
+$stmt = $conn->prepare(
+    "SELECT COUNT(*) AS cnt FROM announcements
+     WHERE status = 'active' AND deleted_at IS NULL
+       AND (scheduled_at IS NULL OR scheduled_at <= NOW())
+       AND (expiry_date IS NULL OR expiry_date >= NOW())"
+);
+if ($stmt) {
+    $stmt->execute();
+    $personal_stats['parish_announcements'] = intval($stmt->get_result()->fetch_assoc()['cnt'] ?? 0);
+    $stmt->close();
+}
 
 if (function_exists('ensureScheduleEventsTable')) {
     ensureScheduleEventsTable($conn);
-}
-
-// Total Users
-$stmt = $conn->prepare("SELECT COUNT(*) as count FROM users WHERE role = 'user'");
-if ($stmt) {
-    $stmt->execute();
-    $kpis['total_users'] = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
-    $stmt->close();
-}
-
-// Total Requests
-$stmt = $conn->prepare("SELECT COUNT(*) as count FROM requests WHERE deleted_at IS NULL");
-if ($stmt) {
-    $stmt->execute();
-    $kpis['total_requests'] = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
-    $stmt->close();
-}
-
-// Pending Requests
-$stmt = $conn->prepare("SELECT COUNT(*) as count FROM requests WHERE status = 'pending' AND deleted_at IS NULL");
-if ($stmt) {
-    $stmt->execute();
-    $kpis['pending_requests'] = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
-    $stmt->close();
-}
-
-// Total Records (all sacramental records)
-$stmt = $conn->prepare("SELECT COUNT(*) as count FROM baptism_records UNION ALL SELECT COUNT(*) FROM confirmation_records UNION ALL SELECT COUNT(*) FROM first_communion_records UNION ALL SELECT COUNT(*) FROM marriage_records");
-if ($stmt) {
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $total = 0;
-    while ($row = $result->fetch_assoc()) {
-        $total += $row['count'] ?? 0;
-    }
-    $kpis['total_records'] = $total;
-    $stmt->close();
-}
-
-// Total Reservations
-$stmt = $conn->prepare("SELECT COUNT(*) as count FROM reservations");
-if ($stmt) {
-    $stmt->execute();
-    $kpis['total_reservations'] = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
-    $stmt->close();
-}
-
-// Active Announcements
-$stmt = $conn->prepare("SELECT COUNT(*) as count FROM announcements WHERE status = 'active' AND deleted_at IS NULL");
-if ($stmt) {
-    $stmt->execute();
-    $kpis['active_announcements'] = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
-    $stmt->close();
-}
-
-// Active Public Schedules
-$stmt = $conn->prepare("SELECT COUNT(*) as count FROM schedule_events WHERE status != 'cancelled' AND approval_status = 'approved'");
-if ($stmt) {
-    $stmt->execute();
-    $kpis['active_schedules'] = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
-    $stmt->close();
 }
 
 $recent_requests = [];
@@ -640,7 +603,8 @@ $body_extra_class = $show_mobile_dashboard_features ? 'user-dashboard-feature-vi
     .icon-purple { background: #faf5ff !important; color: #7c3aed !important; }
     .icon-teal { background: #f0fdfa !important; color: #0d9488 !important; }
     .icon-cyan { background: #ecfeff !important; color: #0891b2 !important; }
-    .icon-slate { background: #f1f5f9 !important; color: #475569 !important; }
+    .icon-slate  { background: #f1f5f9 !important; color: #475569 !important; }
+    .icon-danger { background: #fee2e2 !important; color: #dc2626 !important; }
 
     .stat-card-value,
     body.user-area .stat-card-value {
@@ -737,107 +701,131 @@ $body_extra_class = $show_mobile_dashboard_features ? 'user-dashboard-feature-vi
         </div>
     </section>
 
-    <!-- Compact 4-Column Stat Cards Grid (8 Key Metrics) -->
-    <div class="dashboard-stats-grid">
-        <!-- 1. Total Parishioners -->
-        <a href="<?php echo isAdmin() ? '../admin/manage-users.php' : 'javascript:void(0);'; ?>" class="stat-card-compact" aria-label="View total parishioners">
-            <div class="stat-card-header">
-                <span class="stat-card-label">Total Parishioners</span>
-                <span class="stat-card-icon icon-blue"><i class="fas fa-users"></i></span>
-            </div>
-            <div class="stat-card-value"><?php echo number_format($kpis['total_users']); ?></div>
-            <div class="stat-card-footer">
-                <span class="trend-pill success"><i class="fas fa-arrow-up"></i> Active users</span>
-            </div>
-        </a>
+    <!-- ── Personal Stat Cards (8 cards – scoped to logged-in parishioner) ── -->
+    <div class="dashboard-stats-grid" role="region" aria-label="My activity summary">
 
-        <!-- 2. Total Requests -->
-        <a href="my-requests.php" class="stat-card-compact" aria-label="View all requests">
+        <!-- 1. My Total Requests -->
+        <a href="my-requests.php" class="stat-card-compact" id="pcard-total" aria-label="View my total requests">
             <div class="stat-card-header">
-                <span class="stat-card-label">Total Requests</span>
-                <span class="stat-card-icon icon-indigo"><i class="fas fa-list-check"></i></span>
+                <span class="stat-card-label">My Total Requests</span>
+                <span class="stat-card-icon icon-blue"><i class="fas fa-list-check"></i></span>
             </div>
-            <div class="stat-card-value"><?php echo number_format($kpis['total_requests']); ?></div>
+            <div class="stat-card-value"><?php echo number_format($personal_stats['total']); ?></div>
             <div class="stat-card-footer">
                 <span class="trend-pill neutral"><i class="fas fa-chart-line"></i> All time</span>
             </div>
         </a>
 
-        <!-- 3. Pending Requests -->
-        <a href="my-requests.php?status=pending" class="stat-card-compact" aria-label="View pending requests">
+        <!-- 2. Pending -->
+        <a href="my-requests.php?status=pending" class="stat-card-compact" id="pcard-pending" aria-label="View my pending requests">
             <div class="stat-card-header">
-                <span class="stat-card-label">Pending Requests</span>
+                <span class="stat-card-label">Pending</span>
                 <span class="stat-card-icon icon-amber"><i class="fas fa-hourglass-half"></i></span>
             </div>
-            <div class="stat-card-value"><?php echo number_format($kpis['pending_requests']); ?></div>
+            <div class="stat-card-value"><?php echo number_format($personal_stats['pending']); ?></div>
             <div class="stat-card-footer">
-                <?php if ($kpis['pending_requests'] > 5): ?>
-                    <span class="trend-pill danger"><i class="fas fa-circle-exclamation"></i> Action needed</span>
+                <?php if ($personal_stats['pending'] > 0): ?>
+                    <span class="trend-pill warning"><i class="fas fa-circle-exclamation"></i> Awaiting action</span>
                 <?php else: ?>
-                    <span class="trend-pill success"><i class="fas fa-check"></i> Under control</span>
+                    <span class="trend-pill success"><i class="fas fa-check"></i> All clear</span>
                 <?php endif; ?>
             </div>
         </a>
 
-        <!-- 4. Sacramental Records -->
-        <a href="<?php echo isAdmin() ? '../admin/manage-records.php' : 'my-requests.php'; ?>" class="stat-card-compact" aria-label="View sacramental records">
+        <!-- 3. Processing -->
+        <a href="my-requests.php?status=processing" class="stat-card-compact" id="pcard-processing" aria-label="View my requests in processing">
             <div class="stat-card-header">
-                <span class="stat-card-label">Sacramental Records</span>
-                <span class="stat-card-icon icon-emerald"><i class="fas fa-book-bible"></i></span>
+                <span class="stat-card-label">Processing</span>
+                <span class="stat-card-icon icon-indigo"><i class="fas fa-gears"></i></span>
             </div>
-            <div class="stat-card-value"><?php echo number_format($kpis['total_records']); ?></div>
+            <div class="stat-card-value"><?php echo number_format($personal_stats['processing']); ?></div>
             <div class="stat-card-footer">
-                <span class="trend-pill neutral"><i class="fas fa-database"></i> Digitized</span>
+                <?php if ($personal_stats['processing'] > 0): ?>
+                    <span class="trend-pill warning"><i class="fas fa-spinner"></i> In progress</span>
+                <?php else: ?>
+                    <span class="trend-pill neutral"><i class="fas fa-minus"></i> None active</span>
+                <?php endif; ?>
             </div>
         </a>
 
-        <!-- 5. Event Reservations -->
-        <a href="make-reservation.php" class="stat-card-compact" aria-label="View event reservations">
+        <!-- 4. Completed -->
+        <a href="my-requests.php?status=completed" class="stat-card-compact" id="pcard-completed" aria-label="View my completed requests">
             <div class="stat-card-header">
-                <span class="stat-card-label">Event Reservations</span>
+                <span class="stat-card-label">Completed</span>
+                <span class="stat-card-icon icon-emerald"><i class="fas fa-circle-check"></i></span>
+            </div>
+            <div class="stat-card-value"><?php echo number_format($personal_stats['completed']); ?></div>
+            <div class="stat-card-footer">
+                <span class="trend-pill success"><i class="fas fa-trophy"></i> Fulfilled</span>
+            </div>
+        </a>
+
+        <!-- 5. Rejected -->
+        <a href="my-requests.php?status=rejected" class="stat-card-compact" id="pcard-rejected" aria-label="View my rejected requests"
+           style="<?php echo $personal_stats['rejected'] > 0 ? 'border-color:#fca5a5;' : ''; ?>">
+            <div class="stat-card-header">
+                <span class="stat-card-label">Rejected</span>
+                <span class="stat-card-icon <?php echo $personal_stats['rejected'] > 0 ? 'icon-danger' : 'icon-slate'; ?>"><i class="fas fa-circle-xmark"></i></span>
+            </div>
+            <div class="stat-card-value" style="<?php echo $personal_stats['rejected'] > 0 ? 'color:#dc2626;' : ''; ?>">
+                <?php echo number_format($personal_stats['rejected']); ?>
+            </div>
+            <div class="stat-card-footer">
+                <?php if ($personal_stats['rejected'] > 0): ?>
+                    <span class="trend-pill danger"><i class="fas fa-triangle-exclamation"></i> Review needed</span>
+                <?php else: ?>
+                    <span class="trend-pill success"><i class="fas fa-check"></i> None rejected</span>
+                <?php endif; ?>
+            </div>
+        </a>
+
+        <!-- 6. Ready to Download -->
+        <a href="my-requests.php?status=ready_for_release" class="stat-card-compact" id="pcard-ready" aria-label="View requests ready to download"
+           style="<?php echo $personal_stats['ready_to_download'] > 0 ? 'border-color:#6ee7b7;' : ''; ?>">
+            <div class="stat-card-header">
+                <span class="stat-card-label">Ready to Download</span>
+                <span class="stat-card-icon icon-emerald"><i class="fas fa-download"></i></span>
+            </div>
+            <div class="stat-card-value" style="<?php echo $personal_stats['ready_to_download'] > 0 ? 'color:#059669;' : ''; ?>">
+                <?php echo number_format($personal_stats['ready_to_download']); ?>
+            </div>
+            <div class="stat-card-footer">
+                <?php if ($personal_stats['ready_to_download'] > 0): ?>
+                    <span class="trend-pill success"><i class="fas fa-arrow-down"></i> Available now</span>
+                <?php else: ?>
+                    <span class="trend-pill neutral"><i class="fas fa-minus"></i> None ready</span>
+                <?php endif; ?>
+            </div>
+        </a>
+
+        <!-- 7. Upcoming Schedule (my reservations) -->
+        <a href="make-reservation.php" class="stat-card-compact" id="pcard-reservations" aria-label="View my upcoming reservations">
+            <div class="stat-card-header">
+                <span class="stat-card-label">Upcoming Schedule</span>
                 <span class="stat-card-icon icon-purple"><i class="fas fa-calendar-check"></i></span>
             </div>
-            <div class="stat-card-value"><?php echo number_format($kpis['total_reservations']); ?></div>
+            <div class="stat-card-value"><?php echo number_format($personal_stats['upcoming_reservations']); ?></div>
             <div class="stat-card-footer">
-                <span class="trend-pill neutral"><i class="fas fa-box-archive"></i> Scheduled</span>
+                <?php if ($personal_stats['upcoming_reservations'] > 0): ?>
+                    <span class="trend-pill warning"><i class="fas fa-calendar"></i> Upcoming</span>
+                <?php else: ?>
+                    <span class="trend-pill neutral"><i class="fas fa-calendar-xmark"></i> None booked</span>
+                <?php endif; ?>
             </div>
         </a>
 
-        <!-- 6. Active Announcements -->
-        <a href="announcements.php" class="stat-card-compact" aria-label="View active announcements">
+        <!-- 8. Parish Announcements (active, public) -->
+        <a href="announcements.php" class="stat-card-compact" id="pcard-announcements" aria-label="View parish announcements">
             <div class="stat-card-header">
-                <span class="stat-card-label">Announcements</span>
+                <span class="stat-card-label">Parish Announcements</span>
                 <span class="stat-card-icon icon-teal"><i class="fas fa-bullhorn"></i></span>
             </div>
-            <div class="stat-card-value"><?php echo number_format($kpis['active_announcements']); ?></div>
+            <div class="stat-card-value"><?php echo number_format($personal_stats['parish_announcements']); ?></div>
             <div class="stat-card-footer">
                 <span class="trend-pill success"><i class="fas fa-signal"></i> Live now</span>
             </div>
         </a>
 
-        <!-- 7. Calendar Schedules -->
-        <a href="view-schedule.php" class="stat-card-compact" aria-label="View calendar schedules">
-            <div class="stat-card-header">
-                <span class="stat-card-label">Schedules &amp; Events</span>
-                <span class="stat-card-icon icon-cyan"><i class="fas fa-calendar-days"></i></span>
-            </div>
-            <div class="stat-card-value"><?php echo number_format($kpis['active_schedules']); ?></div>
-            <div class="stat-card-footer">
-                <span class="trend-pill neutral"><i class="fas fa-clock"></i> Approved</span>
-            </div>
-        </a>
-
-        <!-- 8. System Audit -->
-        <a href="<?php echo isAdmin() ? '../admin/audit-logs.php' : 'javascript:void(0);'; ?>" class="stat-card-compact" aria-label="View system audit">
-            <div class="stat-card-header">
-                <span class="stat-card-label">System Audit</span>
-                <span class="stat-card-icon icon-slate"><i class="fas fa-shield-halved"></i></span>
-            </div>
-            <div class="stat-card-value">Live</div>
-            <div class="stat-card-footer">
-                <span class="trend-pill success"><i class="fas fa-lock"></i> Tracking active</span>
-            </div>
-        </a>
     </div>
 
     <section class="client-dashboard-grid dashboard-removed">
