@@ -1633,14 +1633,32 @@ if ($stmt) {
     .doc-inspection-viewport {
         background-color: #0b1120;
         min-height: 520px;
+        max-height: 85vh;
         display: flex;
         align-items: center;
         justify-content: center;
+        position: relative;
+    }
+
+    .doc-modal-loader {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(11, 17, 32, 0.85);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 20;
+        backdrop-filter: blur(4px);
     }
 
     .doc-modal-image-wrapper {
         width: 100%;
-        height: 72vh;
+        height: 80vh;
+        max-height: 80vh;
         min-height: 500px;
         display: flex;
         align-items: center;
@@ -1649,6 +1667,7 @@ if ($stmt) {
         user-select: none;
         cursor: grab;
         padding: 20px;
+        position: relative;
     }
 
     .doc-modal-image-wrapper:active {
@@ -1657,7 +1676,7 @@ if ($stmt) {
 
     .doc-inspect-img {
         max-width: 100%;
-        max-height: 100%;
+        max-height: 80vh;
         object-fit: contain;
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
         border-radius: 6px;
@@ -3204,7 +3223,7 @@ if ($stmt) {
                 <label class="upload-zone" id="uploadZone" for="requirementFileInput" tabindex="0" role="button" aria-label="Upload all requirements. Drag and drop files here or click to browse.">
                     <i class="fas fa-cloud-arrow-up"></i>
                     <strong>Upload all requirements</strong>
-                    <small>Accepted formats: PDF, JPG, PNG, WEBP (max 5 MB each). You can select and upload multiple files.</small>
+                    <small>Accepted formats: PDF, JPG, PNG, WEBP. You can select and upload multiple files.</small>
                     <input type="file" id="requirementFileInput" name="requirement_files[]" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*" multiple required>
                 </label>
 
@@ -3224,7 +3243,7 @@ if ($stmt) {
                         <i class="fas fa-circle-exclamation text-danger fs-5 flex-shrink-0"></i>
                         <div class="flex-grow-1">
                             <strong class="upload-alert-title">Requirement Validation Warning</strong>
-                            <div class="upload-alert-message small" id="uploadValidationMessage">Some files violate upload constraints (size limit 5 MB or unsupported format). Remove or replace invalid items to proceed.</div>
+                            <div class="upload-alert-message small" id="uploadValidationMessage">Some files violate upload constraints (unsupported format). Remove or replace invalid items to proceed.</div>
                         </div>
                     </div>
                 </div>
@@ -3277,7 +3296,7 @@ if ($stmt) {
                         <label class="upload-zone" style="background:#f8faff;border-color:#93c5fd;" for="communion_baptismal_doc">
                             <i class="fas fa-file-arrow-up" style="color:#3b82f6;"></i>
                             <strong>Attach Baptismal Certificate</strong>
-                            <small>Accepted formats: PDF, JPG, PNG, WEBP (max 5 MB each).</small>
+                            <small>Accepted formats: PDF, JPG, PNG, WEBP.</small>
                             <input type="file" id="communion_baptismal_doc" name="communion_baptismal_doc" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*">
                         </label>
                         <div id="communionBaptismalPreview" style="display:none; margin-top:8px;" class="file-preview">
@@ -3294,7 +3313,7 @@ if ($stmt) {
                         <label class="upload-zone" style="background:#fffdf5;border-color:#fcd34d;" for="communion_seminar_doc">
                             <i class="fas fa-file-arrow-up" style="color:#b45309;"></i>
                             <strong>Attach Seminar Certificate / Proof of Attendance</strong>
-                            <small>Accepted formats: PDF, JPG, PNG, WEBP (max 5 MB each).</small>
+                            <small>Accepted formats: PDF, JPG, PNG, WEBP.</small>
                             <input type="file" id="communion_seminar_doc" name="communion_seminar_doc" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*">
                         </label>
                         <div id="communionSeminarPreview" style="display:none; margin-top:8px;" class="file-preview">
@@ -3394,7 +3413,7 @@ if ($stmt) {
                             <div class="col-12">
                                 <label class="form-label fw-bold" for="receipt_file">Receipt / Proof of Payment <span class="text-danger">*</span></label>
                                 <input type="file" class="form-control request-form-control" id="receipt_file" name="receipt_file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*">
-                                <div class="form-text text-muted">Upload your GCash confirmation receipt (Accepted formats: PDF, JPG, PNG, WEBP, max 5 MB).</div>
+                                <div class="form-text text-muted">Upload your GCash confirmation receipt (Accepted formats: PDF, JPG, PNG, WEBP).</div>
                             </div>
                             <div class="col-12">
                                 <label class="form-label fw-bold" for="payment_notes">Payment Notes <span class="text-muted small fw-normal">(Optional)</span></label>
@@ -3524,6 +3543,14 @@ if ($stmt) {
             </div>
 
             <div class="modal-body p-0 position-relative doc-inspection-viewport">
+                <!-- Inline Loading Spinner for heavy blobs / PDFs -->
+                <div id="docModalLoader" class="doc-modal-loader" style="display: none;">
+                    <div class="spinner-border text-light mb-2" role="status">
+                        <span class="visually-hidden">Loading document...</span>
+                    </div>
+                    <div class="text-white-50 small">Loading document preview...</div>
+                </div>
+
                 <!-- Image Viewer Container -->
                 <div id="docModalImageContainer" class="doc-modal-image-wrapper">
                     <img id="docModalImage" src="" alt="Document Preview" class="doc-inspect-img">
@@ -4052,7 +4079,6 @@ if ($stmt) {
         let isDraggingImage = false;
         let dragStartX = 0, dragStartY = 0, scrollStartX = 0, scrollStartY = 0;
 
-        const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
         const ALLOWED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'webp'];
         const ALLOWED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
 
@@ -4082,15 +4108,6 @@ if ($stmt) {
                     reason: 'unsupported_type',
                     badgeText: 'Invalid Format',
                     message: 'Format not allowed. Only PDF, JPG, PNG, and WEBP are accepted.'
-                };
-            }
-
-            if (file.size > MAX_FILE_SIZE) {
-                return {
-                    valid: false,
-                    reason: 'exceeds_size',
-                    badgeText: 'Exceeds 5 MB',
-                    message: `File size (${(file.size / 1024 / 1024).toFixed(2)} MB) exceeds the 5 MB limit.`
                 };
             }
 
@@ -4166,7 +4183,7 @@ if ($stmt) {
                 if (uploadValidationAlert) {
                     uploadValidationAlert.style.display = 'block';
                     if (uploadValidationMessage) {
-                        uploadValidationMessage.textContent = `${invalidItems.length} file(s) violate upload requirements (exceeds 5 MB limit or unsupported format). Remove or replace invalid items to proceed.`;
+                        uploadValidationMessage.textContent = `${invalidItems.length} file(s) violate upload requirements (unsupported format). Remove or replace invalid items to proceed.`;
                     }
                 }
                 if (submitBtn) {
@@ -4190,6 +4207,87 @@ if ($stmt) {
             }
         }
 
+        // Progressive downscaling for card previews to prevent GPU memory pressure
+        function generateThumbnail(file, callback) {
+            const ext = (file.name.split('.').pop() || '').toLowerCase();
+            if (!['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
+                callback(null);
+                return;
+            }
+
+            if (typeof window.createImageBitmap === 'function') {
+                createImageBitmap(file, { resizeWidth: 480, resizeQuality: 'medium' })
+                    .then(function(bitmap) {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = bitmap.width;
+                        canvas.height = bitmap.height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(bitmap, 0, 0);
+                        bitmap.close();
+                        canvas.toBlob(function(blob) {
+                            if (blob) {
+                                callback(URL.createObjectURL(blob));
+                            } else {
+                                callback(null);
+                            }
+                        }, 'image/jpeg', 0.82);
+                    })
+                    .catch(function() {
+                        downscaleWithImage(file, callback);
+                    });
+            } else {
+                downscaleWithImage(file, callback);
+            }
+        }
+
+        function downscaleWithImage(file, callback) {
+            let tempUrl = null;
+            try {
+                tempUrl = URL.createObjectURL(file);
+            } catch (e) {
+                callback(null);
+                return;
+            }
+            const img = new Image();
+            img.onload = function() {
+                try {
+                    const maxDim = 480;
+                    let w = img.naturalWidth || img.width;
+                    let h = img.naturalHeight || img.height;
+                    if (w > maxDim || h > maxDim) {
+                        if (w > h) {
+                            h = Math.round((h * maxDim) / w);
+                            w = maxDim;
+                        } else {
+                            w = Math.round((w * maxDim) / h);
+                            h = maxDim;
+                        }
+                    }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w;
+                    canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, w, h);
+                    canvas.toBlob(function(blob) {
+                        URL.revokeObjectURL(tempUrl);
+                        if (blob) {
+                            callback(URL.createObjectURL(blob));
+                        } else {
+                            callback(null);
+                        }
+                    }, 'image/jpeg', 0.82);
+                } catch (err) {
+                    URL.revokeObjectURL(tempUrl);
+                    callback(null);
+                }
+            };
+            img.onerror = function() {
+                URL.revokeObjectURL(tempUrl);
+                callback(null);
+            };
+            img.src = tempUrl;
+        }
+
         function createCardElement(item) {
             const card = document.createElement('div');
             card.className = `doc-card ${item.validation.valid ? 'is-valid' : 'is-invalid'}`;
@@ -4201,8 +4299,8 @@ if ($stmt) {
             const isImage = ['jpg', 'jpeg', 'png', 'webp'].includes(ext);
 
             let thumbHtml = '';
-            if (item.validation.valid && isImage && item.blobUrl) {
-                thumbHtml = `<img src="${item.blobUrl}" alt="${sanitizeHtml(item.file.name)}" class="doc-card-thumbnail" loading="lazy">`;
+            if (item.validation.valid && isImage && (item.thumbUrl || item.blobUrl)) {
+                thumbHtml = `<img src="${item.thumbUrl || item.blobUrl}" alt="${sanitizeHtml(item.file.name)}" class="doc-card-thumbnail" loading="lazy">`;
             } else if (item.validation.valid && isPdf) {
                 thumbHtml = `
                     <div class="doc-card-pdf-placeholder">
@@ -4284,7 +4382,8 @@ if ($stmt) {
                     id: id,
                     file: file,
                     validation: validation,
-                    blobUrl: blobUrl
+                    blobUrl: blobUrl,
+                    thumbUrl: null
                 };
 
                 uploadedQueue.push(item);
@@ -4292,6 +4391,20 @@ if ($stmt) {
                 if (selectedFilesGrid) {
                     const cardEl = createCardElement(item);
                     selectedFilesGrid.appendChild(cardEl);
+
+                    // If it's an image, generate a downscaled thumbnail progressively
+                    const ext = (file.name.split('.').pop() || '').toLowerCase();
+                    if (validation.valid && ['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
+                        generateThumbnail(file, function(thumbUrl) {
+                            if (thumbUrl) {
+                                item.thumbUrl = thumbUrl;
+                                const imgEl = cardEl.querySelector('.doc-card-thumbnail');
+                                if (imgEl) {
+                                    imgEl.src = thumbUrl;
+                                }
+                            }
+                        });
+                    }
                 }
             });
 
@@ -4307,6 +4420,11 @@ if ($stmt) {
             if (item.blobUrl) {
                 try {
                     URL.revokeObjectURL(item.blobUrl);
+                } catch (e) {}
+            }
+            if (item.thumbUrl) {
+                try {
+                    URL.revokeObjectURL(item.thumbUrl);
                 } catch (e) {}
             }
 
@@ -4331,6 +4449,11 @@ if ($stmt) {
                 if (item.blobUrl) {
                     try {
                         URL.revokeObjectURL(item.blobUrl);
+                    } catch (e) {}
+                }
+                if (item.thumbUrl) {
+                    try {
+                        URL.revokeObjectURL(item.thumbUrl);
                     } catch (e) {}
                 }
             });
@@ -4392,6 +4515,9 @@ if ($stmt) {
 
             resetInspectionTransform();
 
+            const docModalLoader = document.getElementById('docModalLoader');
+            if (docModalLoader) docModalLoader.style.display = 'flex';
+
             const ext = (item.file.name.split('.').pop() || '').toLowerCase();
             const isPdf = ext === 'pdf';
             const isImage = ['jpg', 'jpeg', 'png', 'webp'].includes(ext);
@@ -4413,6 +4539,12 @@ if ($stmt) {
                 if (docModalPdfContainer) docModalPdfContainer.style.display = 'none';
                 if (docModalImageContainer) docModalImageContainer.style.display = 'flex';
                 if (docModalImage) {
+                    docModalImage.onload = function() {
+                        if (docModalLoader) docModalLoader.style.display = 'none';
+                    };
+                    docModalImage.onerror = function() {
+                        if (docModalLoader) docModalLoader.style.display = 'none';
+                    };
                     docModalImage.src = item.blobUrl;
                     docModalImage.alt = item.file.name;
                 }
@@ -4426,8 +4558,14 @@ if ($stmt) {
                     docModalPdfObject.data = item.blobUrl + '#toolbar=1';
                 }
                 if (docModalPdfFrame) {
+                    docModalPdfFrame.onload = function() {
+                        if (docModalLoader) docModalLoader.style.display = 'none';
+                    };
                     docModalPdfFrame.src = item.blobUrl + '#toolbar=1';
                 }
+                setTimeout(function() {
+                    if (docModalLoader) docModalLoader.style.display = 'none';
+                }, 1000);
                 if (docModalPdfFallbackBtn) {
                     docModalPdfFallbackBtn.href = item.blobUrl;
                     docModalPdfFallbackBtn.download = item.file.name;
@@ -4438,6 +4576,17 @@ if ($stmt) {
                 const modal = bootstrap.Modal.getOrCreateInstance(docPreviewModalEl);
                 modal.show();
             }
+        }
+
+        if (docPreviewModalEl) {
+            docPreviewModalEl.addEventListener('hidden.bs.modal', function() {
+                resetInspectionTransform();
+                if (docModalImage) docModalImage.src = '';
+                if (docModalPdfFrame) docModalPdfFrame.src = '';
+                if (docModalPdfObject) docModalPdfObject.data = '';
+                const docModalLoader = document.getElementById('docModalLoader');
+                if (docModalLoader) docModalLoader.style.display = 'none';
+            });
         }
 
         // Lightbox Toolbar Controls

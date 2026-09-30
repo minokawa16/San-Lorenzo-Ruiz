@@ -232,19 +232,19 @@ async function run() {
     assert(rResult.syncedInputFiles === 2, 'File removed from DataTransfer queue; input.files length is 2');
     assert(rResult.hubTitle === '2 files selected', 'Aggregate counter refreshed to "2 files selected"');
 
-    // 4. Test Pre-flight Validation with Invalid Files (Oversized > 5 MB & Unsupported MIME)
-    console.log('\nTesting client-side pre-flight validation (size & MIME ceiling)...');
+    // 4. Test Pre-flight Validation with Large File (> 10 MB) & Unsupported MIME (.docx)
+    console.log('\nTesting client-side pre-flight validation (large file permitted, MIME restricted)...');
     const testInvalidFiles = await send('Runtime.evaluate', {
       returnByValue: true,
       expression: `(()=>{
         const fileInput = document.getElementById('requirementFileInput');
         const dt = new DataTransfer();
         
-        // 1. Oversized file (6.2 MB > 5 MB)
-        const hugeData = new Uint8Array(6.2 * 1024 * 1024);
-        const hugeFile = new File([hugeData], 'oversized_document.jpg', { type: 'image/jpeg', lastModified: 2001 });
+        // 1. Large high-res file (10.77 MB) - should be ALLOWED and VALID
+        const hugeData = new Uint8Array(Math.round(10.77 * 1024 * 1024));
+        const hugeFile = new File([hugeData], 'SHA01998.JPG', { type: 'image/jpeg', lastModified: 2001 });
         
-        // 2. Unsupported file (.docx)
+        // 2. Unsupported file (.docx) - should be FLAGGED
         const docxData = new Uint8Array(100 * 1024);
         const docxFile = new File([docxData], 'unsupported_file.docx', { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', lastModified: 2002 });
         
@@ -255,25 +255,37 @@ async function run() {
         fileInput.dispatchEvent(new Event('change', { bubbles: true }));
         
         const grid = document.getElementById('selectedFilesGrid');
+        const cards = grid.querySelectorAll('.doc-card');
         const invalidCards = grid.querySelectorAll('.doc-card.is-invalid');
         const alertBox = document.getElementById('uploadValidationAlert');
         const submitBtn = document.getElementById('submitRequestBtn');
         
-        const badges = Array.from(invalidCards).map(c => c.querySelector('.doc-status-badge')?.textContent.trim());
+        const largeCard = Array.from(cards).find(c => c.textContent.includes('SHA01998.JPG'));
+        const docxCard = Array.from(cards).find(c => c.textContent.includes('unsupported_file.docx'));
         
+        const largeCardInspect = largeCard?.querySelector('.btn-inspect');
+        const docxCardInspect = docxCard?.querySelector('.btn-inspect');
+
         return {
           invalidCardCount: invalidCards.length,
+          largeCardValid: largeCard?.classList.contains('is-valid') === true,
+          largeCardInspectEnabled: largeCardInspect && !largeCardInspect.disabled,
+          largeCardBadge: largeCard?.querySelector('.doc-status-badge')?.textContent.trim() || '',
+          docxCardBadge: docxCard?.querySelector('.doc-status-badge')?.textContent.trim() || '',
+          docxCardInspectDisabled: docxCardInspect?.disabled === true,
           alertVisible: window.getComputedStyle(alertBox).display !== 'none',
-          submitDisabled: submitBtn?.disabled === true,
-          badges: badges
+          submitDisabled: submitBtn?.disabled === true
         };
       })()`
     });
     const invResult = testInvalidFiles.result.value;
-    assert(invResult.invalidCardCount === 2, 'Invalid cards rendered with .is-invalid class');
-    assert(invResult.badges.some(b => b.includes('Exceeds 5 MB')), 'Oversized file card has "Exceeds 5 MB" badge');
-    assert(invResult.badges.some(b => b.includes('Invalid Format')), 'Unsupported file card has "Invalid Format" badge');
-    assert(invResult.alertVisible, 'Inline error alert (#uploadValidationAlert) is visible');
+    assert(invResult.largeCardValid, 'Large high-res file (10.77 MB) is VALID and has .is-valid class');
+    assert(invResult.largeCardInspectEnabled, 'Large file "Inspect" button is ACTIVE and enabled');
+    assert(invResult.largeCardBadge.includes('Verified'), 'Large file card has "Verified" badge (no "Exceeds 5 MB")');
+    assert(invResult.docxCardBadge.includes('Invalid Format'), 'Unsupported file card has "Invalid Format" badge');
+    assert(invResult.docxCardInspectDisabled, 'Unsupported file "Inspect" button is disabled');
+    assert(invResult.invalidCardCount === 1, 'Only the unsupported .docx file is marked as invalid');
+    assert(invResult.alertVisible, 'Inline error alert (#uploadValidationAlert) is visible due to invalid format');
     assert(invResult.submitDisabled, 'Master submit button (#submitRequestBtn) is disabled when invalid files exist');
 
     // 5. Remove Invalid Files -> Verify System Self-Heals
@@ -386,6 +398,72 @@ async function run() {
       });
       assert(resp.result.value.gridWidth > 0, `Grid container rendered cleanly at ${width}px`);
     }
+
+    // 8. Test Exact User Scenario: 4 Large High-Resolution Camera Photos (42.50 MB Total)
+    console.log('\nTesting exact user scenario: 4 large camera photos totaling 42.50 MB...');
+    const userScenario = await send('Runtime.evaluate', {
+      returnByValue: true,
+      expression: `(()=>{
+        const clearBtn = document.getElementById('clearAllUploadsBtn');
+        if (clearBtn) clearBtn.click();
+
+        const fileInput = document.getElementById('requirementFileInput');
+        const dt = new DataTransfer();
+
+        // 4 files matching user screenshot:
+        // SHA01998 (1).JPG: 10.77 MB
+        const f1 = new File([new Uint8Array(Math.round(10.77 * 1024 * 1024))], 'SHA01998 (1).JPG', { type: 'image/jpeg', lastModified: 3001 });
+        // SHA01998.JPG: 10.77 MB
+        const f2 = new File([new Uint8Array(Math.round(10.77 * 1024 * 1024))], 'SHA01998.JPG', { type: 'image/jpeg', lastModified: 3002 });
+        // SHA01999.JPG: 10.71 MB
+        const f3 = new File([new Uint8Array(Math.round(10.71 * 1024 * 1024))], 'SHA01999.JPG', { type: 'image/jpeg', lastModified: 3003 });
+        // SHA02000.JPG: 10.24 MB
+        const f4 = new File([new Uint8Array(Math.round(10.24 * 1024 * 1024))], 'SHA02000.JPG', { type: 'image/jpeg', lastModified: 3004 });
+
+        dt.items.add(f1);
+        dt.items.add(f2);
+        dt.items.add(f3);
+        dt.items.add(f4);
+
+        fileInput.files = dt.files;
+        fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+
+        const grid = document.getElementById('selectedFilesGrid');
+        const cards = grid.querySelectorAll('.doc-card');
+        const invalidCards = grid.querySelectorAll('.doc-card.is-invalid');
+        const alertBox = document.getElementById('uploadValidationAlert');
+        const submitBtn = document.getElementById('submitRequestBtn');
+        const hubTitle = document.getElementById('aggregateCount')?.textContent || '';
+        const hubSize = document.getElementById('aggregateSize')?.textContent || '';
+
+        const allInspectEnabled = Array.from(cards).every(c => {
+          const btn = c.querySelector('.btn-inspect');
+          return btn && !btn.disabled;
+        });
+
+        const hasExceedsBadge = Array.from(cards).some(c => c.textContent.includes('Exceeds 5 MB'));
+
+        return {
+          cardCount: cards.length,
+          invalidCount: invalidCards.length,
+          allInspectEnabled: allInspectEnabled,
+          hasExceedsBadge: hasExceedsBadge,
+          alertHidden: window.getComputedStyle(alertBox).display === 'none',
+          submitActive: submitBtn && !submitBtn.disabled,
+          hubTitle: hubTitle,
+          hubSize: hubSize
+        };
+      })()`
+    });
+    const uResult = userScenario.result.value;
+    assert(uResult.cardCount === 4, '4 high-resolution cards rendered');
+    assert(uResult.invalidCount === 0, '0 cards marked invalid (all 4 are valid)');
+    assert(uResult.allInspectEnabled, 'All 4 large cards have active, clickable Inspect buttons');
+    assert(!uResult.hasExceedsBadge, 'Zero "Exceeds 5 MB" warning badges present');
+    assert(uResult.alertHidden, 'Validation warning banner is completely hidden');
+    assert(uResult.submitActive, 'Master submit button is enabled for 42.50 MB submission');
+    assert(uResult.hubTitle === '4 files selected', 'Aggregate count shows "4 files selected"');
+    assert(uResult.hubSize.includes('42.49 MB') || uResult.hubSize.includes('42.50 MB'), `Aggregate total size matches ~42.50 MB (actual: ${uResult.hubSize})`);
 
   } catch (err) {
     console.error('Test execution failed with error:', err);

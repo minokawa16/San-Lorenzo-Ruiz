@@ -32,7 +32,7 @@ function runTest(bool $condition, string $label, string $details = '') {
 echo "=== Testing Document Upload Restrictions & Validations ===\n\n";
 
 // 1. Constants
-runTest(defined('TUGON_UPLOAD_MAX_BYTES') && TUGON_UPLOAD_MAX_BYTES === 5 * 1024 * 1024, 'TUGON_UPLOAD_MAX_BYTES is 5 MB (5,242,880 bytes)');
+runTest(defined('TUGON_UPLOAD_MAX_BYTES') && TUGON_UPLOAD_MAX_BYTES === 64 * 1024 * 1024, 'TUGON_UPLOAD_MAX_BYTES is 64 MB (67,108,864 bytes)');
 runTest(defined('TUGON_ALLOWED_EXTENSIONS') && TUGON_ALLOWED_EXTENSIONS === ['pdf', 'jpg', 'jpeg', 'png', 'webp'], 'Allowed extensions are pdf, jpg, jpeg, png, webp');
 
 // 2. Mock file creator helper
@@ -48,7 +48,7 @@ function createTempUpload(string $name, string $mime, string $content, int $erro
     ];
 }
 
-$expectedErrorMsg = "Only PDF or image files (JPG, PNG, WEBP) up to 5 MB are allowed. Please convert your document and upload again.";
+$expectedErrorMsg = "Only PDF or image files (JPG, PNG, WEBP) are allowed. Please convert your document and upload again.";
 
 // 3. Valid File Validations with Magic Bytes
 // Valid PDF
@@ -117,11 +117,11 @@ $val = validateUploadedDocument($fakeJpg);
 runTest($val['ok'] === false, 'Spoofed file (plain text disguised as .jpg) rejected by magic byte detection');
 @unlink($fakeJpg['tmp_name']);
 
-// 5. Size Limit Validation (> 5 MB rejected)
-$oversizedContent = "%PDF-1.4\n" . str_repeat("A", (5 * 1024 * 1024) + 100);
+// 5. Size Limit Validation (> 64 MB rejected)
+$oversizedContent = "%PDF-1.4\n" . str_repeat("A", (64 * 1024 * 1024) + 100);
 $oversizedFile = createTempUpload('huge.pdf', 'application/pdf', $oversizedContent);
 $val = validateUploadedDocument($oversizedFile);
-runTest($val['ok'] === false && $val['error'] === $expectedErrorMsg, 'Oversized file (> 5 MB) rejected with exact error message');
+runTest($val['ok'] === false && $val['error'] === $expectedErrorMsg, 'Oversized file (> 64 MB) rejected with exact error message');
 @unlink($oversizedFile['tmp_name']);
 
 // 6. Group Validation (validateUploadedDocumentGroup)
@@ -182,7 +182,7 @@ runTest(strpos($serviceForm, 'Accepted formats: PDF, JPG, PNG, WEBP (max 5 MB ea
 
 $certForm = file_get_contents(__DIR__ . '/../users/request-certificate.php');
 runTest(strpos($certForm, 'accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*"') !== false, 'request-certificate.php has restricted accept attribute');
-runTest(strpos($certForm, 'Accepted formats: PDF, JPG, PNG, WEBP (max 5 MB each)') !== false, 'request-certificate.php has 5 MB helper text');
+runTest(strpos($certForm, 'Accepted formats: PDF, JPG, PNG, WEBP') !== false, 'request-certificate.php has format helper text');
 
 $blessingForm = file_get_contents(__DIR__ . '/../users/request-blessing.php');
 runTest(strpos($blessingForm, 'accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*"') !== false, 'request-blessing.php has restricted accept attribute');

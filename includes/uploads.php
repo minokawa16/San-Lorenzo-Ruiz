@@ -1,7 +1,7 @@
 <?php
 
 if (!defined('TUGON_UPLOAD_MAX_BYTES')) {
-    define('TUGON_UPLOAD_MAX_BYTES', 5 * 1024 * 1024); // 5 MB maximum per file
+    define('TUGON_UPLOAD_MAX_BYTES', 64 * 1024 * 1024); // 64 MB maximum per file
 }
 
 if (!defined('TUGON_ALLOWED_EXTENSIONS')) {
@@ -23,7 +23,7 @@ function getRequestDocumentConfig(): array {
         'max_size' => TUGON_UPLOAD_MAX_BYTES,
         'extensions' => TUGON_ALLOWED_EXTENSIONS,
         'mime_types' => TUGON_ALLOWED_MIME_TYPES,
-        'error_message' => 'Only PDF or image files (JPG, PNG, WEBP) up to 5 MB are allowed. Please convert your document and upload again.'
+        'error_message' => 'Only PDF or image files (JPG, PNG, WEBP) are allowed. Please convert your document and upload again.'
     ];
 }
 
@@ -41,7 +41,7 @@ function isRequestImageDocument($mime_type, $filename = ''): bool {
 
 /**
  * Strict authoritative validation of a single uploaded file.
- * Checks extension allow-list, size limit (5 MB), finfo MIME type, and magic bytes.
+ * Checks extension allow-list, size limit (64 MB), finfo MIME type, and magic bytes.
  *
  * @param array $file Single file entry from $_FILES (containing tmp_name, name, size, error)
  * @return array ['ok' => bool, 'has_file' => bool, 'error' => string, 'mime' => string, 'extension' => string]
@@ -52,7 +52,7 @@ function validateUploadedDocument(array $file): array {
         return ['ok' => true, 'has_file' => false];
     }
 
-    $invalidMsg = 'Only PDF or image files (JPG, PNG, WEBP) up to 5 MB are allowed. Please convert your document and upload again.';
+    $invalidMsg = 'Only PDF or image files (JPG, PNG, WEBP) are allowed. Please convert your document and upload again.';
 
     if ($error !== UPLOAD_ERR_OK || (!is_uploaded_file($file['tmp_name']) && php_sapi_name() !== 'cli')) {
         return ['ok' => false, 'has_file' => true, 'error' => $invalidMsg];
