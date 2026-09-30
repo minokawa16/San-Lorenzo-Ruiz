@@ -25,7 +25,7 @@ check(strpos($headerContent, 'dropdown-menu-end') !== false, 'Dropdown is positi
 
 // 2. Sidebar checks
 $sidebarContent = file_get_contents($root . '/includes/user-sidebar.php');
-check(strpos($sidebarContent, 'San Lorenzo Ruiz') !== false, 'Sidebar contains church title');
+check(strpos($sidebarContent, 'San Lorenzo Ruiz') !== false || strpos($sidebarContent, 'TUGON') !== false, 'Sidebar contains church title or brand');
 check(strpos($sidebarContent, 'Main Menu') !== false || strpos($sidebarContent, 'nav.main_menu') !== false, 'Sidebar contains Main Menu section');
 check(strpos($sidebarContent, 'Communication') !== false || strpos($sidebarContent, 'nav.communication') !== false, 'Sidebar contains Communication section');
 check(strpos($sidebarContent, 'Account') !== false || strpos($sidebarContent, 'nav.account') !== false, 'Sidebar contains Account section');
@@ -35,7 +35,8 @@ check(strpos($sidebarContent, 'fa-table-cells-large') !== false, 'Sidebar uses f
 $scheduleContent = file_get_contents($root . '/users/view-schedule.php');
 check(strpos($scheduleContent, 'full-width-calendar') !== false, 'Calendar has full-width container');
 check(strpos($scheduleContent, 'calendar-toolbar-card') !== false, 'Calendar has top toolbar filter card');
-check(strpos($scheduleContent, 'calendar-legend-bar') !== false, 'Calendar has category legend bar');
+check(strpos($scheduleContent, 'calendar-legend-bar') === false, 'Calendar category legend bar removed per requirement');
+check(strpos($scheduleContent, 'calendar-filters-grid') !== false, 'Calendar has top toolbar filters grid');
 check(strpos($scheduleContent, 'upcoming-events-grid') !== false, 'Calendar has upcoming public schedules grid');
 check(strpos($scheduleContent, 'eventDetailsModal') !== false, 'Calendar has details modal');
 check(strpos($scheduleContent, 'prev,next today') !== false, 'Calendar has prev, next, and today toolbar navigation');

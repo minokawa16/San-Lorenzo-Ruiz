@@ -164,9 +164,11 @@ if ($stmt) {
         top: 50%;
         transform: translateY(-50%);
         color: #64748B;
-        font-size: 0.88rem;
+        font-size: 0.9rem;
+        width: 16px;
+        text-align: center;
         pointer-events: none;
-        z-index: 2;
+        z-index: 3;
     }
 
     .filter-control {
@@ -182,8 +184,16 @@ if ($stmt) {
         transition: all 0.18s ease;
     }
 
-    .filter-input-wrap input.filter-control {
-        padding-left: 38px;
+    /* Ensure search and calendar icons never overlap or hide text/letters */
+    .filter-input-wrap input.filter-control,
+    .filter-input-wrap input.form-control,
+    .filter-input-wrap #search,
+    .filter-input-wrap #month {
+        padding-left: 44px !important;
+    }
+
+    .filter-input-wrap input[type="month"]::-webkit-datetime-edit {
+        padding-left: 0 !important;
     }
 
     .filter-control:hover {
@@ -206,73 +216,6 @@ if ($stmt) {
         background-size: 12px 10px;
         padding-right: 36px;
         cursor: pointer;
-    }
-
-    /* Divider & Legend Key */
-    .filter-divider {
-        height: 1px;
-        background: #EBE4D8;
-        margin: 18px 0 16px 0;
-        border: none;
-    }
-
-    .calendar-legend-section {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-
-    .calendar-legend-header {
-        font-size: 0.72rem;
-        font-weight: 700;
-        color: #64748B;
-        letter-spacing: 0.05em;
-        text-transform: uppercase;
-    }
-
-    .calendar-legend-bar {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        flex-wrap: wrap;
-    }
-
-    .legend-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 7px;
-        padding: 5px 13px;
-        border-radius: 9999px;
-        background: #FAF7F2;
-        border: 1px solid #E5DEC9;
-        font-size: 0.8rem;
-        font-weight: 550;
-        color: #374151;
-        cursor: pointer;
-        user-select: none;
-        transition: all 0.15s ease;
-    }
-
-    .legend-badge:hover {
-        border-color: #C89B3C;
-        background: #FFFFFF;
-        transform: translateY(-1px);
-        box-shadow: 0 2px 6px rgba(200, 155, 60, 0.12);
-    }
-
-    .legend-badge.active {
-        background: #F4EAD3;
-        border-color: #C89B3C;
-        color: #8A681B;
-        font-weight: 700;
-        box-shadow: 0 2px 6px rgba(200, 155, 60, 0.16);
-    }
-
-    .legend-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        flex-shrink: 0;
     }
 
     /* Full-Width Calendar Panel */
@@ -654,22 +597,6 @@ if ($stmt) {
                 </div>
             </div>
         </div>
-
-        <hr class="filter-divider">
-
-        <!-- Category Legend Key Below Divider -->
-        <div class="calendar-legend-section">
-            <div class="calendar-legend-header">CATEGORIES</div>
-            <div class="calendar-legend-bar">
-                <span class="legend-badge" data-category="mass"><span class="legend-dot" style="background:#C89B3C"></span> Mass / Public Schedule</span>
-                <span class="legend-badge" data-category="event"><span class="legend-dot" style="background:#1F2937"></span> Parish Event</span>
-                <span class="legend-badge" data-category="monthly_mass"><span class="legend-dot" style="background:#0F766E"></span> Monthly Mass</span>
-                <span class="legend-badge" data-category="sacramental"><span class="legend-dot" style="background:#7C3AED"></span> Sacramental Services</span>
-                <span class="legend-badge" data-category="patronal_fiesta"><span class="legend-dot" style="background:#C026D3"></span> Patronal Fiesta</span>
-                <span class="legend-badge" data-category="blessing"><span class="legend-dot" style="background:#D97706"></span> Blessing</span>
-                <span class="legend-badge" data-category="announcement"><span class="legend-dot" style="background:#2563EB"></span> Announcement</span>
-            </div>
-        </div>
     </div>
 
     <!-- Main Full-Width Calendar Panel -->
@@ -758,18 +685,6 @@ function filters() {
     if (category !== 'all') params.set('category', category);
     if (status !== 'all') params.set('status', status);
     return params;
-}
-
-function syncLegendPills() {
-    const categoryEl = getFilterEl('category', 'categoryFilter');
-    const currentVal = categoryEl ? categoryEl.value : 'all';
-    document.querySelectorAll('.legend-badge[data-category]').forEach(pill => {
-        if (pill.dataset.category === currentVal) {
-            pill.classList.add('active');
-        } else {
-            pill.classList.remove('active');
-        }
-    });
 }
 
 // HTML escape helper
@@ -991,7 +906,6 @@ if (monthInput) {
     const el = document.getElementById(id);
     if (el) {
         el.addEventListener('change', () => {
-            syncLegendPills();
             if (calendar) calendar.refetchEvents();
         });
     }
@@ -1006,21 +920,6 @@ if (searchInput) {
         }, 280);
     });
 }
-
-document.querySelectorAll('.legend-badge[data-category]').forEach(pill => {
-    pill.addEventListener('click', function() {
-        const categoryEl = getFilterEl('category', 'categoryFilter');
-        if (!categoryEl) return;
-        const targetCat = this.dataset.category;
-        if (categoryEl.value === targetCat) {
-            categoryEl.value = 'all';
-        } else {
-            categoryEl.value = targetCat;
-        }
-        syncLegendPills();
-        if (calendar) calendar.refetchEvents();
-    });
-});
 
 document.querySelectorAll('.event-card').forEach(card => {
     card.addEventListener('click', function() {
