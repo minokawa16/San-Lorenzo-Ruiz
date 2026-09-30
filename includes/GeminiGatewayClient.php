@@ -17,7 +17,7 @@ class GeminiGatewayClient {
     public function __construct($gatewayUrl = null, $apiKey = null, $model = null, $timeout = 60) {
         $this->gatewayUrl = $gatewayUrl ?: (getenv('GEMINI_GATEWAY_URL') ?: '');
         $this->apiKey = $apiKey ?: (getenv('GEMINI_API_KEY') ?: (defined('GEMINI_API_KEY') ? GEMINI_API_KEY : ''));
-        $this->model = $model ?: (getenv('GEMINI_MODEL') ?: 'gemini-3.8-flash');
+        $this->model = $model ?: (getenv('GEMINI_MODEL') ?: 'gemini-2.0-flash');
         $this->timeout = max(5, intval($timeout));
     }
 

@@ -11,6 +11,42 @@ if (ob_get_level() === 0) {
     ob_start();
 }
 
+// ── .env loader ──────────────────────────────────────────────────────────────
+// On XAMPP / local development the web server does not inject environment
+// variables from the .env file, so we load it manually here (once per process).
+// On Railway / Vercel the OS-level env vars are already set; this block is a
+// safe no-op because we only call putenv() when getenv() returns nothing.
+if (!defined('TUGON_ENV_LOADED')) {
+    define('TUGON_ENV_LOADED', true);
+    $envFile = __DIR__ . '/../.env';
+    if (is_file($envFile)) {
+        foreach (file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $envLine) {
+            $envLine = trim($envLine);
+            if ($envLine === '' || $envLine[0] === '#') {
+                continue;
+            }
+            $eqPos = strpos($envLine, '=');
+            if ($eqPos === false) {
+                continue;
+            }
+            $envKey   = trim(substr($envLine, 0, $eqPos));
+            $envValue = trim(substr($envLine, $eqPos + 1));
+            // Strip surrounding quotes if present
+            if (strlen($envValue) >= 2
+                && (($envValue[0] === '"' && substr($envValue, -1) === '"')
+                    || ($envValue[0] === "'" && substr($envValue, -1) === "'"))) {
+                $envValue = substr($envValue, 1, -1);
+            }
+            // Only set if not already defined by OS / hosting environment
+            if ($envKey !== '' && getenv($envKey) === false) {
+                putenv($envKey . '=' . $envValue);
+                $_ENV[$envKey] = $envValue;
+            }
+        }
+    }
+}
+// ── end .env loader ──────────────────────────────────────────────────────────
+
 if (!defined('SESSION_TIMEOUT')) {
     $security_config = __DIR__ . '/../config/security.php';
     if (is_file($security_config)) {
