@@ -37,148 +37,157 @@ include '../templates/header.php';
         box-sizing: border-box !important;
     }
 
-    /* ── Two-Column Google Calendar Layout (260px Fixed Sidebar + Full-Width Grid) ── */
-    .calendar-layout,
-    .calendar-grid {
-        display: grid !important;
-        grid-template-columns: 260px minmax(0, 1fr) !important;
-        gap: 20px !important;
-        align-items: start !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        margin-bottom: 24px !important;
-        box-sizing: border-box !important;
-    }
-
-    /* Left Sidebar Filter Card: 260px width */
-    .calendar-sidebar {
-        width: 260px !important;
-        min-width: 260px !important;
-        max-width: 260px !important;
+    /* ── Horizontal Top Filter Toolbar ── */
+    .calendar-filter-toolbar {
         background: #ffffff !important;
         border: 1px solid var(--calendar-border) !important;
         border-radius: 12px !important;
-        padding: 18px !important;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
-        position: sticky !important;
-        top: 10px !important;
-        box-sizing: border-box !important;
-        word-break: break-word !important;
-        flex-shrink: 0 !important;
-    }
-
-    .mini-month,
-    .filter-select,
-    .search-box input {
-        border: 1px solid var(--calendar-border) !important;
-        border-radius: 8px !important;
-        padding: 8px 12px !important;
-        font-size: 0.84rem !important;
-        color: var(--calendar-text) !important;
-        background: #ffffff !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        box-sizing: border-box !important;
-        margin-bottom: 12px !important;
-        outline: none !important;
-        transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
-    }
-
-    .mini-month:focus,
-    .filter-select:focus,
-    .search-box input:focus {
-        border-color: var(--calendar-gold) !important;
-        box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.15) !important;
-    }
-
-    .search-box {
-        position: relative !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        box-sizing: border-box !important;
-        margin-bottom: 12px !important;
-    }
-
-    .search-box i {
-        position: absolute !important;
-        left: 12px !important;
-        top: 50% !important;
-        transform: translateY(-50%) !important;
-        color: #9a9890 !important;
-        font-size: 0.8rem !important;
-        pointer-events: none !important;
-    }
-
-    .search-box input {
-        padding-left: 34px !important;
-        margin-bottom: 0 !important;
-    }
-
-    .legend {
-        display: flex !important;
-        flex-direction: column !important;
-        gap: 8px !important;
-        margin: 14px 0 16px !important;
-        padding-top: 14px !important;
-        border-top: 1px solid #f0eee6 !important;
+        padding: 16px 18px !important;
+        margin-bottom: 20px !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
         width: 100% !important;
         box-sizing: border-box !important;
     }
 
-    .legend-item {
+    .calendar-filters-row {
         display: flex !important;
         align-items: center !important;
-        gap: 8px !important;
-        font-size: 0.8rem !important;
-        font-weight: 500 !important;
-        color: var(--calendar-muted) !important;
-        word-break: break-word !important;
-        overflow-wrap: break-word !important;
-    }
-
-    .legend-dot {
-        width: 10px !important;
-        height: 10px !important;
-        border-radius: 50% !important;
-        flex-shrink: 0 !important;
-    }
-
-    .smart-card {
-        background: #FAF8F3 !important;
-        border: 1px solid #E8E1D5 !important;
-        border-radius: 10px !important;
-        padding: 14px !important;
-        margin-top: 12px !important;
+        gap: 14px !important;
         width: 100% !important;
         box-sizing: border-box !important;
-        word-break: break-word !important;
-        overflow-wrap: break-word !important;
     }
 
-    .smart-card strong {
-        display: block !important;
-        font-size: 0.84rem !important;
-        color: var(--calendar-text) !important;
-        margin-bottom: 4px !important;
+    /* Desktop: Month ~200px, Search flexible, Category & Status ~200px each */
+    .filter-col-month {
+        flex: 0 0 200px !important;
+        width: 200px !important;
     }
 
-    .smart-card span {
-        font-size: 0.78rem !important;
-        color: var(--calendar-muted) !important;
-        line-height: 1.45 !important;
-        display: block !important;
-    }
-
-    /* Right Main Calendar Panel: Dominant full remaining width */
-    .calendar-main {
+    .filter-col-search {
         flex: 1 1 auto !important;
-        min-width: 0 !important;
+        min-width: 200px !important;
+    }
+
+    .filter-col-category {
+        flex: 0 0 200px !important;
+        width: 200px !important;
+    }
+
+    .filter-col-status {
+        flex: 0 0 200px !important;
+        width: 200px !important;
+    }
+
+    .filter-control-wrap {
+        position: relative !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Uniform controls: white, thin border, 10px radius, 44px height, gold focus */
+    .calendar-top-control {
+        width: 100% !important;
+        height: 44px !important;
+        line-height: 44px !important;
+        border: 1px solid var(--calendar-border) !important;
+        border-radius: 10px !important;
+        padding: 0 14px !important;
+        font-size: 0.88rem !important;
+        font-family: inherit !important;
+        font-weight: 500 !important;
+        color: var(--calendar-text) !important;
+        background: #ffffff !important;
+        outline: none !important;
+        box-sizing: border-box !important;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease !important;
+    }
+
+    .calendar-top-control:focus {
+        border-color: var(--calendar-gold) !important;
+        box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.18) !important;
+        background: #ffffff !important;
+    }
+
+    /* Search magnifier icon inside input on left without covering text */
+    .search-box-wrap {
+        position: relative !important;
+        width: 100% !important;
+    }
+
+    .search-box-wrap .search-icon {
+        position: absolute !important;
+        left: 14px !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+        color: #94a3b8 !important;
+        font-size: 0.88rem !important;
+        pointer-events: none !important;
+        z-index: 2 !important;
+    }
+
+    .search-box-wrap input.calendar-top-control {
+        padding-left: 42px !important;
+    }
+
+    /* Month picker: single calendar icon */
+    .filter-col-month input[type="month"] {
+        cursor: pointer !important;
+    }
+
+    /* Category & Status custom chevron & no clipped text */
+    .select-wrap select.calendar-top-control {
+        appearance: none !important;
+        -webkit-appearance: none !important;
+        -moz-appearance: none !important;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%2364748B' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
+        background-repeat: no-repeat !important;
+        background-position: right 14px center !important;
+        background-size: 12px 10px !important;
+        padding-right: 40px !important;
+        padding-left: 14px !important;
+        cursor: pointer !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+    }
+
+    /* Clear filters link */
+    .calendar-filter-actions {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+        margin-top: 10px !important;
+        padding-top: 10px !important;
+        border-top: 1px dashed #e8e5dc !important;
+    }
+
+    .btn-clear-filters {
+        background: none !important;
+        border: none !important;
+        color: #b45309 !important;
+        font-size: 0.82rem !important;
+        font-weight: 600 !important;
+        padding: 4px 10px !important;
+        cursor: pointer !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        border-radius: 6px !important;
+        transition: all 0.15s ease !important;
+    }
+
+    .btn-clear-filters:hover {
+        color: #92400e !important;
+        background: #fef3c7 !important;
+        text-decoration: underline !important;
+    }
+
+    /* ── Main Full-Width Calendar Card ── */
+    .calendar-main {
         width: 100% !important;
         background: #ffffff !important;
         border: 1px solid var(--calendar-border) !important;
-        border-radius: 12px !important;
-        padding: 20px !important;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+        border-radius: 14px !important;
+        padding: 22px !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
         box-sizing: border-box !important;
         overflow-x: auto !important;
         position: relative !important;
@@ -324,7 +333,7 @@ include '../templates/header.php';
         color: #1e293b !important;
     }
 
-    /* 7-Column Header Grid Alignment (Each Column is 1fr / 14.2857%) */
+    /* 7-Column Header Grid Alignment */
     .fc-scrollgrid,
     .fc-col-header,
     .fc-daygrid-body,
@@ -363,10 +372,13 @@ include '../templates/header.php';
     }
 
     .fc .fc-daygrid-day-frame {
-        padding: 6px !important;
-        min-height: 105px !important;
+        padding: 4px 6px !important;
+        min-height: 110px !important;
         transition: background-color 0.12s ease !important;
         box-sizing: border-box !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: hidden !important;
     }
 
     .fc .fc-daygrid-day:hover {
@@ -390,27 +402,194 @@ include '../templates/header.php';
         font-weight: 700 !important;
     }
 
-    /* Event Badges */
-    .fc-event {
+    /* ── Event Pill Styling (Month View) ── */
+    .fc .fc-daygrid-event-harness {
+        margin-bottom: 2px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .fc .fc-daygrid-event {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: transparent !important;
         border: none !important;
+        box-shadow: none !important;
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .calendar-pill-item {
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        background: #ffffff !important;
+        border: 1px solid #e2ded5 !important;
         border-radius: 6px !important;
-        padding: 3px 8px !important;
-        font-size: 0.76rem !important;
-        font-weight: 600 !important;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important;
-        margin-bottom: 3px !important;
+        padding: 3px 6px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
+        white-space: nowrap !important;
         cursor: pointer !important;
-        transition: transform 0.12s ease, box-shadow 0.12s ease !important;
+        transition: all 0.12s ease !important;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
     }
 
-    .fc-event:hover {
-        transform: translateY(-1px) scale(1.02) !important;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12) !important;
+    .calendar-pill-item:hover,
+    .calendar-pill-item:focus {
+        background: #fdfbf7 !important;
+        border-color: var(--calendar-gold) !important;
+        box-shadow: 0 2px 6px rgba(200, 155, 60, 0.18) !important;
+        outline: none !important;
     }
 
-    .fc-event-title {
+    .calendar-pill-item .pill-dot {
+        width: 7px !important;
+        height: 7px !important;
+        border-radius: 50% !important;
+        flex-shrink: 0 !important;
+        display: inline-block !important;
+    }
+
+    .calendar-pill-item .pill-time {
+        font-size: 12px !important;
+        font-weight: 500 !important;
+        color: #64748b !important;
+        flex-shrink: 0 !important;
+        line-height: 1 !important;
+    }
+
+    .calendar-pill-item .pill-title {
+        font-size: 12px !important;
         font-weight: 600 !important;
-        color: #ffffff !important;
+        color: #1e293b !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+        line-height: 1.25 !important;
+    }
+
+    /* More Events Link */
+    .fc .fc-daygrid-more-link {
+        font-size: 0.75rem !important;
+        font-weight: 700 !important;
+        color: var(--calendar-gold-dark, #8a6409) !important;
+        background: #faf4e6 !important;
+        padding: 2px 8px !important;
+        border-radius: 4px !important;
+        margin-top: 2px !important;
+        display: inline-block !important;
+        text-decoration: none !important;
+        transition: all 0.15s ease !important;
+    }
+
+    .fc .fc-daygrid-more-link:hover {
+        background: #f4e8cc !important;
+        color: #6d4e04 !important;
+    }
+
+    /* Week & Day View Custom Styling */
+    .calendar-timegrid-item {
+        padding: 2px 4px !important;
+        border-radius: 4px !important;
+        background: #ffffff !important;
+        font-size: 12px !important;
+        line-height: 1.2 !important;
+        overflow: hidden !important;
+    }
+
+    .calendar-timegrid-item .pill-time {
+        font-size: 11px !important;
+        font-weight: 500 !important;
+        color: #64748b !important;
+    }
+
+    .calendar-timegrid-item .pill-title {
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        color: #1e293b !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+    }
+
+    /* Agenda (List) View Custom Styling */
+    .fc .fc-list-event-time,
+    .fc .fc-list-event-graphic {
+        display: none !important;
+    }
+
+    .calendar-list-item {
+        padding: 4px 0 !important;
+        font-size: 13px !important;
+    }
+
+    .calendar-list-item .pill-dot {
+        width: 8px !important;
+        height: 8px !important;
+        border-radius: 50% !important;
+        flex-shrink: 0 !important;
+    }
+
+    .calendar-list-item .pill-time {
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        color: #64748b !important;
+        white-space: nowrap !important;
+    }
+
+    .calendar-list-item .pill-title {
+        font-size: 13px !important;
+        font-weight: 600 !important;
+        color: #1e293b !important;
+    }
+
+    /* Tooltip Customization */
+    .calendar-event-tooltip .tooltip-inner {
+        background-color: #1e293b !important;
+        color: #f8fafc !important;
+        padding: 10px 14px !important;
+        border-radius: 8px !important;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2) !important;
+        max-width: 280px !important;
+        font-size: 0.82rem !important;
+        line-height: 1.4 !important;
+    }
+
+    .calendar-tooltip .tooltip-title {
+        font-weight: 700;
+        font-size: 0.88rem;
+        color: #ffffff;
+        margin-bottom: 6px;
+        word-break: break-word;
+    }
+
+    .calendar-tooltip .tooltip-line {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.78rem;
+        color: #cbd5e1;
+        margin-bottom: 3px;
+    }
+
+    .calendar-tooltip .tooltip-line:last-child {
+        margin-bottom: 0;
+    }
+
+    /* Time Gutter Styling */
+    .fc .fc-timegrid-slot-label-cushion {
+        font-size: 0.78rem !important;
+        font-weight: 600 !important;
+        color: #64748b !important;
+        text-transform: lowercase !important;
     }
 
     /* FAB Add Button */
@@ -498,20 +677,30 @@ include '../templates/header.php';
         border-color: #1e293b !important;
     }
 
-    /* Small Screen Responsive Behavior (Horizontal scroll or stack) */
-    @media (max-width: 900px) {
-        .calendar-layout,
-        .calendar-grid {
-            grid-template-columns: 1fr !important;
-            gap: 18px !important;
+    /* Small Screen Responsive Behavior: 2 columns on tablet, 1 column on mobile */
+    @media (max-width: 991px) {
+        .calendar-filters-row {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 12px !important;
         }
-        .calendar-sidebar {
+        .filter-col-month,
+        .filter-col-search,
+        .filter-col-category,
+        .filter-col-status {
+            flex: none !important;
             width: 100% !important;
-            min-width: 100% !important;
-            max-width: 100% !important;
-            position: static !important;
+            min-width: 0 !important;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .calendar-filters-row {
+            grid-template-columns: 1fr !important;
+            gap: 10px !important;
         }
         .calendar-main {
+            padding: 14px !important;
             overflow-x: auto !important;
         }
         .fc-scrollgrid,
@@ -520,7 +709,7 @@ include '../templates/header.php';
         .fc-scrollgrid-sync-table,
         .fc-daygrid-body table,
         .fc-col-header table {
-            min-width: 650px !important;
+            min-width: 600px !important;
         }
     }
 </style>
@@ -535,53 +724,65 @@ include '../templates/header.php';
         include '../includes/page_header.php';
         ?>
 
-        <div class="calendar-grid">
-            <aside class="calendar-sidebar">
-                <input class="mini-month" type="month" id="miniMonth" value="<?php echo date('Y-m'); ?>">
-
-                <div class="search-box">
-                    <i class="fas fa-search"></i>
-                    <input type="search" id="calendarSearch" placeholder="Search schedules">
+        <!-- Top Horizontal Filter Toolbar -->
+        <div class="calendar-filter-toolbar">
+            <div class="calendar-filters-row">
+                <div class="filter-col filter-col-month">
+                    <div class="filter-control-wrap">
+                        <input class="calendar-top-control mini-month" type="month" id="miniMonth" value="<?php echo date('Y-m'); ?>" title="Filter by month" aria-label="Filter by month">
+                    </div>
                 </div>
 
-                <select class="filter-select" id="categoryFilter">
-                    <option value="all">All categories</option>
-                    <option value="event">Events</option>
-                    <option value="mass">Mass / Public Schedule</option>
-                    <option value="monthly_mass">Monthly Mass</option>
-                    <option value="sacramental">Sacramental Services</option>
-                    <option value="patronal_fiesta">Patronal Fiesta</option>
-                    <option value="meeting">Meetings</option>
-                    <option value="task">Tasks</option>
-                    <option value="blessing">Blessings</option>
-                    <option value="reservation">Reservations</option>
-                    <option value="announcement">Announcements</option>
-                </select>
-
-                <select class="filter-select" id="statusFilter">
-                    <option value="all">All statuses</option>
-                    <option value="upcoming">Upcoming</option>
-                    <option value="ongoing">Ongoing</option>
-                    <option value="finished">Finished</option>
-                    <option value="cancelled">Cancelled</option>
-                </select>
-
-                <div class="legend" aria-label="Calendar legend">
-                    <div class="legend-item"><span class="legend-dot" style="background:#1a73e8"></span> Parish Event</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#34a853"></span> Mass / Public Schedule</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#0f9d58"></span> Monthly Mass</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#a142f4"></span> Sacramental Services</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#c026d3"></span> Patronal Fiesta</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#fbbc04"></span> Announcement</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#d7ad43"></span> Blessing</div>
+                <div class="filter-col filter-col-search">
+                    <div class="filter-control-wrap search-box-wrap">
+                        <i class="fas fa-search search-icon"></i>
+                        <input class="calendar-top-control" type="search" id="calendarSearch" placeholder="Search schedules" aria-label="Search schedules">
+                    </div>
                 </div>
-            </aside>
 
-            <section class="calendar-main">
-                <div class="calendar-loading" id="calendarLoading"></div>
-                <div id="calendar"></div>
-            </section>
+                <div class="filter-col filter-col-category">
+                    <div class="filter-control-wrap select-wrap">
+                        <select class="calendar-top-control filter-select" id="categoryFilter" aria-label="Filter by category">
+                            <option value="all">All categories</option>
+                            <option value="event">Events</option>
+                            <option value="mass">Mass / Public Schedule</option>
+                            <option value="monthly_mass">Monthly Mass</option>
+                            <option value="sacramental">Sacramental Services</option>
+                            <option value="patronal_fiesta">Patronal Fiesta</option>
+                            <option value="meeting">Meetings</option>
+                            <option value="task">Tasks</option>
+                            <option value="blessing">Blessings</option>
+                            <option value="reservation">Reservations</option>
+                            <option value="announcement">Announcements</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="filter-col filter-col-status">
+                    <div class="filter-control-wrap select-wrap">
+                        <select class="calendar-top-control filter-select" id="statusFilter" aria-label="Filter by status">
+                            <option value="all">All statuses</option>
+                            <option value="upcoming">Upcoming</option>
+                            <option value="ongoing">Ongoing</option>
+                            <option value="finished">Finished</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="calendar-filter-actions" id="clearFiltersWrap" style="display: none;">
+                <button type="button" class="btn-clear-filters" id="clearFiltersBtn">
+                    <i class="fas fa-rotate-left me-1"></i> Clear filters
+                </button>
+            </div>
         </div>
+
+        <!-- Full-Width Calendar Card -->
+        <section class="calendar-main">
+            <div class="calendar-loading" id="calendarLoading"></div>
+            <div id="calendar"></div>
+        </section>
     </div>
 
 <button class="fab-add" type="button" id="fabAdd" aria-label="Add event">
@@ -732,7 +933,7 @@ include '../templates/header.php';
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="../assets/js/main.js"></script>
+<script src="../assets/js/main.js?v=20260930_cal"></script>
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
 <script>
 const CSRF_TOKEN = '<?php echo e(generateCsrfToken()); ?>';
@@ -741,6 +942,7 @@ const modal = new bootstrap.Modal(document.getElementById('eventModal'));
 const detailsModal = new bootstrap.Modal(document.getElementById('detailsModal'));
 const form = document.getElementById('eventForm');
 const loading = document.getElementById('calendarLoading');
+const defaultMonthValue = '<?php echo date('Y-m'); ?>';
 let calendar;
 let searchTimer;
 let isSubmitting = false;
@@ -759,7 +961,123 @@ const defaultColors = {
     announcement: '#fbbc04'
 };
 
-// Toast Function - Documents this helper's role in the parish management workflow.
+// HTML escape helper
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+// Shared Time Formatter - 12-hour style with lowercase am/pm, no leading zeros (8am, 9am, 1pm, 8:30am, 1:15pm). Never "8a" or "9p".
+function formatManilaTime(dateInput) {
+    if (!dateInput) return '';
+
+    // Handle object with startStr/dateStr
+    if (typeof dateInput === 'object' && dateInput !== null) {
+        if (dateInput.startStr) dateInput = dateInput.startStr;
+        else if (dateInput.dateStr) dateInput = dateInput.dateStr;
+    }
+
+    if (typeof dateInput === 'string') {
+        const timeMatch = dateInput.match(/(?:T|\s|^)(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+        if (timeMatch) {
+            let hours = parseInt(timeMatch[1], 10);
+            const minutes = parseInt(timeMatch[2], 10);
+            const ampm = hours >= 12 ? 'pm' : 'am';
+            hours = hours % 12;
+            if (hours === 0) hours = 12;
+            return minutes === 0 ? `${hours}${ampm}` : `${hours}:${String(minutes).padStart(2, '0')}${ampm}`;
+        }
+    }
+
+    const d = (dateInput instanceof Date) ? dateInput : new Date(dateInput);
+    if (isNaN(d.getTime())) return '';
+
+    try {
+        const formatter = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'Asia/Manila',
+            hour: 'numeric',
+            minute: 'numeric',
+            hour12: true
+        });
+        const parts = formatter.formatToParts(d);
+        let h = 0, m = 0, ampm = 'am';
+        for (const p of parts) {
+            if (p.type === 'hour') h = parseInt(p.value, 10);
+            if (p.type === 'minute') m = parseInt(p.value, 10);
+            if (p.type === 'dayPeriod') ampm = p.value.toLowerCase();
+        }
+        return m === 0 ? `${h}${ampm}` : `${h}:${String(m).padStart(2, '0')}${ampm}`;
+    } catch (e) {
+        let h = d.getHours();
+        const m = d.getMinutes();
+        const ampm = h >= 12 ? 'pm' : 'am';
+        h = h % 12;
+        if (h === 0) h = 12;
+        return m === 0 ? `${h}${ampm}` : `${h}:${String(m).padStart(2, '0')}${ampm}`;
+    }
+}
+
+// Shared Time Range Formatter - e.g. "9am – 10am" or "All day"
+function formatManilaTimeRange(start, end, allDay = false) {
+    if (allDay) return 'All day';
+    const s = formatManilaTime(start);
+    const e = formatManilaTime(end);
+    if (s && e) {
+        return `${s} – ${e}`;
+    }
+    return s || e || 'All day';
+}
+
+// Shared Date Formatter in Asia/Manila - e.g. "Wed, Oct 5, 2026"
+function formatManilaDate(dateInput) {
+    if (!dateInput) return '';
+    const d = (dateInput instanceof Date) ? dateInput : new Date(dateInput);
+    if (isNaN(d.getTime())) return '';
+    try {
+        return d.toLocaleDateString('en-US', {
+            timeZone: 'Asia/Manila',
+            weekday: 'short',
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    } catch (e) {
+        return d.toDateString();
+    }
+}
+
+function categoryLabel(cat) {
+    const map = {
+        event: 'Parish Event',
+        mass: 'Mass / Public Schedule',
+        monthly_mass: 'Monthly Mass',
+        sacramental: 'Sacramental Services',
+        patronal_fiesta: 'Patronal Fiesta',
+        meeting: 'Meeting',
+        task: 'Task',
+        blessing: 'Blessing',
+        reservation: 'Reservation',
+        announcement: 'Announcement'
+    };
+    return map[cat] || (cat ? String(cat).charAt(0).toUpperCase() + String(cat).slice(1).replace(/_/g, ' ') : 'Event');
+}
+
+function statusLabel(status) {
+    const map = {
+        upcoming: 'Upcoming',
+        ongoing: 'Ongoing',
+        finished: 'Finished',
+        cancelled: 'Cancelled'
+    };
+    return map[status] || (status ? String(status).charAt(0).toUpperCase() + String(status).slice(1) : 'Upcoming');
+}
+
+// Toast Function
 function toast(message, type = 'success') {
     if (window.ParishNotify && typeof window.ParishNotify.show === 'function') {
         window.ParishNotify.show({message, type});
@@ -799,9 +1117,9 @@ function toDateInput(date) {
 function toTimeInput(date) {
     if (!date) return '';
     if (typeof date === 'string') {
-        if (date.includes('T')) {
-            const timePart = date.split('T')[1];
-            return timePart ? timePart.slice(0, 5) : '';
+        const timeMatch = date.match(/(?:T|\s|^)(\d{1,2}):(\d{2})/);
+        if (timeMatch) {
+            return `${timeMatch[1].padStart(2, '0')}:${timeMatch[2]}`;
         }
         return date.slice(0, 5);
     }
@@ -810,7 +1128,7 @@ function toTimeInput(date) {
     return `${hours}:${minutes}`;
 }
 
-// Event Filters Function - Documents this helper's role in the parish management workflow.
+// Event Filters Function
 function eventFilters() {
     const params = new URLSearchParams();
     const q = document.getElementById('calendarSearch').value.trim();
@@ -822,7 +1140,41 @@ function eventFilters() {
     return params;
 }
 
-// Reset Form Function - Documents this helper's role in the parish management workflow.
+// Check if any filter is active
+function isFilterActive() {
+    const q = document.getElementById('calendarSearch')?.value.trim() || '';
+    const cat = document.getElementById('categoryFilter')?.value || 'all';
+    const stat = document.getElementById('statusFilter')?.value || 'all';
+    const m = document.getElementById('miniMonth')?.value || defaultMonthValue;
+    return q !== '' || cat !== 'all' || stat !== 'all' || m !== defaultMonthValue;
+}
+
+// Toggle Clear filters link visibility
+function updateClearFiltersVisibility() {
+    const wrap = document.getElementById('clearFiltersWrap');
+    if (wrap) {
+        wrap.style.display = isFilterActive() ? 'flex' : 'none';
+    }
+}
+
+// Reset all filters to default state
+function clearAllFilters() {
+    const searchEl = document.getElementById('calendarSearch');
+    const catEl = document.getElementById('categoryFilter');
+    const statEl = document.getElementById('statusFilter');
+    const monthEl = document.getElementById('miniMonth');
+    if (searchEl) searchEl.value = '';
+    if (catEl) catEl.value = 'all';
+    if (statEl) statEl.value = 'all';
+    if (monthEl) monthEl.value = defaultMonthValue;
+    updateClearFiltersVisibility();
+    if (calendar) {
+        calendar.gotoDate(defaultMonthValue + '-01');
+        calendar.refetchEvents();
+    }
+}
+
+// Reset Form Function
 function resetForm(date = new Date()) {
     form.reset();
     document.getElementById('eventModalTitle').textContent = 'Add Schedule';
@@ -835,7 +1187,7 @@ function resetForm(date = new Date()) {
     setActiveColor('#1a73e8');
 }
 
-// Set Active Color Function - Documents this helper's role in the parish management workflow.
+// Set Active Color Function
 function setActiveColor(color) {
     document.getElementById('color_label').value = color;
     document.querySelectorAll('.color-swatch').forEach(btn => {
@@ -843,7 +1195,7 @@ function setActiveColor(color) {
     });
 }
 
-// Fill Form Function - Documents this helper's role in the parish management workflow.
+// Fill Form Function
 function fillForm(event) {
     const props = event.extendedProps;
     document.getElementById('eventModalTitle').textContent = 'Edit Schedule';
@@ -866,7 +1218,7 @@ function fillForm(event) {
     document.getElementById('deleteEventBtn').classList.remove('d-none');
 }
 
-// Form Payload Function - Documents this helper's role in the parish management workflow.
+// Form Payload Function
 function formPayload() {
     return {
         schedule_id: document.getElementById('schedule_id').value,
@@ -913,18 +1265,20 @@ async function saveEvent(payload) {
     return data;
 }
 
-// Show Details Function - Documents this helper's role in the parish management workflow.
+// Show Details Function in Event Details Modal
 function showDetails(event) {
-    const props = event.extendedProps;
+    const props = event.extendedProps || {};
+    const timeRange = formatManilaTimeRange(event.startStr || event.start, event.endStr || event.end, event.allDay);
+    const dateStr = formatManilaDate(event.start);
     document.getElementById('detailsTitle').textContent = event.title;
     document.getElementById('detailsBody').innerHTML = `
         <div class="d-grid gap-2">
-            <div><strong>When:</strong> ${event.start.toLocaleString()}${event.end ? ' - ' + event.end.toLocaleTimeString() : ''}</div>
-            <div><strong>Category:</strong> ${props.category || 'schedule'}</div>
-            <div><strong>Status:</strong> ${props.status || 'upcoming'}</div>
-            <div><strong>Location:</strong> ${props.location || 'Parish'}</div>
-            <div><strong>Source:</strong> ${props.source_type || 'schedule'}</div>
-            <p class="mb-0">${props.description || ''}</p>
+            <div><strong>When:</strong> ${escapeHtml(dateStr)} at ${escapeHtml(timeRange)}</div>
+            <div><strong>Category:</strong> <span class="badge bg-secondary">${escapeHtml(categoryLabel(props.category || 'schedule'))}</span></div>
+            <div><strong>Status:</strong> <span class="badge bg-success">${escapeHtml(statusLabel(props.status || 'upcoming'))}</span></div>
+            <div><strong>Location:</strong> ${escapeHtml(props.location || 'San Lorenzo Ruiz Parish')}</div>
+            <div><strong>Source:</strong> ${escapeHtml(props.source_type || 'schedule')}</div>
+            ${props.description ? `<div class="mt-2 p-2 bg-light rounded"><strong>Description:</strong><p class="mb-0 mt-1">${escapeHtml(props.description)}</p></div>` : ''}
         </div>`;
     detailsModal.show();
 }
@@ -941,6 +1295,12 @@ document.addEventListener('DOMContentLoaded', function() {
         editable: true,
         eventResizableFromStart: true,
         dayMaxEvents: 3,
+        moreLinkClick: function(arg) {
+            calendar.changeView('timeGridDay', arg.date);
+        },
+        moreLinkText: function(num) {
+            return `+${num} more`;
+        },
         headerToolbar: {
             left: 'title prev,next today',
             center: '',
@@ -951,6 +1311,103 @@ document.addEventListener('DOMContentLoaded', function() {
             week: 'Week',
             day: 'Day',
             list: 'Agenda'
+        },
+        // Format time gutter as "8am, 9am, 10am..."
+        slotLabelContent: function(arg) {
+            return formatManilaTime(arg.date);
+        },
+        // Sort events in each cell strictly by start time
+        eventOrder: function(a, b) {
+            if (a.allDay && !b.allDay) return -1;
+            if (!a.allDay && b.allDay) return 1;
+            const aStart = a.start ? a.start.getTime() : 0;
+            const bStart = b.start ? b.start.getTime() : 0;
+            if (aStart !== bStart) return aStart - bStart;
+            return (a.title || '').localeCompare(b.title || '');
+        },
+        // Sync month picker and update clear filters link
+        datesSet: function(dateInfo) {
+            const current = dateInfo.view.currentStart;
+            const year = current.getFullYear();
+            const month = String(current.getMonth() + 1).padStart(2, '0');
+            const miniMonth = document.getElementById('miniMonth');
+            if (miniMonth && miniMonth.value !== `${year}-${month}`) {
+                miniMonth.value = `${year}-${month}`;
+            }
+            updateClearFiltersVisibility();
+        },
+        // Custom event pill rendering for Month, Week, Day, and Agenda views
+        eventContent: function(arg) {
+            const isAllDay = arg.event.allDay;
+            const timeText = isAllDay ? 'All day' : formatManilaTime(arg.event.startStr || arg.event.start);
+            const timeRange = formatManilaTimeRange(arg.event.startStr || arg.event.start, arg.event.endStr || arg.event.end, isAllDay);
+            const color = arg.event.backgroundColor || arg.event.borderColor || defaultColors[arg.event.extendedProps?.category] || '#1a73e8';
+            const title = arg.event.title || 'Untitled';
+
+            if (arg.view.type === 'dayGridMonth') {
+                return {
+                    html: `
+                        <div class="calendar-pill-item" data-id="${escapeHtml(arg.event.id)}">
+                            <span class="pill-dot" style="background-color: ${escapeHtml(color)}"></span>
+                            <span class="pill-time">${escapeHtml(timeText)}</span>
+                            <span class="pill-title">${escapeHtml(title)}</span>
+                        </div>
+                    `
+                };
+            } else if (arg.view.type === 'timeGridWeek' || arg.view.type === 'timeGridDay') {
+                return {
+                    html: `
+                        <div class="calendar-timegrid-item" style="border-left: 3px solid ${escapeHtml(color)}">
+                            <div class="pill-time">${escapeHtml(timeRange)}</div>
+                            <div class="pill-title">${escapeHtml(title)}</div>
+                        </div>
+                    `
+                };
+            } else if (arg.view.type === 'listWeek') {
+                return {
+                    html: `
+                        <div class="calendar-list-item d-flex align-items-center gap-2">
+                            <span class="pill-dot" style="background-color: ${escapeHtml(color)}; width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0;"></span>
+                            <span class="pill-time text-muted fw-semibold" style="min-width: 95px; font-size: 0.85rem; white-space: nowrap;">${escapeHtml(timeRange)}</span>
+                            <span class="pill-title fw-bold text-dark" style="font-size: 0.88rem;">${escapeHtml(title)}</span>
+                        </div>
+                    `
+                };
+            }
+        },
+        // Tooltip initialization on hover & focus
+        eventDidMount: function(info) {
+            const event = info.event;
+            const props = event.extendedProps || {};
+            const timeRange = formatManilaTimeRange(event.startStr || event.start, event.endStr || event.end, event.allDay);
+            const cat = categoryLabel(props.category || 'event');
+            const stat = statusLabel(props.status || 'upcoming');
+
+            info.el.setAttribute('tabindex', '0');
+            info.el.setAttribute('role', 'button');
+            info.el.setAttribute('aria-label', `${event.title}, ${timeRange}, ${cat}, ${stat}`);
+
+            const tooltip = new bootstrap.Tooltip(info.el, {
+                title: `
+                    <div class="calendar-tooltip text-start">
+                        <div class="tooltip-title">${escapeHtml(event.title || 'Untitled')}</div>
+                        <div class="tooltip-line"><i class="far fa-clock me-1 text-warning"></i> <span>${escapeHtml(timeRange)}</span></div>
+                        <div class="tooltip-line"><i class="fas fa-tag me-1 text-info"></i> <span>${escapeHtml(cat)}</span></div>
+                        <div class="tooltip-line"><i class="fas fa-circle-check me-1 text-success"></i> <span>${escapeHtml(stat)}</span></div>
+                    </div>
+                `,
+                html: true,
+                placement: 'top',
+                trigger: 'hover focus',
+                container: 'body',
+                customClass: 'calendar-event-tooltip'
+            });
+            info.el._bsTooltip = tooltip;
+        },
+        eventWillUnmount: function(info) {
+            if (info.el._bsTooltip) {
+                info.el._bsTooltip.dispose();
+            }
         },
         events: function(info, successCallback, failureCallback) {
             const params = eventFilters();
@@ -972,6 +1429,9 @@ document.addEventListener('DOMContentLoaded', function() {
             resetForm(info.date);
         },
         eventClick: function(info) {
+            if (info.el && info.el._bsTooltip) {
+                info.el._bsTooltip.hide();
+            }
             if (info.event.extendedProps.read_only) {
                 showDetails(info.event);
                 return;
@@ -984,6 +1444,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     calendar.render();
+    updateClearFiltersVisibility();
     setInterval(() => calendar.refetchEvents(), 30000);
 });
 
@@ -1105,17 +1566,28 @@ document.getElementById('fabAdd').addEventListener('click', function() {
 });
 
 document.getElementById('miniMonth').addEventListener('change', function() {
-    calendar.gotoDate(this.value + '-01');
+    if (this.value && calendar) {
+        calendar.gotoDate(this.value + '-01');
+    }
+    updateClearFiltersVisibility();
 });
 
 ['categoryFilter', 'statusFilter'].forEach(id => {
-    document.getElementById(id).addEventListener('change', () => calendar.refetchEvents());
+    document.getElementById(id).addEventListener('change', () => {
+        calendar.refetchEvents();
+        updateClearFiltersVisibility();
+    });
 });
 
 document.getElementById('calendarSearch').addEventListener('input', function() {
     clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => calendar.refetchEvents(), 280);
+    searchTimer = setTimeout(() => {
+        calendar.refetchEvents();
+        updateClearFiltersVisibility();
+    }, 280);
 });
+
+document.getElementById('clearFiltersBtn')?.addEventListener('click', clearAllFilters);
 
 document.getElementById('category').addEventListener('change', function() {
     setActiveColor(defaultColors[this.value] || '#1a73e8');

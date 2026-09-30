@@ -772,6 +772,95 @@ function syncLegendPills() {
     });
 }
 
+// HTML escape helper
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+// Shared Time Formatter - 12-hour style with lowercase am/pm, no leading zeros (8am, 9am, 1pm, 8:30am, 1:15pm). Never "8a" or "9p".
+function formatManilaTime(dateInput) {
+    if (!dateInput) return '';
+
+    if (typeof dateInput === 'object' && dateInput !== null) {
+        if (dateInput.startStr) dateInput = dateInput.startStr;
+        else if (dateInput.dateStr) dateInput = dateInput.dateStr;
+    }
+
+    if (typeof dateInput === 'string') {
+        const timeMatch = dateInput.match(/(?:T|\s|^)(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+        if (timeMatch) {
+            let hours = parseInt(timeMatch[1], 10);
+            const minutes = parseInt(timeMatch[2], 10);
+            const ampm = hours >= 12 ? 'pm' : 'am';
+            hours = hours % 12;
+            if (hours === 0) hours = 12;
+            return minutes === 0 ? `${hours}${ampm}` : `${hours}:${String(minutes).padStart(2, '0')}${ampm}`;
+        }
+    }
+
+    const d = (dateInput instanceof Date) ? dateInput : new Date(dateInput);
+    if (isNaN(d.getTime())) return '';
+
+    try {
+        const formatter = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'Asia/Manila',
+            hour: 'numeric',
+            minute: 'numeric',
+            hour12: true
+        });
+        const parts = formatter.formatToParts(d);
+        let h = 0, m = 0, ampm = 'am';
+        for (const p of parts) {
+            if (p.type === 'hour') h = parseInt(p.value, 10);
+            if (p.type === 'minute') m = parseInt(p.value, 10);
+            if (p.type === 'dayPeriod') ampm = p.value.toLowerCase();
+        }
+        return m === 0 ? `${h}${ampm}` : `${h}:${String(m).padStart(2, '0')}${ampm}`;
+    } catch (e) {
+        let h = d.getHours();
+        const m = d.getMinutes();
+        const ampm = h >= 12 ? 'pm' : 'am';
+        h = h % 12;
+        if (h === 0) h = 12;
+        return m === 0 ? `${h}${ampm}` : `${h}:${String(m).padStart(2, '0')}${ampm}`;
+    }
+}
+
+// Shared Time Range Formatter - e.g. "9am – 10am" or "All day"
+function formatManilaTimeRange(start, end, allDay = false) {
+    if (allDay) return 'All day';
+    const s = formatManilaTime(start);
+    const e = formatManilaTime(end);
+    if (s && e) {
+        return `${s} – ${e}`;
+    }
+    return s || e || 'All day';
+}
+
+// Shared Date Formatter in Asia/Manila - e.g. "Wed, Oct 5, 2026"
+function formatManilaDate(dateInput) {
+    if (!dateInput) return '';
+    const d = (dateInput instanceof Date) ? dateInput : new Date(dateInput);
+    if (isNaN(d.getTime())) return '';
+    try {
+        return d.toLocaleDateString('en-US', {
+            timeZone: 'Asia/Manila',
+            weekday: 'short',
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    } catch (e) {
+        return d.toDateString();
+    }
+}
+
 function eventLabel(value) {
     return String(value || 'Schedule').replace(/_/g, ' ').replace(/\b\w/g, function(char) {
         return char.toUpperCase();
@@ -783,11 +872,11 @@ function showDetails(data) {
     document.getElementById('detailsTitle').textContent = data.title;
     document.getElementById('detailsBody').innerHTML = `
         <div class="d-grid gap-2">
-            <div><strong>When:</strong> ${data.when}</div>
-            <div><strong>Location:</strong> ${data.location || 'San Lorenzo Ruiz Parish'}</div>
-            <div><strong>Category:</strong> <span class="badge bg-secondary">${data.category || 'Schedule'}</span></div>
-            <div><strong>Status:</strong> <span class="badge bg-success">${data.status || 'Upcoming'}</span></div>
-            ${data.description ? `<div class="mt-2 p-2 bg-light rounded"><strong>Description:</strong><p class="mb-0 mt-1">${data.description}</p></div>` : ''}
+            <div><strong>When:</strong> ${escapeHtml(data.when)}</div>
+            <div><strong>Location:</strong> ${escapeHtml(data.location || 'San Lorenzo Ruiz Parish')}</div>
+            <div><strong>Category:</strong> <span class="badge bg-secondary">${escapeHtml(data.category || 'Schedule')}</span></div>
+            <div><strong>Status:</strong> <span class="badge bg-success">${escapeHtml(data.status || 'Upcoming')}</span></div>
+            ${data.description ? `<div class="mt-2 p-2 bg-light rounded"><strong>Description:</strong><p class="mb-0 mt-1">${escapeHtml(data.description)}</p></div>` : ''}
         </div>`;
     detailsModal.show();
 }
@@ -800,10 +889,8 @@ document.addEventListener('DOMContentLoaded', function() {
         height: 'auto',
         nowIndicator: true,
         dayMaxEvents: isMobileCalendar ? 2 : 6,
-        eventTimeFormat: {
-            hour: 'numeric',
-            minute: '2-digit',
-            meridiem: 'short'
+        slotLabelContent: function(arg) {
+            return formatManilaTime(arg.date);
         },
         datesSet: function(dateInfo) {
             const d = dateInfo.view.currentStart;
@@ -836,10 +923,11 @@ document.addEventListener('DOMContentLoaded', function() {
             list: 'Agenda'
         },
         eventContent: function(arg) {
-            const timeText = arg.timeText ? `<span class="user-calendar-time">${arg.timeText}</span>` : '';
+            const timeStr = arg.event.allDay ? 'All day' : formatManilaTime(arg.event.startStr || arg.event.start);
+            const timeText = timeStr ? `<span class="user-calendar-time">${timeStr}</span>` : '';
             const color = arg.event.backgroundColor || arg.event.borderColor || '#C89B3C';
             return {
-                html: `<span class="user-calendar-event"><span class="user-calendar-dot" style="--event-dot:${color}"></span>${timeText}<span class="user-calendar-title">${arg.event.title}</span></span>`
+                html: `<span class="user-calendar-event"><span class="user-calendar-dot" style="--event-dot:${color}"></span>${timeText}<span class="user-calendar-title">${escapeHtml(arg.event.title)}</span></span>`
             };
         },
         events: function(info, successCallback, failureCallback) {
@@ -873,7 +961,8 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         eventClick: function(info) {
             const props = info.event.extendedProps || {};
-            const when = info.event.start.toLocaleString() + (info.event.end ? ' - ' + info.event.end.toLocaleTimeString() : '');
+            const timeRange = formatManilaTimeRange(info.event.startStr || info.event.start, info.event.endStr || info.event.end, info.event.allDay);
+            const when = `${formatManilaDate(info.event.start)} (${timeRange})`;
             showDetails({
                 title: info.event.title,
                 when,
