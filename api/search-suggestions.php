@@ -194,7 +194,7 @@ if ($query !== '') {
             while ($row = $result->fetch_assoc()) {
                 $label = ($row['reference_number'] ?: 'Request') . ' - ' . ucfirst(str_replace('_', ' ', $row['request_type']));
                 $url = $can_requests
-                    ? '../admin/process-request.php?id=' . intval($row['request_id'])
+                    ? '../admin/request-workflow.php?id=' . intval($row['request_id'])
                     : '../users/view-request.php?id=' . intval($row['request_id']);
                 addSuggestion($suggestions, $label, 'Request - ' . ucfirst($row['status']), $url, 'fa-file-lines');
             }

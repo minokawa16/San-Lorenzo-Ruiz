@@ -36,6 +36,12 @@ if ($request_id === 0) {
     exit;
 }
 
+// Redirect GET requests to the unified Request Workflow interface
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
+    header("Location: request-workflow.php?id=" . $request_id);
+    exit;
+}
+
 // Fetch request details
 $sql = "SELECT r.*, u.id as user_id, u.fullname, u.email, u.phone_number, u.chapel_district, u.created_at as user_created_at, u.profile_picture
         FROM requests r 

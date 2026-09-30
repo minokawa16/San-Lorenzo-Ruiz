@@ -733,6 +733,364 @@ $breadcrumbs = [
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
+/* Standardized Dark Hero Header Banner & Card */
+.rw-hero-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+    overflow: hidden;
+}
+
+.rw-hero-banner {
+    background: #1e293b;
+    color: #ffffff;
+    padding: 14px 22px;
+    border-radius: 12px 12px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.rw-hero-status {
+    display: flex;
+    align-items: center;
+}
+
+.rw-status-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 14px;
+    border-radius: 9999px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    line-height: 1.3;
+    text-transform: capitalize;
+}
+
+.rw-hero-tracking {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.rw-tracking-prefix {
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: #94a3b8;
+    letter-spacing: 0.02em;
+}
+
+.rw-tracking-code {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #f8fafc;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    letter-spacing: 0.04em;
+}
+
+/* 4-Column Metadata Matrix */
+.rw-metadata-body {
+    padding: 22px 24px 20px;
+    background: #ffffff;
+}
+
+.rw-metadata-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px 24px;
+}
+
+@media (max-width: 992px) {
+    .rw-metadata-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px 20px;
+    }
+}
+
+@media (max-width: 576px) {
+    .rw-metadata-grid {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+}
+
+.rw-meta-cell {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    min-width: 0;
+}
+
+.rw-meta-label {
+    font-size: 0.72rem !important;
+    font-weight: 600 !important;
+    color: #64748b !important;
+    letter-spacing: 0.04em !important;
+    text-transform: uppercase !important;
+    margin-bottom: 6px !important;
+    line-height: 1.2 !important;
+}
+
+.rw-meta-value {
+    font-size: 0.88rem !important;
+    font-weight: 600 !important;
+    color: #0f172a !important;
+    line-height: 1.4 !important;
+    word-break: break-word;
+}
+
+.rw-meta-value.font-monospace {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+}
+
+.rw-user-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.rw-meta-avatar {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+    border-radius: 50% !important;
+    flex-shrink: 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.rw-meta-name {
+    font-weight: 600;
+    color: #0f172a;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rw-phone-link {
+    color: #0f172a;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.15s ease;
+}
+
+.rw-phone-link:hover {
+    color: #c89b3c;
+    text-decoration: underline;
+}
+
+.rw-date-primary {
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.rw-date-sub {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: #64748b;
+    margin-top: 2px;
+}
+
+/* Collapsible Application Drawer Toggle Bar */
+.rw-app-drawer-toggle-bar {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid #f1f5f9;
+}
+
+.rw-toggle-drawer-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 18px;
+    background: #fafaf9;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    color: #475569;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+}
+
+.rw-toggle-drawer-btn:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #0f172a;
+}
+
+.rw-toggle-drawer-btn[aria-expanded="true"] {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #0f172a;
+}
+
+.rw-toggle-chevron {
+    font-size: 0.85rem;
+    font-weight: 700;
+    display: inline-block;
+    transition: transform 0.2s ease;
+}
+
+.rw-toggle-drawer-btn[aria-expanded="true"] .rw-toggle-chevron {
+    transform: rotate(180deg);
+}
+
+/* Operational Review & Action Card */
+.rw-review-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+    overflow: hidden;
+}
+
+.rw-review-card-header {
+    padding: 14px 20px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.rw-review-card-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: #1e293b;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-transform: uppercase;
+}
+
+.rw-review-card-body {
+    padding: 20px 22px;
+}
+
+.rw-review-split-grid {
+    display: grid;
+    grid-template-columns: 4fr 6fr;
+    gap: 20px;
+    margin-bottom: 16px;
+}
+
+@media (max-width: 768px) {
+    .rw-review-split-grid {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+}
+
+.rw-control-select {
+    height: 42px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #1e293b;
+    background-color: #ffffff;
+    transition: all 0.15s ease;
+}
+
+.rw-control-select:focus {
+    border-color: #c89b3c;
+    box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.15);
+    outline: none;
+}
+
+.rw-control-textarea {
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    color: #1e293b;
+    background-color: #ffffff;
+    min-height: 42px;
+    transition: all 0.15s ease;
+}
+
+.rw-control-textarea:focus {
+    border-color: #c89b3c;
+    box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.15);
+    outline: none;
+}
+
+.rw-field-caption {
+    font-size: 0.76rem;
+    color: #64748b;
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.rw-action-toolbar {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.rw-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid #cbd5e1 !important;
+    color: #475569 !important;
+    background: #ffffff !important;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 8px 18px;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: all 0.15s ease;
+}
+
+.rw-back-btn:hover {
+    background: #f1f5f9 !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+}
+
+.rw-update-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #c89b3c !important;
+    border: 1px solid #b58930 !important;
+    color: #ffffff !important;
+    font-size: 0.88rem;
+    font-weight: 700;
+    padding: 8px 24px;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(200, 155, 60, 0.25);
+    transition: all 0.15s ease;
+    cursor: pointer;
+}
+
+.rw-update-btn:hover {
+    background: #b58930 !important;
+    border-color: #9e7525 !important;
+    box-shadow: 0 4px 10px rgba(200, 155, 60, 0.35);
+    transform: translateY(-1px);
+}
+
 .rw-section-header {
     padding: 8px 14px;
     background: #ffffff;
@@ -1004,106 +1362,129 @@ $breadcrumbs = [
             </div>
         <?php endif; ?>
 
-        <!-- 1. TOP OVERVIEW CARD (Summary Metadata + Expandable Toggle) -->
-        <div class="rw-card">
-            <div class="rw-section-header">
-                <div class="d-flex align-items-center gap-2 flex-wrap">
-                    <span class="badge bg-light text-dark border font-monospace px-2 py-1 fw-bold" style="font-size: 11.5px;">
-                        <i class="fas fa-receipt me-1 text-primary"></i><?php echo e($request['reference_number']); ?>
-                    </span>
-                    <span class="badge bg-<?php echo $category_badges[$request_category] ?? 'secondary'; ?>-subtle text-<?php echo $category_badges[$request_category] ?? 'secondary'; ?> border border-<?php echo $category_badges[$request_category] ?? 'secondary'; ?>-subtle text-uppercase fw-semibold px-2 py-0.5" style="font-size: 10.5px;">
-                        <?php echo e($category_labels[$request_category] ?? 'Parish Request'); ?>
+        <!-- ========================================================= -->
+        <!-- 1. STANDARDIZED REQUEST WORKFLOW HERO & METADATA CARD     -->
+        <!-- ========================================================= -->
+        <?php
+        $status_raw = strtolower(trim((string)($disp_status ?? 'pending')));
+        if ($status_raw === 'submitted') $status_raw = 'pending';
+
+        // Soft muted fills with crisp typography
+        $status_pill_styles = [
+            'pending'          => 'background: #dcfce7; color: #166534; border: 1px solid #bbf7d0;',
+            'approved'         => 'background: #dcfce7; color: #15803d; border: 1px solid #86efac;',
+            'processing'       => 'background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;',
+            'in_progress'      => 'background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;',
+            'completed'        => 'background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;',
+            'released'         => 'background: #ede9fe; color: #5b21b6; border: 1px solid #ddd6fe;',
+            'ready_for_pickup' => 'background: #fef9c3; color: #854d0e; border: 1px solid #fde047;',
+            'rejected'         => 'background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;',
+            'cancelled'        => 'background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1;'
+        ];
+        $current_pill_style = $status_pill_styles[$status_raw] ?? 'background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1;';
+        $status_display_label = ucfirst(str_replace('_', ' ', $status_raw));
+
+        // Service naming & classification
+        $service_name_display = ucfirst(str_replace(['_', '-'], ' ', (string)($request['request_type'] ?? 'General Request')));
+        $service_type_display = $category_labels[$request_category] ?? 'Standard Service';
+        $category_text_display = $category_labels[$request_category] ?? 'Parish Request';
+        ?>
+
+        <div class="rw-hero-card">
+            <!-- A. Dark Hero Header Banner -->
+            <div class="rw-hero-banner">
+                <!-- Left Element: Single rounded soft-pill indicator (Strictly NO secondary chips/badges) -->
+                <div class="rw-hero-status">
+                    <span class="rw-status-pill" style="<?php echo $current_pill_style; ?>" aria-label="Request Status: <?php echo e($status_display_label); ?>">
+                        <?php echo e($status_display_label); ?>
                     </span>
                 </div>
-                <div class="d-flex align-items-center gap-2">
-                    <span class="badge rounded-pill px-2.5 py-1 fw-semibold text-uppercase <?php echo getStatusBadgeClass($disp_status); ?>" style="font-size: 11px;">
-                        <?php echo e(ucfirst(str_replace('_', ' ', $disp_status))); ?>
-                    </span>
+
+                <!-- Right Element: Tracking reference with high-contrast hierarchy -->
+                <div class="rw-hero-tracking">
+                    <span class="rw-tracking-prefix">Request ID: </span>
+                    <span class="rw-tracking-code"><?php echo e($request['reference_number']); ?></span>
                 </div>
             </div>
 
-            <div class="rw-section-body">
-                <!-- Metadata Grid -->
-                <div class="row g-2.5">
-                    <div class="col-6 col-md-3">
-                        <span class="micro-label">Tracking Reference</span>
-                        <div class="meta-value font-monospace text-primary">
-                            <?php echo e($request['reference_number']); ?>
+            <!-- B. Request Metadata Grid (4-Column Matrix) -->
+            <div class="rw-metadata-body">
+                <div class="rw-metadata-grid">
+                    <!-- Row 1: Item 1 - Parishioner Name (32px circular avatar + inline name) -->
+                    <div class="rw-meta-cell">
+                        <span class="rw-meta-label">PARISHIONER NAME</span>
+                        <div class="rw-user-inline">
+                            <?php echo renderUserAvatar($request, 32, 'rw-meta-avatar'); ?>
+                            <span class="rw-meta-name"><?php echo e($request['fullname']); ?></span>
                         </div>
                     </div>
 
-                    <div class="col-6 col-md-3">
-                        <span class="micro-label">Service Name</span>
-                        <div class="meta-value">
-                            <?php echo e(ucfirst(str_replace('_', ' ', $request['request_type']))); ?>
-                        </div>
+                    <!-- Row 1: Item 2 - Tracking Reference -->
+                    <div class="rw-meta-cell">
+                        <span class="rw-meta-label">TRACKING REFERENCE</span>
+                        <div class="rw-meta-value font-monospace"><?php echo e($request['reference_number']); ?></div>
                     </div>
 
-                    <div class="col-6 col-md-3">
-                        <span class="micro-label">Category Badge</span>
-                        <div>
-                            <span class="badge bg-<?php echo $category_badges[$request_category] ?? 'secondary'; ?> text-uppercase" style="font-size: 10.5px;">
-                                <?php echo e($category_labels[$request_category] ?? 'Request'); ?>
-                            </span>
-                        </div>
+                    <!-- Row 1: Item 3 - Email Address -->
+                    <div class="rw-meta-cell">
+                        <span class="rw-meta-label">EMAIL ADDRESS</span>
+                        <div class="rw-meta-value text-truncate" title="<?php echo e($request['email']); ?>"><?php echo e($request['email']); ?></div>
                     </div>
 
-                    <div class="col-6 col-md-3">
-                        <span class="micro-label">Service Type</span>
-                        <div class="meta-value">
-                            <?php echo e($category_labels[$request_category] ?? 'Standard Service'); ?>
-                        </div>
-                    </div>
-
-                    <div class="col-6 col-md-3">
-                        <span class="micro-label">Parishioner Name</span>
-                        <div class="meta-value d-flex align-items-center gap-1.5">
-                            <?php echo renderUserAvatar($request, 22); ?>
-                            <span><?php echo e($request['fullname']); ?></span>
-                        </div>
-                    </div>
-
-                    <div class="col-6 col-md-3">
-                        <span class="micro-label">Email Address</span>
-                        <div class="meta-value text-secondary text-truncate" title="<?php echo e($request['email']); ?>">
-                            <?php echo e($request['email']); ?>
-                        </div>
-                    </div>
-
-                    <div class="col-6 col-md-3">
-                        <span class="micro-label">Date/Time Requested</span>
-                        <div class="meta-value">
-                            <?php echo formatDate($request['date_requested']); ?>
-                            <span class="text-muted small fw-normal d-block" style="font-size: 10.5px;"><?php echo date('h:i A', strtotime($request['date_requested'])); ?></span>
-                        </div>
-                    </div>
-
-                    <div class="col-6 col-md-3">
-                        <span class="micro-label">Contact Number</span>
-                        <div class="meta-value">
+                    <!-- Row 1: Item 4 - Contact Number -->
+                    <div class="rw-meta-cell">
+                        <span class="rw-meta-label">CONTACT NUMBER</span>
+                        <div class="rw-meta-value">
                             <?php if (!empty($request['phone_number'])): ?>
-                                <a href="tel:<?php echo e($request['phone_number']); ?>" class="text-decoration-none fw-semibold">
-                                    <i class="fas fa-phone small me-1"></i><?php echo e($request['phone_number']); ?>
+                                <a href="tel:<?php echo e($request['phone_number']); ?>" class="rw-phone-link">
+                                    <?php echo e($request['phone_number']); ?>
                                 </a>
                             <?php else: ?>
-                                <span class="text-muted fw-normal" style="font-size: 11px;">None provided</span>
+                                <span class="text-muted fw-normal">None provided</span>
                             <?php endif; ?>
+                        </div>
+                    </div>
+
+                    <!-- Row 2: Item 5 - Service Name -->
+                    <div class="rw-meta-cell">
+                        <span class="rw-meta-label">SERVICE NAME</span>
+                        <div class="rw-meta-value fw-bold"><?php echo e($service_name_display); ?></div>
+                    </div>
+
+                    <!-- Row 2: Item 6 - Service Type -->
+                    <div class="rw-meta-cell">
+                        <span class="rw-meta-label">SERVICE TYPE</span>
+                        <div class="rw-meta-value"><?php echo e($service_type_display); ?></div>
+                    </div>
+
+                    <!-- Row 2: Item 7 - Category (Standard clean label as plain text - strictly NO badges or pill backgrounds) -->
+                    <div class="rw-meta-cell">
+                        <span class="rw-meta-label">CATEGORY</span>
+                        <div class="rw-meta-value"><?php echo e($category_text_display); ?></div>
+                    </div>
+
+                    <!-- Row 2: Item 8 - Date Requested (MMM DD, YYYY over hh:mm A) -->
+                    <div class="rw-meta-cell">
+                        <span class="rw-meta-label">DATE REQUESTED</span>
+                        <div class="rw-meta-value">
+                            <div class="rw-date-primary"><?php echo date('M d, Y', strtotime($request['date_requested'])); ?></div>
+                            <div class="rw-date-sub"><?php echo date('h:i A', strtotime($request['date_requested'])); ?></div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Primary Toggle Button Bar -->
-                <div class="mt-2.5 pt-2 border-top d-flex justify-content-between align-items-center flex-wrap gap-2">
-                    <button class="btn btn-outline-primary btn-toggle-doc px-3 py-1 fw-semibold d-inline-flex align-items-center gap-1.5" 
+                <!-- C. Collapsible Application Drawer Toggle Bar -->
+                <div class="rw-app-drawer-toggle-bar">
+                    <button class="rw-toggle-drawer-btn" 
                             type="button" 
                             id="toggleApplicationFormBtn" 
                             data-bs-toggle="collapse" 
                             data-bs-target="#submittedFormCollapse" 
                             aria-expanded="false" 
                             aria-controls="submittedFormCollapse">
-                        <i class="fas fa-file-invoice" id="toggleIcon"></i>
+                        <span>📄</span>
                         <span id="toggleText">View Submitted Application Form</span>
-                        <i class="fas fa-chevron-down ms-1 small" id="toggleChevron"></i>
+                        <span class="rw-toggle-chevron" id="toggleChevron">⌵</span>
                     </button>
                 </div>
             </div>
@@ -1572,12 +1953,12 @@ $breadcrumbs = [
         $released_files = array_merge($documents_by_type['released_certificate'], $documents_by_type['admin_file']);
         $first_released = !empty($released_files) ? $released_files[0] : null;
         ?>
-        <!-- SECTION 2: Certificate Issuance & Release -->
+        <!-- SECTION 2: Certificate Issuance & Digital Release -->
         <div class="rw-card">
             <div class="rw-section-header">
                 <h6 class="rw-section-title">
                     <i class="fas fa-certificate" style="color: #16a34a; font-size: 13px;"></i>
-                    CERTIFICATE ISSUANCE &amp; RELEASE
+                    CERTIFICATE ISSUANCE &amp; DIGITAL RELEASE
                 </h6>
                 <div>
                     <?php if ($is_online_release): ?>
@@ -1601,7 +1982,7 @@ $breadcrumbs = [
                         <!-- Left Column: Upload -->
                         <div class="col-12 col-md-6">
                             <div class="fw-bold text-dark" style="font-size: 12px; margin-bottom: 2px;">Upload signed certificate</div>
-                            <div class="text-muted" style="font-size: 11.5px; margin-bottom: 6px;">Sends instantly to the parishioner's portal for download.</div>
+                            <div class="text-muted" style="font-size: 11.5px; margin-bottom: 6px;">Sends instantly to the parishioner's portal for download. Certificate Ready for Download notification sent.</div>
                             
                             <div class="d-flex align-items-center gap-2">
                                 <input type="file" class="form-control form-control-sm" id="release_file" name="release_file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" required style="font-size: 11.5px; padding: 3px 8px; height: 30px;">
@@ -1666,7 +2047,7 @@ $breadcrumbs = [
                             </label>
                         </div>
                         <button type="submit" class="btn btn-sm btn-success fw-semibold d-inline-flex align-items-center gap-1.5" style="font-size: 11.5px; padding: 4px 12px; border-radius: 6px;">
-                            <i class="fas fa-paper-plane"></i> Upload &amp; Release
+                            <i class="fas fa-paper-plane"></i> Send to Parishioner
                         </button>
                     </div>
                 </form>
@@ -1675,56 +2056,57 @@ $breadcrumbs = [
         <?php endif; ?>
 
         <!-- 3. BOTTOM ACTION SECTION: "REVIEW STATUS & UPDATES" -->
-        <div class="rw-card">
-            <div class="rw-section-header">
-                <h6 class="rw-section-title">
-                    <i class="fas fa-clipboard-check" style="color: #8c6225; font-size: 13px;"></i>
-                    REVIEW STATUS &amp; UPDATES
+        <div class="rw-review-card">
+            <div class="rw-review-card-header">
+                <h6 class="rw-review-card-title">
+                    <span>📋</span> REVIEW STATUS &amp; UPDATES
                 </h6>
             </div>
 
-            <div class="rw-section-body">
+            <div class="rw-review-card-body">
                 <form method="POST" id="reviewStatusForm">
                     <?php echo csrfInput(); ?>
                     <input type="hidden" name="action" value="update_status">
                     <input type="hidden" name="request_id" value="<?php echo intval($request_id); ?>">
 
-                    <div class="row g-3 mb-3">
-                        <!-- Status Dropdown -->
-                        <div class="col-md-5">
-                            <label for="status" class="micro-label">REQUEST STATUS</label>
-                            <select class="form-select border-secondary-subtle py-1.5 fw-semibold" id="status" name="status" required style="font-size: 12px; height: 32px;">
+                    <!-- 1. Input Grid (Side-by-Side Split: 40% / 60%) -->
+                    <div class="rw-review-split-grid">
+                        <!-- Current Status (Left Column, 40% width) -->
+                        <div class="rw-review-col-status">
+                            <label for="status" class="rw-meta-label">CURRENT STATUS</label>
+                            <select class="form-select rw-control-select" id="status" name="status" required>
                                 <option value="pending" <?php echo (strtolower($request['status'] ?? '') === 'pending') ? 'selected' : ''; ?>>Pending</option>
                                 <option value="processing" <?php echo (strtolower($request['status'] ?? '') === 'processing') ? 'selected' : ''; ?>>Processing</option>
                                 <option value="completed" <?php echo (strtolower($request['status'] ?? '') === 'completed') ? 'selected' : ''; ?>>Completed</option>
                                 <option value="rejected" <?php echo (strtolower($request['status'] ?? '') === 'rejected') ? 'selected' : ''; ?>>Rejected</option>
                             </select>
-                            <div class="text-muted small mt-1" style="font-size: 11px;">
-                                <i class="fas fa-info-circle me-1"></i> Changing this updates parishioner tracking status.
+                            <div class="rw-field-caption">
+                                <span>ⓘ</span> Changing this updates parishioner tracking status.
                             </div>
                         </div>
 
-                        <!-- Admin Response / Remarks Textarea -->
-                        <div class="col-md-7">
-                            <label class="micro-label" for="admin_response">Admin Response / Remarks</label>
-                            <textarea class="form-control border-secondary-subtle" 
+                        <!-- Admin Response / Remarks (Right Column, 60% width) -->
+                        <div class="rw-review-col-remarks">
+                            <label for="admin_response" class="rw-meta-label">ADMIN RESPONSE / REMARKS</label>
+                            <textarea class="form-control rw-control-textarea" 
                                       id="admin_response" 
                                       name="admin_response" 
                                       rows="2" 
-                                      style="font-size: 12px;"
-                                      placeholder="Enter remarks, instructions, or pickup/event reminders sent back to parishioner..."><?php echo e($request['admin_response'] ?? ''); ?></textarea>
-                            <div class="text-muted small mt-1" style="font-size: 11px;">
-                                <i class="fas fa-bell me-1"></i> Sent in parishioner email &amp; portal notification.
+                                      placeholder="Add comments or instructions, or pickup/event reminders sent back to parishioner..."><?php echo e($request['admin_response'] ?? ''); ?></textarea>
+                            <div class="rw-field-caption">
+                                <span>🔔</span> Sent in parishioner email &amp; portal notification.
                             </div>
                         </div>
+                    </div>
 
-                        <?php if ($is_sacramental): 
-                            $priest_roster = getParishPriestRoster($conn);
-                            $default_parish_priest = getParishPriestName($conn);
-                        ?>
+                    <?php if ($is_sacramental): 
+                        $priest_roster = getParishPriestRoster($conn);
+                        $default_parish_priest = getParishPriestName($conn);
+                    ?>
+                        <div class="row g-3 mt-1 mb-2">
                             <div class="col-md-6">
-                                <label for="workflow_minister" class="micro-label">Minister / Officiating Priest <span class="text-danger">*</span></label>
-                                <select class="form-select border-secondary-subtle py-1 fw-semibold" id="workflow_minister" name="officiating_priest" style="font-size: 11.5px; height: 30px;">
+                                <label for="workflow_minister" class="rw-meta-label">MINISTER / OFFICIATING PRIEST <span class="text-danger">*</span></label>
+                                <select class="form-select border-secondary-subtle py-1.5 fw-semibold" id="workflow_minister" name="officiating_priest" style="font-size: 0.88rem; height: 38px; border-radius: 8px;">
                                     <option value="">-- Select Minister / Officiating Priest --</option>
                                     <?php foreach ($priest_roster as $p_opt): ?>
                                         <option value="<?php echo htmlspecialchars($p_opt); ?>" <?php echo (!empty($funeral_fields['minister']) && strcasecmp($funeral_fields['minister'], $p_opt) === 0) ? 'selected' : ''; ?>>
@@ -1732,11 +2114,11 @@ $breadcrumbs = [
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
-                                <div class="text-muted small mt-1" style="font-size: 10.5px;">Required when marking sacramental request completed.</div>
+                                <div class="rw-field-caption">Required when marking sacramental request completed.</div>
                             </div>
                             <div class="col-md-6">
-                                <label for="workflow_parish_priest" class="micro-label">Parish Priest <span class="text-danger">*</span></label>
-                                <select class="form-select border-secondary-subtle py-1 fw-semibold" id="workflow_parish_priest" name="parish_priest" style="font-size: 11.5px; height: 30px;">
+                                <label for="workflow_parish_priest" class="rw-meta-label">PARISH PRIEST <span class="text-danger">*</span></label>
+                                <select class="form-select border-secondary-subtle py-1.5 fw-semibold" id="workflow_parish_priest" name="parish_priest" style="font-size: 0.88rem; height: 38px; border-radius: 8px;">
                                     <option value="">-- Select Parish Priest --</option>
                                     <?php foreach ($priest_roster as $p_opt): ?>
                                         <option value="<?php echo htmlspecialchars($p_opt); ?>" <?php echo ($p_opt === $default_parish_priest) ? 'selected' : ''; ?>>
@@ -1744,95 +2126,93 @@ $breadcrumbs = [
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
-                                <div class="text-muted small mt-1" style="font-size: 10.5px;">Confirmed canonical Parish Priest for official registry.</div>
+                                <div class="rw-field-caption">Confirmed canonical Parish Priest for official registry.</div>
                             </div>
-                        <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
 
-                        <?php if ($is_funeral): ?>
-                            <div class="col-12 mt-2">
-                                <div class="p-3 rounded-3 border" style="background: #fafaf8;">
-                                    <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-2 flex-wrap gap-2">
-                                        <div class="fw-bold text-dark small">
-                                            <i class="fas fa-cross text-secondary me-1"></i> FUNERAL INVESTIGATION SHEET &amp; PARISH RECORD DETAILS
-                                        </div>
-                                        <?php if ($linked_funeral_record): ?>
-                                            <div class="d-flex align-items-center gap-2">
-                                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style="font-size: 11px;">
-                                                    <i class="fas fa-check-circle me-1"></i> Linked Record: <?php echo htmlspecialchars($linked_funeral_record['registry_no'] ?: ('#' . $linked_funeral_record['funeral_id'])); ?>
-                                                </span>
-                                                <a href="funeral-records.php?search=<?php echo urlencode($linked_funeral_record['deceased_name']); ?>" target="_blank" class="btn btn-sm btn-outline-success py-0 px-2" style="font-size: 11px;">
-                                                    View in Funeral Records <i class="fas fa-arrow-up-right-from-square ms-1"></i>
-                                                </a>
-                                            </div>
-                                        <?php else: ?>
-                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1" style="font-size: 11px;">
-                                                <i class="fas fa-info-circle me-1"></i> Auto-creates Funeral Record on Completion
-                                            </span>
-                                        <?php endif; ?>
+                    <?php if ($is_funeral): ?>
+                        <div class="mt-3 mb-2">
+                            <div class="p-3 rounded-3 border" style="background: #fafaf8;">
+                                <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-2 flex-wrap gap-2">
+                                    <div class="fw-bold text-dark small">
+                                        <i class="fas fa-cross text-secondary me-1"></i> FUNERAL INVESTIGATION SHEET &amp; PARISH RECORD DETAILS
                                     </div>
-                                    <p class="text-muted mb-3" style="font-size: 11px;">
-                                        Review and adjust the information below. Once this request is marked <strong>Completed</strong>, these exact fields are stored in the official <strong>Parish Records &gt; Funeral Records</strong> table. Any edits made after completion will update the official record.
-                                    </p>
+                                    <?php if ($linked_funeral_record): ?>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style="font-size: 11px;">
+                                                <i class="fas fa-check-circle me-1"></i> Linked Record: <?php echo htmlspecialchars($linked_funeral_record['registry_no'] ?: ('#' . $linked_funeral_record['funeral_id'])); ?>
+                                            </span>
+                                            <a href="funeral-records.php?search=<?php echo urlencode($linked_funeral_record['deceased_name']); ?>" target="_blank" class="btn btn-sm btn-outline-success py-0 px-2" style="font-size: 11px;">
+                                                View in Funeral Records <i class="fas fa-arrow-up-right-from-square ms-1"></i>
+                                            </a>
+                                        </div>
+                                    <?php else: ?>
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1" style="font-size: 11px;">
+                                            <i class="fas fa-info-circle me-1"></i> Auto-creates Funeral Record on Completion
+                                        </span>
+                                    <?php endif; ?>
+                                </div>
+                                <p class="text-muted mb-3" style="font-size: 11px;">
+                                    Review and adjust the information below. Once this request is marked <strong>Completed</strong>, these exact fields are stored in the official <strong>Parish Records &gt; Funeral Records</strong> table. Any edits made after completion will update the official record.
+                                </p>
 
-                                    <div class="row g-2">
-                                        <div class="col-md-6">
-                                            <label for="wf_deceased_name" class="micro-label">Deceased Full Name <span class="text-danger">*</span></label>
-                                            <input type="text" class="form-control border-secondary-subtle py-1" id="wf_deceased_name" name="funeral_sheet[deceased_name]" value="<?php echo htmlspecialchars($funeral_fields['deceased_name'] ?? ''); ?>" style="font-size: 11.5px; height: 30px;" placeholder="Deceased name">
-                                        </div>
-                                        <div class="col-md-3">
-                                            <label for="wf_date_of_death" class="micro-label">Date of Death <span class="text-danger">*</span></label>
-                                            <input type="date" class="form-control border-secondary-subtle py-1" id="wf_date_of_death" name="funeral_sheet[date_of_death]" value="<?php echo htmlspecialchars($funeral_fields['date_of_death'] ?? ''); ?>" style="font-size: 11.5px; height: 30px;">
-                                        </div>
-                                        <div class="col-md-3">
-                                            <label for="wf_date_of_burial" class="micro-label">Date of Burial / Mass <span class="text-danger">*</span></label>
-                                            <input type="date" class="form-control border-secondary-subtle py-1" id="wf_date_of_burial" name="funeral_sheet[date_of_burial]" value="<?php echo htmlspecialchars($funeral_fields['date_of_burial'] ?? ''); ?>" style="font-size: 11.5px; height: 30px;">
-                                        </div>
-                                        <div class="col-md-3">
-                                            <label for="wf_civil_status" class="micro-label">Civil Status <span class="text-danger">*</span></label>
-                                            <select class="form-select border-secondary-subtle py-1 fw-semibold" id="wf_civil_status" name="funeral_sheet[civil_status]" style="font-size: 11.5px; height: 30px;">
-                                                <option value="">— Select —</option>
-                                                <?php foreach (['Single', 'Married', 'Widowed', 'Separated', 'Annulled'] as $cs): ?>
-                                                    <option value="<?php echo $cs; ?>" <?php echo (strcasecmp($funeral_fields['civil_status'] ?? '', $cs) === 0) ? 'selected' : ''; ?>>
-                                                        <?php echo $cs; ?>
-                                                    </option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <label for="wf_funeral_rites" class="micro-label">Funeral Rites <span class="text-danger">*</span></label>
-                                            <select class="form-select border-secondary-subtle py-1 fw-semibold" id="wf_funeral_rites" name="funeral_sheet[funeral_rites]" style="font-size: 11.5px; height: 30px;">
-                                                <option value="">— Select —</option>
-                                                <?php foreach (['Full Catholic Rites', 'Simple Blessing', 'Graveside Service', 'Memorial Mass', 'Cremation Blessing', 'Other'] as $fr): ?>
-                                                    <option value="<?php echo $fr; ?>" <?php echo (strcasecmp($funeral_fields['funeral_rites'] ?? '', $fr) === 0) ? 'selected' : ''; ?>>
-                                                        <?php echo $fr; ?>
-                                                    </option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <label for="wf_cause_of_death" class="micro-label">Cause of Death</label>
-                                            <input type="text" class="form-control border-secondary-subtle py-1" id="wf_cause_of_death" name="funeral_sheet[cause_of_death]" value="<?php echo htmlspecialchars($funeral_fields['cause_of_death'] ?? ''); ?>" style="font-size: 11.5px; height: 30px;" placeholder="e.g. Natural causes">
-                                        </div>
-                                        <div class="col-md-3">
-                                            <label for="wf_place_of_burial" class="micro-label">Place of Burial <span class="text-danger">*</span></label>
-                                            <input type="text" class="form-control border-secondary-subtle py-1" id="wf_place_of_burial" name="funeral_sheet[place_of_burial]" value="<?php echo htmlspecialchars($funeral_fields['place_of_burial'] ?? ''); ?>" style="font-size: 11.5px; height: 30px;" placeholder="e.g. Cemetery name">
-                                        </div>
+                                <div class="row g-2">
+                                    <div class="col-md-6">
+                                        <label for="wf_deceased_name" class="rw-meta-label">Deceased Full Name <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control border-secondary-subtle py-1" id="wf_deceased_name" name="funeral_sheet[deceased_name]" value="<?php echo htmlspecialchars($funeral_fields['deceased_name'] ?? ''); ?>" style="font-size: 11.5px; height: 32px; border-radius: 6px;" placeholder="Deceased name">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="wf_date_of_death" class="rw-meta-label">Date of Death <span class="text-danger">*</span></label>
+                                        <input type="date" class="form-control border-secondary-subtle py-1" id="wf_date_of_death" name="funeral_sheet[date_of_death]" value="<?php echo htmlspecialchars($funeral_fields['date_of_death'] ?? ''); ?>" style="font-size: 11.5px; height: 32px; border-radius: 6px;">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="wf_date_of_burial" class="rw-meta-label">Date of Burial / Mass <span class="text-danger">*</span></label>
+                                        <input type="date" class="form-control border-secondary-subtle py-1" id="wf_date_of_burial" name="funeral_sheet[date_of_burial]" value="<?php echo htmlspecialchars($funeral_fields['date_of_burial'] ?? ''); ?>" style="font-size: 11.5px; height: 32px; border-radius: 6px;">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="wf_civil_status" class="rw-meta-label">Civil Status <span class="text-danger">*</span></label>
+                                        <select class="form-select border-secondary-subtle py-1 fw-semibold" id="wf_civil_status" name="funeral_sheet[civil_status]" style="font-size: 11.5px; height: 32px; border-radius: 6px;">
+                                            <option value="">— Select —</option>
+                                            <?php foreach (['Single', 'Married', 'Widowed', 'Separated', 'Annulled'] as $cs): ?>
+                                                <option value="<?php echo $cs; ?>" <?php echo (strcasecmp($funeral_fields['civil_status'] ?? '', $cs) === 0) ? 'selected' : ''; ?>>
+                                                    <?php echo $cs; ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="wf_funeral_rites" class="rw-meta-label">Funeral Rites <span class="text-danger">*</span></label>
+                                        <select class="form-select border-secondary-subtle py-1 fw-semibold" id="wf_funeral_rites" name="funeral_sheet[funeral_rites]" style="font-size: 11.5px; height: 32px; border-radius: 6px;">
+                                            <option value="">— Select —</option>
+                                            <?php foreach (['Full Catholic Rites', 'Simple Blessing', 'Graveside Service', 'Memorial Mass', 'Cremation Blessing', 'Other'] as $fr): ?>
+                                                <option value="<?php echo $fr; ?>" <?php echo (strcasecmp($funeral_fields['funeral_rites'] ?? '', $fr) === 0) ? 'selected' : ''; ?>>
+                                                    <?php echo $fr; ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="wf_cause_of_death" class="rw-meta-label">Cause of Death</label>
+                                        <input type="text" class="form-control border-secondary-subtle py-1" id="wf_cause_of_death" name="funeral_sheet[cause_of_death]" value="<?php echo htmlspecialchars($funeral_fields['cause_of_death'] ?? ''); ?>" style="font-size: 11.5px; height: 32px; border-radius: 6px;" placeholder="e.g. Natural causes">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="wf_place_of_burial" class="rw-meta-label">Place of Burial <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control border-secondary-subtle py-1" id="wf_place_of_burial" name="funeral_sheet[place_of_burial]" value="<?php echo htmlspecialchars($funeral_fields['place_of_burial'] ?? ''); ?>" style="font-size: 11.5px; height: 32px; border-radius: 6px;" placeholder="e.g. Cemetery name">
                                     </div>
                                 </div>
                             </div>
-                        <?php endif; ?>
-                    </div>
+                        </div>
+                    <?php endif; ?>
 
-                    <!-- Bottom Action Bar -->
-                    <div class="pt-2 border-top d-flex flex-column flex-sm-row justify-content-between align-items-stretch align-items-sm-center gap-2">
-                        <a href="manage-requests.php" class="btn btn-sm btn-outline-secondary px-3 py-1 fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5" style="font-size: 12px; border-radius: 6px;">
-                            <i class="fas fa-arrow-left"></i>
-                            <span>Back to Requests</span>
+                    <!-- 2. Action Toolbar & Button Hierarchy -->
+                    <div class="rw-action-toolbar">
+                        <a href="manage-requests.php" class="rw-back-btn">
+                            <span>←</span> Back to Requests
                         </a>
 
-                        <button type="submit" class="btn btn-sm btn-parish-gold d-inline-flex align-items-center justify-content-center gap-1.5">
-                            <i class="fas fa-check-circle"></i>
-                            <span>Update Request</span>
+                        <button type="submit" class="rw-update-btn">
+                            <i class="fas fa-check-circle"></i> Update Request
                         </button>
                     </div>
                 </form>
@@ -1847,32 +2227,14 @@ document.addEventListener('DOMContentLoaded', function () {
     const formCollapse = document.getElementById('submittedFormCollapse');
     const toggleBtn = document.getElementById('toggleApplicationFormBtn');
     const toggleText = document.getElementById('toggleText');
-    const toggleIcon = document.getElementById('toggleIcon');
-    const toggleChevron = document.getElementById('toggleChevron');
 
     if (formCollapse && toggleBtn && toggleText) {
         formCollapse.addEventListener('show.bs.collapse', function () {
-            toggleText.textContent = 'Hide Application Form';
-            if (toggleIcon) {
-                toggleIcon.className = 'fas fa-folder-open';
-            }
-            if (toggleChevron) {
-                toggleChevron.className = 'fas fa-chevron-up ms-1 small';
-            }
-            toggleBtn.classList.remove('btn-outline-primary');
-            toggleBtn.classList.add('btn-primary');
+            toggleBtn.setAttribute('aria-expanded', 'true');
         });
 
         formCollapse.addEventListener('hide.bs.collapse', function () {
-            toggleText.textContent = 'View Submitted Application Form';
-            if (toggleIcon) {
-                toggleIcon.className = 'fas fa-file-invoice';
-            }
-            if (toggleChevron) {
-                toggleChevron.className = 'fas fa-chevron-down ms-1 small';
-            }
-            toggleBtn.classList.remove('btn-primary');
-            toggleBtn.classList.add('btn-outline-primary');
+            toggleBtn.setAttribute('aria-expanded', 'false');
         });
     }
 });

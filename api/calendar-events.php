@@ -279,7 +279,7 @@ function buildScheduleEvent($row, $instance_date = null, $editable = false) {
     $recordUrl = '';
 
     if ($editable && $sourceType === 'request' && $sourceId > 0) {
-        $recordUrl = 'process-request.php?id=' . $sourceId;
+        $recordUrl = 'request-workflow.php?id=' . $sourceId;
     }
 
     return [
