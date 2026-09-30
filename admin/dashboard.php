@@ -32,7 +32,6 @@ $kpis = array(
     'total_requests' => 0,
     'pending_requests' => 0,
     'total_records' => 0,
-    'total_reservations' => 0,
     'active_announcements' => 0,
     'active_schedules' => 0
 );
@@ -84,13 +83,6 @@ if ($stmt) {
     $stmt->close();
 }
 
-// Total Reservations
-$stmt = $conn->prepare("SELECT COUNT(*) as count FROM reservations");
-if ($stmt) {
-    $stmt->execute();
-    $kpis['total_reservations'] = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
-    $stmt->close();
-}
 
 // Active Announcements
 $stmt = $conn->prepare("SELECT COUNT(*) as count FROM announcements WHERE status = 'active' AND deleted_at IS NULL");
@@ -428,10 +420,10 @@ $dashboard_avatar_letter = 'P';
             transform: translateY(-1px);
         }
 
-        /* ── 3. High Density Stat Cards ──────────────────── */
+        /* ── 3. High Density Stat Cards (6 Key Metrics) ──── */
         .dashboard-stats-grid {
             display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 12px;
             margin-bottom: 16px;
         }
@@ -654,19 +646,7 @@ $dashboard_avatar_letter = 'P';
         .dashboard-activity-icon.rejected { background: #fee2e2; color: #991b1b; }
 
         /* ── Responsiveness ───────────────────────────────────────── */
-        @media (max-width: 1300px) {
-            .dashboard-stats-grid {
-                grid-template-columns: repeat(4, minmax(0, 1fr));
-            }
-        }
-
-        @media (max-width: 1100px) {
-            .dashboard-stats-grid {
-                grid-template-columns: repeat(3, minmax(0, 1fr));
-            }
-        }
-
-        @media (max-width: 760px) {
+        @media (max-width: 900px) {
             .dashboard-stats-grid {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
@@ -796,19 +776,7 @@ $dashboard_avatar_letter = 'P';
                     </div>
                 </a>
 
-                <!-- 5. Event Reservations -->
-                <a href="manage-reservations.php" class="stat-card-compact" aria-label="View event reservations">
-                    <div class="stat-card-header">
-                        <span class="stat-card-label">Event Reservations</span>
-                        <span class="stat-card-icon icon-purple"><i class="fas fa-calendar-check"></i></span>
-                    </div>
-                    <div class="stat-card-value"><?php echo number_format($kpis['total_reservations']); ?></div>
-                    <div class="stat-card-footer">
-                        <span class="trend-pill neutral"><i class="fas fa-box-archive"></i> Scheduled</span>
-                    </div>
-                </a>
-
-                <!-- 6. Active Announcements -->
+                <!-- 5. Active Announcements -->
                 <a href="manage-announcements.php" class="stat-card-compact" aria-label="View active announcements">
                     <div class="stat-card-header">
                         <span class="stat-card-label">Announcements</span>
@@ -820,7 +788,7 @@ $dashboard_avatar_letter = 'P';
                     </div>
                 </a>
 
-                <!-- 7. Calendar Schedules -->
+                <!-- 6. Calendar Schedules -->
                 <a href="manage-calendar.php" class="stat-card-compact" aria-label="View calendar schedules">
                     <div class="stat-card-header">
                         <span class="stat-card-label">Schedules &amp; Events</span>
@@ -829,18 +797,6 @@ $dashboard_avatar_letter = 'P';
                     <div class="stat-card-value"><?php echo number_format($kpis['active_schedules']); ?></div>
                     <div class="stat-card-footer">
                         <span class="trend-pill neutral"><i class="fas fa-clock"></i> Approved</span>
-                    </div>
-                </a>
-
-                <!-- 8. System Audit -->
-                <a href="audit-logs.php" class="stat-card-compact" aria-label="View system audit">
-                    <div class="stat-card-header">
-                        <span class="stat-card-label">System Audit</span>
-                        <span class="stat-card-icon icon-slate"><i class="fas fa-shield-halved"></i></span>
-                    </div>
-                    <div class="stat-card-value">Live</div>
-                    <div class="stat-card-footer">
-                        <span class="trend-pill success"><i class="fas fa-lock"></i> Tracking active</span>
                     </div>
                 </a>
             </div>
