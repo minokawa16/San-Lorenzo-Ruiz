@@ -24,13 +24,38 @@ final class AiAssistantService
         $correlation = tugonCorrelationId();
         $audience = !empty($capabilities['staff']) ? 'staff' : 'parishioner';
 
-        // 1. Security Check: Prompt Injection Guardrail
+        // 1. Security Check: Prompt Injection & Internal Architecture Guardrail (Part A Step 5, Test 12)
         if ($this->isInjection($message)) {
             $lang = TugonConversationalIntent::detectLanguage($message, TugonConversationalIntent::normalize($message));
             $answer = ($lang === 'fil' || $lang === 'taglish')
-                ? 'Hindi ko maaaring balewalain ang mga patakaran, maglabas ng lihim, o lampasan ang pahintulot. Maaari po kitang tulungan sa mga awtorisadong serbisyo ng TUGON.'
-                : 'I cannot ignore safeguards, reveal secrets, or bypass permissions. I can help with authorized TUGON parish services.';
+                ? 'Hindi ko maaaring balewalain ang mga patakaran, maglabas ng lihim, o magbigay ng impormasyon ng server. Maaari lamang po akong tumulong sa mga serbisyo ng parokya tulad ng mga kahilingan, iskedyul, at mga kailangan. Mayroon po ba akong maitutulong sa inyo tungkol sa mga ito?'
+                : "I cannot ignore safeguards, reveal secrets, or bypass permissions. I can only help with parish services such as requests, schedules, and requirements. Is there something about those I can help with?";
             return $this->persist($userId, $audience, $mode, $lang, $message, $answer, [], [], null, $correlation, 'security-refusal', [], TugonConversationalIntent::TOPIC_OFF_TOPIC_OR_UNSAFE);
+        }
+
+        // 1b. Security Check: Sensitive Credentials & OTP Guardrail (KB-81, Part E #5, Test 15)
+        if ($this->isSensitiveCredential($message)) {
+            $lang = TugonConversationalIntent::detectLanguage($message, TugonConversationalIntent::normalize($message));
+            $answer = ($lang === 'fil' || $lang === 'taglish')
+                ? 'Huwag po ninyong ibahagi ang inyong OTP o password kaninuman, kabilang sa akin. Hindi po hihingin ng parish staff o ng Tugon AI ang inyong OTP. Ilagay lamang po ito sa verification screen ng portal.'
+                : "Please don't share your OTP with anyone, including me. Neither I nor the parish staff will ever ask for it. Enter it only on the portal's verification screen.";
+            return $this->persist($userId, $audience, $mode, $lang, $message, $answer, [], [], null, $correlation, 'credential-warning', [], TugonConversationalIntent::TOPIC_OFF_TOPIC_OR_UNSAFE);
+        }
+
+        // 1c. Pastoral Care / Grief / Emergency Guardrail (KB-42, KB-43, Part A Step 5, Test 14)
+        if ($this->isGriefOrEmergency($message)) {
+            $lang = TugonConversationalIntent::detectLanguage($message, TugonConversationalIntent::normalize($message));
+            $isDying = (bool) preg_match('/\b(?:dying|naghihingalo|last rites|emergency|dangerously ill)\b/iu', $message);
+            if ($isDying) {
+                $answer = ($lang === 'fil' || $lang === 'taglish')
+                    ? "Sumasainyo ang aming panalangin. Para sa **Anointing of the Sick (Pahid sa May Sakit / Last Rites)**, mangyaring tumawag agad sa **Parish Emergency Hotline: 0997 742 8176** upang mapuntahan agad ng pari ang maysakit. Huwag na po kayong maghintay sa online request kung ito ay apurahan."
+                    : "We are holding your loved one and family in prayer. For the **Anointing of the Sick (Last Rites)**, please call the **Parish Emergency Hotline at 0997 742 8176 immediately** so a priest can be dispatched for visitation. If it is urgent, calling directly is strongly advised over waiting for an online request.";
+            } else {
+                $answer = ($lang === 'fil' || $lang === 'taglish')
+                    ? "Nakikiramay po kami sa inyong pagdadalamhati. Isasama po namin sa panalangin ang inyong mahal sa buhay at ang inyong buong pamilya. Mangyaring tumawag sa opisina ng parokya sa **0997 742 8176** upang mai-coordinate ang Funeral Mass at pagbabasbas ng libing. Kakailanganin ninyo ang Death Certificate, Cemetery Burial Permit, at mga detalye ng sementeryo."
+                    : "I'm so sorry for your loss. We'll keep your family and loved one in our prayers. Please call the parish office or hotline at **0997 742 8176** immediately so they can coordinate the funeral Mass and wake blessing. When you're ready, you'll need the PSA Death Certificate, Cemetery Burial Permit, and cemetery details.";
+            }
+            return $this->persist($userId, $audience, $mode, $lang, $message, $answer, [], [], null, $correlation, 'pastoral-care', ['0997 742 8176'], TugonConversationalIntent::TOPIC_CHURCH_TEACHING);
         }
 
         // 2. Security Check: Read-Only Mutation Refusal
@@ -99,7 +124,8 @@ final class AiAssistantService
         // 8. Grounded System Guidance & Personalized User Transaction Inquiries
         $systemResponse = $this->resolveSystemOrUserTransactionQuery($userId, $contextualQuery, $language, $detectedTopic);
         if ($systemResponse !== null) {
-            return $this->persist($userId, $audience, $mode, $language, $message, $systemResponse['answer'], $systemResponse['sources'] ?? [], $searchResults, null, $correlation, 'system-transaction-grounded', $systemResponse['prompts'] ?? [], $detectedTopic);
+            $responseTopic = $systemResponse['category'] ?? $detectedTopic;
+            return $this->persist($userId, $audience, $mode, $language, $message, $systemResponse['answer'], $systemResponse['sources'] ?? [], $searchResults, null, $correlation, 'system-transaction-grounded', $systemResponse['prompts'] ?? [], $responseTopic);
         }
 
         // 9. Smart Proactive Follow-ups for Incomplete Requests
@@ -224,6 +250,124 @@ final class AiAssistantService
     {
         $normalized = mb_strtolower(trim($query));
         $isFil = ($language === 'fil' || $language === 'taglish');
+
+        // 0-A. 1-Hour Slot Rule & Availability Conflict (Test 6, KB-60, KB-61)
+        if (preg_match('/\b(?:9:?30|can i book 9:?30|pwede ba 9:?30|existing booking.*(?:9\s*am|9:?00)|booking at 9\s*am.*9:?30|1-?hour slot|slot rule|slot conflict|overlapping slot)\b/iu', $normalized)) {
+            $answer = $isFil
+                ? "Hindi po. Ang bawat booking ay sumasakop ng **1 buong oras** (mula sa oras ng simula hanggang 60 minuto). Kaya ang 9:00 AM booking ay humaharang sa 9:00 hanggang 10:00 AM. Ang susunod na available na oras ay **10:00 AM** (hindi available ang 9:30 AM). Maaari rin po kayong pumili ng mas maaga, tulad ng 8:00 AM."
+                : "No. Every booking occupies **one full hour**, from its start time to start time + 60 minutes. An existing booking at 9:00 AM blocks 9:00 AM to 10:00 AM, so 9:30 AM is **not available**. The next available time is **10:00 AM**. You may also choose an earlier time such as 8:00 AM.";
+            return [
+                'answer' => $answer,
+                'category' => TugonConversationalIntent::TOPIC_SCHEDULE_AVAILABILITY,
+                'prompts' => ['Parish Schedule', 'Request Blessing', 'Sacramental Services']
+            ];
+        }
+
+        // 0-B. Rescheduling Policy (Test 16, KB-63, Part G #4)
+        if (preg_match('/\b(?:can i reschedule (?:my )?request|can i reschedule|reschedule|can i change (?:the )?(?:date|time|schedule) of my request|palitan ang petsa|ilipat ang iskedyul|change requested schedule|move my schedule)\b/iu', $normalized)) {
+            $answer = $isFil
+                ? "Paumanhin po, ngunit ang naisumiteng request ay **hindi na maaaring i-reschedule** sa pamamagitan ng sistema. Piliin po nang maigi ang inyong petsa at oras bago mag-submit.\n\n• Kung na-reject ang inyong request dahil sa schedule conflict, sundin ang admin remarks at magsumite muli gamit ang bakanteng slot.\n• Para sa kanselasyon o agarang pagbabago, mangyaring makipag-ugnayan sa opisina ng parokya sa **0997 742 8176** (Martes hanggang Sabado, 8:00 AM–5:00 PM; Linggo, 7:00 AM–12:00 PM; Sarado Lunes)."
+                : "I'm sorry, but a submitted request **can't be rescheduled through the system**, so it's best to pick your date and time carefully before submitting.\n\n• If your request was rejected due to a schedule conflict, follow the admin remarks and resubmit with an available slot.\n• If you need to cancel or have an urgent concern, please contact the parish office at **0997 742 8176** (Tuesday to Saturday, 8:00 AM to 5:00 PM; Sunday, 7:00 AM to 12:00 PM; closed Monday).";
+            return [
+                'answer' => $answer,
+                'category' => TugonConversationalIntent::TOPIC_SCHEDULE_AVAILABILITY,
+                'prompts' => ['Track My Requests', 'Parish Schedule', 'Contact Parish Staff']
+            ];
+        }
+
+        // 0-C. Unpublished Fees: Wedding, Baptism, Funeral (Tests 10, 17, KB-45, Part G #3)
+        if (preg_match('/\b(?:how much (?:is |does it cost for )?(?:a )?(?:church )?(?:wedding|kasal|matrimony)|magkano (?:ang )?(?:kasal|sa kasal)|wedding fee|bayad sa kasal)\b/iu', $normalized)) {
+            $answer = $isFil
+                ? "Ang bayad o offering para sa **kasal sa simbahan ay hindi nakalagay online**. Mangyaring kumpirmahin ito sa opisina ng parokya sa **0997 742 8176** (Martes hanggang Sabado, 8:00 AM–5:00 PM; Linggo, 7:00 AM–12:00 PM; sarado Lunes).\n\nMaaari ko pong ilista ang mga kinakailangang dokumento at requirements na kailangang asikasuhin nang hindi bababa sa **2 hanggang 3 buwan** bago ang kasal kung nais po ninyo."
+                : "I don't have the exact wedding fee on hand, so please confirm it with the parish office at **0997 742 8176** (Tuesday to Saturday, 8:00 AM to 5:00 PM; Sunday, 7:00 AM to 12:00 PM; closed Monday). I can list the requirements and documents you'll need to file at least **2 to 3 months ahead**, if you'd like.";
+            return [
+                'answer' => $answer,
+                'category' => TugonConversationalIntent::TOPIC_PAYMENTS,
+                'prompts' => ['Requirements for a wedding', 'Parish Office Hours', 'Contact Parish Staff']
+            ];
+        }
+
+        if (preg_match('/\b(?:how much (?:is |does it cost for )?(?:a )?baptism|magkano (?:ang )?(?:binyag|sa binyag)|baptism fee|bayad sa binyag)\b/iu', $normalized)) {
+            $answer = $isFil
+                ? "Ang opisyal na bayad o offering para sa **binyag ay hindi nakalagay online**. Mangyaring sumangguni sa opisina ng parokya sa **0997 742 8176** (Martes hanggang Sabado 8:00 AM–5:00 PM, Linggo 7:00 AM–12:00 PM; sarado Lunes).\n\nSamantala, maaari ko pong ibigay ang mga kailangang dokumento, patakaran sa ninong/ninang, at seminar na dapat asikasuhin nang hindi bababa sa **1 hanggang 2 linggo** bago ang binyag."
+                : "The fee or offering for **baptism is not published online**. Please refer to the parish office at **0997 742 8176** (Tuesday to Saturday 8:00 AM to 5:00 PM, Sunday 7:00 AM to 12:00 PM; closed Monday).\n\nIn the meantime, I would be pleased to share the required documents and seminar prerequisites you need to prepare at least **1 to 2 weeks ahead**.";
+            return [
+                'answer' => $answer,
+                'category' => TugonConversationalIntent::TOPIC_PAYMENTS,
+                'prompts' => ['Requirements for baptism', 'Parish Office Hours', 'Contact Parish Staff']
+            ];
+        }
+
+        if (preg_match('/\b(?:how much (?:is |does it cost for )?(?:a )?funeral|magkano (?:ang )?(?:libing|misa sa patay)|funeral fee|bayad sa libing)\b/iu', $normalized)) {
+            $answer = $isFil
+                ? "Ang offering o bayad para sa **Funeral Mass ay hindi nakalagay online**. Mangyaring makipag-ugnayan agad sa opisina ng parokya sa **0997 742 8176**."
+                : "The fee or offering for a **Funeral Mass is not published online**. Please coordinate directly with the parish office at **0997 742 8176**.";
+            return [
+                'answer' => $answer,
+                'category' => TugonConversationalIntent::TOPIC_PAYMENTS,
+                'prompts' => ['Funeral Mass Requirements', 'Contact Parish Staff']
+            ];
+        }
+
+        // 0-D. Certificate Fee & Processing Time (Test 2, KB-32)
+        if (preg_match('/\b(?:how much (?:is |costs? )?(?:a )?certificate.*(?:how long|processing time|working days)|how much (?:is |costs? )?(?:a )?certificate|magkano (?:ang )?certificate.*(?:gaano katagal|araw)|magkano (?:ang )?certificate|magkano ang sertipiko|certificate fee|bayad sa certificate)\b/iu', $normalized)) {
+            $answer = $isFil
+                ? "Ang bayad para sa opisyal na sertipiko ng parokya ay **₱100.00 bawat kopya**.\n\n• **Panahon ng Pagproseso**: Karaniwang **1 hanggang 3 araw ng trabaho** (working days).\n• **Paraan ng Pagbabayad**:\n  - **Cash** sa Parish Office kapag kukunin na ang sertipiko\n  - **GCash**: Ipadala kay **Agnes Calapaan** (Parish Secretary) sa **0997 742 8176**, at ilagay ang reference number at screenshot ng resibo sa form."
+                : "The fee is **₱100.00 per copy**, and processing typically takes **1 to 3 working days**.\n\n• **Payment Options**:\n  - **Cash** at the Parish Office (cash on pick-up)\n  - **GCash**: Send to **Agnes Calapaan** (Parish Secretary) at **0997 742 8176**, then enter the reference number and upload your receipt screenshot in the request form.";
+            return [
+                'answer' => $answer,
+                'category' => TugonConversationalIntent::TOPIC_CERTIFICATES,
+                'prompts' => ['Request Certificate', 'How do I pay by GCash?', 'Track My Requests']
+            ];
+        }
+
+        // 0-E. GCash Payment Steps (Test 3, KB-32)
+        if (preg_match('/\b(?:how (?:do|can) i pay (?:by |via |using )?gcash|paano magbayad (?:sa |gamit ang )?gcash|gcash payment|bayad sa gcash|pay by gcash)\b/iu', $normalized)) {
+            $answer = $isFil
+                ? "Para magbayad sa pamamagitan ng **GCash**:\n\n1. Ipadala ang bayad (**₱100.00 bawat kopya**) kay:\n   • Pangalan: **Agnes Calapaan** (Parish Secretary)\n   • Mobile: **0997 742 8176**\n2. Itala ang GCash **reference number** at itabi ang screenshot ng resibo.\n3. Sa TUGON request form, piliin ang GCash, ilagay ang reference number, at i-upload ang screenshot ng resibo.\n4. I-submit ang request at itabi ang inyong Reference Number (`REQ-2026-XXXX`) upang masubaybayan sa **My Requests**."
+                : "To pay by **GCash**:\n\n1. Send the fee (**₱100.00 per copy**) to:\n   • Account Name: **Agnes Calapaan** (Parish Secretary)\n   • Mobile: **0997 742 8176**\n2. Note the GCash **reference number** and save a screenshot of the receipt.\n3. In the TUGON request form, select GCash as your payment method, enter the reference number, and upload the screenshot of the receipt.\n4. Submit your request and save your TUGON Reference Number (`REQ-2026-XXXX`) to track its status in **My Requests**.";
+            return [
+                'answer' => $answer,
+                'category' => TugonConversationalIntent::TOPIC_PAYMENTS,
+                'prompts' => ['Request Certificate', 'How much is a certificate and how long does it take?', 'Track My Requests']
+            ];
+        }
+
+        // 0-F. Registration Rejected Guidance (Test 8, KB-11)
+        if (preg_match('/\b(?:my registration (?:was|is) rejected|registration rejected|bakit na-?reject ang (?:rehistrasyon|registration|account)|rejected account|hindi ma-?approve ang account)\b/iu', $normalized)) {
+            $answer = $isFil
+                ? "Kung na-reject ang inyong rehistrasyon sa TUGON:\n\n1. **Basahin ang Admin Remarks**: Tingnan ang natanggap na SMS o email para sa eksaktong dahilan. Karaniwang dahilan ay malabo o putol na litrato ng ID, hindi tugmang live selfie, hindi tinatanggap na uri ng ID, o discrepancy sa tirahan.\n2. **Mag-resubmit**: Mag-register muli gamit ang malinaw, hindi putol, at maliwanag na Valid Government ID (Driver's License, Passport, PhilID/National ID, UMID, Postal ID, PRC ID, Voter's ID, o SSS ID) at malinaw na live selfie na nakaharap sa camera (hanggang 5 MB; JPG, PNG, WEBP, o PDF).\n3. **Tulong sa Opisina**: Sinusuri ng staff ang rehistrasyon tuwing oras ng opisina. Kung kailangan ng tulong, tumawag sa opisina ng parokya sa **0997 742 8176**."
+                : "If your registration was rejected in TUGON:\n\n1. **Read Admin Remarks**: Open the SMS or email notification you received for the exact reason. The most common reasons are a blurry or cropped ID photo, a live selfie that does not match, an unsupported ID, or an address mismatch.\n2. **Resubmit**: Register again with a clear, uncropped, well-lit photo of a valid government ID (Driver's License, Passport, PhilID / National ID, UMID, Postal ID, PRC ID, Voter's ID, or SSS ID) and a clear live selfie facing the camera (up to 5 MB; JPG, PNG, WEBP, or PDF).\n3. **Parish Office Assistance**: Reviews are performed by parish staff during office hours. If it is taking long or you have questions, please call the parish office at **0997 742 8176**.";
+            return [
+                'answer' => $answer,
+                'category' => TugonConversationalIntent::TOPIC_ACCOUNT_REGISTRATION,
+                'prompts' => ['How to register', 'Parish Office Hours', 'Contact Parish Staff']
+            ];
+        }
+
+        // 0-G. Office Hours & Monday Closed Check (Test 9, KB-90)
+        if (preg_match('/\b(?:is the office open (?:on )?monday|monday office hours?|bukas ba ang opisina ng lunes|sarado ba ng lunes|open monday)\b/iu', $normalized)) {
+            $answer = $isFil
+                ? "Hindi po. **SARADO po ang opisina ng parokya tuwing LUNES** (araw ng pahinga).\n\nNarito ang opisyal na oras ng opisina:\n• **Martes hanggang Sabado**: 8:00 AM – 5:00 PM (Tanghalian: 12:00 PM – 1:00 PM)\n• **Linggo**: 7:00 AM – 12:00 PM (Kalahating araw)\n• **Lunes**: SARADO"
+                : "No. The parish office is **CLOSED on Mondays** (rest day).\n\nHere are the official parish office hours:\n• **Tuesday to Saturday**: 8:00 AM to 5:00 PM (Lunch break: 12:00 PM to 1:00 PM)\n• **Sunday**: 7:00 AM to 12:00 PM (Half-day)\n• **Monday**: CLOSED";
+            return [
+                'answer' => $answer,
+                'category' => TugonConversationalIntent::TOPIC_PARISH_OFFICE,
+                'prompts' => ['Mass Schedule', 'Contact Parish Staff', 'Request Certificate']
+            ];
+        }
+
+        // 0-H. Parish Location (Test 18, KB-93, Part G #1)
+        if (preg_match('/\b(?:where is the (?:parish|church)|address of the parish|location ng (?:parish|parokya|simbahan)|saan (?:ang )?(?:parokya|simbahan)|where is san lorenzo ruiz)\b/iu', $normalized)) {
+            $answer = $isFil
+                ? "Ang **Parokya ng San Lorenzo Ruiz** ay matatagpuan sa **San Mateo, Aleosan, Cotabato**, sa ilalim ng **Arkidyosesis ng Cotabato**.\n\n• **Email**: sanlorenzoruiz.midsayap@gmail.com\n• **Telepono / Hotline**: 0997 742 8176\n• **Portal**: https://tugon-parish-system.vercel.app"
+                : "San Lorenzo Ruiz Parish is located in **San Mateo, Aleosan, Cotabato**, under the **Archdiocese of Cotabato**.\n\n• **Email**: sanlorenzoruiz.midsayap@gmail.com\n• **Phone / Hotline**: 0997 742 8176\n• **Portal**: https://tugon-parish-system.vercel.app";
+            return [
+                'answer' => $answer,
+                'category' => TugonConversationalIntent::TOPIC_PARISH_OFFICE,
+                'prompts' => ['Parish Office Hours', 'Mass Schedule', 'Contact Parish Staff']
+            ];
+        }
 
         // A. User's Own Request Count, Listing & Status Inquiry
         $isRequestQuery = (bool) preg_match('/\b(?:(?:how|hoy|hw)\s*many\s*requests?|count\s*(?:of\s*)?(?:my\s*)?requests?|number\s*of\s*(?:my\s*)?requests?|show\s*(?:me\s*)?(?:all\s*)?(?:the\s*)?(?:my\s*)?requests?|list\s*(?:all\s*)?(?:the\s*)?(?:my\s*)?requests?|view\s*(?:all\s*)?(?:the\s*)?(?:my\s*)?requests?|see\s*(?:all\s*)?(?:the\s*)?(?:my\s*)?requests?|display\s*(?:all\s*)?(?:the\s*)?(?:my\s*)?requests?|all\s*(?:the\s*)?requests?\s*(?:that\s*)?i\s*(?:did|have|made|submitted)?|requests?\s*(?:that\s*)?i\s*(?:did|have|made|submitted)|what\s*(?:are\s*)?(?:all\s*)?my\s*requests?|what\s*requests?\s*(?:do\s*i\s*have|did\s*i\s*(?:make|do|submit))|status\s*of\s*(?:my|the)\s*(?:request|certificate|blessing)|check\s*(?:my|the)\s*requests?|my\s*requests?(?:\s*status)?|track\s*(?:my\s*)?(?:submitted\s*)?requests?|how\s*(?:do|can)\s*i\s*track\s*(?:my\s*)?(?:submitted\s*)?requests?|where\s*(?:is|\'s)\s*(?:my\s*)?requests?|nasaan\s*(?:ang\s*)?request\s*ko|kumusta\s*(?:ang\s*|yung\s*)?request|anong\s*status\s*ng\s*request|follow[- ]?up\s*(?:sa\s*)?request|check\s*certificate\s*status|mga\s*request\s*ko|lahat\s*ng\s*request\s*ko|ilan\s*(?:ang\s*|na\s*ang\s*)?request\s*ko|ilang\s*request\s*(?:meron\s*ako|ang\s*(?:nagawa|isinumite)\s*ko)|pakita\s*(?:ang\s*)?mga\s*request\s*ko|tingnan\s*(?:ang\s*)?mga\s*request\s*ko)\b/iu', $normalized);
@@ -1194,7 +1338,17 @@ final class AiAssistantService
 
     private function isInjection(string $text): bool
     {
-        return (bool) preg_match('/\b(?:ignore (?:all |the )?(?:previous|system|your )?instructions?|tell me (?:your |the )?prompt|what is your prompt|reveal (?:the |your )?(?:prompt|secret|credential)|system prompt|developer instructions|bypass (?:permission|authorization)|execute (?:sql|command)|database password|session (?:id|token)|prompt injection|override system|jailbreak)\b/iu', $text);
+        return (bool) preg_match('/\b(?:ignore (?:all |the )?(?:previous|system|your )?instructions?|tell me (?:your |the )?(?:system )?prompt|what is your prompt|reveal (?:the |your )?(?:prompt|secret|credential)|system prompt|server address|what server does your system run on|developer instructions|database credentials|api endpoints|bypass (?:permission|authorization)|execute (?:sql|command)|database password|session (?:id|token)|prompt injection|override system|jailbreak)\b/iu', $text);
+    }
+
+    private function isSensitiveCredential(string $text): bool
+    {
+        return (bool) preg_match('/\b(?:here(?:\'s|\s+is)\s+my\s+(?:otp|password|code)|otp\s+(?:is\s+)?\d{4,6}|\b\d{6}\b.*(?:can you verify|verify my (?:account|otp))|here is my otp|here is my password|ito ang aking otp|narito ang otp)\b/iu', $text);
+    }
+
+    private function isGriefOrEmergency(string $text): bool
+    {
+        return (bool) preg_match('/\b(?:mother (?:is )?dying|father (?:is )?dying|someone (?:is )?dying|dying.*help|naghihingalo|last rites|father just died|mother just died|namatay ang|just passed away)\b/iu', $text);
     }
 
     private function requestsMutation(string $text): bool
@@ -1204,6 +1358,6 @@ final class AiAssistantService
 
     private function isParishRelated(string $text): bool
     {
-        return (bool) preg_match('/parish|parokya|church|mass|misa|office|opisina|bapt|binyag|confirm|kumpil|communion|komunyon|marriage|wedding|kasal|bless|basbas|bendisyon|bendita|certificate|sertipiko|papeles|confess|kumpisal|kompisal|reconciliation|penance|adoration|novena|nobena|rosary|rosaryo|request|kahilingan|reserv|venue|schedule|iskedyul|announcement|anunsyo|payment|bayad|funeral|burial|libing|priest|pari|secretary|kalihim|agnes|calapaan|vicar|record|tala|sacrament|analytics|report|ulat|TUGON|requirement|kailangan|cost|magkano|upload|format|docx|pdf|file/i', $text);
+        return (bool) preg_match('/parish|parokya|church|mass|misa|office|opisina|bapt|binyag|confirm|kumpil|communion|komunyon|marriage|wedding|kasal|bless|basbas|bendisyon|bendita|certificate|sertipiko|papeles|confess|kumpisal|kompisal|reconciliation|penance|adoration|novena|nobena|rosary|rosaryo|request|kahilingan|reserv|venue|schedule|iskedyul|announcement|anunsyo|payment|bayad|funeral|burial|libing|priest|pari|secretary|kalihim|agnes|calapaan|vicar|record|tala|sacrament|analytics|report|ulat|TUGON|requirement|kailangan|cost|magkano|upload|format|docx|pdf|file|otp|password|slot|9:30|aleosan/i', $text);
     }
 }

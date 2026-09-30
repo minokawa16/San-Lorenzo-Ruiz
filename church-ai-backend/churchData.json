@@ -1,8 +1,8 @@
 {
   "parishInfo": {
     "name": "San Lorenzo Ruiz Parish",
-    "diocese": "Diocese of Kidapawan",
-    "location": "Poblacion, Midsayap, Cotabato, Philippines 9410",
+    "archdiocese": "Archdiocese of Cotabato",
+    "location": "San Mateo, Aleosan, Cotabato, Philippines",
     "patronSaint": "San Lorenzo Ruiz (Feast Day: September 28)",
     "parishPriest": "Rev. Fr. Alberto G. Cahilig, OMI",
     "parochialVicar": "Rev. Fr. Alvin Vicente C. Barretto, OMI",
@@ -10,7 +10,8 @@
     "contactNumber": "0997 742 8176",
     "emergencyHotline": "0997 742 8176",
     "email": "sanlorenzoruiz.midsayap@gmail.com",
-    "facebook": "fb.com/SanLorenzoRuizParishMidsayap"
+    "gcash": "Agnes Calapaan, 0997 742 8176",
+    "portal": "https://tugon-parish-system.vercel.app"
   },
   "officeHours": {
     "schedule": [
@@ -21,29 +22,29 @@
       },
       {
         "days": "Sunday",
-        "hours": "7:00 AM - 12:00 PM (Morning Only)"
+        "hours": "7:00 AM - 12:00 PM (Half-day morning)"
       },
       {
         "days": "Monday",
-        "status": "Closed (Priests and Staff Rest Day)"
+        "status": "Closed (Clergy & Staff Rest Day)"
       }
     ],
-    "notes": "Parish office transactions, certificate releasing, and booking verifications are entertained strictly during regular office hours."
+    "notes": "Parish office transactions, certificate releasing, and booking verifications occur strictly during regular office hours."
   },
   "massSchedule": {
     "sunday": [
-      { "time": "6:00 AM", "language": "Cebuano / Bisaya", "type": "Dawn Community Mass" },
-      { "time": "8:00 AM", "language": "Tagalog / Filipino", "type": "Morning Mass" },
+      { "time": "6:00 AM", "language": "Bisaya", "type": "Dawn Community Mass" },
+      { "time": "8:00 AM", "language": "Tagalog", "type": "Morning Mass" },
       { "time": "10:00 AM", "language": "English", "type": "High Mass" },
       { "time": "4:00 PM", "language": "Tagalog", "type": "Afternoon Mass" },
       { "time": "5:30 PM", "language": "English", "type": "Evening Mass" },
-      { "time": "7:00 PM", "language": "Tagalog / Cebuano", "type": "Youth & Workers Mass" }
+      { "time": "7:00 PM", "language": "Youth / Tagalog", "type": "Youth & Workers Mass" }
     ],
     "weekday": [
-      { "days": "Tuesday to Saturday", "time": "6:30 AM", "language": "Tagalog / Cebuano", "type": "Daily Morning Mass" },
-      { "days": "Tuesday to Saturday", "time": "6:00 PM", "language": "English / Tagalog", "type": "Daily Evening Mass" }
+      { "days": "Tuesday to Saturday", "time": "6:30 AM", "type": "Daily Morning Mass" },
+      { "days": "Tuesday to Saturday", "time": "6:00 PM", "type": "Daily Evening Mass" }
     ],
-    "notes": "There is no 9:00 AM Sunday Mass. Nearest morning slots are 8:00 AM and 10:00 AM. Schedules are subject to liturgical feast updates."
+    "notes": "There is NO 9:00 AM Sunday Mass. Nearest morning slots are 8:00 AM and 10:00 AM. Schedules are subject to liturgical feast updates."
   },
   "confessionSchedule": {
     "wednesdayAndFriday": "4:30 PM - 5:15 PM (Before evening Mass)",
@@ -51,158 +52,116 @@
     "location": "Confessional Area near the Sacred Heart Shrine",
     "sickCalls": "Available anytime by emergency appointment through the Parish Office (0997 742 8176)."
   },
-  "certificates": {
-    "overview": {
-      "topic": "Certificates Overview & General Requirements",
-      "keywords": ["certificate", "certificates", "sertipiko", "papeles", "katibayan", "requirements on how to get the certificates", "how to get certificate", "ano ang kailangan sa sertipiko", "paano kumuha ng sertipiko"],
-      "requirements": [
-        "Valid Government ID of requester (or authorization letter and ID if representative)",
-        "Full name of person on record and approximate date of sacrament",
-        "Full names of parents",
-        "Purpose of request (school, wedding, passport, legal, personal)"
-      ],
-      "fee": "₱100.00 per copy",
-      "processingTime": "1 to 3 working days",
-      "whereToRequest": "Online via TUGON Parish System (users/request-certificate.php) or at the Parish Office during office hours.",
-      "clarifyingQuestion": "Which certificate do you need: Baptismal, Confirmation, Marriage, or Death?"
-    },
-    "baptismalCertificate": {
-      "topic": "Baptismal Certificate",
-      "keywords": ["baptismal certificate", "baptism certificate", "sertipiko ng binyag", "papeles ng binyag", "how do i get a baptismal certificate for my child", "pamatuod sa bunyag"],
-      "requirements": [
-        "Copy of Child's PSA or Local Civil Registrar Birth Certificate",
-        "Full name of the baptized, date of birth, and parents' names",
-        "Valid ID of requesting parent (or authorization letter if representative)",
-        "Purpose of certificate"
-      ],
-      "fee": "₱100.00 per copy",
-      "processingTime": "1 to 3 working days",
-      "whereToRequest": "Online via TUGON portal or at the Parish Office.",
-      "whoCanRequest": "Record owner, parents, or authorized representative with signed authorization letter and valid IDs."
-    },
-    "confirmationCertificate": {
-      "topic": "Confirmation Certificate",
-      "keywords": ["confirmation certificate", "sertipiko ng kumpil", "papeles ng kumpil", "magkano ang confirmation certificate", "kumpil certificate"],
-      "requirements": [
-        "Copy of PSA Birth Certificate or Baptismal Certificate",
-        "Full name of confirmand and approximate year of confirmation",
-        "Names of parents",
-        "Valid ID of requester"
-      ],
-      "fee": "₱100.00 per copy",
-      "processingTime": "1 to 3 working days",
-      "whereToRequest": "Online via TUGON portal or at the Parish Office."
-    },
-    "marriageCertificate": {
-      "topic": "Marriage Certificate",
-      "keywords": ["marriage certificate", "wedding certificate", "sertipiko ng kasal", "papeles ng kasal", "sertipiko ng kasal ano kailangan", "kasulatan sa kasal"],
-      "requirements": [
-        "Valid Government ID of requester (or authorization letter if representative)",
-        "Full names of husband and wife (including bride's maiden name)",
-        "Date and place of church wedding",
-        "Purpose of request"
-      ],
-      "fee": "₱100.00 per copy",
-      "processingTime": "1 to 3 working days",
-      "whereToRequest": "Online via TUGON portal or at the Parish Office."
-    },
-    "deathCertificate": {
-      "topic": "Death / Funeral Certificate",
-      "keywords": ["death certificate", "funeral certificate", "sertipiko ng patay", "papeles ng yumao"],
-      "requirements": [
-        "Copy of PSA or Local Civil Registrar Death Certificate",
-        "Full name of the deceased, birth date, and date of passing",
-        "Date of funeral blessing / burial",
-        "Valid ID of immediate kin"
-      ],
-      "fee": "₱100.00 per copy",
-      "processingTime": "1 to 3 working days",
-      "whereToRequest": "Online via TUGON portal or at the Parish Office."
-    }
+  "schedulingRules": {
+    "slotDuration": "1 full hour (start to start + 60 min)",
+    "conflictRule": "An existing booking at 9:00 AM blocks 9:00 to 10:00 AM. 9:30 AM is not available. 10:00 AM is the next available time.",
+    "reschedulingPolicy": "Submitted requests cannot be rescheduled through the system. Cancellations and urgent changes must be referred to the parish office at 0997 742 8176."
   },
-  "blessings": {
-    "houseAndVehicleBlessing": {
-      "topic": "House and Vehicle Blessing",
-      "keywords": ["house blessing", "vehicle blessing", "car blessing", "basbas ng bahay", "pabasbas ng sasakyan", "how much is a house blessing", "blessing fee"],
-      "feePolicy": "No mandatory fixed fee. The parish welcomes any voluntary offering or free-will donation (love offering) for the officiating priest and parish ministry.",
-      "leadTime": "Please request at least 1 week in advance for priest availability.",
-      "requirements": [
-        "Complete physical address and landmarks (for house) or vehicle model and plate number",
-        "Preferred date and time",
-        "Contact person name and active mobile number"
-      ],
-      "whereToRequest": "Submit online via Request Blessing (users/request-blessing.php) or coordinate with the Parish Office."
-    }
+  "requestStatuses": {
+    "Pending": "Amber - Under initial review. Verifying documents and payment.",
+    "Processing": "Blue - Being coordinated or encoded. Checking registry books or priest availability.",
+    "Completed": "Green - Finished. Signed PDF downloadable in My Requests or ready for pickup.",
+    "Rejected": "Red - Declined or needs correction. Read admin remarks, fix issue, and resubmit."
+  },
+  "registration": {
+    "requirements": [
+      "Full legal name, active mobile number, active email address",
+      "Complete home address and Chapel / GKK / BEC",
+      "One valid government-issued ID (Driver's License, Passport, PhilID/National ID, UMID, Postal ID, PRC ID, Voter's ID, SSS ID; max 5MB)",
+      "Live selfie taken during registration (to match ID)"
+    ],
+    "rejectionHandling": "Check remarks in SMS/email. Common causes: blurry photo, selfie mismatch, address mismatch. Resubmit with clear ID and selfie. Call 0997 742 8176 if needed."
+  },
+  "certificates": {
+    "fee": "₱100.00 per copy",
+    "processingTime": "1 to 3 working days",
+    "paymentOptions": [
+      "Cash on pickup at Parish Office",
+      "GCash to Agnes Calapaan (0997 742 8176), enter reference number and upload receipt screenshot"
+    ],
+    "availableTypes": [
+      "Baptismal Certificate",
+      "Confirmation Certificate",
+      "First Communion Certificate",
+      "Marriage Certificate",
+      "Death / Funeral Certificate",
+      "Good Moral / Parish Certification"
+    ],
+    "generalRequirements": [
+      "Valid Government ID of requester (or authorization letter + ID if representative)",
+      "Full name of person on record and approximate date or year of sacrament",
+      "Full names of parents (including mother's maiden name)",
+      "PSA or Local Civil Registrar copy (for cross-checking)",
+      "Purpose of request"
+    ],
+    "marriagePurposeAnnotation": "For church wedding, Baptismal and Confirmation certificates must carry annotation 'For Marriage Purposes' and be issued within the last 6 months."
   },
   "sacraments": {
     "wedding": {
-      "topic": "Holy Matrimony / Wedding Service",
-      "leadTime": "Apply at least 2 to 3 months prior to target wedding date.",
+      "topic": "Holy Matrimony / Church Wedding",
+      "leadTime": "File at least 2 to 3 months before wedding date.",
+      "feePolicy": "Wedding fee is not published online. Refer to parish office at 0997 742 8176.",
       "requirements": [
-        "PSA Birth Certificate of Groom and Bride",
-        "PSA CENOMAR (valid within 6 months)",
-        "Updated Baptismal & Confirmation Certificates annotated 'For Marriage Purposes'",
+        "PSA Birth Certificates of groom and bride",
+        "PSA CENOMAR issued within the last 6 months",
+        "Updated Baptismal Certificate annotated 'For Marriage Purposes' (within 6 months)",
+        "Updated Confirmation Certificate annotated 'For Marriage Purposes' (within 6 months)",
         "Pre-Cana Marriage Seminar Certificate",
         "Canonical Interview with Parish Priest",
-        "Publication of Marriage Banns for 3 consecutive Sundays",
-        "Local Civil Registrar Marriage License (or Article 34 Affidavit)"
-      ]
-    },
-    "baptismService": {
-      "topic": "Baptism Sacrament Service",
-      "leadTime": "Register 1 to 2 weeks before desired date.",
-      "requirements": [
-        "Child's PSA / Civil Registrar Birth Certificate",
-        "Parents' Catholic Marriage Certificate (if married)",
-        "Godparent list (at least 1 practicing Catholic sponsor)",
-        "Attendance at Pre-Baptismal Seminar"
-      ]
-    },
-    "funeralMass": {
-      "topic": "Funeral Mass & Blessing",
-      "requirements": [
-        "Copy of PSA or Civil Registrar Death Certificate",
-        "Burial permit / cemetery coordination details",
-        "Deceased person's full name, birth date, and passing date",
-        "Immediate kin contact coordination"
+        "Publication of Marriage Banns for 3 consecutive Sundays in both home parishes",
+        "Civil Marriage License (or Article 34 Affidavit of Cohabitation if living together 5+ years)",
+        "BEC / Chapel recommendation from local leader",
+        "CO Permit to Marry (if military or police)",
+        "Principal Male Sponsor (Ninong) & Principal Female Sponsor (Ninang) names and origins"
       ]
     },
     "baptism": {
-      "topic": "Baptism Sacrament Service",
+      "topic": "Baptism (child)",
+      "leadTime": "Register at least 1 to 2 weeks before baptism date.",
+      "feePolicy": "Baptism fee is not published online. Refer to parish office at 0997 742 8176.",
       "requirements": [
-        "Photocopy of Child's PSA / Civil Registrar Birth Certificate",
-        "Photocopy of Parents' Catholic Church Marriage Certificate",
-        "Godparent Catholic Confirmation Certificate (at least 1 practicing Catholic)",
-        "Pre-Baptismal Seminar attendance"
+        "Photocopy of child's PSA or Local Civil Registrar Live Birth Certificate with registry number",
+        "Photocopy of parents' Catholic Church Marriage Certificate (if church-married)",
+        "Chapel recommendation from local GKK / Chapel leader",
+        "White Cards / seminar slips of parents and principal godparents",
+        "Attendance at Pre-Baptismal Seminar (held on scheduled Saturday mornings)",
+        "Godparent Rule: At least ONE fully initiated, practicing Catholic godparent (Ninong or Ninang) who has received Confirmation"
       ]
     },
-    "holyMatrimony": {
-      "topic": "Holy Matrimony / Wedding",
+    "funeral": {
+      "topic": "Funeral Mass & Burial Blessing",
+      "leadTime": "Coordinate with parish office immediately upon passing (Hotline: 0997 742 8176).",
+      "feePolicy": "Funeral Mass fee is not published online. Refer to parish office.",
       "requirements": [
-        "PSA Birth Certificate of Groom and Bride",
-        "PSA CENOMAR valid within 6 months",
-        "Updated Baptismal & Confirmation Certificates marked 'For Marriage Purposes'",
-        "Pre-Cana Marriage Seminar Certificate",
-        "Canonical Interview with Parish Priest",
-        "Publication of Marriage Banns for 3 consecutive Sundays",
-        "Civil Registrar Marriage License"
+        "Official PSA or Local Civil Registrar Death Certificate",
+        "Cemetery Burial Permit and coordination time",
+        "Full name of deceased, birth date, date of passing, and civil status",
+        "Place of burial / cemetery",
+        "Preferred Funeral Mass schedule (parish church or home wake blessing)"
       ]
+    },
+    "anointingOfTheSick": {
+      "topic": "Anointing of the Sick",
+      "availability": "Available at any time for dangerously ill, major surgery preparation, or advanced age.",
+      "contact": "Call Parish Emergency Hotline 0997 742 8176 immediately.",
+      "fee": "Voluntary offering only."
     }
   },
-  "certificateIssuance": {
-    "fee": "₱100.00 per copy",
-    "processingTime": "1 to 3 working days",
+  "blessings": {
     "types": [
-      "Baptismal Certificate",
-      "Confirmation Certificate",
-      "Marriage Certificate",
-      "Death Certificate",
-      "Certificate of Good Moral Character"
+      "House Blessing",
+      "Vehicle Blessing",
+      "Business Blessing",
+      "Office / Institutional Blessing",
+      "Event Blessing",
+      "Other Special Blessings"
     ],
+    "feePolicy": "No mandatory fixed fee. Voluntary free-will love offering according to your means.",
+    "leadTime": "Submit request at least 1 week in advance.",
     "requirements": [
-      "Valid Government-issued ID of requester (or authorization letter and ID if representative)",
-      "Full name on record, date of sacrament, and parents' names",
-      "Purpose of request"
+      "Exact physical address with landmark directions (or vehicle plate number and model)",
+      "Preferred date and 1-hour time slot",
+      "Contact person name and reachable mobile number"
     ]
   }
 }
