@@ -243,6 +243,106 @@ function saveServiceRequirementUploads($conn, $request_id, $uploaded_by, $files,
     return $results;
 }
 
+/**
+ * Server-side validation for service requirements documents.
+ * Validates extension, finfo MIME type, magic bytes, file size (<= 5 MB), and image integrity.
+ */
+function validateServiceRequirementFile(array $file, int $maxBytes = 5242880): array {
+    if (!isset($file) || ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+        return ['ok' => false, 'error' => 'Please upload the required certificate.'];
+    }
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        return ['ok' => false, 'error' => 'File upload error occurred. Please try again.'];
+    }
+    if (empty($file['tmp_name']) || (!is_uploaded_file($file['tmp_name']) && php_sapi_name() !== 'cli')) {
+        return ['ok' => false, 'error' => 'Invalid file upload.'];
+    }
+    $size = (int) ($file['size'] ?? 0);
+    if ($size < 1) {
+        return ['ok' => false, 'error' => 'Uploaded file is empty.'];
+    }
+    if ($size > $maxBytes) {
+        return ['ok' => false, 'error' => 'File exceeds maximum allowed size of 5 MB.'];
+    }
+    $origName = basename((string) ($file['name'] ?? ''));
+    $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
+    $allowed_exts = ['jpg', 'jpeg', 'png', 'webp', 'pdf'];
+    if (!in_array($ext, $allowed_exts, true)) {
+        return ['ok' => false, 'error' => 'Only JPG, PNG, WEBP, and PDF files up to 5 MB are allowed.'];
+    }
+
+    $tmpPath = (string) $file['tmp_name'];
+    $finfo = function_exists('finfo_open') ? finfo_open(FILEINFO_MIME_TYPE) : false;
+    $mime = $finfo ? (string) finfo_file($finfo, $tmpPath) : (string) mime_content_type($tmpPath);
+    if ($finfo) {
+        finfo_close($finfo);
+    }
+    $mime = strtolower(trim($mime));
+    $allowed_mimes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+    if (!in_array($mime, $allowed_mimes, true)) {
+        return ['ok' => false, 'error' => 'File format rejected. Only valid JPG, PNG, WEBP, or PDF files are accepted.'];
+    }
+
+    $handle = @fopen($tmpPath, 'rb');
+    if (!$handle) {
+        return ['ok' => false, 'error' => 'Unable to read uploaded file.'];
+    }
+    $header = fread($handle, 16);
+    fclose($handle);
+
+    if ($header === false || strlen($header) < 4) {
+        return ['ok' => false, 'error' => 'Corrupt or unreadable file.'];
+    }
+
+    $valid = false;
+    if (str_starts_with($header, '%PDF-')) {
+        $valid = ($ext === 'pdf') && ($mime === 'application/pdf');
+    } elseif (str_starts_with($header, "\xFF\xD8\xFF")) {
+        $valid = in_array($ext, ['jpg', 'jpeg'], true) && ($mime === 'image/jpeg');
+    } elseif (str_starts_with($header, "\x89PNG") || str_starts_with($header, "\x89\x50\x4E\x47")) {
+        $valid = ($ext === 'png') && ($mime === 'image/png');
+    } elseif (strlen($header) >= 12 && substr($header, 0, 4) === 'RIFF' && substr($header, 8, 4) === 'WEBP') {
+        $valid = ($ext === 'webp') && ($mime === 'image/webp');
+    }
+
+    if (!$valid) {
+        return ['ok' => false, 'error' => 'File content does not match its file extension.'];
+    }
+
+    if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true)) {
+        $imgInfo = @getimagesize($tmpPath);
+        if ($imgInfo === false || empty($imgInfo[0]) || empty($imgInfo[1])) {
+            return ['ok' => false, 'error' => 'File is not a valid image.'];
+        }
+    }
+
+    return [
+        'ok' => true,
+        'size' => $size,
+        'mime' => $mime,
+        'extension' => $ext,
+        'original_name' => $origName
+    ];
+}
+
+/**
+ * Upload rate limit per user session (max 30 uploads per 10 minutes) to prevent abuse.
+ */
+function checkUserUploadRateLimit($user_id): bool {
+    if (!isset($_SESSION['upload_attempts'])) {
+        $_SESSION['upload_attempts'] = [];
+    }
+    $now = time();
+    $_SESSION['upload_attempts'] = array_filter($_SESSION['upload_attempts'], function($ts) use ($now) {
+        return ($now - $ts) < 600;
+    });
+    if (count($_SESSION['upload_attempts']) >= 30) {
+        return false;
+    }
+    $_SESSION['upload_attempts'][] = $now;
+    return true;
+}
+
 $is_ajax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
     || (isset($_SERVER['HTTP_ACCEPT']) && strpos(strtolower($_SERVER['HTTP_ACCEPT']), 'application/json') !== false)
     || (isset($_POST['is_ajax']) && $_POST['is_ajax'] === '1');
@@ -486,6 +586,18 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $reference_number = generateReferenceNumber();
             $status = 'pending';
 
+            // Server-side requirement validation for First Communion (Baptismal Certificate required)
+            if (!checkUserUploadRateLimit($user_id)) {
+                $respond(false, 'Too many upload attempts. Please wait a few minutes before trying again.', ['status_code' => 429]);
+            }
+            if (!isset($_FILES['baptismal_certificate']) || ($_FILES['baptismal_certificate']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+                $respond(false, 'Baptismal Certificate is required for First Communion. Please upload a clear photo or scan.', ['status_code' => 422]);
+            }
+            $bapValidation = validateServiceRequirementFile($_FILES['baptismal_certificate']);
+            if (!$bapValidation['ok']) {
+                $respond(false, 'Baptismal Certificate error: ' . $bapValidation['error'], ['status_code' => 422]);
+            }
+
             $stmt = $conn->prepare("INSERT INTO requests (user_id, request_type, record_holder_name, description, status, reference_number) VALUES (?, ?, ?, ?, ?, ?)");
             if (!$stmt) {
                 throw new Exception("Unable to prepare your First Communion request: " . $conn->error);
@@ -499,6 +611,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $request_id = $conn->insert_id;
             $stmt->close();
 
+            $docResult = saveRequestDocument($conn, $request_id, $user_id, $_FILES['baptismal_certificate'], 'requirement', 'Baptismal Certificate');
+            $doc_count = ($docResult['ok'] && !empty($docResult['saved'])) ? 1 : 0;
+
             @$conn->query("INSERT INTO schedule_slot_locks (slot_date, slot_time, slot_end_time, source_type, source_id) VALUES ('" . $conn->real_escape_string($preferred_date) . "', NULL, NULL, 'request', $request_id)");
 
             createAuditLog($conn, $user_id, 'CREATE_REQUEST', 'requests', $request_id);
@@ -507,7 +622,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $respond(true, $success_msg, [
                 'reference_number' => $reference_number,
                 'request_id' => $request_id,
-                'doc_count' => 0,
+                'doc_count' => $doc_count,
                 'redirect_url' => 'my-requests.php?q=' . urlencode($reference_number)
             ]);
         } elseif ($request_type === 'confirmation_service') {
@@ -604,6 +719,26 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $reference_number = generateReferenceNumber();
             $status = 'pending';
 
+            // Server-side requirement validation for Confirmation (both Baptismal & First Communion Certificates required)
+            if (!checkUserUploadRateLimit($user_id)) {
+                $respond(false, 'Too many upload attempts. Please wait a few minutes before trying again.', ['status_code' => 429]);
+            }
+            if (!isset($_FILES['baptismal_certificate']) || ($_FILES['baptismal_certificate']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+                $respond(false, 'Baptismal Certificate is required for Confirmation. Please upload a clear photo or scan.', ['status_code' => 422]);
+            }
+            $bapValidation = validateServiceRequirementFile($_FILES['baptismal_certificate']);
+            if (!$bapValidation['ok']) {
+                $respond(false, 'Baptismal Certificate error: ' . $bapValidation['error'], ['status_code' => 422]);
+            }
+
+            if (!isset($_FILES['first_communion_certificate']) || ($_FILES['first_communion_certificate']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+                $respond(false, 'First Communion Certificate is required for Confirmation. Please upload a clear photo or scan.', ['status_code' => 422]);
+            }
+            $commValidation = validateServiceRequirementFile($_FILES['first_communion_certificate']);
+            if (!$commValidation['ok']) {
+                $respond(false, 'First Communion Certificate error: ' . $commValidation['error'], ['status_code' => 422]);
+            }
+
             $stmt = $conn->prepare("INSERT INTO requests (user_id, request_type, record_holder_name, description, status, reference_number) VALUES (?, ?, ?, ?, ?, ?)");
             if (!$stmt) {
                 throw new Exception("Unable to prepare your Confirmation request: " . $conn->error);
@@ -617,6 +752,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $request_id = $conn->insert_id;
             $stmt->close();
 
+            $doc1 = saveRequestDocument($conn, $request_id, $user_id, $_FILES['baptismal_certificate'], 'requirement', 'Baptismal Certificate');
+            $doc2 = saveRequestDocument($conn, $request_id, $user_id, $_FILES['first_communion_certificate'], 'requirement', 'First Communion Certificate');
+            $doc_count = (($doc1['ok'] && !empty($doc1['saved'])) ? 1 : 0) + (($doc2['ok'] && !empty($doc2['saved'])) ? 1 : 0);
+
             @$conn->query("INSERT INTO schedule_slot_locks (slot_date, slot_time, slot_end_time, source_type, source_id) VALUES ('" . $conn->real_escape_string($preferred_date) . "', NULL, NULL, 'request', $request_id)");
 
             createAuditLog($conn, $user_id, 'CREATE_REQUEST', 'requests', $request_id);
@@ -625,7 +764,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $respond(true, $success_msg, [
                 'reference_number' => $reference_number,
                 'request_id' => $request_id,
-                'doc_count' => 0,
+                'doc_count' => $doc_count,
                 'redirect_url' => 'my-requests.php?q=' . urlencode($reference_number)
             ]);
         } elseif ($request_type === 'funeral_mass' && !empty($missing_funeral_sheet)) {
@@ -923,6 +1062,44 @@ if ($stmt) {
 }
 .text-uppercase {
     text-transform: uppercase !important;
+}
+
+/* Requirements Upload Section for First Communion & Confirmation */
+.req-dropzone {
+    border: 2px dashed #cbd5e1;
+    border-radius: 12px;
+    background-color: #f8fafc;
+    padding: 16px;
+    transition: all 0.2s ease-in-out;
+    outline: none;
+}
+.req-dropzone:hover, .req-dropzone.drag-over {
+    border-color: #2563eb;
+    background-color: #eff6ff;
+}
+.req-dropzone:focus-visible {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+}
+.req-dropzone.has-file {
+    border-style: solid;
+    border-color: #cbd5e1;
+    background-color: #ffffff;
+}
+.req-dropzone.has-error {
+    border-color: #dc2626;
+    background-color: #fef2f2;
+}
+.req-btn-choose, .req-btn-camera, .req-btn-replace, .req-btn-remove {
+    min-height: 44px;
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.submit-request-btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed !important;
 }
 </style>
 
@@ -1777,10 +1954,157 @@ if ($stmt) {
                         <label for="location" class="form-label">Location <span class="text-danger">*</span></label>
                         <input type="text" class="form-control request-form-control" id="location" name="location" placeholder="Church, chapel, home, hospital, cemetery, or venue" required>
                     </div>
-                    <div class="col-12">
-                        <label for="details" class="form-label">Additional Details</label>
-                        <textarea class="form-control request-form-control" id="details" name="details" rows="4" placeholder="Add names, family contact, special notes, or other details."></textarea>
-                        <div class="form-text"><i class="fas fa-wand-magic-sparkles"></i> TUGON tip: include names, family contact, location notes, and special instructions when available.</div>
+
+                    <!-- Requirements Upload Section (First Communion and Confirmation forms only) -->
+                    <div class="col-12" id="communionConfirmationRequirementsSection" style="display: none;">
+                        <div class="card border-0 shadow-sm req-section-card mb-2" style="background: #ffffff; border: 1px solid #e2e8f0 !important; border-radius: 12px;">
+                            <div class="card-body p-3 p-md-4">
+                                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3 pb-2 border-bottom">
+                                    <div>
+                                        <h4 class="h5 mb-1 fw-bold text-dark d-flex align-items-center gap-2">
+                                            <i class="fas fa-file-circle-check text-primary"></i> Requirements
+                                        </h4>
+                                        <p class="text-muted small mb-0">Upload required certificate documents before reviewing and submitting your request.</p>
+                                    </div>
+                                    <div id="reqChecklistContainer" class="req-checklist-container">
+                                        <!-- Dynamic Checklist -->
+                                    </div>
+                                </div>
+
+                                <div class="row g-3 req-upload-grid">
+                                    <!-- Slot 1: Baptismal Certificate (Required for First Communion and Confirmation) -->
+                                    <div class="col-12 col-md-6 req-slot-col" id="slotBaptismalWrap">
+                                        <label for="communionBaptismalCertInput" class="form-label fw-semibold text-dark d-flex align-items-center gap-1 mb-1">
+                                            Baptismal Certificate <span class="text-danger">*</span>
+                                        </label>
+                                        <div class="form-text text-muted small mt-0 mb-2" id="bapCertHelper">
+                                            Upload a clear photo or scan. JPG, PNG, WEBP, or PDF, up to 5 MB.
+                                        </div>
+                                        <div class="req-dropzone" id="bapCertDropzone" tabindex="0" role="region" aria-label="Baptismal Certificate upload slot" aria-describedby="bapCertHelper bapCertError">
+                                            <input type="file" id="communionBaptismalCertInput" name="baptismal_certificate" accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf" class="d-none req-file-input">
+                                            <input type="file" id="communionBaptismalCertCamera" accept="image/*" capture="environment" class="d-none req-camera-input">
+                                            
+                                            <!-- Empty State -->
+                                            <div class="req-slot-empty text-center py-3">
+                                                <i class="fas fa-cloud-arrow-up fa-2x text-muted mb-2 d-block"></i>
+                                                <div class="small text-muted mb-2">Drag and drop file here, or</div>
+                                                <div class="d-flex justify-content-center gap-2 flex-wrap">
+                                                    <button type="button" class="btn btn-sm btn-outline-primary px-3 req-btn-choose" style="min-height: 44px; min-width: 44px;">
+                                                        <i class="fas fa-folder-open me-1"></i> Choose file
+                                                    </button>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary px-3 req-btn-camera" style="min-height: 44px; min-width: 44px;">
+                                                        <i class="fas fa-camera me-1"></i> Take photo
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <!-- Progress State -->
+                                            <div class="req-slot-progress py-3 px-2 text-center" style="display: none;">
+                                                <div class="small fw-semibold text-primary mb-2">Attaching document...</div>
+                                                <div class="progress" style="height: 6px;">
+                                                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 100%;"></div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Filled State -->
+                                            <div class="req-slot-filled py-2 px-2" style="display: none;">
+                                                <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                                                    <div class="d-flex align-items-center gap-2 text-truncate" style="max-width: 70%;">
+                                                        <div class="req-thumb-box flex-shrink-0">
+                                                            <img src="" alt="Thumbnail" class="req-thumb-img rounded" style="width: 48px; height: 48px; object-fit: cover; display: none;">
+                                                            <i class="fas fa-file-pdf fa-2x text-danger req-pdf-icon" style="display: none;"></i>
+                                                        </div>
+                                                        <div class="text-truncate">
+                                                            <div class="fw-semibold text-dark text-truncate small req-file-name">filename.pdf</div>
+                                                            <div class="text-muted" style="font-size: 0.75rem;"><span class="req-file-size">1.2 MB</span></div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="d-flex align-items-center gap-1">
+                                                        <button type="button" class="btn btn-sm btn-outline-secondary req-btn-replace" style="min-height: 44px; min-width: 44px;" title="Replace file">
+                                                            <i class="fas fa-rotate"></i> Replace
+                                                        </button>
+                                                        <button type="button" class="btn btn-sm btn-outline-danger req-btn-remove" style="min-height: 44px; min-width: 44px;" title="Remove file">
+                                                            <i class="fas fa-trash-can"></i> Remove
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="req-inline-error text-danger small mt-1" id="bapCertError" role="alert" style="display: none;">
+                                            <i class="fas fa-circle-exclamation me-1"></i><span class="req-error-text"></span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Slot 2: First Communion Certificate (Required for Confirmation only) -->
+                                    <div class="col-12 col-md-6 req-slot-col" id="slotFirstCommunionWrap" style="display: none;">
+                                        <label for="confirmationCommunionCertInput" class="form-label fw-semibold text-dark d-flex align-items-center gap-1 mb-1">
+                                            First Communion Certificate <span class="text-danger">*</span>
+                                        </label>
+                                        <div class="form-text text-muted small mt-0 mb-2" id="commCertHelper">
+                                            Upload a clear photo or scan. JPG, PNG, WEBP, or PDF, up to 5 MB.
+                                        </div>
+                                        <div class="req-dropzone" id="commCertDropzone" tabindex="0" role="region" aria-label="First Communion Certificate upload slot" aria-describedby="commCertHelper commCertError">
+                                            <input type="file" id="confirmationCommunionCertInput" name="first_communion_certificate" accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf" class="d-none req-file-input">
+                                            <input type="file" id="confirmationCommunionCertCamera" accept="image/*" capture="environment" class="d-none req-camera-input">
+                                            
+                                            <!-- Empty State -->
+                                            <div class="req-slot-empty text-center py-3">
+                                                <i class="fas fa-cloud-arrow-up fa-2x text-muted mb-2 d-block"></i>
+                                                <div class="small text-muted mb-2">Drag and drop file here, or</div>
+                                                <div class="d-flex justify-content-center gap-2 flex-wrap">
+                                                    <button type="button" class="btn btn-sm btn-outline-primary px-3 req-btn-choose" style="min-height: 44px; min-width: 44px;">
+                                                        <i class="fas fa-folder-open me-1"></i> Choose file
+                                                    </button>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary px-3 req-btn-camera" style="min-height: 44px; min-width: 44px;">
+                                                        <i class="fas fa-camera me-1"></i> Take photo
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <!-- Progress State -->
+                                            <div class="req-slot-progress py-3 px-2 text-center" style="display: none;">
+                                                <div class="small fw-semibold text-primary mb-2">Attaching document...</div>
+                                                <div class="progress" style="height: 6px;">
+                                                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 100%;"></div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Filled State -->
+                                            <div class="req-slot-filled py-2 px-2" style="display: none;">
+                                                <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                                                    <div class="d-flex align-items-center gap-2 text-truncate" style="max-width: 70%;">
+                                                        <div class="req-thumb-box flex-shrink-0">
+                                                            <img src="" alt="Thumbnail" class="req-thumb-img rounded" style="width: 48px; height: 48px; object-fit: cover; display: none;">
+                                                            <i class="fas fa-file-pdf fa-2x text-danger req-pdf-icon" style="display: none;"></i>
+                                                        </div>
+                                                        <div class="text-truncate">
+                                                            <div class="fw-semibold text-dark text-truncate small req-file-name">filename.pdf</div>
+                                                            <div class="text-muted" style="font-size: 0.75rem;"><span class="req-file-size">1.2 MB</span></div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="d-flex align-items-center gap-1">
+                                                        <button type="button" class="btn btn-sm btn-outline-secondary req-btn-replace" style="min-height: 44px; min-width: 44px;" title="Replace file">
+                                                            <i class="fas fa-rotate"></i> Replace
+                                                        </button>
+                                                        <button type="button" class="btn btn-sm btn-outline-danger req-btn-remove" style="min-height: 44px; min-width: 44px;" title="Remove file">
+                                                            <i class="fas fa-trash-can"></i> Remove
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="req-inline-error text-danger small mt-1" id="commCertError" role="alert" style="display: none;">
+                                            <i class="fas fa-circle-exclamation me-1"></i><span class="req-error-text"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12" id="additionalDetailsGroup">
+                        <label for="details" class="form-label">Additional Details <span class="text-muted fw-normal">(optional)</span></label>
+                        <textarea class="form-control request-form-control" id="details" name="details" rows="4"></textarea>
                     </div>
                 </div>
             </section>
@@ -1853,6 +2177,11 @@ if ($stmt) {
                     <dl class="request-review-grid" id="reviewConfirmationInfo"></dl>
                 </div>
 
+                <div class="request-review-section" id="reviewRequirementsSection" hidden>
+                    <h3><i class="fas fa-paperclip"></i> Uploaded Requirements</h3>
+                    <dl class="request-review-grid" id="reviewRequirementsGrid"></dl>
+                </div>
+
                 <div class="request-review-section">
                     <h3><i class="fas fa-calendar-check"></i> Applicant, Schedule, and Location</h3>
                     <dl class="request-review-grid" id="reviewScheduleInfo"></dl>
@@ -1910,6 +2239,342 @@ document.addEventListener('DOMContentLoaded', function() {
     const funeralBurialDateInput = document.getElementById('funeral_date_of_burial');
     const requirementFileInputs = Array.from(document.querySelectorAll('[data-requirement-file]'));
     const submitRequestBtn = document.getElementById('submitRequestBtn');
+
+    // Requirements Section Elements (Communion & Confirmation)
+    const commConfReqSection = document.getElementById('communionConfirmationRequirementsSection');
+    const slotBaptismalWrap = document.getElementById('slotBaptismalWrap');
+    const slotFirstCommunionWrap = document.getElementById('slotFirstCommunionWrap');
+    const reqChecklistContainer = document.getElementById('reqChecklistContainer');
+
+    const bapCertInput = document.getElementById('communionBaptismalCertInput');
+    const bapCertCamera = document.getElementById('communionBaptismalCertCamera');
+    const bapCertDropzone = document.getElementById('bapCertDropzone');
+    const bapCertError = document.getElementById('bapCertError');
+
+    const commCertInput = document.getElementById('confirmationCommunionCertInput');
+    const commCertCamera = document.getElementById('confirmationCommunionCertCamera');
+    const commCertDropzone = document.getElementById('commCertDropzone');
+    const commCertError = document.getElementById('commCertError');
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function formatFileSize(bytes) {
+        if (!bytes || bytes <= 0) return '0 B';
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+    }
+
+    function validateRequirementFile(file) {
+        if (!file) return { ok: false, error: 'No file selected.' };
+        const maxBytes = 5 * 1024 * 1024;
+        if (file.size > maxBytes) {
+            return { ok: false, error: 'File exceeds maximum size of 5 MB.' };
+        }
+        if (file.size <= 0) {
+            return { ok: false, error: 'Selected file is empty.' };
+        }
+        const ext = (file.name || '').split('.').pop().toLowerCase();
+        const allowed = ['jpg', 'jpeg', 'png', 'webp', 'pdf'];
+        if (!allowed.includes(ext)) {
+            return { ok: false, error: 'Invalid file type. Only JPG, PNG, WEBP, or PDF files are accepted.' };
+        }
+        const isPdf = ext === 'pdf' || (file.type && file.type === 'application/pdf');
+        return { ok: true, isPdf, ext };
+    }
+
+    function updateCommConfRequirementsState() {
+        if (!commConfReqSection) return;
+        const communionSelected = isCommunionSelected();
+        const confirmationSelected = isConfirmationSelected();
+
+        if (communionSelected) {
+            commConfReqSection.style.display = '';
+            if (slotBaptismalWrap) {
+                slotBaptismalWrap.style.display = '';
+                slotBaptismalWrap.className = 'col-12 col-md-8 mx-auto req-slot-col';
+            }
+            if (slotFirstCommunionWrap) {
+                slotFirstCommunionWrap.style.display = 'none';
+            }
+
+            if (bapCertInput) bapCertInput.required = true;
+            if (commCertInput) commCertInput.required = false;
+
+            const bapUploaded = Boolean(bapCertInput && bapCertInput.files && bapCertInput.files.length > 0);
+            if (reqChecklistContainer) {
+                reqChecklistContainer.innerHTML = '<span class="badge ' + (bapUploaded ? 'bg-success' : 'bg-danger') + ' text-white px-2.5 py-1.5"><i class="fas ' + (bapUploaded ? 'fa-circle-check' : 'fa-circle-xmark') + ' me-1"></i> Baptismal Certificate: ' + (bapUploaded ? 'uploaded' : 'missing') + '</span>';
+            }
+
+            if (submitRequestBtn) {
+                submitRequestBtn.disabled = !bapUploaded;
+                if (!bapUploaded) {
+                    submitRequestBtn.setAttribute('title', 'Please upload your Baptismal Certificate before reviewing.');
+                } else {
+                    submitRequestBtn.removeAttribute('title');
+                }
+            }
+        } else if (confirmationSelected) {
+            commConfReqSection.style.display = '';
+            if (slotBaptismalWrap) {
+                slotBaptismalWrap.style.display = '';
+                slotBaptismalWrap.className = 'col-12 col-md-6 req-slot-col';
+            }
+            if (slotFirstCommunionWrap) {
+                slotFirstCommunionWrap.style.display = '';
+                slotFirstCommunionWrap.className = 'col-12 col-md-6 req-slot-col';
+            }
+
+            if (bapCertInput) bapCertInput.required = true;
+            if (commCertInput) commCertInput.required = true;
+
+            const bapUploaded = Boolean(bapCertInput && bapCertInput.files && bapCertInput.files.length > 0);
+            const commUploaded = Boolean(commCertInput && commCertInput.files && commCertInput.files.length > 0);
+            if (reqChecklistContainer) {
+                reqChecklistContainer.innerHTML = '<div class="d-flex flex-wrap gap-2">' +
+                    '<span class="badge ' + (bapUploaded ? 'bg-success' : 'bg-danger') + ' text-white px-2.5 py-1.5"><i class="fas ' + (bapUploaded ? 'fa-circle-check' : 'fa-circle-xmark') + ' me-1"></i> Baptismal Certificate: ' + (bapUploaded ? 'uploaded' : 'missing') + '</span>' +
+                    '<span class="badge ' + (commUploaded ? 'bg-success' : 'bg-danger') + ' text-white px-2.5 py-1.5"><i class="fas ' + (commUploaded ? 'fa-circle-check' : 'fa-circle-xmark') + ' me-1"></i> First Communion Certificate: ' + (commUploaded ? 'uploaded' : 'missing') + '</span>' +
+                    '</div>';
+            }
+
+            if (submitRequestBtn) {
+                submitRequestBtn.disabled = !(bapUploaded && commUploaded);
+                if (!(bapUploaded && commUploaded)) {
+                    submitRequestBtn.setAttribute('title', 'Please upload both Baptismal and First Communion Certificates before reviewing.');
+                } else {
+                    submitRequestBtn.removeAttribute('title');
+                }
+            }
+        } else {
+            commConfReqSection.style.display = 'none';
+            if (slotFirstCommunionWrap) slotFirstCommunionWrap.style.display = 'none';
+            if (bapCertInput) bapCertInput.required = false;
+            if (commCertInput) commCertInput.required = false;
+            if (submitRequestBtn) {
+                submitRequestBtn.disabled = false;
+                submitRequestBtn.removeAttribute('title');
+            }
+        }
+    }
+
+    function setupReqSlot(slotEl, fileInput, cameraInput, errorEl) {
+        if (!slotEl || !fileInput) return;
+
+        const emptyView = slotEl.querySelector('.req-slot-empty');
+        const progressView = slotEl.querySelector('.req-slot-progress');
+        const filledView = slotEl.querySelector('.req-slot-filled');
+        const thumbImg = slotEl.querySelector('.req-thumb-img');
+        const pdfIcon = slotEl.querySelector('.req-pdf-icon');
+        const nameEl = slotEl.querySelector('.req-file-name');
+        const sizeEl = slotEl.querySelector('.req-file-size');
+        const progressBar = slotEl.querySelector('.progress-bar');
+
+        const btnChoose = slotEl.querySelector('.req-btn-choose');
+        const btnCamera = slotEl.querySelector('.req-btn-camera');
+        const btnReplace = slotEl.querySelector('.req-btn-replace');
+        const btnRemove = slotEl.querySelector('.req-btn-remove');
+
+        let currentObjectUrl = null;
+
+        function clearSlotError() {
+            if (errorEl) {
+                errorEl.style.display = 'none';
+                const errText = errorEl.querySelector('.req-error-text');
+                if (errText) errText.textContent = '';
+            }
+            slotEl.classList.remove('has-error');
+        }
+
+        function showSlotError(msg) {
+            if (errorEl) {
+                const errText = errorEl.querySelector('.req-error-text') || errorEl;
+                errText.textContent = msg;
+                errorEl.style.display = '';
+            }
+            slotEl.classList.add('has-error');
+            slotEl.classList.remove('has-file');
+        }
+
+        function resetSlotToEmpty() {
+            fileInput.value = '';
+            if (cameraInput) cameraInput.value = '';
+            if (currentObjectUrl) {
+                URL.revokeObjectURL(currentObjectUrl);
+                currentObjectUrl = null;
+            }
+            if (thumbImg) {
+                thumbImg.src = '';
+                thumbImg.style.display = 'none';
+            }
+            if (pdfIcon) pdfIcon.style.display = 'none';
+            if (emptyView) emptyView.style.display = '';
+            if (progressView) progressView.style.display = 'none';
+            if (filledView) filledView.style.display = 'none';
+            slotEl.classList.remove('has-file');
+            clearSlotError();
+            updateCommConfRequirementsState();
+        }
+
+        function displayUploadedFile(file) {
+            clearSlotError();
+            if (emptyView) emptyView.style.display = 'none';
+            if (progressView) progressView.style.display = '';
+            if (filledView) filledView.style.display = 'none';
+            if (progressBar) {
+                progressBar.style.width = '0%';
+                progressBar.setAttribute('aria-valuenow', '0');
+            }
+
+            let progress = 0;
+            const timer = setInterval(function() {
+                progress += 25;
+                if (progressBar) {
+                    progressBar.style.width = progress + '%';
+                    progressBar.setAttribute('aria-valuenow', progress);
+                }
+                if (progress >= 100) {
+                    clearInterval(timer);
+                    setTimeout(function() {
+                        if (progressView) progressView.style.display = 'none';
+                        if (filledView) filledView.style.display = '';
+                        slotEl.classList.add('has-file');
+
+                        if (nameEl) nameEl.textContent = file.name;
+                        if (sizeEl) sizeEl.textContent = formatFileSize(file.size);
+
+                        const ext = (file.name || '').split('.').pop().toLowerCase();
+                        const isPdf = ext === 'pdf' || file.type === 'application/pdf';
+
+                        if (currentObjectUrl) {
+                            URL.revokeObjectURL(currentObjectUrl);
+                            currentObjectUrl = null;
+                        }
+
+                        if (isPdf) {
+                            if (thumbImg) thumbImg.style.display = 'none';
+                            if (pdfIcon) pdfIcon.style.display = 'inline-block';
+                        } else {
+                            if (pdfIcon) pdfIcon.style.display = 'none';
+                            try {
+                                currentObjectUrl = URL.createObjectURL(file);
+                                if (thumbImg) {
+                                    thumbImg.src = currentObjectUrl;
+                                    thumbImg.style.display = 'inline-block';
+                                }
+                            } catch (e) {
+                                if (pdfIcon) pdfIcon.style.display = 'inline-block';
+                            }
+                        }
+                        updateCommConfRequirementsState();
+                    }, 120);
+                }
+            }, 50);
+        }
+
+        function handleSelectedFile(file) {
+            if (!file) return;
+            const check = validateRequirementFile(file);
+            if (!check.ok) {
+                fileInput.value = '';
+                if (cameraInput) cameraInput.value = '';
+                showSlotError(check.error);
+                if (emptyView) emptyView.style.display = '';
+                if (progressView) progressView.style.display = 'none';
+                if (filledView) filledView.style.display = 'none';
+                slotEl.classList.remove('has-file');
+                updateCommConfRequirementsState();
+                return;
+            }
+            displayUploadedFile(file);
+        }
+
+        if (btnChoose) {
+            btnChoose.addEventListener('click', function(e) {
+                e.stopPropagation();
+                fileInput.click();
+            });
+        }
+        if (btnCamera && cameraInput) {
+            btnCamera.addEventListener('click', function(e) {
+                e.stopPropagation();
+                cameraInput.click();
+            });
+        }
+        if (btnReplace) {
+            btnReplace.addEventListener('click', function(e) {
+                e.stopPropagation();
+                fileInput.click();
+            });
+        }
+        if (btnRemove) {
+            btnRemove.addEventListener('click', function(e) {
+                e.stopPropagation();
+                resetSlotToEmpty();
+            });
+        }
+
+        fileInput.addEventListener('change', function() {
+            if (fileInput.files && fileInput.files.length) {
+                handleSelectedFile(fileInput.files[0]);
+            }
+        });
+
+        if (cameraInput) {
+            cameraInput.addEventListener('change', function() {
+                if (cameraInput.files && cameraInput.files.length) {
+                    try {
+                        const dt = new DataTransfer();
+                        dt.items.add(cameraInput.files[0]);
+                        fileInput.files = dt.files;
+                    } catch (dtErr) {}
+                    handleSelectedFile(cameraInput.files[0]);
+                }
+            });
+        }
+
+        slotEl.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            slotEl.classList.add('drag-over');
+        });
+        slotEl.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            slotEl.classList.remove('drag-over');
+        });
+        slotEl.addEventListener('drop', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            slotEl.classList.remove('drag-over');
+            if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+                try {
+                    const dt = new DataTransfer();
+                    dt.items.add(e.dataTransfer.files[0]);
+                    fileInput.files = dt.files;
+                } catch (dtErr) {}
+                handleSelectedFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        slotEl.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                if (e.target === slotEl) {
+                    e.preventDefault();
+                    if (!fileInput.files || !fileInput.files.length) {
+                        fileInput.click();
+                    }
+                }
+            }
+        });
+    }
 
     const firstCommunionCard = document.getElementById('firstCommunionCard');
     const communionDateInput = document.getElementById('communion_preferred_date');
@@ -2244,6 +2909,8 @@ document.addEventListener('DOMContentLoaded', function() {
             funeralRequirementsCard.hidden = !funeralSelected;
         }
 
+        updateCommConfRequirementsState();
+
         communionFields.forEach(function(field) {
             const isOptional = field.id === 'communion_father_name' || field.id === 'communion_mother_name' || field.id === 'communion_minister';
             field.required = communionSelected && !isOptional;
@@ -2445,6 +3112,18 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         if (isCommunionSelected()) {
+            if (!bapCertInput || !bapCertInput.files || !bapCertInput.files.length) {
+                if (bapCertInput) invalidFields.push(bapCertInput);
+                const bapSlot = document.getElementById('bapCertDropzone');
+                if (bapSlot) bapSlot.classList.add('has-error');
+                const bapErr = document.getElementById('bapCertError');
+                if (bapErr) {
+                    const t = bapErr.querySelector('.req-error-text') || bapErr;
+                    t.textContent = 'Please upload your Baptismal Certificate before submitting.';
+                    bapErr.style.display = '';
+                }
+            }
+
             const fName = formValue('communion_father_name');
             const mName = formValue('communion_mother_name');
             const fEl = document.getElementById('communion_father_name');
@@ -2484,6 +3163,29 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         if (isConfirmationSelected()) {
+            if (!bapCertInput || !bapCertInput.files || !bapCertInput.files.length) {
+                if (bapCertInput) invalidFields.push(bapCertInput);
+                const bapSlot = document.getElementById('bapCertDropzone');
+                if (bapSlot) bapSlot.classList.add('has-error');
+                const bapErr = document.getElementById('bapCertError');
+                if (bapErr) {
+                    const t = bapErr.querySelector('.req-error-text') || bapErr;
+                    t.textContent = 'Please upload your Baptismal Certificate before submitting.';
+                    bapErr.style.display = '';
+                }
+            }
+            if (!commCertInput || !commCertInput.files || !commCertInput.files.length) {
+                if (commCertInput) invalidFields.push(commCertInput);
+                const commSlot = document.getElementById('commCertDropzone');
+                if (commSlot) commSlot.classList.add('has-error');
+                const commErr = document.getElementById('commCertError');
+                if (commErr) {
+                    const t = commErr.querySelector('.req-error-text') || commErr;
+                    t.textContent = 'Please upload your First Communion Certificate before submitting.';
+                    commErr.style.display = '';
+                }
+            }
+
             const fName = formValue('confirmation_father_name');
             const mName = formValue('confirmation_mother_name');
             const fEl = document.getElementById('confirmation_father_name');
@@ -2620,12 +3322,50 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const reviewCommSec = document.getElementById('reviewCommunionSection');
         const reviewConfSec = document.getElementById('reviewConfirmationSection');
+        const reviewReqSec = document.getElementById('reviewRequirementsSection');
+        const reviewReqGrid = document.getElementById('reviewRequirementsGrid');
         if (reviewCommSec) reviewCommSec.hidden = !communionSelected;
         if (reviewConfSec) reviewConfSec.hidden = !confirmationSelected;
         document.getElementById('reviewChildSection').hidden = !baptismSelected;
         document.getElementById('reviewParentsSection').hidden = !baptismSelected;
         document.getElementById('reviewGodparentsSection').hidden = !baptismSelected;
         document.getElementById('reviewFuneralSection').hidden = !funeralSelected;
+
+        if (reviewReqSec && reviewReqGrid) {
+            if (communionSelected || confirmationSelected) {
+                reviewReqSec.hidden = false;
+                reviewReqGrid.replaceChildren();
+
+                const addReviewRequirement = function(label, input) {
+                    const block = document.createElement('div');
+                    block.className = 'request-review-item';
+                    const term = document.createElement('dt');
+                    term.textContent = label;
+                    const description = document.createElement('dd');
+
+                    if (input && input.files && input.files[0]) {
+                        const file = input.files[0];
+                        const blobUrl = URL.createObjectURL(file);
+                        const fileWrap = document.createElement('div');
+                        fileWrap.className = 'd-flex align-items-center justify-content-between flex-wrap gap-2';
+                        fileWrap.innerHTML = '<span><i class="fas fa-file-check text-success me-1"></i> <strong>' + escapeHtml(file.name) + '</strong> (' + formatFileSize(file.size) + ')</span>' +
+                            '<a href="' + blobUrl + '" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary" style="min-height: 44px; display: inline-flex; align-items: center;"><i class="fas fa-eye me-1"></i> Preview</a>';
+                        description.appendChild(fileWrap);
+                    } else {
+                        description.innerHTML = '<span class="text-danger fw-semibold"><i class="fas fa-circle-exclamation me-1"></i> Missing</span>';
+                    }
+                    block.append(term, description);
+                    reviewReqGrid.appendChild(block);
+                };
+
+                addReviewRequirement('Baptismal Certificate', bapCertInput);
+                if (confirmationSelected) {
+                    addReviewRequirement('First Communion Certificate', commCertInput);
+                }
+            } else {
+                reviewReqSec.hidden = true;
+            }
+        }
 
         if (communionSelected) {
             const fName = formValue('communion_father_name');
@@ -2846,6 +3586,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 updateSpecialRequirementsState();
             });
         });
+
+        // Initialize Communion & Confirmation requirement slots
+        if (bapCertDropzone && bapCertInput) {
+            setupReqSlot(bapCertDropzone, bapCertInput, bapCertCamera, bapCertError);
+        }
+        if (commCertDropzone && commCertInput) {
+            setupReqSlot(commCertDropzone, commCertInput, commCertCamera, commCertError);
+        }
+
         toggleDateInputs();
         updateSpecialRequirementsState();
     }
@@ -2905,6 +3654,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         });
+        if (bapCertInput && bapCertInput.files && bapCertInput.files[0]) {
+            const f = bapCertInput.files[0];
+            totalFileSize += f.size;
+            const ext = (f.name || '').split('.').pop().toLowerCase();
+            if (!allowedExts.includes(ext)) {
+                invalidFormatFiles.push(f.name);
+            }
+            if (f.size > 5 * 1024 * 1024) {
+                oversizedFiles.push(f.name + ' (' + (f.size / (1024 * 1024)).toFixed(1) + ' MB)');
+            }
+        }
+        if (commCertInput && commCertInput.files && commCertInput.files[0]) {
+            const f = commCertInput.files[0];
+            totalFileSize += f.size;
+            const ext = (f.name || '').split('.').pop().toLowerCase();
+            if (!allowedExts.includes(ext)) {
+                invalidFormatFiles.push(f.name);
+            }
+            if (f.size > 5 * 1024 * 1024) {
+                oversizedFiles.push(f.name + ' (' + (f.size / (1024 * 1024)).toFixed(1) + ' MB)');
+            }
+        }
         if (invalidFormatFiles.length > 0 || oversizedFiles.length > 0) {
             showServiceError(invalidMsg);
             return;

@@ -432,9 +432,8 @@ if ($stmt) {
                         <input type="text" class="form-control request-form-control" id="location" name="location" placeholder="Complete address or parish location" required>
                     </div>
                     <div class="col-12">
-                        <label for="details" class="form-label">Additional Details</label>
-                        <textarea class="form-control request-form-control" id="details" name="details" rows="4" placeholder="Tell us anything the parish office should know."></textarea>
-                        <div class="form-text"><i class="fas fa-wand-magic-sparkles"></i> TUGON tip: include landmarks, contact person, and special instructions when available.</div>
+                        <label for="details" class="form-label">Additional Details <span class="text-muted fw-normal">(optional)</span></label>
+                        <textarea class="form-control request-form-control" id="details" name="details" rows="4"></textarea>
                     </div>
                 </div>
             </section>

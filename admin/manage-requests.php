@@ -804,7 +804,7 @@ include '../templates/header.php';
                                     </td>
                                     <td>
                                         <?php if (intval($request['document_count'] ?? 0) > 0): ?>
-                                            <span class="pds-badge pds-badge-neutral"><i class="fas fa-paperclip"></i> <?php echo intval($request['document_count']); ?> file</span>
+                                            <span class="pds-badge pds-badge-neutral"><i class="fas fa-paperclip"></i> <?php echo intval($request['document_count']); ?> <?php echo intval($request['document_count']) === 1 ? 'file' : 'files'; ?></span>
                                         <?php else: ?>
                                             <span class="text-muted">None</span>
                                         <?php endif; ?>

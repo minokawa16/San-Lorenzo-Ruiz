@@ -597,15 +597,73 @@ if (!function_exists('extractFormalDocumentDetails')) {
             $remarks = 'No special remarks or instructions provided.';
         }
 
+        $reqType = strtolower(trim((string)($request['request_type'] ?? '')));
+        $isCommunion = in_array($reqType, ['first_communion_service', 'first_communion', 'communion'], true);
+        $isConfirmation = in_array($reqType, ['confirmation_service', 'confirmation'], true);
+
         $reqDocs = [];
-        foreach ($documents_by_type['requirement'] ?? [] as $doc) {
-            $reqDocs[] = [
-                'id'        => (int)$doc['document_id'],
-                'name'      => !empty($doc['requirement_name']) ? $doc['requirement_name'] : $doc['original_name'],
-                'file_name' => $doc['original_name'],
-                'size'      => formatFileSize($doc['file_size']),
-                'mime'      => $doc['mime_type'] ?? ''
-            ];
+        if ($isCommunion || $isConfirmation) {
+            $expected = $isCommunion
+                ? ['Baptismal Certificate']
+                : ['Baptismal Certificate', 'First Communion Certificate'];
+
+            $attachedRequirements = $documents_by_type['requirement'] ?? [];
+            foreach ($expected as $expectedName) {
+                $matchedDoc = null;
+                foreach ($attachedRequirements as $idx => $doc) {
+                    $dName = trim((string)($doc['requirement_name'] ?? ''));
+                    if (strcasecmp($dName, $expectedName) === 0 || str_contains(strtolower($dName), strtolower(explode(' ', $expectedName)[0]))) {
+                        $matchedDoc = $doc;
+                        unset($attachedRequirements[$idx]);
+                        break;
+                    }
+                }
+                if (!$matchedDoc && !empty($attachedRequirements)) {
+                    $matchedDoc = array_shift($attachedRequirements);
+                }
+
+                if ($matchedDoc) {
+                    $reqDocs[] = [
+                        'id'        => (int)$matchedDoc['document_id'],
+                        'name'      => $expectedName,
+                        'file_name' => $matchedDoc['original_name'],
+                        'size'      => formatFileSize($matchedDoc['file_size']),
+                        'mime'      => $matchedDoc['mime_type'] ?? '',
+                        'status'    => 'uploaded'
+                    ];
+                } else {
+                    $reqDocs[] = [
+                        'id'        => 0,
+                        'name'      => $expectedName,
+                        'file_name' => '',
+                        'size'      => '',
+                        'mime'      => '',
+                        'status'    => 'missing'
+                    ];
+                }
+            }
+
+            foreach ($attachedRequirements as $leftover) {
+                $reqDocs[] = [
+                    'id'        => (int)$leftover['document_id'],
+                    'name'      => !empty($leftover['requirement_name']) ? $leftover['requirement_name'] : $leftover['original_name'],
+                    'file_name' => $leftover['original_name'],
+                    'size'      => formatFileSize($leftover['file_size']),
+                    'mime'      => $leftover['mime_type'] ?? '',
+                    'status'    => 'uploaded'
+                ];
+            }
+        } else {
+            foreach ($documents_by_type['requirement'] ?? [] as $doc) {
+                $reqDocs[] = [
+                    'id'        => (int)$doc['document_id'],
+                    'name'      => !empty($doc['requirement_name']) ? $doc['requirement_name'] : $doc['original_name'],
+                    'file_name' => $doc['original_name'],
+                    'size'      => formatFileSize($doc['file_size']),
+                    'mime'      => $doc['mime_type'] ?? '',
+                    'status'    => 'uploaded'
+                ];
+            }
         }
 
         return [
@@ -1635,32 +1693,44 @@ $breadcrumbs = [
                                 <div class="row g-2.5">
                                     <?php foreach ($formalDetails['remarks_documents']['requirements'] as $reqDoc): ?>
                                         <div class="col-12 col-md-6">
-                                            <div class="d-flex align-items-center justify-content-between p-2.5 bg-white rounded-3 border small h-100 shadow-none">
-                                                <div class="text-truncate me-2" title="<?php echo e($reqDoc['name']); ?>">
-                                                    <i class="fas fa-file-check text-success me-1.5"></i>
-                                                    <strong class="text-dark"><?php echo e($reqDoc['name']); ?></strong>
-                                                    <span class="text-muted small ms-1">(<?php echo e($reqDoc['size']); ?>)</span>
+                                            <?php if (($reqDoc['status'] ?? '') === 'missing'): ?>
+                                                <div class="d-flex align-items-center justify-content-between p-2.5 rounded-3 border small h-100 shadow-none" style="background: #fef2f2; border-color: #fecaca !important;">
+                                                    <div class="text-truncate me-2" title="<?php echo e($reqDoc['name']); ?>">
+                                                        <i class="fas fa-file-circle-xmark text-danger me-1.5"></i>
+                                                        <strong class="text-danger"><?php echo e($reqDoc['name']); ?></strong>
+                                                    </div>
+                                                    <span class="badge bg-danger text-white px-2 py-1 flex-shrink-0" style="font-size: 0.75rem;">
+                                                        <i class="fas fa-circle-exclamation me-1"></i> Missing
+                                                    </span>
                                                 </div>
-                                                <div class="d-flex align-items-center gap-1 flex-shrink-0">
-                                                    <button type="button" 
-                                                            class="btn btn-sm btn-outline-primary py-1 px-2.5 btn-preview-doc fw-semibold"
-                                                            data-bs-toggle="modal"
-                                                            data-bs-target="#documentPreviewModal"
-                                                            data-doc-id="<?php echo (int)$reqDoc['id']; ?>"
-                                                            data-doc-name="<?php echo e($reqDoc['name']); ?>"
-                                                            data-doc-file="<?php echo e($reqDoc['file_name']); ?>"
-                                                            data-doc-size="<?php echo e($reqDoc['size']); ?>"
-                                                            data-doc-mime="<?php echo e($reqDoc['mime'] ?? ''); ?>">
-                                                        <i class="fas fa-eye me-1"></i> View
-                                                    </button>
-                                                    <a href="../request-document.php?id=<?php echo (int)$reqDoc['id']; ?>&download=1" 
-                                                       class="btn btn-sm btn-outline-secondary py-1 px-2" 
-                                                       title="Download File" 
-                                                       download>
-                                                        <i class="fas fa-download"></i>
-                                                    </a>
+                                            <?php else: ?>
+                                                <div class="d-flex align-items-center justify-content-between p-2.5 bg-white rounded-3 border small h-100 shadow-none">
+                                                    <div class="text-truncate me-2" title="<?php echo e($reqDoc['name']); ?>">
+                                                        <i class="fas fa-file-check text-success me-1.5"></i>
+                                                        <strong class="text-dark"><?php echo e($reqDoc['name']); ?></strong>
+                                                        <span class="text-muted small ms-1">(<?php echo e($reqDoc['size']); ?>)</span>
+                                                    </div>
+                                                    <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                                                        <button type="button" 
+                                                                class="btn btn-sm btn-outline-primary py-1 px-2.5 btn-preview-doc fw-semibold"
+                                                                data-bs-toggle="modal"
+                                                                data-bs-target="#documentPreviewModal"
+                                                                data-doc-id="<?php echo (int)$reqDoc['id']; ?>"
+                                                                data-doc-name="<?php echo e($reqDoc['name']); ?>"
+                                                                data-doc-file="<?php echo e($reqDoc['file_name']); ?>"
+                                                                data-doc-size="<?php echo e($reqDoc['size']); ?>"
+                                                                data-doc-mime="<?php echo e($reqDoc['mime'] ?? ''); ?>">
+                                                            <i class="fas fa-eye me-1"></i> View
+                                                        </button>
+                                                        <a href="../request-document.php?id=<?php echo (int)$reqDoc['id']; ?>&download=1" 
+                                                           class="btn btn-sm btn-outline-secondary py-1 px-2" 
+                                                           title="Download File" 
+                                                           download>
+                                                            <i class="fas fa-download"></i>
+                                                        </a>
+                                                    </div>
                                                 </div>
-                                            </div>
+                                            <?php endif; ?>
                                         </div>
                                     <?php endforeach; ?>
                                 </div>
