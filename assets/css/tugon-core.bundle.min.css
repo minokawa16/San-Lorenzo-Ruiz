@@ -7033,7 +7033,8 @@ top: 50%;
 transform: translateY(-50%);
 pointer-events: none;
 color: var(--gold-rich, #c89b3c);
-font-size: 0.95rem;
+width: 16px;
+height: 16px;
 z-index: 2;
 }
 .pds-service-date-input {
@@ -7041,7 +7042,8 @@ padding-left: 42px !important;
 padding-right: 36px !important;
 cursor: pointer;
 background-color: #ffffff;
-min-height: 44px;
+height: 44px !important;
+min-height: 44px !important;
 border-radius: 8px;
 border: 1px solid rgba(28, 27, 24, 0.2);
 font-size: 0.9rem;
@@ -7056,6 +7058,25 @@ background-color: #f3f4f6 !important;
 cursor: not-allowed;
 color: #9ca3af !important;
 border-color: #e5e7eb !important;
+}
+.pds-filter-form .form-label.pds-filter-label {
+display: block;
+font-size: 0.825rem;
+font-weight: 600;
+color: #374151;
+margin-bottom: 6px;
+line-height: 1.25;
+}
+.pds-filter-form .pds-filter-input,
+.pds-filter-form .pds-filter-btn {
+height: 44px !important;
+min-height: 44px !important;
+font-size: 0.9rem;
+border-radius: 8px;
+}
+.pds-filter-aux-bar {
+border-top: 1px dashed rgba(28, 27, 24, 0.12);
+margin-top: 6px;
 }
 input[type="date"]::-webkit-calendar-picker-indicator,
 input[type="date"]::-webkit-inner-spin-button {
@@ -7089,10 +7110,9 @@ background-color: rgba(0, 0, 0, 0.06);
 display: flex;
 flex-wrap: wrap;
 gap: 4px;
-margin-top: 6px;
 }
 .service-date-chip {
-padding: 3px 10px;
+padding: 4px 12px;
 font-size: 0.75rem;
 font-weight: 600;
 border-radius: 999px;
@@ -7100,21 +7120,20 @@ border: 1px solid rgba(200, 155, 60, 0.45);
 background: rgba(200, 155, 60, 0.08);
 color: #2e3a2d;
 cursor: pointer;
-transition: all 0.15s ease;
 min-height: 28px;
 display: inline-flex;
 align-items: center;
-line-height: 1;
+transition: all 0.15s ease;
 }
 .service-date-chip:hover {
-background: rgba(200, 155, 60, 0.22);
-border-color: #c89b3c;
-color: #1c1b18;
+background: rgba(200, 155, 60, 0.2);
+border-color: var(--gold-rich, #c89b3c);
 }
 .service-date-chip.active {
-background: #2e3a2d !important;
-border-color: #2e3a2d !important;
+background: var(--gold-rich, #c89b3c) !important;
 color: #ffffff !important;
+border-color: var(--gold-rich, #c89b3c) !important;
+box-shadow: 0 1px 3px rgba(200, 155, 60, 0.35);
 }
 .pds-cal-popup {
 position: absolute;

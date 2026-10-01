@@ -317,14 +317,14 @@ if ($service_date !== '') {
         $next_day_safe = $conn->real_escape_string($next_day);
 
         // Direct date range comparison for prepared index utilization without wrapping column in function
-        $request_where[] = "((s_locks.slot_date >= '$service_date_safe' AND s_locks.slot_date < '$next_day_safe') OR (s_locks.slot_date IS NULL AND se.event_date >= '$service_date_safe' AND se.event_date < '$next_day_safe'))";
+        $request_where[] = "(s_locks.slot_date >= '$service_date_safe' AND s_locks.slot_date < '$next_day_safe')";
         $reservation_where[] = "(r.event_date >= '$service_date_safe' AND r.event_date < '$next_day_safe')";
     } elseif ($is_week_filter) {
         $week_start_safe = $conn->real_escape_string($week_start_str);
         $week_next_day = date('Y-m-d', strtotime($week_end_str . ' +1 day'));
         $week_next_safe = $conn->real_escape_string($week_next_day);
 
-        $request_where[] = "((s_locks.slot_date >= '$week_start_safe' AND s_locks.slot_date < '$week_next_safe') OR (s_locks.slot_date IS NULL AND se.event_date >= '$week_start_safe' AND se.event_date < '$week_next_safe'))";
+        $request_where[] = "(s_locks.slot_date >= '$week_start_safe' AND s_locks.slot_date < '$week_next_safe')";
         $reservation_where[] = "(r.event_date >= '$week_start_safe' AND r.event_date < '$week_next_safe')";
     }
 }
@@ -365,10 +365,10 @@ $request_select = "
         u.email,
         NULL AS phone_number,
         COALESCE(s_locks.slot_date, se.event_date) AS event_date,
-        COALESCE(s_locks.slot_time, se.event_time) AS event_time,
-        COALESCE(doc_counts.document_count, 0) AS document_count,
-        COALESCE(pay_counts.payment_count, 0) AS payment_count,
-        COALESCE(pay_counts.verified_payment_count, 0) AS verified_payment_count,
+        COALESCE(s_locks.slot_time, se.start_time) AS event_time,
+        COUNT(DISTINCT d.document_id) AS document_count,
+        COUNT(DISTINCT p.payment_id) AS payment_count,
+        COUNT(DISTINCT CASE WHEN p.status = 'verified' THEN p.payment_id END) AS verified_payment_count,
         $record_holder_select AS record_holder_name,
         $matched_id_select AS matched_record_id,
         $matched_type_select AS matched_record_type,
@@ -376,36 +376,12 @@ $request_select = "
         $match_details_select AS match_details
     FROM requests r
     JOIN users u ON r.user_id = u.id
-    LEFT JOIN (
-        SELECT request_id, COUNT(*) AS document_count
-        FROM request_documents
-        WHERE document_type = 'requirement' AND deleted_at IS NULL
-        GROUP BY request_id
-    ) doc_counts ON doc_counts.request_id = r.request_id
-    LEFT JOIN (
-        SELECT request_id,
-               COUNT(*) AS payment_count,
-               COUNT(CASE WHEN status = 'verified' THEN 1 END) AS verified_payment_count
-        FROM request_payments
-        GROUP BY request_id
-    ) pay_counts ON pay_counts.request_id = r.request_id
-    LEFT JOIN (
-        SELECT source_id,
-               MIN(slot_date) AS slot_date,
-               MIN(slot_time) AS slot_time
-        FROM schedule_slot_locks
-        WHERE source_type = 'request' AND status = 'active'
-        GROUP BY source_id
-    ) s_locks ON s_locks.source_id = r.request_id
-    LEFT JOIN (
-        SELECT source_id,
-               MIN(event_date) AS event_date,
-               MIN(start_time) AS event_time
-        FROM schedule_events
-        WHERE source_type = 'request' AND status != 'cancelled'
-        GROUP BY source_id
-    ) se ON se.source_id = r.request_id
+    LEFT JOIN request_documents d ON d.request_id = r.request_id AND d.document_type = 'requirement' AND d.deleted_at IS NULL
+    LEFT JOIN request_payments p ON p.request_id = r.request_id
+    LEFT JOIN schedule_slot_locks s_locks ON s_locks.source_type = 'request' AND s_locks.source_id = r.request_id AND s_locks.status = 'active'
+    LEFT JOIN schedule_events se ON se.source_type = 'request' AND se.source_id = r.request_id AND se.status != 'cancelled'
     WHERE $request_where_sql
+    GROUP BY r.request_id
 ";
 
 $reservation_select = "
@@ -575,94 +551,57 @@ include '../templates/header.php';
             </div>
 
             <!-- Filter Controls Form -->
-            <form id="requestsFilterForm" class="pds-filter-form mb-3" method="GET" action="manage-requests.php">
+            <form id="requestsFilterForm" class="row g-2 align-items-end mb-3" method="GET" action="manage-requests.php">
                 <input type="hidden" name="status" value="<?php echo e($status_filter); ?>">
 
-                <div class="row g-2 align-items-end">
-                    <div class="col-xl-3 col-lg-3 col-md-6 col-12">
-                        <label for="requestSearch" class="form-label pds-filter-label">Search</label>
-                        <input id="requestSearch" 
-                               class="form-control pds-form-control pds-filter-input" 
-                               type="text" 
-                               name="q" 
-                               value="<?php echo e($search); ?>" 
-                               placeholder="Search reference, parishioner, type, or details">
-                    </div>
-
-                    <div class="col-xl-2 col-lg-2 col-md-6 col-12">
-                        <label for="requestTypeFilter" class="form-label pds-filter-label">Request Category</label>
-                        <select id="requestTypeFilter" class="form-select pds-form-select pds-filter-input" name="type">
-                            <option value="">All Categories</option>
-                            <?php foreach ($type_groups as $category => $group): ?>
-                                <option value="<?php echo e($category); ?>" <?php echo $type_filter === $category ? 'selected' : ''; ?>>
-                                    <?php echo e($group['label']); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-
-                    <div class="col-xl-3 col-lg-3 col-md-6 col-12">
-                        <label for="serviceDateInput" class="form-label pds-filter-label">Service Date</label>
-                        <div id="serviceDateWrap" class="pds-service-date-wrap position-relative">
-                            <svg class="service-date-calendar-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                                <line x1="16" y1="2" x2="16" y2="6"></line>
-                                <line x1="8" y1="2" x2="8" y2="6"></line>
-                                <line x1="3" y1="10" x2="21" y2="10"></line>
-                            </svg>
-                            <input id="serviceDateInput" 
-                                   class="form-control pds-form-control pds-service-date-input pds-filter-input" 
-                                   type="text" 
-                                   name="service_date" 
-                                   value="<?php echo e($service_date); ?>" 
-                                   placeholder="YYYY-MM-DD" 
-                                   autocomplete="off" 
-                                   <?php echo $type_filter === 'certificate' ? 'disabled' : ''; ?> 
-                                   aria-describedby="serviceDateHelper">
-                            <button type="button" 
-                                    id="serviceDateClearBtn" 
-                                    class="service-date-clear-btn" 
-                                    aria-label="Clear date filter" 
-                                    style="<?php echo empty($service_date) ? 'display: none;' : ''; ?>">
-                                <i class="fas fa-times" aria-hidden="true"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="col-xl-2 col-lg-2 col-md-6 col-12">
-                        <label for="requestStatusFilter" class="form-label pds-filter-label">Status</label>
-                        <select id="requestStatusFilter" class="form-select pds-form-select pds-filter-input" name="status">
-                            <option value="">All Statuses</option>
-                            <?php foreach (['pending', 'processing', 'completed', 'rejected'] as $status_option): ?>
-                                <option value="<?php echo e($status_option); ?>" <?php echo $status_filter === $status_option ? 'selected' : ''; ?>>
-                                    <?php echo e(ucfirst($status_option)); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-
-                    <div class="col-xl-2 col-lg-2 col-md-12 col-12">
-                        <label class="form-label pds-filter-label d-none d-lg-block invisible" aria-hidden="true">&nbsp;</label>
-                        <div class="d-grid d-md-flex gap-2">
-                            <button class="btn btn-primary pds-btn pds-btn-primary-gold pds-filter-btn flex-fill" type="submit">
-                                <i class="fas fa-filter"></i> Apply
-                            </button>
-                            <?php if ($search !== '' || $status_filter !== '' || $type_filter !== '' || $service_date !== ''): ?>
-                                <a class="btn btn-outline-secondary pds-btn pds-btn-ghost-outline pds-filter-btn" href="manage-requests.php" title="Clear all filters">
-                                    Clear
-                                </a>
-                            <?php endif; ?>
-                        </div>
-                    </div>
+                <div class="col-xl-3 col-lg-3 col-md-6 col-12">
+                    <label for="requestSearch" class="form-label">Search</label>
+                    <input id="requestSearch" 
+                           class="form-control pds-form-control" 
+                           type="text" 
+                           name="q" 
+                           value="<?php echo e($search); ?>" 
+                           placeholder="Search reference, parishioner, type, or details">
                 </div>
 
-                <!-- Auxiliary Service Date Row (Helper & Quick Chips) -->
-                <div class="pds-filter-aux-bar d-flex flex-wrap align-items-center justify-content-between gap-2 pt-2 mt-1">
-                    <div id="serviceDateHelper" class="form-text small text-muted my-0">
-                        <i class="fas fa-info-circle me-1" aria-hidden="true"></i><?php echo $type_filter === 'certificate' ? 'Not applicable to certificates' : 'Day the parishioner wants the blessing or service.'; ?>
+                <div class="col-xl-2 col-lg-2 col-md-6 col-12">
+                    <label for="requestTypeFilter" class="form-label">Request Category</label>
+                    <select id="requestTypeFilter" class="form-select pds-form-select" name="type">
+                        <option value="">All Categories</option>
+                        <?php foreach ($type_groups as $category => $group): ?>
+                            <option value="<?php echo e($category); ?>" <?php echo $type_filter === $category ? 'selected' : ''; ?>>
+                                <?php echo e($group['label']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="col-xl-3 col-lg-3 col-md-6 col-12">
+                    <label for="serviceDateInput" class="form-label">Service Date</label>
+                    <div id="serviceDateWrap" class="pds-service-date-wrap position-relative">
+                        <i class="fas fa-calendar-alt service-date-calendar-icon" aria-hidden="true" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); pointer-events: none;"></i>
+                        <input id="serviceDateInput" 
+                               class="form-control pds-form-control pds-service-date-input" 
+                               type="text" 
+                               name="service_date" 
+                               value="<?php echo e($service_date); ?>" 
+                               placeholder="YYYY-MM-DD" 
+                               style="padding-left: 42px;" 
+                               autocomplete="off" 
+                               <?php echo $type_filter === 'certificate' ? 'disabled' : ''; ?> 
+                               aria-describedby="serviceDateHelper">
+                        <button type="button" 
+                                id="serviceDateClearBtn" 
+                                class="service-date-clear-btn" 
+                                aria-label="Clear date filter" 
+                                style="<?php echo empty($service_date) ? 'display: none;' : ''; ?>">
+                            <i class="fas fa-times" aria-hidden="true"></i>
+                        </button>
                     </div>
-                    <div class="service-date-chips d-flex align-items-center gap-1">
-                        <span class="small text-muted me-1 fw-medium">Quick date:</span>
+                    <div id="serviceDateHelper" class="form-text small text-muted">
+                        <?php echo $type_filter === 'certificate' ? 'Not applicable to certificates' : 'Day the parishioner wants the blessing or service.'; ?>
+                    </div>
+                    <div class="service-date-chips d-flex gap-1 mt-1">
                         <button type="button" 
                                 class="service-date-chip <?php echo $service_date === $today_str ? 'active' : ''; ?>" 
                                 data-date="<?php echo $today_str; ?>" 
@@ -676,6 +615,29 @@ include '../templates/header.php';
                                 data-date="this_week" 
                                 aria-label="Filter requests for this week">This week</button>
                     </div>
+                </div>
+
+                <div class="col-xl-2 col-lg-2 col-md-6 col-12">
+                    <label for="requestStatusFilter" class="form-label">Status</label>
+                    <select id="requestStatusFilter" class="form-select pds-form-select" name="status">
+                        <option value="">All Statuses</option>
+                        <?php foreach (['pending', 'processing', 'completed', 'rejected'] as $status_option): ?>
+                            <option value="<?php echo e($status_option); ?>" <?php echo $status_filter === $status_option ? 'selected' : ''; ?>>
+                                <?php echo e(ucfirst($status_option)); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="col-xl-2 col-lg-2 col-md-12 col-12 d-grid d-md-flex gap-2">
+                    <button class="btn btn-primary pds-btn pds-btn-primary-gold" type="submit">
+                        <i class="fas fa-filter"></i> Apply
+                    </button>
+                    <?php if ($search !== '' || $status_filter !== '' || $type_filter !== '' || $service_date !== ''): ?>
+                        <a class="btn btn-outline-secondary pds-btn pds-btn-ghost-outline" href="manage-requests.php">
+                            Clear
+                        </a>
+                    <?php endif; ?>
                 </div>
             </form>
 

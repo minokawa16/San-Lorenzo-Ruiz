@@ -118,26 +118,12 @@ $counts = [];
 if ($includeReservations) {
     $sql = "
         SELECT service_day, SUM(cnt) AS total_count FROM (
-            SELECT COALESCE(s_locks.slot_date, se.event_date) AS service_day, COUNT(DISTINCT r.request_id) AS cnt
+            SELECT s_locks.slot_date AS service_day, COUNT(DISTINCT r.request_id) AS cnt
             FROM requests r
-            LEFT JOIN (
-                SELECT source_id, MIN(slot_date) AS slot_date
-                FROM schedule_slot_locks
-                WHERE source_type = 'request' AND status = 'active'
-                GROUP BY source_id
-            ) s_locks ON s_locks.source_id = r.request_id
-            LEFT JOIN (
-                SELECT source_id, MIN(event_date) AS event_date
-                FROM schedule_events
-                WHERE source_type = 'request' AND status != 'cancelled'
-                GROUP BY source_id
-            ) se ON se.source_id = r.request_id
+            JOIN schedule_slot_locks s_locks ON s_locks.source_type = 'request' AND s_locks.source_id = r.request_id AND s_locks.status = 'active'
             WHERE $reqWhereSql
-              AND (
-                  (s_locks.slot_date >= ? AND s_locks.slot_date <= ?)
-                  OR (s_locks.slot_date IS NULL AND se.event_date >= ? AND se.event_date <= ?)
-              )
-            GROUP BY service_day
+              AND s_locks.slot_date >= ? AND s_locks.slot_date <= ?
+            GROUP BY s_locks.slot_date
 
             UNION ALL
 
@@ -152,7 +138,7 @@ if ($includeReservations) {
 
     $stmt = $conn->prepare($sql);
     if ($stmt) {
-        $stmt->bind_param('ssssss', $monthStart, $monthEnd, $monthStart, $monthEnd, $monthStart, $monthEnd);
+        $stmt->bind_param('ssss', $monthStart, $monthEnd, $monthStart, $monthEnd);
         $stmt->execute();
         $result = $stmt->get_result();
         while ($row = $result->fetch_assoc()) {
@@ -168,12 +154,7 @@ if ($includeReservations) {
     $sql = "
         SELECT s_locks.slot_date AS service_day, COUNT(DISTINCT r.request_id) AS total_count
         FROM requests r
-        JOIN (
-            SELECT source_id, MIN(slot_date) AS slot_date
-            FROM schedule_slot_locks
-            WHERE source_type = 'request' AND status = 'active'
-            GROUP BY source_id
-        ) s_locks ON s_locks.source_id = r.request_id
+        JOIN schedule_slot_locks s_locks ON s_locks.source_type = 'request' AND s_locks.source_id = r.request_id AND s_locks.status = 'active'
         WHERE $reqWhereSql
           AND s_locks.slot_date >= ? AND s_locks.slot_date <= ?
         GROUP BY s_locks.slot_date

@@ -40,10 +40,9 @@
             return `${year}-${month}`;
         }
 
-        // Toggle / Open Popup on input or wrap click
-        wrap.addEventListener('click', function (e) {
+        // Toggle / Open Popup
+        input.addEventListener('click', function (e) {
             if (input.disabled) return;
-            if (e.target.closest('#serviceDateClearBtn')) return;
             e.stopPropagation();
             togglePopup();
         });
