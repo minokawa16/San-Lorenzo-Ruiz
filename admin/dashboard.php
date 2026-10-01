@@ -5,6 +5,8 @@
  * Features: KPIs, Analytics, Charts, Quick Actions
  */
 
+header('Cache-Control: private, no-store');
+
 include '../config/security.php';
 include '../includes/session.php';
 include '../includes/helpers.php';
@@ -151,7 +153,7 @@ $dashboard_avatar_letter = 'P';
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../assets/css/holy-theme.css">
+    <link rel="stylesheet" href="../assets/css/holy-theme.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/holy-theme.css') ? filemtime(__DIR__ . '/../assets/css/holy-theme.css') : time(); ?>">
     <link rel="stylesheet" href="../assets/css/admin-sidebar.css?v=<?php echo file_exists(__DIR__ . '/../assets/css/admin-sidebar.css') ? filemtime(__DIR__ . '/../assets/css/admin-sidebar.css') : time(); ?>">
     <style id="dashboard-custom-theme">
         /* ── Core Theme Palette & Layout ────────────────────────── */
@@ -420,63 +422,79 @@ $dashboard_avatar_letter = 'P';
             transform: translateY(-1px);
         }
 
-        /* ── 3. High Density Stat Cards (6 Key Metrics) ──── */
-        .dashboard-stats-grid {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 12px;
-            margin-bottom: 16px;
+        /* ── 3. High Density Stat Cards (3x2 Grid for Admin) ──── */
+        body.premium-admin .dashboard-stats-grid {
+            display: grid !important;
+            grid-template-columns: repeat(3, 1fr) !important;
+            gap: 16px !important;
+            margin-bottom: 24px !important;
+            width: 100% !important;
+            align-items: stretch !important;
         }
 
-        .stat-card-compact {
-            background: #ffffff;
-            border: 1px solid var(--border-warm);
-            border-radius: 8px;
-            padding: 12px 14px;
-            text-decoration: none;
-            color: inherit;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            min-height: 94px;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
-            transition: all 0.15s ease;
+        body.premium-admin .stat-card-compact {
+            background: #ffffff !important;
+            border: 1px solid var(--border-warm, #d8d6cc) !important;
+            border-radius: 8px !important;
+            padding: 16px 18px !important;
+            text-decoration: none !important;
+            color: inherit !important;
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: space-between !important;
+            height: 100% !important;
+            min-height: 112px !important;
+            box-sizing: border-box !important;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+            transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease !important;
+            position: relative !important;
+            cursor: pointer !important;
         }
 
-        .stat-card-compact:hover {
-            transform: translateY(-2px);
-            border-color: #c4c1b5;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-            color: inherit;
+        body.premium-admin .stat-card-compact:hover {
+            transform: translateY(-2px) !important;
+            border-color: var(--brand-gold, #c89b3c) !important;
+            box-shadow: 0 6px 18px rgba(200, 155, 60, 0.18), 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+            color: inherit !important;
         }
 
-        .stat-card-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 8px;
-            margin-bottom: 3px;
+        body.premium-admin .stat-card-compact:focus-visible {
+            outline: 2px solid var(--brand-gold, #c89b3c) !important;
+            outline-offset: 2px !important;
+            border-color: var(--brand-gold, #c89b3c) !important;
+            box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.25) !important;
         }
 
-        .stat-card-label {
-            font-size: 0.7rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: var(--text-secondary);
-            margin: 0;
-            line-height: 1.2;
+        body.premium-admin .stat-card-header {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            gap: 10px !important;
+            margin-bottom: 6px !important;
         }
 
-        .stat-card-icon {
-            width: 28px;
-            height: 28px;
-            border-radius: 6px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            flex-shrink: 0;
+        body.premium-admin .stat-card-label {
+            font-size: 0.72rem !important;
+            font-weight: 700 !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.5px !important;
+            color: var(--text-secondary, #6b6a63) !important;
+            margin: 0 !important;
+            line-height: 1.2 !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+        }
+
+        body.premium-admin .stat-card-icon {
+            width: 28px !important;
+            height: 28px !important;
+            border-radius: 6px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-size: 12px !important;
+            flex-shrink: 0 !important;
         }
 
         /* Icon Badge Color Variants */
@@ -489,29 +507,30 @@ $dashboard_avatar_letter = 'P';
         .icon-cyan { background: #ecfeff; color: #0891b2; }
         .icon-slate { background: #f1f5f9; color: #475569; }
 
-        .stat-card-value {
-            font-size: 1.4rem;
-            font-weight: 800;
-            color: #0f172a;
-            line-height: 1.15;
-            margin: 2px 0 4px 0;
+        body.premium-admin .stat-card-value {
+            font-size: 1.65rem !important;
+            font-weight: 800 !important;
+            color: #0f172a !important;
+            line-height: 1.2 !important;
+            margin: 2px 0 8px 0 !important;
             font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
         }
 
-        .stat-card-footer {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            font-size: 0.68rem;
-            font-weight: 500;
-            color: var(--text-secondary);
+        body.premium-admin .stat-card-footer {
+            display: flex !important;
+            align-items: center !important;
+            gap: 4px !important;
+            font-size: 0.68rem !important;
+            font-weight: 500 !important;
+            color: var(--text-secondary, #6b6a63) !important;
+            margin-top: auto !important;
         }
 
         .trend-pill {
             display: inline-flex;
             align-items: center;
             gap: 3px;
-            padding: 1px 6px;
+            padding: 2px 7px;
             border-radius: 4px;
             font-size: 0.65rem;
             font-weight: 700;
@@ -646,9 +665,10 @@ $dashboard_avatar_letter = 'P';
         .dashboard-activity-icon.rejected { background: #fee2e2; color: #991b1b; }
 
         /* ── Responsiveness ───────────────────────────────────────── */
-        @media (max-width: 900px) {
-            .dashboard-stats-grid {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
+        @media (max-width: 1023px) {
+            body.premium-admin .dashboard-stats-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                gap: 14px !important;
             }
         }
 
@@ -670,9 +690,10 @@ $dashboard_avatar_letter = 'P';
             }
         }
 
-        @media (max-width: 480px) {
-            .dashboard-stats-grid {
-                grid-template-columns: 1fr;
+        @media (max-width: 639px) {
+            body.premium-admin .dashboard-stats-grid {
+                grid-template-columns: 1fr !important;
+                gap: 12px !important;
             }
             .dashboard-header-title-block h1 {
                 font-size: 1.75rem !important;
@@ -738,81 +759,77 @@ $dashboard_avatar_letter = 'P';
                 </div>
             </header>
 
-            <!-- Compact 4-Column Stat Cards Grid (8 Key Metrics) -->
+            <!-- 3x2 Stat Cards Grid (6 Key Metrics) -->
             <div class="dashboard-stats-grid">
                 <!-- 1. Total Parishioners -->
-                <a href="manage-users.php" class="stat-card-compact" aria-label="View total parishioners">
+                <a href="manage-users.php" class="stat-card-compact" aria-label="Total Parishioners, <?php echo number_format($kpis['total_users']); ?>. Open parishioners management.">
                     <div class="stat-card-header">
                         <span class="stat-card-label">Total Parishioners</span>
-                        <span class="stat-card-icon icon-blue"><i class="fas fa-users"></i></span>
+                        <span class="stat-card-icon icon-blue"><i class="fas fa-users" aria-hidden="true"></i></span>
                     </div>
                     <div class="stat-card-value"><?php echo number_format($kpis['total_users']); ?></div>
                     <div class="stat-card-footer">
-                        <span class="trend-pill success"><i class="fas fa-arrow-up"></i> Active users</span>
+                        <span class="trend-pill success"><i class="fas fa-arrow-up" aria-hidden="true"></i> Active users</span>
                     </div>
                 </a>
 
                 <!-- 2. Total Requests -->
-                <a href="manage-requests.php" class="stat-card-compact" aria-label="View all requests">
+                <a href="manage-requests.php" class="stat-card-compact" aria-label="Total Requests, <?php echo number_format($kpis['total_requests']); ?>. Open requests management.">
                     <div class="stat-card-header">
                         <span class="stat-card-label">Total Requests</span>
-                        <span class="stat-card-icon icon-indigo"><i class="fas fa-list-check"></i></span>
+                        <span class="stat-card-icon icon-indigo"><i class="fas fa-list-check" aria-hidden="true"></i></span>
                     </div>
                     <div class="stat-card-value"><?php echo number_format($kpis['total_requests']); ?></div>
                     <div class="stat-card-footer">
-                        <span class="trend-pill neutral"><i class="fas fa-chart-line"></i> All time</span>
+                        <span class="trend-pill neutral"><i class="fas fa-chart-line" aria-hidden="true"></i> All time</span>
                     </div>
                 </a>
 
                 <!-- 3. Pending Requests -->
-                <a href="manage-requests.php?status=pending" class="stat-card-compact" aria-label="View pending requests">
+                <a href="manage-requests.php?status=pending" class="stat-card-compact" aria-label="Pending Requests, <?php echo number_format($kpis['pending_requests']); ?>. Open pending requests.">
                     <div class="stat-card-header">
                         <span class="stat-card-label">Pending Requests</span>
-                        <span class="stat-card-icon icon-amber"><i class="fas fa-hourglass-half"></i></span>
+                        <span class="stat-card-icon icon-amber"><i class="fas fa-hourglass-half" aria-hidden="true"></i></span>
                     </div>
                     <div class="stat-card-value"><?php echo number_format($kpis['pending_requests']); ?></div>
                     <div class="stat-card-footer">
-                        <?php if ($kpis['pending_requests'] > 5): ?>
-                            <span class="trend-pill danger"><i class="fas fa-circle-exclamation"></i> Action needed</span>
-                        <?php else: ?>
-                            <span class="trend-pill success"><i class="fas fa-check"></i> Under control</span>
-                        <?php endif; ?>
+                        <span class="trend-pill danger"><i class="fas fa-circle-exclamation" aria-hidden="true"></i> Action needed</span>
                     </div>
                 </a>
 
                 <!-- 4. Sacramental Records -->
-                <a href="manage-records.php" class="stat-card-compact" aria-label="View sacramental records">
+                <a href="manage-records.php" class="stat-card-compact" aria-label="Sacramental Records, <?php echo number_format($kpis['total_records']); ?>. Open sacramental records.">
                     <div class="stat-card-header">
                         <span class="stat-card-label">Sacramental Records</span>
-                        <span class="stat-card-icon icon-emerald"><i class="fas fa-book-bible"></i></span>
+                        <span class="stat-card-icon icon-emerald"><i class="fas fa-book-bible" aria-hidden="true"></i></span>
                     </div>
                     <div class="stat-card-value"><?php echo number_format($kpis['total_records']); ?></div>
                     <div class="stat-card-footer">
-                        <span class="trend-pill neutral"><i class="fas fa-database"></i> Digitized</span>
+                        <span class="trend-pill neutral"><i class="fas fa-database" aria-hidden="true"></i> Digitized</span>
                     </div>
                 </a>
 
                 <!-- 5. Active Announcements -->
-                <a href="manage-announcements.php" class="stat-card-compact" aria-label="View active announcements">
+                <a href="manage-announcements.php" class="stat-card-compact" aria-label="Announcements, <?php echo number_format($kpis['active_announcements']); ?>. Open announcements.">
                     <div class="stat-card-header">
                         <span class="stat-card-label">Announcements</span>
-                        <span class="stat-card-icon icon-teal"><i class="fas fa-bullhorn"></i></span>
+                        <span class="stat-card-icon icon-teal"><i class="fas fa-bullhorn" aria-hidden="true"></i></span>
                     </div>
                     <div class="stat-card-value"><?php echo number_format($kpis['active_announcements']); ?></div>
                     <div class="stat-card-footer">
-                        <span class="trend-pill success"><i class="fas fa-signal"></i> Live now</span>
+                        <span class="trend-pill success"><i class="fas fa-signal" aria-hidden="true"></i> Live now</span>
                     </div>
                 </a>
 
                 <!-- 6. Calendar Schedules -->
-                <a href="manage-calendar.php" class="stat-card-compact" aria-label="View calendar schedules">
+                <a href="manage-calendar.php" class="stat-card-compact" aria-label="Schedules and Events, <?php echo number_format($kpis['active_schedules']); ?>. Open parish calendar.">
                     <div class="stat-card-header">
                         <span class="stat-card-label">Schedules &amp; Events</span>
-                        <span class="stat-card-icon icon-cyan"><i class="fas fa-calendar-days"></i></span>
+                        <span class="stat-card-icon icon-cyan"><i class="fas fa-calendar-days" aria-hidden="true"></i></span>
                     </div>
                     <div class="stat-card-value"><?php echo number_format($kpis['active_schedules']); ?></div>
                     <div class="stat-card-footer">
-                        <span class="trend-pill neutral"><i class="fas fa-clock"></i> Approved</span>
+                        <span class="trend-pill neutral"><i class="fas fa-clock" aria-hidden="true"></i> Approved</span>
                     </div>
                 </a>
             </div>

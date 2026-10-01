@@ -28,6 +28,16 @@ if (isset($conn) && $conn instanceof mysqli) {
         $sidebarPendingCount = (int) ($countRes->fetch_assoc()['c'] ?? 0);
     }
 }
+
+// Get pending registrations count for badge (admin / staff with verification permission)
+$sidebarPendingRegistrationsCount = 0;
+$canVerifyRegistrations = function_exists('hasPermission') ? hasPermission('registrations.verify') : true;
+if ($canVerifyRegistrations && isset($conn) && $conn instanceof mysqli) {
+    $regCountRes = $conn->query("SELECT COUNT(*) AS c FROM users WHERE role = 'user' AND status = 'pending_verification'");
+    if ($regCountRes) {
+        $sidebarPendingRegistrationsCount = (int) ($regCountRes->fetch_assoc()['c'] ?? 0);
+    }
+}
 ?>
 
 <?php $responsive_sidebar_style_version = filemtime(__DIR__ . '/../assets/css/responsive-unified.css'); ?>
@@ -127,6 +137,64 @@ if (isset($conn) && $conn instanceof mysqli) {
   pointer-events: auto;
   padding-top: 2px;
   padding-bottom: 4px;
+}
+
+/* Formal consistency for submenu items */
+.nav-section-submenu .nav-link {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 8px 12px 8px 14px !important;
+  font-size: 0.8125rem !important;
+  font-weight: 500 !important;
+  line-height: 1.3 !important;
+  color: rgba(255, 255, 255, 0.88) !important;
+  text-decoration: none !important;
+  border-radius: 6px !important;
+  white-space: nowrap !important;
+  transition: all 0.15s ease !important;
+}
+
+.nav-section-submenu .nav-link:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+}
+
+.nav-section-submenu .nav-link.active {
+  background: rgba(200, 155, 60, 0.18) !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  border: 1px solid rgba(200, 155, 60, 0.55) !important;
+  box-shadow: 0 0 10px rgba(200, 155, 60, 0.25) !important;
+}
+
+.nav-section-submenu .nav-link i {
+  font-size: 0.95rem !important;
+  width: 18px !important;
+  min-width: 18px !important;
+  text-align: center !important;
+  flex-shrink: 0 !important;
+  color: #c89b3c !important;
+}
+
+.nav-section-submenu .nav-link span:not(.pill-badge) {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  flex: 1 1 auto !important;
+}
+
+.nav-section-submenu .nav-link .pill-badge {
+  margin-left: auto !important;
+  flex-shrink: 0 !important;
+  background: rgba(200, 155, 60, 0.18) !important;
+  color: #c89b3c !important;
+  border: 1px solid rgba(200, 155, 60, 0.5) !important;
+  font-size: 0.7rem !important;
+  padding: 2px 7px !important;
+  border-radius: 999px !important;
+  line-height: 1.2 !important;
+  font-weight: 700 !important;
 }
 
 /* In expanded mode, group-icon is hidden */
@@ -269,6 +337,15 @@ html body .admin-sidebar.collapsed .nav-section-submenu {
         <i class="fas fa-chevron-down nav-accordion-arrow" aria-hidden="true"></i>
       </button>
       <div class="nav-section-submenu" id="submenu-parish-mgmt" role="region" aria-labelledby="accordion-parish-mgmt">
+        <?php if (hasPermission('registrations.verify')): ?>
+        <a href="<?php echo BASE_URL; ?>admin/verify-registrations.php" class="nav-link <?php echo ($currentPage == 'verify-registrations.php') ? 'active' : ''; ?>" aria-label="Verify Registrations" data-tooltip="Verify Registrations">
+          <i class="fas fa-user-check" aria-hidden="true"></i>
+          <span>Verify Registrations</span>
+          <?php if ($sidebarPendingRegistrationsCount > 0): ?>
+          <span class="pill-badge" id="pendingRegistrationsBadge"><?php echo $sidebarPendingRegistrationsCount > 99 ? '99+' : $sidebarPendingRegistrationsCount; ?></span>
+          <?php endif; ?>
+        </a>
+        <?php endif; ?>
         <?php if (hasPermission('users.view')): ?>
         <a href="<?php echo BASE_URL; ?>admin/manage-users.php" class="nav-link <?php echo in_array($currentPage, ['manage-users.php', 'manage-parishioners.php'], true) ? 'active' : ''; ?>" aria-label="Manage Parishioners" data-tooltip="Manage Parishioners">
           <i class="fas fa-users" aria-hidden="true"></i>
@@ -277,12 +354,6 @@ html body .admin-sidebar.collapsed .nav-section-submenu {
         <a href="<?php echo BASE_URL; ?>admin/organization.php" class="nav-link <?php echo in_array($currentPage, ['organization.php', 'org-chart.php'], true) ? 'active' : ''; ?>" aria-label="Parish Organization" data-tooltip="Parish Organization">
           <i class="fas fa-sitemap" aria-hidden="true"></i>
           <span>Parish Organization</span>
-        </a>
-        <?php endif; ?>
-        <?php if (hasPermission('registrations.verify')): ?>
-        <a href="<?php echo BASE_URL; ?>admin/verify-registrations.php" class="nav-link <?php echo ($currentPage == 'verify-registrations.php') ? 'active' : ''; ?>" aria-label="<?php echo e(t('nav.verify_registrations', 'Verify Registrations')); ?>" data-tooltip="<?php echo e(t('nav.verify_registrations', 'Verify Registrations')); ?>">
-          <i class="fas fa-user-check" aria-hidden="true"></i>
-          <span><?php echo e(t('nav.verify_registrations', 'Verify Registrations')); ?></span>
         </a>
         <?php endif; ?>
       </div>
