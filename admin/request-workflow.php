@@ -119,7 +119,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
         $request_type = strtolower(trim((string)($request['request_type'] ?? '')));
         $is_funeral_action = ($request_type === 'funeral_mass' || $request_type === 'funeral' || str_contains($request_type, 'funeral'));
-        $zero_requirement_services = ['patronal_fiesta', 'anointing_of_the_sick', 'mass_offering', 'mass_intention', 'blessing_service', 'general_blessing'];
+        $zero_requirement_services = [
+            'patronal_fiesta', 'anointing_of_the_sick', 'mass_offering', 'mass_intention',
+            'blessing_service', 'general_blessing',
+            'first_communion_service', 'first_communion', 'communion',
+            'confirmation_service', 'confirmation'
+        ];
         $requires_supporting_docs = !in_array($request_type, $zero_requirement_services, true);
 
         $funeral_validation_error = null;
@@ -528,7 +533,13 @@ if (!function_exists('extractFormalDocumentDetails')) {
         if (!$prefTime) {
             $prefTime = $kv['preferred time'] ?? null;
         }
-        $displayTime = $prefTime ? date('h:i A', strtotime($prefTime)) : 'Regular Parish Hours / TBA';
+        $rawType = strtolower(trim((string)($request['request_type'] ?? '')));
+        $isCommunionOrConfirmation = in_array($rawType, ['first_communion_service', 'first_communion', 'communion', 'confirmation_service', 'confirmation'], true);
+        if ($isCommunionOrConfirmation && empty($prefTime)) {
+            $displayTime = 'Time to be set';
+        } else {
+            $displayTime = $prefTime ? date('h:i A', strtotime($prefTime)) : 'Regular Parish Hours / TBA';
+        }
 
         $assignedPriest = $request['assigned_staff_name'] ?? null;
         if (!$assignedPriest) {
@@ -543,7 +554,6 @@ if (!function_exists('extractFormalDocumentDetails')) {
 
         // Section 2: Applicant & Candidate Details
         $candidateName = !empty($request['record_holder_name']) ? $request['record_holder_name'] : null;
-        $rawType = strtolower(trim((string)($request['request_type'] ?? '')));
         $isMarriage = str_contains($rawType, 'marriage') || str_contains($rawType, 'wedding');
         $isFuneral = str_contains($rawType, 'funeral') || str_contains($rawType, 'burial');
 
@@ -566,7 +576,7 @@ if (!function_exists('extractFormalDocumentDetails')) {
             $motherName = 'Rites: ' . ($kv['type of funeral rites'] ?? $kv['funeral rites'] ?? 'Full Catholic Rites');
         } else {
             if (!$candidateName) {
-                $candidateName = $kv['name of child'] ?? $kv['child\'s name'] ?? $kv['full name'] ?? $kv['full maiden name'] ?? $kv['record holder name'] ?? $request['fullname'];
+                $candidateName = $kv['name of communicant'] ?? $kv['communicant'] ?? $kv['name of confirmed person'] ?? $kv['confirmed person'] ?? $kv['name of child'] ?? $kv['child\'s name'] ?? $kv['full name'] ?? $kv['full maiden name'] ?? $kv['record holder name'] ?? $request['fullname'];
             }
             $fatherName = $kv['father'] ?? $kv['father\'s name'] ?? 'Not specified / N/A';
             $motherName = $kv['mother'] ?? $kv['mother\'s maiden name'] ?? $kv['mother\'s name'] ?? 'Not specified / N/A';

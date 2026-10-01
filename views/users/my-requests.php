@@ -75,7 +75,20 @@
                                         <span class="fw-bold text-dark font-monospace" style="font-size: 0.95rem;"><?php echo e($request['reference_number']); ?></span>
                                     </td>
                                     <td class="py-3 px-3" data-label="Request Type">
-                                        <span class="fw-semibold text-dark"><?php echo e(ucfirst(str_replace('_', ' ', $request['request_type']))); ?></span>
+                                        <?php
+                                            $raw_rtype = strtolower((string)$request['request_type']);
+                                            $disp_rtype = match ($raw_rtype) {
+                                                'first_communion_service', 'first_communion', 'communion' => 'First Communion',
+                                                'confirmation_service', 'confirmation' => 'Confirmation',
+                                                'baptism_service', 'baptism' => 'Baptism',
+                                                'marriage_wedding_service', 'marriage', 'wedding' => 'Marriage / Wedding',
+                                                'funeral_mass', 'funeral' => 'Funeral Mass',
+                                                'anointing_of_the_sick' => 'Anointing of the Sick',
+                                                'patronal_fiesta' => 'Patronal Fiesta',
+                                                default => ucfirst(str_replace('_', ' ', $request['request_type']))
+                                            };
+                                        ?>
+                                        <span class="fw-semibold text-dark"><?php echo e($disp_rtype); ?></span>
                                     </td>
                                     <td class="py-3 px-3" data-label="Status">
                                         <?php 

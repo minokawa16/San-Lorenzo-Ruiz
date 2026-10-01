@@ -91,6 +91,11 @@ if (!function_exists('adminRequestTypeGroups')) {
                 'label' => 'Sacramental Services',
                 'types' => [
                     'baptism_service',
+                    'first_communion_service',
+                    'first_communion',
+                    'communion',
+                    'confirmation_service',
+                    'confirmation',
                     'marriage_wedding_service',
                     'funeral_mass',
                     'anointing_of_the_sick',
@@ -100,7 +105,6 @@ if (!function_exists('adminRequestTypeGroups')) {
                     'burial_reservation',
                     'wedding',
                     'baptism',
-                    'confirmation',
                     'burial',
                     'church_venue'
                 ]
@@ -724,7 +728,17 @@ include '../templates/header.php';
                             <?php foreach ($requests_list as $request): ?>
                                 <?php
                                     $is_reservation = $request['item_source'] === 'reservation';
-                                    $type_label = ucfirst(str_replace('_', ' ', $request['item_type']));
+                                    $raw_type = strtolower((string)$request['item_type']);
+                                    $type_label = match ($raw_type) {
+                                        'first_communion_service', 'first_communion', 'communion' => 'First Communion',
+                                        'confirmation_service', 'confirmation' => 'Confirmation',
+                                        'baptism_service', 'baptism' => 'Baptism',
+                                        'marriage_wedding_service', 'marriage', 'wedding' => 'Marriage / Wedding',
+                                        'funeral_mass', 'funeral' => 'Funeral Mass',
+                                        'anointing_of_the_sick' => 'Anointing of the Sick',
+                                        'patronal_fiesta' => 'Patronal Fiesta',
+                                        default => ucfirst(str_replace('_', ' ', $request['item_type']))
+                                    };
                                     $category_label = adminRequestCategoryLabel($request['item_category']);
                                     $has_schedule = !empty($request['event_date']) && ($request['item_category'] ?? '') !== 'certificate';
                                     $itemKey = $request['item_source'] . '_' . $request['item_id'];
@@ -774,7 +788,11 @@ include '../templates/header.php';
                                     <td>
                                         <?php if ($has_schedule): ?>
                                             <div class="fw-semibold text-dark"><?php echo formatDate($request['event_date']); ?></div>
-                                            <div class="text-muted small"><?php echo formatScheduleSlotRange($request['event_time']); ?></div>
+                                            <?php if (!empty($request['event_time'])): ?>
+                                                <div class="text-muted small"><?php echo formatScheduleSlotRange($request['event_time']); ?></div>
+                                            <?php else: ?>
+                                                <div class="text-muted small">Time to be set</div>
+                                            <?php endif; ?>
                                             <?php if ($has_conflict): ?>
                                                 <span class="badge pds-badge-conflict mt-1" title="Schedule conflict: overlapping time slot on the same day">
                                                     <i class="fas fa-clock me-1"></i>Same time

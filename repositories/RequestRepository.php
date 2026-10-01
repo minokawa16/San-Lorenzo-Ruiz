@@ -24,6 +24,7 @@ class RequestRepository
         ],
         'sacramental_services' => [
             'baptism_service', 'confirmation_service', 'first_communion_service',
+            'first_communion', 'communion',
             'marriage_wedding_service', 'anointing_of_the_sick', 'funeral_mass',
             'patronal_fiesta', 'church_reservation', 'wedding_reservation',
             'burial_reservation', 'wedding', 'baptism', 'confirmation',

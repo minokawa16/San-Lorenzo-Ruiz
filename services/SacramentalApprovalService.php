@@ -26,7 +26,9 @@ class SacramentalApprovalService {
         return in_array($norm, [
             'baptism_service', 'baptism',
             'marriage_wedding_service', 'marriage', 'wedding',
-            'funeral_mass', 'funeral', 'burial'
+            'funeral_mass', 'funeral', 'burial',
+            'first_communion_service', 'first_communion', 'communion',
+            'confirmation_service', 'confirmation'
         ], true);
     }
 
@@ -236,6 +238,14 @@ class SacramentalApprovalService {
 
         if ($requestType === 'funeral_mass' || $requestType === 'funeral' || $requestType === 'burial') {
             return $this->populateFuneralRecord($requestId, $description, $request, $officiatingPriest);
+        }
+
+        if ($requestType === 'first_communion_service' || $requestType === 'first_communion' || $requestType === 'communion') {
+            return $this->populateFirstCommunionRecord($requestId, $description, $request, $officiatingPriest, $parishPriest);
+        }
+
+        if ($requestType === 'confirmation_service' || $requestType === 'confirmation') {
+            return $this->populateConfirmationRecord($requestId, $description, $request, $officiatingPriest, $parishPriest);
         }
 
         return [
@@ -609,6 +619,188 @@ class SacramentalApprovalService {
     }
 
     /**
+     * Populates first_communion_records.
+     */
+    private function populateFirstCommunionRecord(int $requestId, string $desc, array $request, string $priest, string $parishPriest = ''): array {
+        if ($parishPriest === '') {
+            $parishPriest = function_exists('getParishPriestName') ? getParishPriestName($this->conn) : $this->getDefaultOfficiatingPriest();
+        }
+        $parsed = $this->parseCommunionDescription($desc, $request);
+        if (!empty($parsed['preferred_minister']) && (strcasecmp($priest, 'Rev. Fr. Parish Priest') === 0 || $priest === '' || strcasecmp($priest, 'Parish office will assign') === 0)) {
+            $priest = $parsed['preferred_minister'];
+        }
+
+        // Check if a record already exists for this request_id to prevent duplicates
+        $stmt = $this->conn->prepare("SELECT communion_id, registry_no FROM first_communion_records WHERE request_id = ? LIMIT 1");
+        $stmt->bind_param('i', $requestId);
+        $stmt->execute();
+        $existing = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        $registryNo = !empty($existing['registry_no']) ? $existing['registry_no'] : $this->generateRegistryNumber('COM');
+        $status = 'active';
+
+        if ($existing) {
+            $recordId = intval($existing['communion_id']);
+            $upd = $this->conn->prepare("
+                UPDATE first_communion_records
+                SET fullname = ?, communion_date = ?, domicile = ?, parents = ?,
+                    father_name = ?, mother_name = ?, priest = ?, baptismal_date = ?,
+                    baptismal_place = ?, remarks = ?, parish_priest = ?, status = ?, updated_at = NOW()
+                WHERE communion_id = ?
+            ");
+            $upd->bind_param(
+                'ssssssssssssi',
+                $parsed['fullname'],
+                $parsed['communion_date'],
+                $parsed['domicile'],
+                $parsed['parents'],
+                $parsed['father_name'],
+                $parsed['mother_name'],
+                $priest,
+                $parsed['baptismal_date'],
+                $parsed['baptismal_place'],
+                $parsed['remarks'],
+                $parishPriest,
+                $status,
+                $recordId
+            );
+            $upd->execute();
+            $upd->close();
+        } else {
+            $ins = $this->conn->prepare("
+                INSERT INTO first_communion_records
+                (request_id, registry_no, fullname, communion_date, domicile, parents, father_name, mother_name, priest, folio, baptismal_date, baptismal_place, remarks, parish_priest, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)
+            ");
+            $ins->bind_param(
+                'isssssssssssss',
+                $requestId,
+                $registryNo,
+                $parsed['fullname'],
+                $parsed['communion_date'],
+                $parsed['domicile'],
+                $parsed['parents'],
+                $parsed['father_name'],
+                $parsed['mother_name'],
+                $priest,
+                $parsed['baptismal_date'],
+                $parsed['baptismal_place'],
+                $parsed['remarks'],
+                $parishPriest,
+                $status
+            );
+            $ins->execute();
+            $recordId = $ins->insert_id;
+            $ins->close();
+        }
+
+        return [
+            'type' => 'communion',
+            'table' => 'first_communion_records',
+            'canonical_table' => 'first_communion_records',
+            'id' => $recordId,
+            'registry_no' => $registryNo,
+            'subject_name' => $parsed['fullname'],
+            'event_date' => $parsed['communion_date'],
+            'officiating_priest' => $priest,
+            'registered' => true
+        ];
+    }
+
+    /**
+     * Populates confirmation_records.
+     */
+    private function populateConfirmationRecord(int $requestId, string $desc, array $request, string $priest, string $parishPriest = ''): array {
+        if ($parishPriest === '') {
+            $parishPriest = function_exists('getParishPriestName') ? getParishPriestName($this->conn) : $this->getDefaultOfficiatingPriest();
+        }
+        $parsed = $this->parseConfirmationDescription($desc, $request);
+
+        // Check if a record already exists for this request_id to prevent duplicates
+        $stmt = $this->conn->prepare("SELECT confirmation_id, registry_no FROM confirmation_records WHERE request_id = ? LIMIT 1");
+        $stmt->bind_param('i', $requestId);
+        $stmt->execute();
+        $existing = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        $registryNo = !empty($existing['registry_no']) ? $existing['registry_no'] : $this->generateRegistryNumber('CNF');
+        $status = 'active';
+
+        if ($existing) {
+            $recordId = intval($existing['confirmation_id']);
+            $upd = $this->conn->prepare("
+                UPDATE confirmation_records
+                SET fullname = ?, confirmation_date = ?, age = ?, origin_parish = ?,
+                    origin_province = ?, baptismal_place = ?, parents = ?, father_name = ?,
+                    mother_name = ?, sponsor = ?, bishop_priest = ?, observations = ?,
+                    parish_priest = ?, status = ?, updated_at = NOW()
+                WHERE confirmation_id = ?
+            ");
+            $upd->bind_param(
+                'ssssssssssssssi',
+                $parsed['fullname'],
+                $parsed['confirmation_date'],
+                $parsed['age'],
+                $parsed['origin_parish'],
+                $parsed['origin_province'],
+                $parsed['baptismal_place'],
+                $parsed['parents'],
+                $parsed['father_name'],
+                $parsed['mother_name'],
+                $parsed['sponsor'],
+                $priest,
+                $parsed['observations'],
+                $parishPriest,
+                $status,
+                $recordId
+            );
+            $upd->execute();
+            $upd->close();
+        } else {
+            $ins = $this->conn->prepare("
+                INSERT INTO confirmation_records
+                (request_id, registry_no, fullname, confirmation_date, age, origin_parish, origin_province, baptismal_place, parents, father_name, mother_name, sponsor, bishop_priest, observations, parish_priest, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ");
+            $ins->bind_param(
+                'isssssssssssssss',
+                $requestId,
+                $registryNo,
+                $parsed['fullname'],
+                $parsed['confirmation_date'],
+                $parsed['age'],
+                $parsed['origin_parish'],
+                $parsed['origin_province'],
+                $parsed['baptismal_place'],
+                $parsed['parents'],
+                $parsed['father_name'],
+                $parsed['mother_name'],
+                $parsed['sponsor'],
+                $priest,
+                $parsed['observations'],
+                $parishPriest,
+                $status
+            );
+            $ins->execute();
+            $recordId = $ins->insert_id;
+            $ins->close();
+        }
+
+        return [
+            'type' => 'confirmation',
+            'table' => 'confirmation_records',
+            'canonical_table' => 'confirmation_records',
+            'id' => $recordId,
+            'registry_no' => $registryNo,
+            'subject_name' => $parsed['fullname'],
+            'event_date' => $parsed['confirmation_date'],
+            'officiating_priest' => $priest,
+            'registered' => true
+        ];
+    }
+
+    /**
      * Action 2: Inserts or updates the event into schedule_events and locks the slot.
      */
     public function populateParishCalendarEvent(array $request, array $sacramentalRecord, int $actorUserId): array {
@@ -642,6 +834,10 @@ class SacramentalApprovalService {
             $title = 'Wedding: ' . $subject;
         } elseif ($requestType === 'funeral_mass' || $requestType === 'funeral' || $requestType === 'burial') {
             $title = 'Funeral Mass: ' . $subject;
+        } elseif ($requestType === 'first_communion_service' || $requestType === 'first_communion' || $requestType === 'communion') {
+            $title = 'First Communion: ' . $subject;
+        } elseif ($requestType === 'confirmation_service' || $requestType === 'confirmation') {
+            $title = 'Confirmation: ' . $subject;
         } else {
             $title = ucfirst(str_replace('_', ' ', $requestType)) . ': ' . $subject;
         }
@@ -768,6 +964,8 @@ class SacramentalApprovalService {
             'baptism_service', 'baptism' => 'Baptism',
             'marriage_wedding_service', 'marriage' => 'Marriage / Wedding',
             'funeral_mass', 'funeral' => 'Funeral Mass',
+            'first_communion_service', 'first_communion', 'communion' => 'First Communion',
+            'confirmation_service', 'confirmation' => 'Confirmation',
             'anointing_of_the_sick' => 'Anointing of the Sick',
             'patronal_fiesta' => 'Patronal Fiesta',
             default => ucwords(str_replace('_', ' ', $requestType))
@@ -807,6 +1005,8 @@ class SacramentalApprovalService {
             'BAP' => 'baptism_records',
             'MAR' => 'marriage_records',
             'FUN' => 'funeral_records',
+            'COM' => 'first_communion_records',
+            'CNF' => 'confirmation_records',
             default => 'baptism_records'
         };
 
@@ -1055,6 +1255,127 @@ class SacramentalApprovalService {
             // If parishioner specified a preferred minister, store it; the $priest caller arg overrides only if blank
             'preferred_minister' => $minister,
             'remarks'        => $remarks
+        ];
+    }
+
+    /**
+     * Parses First Communion details from request description.
+     */
+    private function parseCommunionDescription(string $desc, array $request): array {
+        $fullname = $this->extractField($desc, ['Name of Communicant', 'Communicant Name', 'Communicant', 'Full Name']);
+        if ($fullname === '' && !empty($request['record_holder_name'])) {
+            $fullname = trim((string)$request['record_holder_name']);
+        }
+        if ($fullname === '' && !empty($request['applicant_fullname'])) {
+            $fullname = trim((string)$request['applicant_fullname']);
+        }
+        $fullname = mb_strtoupper($fullname, 'UTF-8');
+
+        $communionDate = $this->extractField($desc, ['Preferred date', 'Date of First Communion', 'Communion Date', 'Date']);
+        if (!validDateValue($communionDate) && !empty($request['preferred_date']) && validDateValue($request['preferred_date'])) {
+            $communionDate = $request['preferred_date'];
+        }
+        if (!validDateValue($communionDate)) {
+            $communionDate = date('Y-m-d');
+        }
+
+        $domicile = $this->extractField($desc, ['Domicile', 'Address', 'Residence']);
+        $fatherName = $this->extractField($desc, ["Father's Complete Name", 'Father Name', 'Father']);
+        $motherName = $this->extractField($desc, ["Mother's Complete Maiden Name", 'Mother Name', 'Mother']);
+        $parents = $this->extractField($desc, ['Parents']);
+        if ($parents === '') {
+            if ($fatherName !== '' && $motherName !== '') {
+                $parents = mb_strtoupper($fatherName . ' / ' . $motherName, 'UTF-8');
+            } elseif ($fatherName !== '') {
+                $parents = mb_strtoupper($fatherName, 'UTF-8');
+            } elseif ($motherName !== '') {
+                $parents = mb_strtoupper($motherName, 'UTF-8');
+            }
+        } else {
+            $parents = mb_strtoupper($parents, 'UTF-8');
+        }
+
+        $minister = $this->extractField($desc, ['Minister', 'Officiating Priest', 'Priest']);
+        if (strcasecmp($minister, 'Parish office will assign') === 0) {
+            $minister = '';
+        }
+
+        $baptismalDate = $this->extractField($desc, ['Baptismal Date', 'Date of Baptism']);
+        if (!validDateValue($baptismalDate)) {
+            $baptismalDate = null;
+        }
+        $baptismalPlace = $this->extractField($desc, ['Baptismal Place', 'Place of Baptism']);
+        $details = $this->extractField($desc, ['Details', 'Additional Details', 'Remarks']);
+
+        return [
+            'fullname' => $fullname,
+            'communion_date' => $communionDate,
+            'domicile' => $domicile ?: null,
+            'father_name' => $fatherName ? mb_strtoupper($fatherName, 'UTF-8') : null,
+            'mother_name' => $motherName ? mb_strtoupper($motherName, 'UTF-8') : null,
+            'parents' => $parents ?: null,
+            'preferred_minister' => $minister,
+            'baptismal_date' => $baptismalDate,
+            'baptismal_place' => $baptismalPlace ?: null,
+            'remarks' => $details ?: 'Migrated upon request approval'
+        ];
+    }
+
+    /**
+     * Parses Confirmation details from request description.
+     */
+    private function parseConfirmationDescription(string $desc, array $request): array {
+        $fullname = $this->extractField($desc, ['Name of Confirmed Person', 'Confirmed Person', 'Full Name']);
+        if ($fullname === '' && !empty($request['record_holder_name'])) {
+            $fullname = trim((string)$request['record_holder_name']);
+        }
+        if ($fullname === '' && !empty($request['applicant_fullname'])) {
+            $fullname = trim((string)$request['applicant_fullname']);
+        }
+        $fullname = mb_strtoupper($fullname, 'UTF-8');
+
+        $confirmationDate = $this->extractField($desc, ['Preferred date', 'Date of Confirmation', 'Confirmation Date', 'Date']);
+        if (!validDateValue($confirmationDate) && !empty($request['preferred_date']) && validDateValue($request['preferred_date'])) {
+            $confirmationDate = $request['preferred_date'];
+        }
+        if (!validDateValue($confirmationDate)) {
+            $confirmationDate = date('Y-m-d');
+        }
+
+        $age = $this->extractField($desc, ['Age']);
+        $originParish = $this->extractField($desc, ['Parish of Origin', 'Origin Parish']);
+        $originProvince = $this->extractField($desc, ['Province', 'Origin Province']) ?: 'Cotabato';
+        $baptismalPlace = $this->extractField($desc, ['Place of Baptism', 'Baptismal Place']);
+        $fatherName = $this->extractField($desc, ["Father's Complete Name", 'Father Name', 'Father']);
+        $motherName = $this->extractField($desc, ["Mother's Complete Maiden Name", 'Mother Name', 'Mother']);
+        $parents = $this->extractField($desc, ['Parents']);
+        if ($parents === '') {
+            if ($fatherName !== '' && $motherName !== '') {
+                $parents = mb_strtoupper($fatherName . ' / ' . $motherName, 'UTF-8');
+            } elseif ($fatherName !== '') {
+                $parents = mb_strtoupper($fatherName, 'UTF-8');
+            } elseif ($motherName !== '') {
+                $parents = mb_strtoupper($motherName, 'UTF-8');
+            }
+        } else {
+            $parents = mb_strtoupper($parents, 'UTF-8');
+        }
+
+        $sponsor = $this->extractField($desc, ['Sponsor / Godparent', 'Sponsor', 'Godparent']);
+        $details = $this->extractField($desc, ['Details', 'Additional Details', 'Observations', 'Remarks']);
+
+        return [
+            'fullname' => $fullname,
+            'confirmation_date' => $confirmationDate,
+            'age' => $age ?: null,
+            'origin_parish' => $originParish ?: null,
+            'origin_province' => $originProvince,
+            'baptismal_place' => $baptismalPlace ?: null,
+            'father_name' => $fatherName ? mb_strtoupper($fatherName, 'UTF-8') : null,
+            'mother_name' => $motherName ? mb_strtoupper($motherName, 'UTF-8') : null,
+            'parents' => $parents ?: null,
+            'sponsor' => $sponsor ? mb_strtoupper($sponsor, 'UTF-8') : null,
+            'observations' => $details ?: 'Migrated upon request approval'
         ];
     }
 

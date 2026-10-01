@@ -20,19 +20,41 @@ ensureExpandedRequestTypeSchema($conn);
 ensureRequestDocumentsSchema($conn);
 ensureEmailNotificationSchema($conn);
 
+$user_stmt = $conn->prepare("SELECT status, address, street_address, barangay, city, province FROM users WHERE id = ? LIMIT 1");
+$user_profile = null;
+$prefill_domicile = '';
+if ($user_stmt) {
+    $user_stmt->bind_param('i', $user_id);
+    $user_stmt->execute();
+    $user_profile = $user_stmt->get_result()->fetch_assoc();
+    $user_stmt->close();
+}
+if (!empty($user_profile)) {
+    $domicile_parts = array_filter([
+        !empty($user_profile['barangay']) ? $user_profile['barangay'] : (!empty($user_profile['street_address']) ? $user_profile['street_address'] : ''),
+        $user_profile['city'] ?? '',
+        $user_profile['province'] ?? ''
+    ]);
+    if (!empty($domicile_parts)) {
+        $prefill_domicile = implode(', ', $domicile_parts);
+    } elseif (!empty($user_profile['address'])) {
+        $prefill_domicile = $user_profile['address'];
+    }
+}
+
 $service_types = [
-    'baptism_service' => 'Baptism',
+    'first_communion_service' => 'First Communion',
     'confirmation_service' => 'Confirmation',
-    'first_communion_service' => 'First Communion / Eucharist',
+    'baptism_service' => 'Baptism',
     'marriage_wedding_service' => 'Marriage / Wedding',
     'anointing_of_the_sick' => 'Anointing of the Sick',
     'funeral_mass' => 'Funeral Mass',
     'patronal_fiesta' => 'Patronal Fiesta'
 ];
 $service_meta = [
-    'baptism_service' => ['icon' => 'fa-water', 'hint' => 'Schedule a baptism service with parish coordination.'],
+    'first_communion_service' => ['icon' => 'fa-bread-slice', 'hint' => 'Request First Communion service scheduling.'],
     'confirmation_service' => ['icon' => 'fa-dove', 'hint' => 'Request Holy Confirmation service scheduling.'],
-    'first_communion_service' => ['icon' => 'fa-bread-slice', 'hint' => 'Request First Holy Communion service scheduling.'],
+    'baptism_service' => ['icon' => 'fa-water', 'hint' => 'Schedule a baptism service with parish coordination.'],
     'marriage_wedding_service' => ['icon' => 'fa-ring', 'hint' => 'Request wedding or marriage service scheduling.'],
     'anointing_of_the_sick' => ['icon' => 'fa-hand-holding-medical', 'hint' => 'Request pastoral care and anointing schedule.'],
     'funeral_mass' => ['icon' => 'fa-cross', 'hint' => 'Coordinate funeral Mass details with the parish.'],
@@ -360,8 +382,252 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             }
         }
 
+        $cleanName = function($name) {
+            $trimmed = preg_replace('/\s+/', ' ', trim((string)$name));
+            return mb_strtoupper($trimmed, 'UTF-8');
+        };
+        $validNamePattern = '/^[a-zA-Z\s\.\'\-ñÑ\x{00C0}-\x{017F}]+$/u';
+
+        if (empty($user_profile) || ($user_profile['status'] ?? '') !== 'active') {
+            $respond(false, 'Only verified parishioners with active accounts can submit service requests.', ['status_code' => 403]);
+        }
+
         if (!array_key_exists($request_type, $service_types)) {
             $respond(false, 'Please choose a sacramental service.', ['status_code' => 422]);
+        } elseif ($request_type === 'first_communion_service') {
+            $preferred_date = trim((string) ($_POST['communion_preferred_date'] ?? ''));
+            $comm_name = trim((string) ($_POST['communion_communicant_name'] ?? ''));
+            $comm_domicile = trim((string) ($_POST['communion_domicile'] ?? ''));
+            $comm_father = trim((string) ($_POST['communion_father_name'] ?? ''));
+            $comm_mother = trim((string) ($_POST['communion_mother_name'] ?? ''));
+            $comm_minister = trim((string) ($_POST['communion_minister'] ?? ''));
+            $comm_bap_date = trim((string) ($_POST['communion_baptismal_date'] ?? ''));
+            $comm_bap_place = trim((string) ($_POST['communion_baptismal_place'] ?? ''));
+
+            if ($preferred_date === '' || !serviceValidDate($preferred_date)) {
+                $respond(false, 'Please select a valid Preferred Date for First Communion.', ['status_code' => 422]);
+            }
+            $today_manila = (new DateTime('now', new DateTimeZone('Asia/Manila')))->format('Y-m-d');
+            if ($preferred_date < $today_manila) {
+                $respond(false, 'Preferred Date cannot be in the past. Please select an upcoming date.', ['status_code' => 422]);
+            }
+
+            if ($comm_name === '') {
+                $respond(false, 'Name of Communicant is required.', ['status_code' => 422]);
+            }
+            if (!preg_match($validNamePattern, $comm_name)) {
+                $respond(false, 'Name of Communicant may only contain letters, spaces, periods, hyphens, apostrophes, and the letter ñ.', ['status_code' => 422]);
+            }
+            $comm_name_upper = $cleanName($comm_name);
+
+            if ($comm_domicile === '') {
+                $respond(false, 'Domicile is required.', ['status_code' => 422]);
+            }
+
+            if ($comm_father === '' && $comm_mother === '') {
+                $respond(false, 'At least one parent name (Father or Mother) is required.', ['status_code' => 422]);
+            }
+            if ($comm_father !== '' && !preg_match($validNamePattern, $comm_father)) {
+                $respond(false, 'Father\'s name may only contain letters, spaces, periods, hyphens, apostrophes, and the letter ñ.', ['status_code' => 422]);
+            }
+            if ($comm_mother !== '' && !preg_match($validNamePattern, $comm_mother)) {
+                $respond(false, 'Mother\'s maiden name may only contain letters, spaces, periods, hyphens, apostrophes, and the letter ñ.', ['status_code' => 422]);
+            }
+            $father_upper = $comm_father !== '' ? $cleanName($comm_father) : '';
+            $mother_upper = $comm_mother !== '' ? $cleanName($comm_mother) : '';
+            $parents_str = ($father_upper !== '' && $mother_upper !== '') 
+                ? ($father_upper . ' / ' . $mother_upper) 
+                : ($father_upper ?: $mother_upper);
+
+            $allowed_ministers = [
+                'Parish office will assign',
+                'Rev. Fr. Alberto G. Cahilig, OMI',
+                'Rev. Fr. Alvin Vicente C. Barretto, OMI'
+            ];
+            if ($comm_minister !== '' && !in_array($comm_minister, $allowed_ministers, true)) {
+                $comm_minister = 'Parish office will assign';
+            }
+
+            if ($comm_bap_date === '' || !serviceValidDate($comm_bap_date)) {
+                $respond(false, 'Please provide a valid Baptismal Date.', ['status_code' => 422]);
+            }
+            if ($comm_bap_date >= $preferred_date) {
+                $respond(false, 'Baptismal Date must be before the Preferred Date.', ['status_code' => 422]);
+            }
+
+            if ($comm_bap_place === '') {
+                $respond(false, 'Baptismal Place is required.', ['status_code' => 422]);
+            }
+
+            $comm_year = date('Y', strtotime($preferred_date));
+            $comm_month_day = date('F d', strtotime($preferred_date));
+            $comm_location = $location !== '' ? $location : 'San Lorenzo Ruiz Parish Church';
+
+            $description_parts = [
+                'Preferred date: ' . $preferred_date,
+                'Preferred time: Time to be set',
+                'Location: ' . $comm_location,
+                'Service: First Communion',
+                "\n--- FIRST COMMUNION APPLICATION ---",
+                'Year: ' . $comm_year,
+                'Month and Day: ' . $comm_month_day,
+                'Name of Communicant: ' . $comm_name_upper,
+                'Domicile: ' . $comm_domicile,
+                'Father: ' . ($father_upper ?: 'N/A'),
+                'Mother: ' . ($mother_upper ?: 'N/A'),
+                'Parents: ' . $parents_str,
+                'Minister: ' . ($comm_minister ?: 'Parish office will assign'),
+                'Baptismal Date: ' . $comm_bap_date,
+                'Baptismal Place: ' . $comm_bap_place,
+                'Details: ' . ($details !== '' ? $details : 'None')
+            ];
+
+            $description = implode("\n", $description_parts);
+            $reference_number = generateReferenceNumber();
+            $status = 'pending';
+
+            $stmt = $conn->prepare("INSERT INTO requests (user_id, request_type, record_holder_name, description, status, reference_number) VALUES (?, ?, ?, ?, ?, ?)");
+            if (!$stmt) {
+                throw new Exception("Unable to prepare your First Communion request: " . $conn->error);
+            }
+            $stmt->bind_param('isssss', $user_id, $request_type, $comm_name_upper, $description, $status, $reference_number);
+            if (!$stmt->execute()) {
+                $exec_err = $stmt->error;
+                $stmt->close();
+                throw new Exception("Error executing First Communion request: " . $exec_err);
+            }
+            $request_id = $conn->insert_id;
+            $stmt->close();
+
+            @$conn->query("INSERT INTO schedule_slot_locks (slot_date, slot_time, slot_end_time, source_type, source_id) VALUES ('" . $conn->real_escape_string($preferred_date) . "', NULL, NULL, 'request', $request_id)");
+
+            createAuditLog($conn, $user_id, 'CREATE_REQUEST', 'requests', $request_id);
+            createNotification($conn, $user_id, 'First Communion Request Created', 'Your First Communion request has been submitted with reference: ' . $reference_number . '. The parish office will confirm the exact time.', true, 'requests', 'request', $request_id, 'request.view');
+            $success_msg = 'First Communion request submitted successfully! Reference: ' . $reference_number . '. The parish office will confirm the exact time.';
+            $respond(true, $success_msg, [
+                'reference_number' => $reference_number,
+                'request_id' => $request_id,
+                'doc_count' => 0,
+                'redirect_url' => 'my-requests.php?q=' . urlencode($reference_number)
+            ]);
+        } elseif ($request_type === 'confirmation_service') {
+            $preferred_date = trim((string) ($_POST['confirmation_preferred_date'] ?? ''));
+            $conf_name = trim((string) ($_POST['confirmation_fullname'] ?? ''));
+            $conf_age = trim((string) ($_POST['confirmation_age'] ?? ''));
+            $conf_origin_parish = trim((string) ($_POST['confirmation_origin_parish'] ?? ''));
+            $conf_province = trim((string) ($_POST['confirmation_province'] ?? 'Cotabato'));
+            $conf_bap_place = trim((string) ($_POST['confirmation_baptismal_place'] ?? ''));
+            $conf_father = trim((string) ($_POST['confirmation_father_name'] ?? ''));
+            $conf_mother = trim((string) ($_POST['confirmation_mother_name'] ?? ''));
+            $conf_sponsor = trim((string) ($_POST['confirmation_sponsor'] ?? ''));
+
+            if ($preferred_date === '' || !serviceValidDate($preferred_date)) {
+                $respond(false, 'Please select a valid Preferred Date for Confirmation.', ['status_code' => 422]);
+            }
+            $today_manila = (new DateTime('now', new DateTimeZone('Asia/Manila')))->format('Y-m-d');
+            if ($preferred_date < $today_manila) {
+                $respond(false, 'Preferred Date cannot be in the past. Please select an upcoming date.', ['status_code' => 422]);
+            }
+
+            if ($conf_name === '') {
+                $respond(false, 'Name of Confirmed Person is required.', ['status_code' => 422]);
+            }
+            if (!preg_match($validNamePattern, $conf_name)) {
+                $respond(false, 'Name of Confirmed Person may only contain letters, spaces, periods, hyphens, apostrophes, and the letter ñ.', ['status_code' => 422]);
+            }
+            $conf_name_upper = $cleanName($conf_name);
+
+            if (!ctype_digit($conf_age) || intval($conf_age) < 7 || intval($conf_age) > 120) {
+                $respond(false, 'Age must be a whole number between 7 and 120.', ['status_code' => 422]);
+            }
+
+            if ($conf_origin_parish === '') {
+                $respond(false, 'Parish of Origin is required.', ['status_code' => 422]);
+            }
+
+            if ($conf_province === '') {
+                $conf_province = 'Cotabato';
+            }
+
+            if ($conf_bap_place === '') {
+                $respond(false, 'Place of Baptism is required.', ['status_code' => 422]);
+            }
+
+            if ($conf_father === '' && $conf_mother === '') {
+                $respond(false, 'At least one parent name (Father or Mother) is required.', ['status_code' => 422]);
+            }
+            if ($conf_father !== '' && !preg_match($validNamePattern, $conf_father)) {
+                $respond(false, 'Father\'s name may only contain letters, spaces, periods, hyphens, apostrophes, and the letter ñ.', ['status_code' => 422]);
+            }
+            if ($conf_mother !== '' && !preg_match($validNamePattern, $conf_mother)) {
+                $respond(false, 'Mother\'s maiden name may only contain letters, spaces, periods, hyphens, apostrophes, and the letter ñ.', ['status_code' => 422]);
+            }
+            $father_upper = $conf_father !== '' ? $cleanName($conf_father) : '';
+            $mother_upper = $conf_mother !== '' ? $cleanName($conf_mother) : '';
+            $parents_str = ($father_upper !== '' && $mother_upper !== '') 
+                ? ($father_upper . ' / ' . $mother_upper) 
+                : ($father_upper ?: $mother_upper);
+
+            if ($conf_sponsor === '') {
+                $respond(false, 'Sponsor / Godparent full name is required.', ['status_code' => 422]);
+            }
+            if (!preg_match($validNamePattern, $conf_sponsor)) {
+                $respond(false, 'Sponsor / Godparent name may only contain letters, spaces, periods, hyphens, apostrophes, and the letter ñ.', ['status_code' => 422]);
+            }
+            $conf_sponsor_upper = $cleanName($conf_sponsor);
+
+            $conf_year = date('Y', strtotime($preferred_date));
+            $conf_month_day = date('F d', strtotime($preferred_date));
+            $conf_location = $location !== '' ? $location : 'San Lorenzo Ruiz Parish Church';
+
+            $description_parts = [
+                'Preferred date: ' . $preferred_date,
+                'Preferred time: Time to be set',
+                'Location: ' . $conf_location,
+                'Service: Confirmation',
+                "\n--- CONFIRMATION APPLICATION ---",
+                'Confirmation Year: ' . $conf_year,
+                'Month and Day: ' . $conf_month_day,
+                'Name of Confirmed Person: ' . $conf_name_upper,
+                'Age: ' . $conf_age,
+                'Parish of Origin: ' . $conf_origin_parish,
+                'Province: ' . $conf_province,
+                'Place of Baptism: ' . $conf_bap_place,
+                'Father: ' . ($father_upper ?: 'N/A'),
+                'Mother: ' . ($mother_upper ?: 'N/A'),
+                'Parents: ' . $parents_str,
+                'Sponsor / Godparent: ' . $conf_sponsor_upper,
+                'Details: ' . ($details !== '' ? $details : 'None')
+            ];
+
+            $description = implode("\n", $description_parts);
+            $reference_number = generateReferenceNumber();
+            $status = 'pending';
+
+            $stmt = $conn->prepare("INSERT INTO requests (user_id, request_type, record_holder_name, description, status, reference_number) VALUES (?, ?, ?, ?, ?, ?)");
+            if (!$stmt) {
+                throw new Exception("Unable to prepare your Confirmation request: " . $conn->error);
+            }
+            $stmt->bind_param('isssss', $user_id, $request_type, $conf_name_upper, $description, $status, $reference_number);
+            if (!$stmt->execute()) {
+                $exec_err = $stmt->error;
+                $stmt->close();
+                throw new Exception("Error executing Confirmation request: " . $exec_err);
+            }
+            $request_id = $conn->insert_id;
+            $stmt->close();
+
+            @$conn->query("INSERT INTO schedule_slot_locks (slot_date, slot_time, slot_end_time, source_type, source_id) VALUES ('" . $conn->real_escape_string($preferred_date) . "', NULL, NULL, 'request', $request_id)");
+
+            createAuditLog($conn, $user_id, 'CREATE_REQUEST', 'requests', $request_id);
+            createNotification($conn, $user_id, 'Confirmation Request Created', 'Your Confirmation request has been submitted with reference: ' . $reference_number . '. The parish office will confirm the exact time.', true, 'requests', 'request', $request_id, 'request.view');
+            $success_msg = 'Confirmation request submitted successfully! Reference: ' . $reference_number . '. The parish office will confirm the exact time.';
+            $respond(true, $success_msg, [
+                'reference_number' => $reference_number,
+                'request_id' => $request_id,
+                'doc_count' => 0,
+                'redirect_url' => 'my-requests.php?q=' . urlencode($reference_number)
+            ]);
         } elseif ($request_type === 'funeral_mass' && !empty($missing_funeral_sheet)) {
             $respond(false, 'Please complete the Funeral Investigation Sheet before submitting. Missing: ' . implode(', ', array_slice($missing_funeral_sheet, 0, 4)) . (count($missing_funeral_sheet) > 4 ? ', and more.' : '.'), ['status_code' => 422]);
         } elseif ($request_type === 'funeral_mass' && !serviceValidDate($funeral_sheet['date_of_death'])) {
@@ -615,6 +881,50 @@ if ($stmt) {
 <?php include '../includes/breadcrumb.php'; ?>
 <?php include '../includes/back_button.php'; ?>
 <link rel="stylesheet" href="../assets/css/request-modern.css?v=<?php echo filemtime('../assets/css/request-modern.css'); ?>">
+<style>
+.pds-input-icon-wrap {
+    position: relative !important;
+    display: block !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+.pds-input-icon-wrap > i:first-child {
+    position: absolute !important;
+    left: 14px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    width: 20px !important;
+    height: 20px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    pointer-events: none !important;
+    z-index: 5 !important;
+    font-size: 15px !important;
+    color: #64748b !important;
+}
+.pds-input-icon-wrap .form-control,
+.pds-input-icon-wrap .form-select,
+.pds-input-icon-wrap input,
+.pds-input-icon-wrap select {
+    display: block !important;
+    width: 100% !important;
+    min-height: 48px !important;
+    height: 48px !important;
+    padding-left: 44px !important;
+    padding-right: 16px !important;
+    box-sizing: border-box !important;
+    line-height: 1.5 !important;
+    font-size: 0.95rem !important;
+}
+.pds-input-icon-wrap .form-select {
+    padding-right: 40px !important;
+    background-position: right 14px center !important;
+}
+.text-uppercase {
+    text-transform: uppercase !important;
+}
+</style>
 
 <div class="container-fluid mt-4">
     <div class="request-modern-page">
@@ -1161,6 +1471,234 @@ if ($stmt) {
                         <span>Funeral Investigation Sheet is complete.</span>
                     </div>
                 </div>
+
+                <!-- First Communion Form Card -->
+                <div class="investigation-sheet-card" id="firstCommunionCard" hidden>
+                    <div class="investigation-sheet-heading">
+                        <span class="request-kicker"><i class="fas fa-bread-slice"></i> First Communion Request</span>
+                        <h3>First Communion Application Form</h3>
+                        <p>Complete the candidate and canonical registry details below. Approved requests map directly into official parish registries.</p>
+                    </div>
+
+                    <div class="investigation-subcard" style="background: #fefce8; border-color: #fde047;">
+                        <h4 class="investigation-subcard-title" style="color: #854d0e; border-bottom-color: #fef08a;"><i class="fas fa-calendar-day"></i> Preferred Service Date</h4>
+                        <div class="investigation-grid-full">
+                            <label for="communion_preferred_date">Preferred Date <span class="text-danger">*</span></label>
+                            <div class="pds-input-icon-wrap">
+                                <i class="fas fa-calendar"></i>
+                                <input type="date" class="form-control request-form-control" id="communion_preferred_date" name="communion_preferred_date" min="<?php echo (new DateTime('now', new DateTimeZone('Asia/Manila')))->format('Y-m-d'); ?>" data-communion-field>
+                            </div>
+                            <small class="text-muted d-block mt-1"><i class="fas fa-circle-info"></i> The parish office will confirm the exact time.</small>
+                        </div>
+                    </div>
+
+                    <div class="investigation-subcard">
+                        <h4 class="investigation-subcard-title"><i class="fas fa-church"></i> Communicant &amp; Registry Details</h4>
+                        <div class="investigation-grid-2">
+                            <div class="investigation-field">
+                                <label for="communion_year">1. Year <span class="text-muted fw-normal">(Auto-filled from date)</span></label>
+                                <div class="pds-input-icon-wrap">
+                                    <i class="fas fa-calendar-check"></i>
+                                    <input type="text" class="form-control request-form-control" id="communion_year" name="communion_year" placeholder="Auto-filled from Preferred Date" readonly style="background-color: #f8fafc; font-weight: 600;">
+                                </div>
+                            </div>
+                            <div class="investigation-field">
+                                <label for="communion_month_day">2. Month &amp; Day <span class="text-muted fw-normal">(Auto-filled from date)</span></label>
+                                <div class="pds-input-icon-wrap">
+                                    <i class="fas fa-calendar-days"></i>
+                                    <input type="text" class="form-control request-form-control" id="communion_month_day" name="communion_month_day" placeholder="e.g. September 01" readonly style="background-color: #f8fafc; font-weight: 600;">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="investigation-grid-full mt-3">
+                            <label for="communion_communicant_name">3. Name of Communicant <span class="text-danger">*</span></label>
+                            <div class="pds-input-icon-wrap">
+                                <i class="fas fa-user"></i>
+                                <input type="text" class="form-control request-form-control text-uppercase" id="communion_communicant_name" name="communion_communicant_name" placeholder="Full name of communicant (e.g. REY MARK C. CAVANAS)" data-communion-field autocomplete="off">
+                            </div>
+                            <small class="text-muted">Enter full name without numbers or symbols. Saved in UPPERCASE.</small>
+                        </div>
+
+                        <div class="investigation-grid-full mt-3">
+                            <label for="communion_domicile">4. Domicile <span class="text-danger">*</span></label>
+                            <div class="pds-input-icon-wrap">
+                                <i class="fas fa-location-dot"></i>
+                                <input type="text" class="form-control request-form-control" id="communion_domicile" name="communion_domicile" value="<?php echo e($prefill_domicile); ?>" placeholder="Barangay / Purok, Municipality, Province" data-communion-field autocomplete="off">
+                            </div>
+                        </div>
+
+                        <div class="investigation-grid-2 mt-3">
+                            <div class="investigation-field">
+                                <label for="communion_father_name">5a. Father's Full Name <small class="text-muted fw-normal">(Optional if Mother provided)</small></label>
+                                <div class="pds-input-icon-wrap">
+                                    <i class="fas fa-person"></i>
+                                    <input type="text" class="form-control request-form-control text-uppercase" id="communion_father_name" name="communion_father_name" placeholder="Father's complete name" data-communion-field autocomplete="off">
+                                </div>
+                            </div>
+                            <div class="investigation-field">
+                                <label for="communion_mother_name">5b. Mother's Full Maiden Name <small class="text-muted fw-normal">(Optional if Father provided)</small></label>
+                                <div class="pds-input-icon-wrap">
+                                    <i class="fas fa-person-dress"></i>
+                                    <input type="text" class="form-control request-form-control text-uppercase" id="communion_mother_name" name="communion_mother_name" placeholder="Mother's complete maiden name" data-communion-field autocomplete="off">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="investigation-field mt-1">
+                            <small class="text-muted"><i class="fas fa-info-circle"></i> At least one parent name is required. Saved in registry format "FATHER / MOTHER".</small>
+                        </div>
+
+                        <div class="investigation-grid-full mt-3">
+                            <label for="communion_minister">6. Minister <small class="text-muted fw-normal">(Optional)</small></label>
+                            <div class="pds-input-icon-wrap">
+                                <i class="fas fa-user-tie"></i>
+                                <select class="form-select request-form-control" id="communion_minister" name="communion_minister" data-communion-field>
+                                    <option value="Parish office will assign">Parish office will assign</option>
+                                    <option value="Rev. Fr. Alberto G. Cahilig, OMI">Rev. Fr. Alberto G. Cahilig, OMI</option>
+                                    <option value="Rev. Fr. Alvin Vicente C. Barretto, OMI">Rev. Fr. Alvin Vicente C. Barretto, OMI</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="investigation-grid-2 mt-3">
+                            <div class="investigation-field">
+                                <label for="communion_baptismal_date">7. Baptismal Date <span class="text-danger">*</span></label>
+                                <div class="pds-input-icon-wrap">
+                                    <i class="fas fa-water"></i>
+                                    <input type="date" class="form-control request-form-control" id="communion_baptismal_date" name="communion_baptismal_date" max="<?php echo date('Y-m-d'); ?>" data-communion-field>
+                                </div>
+                                <small class="text-muted">Must be before the Preferred Date.</small>
+                            </div>
+                            <div class="investigation-field">
+                                <label for="communion_baptismal_place">8. Baptismal Place <span class="text-danger">*</span></label>
+                                <div class="pds-input-icon-wrap">
+                                    <i class="fas fa-place-of-worship"></i>
+                                    <input type="text" class="form-control request-form-control" id="communion_baptismal_place" name="communion_baptismal_place" list="baptismalPlaceSuggestions" placeholder="Place of Baptism" data-communion-field autocomplete="off">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Confirmation Form Card -->
+                <div class="investigation-sheet-card" id="confirmationCard" hidden>
+                    <div class="investigation-sheet-heading">
+                        <span class="request-kicker"><i class="fas fa-dove"></i> Confirmation Request</span>
+                        <h3>Confirmation Application Form</h3>
+                        <p>Complete the candidate and canonical registry details below. Approved requests map directly into official parish registries.</p>
+                    </div>
+
+                    <div class="investigation-subcard" style="background: #f0fdf4; border-color: #86efac;">
+                        <h4 class="investigation-subcard-title" style="color: #166534; border-bottom-color: #bbf7d0;"><i class="fas fa-calendar-day"></i> Preferred Service Date</h4>
+                        <div class="investigation-grid-full">
+                            <label for="confirmation_preferred_date">Preferred Date <span class="text-danger">*</span></label>
+                            <div class="pds-input-icon-wrap">
+                                <i class="fas fa-calendar"></i>
+                                <input type="date" class="form-control request-form-control" id="confirmation_preferred_date" name="confirmation_preferred_date" min="<?php echo (new DateTime('now', new DateTimeZone('Asia/Manila')))->format('Y-m-d'); ?>" data-confirmation-field>
+                            </div>
+                            <small class="text-muted d-block mt-1"><i class="fas fa-circle-info"></i> The parish office will confirm the exact time.</small>
+                        </div>
+                    </div>
+
+                    <div class="investigation-subcard">
+                        <h4 class="investigation-subcard-title"><i class="fas fa-dove"></i> Candidate &amp; Registry Details</h4>
+                        <div class="investigation-grid-2">
+                            <div class="investigation-field">
+                                <label for="confirmation_year">1. Confirmation Year <span class="text-muted fw-normal">(Auto-filled from date)</span></label>
+                                <div class="pds-input-icon-wrap">
+                                    <i class="fas fa-calendar-check"></i>
+                                    <input type="text" class="form-control request-form-control" id="confirmation_year" name="confirmation_year" placeholder="Auto-filled from Preferred Date" readonly style="background-color: #f8fafc; font-weight: 600;">
+                                </div>
+                            </div>
+                            <div class="investigation-field">
+                                <label for="confirmation_month_day">2. Month and Day <span class="text-muted fw-normal">(Auto-filled from date)</span></label>
+                                <div class="pds-input-icon-wrap">
+                                    <i class="fas fa-calendar-days"></i>
+                                    <input type="text" class="form-control request-form-control" id="confirmation_month_day" name="confirmation_month_day" placeholder="e.g. September 01" readonly style="background-color: #f8fafc; font-weight: 600;">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="investigation-grid-full mt-3">
+                            <label for="confirmation_fullname">3. Name of Confirmed Person <span class="text-danger">*</span></label>
+                            <div class="pds-input-icon-wrap">
+                                <i class="fas fa-user"></i>
+                                <input type="text" class="form-control request-form-control text-uppercase" id="confirmation_fullname" name="confirmation_fullname" placeholder="Full name of confirmed person" data-confirmation-field autocomplete="off">
+                            </div>
+                            <small class="text-muted">Enter full name without numbers or symbols. Saved in UPPERCASE.</small>
+                        </div>
+
+                        <div class="investigation-grid-full mt-3">
+                            <label for="confirmation_age">4. Age <span class="text-danger">*</span></label>
+                            <div class="pds-input-icon-wrap">
+                                <i class="fas fa-hashtag"></i>
+                                <input type="number" class="form-control request-form-control" id="confirmation_age" name="confirmation_age" min="7" max="120" step="1" placeholder="Age (7 to 120)" data-confirmation-field>
+                            </div>
+                            <small class="text-muted">Must be a whole number between 7 and 120.</small>
+                        </div>
+
+                        <div class="investigation-grid-2 mt-3">
+                            <div class="investigation-field">
+                                <label for="confirmation_origin_parish">5. Parish of Origin <span class="text-danger">*</span></label>
+                                <div class="pds-input-icon-wrap">
+                                    <i class="fas fa-church"></i>
+                                    <input type="text" class="form-control request-form-control" id="confirmation_origin_parish" name="confirmation_origin_parish" placeholder="e.g. San Lorenzo Ruiz Parish" data-confirmation-field autocomplete="off">
+                                </div>
+                            </div>
+                            <div class="investigation-field">
+                                <label for="confirmation_province">6. Province <span class="text-danger">*</span></label>
+                                <div class="pds-input-icon-wrap">
+                                    <i class="fas fa-map-location-dot"></i>
+                                    <input type="text" class="form-control request-form-control" id="confirmation_province" name="confirmation_province" value="Cotabato" placeholder="Province" data-confirmation-field autocomplete="off">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="investigation-grid-full mt-3">
+                            <label for="confirmation_baptismal_place">7. Place of Baptism <span class="text-danger">*</span></label>
+                            <div class="pds-input-icon-wrap">
+                                <i class="fas fa-water"></i>
+                                <input type="text" class="form-control request-form-control" id="confirmation_baptismal_place" name="confirmation_baptismal_place" list="baptismalPlaceSuggestions" placeholder="Place of Baptism" data-confirmation-field autocomplete="off">
+                            </div>
+                        </div>
+
+                        <div class="investigation-grid-2 mt-3">
+                            <div class="investigation-field">
+                                <label for="confirmation_father_name">8a. Father's Full Name <small class="text-muted fw-normal">(Optional if Mother provided)</small></label>
+                                <div class="pds-input-icon-wrap">
+                                    <i class="fas fa-person"></i>
+                                    <input type="text" class="form-control request-form-control text-uppercase" id="confirmation_father_name" name="confirmation_father_name" placeholder="Father's complete name" data-confirmation-field autocomplete="off">
+                                </div>
+                            </div>
+                            <div class="investigation-field">
+                                <label for="confirmation_mother_name">8b. Mother's Full Maiden Name <small class="text-muted fw-normal">(Optional if Father provided)</small></label>
+                                <div class="pds-input-icon-wrap">
+                                    <i class="fas fa-person-dress"></i>
+                                    <input type="text" class="form-control request-form-control text-uppercase" id="confirmation_mother_name" name="confirmation_mother_name" placeholder="Mother's complete maiden name" data-confirmation-field autocomplete="off">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="investigation-field mt-1">
+                            <small class="text-muted"><i class="fas fa-info-circle"></i> At least one parent name is required. Saved in registry format "FATHER / MOTHER".</small>
+                        </div>
+
+                        <div class="investigation-grid-full mt-3">
+                            <label for="confirmation_sponsor">9. Sponsor / Godparent <span class="text-danger">*</span></label>
+                            <div class="pds-input-icon-wrap">
+                                <i class="fas fa-user-check"></i>
+                                <input type="text" class="form-control request-form-control text-uppercase" id="confirmation_sponsor" name="confirmation_sponsor" placeholder="Full name of sponsor / godparent" data-confirmation-field autocomplete="off">
+                            </div>
+                            <small class="text-muted">Single Godparent / Sponsor full name. Saved in UPPERCASE.</small>
+                        </div>
+                    </div>
+                </div>
+
+                <datalist id="baptismalPlaceSuggestions">
+                    <option value="San Lorenzo Ruiz Mission Station">
+                    <option value="San Lorenzo Ruiz Parish Church">
+                    <option value="Immaculate Conception Cathedral">
+                    <option value="Our Lady of the Miraculous Medal Parish">
+                </datalist>
             </section>
 
             <section class="request-step">
@@ -1305,6 +1843,16 @@ if ($stmt) {
                     <dl class="request-review-grid" id="reviewFuneralInfo"></dl>
                 </div>
 
+                <div class="request-review-section" id="reviewCommunionSection" hidden>
+                    <h3><i class="fas fa-bread-slice"></i> First Communion Details</h3>
+                    <dl class="request-review-grid" id="reviewCommunionInfo"></dl>
+                </div>
+
+                <div class="request-review-section" id="reviewConfirmationSection" hidden>
+                    <h3><i class="fas fa-dove"></i> Confirmation Details</h3>
+                    <dl class="request-review-grid" id="reviewConfirmationInfo"></dl>
+                </div>
+
                 <div class="request-review-section">
                     <h3><i class="fas fa-calendar-check"></i> Applicant, Schedule, and Location</h3>
                     <dl class="request-review-grid" id="reviewScheduleInfo"></dl>
@@ -1362,6 +1910,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const funeralBurialDateInput = document.getElementById('funeral_date_of_burial');
     const requirementFileInputs = Array.from(document.querySelectorAll('[data-requirement-file]'));
     const submitRequestBtn = document.getElementById('submitRequestBtn');
+
+    const firstCommunionCard = document.getElementById('firstCommunionCard');
+    const communionDateInput = document.getElementById('communion_preferred_date');
+    const communionFields = Array.from(document.querySelectorAll('[data-communion-field]'));
+
+    const confirmationCard = document.getElementById('confirmationCard');
+    const confirmationDateInput = document.getElementById('confirmation_preferred_date');
+    const confirmationFields = Array.from(document.querySelectorAll('[data-confirmation-field]'));
 
     function requirementFilesReady(group) {
         const inputs = requirementFileInputs.filter(function(input) {
@@ -1468,6 +2024,16 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    function isCommunionSelected() {
+        const selectedType = document.querySelector('input[name="request_type"]:checked');
+        return selectedType && selectedType.value === 'first_communion_service';
+    }
+
+    function isConfirmationSelected() {
+        const selectedType = document.querySelector('input[name="request_type"]:checked');
+        return selectedType && selectedType.value === 'confirmation_service';
+    }
+
     function isBaptismSelected() {
         const selectedType = document.querySelector('input[name="request_type"]:checked');
         return selectedType && selectedType.value === 'baptism_service';
@@ -1489,6 +2055,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function getScheduledDate() {
+        if (isCommunionSelected()) {
+            return communionDateInput ? communionDateInput.value.trim() : '';
+        }
+        if (isConfirmationSelected()) {
+            return confirmationDateInput ? confirmationDateInput.value.trim() : '';
+        }
         if (isBaptismSelected()) {
             return baptismDateInput ? baptismDateInput.value.trim() : '';
         }
@@ -1509,22 +2081,80 @@ document.addEventListener('DOMContentLoaded', function() {
         if (preferredDate) {
             preferredDate.value = dateVal;
         }
+        if (isCommunionSelected()) {
+            const yEl = document.getElementById('communion_year');
+            const mdEl = document.getElementById('communion_month_day');
+            if (dateVal) {
+                const d = new Date(dateVal + 'T00:00:00');
+                if (!Number.isNaN(d.getTime())) {
+                    if (yEl) yEl.value = d.getFullYear();
+                    const monthName = d.toLocaleDateString('en-US', { month: 'long' });
+                    const dayStr = String(d.getDate()).padStart(2, '0');
+                    if (mdEl) mdEl.value = monthName + ' ' + dayStr;
+                }
+            } else {
+                if (yEl) yEl.value = '';
+                if (mdEl) mdEl.value = '';
+            }
+        }
+        if (isConfirmationSelected()) {
+            const yEl = document.getElementById('confirmation_year');
+            const mdEl = document.getElementById('confirmation_month_day');
+            if (dateVal) {
+                const d = new Date(dateVal + 'T00:00:00');
+                if (!Number.isNaN(d.getTime())) {
+                    if (yEl) yEl.value = d.getFullYear();
+                    const monthName = d.toLocaleDateString('en-US', { month: 'long' });
+                    const dayStr = String(d.getDate()).padStart(2, '0');
+                    if (mdEl) mdEl.value = monthName + ' ' + dayStr;
+                }
+            } else {
+                if (yEl) yEl.value = '';
+                if (mdEl) mdEl.value = '';
+            }
+        }
         if (scheduleSyncCard && !scheduleSyncCard.hidden && scheduleSyncText) {
             if (dateVal) {
-                scheduleSyncText.innerHTML = 'Sacramental date: <strong style="color: #0f766e;">' + displayDate(dateVal) + '</strong> (automatically bound from investigation sheet above).';
+                scheduleSyncText.innerHTML = 'Sacramental date: <strong style="color: #0f766e;">' + displayDate(dateVal) + '</strong> (automatically bound from your form above).';
             } else {
-                scheduleSyncText.innerHTML = 'Your sacramental service date will automatically synchronize from the investigation sheet above once selected.';
+                scheduleSyncText.innerHTML = 'Your sacramental service date will automatically synchronize from your form above once selected.';
             }
         }
     }
 
     function toggleDateInputs() {
+        const communionSelected = isCommunionSelected();
+        const confirmationSelected = isConfirmationSelected();
         const baptismSelected = isBaptismSelected();
         const marriageSelected = isMarriageSelected();
         const funeralSelected = isFuneralSelected();
         const patronalSelected = isPatronalSelected();
+        const preferredTimeGroup = document.getElementById('preferredTimeGroup');
+        const preferredTimeSelect = document.getElementById('preferred_time');
 
-        if (baptismSelected) {
+        if (communionSelected || confirmationSelected) {
+            if (scheduleSyncCard) {
+                scheduleSyncCard.hidden = false;
+                scheduleSyncCard.style.display = '';
+            }
+            if (scheduleSyncTitle) {
+                scheduleSyncTitle.textContent = communionSelected 
+                    ? 'First Communion Schedule Synchronized' 
+                    : 'Confirmation Schedule Synchronized';
+            }
+            if (patronalGroup) patronalGroup.style.display = 'none';
+            if (patronalDate) patronalDate.required = false;
+            if (generalServiceDateGroup) generalServiceDateGroup.style.display = 'none';
+            if (generalServiceDate) generalServiceDate.required = false;
+
+            if (preferredTimeGroup) preferredTimeGroup.style.display = 'none';
+            if (preferredTimeSelect) {
+                preferredTimeSelect.required = false;
+                preferredTimeSelect.value = '';
+            }
+        } else if (baptismSelected) {
+            if (preferredTimeGroup) preferredTimeGroup.style.display = '';
+            if (preferredTimeSelect) preferredTimeSelect.required = true;
             if (scheduleSyncCard) {
                 scheduleSyncCard.hidden = false;
                 scheduleSyncCard.style.display = '';
@@ -1537,6 +2167,8 @@ document.addEventListener('DOMContentLoaded', function() {
             if (generalServiceDateGroup) generalServiceDateGroup.style.display = 'none';
             if (generalServiceDate) generalServiceDate.required = false;
         } else if (marriageSelected) {
+            if (preferredTimeGroup) preferredTimeGroup.style.display = '';
+            if (preferredTimeSelect) preferredTimeSelect.required = true;
             if (scheduleSyncCard) {
                 scheduleSyncCard.hidden = false;
                 scheduleSyncCard.style.display = '';
@@ -1549,7 +2181,8 @@ document.addEventListener('DOMContentLoaded', function() {
             if (generalServiceDateGroup) generalServiceDateGroup.style.display = 'none';
             if (generalServiceDate) generalServiceDate.required = false;
         } else if (funeralSelected) {
-            // Burial date from the funeral investigation sheet drives the schedule
+            if (preferredTimeGroup) preferredTimeGroup.style.display = '';
+            if (preferredTimeSelect) preferredTimeSelect.required = true;
             if (scheduleSyncCard) {
                 scheduleSyncCard.hidden = false;
                 scheduleSyncCard.style.display = '';
@@ -1562,6 +2195,8 @@ document.addEventListener('DOMContentLoaded', function() {
             if (generalServiceDateGroup) generalServiceDateGroup.style.display = 'none';
             if (generalServiceDate) generalServiceDate.required = false;
         } else if (patronalSelected) {
+            if (preferredTimeGroup) preferredTimeGroup.style.display = '';
+            if (preferredTimeSelect) preferredTimeSelect.required = true;
             if (scheduleSyncCard) {
                 scheduleSyncCard.hidden = true;
                 scheduleSyncCard.style.display = 'none';
@@ -1571,7 +2206,8 @@ document.addEventListener('DOMContentLoaded', function() {
             if (generalServiceDateGroup) generalServiceDateGroup.style.display = 'none';
             if (generalServiceDate) generalServiceDate.required = false;
         } else {
-            // Anointing of the sick, or other services
+            if (preferredTimeGroup) preferredTimeGroup.style.display = '';
+            if (preferredTimeSelect) preferredTimeSelect.required = true;
             if (scheduleSyncCard) {
                 scheduleSyncCard.hidden = true;
                 scheduleSyncCard.style.display = 'none';
@@ -1586,10 +2222,18 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function updateSpecialRequirementsState() {
+        const communionSelected = isCommunionSelected();
+        const confirmationSelected = isConfirmationSelected();
         const baptismSelected = isBaptismSelected();
         const marriageSelected = isMarriageSelected();
         const funeralSelected = isFuneralSelected();
 
+        if (firstCommunionCard) {
+            firstCommunionCard.hidden = !communionSelected;
+        }
+        if (confirmationCard) {
+            confirmationCard.hidden = !confirmationSelected;
+        }
         if (baptismRequirementsCard) {
             baptismRequirementsCard.hidden = !baptismSelected;
         }
@@ -1599,6 +2243,22 @@ document.addEventListener('DOMContentLoaded', function() {
         if (funeralRequirementsCard) {
             funeralRequirementsCard.hidden = !funeralSelected;
         }
+
+        communionFields.forEach(function(field) {
+            const isOptional = field.id === 'communion_father_name' || field.id === 'communion_mother_name' || field.id === 'communion_minister';
+            field.required = communionSelected && !isOptional;
+            if (!field.required) {
+                clearFieldError(field);
+            }
+        });
+
+        confirmationFields.forEach(function(field) {
+            const isOptional = field.id === 'confirmation_father_name' || field.id === 'confirmation_mother_name';
+            field.required = confirmationSelected && !isOptional;
+            if (!field.required) {
+                clearFieldError(field);
+            }
+        });
 
         baptismSheetFields.forEach(function(field) {
             field.required = baptismSelected;
@@ -1784,6 +2444,90 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
+        if (isCommunionSelected()) {
+            const fName = formValue('communion_father_name');
+            const mName = formValue('communion_mother_name');
+            const fEl = document.getElementById('communion_father_name');
+            const mEl = document.getElementById('communion_mother_name');
+            if (!fName && !mName) {
+                addFieldError(fEl);
+                addFieldError(mEl);
+                invalidFields.push(fEl);
+            } else {
+                clearFieldError(fEl);
+                clearFieldError(mEl);
+            }
+
+            const prefD = formValue('communion_preferred_date');
+            const bapD = formValue('communion_baptismal_date');
+            const bapEl = document.getElementById('communion_baptismal_date');
+            if (prefD && bapD && bapD >= prefD) {
+                addFieldError(bapEl);
+                invalidFields.push(bapEl);
+            }
+
+            const nameRegex = /^[a-zA-Z\s\.\'\-ñÑ\u00C0-\u017F]+$/;
+            const cName = formValue('communion_communicant_name');
+            const cEl = document.getElementById('communion_communicant_name');
+            if (cName && !nameRegex.test(cName)) {
+                addFieldError(cEl);
+                invalidFields.push(cEl);
+            }
+            if (fName && !nameRegex.test(fName)) {
+                addFieldError(fEl);
+                invalidFields.push(fEl);
+            }
+            if (mName && !nameRegex.test(mName)) {
+                addFieldError(mEl);
+                invalidFields.push(mEl);
+            }
+        }
+
+        if (isConfirmationSelected()) {
+            const fName = formValue('confirmation_father_name');
+            const mName = formValue('confirmation_mother_name');
+            const fEl = document.getElementById('confirmation_father_name');
+            const mEl = document.getElementById('confirmation_mother_name');
+            if (!fName && !mName) {
+                addFieldError(fEl);
+                addFieldError(mEl);
+                invalidFields.push(fEl);
+            } else {
+                clearFieldError(fEl);
+                clearFieldError(mEl);
+            }
+
+            const nameRegex = /^[a-zA-Z\s\.\'\-ñÑ\u00C0-\u017F]+$/;
+            const cfName = formValue('confirmation_fullname');
+            const cfEl = document.getElementById('confirmation_fullname');
+            if (cfName && !nameRegex.test(cfName)) {
+                addFieldError(cfEl);
+                invalidFields.push(cfEl);
+            }
+            if (fName && !nameRegex.test(fName)) {
+                addFieldError(fEl);
+                invalidFields.push(fEl);
+            }
+            if (mName && !nameRegex.test(mName)) {
+                addFieldError(mEl);
+                invalidFields.push(mEl);
+            }
+
+            const spName = formValue('confirmation_sponsor');
+            const spEl = document.getElementById('confirmation_sponsor');
+            if (spName && !nameRegex.test(spName)) {
+                addFieldError(spEl);
+                invalidFields.push(spEl);
+            }
+
+            const ageVal = parseInt(formValue('confirmation_age'), 10);
+            const ageEl = document.getElementById('confirmation_age');
+            if (isNaN(ageVal) || ageVal < 7 || ageVal > 120) {
+                addFieldError(ageEl);
+                invalidFields.push(ageEl);
+            }
+        }
+
         validationBanner.hidden = invalidFields.length === 0;
         if (invalidFields.length) {
             const firstWrapper = validationWrapper(invalidFields[0]);
@@ -1798,7 +2542,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return false;
         }
 
-        if (window.hasScheduleConflictState) {
+        if (!isCommunionSelected() && !isConfirmationSelected() && window.hasScheduleConflictState) {
             const prefTime = document.getElementById('preferred_time');
             if (prefTime) {
                 clearFieldError(prefTime);
@@ -1868,14 +2612,57 @@ document.addEventListener('DOMContentLoaded', function() {
             ['Requirements Attached', activeFileNames.length ? activeFileNames.join(', ') : 'Not required']
         ]);
 
+        const communionSelected = isCommunionSelected();
+        const confirmationSelected = isConfirmationSelected();
         const baptismSelected = isBaptismSelected();
         const marriageSelected = isMarriageSelected();
         const funeralSelected = isFuneralSelected();
 
+        const reviewCommSec = document.getElementById('reviewCommunionSection');
+        const reviewConfSec = document.getElementById('reviewConfirmationSection');
+        if (reviewCommSec) reviewCommSec.hidden = !communionSelected;
+        if (reviewConfSec) reviewConfSec.hidden = !confirmationSelected;
         document.getElementById('reviewChildSection').hidden = !baptismSelected;
         document.getElementById('reviewParentsSection').hidden = !baptismSelected;
         document.getElementById('reviewGodparentsSection').hidden = !baptismSelected;
         document.getElementById('reviewFuneralSection').hidden = !funeralSelected;
+
+        if (communionSelected) {
+            const fName = formValue('communion_father_name');
+            const mName = formValue('communion_mother_name');
+            const parentsStr = (fName && mName) ? (fName + ' / ' + mName) : (fName || mName || 'Not provided');
+            renderReviewItems('reviewCommunionInfo', [
+                ['Year', formValue('communion_year')],
+                ['Month & Day', formValue('communion_month_day')],
+                ['Name of Communicant', formValue('communion_communicant_name')],
+                ['Domicile', formValue('communion_domicile')],
+                ['Father\'s Full Name', fName || 'None'],
+                ['Mother\'s Full Maiden Name', mName || 'None'],
+                ['Parents', parentsStr],
+                ['Minister', formValue('communion_minister') || 'Parish office will assign'],
+                ['Baptismal Date', displayDate(formValue('communion_baptismal_date'))],
+                ['Baptismal Place', formValue('communion_baptismal_place')]
+            ]);
+        }
+
+        if (confirmationSelected) {
+            const fName = formValue('confirmation_father_name');
+            const mName = formValue('confirmation_mother_name');
+            const parentsStr = (fName && mName) ? (fName + ' / ' + mName) : (fName || mName || 'Not provided');
+            renderReviewItems('reviewConfirmationInfo', [
+                ['Confirmation Year', formValue('confirmation_year')],
+                ['Month and Day', formValue('confirmation_month_day')],
+                ['Name of Confirmed Person', formValue('confirmation_fullname')],
+                ['Age', formValue('confirmation_age')],
+                ['Parish of Origin', formValue('confirmation_origin_parish')],
+                ['Province', formValue('confirmation_province')],
+                ['Place of Baptism', formValue('confirmation_baptismal_place')],
+                ['Father\'s Full Name', fName || 'None'],
+                ['Mother\'s Full Maiden Name', mName || 'None'],
+                ['Parents', parentsStr],
+                ['Sponsor / Godparent', formValue('confirmation_sponsor')]
+            ]);
+        }
 
         if (baptismSelected) {
             renderReviewItems('reviewChildInfo', [
@@ -1950,7 +2737,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const scheduleDate = getScheduledDate();
         let scheduleDateLabel = 'Preferred Date';
-        if (baptismSelected) {
+        if (communionSelected) {
+            scheduleDateLabel = 'First Communion Date';
+        } else if (confirmationSelected) {
+            scheduleDateLabel = 'Confirmation Date';
+        } else if (baptismSelected) {
             scheduleDateLabel = 'Date of Baptism';
         } else if (marriageSelected) {
             scheduleDateLabel = 'Date of Marriage';
@@ -1960,11 +2751,15 @@ document.addEventListener('DOMContentLoaded', function() {
             scheduleDateLabel = 'Date of Patronal Fiesta';
         }
 
+        const timeDisplay = (communionSelected || confirmationSelected)
+            ? 'Time to be set by parish office'
+            : displayTime(document.getElementById('preferred_time').value);
+
         renderReviewItems('reviewScheduleInfo', [
             ['Applicant', <?php echo json_encode((string) ($_SESSION['fullname'] ?? ''), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>],
             ['Email Address', <?php echo json_encode((string) ($_SESSION['email'] ?? ''), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>],
             [scheduleDateLabel, displayDate(scheduleDate)],
-            ['Preferred Time', displayTime(document.getElementById('preferred_time').value)],
+            ['Preferred Time', timeDisplay],
             ['Location', document.getElementById('location').value.trim()],
             ['Additional Details', document.getElementById('details').value.trim() || 'None']
         ]);
@@ -1986,6 +2781,32 @@ document.addEventListener('DOMContentLoaded', function() {
     if (typeRadios.length) {
         typeRadios.forEach(function(radio) {
             radio.addEventListener('change', toggleDateInputs);
+        });
+        if (communionDateInput) {
+            communionDateInput.addEventListener('input', syncScheduleDate);
+            communionDateInput.addEventListener('change', syncScheduleDate);
+        }
+        if (confirmationDateInput) {
+            confirmationDateInput.addEventListener('input', syncScheduleDate);
+            confirmationDateInput.addEventListener('change', syncScheduleDate);
+        }
+        communionFields.forEach(function(field) {
+            field.addEventListener('input', function() {
+                if (['communion_communicant_name', 'communion_father_name', 'communion_mother_name'].includes(field.id)) {
+                    field.value = field.value.toUpperCase();
+                }
+                updateSpecialRequirementsState();
+            });
+            field.addEventListener('change', updateSpecialRequirementsState);
+        });
+        confirmationFields.forEach(function(field) {
+            field.addEventListener('input', function() {
+                if (['confirmation_fullname', 'confirmation_father_name', 'confirmation_mother_name', 'confirmation_sponsor'].includes(field.id)) {
+                    field.value = field.value.toUpperCase();
+                }
+                updateSpecialRequirementsState();
+            });
+            field.addEventListener('change', updateSpecialRequirementsState);
         });
         baptismSheetFields.forEach(function(field) {
             field.addEventListener('input', updateSpecialRequirementsState);

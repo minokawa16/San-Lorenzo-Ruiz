@@ -86,12 +86,17 @@ $action = $_POST['action'] ?? $_GET['action'] ?? null;
 $message = '';
 $alert_type = '';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['add','edit','archive','restore'], true)) {
+if ($action === 'edit') {
+    http_response_code(403);
+    echo "Direct record editing is disabled for this sacramental registry.";
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['add','archive','restore'], true)) {
     requireValidCsrfToken();
     try {
         $records=new SacramentalRecordService($conn);$actor=(int)($_SESSION['user_id']??0);
         if($action==='add'){$records->create('communion',$_POST,$actor);$notice='First Communion record created.';}
-        elseif($action==='edit'){$records->requestCorrection('communion',(int)($_POST['record_id']??0),$_POST,(string)($_POST['correction_reason']??''),$actor);$notice='Correction submitted for review; the official record was not overwritten.';}
         elseif($action==='archive'){$records->archive('communion',(int)($_POST['record_id']??0),(string)($_POST['archive_reason']??''),$actor);$notice='First Communion record archived.';}
         else{$records->restore('communion',(int)($_POST['record_id']??0),$actor);$notice='First Communion record restored.';}
         redirectWithNotification('communion-records.php',$notice,'success');
@@ -108,11 +113,11 @@ if ($action === 'add' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $father_name = trim($_POST['father_name'] ?? '');
     $mother_name = trim($_POST['mother_name'] ?? '');
     $parents = $father_name !== '' || $mother_name !== ''
-        ? trim($father_name . ($mother_name !== '' ? ' & ' . $mother_name : ''))
+        ? trim($father_name . ($mother_name !== '' ? ' / ' . $mother_name : ''))
         : trim($_POST['parents'] ?? '');
     $sponsor = trim($_POST['sponsor'] ?? '');
     $priest = trim($_POST['minister'] ?? $_POST['priest'] ?? '');
-    $folio = trim($_POST['folio'] ?? '');
+    $folio = null;
     $baptismal_date = !empty($_POST['baptismal_date']) ? $_POST['baptismal_date'] : null;
     $baptismal_place = trim($_POST['baptismal_place'] ?? '');
     $remarks = trim($_POST['remarks'] ?? '');
@@ -137,46 +142,6 @@ if ($action === 'add' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $message = "Please fill in all required fields.";
         $alert_type = "warning";
-    }
-}
-
-// Update first communion record
-if ($action === 'edit' && $_SERVER['REQUEST_METHOD'] === 'POST') {
-    $record_id = (int)($_POST['record_id'] ?? 0);
-    $registry_no = trim($_POST['registry_no'] ?? '');
-    $fullname = trim($_POST['fullname'] ?? '');
-    $birth_date = !empty($_POST['birth_date']) ? $_POST['birth_date'] : null;
-    $communion_date = !empty($_POST['communion_date']) ? $_POST['communion_date'] : '';
-    $domicile = trim($_POST['domicile'] ?? '');
-    $father_name = trim($_POST['father_name'] ?? '');
-    $mother_name = trim($_POST['mother_name'] ?? '');
-    $parents = $father_name !== '' || $mother_name !== ''
-        ? trim($father_name . ($mother_name !== '' ? ' & ' . $mother_name : ''))
-        : trim($_POST['parents'] ?? '');
-    $sponsor = trim($_POST['sponsor'] ?? '');
-    $priest = trim($_POST['minister'] ?? $_POST['priest'] ?? '');
-    $folio = trim($_POST['folio'] ?? '');
-    $baptismal_date = !empty($_POST['baptismal_date']) ? $_POST['baptismal_date'] : null;
-    $baptismal_place = trim($_POST['baptismal_place'] ?? '');
-    $remarks = trim($_POST['remarks'] ?? '');
-    $parish_priest = trim($_POST['parish_priest'] ?? '');
-    $parish_secretary = trim($_POST['parish_secretary'] ?? '');
-    $status = $_POST['status'] ?? 'active';
-    $request_id = !empty($_POST['request_id']) ? (int)$_POST['request_id'] : null;
-
-    if ($record_id && $fullname && $communion_date) {
-        $stmt = $conn->prepare("UPDATE first_communion_records SET registry_no=?, fullname=?, birth_date=?, communion_date=?, domicile=?, parents=?, priest=?, folio=?, baptismal_date=?, baptismal_place=?, remarks=?, sponsor=?, parish_priest=?, parish_secretary=?, status=?, request_id=? WHERE communion_id=?");
-        if ($stmt) {
-            $stmt->bind_param("sssssssssssssssii", $registry_no, $fullname, $birth_date, $communion_date, $domicile, $parents, $priest, $folio, $baptismal_date, $baptismal_place, $remarks, $sponsor, $parish_priest, $parish_secretary, $status, $request_id, $record_id);
-            if ($stmt->execute()) {
-                $message = "First Communion record updated successfully!";
-                $alert_type = "success";
-            } else {
-                $message = "Error updating record: " . $stmt->error;
-                $alert_type = "danger";
-            }
-            $stmt->close();
-        }
     }
 }
 
@@ -415,34 +380,36 @@ include '../templates/header.php';
         }
 
         .action-buttons {
-            display: flex;
-            gap: 5px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: nowrap;
+            white-space: nowrap;
         }
 
         .action-btn {
             padding: 6px 12px;
-            border: none;
+            border: 1px solid transparent;
             border-radius: 6px;
             cursor: pointer;
-            font-size: 0.85rem;
+            font-size: 0.82rem;
+            font-weight: 600;
             transition: all 0.2s;
             text-decoration: none;
-            display: inline-block;
-        }
-
-        .btn-edit {
-            background: #e3f2fd;
-            color: #1976d2;
-        }
-
-        .btn-edit:hover {
-            background: #1976d2;
-            color: white;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            white-space: nowrap;
+            height: 32px;
+            box-sizing: border-box;
+            vertical-align: middle;
         }
 
         .btn-delete {
             background: #fff7d5;
             color: #80611b;
+            border: 1px solid #fde047;
         }
 
         .btn-delete:hover {
@@ -755,8 +722,8 @@ include '../templates/header.php';
                 <div class="section-title">
                     <i class="fas fa-table"></i> First Communion Records (<?php echo $total_records; ?> total)
                 </div>
-                <div style="overflow-x: auto;">
-                    <table class="records-table">
+                <div class="table-responsive" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                    <table class="records-table" style="min-width: 1050px;">
                         <thead>
                             <tr>
                                 <th>No.</th>
@@ -766,7 +733,6 @@ include '../templates/header.php';
                                 <th>Domicile</th>
                                 <th>Parents</th>
                                 <th>Minister</th>
-                                <th>Folio</th>
                                 <th>Baptismal Date</th>
                                 <th>Baptismal Place</th>
                                 <th>Remarks</th>
@@ -777,30 +743,6 @@ include '../templates/header.php';
                         <tbody>
                             <?php if (count($records) > 0): ?>
                                 <?php foreach ($records as $record): ?>
-                                    <?php
-                                        $record_payload = array(
-                                            'id' => $record['communion_id'],
-                                            'registry_no' => $record['registry_no'] ?? '',
-                                            'fullname' => $record['fullname'] ?? '',
-                                            'birth_date' => $record['birth_date'] ?? '',
-                                            'communion_date' => $record['communion_date'] ?? '',
-                                            'domicile' => $record['domicile'] ?? '',
-                                            'parents' => $record['parents'] ?? '',
-                                            'sponsor' => $record['sponsor'] ?? '',
-                                            'minister' => $record['priest'] ?? '',
-                                            'folio' => $record['folio'] ?? '',
-                                            'baptismal_date' => $record['baptismal_date'] ?? '',
-                                            'baptismal_place' => $record['baptismal_place'] ?? '',
-                                            'remarks' => $record['remarks'] ?? '',
-                                            'parish_priest' => $record['parish_priest'] ?? '',
-                                            'parish_secretary' => $record['parish_secretary'] ?? '',
-                                            'catechist_coordinator' => $record['catechist_coordinator'] ?? '',
-                                            'principal' => $record['principal'] ?? '',
-                                            'status' => $record['status'] ?? 'active',
-                                            'request_id' => $record['request_id'] ?? '',
-                                            'book_no' => $record['book_no'] ?? '', 'page_no' => $record['page_no'] ?? '', 'entry_no' => $record['entry_no'] ?? ''
-                                        );
-                                    ?>
                                     <tr>
                                         <td><?php echo htmlspecialchars($record['registry_no'] ?: $record['communion_id']); ?></td>
                                         <td><?php echo !empty($record['communion_date']) ? date('Y', strtotime($record['communion_date'])) : 'N/A'; ?></td>
@@ -809,7 +751,6 @@ include '../templates/header.php';
                                         <td><?php echo htmlspecialchars($record['domicile'] ?? 'N/A'); ?></td>
                                         <td><?php echo htmlspecialchars($record['parents'] ?? 'N/A'); ?></td>
                                         <td><?php echo htmlspecialchars($record['priest'] ?? 'N/A'); ?></td>
-                                        <td><?php echo htmlspecialchars($record['folio'] ?? 'N/A'); ?></td>
                                         <td><?php echo format_record_date($record['baptismal_date'] ?? ''); ?></td>
                                         <td><?php echo htmlspecialchars($record['baptismal_place'] ?? 'N/A'); ?></td>
                                         <td><?php echo htmlspecialchars($record['remarks'] ?? ''); ?></td>
@@ -835,12 +776,9 @@ include '../templates/header.php';
                                                         </button>
                                                     </form>
                                                 <?php else: ?>
-                                                    <a href="generate-cert.php?type=communion&id=<?php echo (int)$record['communion_id']; ?>" class="action-btn" style="background:#1e3a8a;color:#fff;text-decoration:none;padding:6px 11px;border-radius:5px;display:inline-flex;align-items:center;gap:5px;font-size:0.8rem;font-weight:600;" title="Generate First Communion Certificate">
+                                                    <a href="generate-cert.php?type=communion&id=<?php echo (int)$record['communion_id']; ?>" class="action-btn" style="background:#1e3a8a;color:#fff;text-decoration:none;" title="Generate First Communion Certificate">
                                                         <i class="fas fa-certificate"></i> Cert
                                                     </a>
-                                                    <button type="button" class="action-btn" style="background:#f59e0b;color:#fff;border:none;padding:6px 11px;border-radius:5px;display:inline-flex;align-items:center;gap:5px;font-size:0.8rem;font-weight:600;cursor:pointer;" onclick='openEditModal(<?php echo js_value($record_payload); ?>)'>
-                                                        <i class="fas fa-edit"></i> Edit
-                                                    </button>
                                                     <button class="action-btn btn-delete" onclick="confirmArchive(<?php echo $record['communion_id']; ?>)">
                                                         <i class="fas fa-archive"></i> Archive
                                                     </button>
@@ -851,7 +789,7 @@ include '../templates/header.php';
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <tr>
-                                    <td colspan="13" style="text-align: center; padding: 30px; color: #6c757d;">
+                                    <td colspan="12" style="text-align: center; padding: 30px; color: #6c757d;">
                                         <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 10px;"></i><br>
                                         No first communion records found.
                                     </td>
@@ -927,11 +865,6 @@ include '../templates/header.php';
                         </div>
 
                         <div class="form-group">
-                            <label>Folio</label>
-                            <input type="text" id="folio" name="folio">
-                        </div>
-
-                        <div class="form-group">
                             <label>Baptismal Date</label>
                             <input type="date" id="baptismalDate" name="baptismal_date">
                         </div>
@@ -995,7 +928,6 @@ include '../templates/header.php';
                             <label>Principal</label>
                             <input type="text" id="principalName" name="principal" placeholder="School Principal Name">
                         </div>
-                        <div class="form-group full-width"><label>Correction reason (required when editing)</label><textarea name="correction_reason" minlength="5"></textarea></div>
                     </div>
                 </div>
 
@@ -1047,39 +979,6 @@ include '../templates/header.php';
             document.getElementById('catechistCoordinator').value = '';
             document.getElementById('principalName').value = '';
             document.getElementById('modalTitle').textContent = 'Add First Communion Record';
-            document.getElementById('recordModal').classList.add('show');
-            document.body.classList.add('modal-open');
-        }
-
-        function openEditModal(record) {
-            document.getElementById('recordIdInput').value = record.id || '';
-            document.getElementById('registryNo').value = record.registry_no || '';
-            document.getElementById('bookNo').value = record.book_no || '';
-            document.getElementById('pageNo').value = record.page_no || '';
-            document.getElementById('entryNo').value = record.entry_no || '';
-            document.getElementById('fullName').value = record.fullname || '';
-            document.getElementById('birthDate').value = record.birth_date || '';
-            document.getElementById('communionDate').value = record.communion_date || '';
-            document.getElementById('domicile').value = record.domicile || '';
-            // Split parents into father/mother sub-fields
-            var parentsRaw = record.parents || '';
-            var parentParts = parentsRaw.split(' & ');
-            document.getElementById('fatherName').value = (parentParts[0] || '').trim();
-            document.getElementById('motherName').value = (parentParts[1] || '').trim();
-            document.getElementById('sponsor').value = record.sponsor || '';
-            document.getElementById('ministerName').value = record.priest || '';
-            document.getElementById('folio').value = record.folio || '';
-            document.getElementById('baptismalDate').value = record.baptismal_date || '';
-            document.getElementById('baptismalPlace').value = record.baptismal_place || '';
-            document.getElementById('remarks').value = record.remarks || '';
-            document.getElementById('parishPriest').value = record.parish_priest || '';
-            document.getElementById('parishSecretary').value = record.parish_secretary || '';
-            document.getElementById('catechistCoordinator').value = record.catechist_coordinator || '';
-            document.getElementById('principalName').value = record.principal || '';
-            document.getElementById('recordStatus').value = record.status || 'active';
-            document.getElementById('requestId').value = record.request_id || '';
-            document.getElementById('actionInput').value = 'edit';
-            document.getElementById('modalTitle').textContent = 'Edit First Communion Record';
             document.getElementById('recordModal').classList.add('show');
             document.body.classList.add('modal-open');
         }

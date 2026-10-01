@@ -21,14 +21,14 @@ final class SacramentalRecordService
             'table' => 'confirmation_records', 'id' => 'confirmation_id',
             'name' => ['fullname'], 'birth' => ['birth_date'], 'event' => 'confirmation_date',
             'required' => ['fullname','birth_date','confirmation_date','parents','sponsor','bishop_priest'],
-            'request_types' => ['confirmation_certificate','confirmation_certification'],
+            'request_types' => ['confirmation_certificate','confirmation_certification','confirmation_service','confirmation'],
             'fields' => ['request_id','registry_no','book_no','page_no','entry_no','fullname','birth_date','confirmation_date','confirmation_name','age','origin_parish','origin_province','baptismal_place','parents','sponsor','bishop_priest','stipend_pesos','stipend_cents','observations','parish_priest','parish_secretary'],
         ],
         'communion' => [
             'table' => 'first_communion_records', 'id' => 'communion_id',
             'name' => ['fullname'], 'birth' => ['birth_date'], 'event' => 'communion_date',
             'required' => ['fullname','birth_date','communion_date','parents','priest'],
-            'request_types' => ['first_communion_certificate','first_communion_certification'],
+            'request_types' => ['first_communion_certificate','first_communion_certification','first_communion_service','first_communion','communion'],
             'fields' => ['request_id','registry_no','book_no','page_no','entry_no','fullname','birth_date','communion_date','domicile','parents','sponsor','priest','folio','baptismal_date','baptismal_place','remarks','parish_priest','parish_secretary','catechist_coordinator','principal'],
         ],
         'marriage' => [

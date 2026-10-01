@@ -84,12 +84,17 @@ $action = $_POST['action'] ?? $_GET['action'] ?? null;
 $message = '';
 $alert_type = '';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['add','edit','archive','restore'], true)) {
+if ($action === 'edit') {
+    http_response_code(403);
+    echo "Direct record editing is disabled for this sacramental registry.";
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['add','archive','restore'], true)) {
     requireValidCsrfToken();
     try {
         $records=new SacramentalRecordService($conn);$actor=(int)($_SESSION['user_id']??0);
         if($action==='add'){$records->create('confirmation',$_POST,$actor);$notice='Confirmation record created.';}
-        elseif($action==='edit'){$records->requestCorrection('confirmation',(int)($_POST['record_id']??0),$_POST,(string)($_POST['correction_reason']??''),$actor);$notice='Correction submitted for review; the official record was not overwritten.';}
         elseif($action==='archive'){$records->archive('confirmation',(int)($_POST['record_id']??0),(string)($_POST['archive_reason']??''),$actor);$notice='Confirmation record archived.';}
         else{$records->restore('confirmation',(int)($_POST['record_id']??0),$actor);$notice='Confirmation record restored.';}
         redirectWithNotification('confirmation-records.php',$notice,'success');
@@ -110,7 +115,7 @@ if ($action === 'add' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $father_name = trim($_POST['father_name'] ?? '');
     $mother_name = trim($_POST['mother_name'] ?? '');
     $parents = $father_name !== '' || $mother_name !== ''
-        ? trim($father_name . ($mother_name !== '' ? ' & ' . $mother_name : ''))
+        ? trim($father_name . ($mother_name !== '' ? ' / ' . $mother_name : ''))
         : trim($_POST['parents'] ?? '');
     $raw_sponsors = $_POST['sponsors'] ?? $_POST['sponsor'] ?? [];
     if (!is_array($raw_sponsors)) {
@@ -143,54 +148,6 @@ if ($action === 'add' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $message = "Please fill in all required fields.";
         $alert_type = "warning";
-    }
-}
-
-// Update confirmation record
-if ($action === 'edit' && $_SERVER['REQUEST_METHOD'] === 'POST') {
-    $record_id = (int)($_POST['record_id'] ?? 0);
-    $registry_no = trim($_POST['registry_no'] ?? '');
-    $fullname = trim($_POST['fullname'] ?? '');
-    $birth_date = !empty($_POST['birth_date']) ? $_POST['birth_date'] : null;
-    $confirmation_date = !empty($_POST['confirmation_date']) ? $_POST['confirmation_date'] : '';
-    $confirmation_name = trim($_POST['confirmation_name'] ?? '');
-    $age = trim($_POST['age'] ?? '');
-    $origin_parish = trim($_POST['origin_parish'] ?? '');
-    $origin_province = trim($_POST['origin_province'] ?? '');
-    $baptismal_place = trim($_POST['baptismal_place'] ?? '');
-    $father_name = trim($_POST['father_name'] ?? '');
-    $mother_name = trim($_POST['mother_name'] ?? '');
-    $parents = $father_name !== '' || $mother_name !== ''
-        ? trim($father_name . ($mother_name !== '' ? ' & ' . $mother_name : ''))
-        : trim($_POST['parents'] ?? '');
-    $raw_sponsors = $_POST['sponsors'] ?? $_POST['sponsor'] ?? [];
-    if (!is_array($raw_sponsors)) {
-        $raw_sponsors = preg_split('/[\r\n]+/', (string)$raw_sponsors);
-    }
-    $sponsor_list = array_filter(array_map('trim', $raw_sponsors), fn($s) => $s !== '');
-    $sponsor = implode('; ', $sponsor_list);
-    $bishop_priest = trim($_POST['minister'] ?? $_POST['bishop_priest'] ?? '');
-    $stipend_pesos = trim($_POST['stipend_pesos'] ?? '');
-    $stipend_cents = trim($_POST['stipend_cents'] ?? '');
-    $observations = trim($_POST['observations'] ?? '');
-    $parish_priest = trim($_POST['parish_priest'] ?? '');
-    $parish_secretary = trim($_POST['parish_secretary'] ?? '');
-    $status = $_POST['status'] ?? 'active';
-    $request_id = !empty($_POST['request_id']) ? (int)$_POST['request_id'] : null;
-
-    if ($record_id && $fullname && $confirmation_date) {
-        $stmt = $conn->prepare("UPDATE confirmation_records SET registry_no=?, fullname=?, birth_date=?, confirmation_date=?, confirmation_name=?, age=?, origin_parish=?, origin_province=?, baptismal_place=?, parents=?, sponsor=?, bishop_priest=?, stipend_pesos=?, stipend_cents=?, observations=?, parish_priest=?, parish_secretary=?, status=?, request_id=? WHERE confirmation_id=?");
-        if ($stmt) {
-            $stmt->bind_param("ssssssssssssssssssii", $registry_no, $fullname, $birth_date, $confirmation_date, $confirmation_name, $age, $origin_parish, $origin_province, $baptismal_place, $parents, $sponsor, $bishop_priest, $stipend_pesos, $stipend_cents, $observations, $parish_priest, $parish_secretary, $status, $request_id, $record_id);
-            if ($stmt->execute()) {
-                $message = "Confirmation record updated successfully!";
-                $alert_type = "success";
-            } else {
-                $message = "Error updating record: " . $stmt->error;
-                $alert_type = "danger";
-            }
-            $stmt->close();
-        }
     }
 }
 
@@ -429,34 +386,36 @@ include '../templates/header.php';
         }
 
         .action-buttons {
-            display: flex;
-            gap: 5px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: nowrap;
+            white-space: nowrap;
         }
 
         .action-btn {
             padding: 6px 12px;
-            border: none;
+            border: 1px solid transparent;
             border-radius: 6px;
             cursor: pointer;
-            font-size: 0.85rem;
+            font-size: 0.82rem;
+            font-weight: 600;
             transition: all 0.2s;
             text-decoration: none;
-            display: inline-block;
-        }
-
-        .btn-edit {
-            background: #e3f2fd;
-            color: #1976d2;
-        }
-
-        .btn-edit:hover {
-            background: #1976d2;
-            color: white;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            white-space: nowrap;
+            height: 32px;
+            box-sizing: border-box;
+            vertical-align: middle;
         }
 
         .btn-delete {
             background: #fff7d5;
             color: #80611b;
+            border: 1px solid #fde047;
         }
 
         .btn-delete:hover {
@@ -772,8 +731,8 @@ include '../templates/header.php';
                 <div class="section-title">
                     <i class="fas fa-table"></i> Confirmation Records (<?php echo $total_records; ?> total)
                 </div>
-                <div style="overflow-x: auto;">
-                    <table class="records-table">
+                <div class="table-responsive" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                    <table class="records-table" style="min-width: 1050px;">
                         <thead>
                             <tr>
                                 <th>No.</th>
@@ -795,29 +754,6 @@ include '../templates/header.php';
                         <tbody>
                             <?php if (count($records) > 0): ?>
                                 <?php foreach ($records as $record): ?>
-                                    <?php
-                                        $record_payload = array(
-                                            'id' => $record['confirmation_id'],
-                                            'registry_no' => $record['registry_no'] ?? '',
-                                            'fullname' => $record['fullname'] ?? '',
-                                            'birth_date' => $record['birth_date'] ?? '',
-                                            'confirmation_date' => $record['confirmation_date'] ?? '',
-                                            'confirmation_name' => $record['confirmation_name'] ?? '',
-                                            'age' => $record['age'] ?? '',
-                                            'origin_parish' => $record['origin_parish'] ?? '',
-                                            'origin_province' => $record['origin_province'] ?? '',
-                                            'baptismal_place' => $record['baptismal_place'] ?? '',
-                                            'parents' => $record['parents'] ?? '',
-                                            'sponsor' => $record['sponsor'] ?? '',
-                                            'minister' => $record['bishop_priest'] ?? '',
-                                            'observations' => $record['observations'] ?? '',
-                                            'parish_priest' => $record['parish_priest'] ?? '',
-                                            'parish_secretary' => $record['parish_secretary'] ?? '',
-                                            'status' => $record['status'] ?? 'active',
-                                            'request_id' => $record['request_id'] ?? '',
-                                            'book_no' => $record['book_no'] ?? '', 'page_no' => $record['page_no'] ?? '', 'entry_no' => $record['entry_no'] ?? ''
-                                        );
-                                    ?>
                                     <tr>
                                         <td><?php echo htmlspecialchars($record['registry_no'] ?: $record['confirmation_id']); ?></td>
                                         <td><?php echo !empty($record['confirmation_date']) ? date('Y', strtotime($record['confirmation_date'])) : 'N/A'; ?></td>
@@ -1010,7 +946,6 @@ include '../templates/header.php';
                             <label>Parish Secretary</label>
                             <input type="text" id="parishSecretary" name="parish_secretary" placeholder="Name printed above Parish Secretary">
                         </div>
-                        <div class="form-group full-width"><label>Correction reason (required when editing)</label><textarea name="correction_reason" minlength="5"></textarea></div>
                     </div>
                 </div>
 
@@ -1061,40 +996,6 @@ include '../templates/header.php';
             document.getElementById('pageNo').value = '';
             document.getElementById('entryNo').value = '';
             document.getElementById('modalTitle').textContent = 'Add Confirmation Record';
-            document.getElementById('recordModal').classList.add('show');
-            document.body.classList.add('modal-open');
-        }
-
-        // Open Edit Modal Function - Documents this helper's role in the parish management workflow.
-        function openEditModal(record) {
-            document.getElementById('recordIdInput').value = record.id || '';
-            document.getElementById('registryNo').value = record.registry_no || '';
-            document.getElementById('bookNo').value = record.book_no || '';
-            document.getElementById('pageNo').value = record.page_no || '';
-            document.getElementById('entryNo').value = record.entry_no || '';
-            document.getElementById('fullName').value = record.fullname || '';
-            document.getElementById('birthDate').value = record.birth_date || '';
-            document.getElementById('confirmationDate').value = record.confirmation_date || '';
-            document.getElementById('confirmationName').value = record.confirmation_name || '';
-            document.getElementById('age').value = record.age || '';
-            document.getElementById('originParish').value = record.origin_parish || '';
-            document.getElementById('originProvince').value = record.origin_province || '';
-            document.getElementById('baptismalPlace').value = record.baptismal_place || '';
-            // Split parents into father/mother sub-fields
-            var parentsRaw = record.parents || '';
-            var parentParts = parentsRaw.split(' & ');
-            document.getElementById('fatherName').value = (parentParts[0] || '').trim();
-            document.getElementById('motherName').value = (parentParts[1] || '').trim();
-            // Sponsors: stored as semicolon-delimited, display as one per line in textarea
-            document.getElementById('sponsors').value = (record.sponsor || '').replace(/;\s*/g, '\n');
-            document.getElementById('ministerName').value = record.minister || '';
-            document.getElementById('observations').value = record.observations || '';
-            document.getElementById('parishPriest').value = record.parish_priest || '';
-            document.getElementById('parishSecretary').value = record.parish_secretary || '';
-            document.getElementById('recordStatus').value = record.status || 'active';
-            document.getElementById('requestId').value = record.request_id || '';
-            document.getElementById('actionInput').value = 'edit';
-            document.getElementById('modalTitle').textContent = 'Edit Confirmation Record';
             document.getElementById('recordModal').classList.add('show');
             document.body.classList.add('modal-open');
         }

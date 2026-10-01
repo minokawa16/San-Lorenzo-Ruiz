@@ -470,6 +470,19 @@
         let checkSequence = 0;
 
         async function evaluateScheduleAvailability() {
+            // First Communion and Confirmation do not use fixed 60-min slot conflict locks; multiple requests can share dates
+            const selectedType = document.querySelector('input[name="request_type"]:checked');
+            const reqTypeValue = selectedType ? selectedType.value : '';
+            if (reqTypeValue === 'first_communion_service' || reqTypeValue === 'confirmation_service') {
+                feedbackContainer.style.display = 'none';
+                occupiedContainer.style.display = 'none';
+                if (preferredTime) preferredTime.classList.remove('is-invalid', 'is-valid');
+                window.hasScheduleConflictState = false;
+                window.lastConflictMessage = '';
+                updateSubmitButtonsConflictState(false);
+                return;
+            }
+
             const curDate = getCurrentDate();
             const curTime = preferredTime.value ? preferredTime.value.trim() : '';
             const curLoc = locationInput.value ? locationInput.value.trim() : '';
