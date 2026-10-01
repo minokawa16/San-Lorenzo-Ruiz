@@ -971,13 +971,9 @@ include __DIR__ . '/../templates/header.php';
                                 <label class="form-label small fw-bold">Parents</label>
                                 <input type="text" class="form-control form-control-sm" name="com_override_parents" id="com_override_parents" placeholder="e.g. Juan Dela Cruz and Maria Santos">
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-12">
                                 <label class="form-label small fw-bold">Catechist Coordinator</label>
                                 <input type="text" class="form-control form-control-sm" name="override_catechist_coordinator" id="com_override_catechist" placeholder="e.g. Sis. Lourdes Fernandez">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label small fw-bold">Principal</label>
-                                <input type="text" class="form-control form-control-sm" name="override_principal" id="com_override_principal" placeholder="e.g. Principal Name">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label small fw-bold">Priest in Charge (Parish Priest) <span class="text-danger">*</span></label>
@@ -1548,7 +1544,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Reset communion inputs
         if (isCommunion) {
             ['com_override_fullname','com_override_communion_date','com_override_domicile',
-             'com_override_parents','com_override_catechist','com_override_principal'].forEach(id => {
+             'com_override_parents','com_override_catechist'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) { el.value = ''; el.classList.remove('is-invalid'); }
             });

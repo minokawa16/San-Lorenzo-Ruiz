@@ -768,7 +768,7 @@ function certificateAssetUrl($relative_path, $fallback = '') {
     $root = dirname(__DIR__);
     $path = $root . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $relative_path);
     if (is_file($path)) {
-        return '../' . str_replace('\\', '/', $relative_path);
+        return '../' . str_replace('\\', '/', $relative_path) . '?v=' . filemtime($path);
     }
     return $fallback;
 }
@@ -954,9 +954,6 @@ if ($is_communion_cert) {
     }
     if (empty($data['parish_priest']) || trim((string)$data['parish_priest']) === '') {
         $missing_communion_fields[] = 'Parish Priest';
-    }
-    if (empty($data['principal']) || trim((string)$data['principal']) === '') {
-        $missing_communion_fields[] = 'Principal';
     }
 }
 $volume_no = trim((string) ($data['volume_no'] ?? '')) ?: (trim((string) ($data['book_no'] ?? '')) ?: (trim((string) ($data['folio'] ?? '')) ?: 'N/A'));
@@ -2012,14 +2009,17 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
             flex-direction: column;
             align-items: flex-end;
             margin-top: auto;
-            margin-bottom: 3mm;
+            margin-bottom: 14mm;
             padding-right: 5mm;
             box-sizing: border-box;
         }
         .communion-signer-box {
             width: 90mm;
             text-align: center;
-            margin-bottom: 4mm;
+            margin-bottom: 6mm;
+        }
+        .communion-signer-box:last-child {
+            margin-bottom: 0;
         }
         .communion-signer-name {
             min-height: 8.5mm;
@@ -2341,7 +2341,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
             position: relative;
             width: 100%;
             height: 100%;
-            padding: 26mm;
+            padding: 22mm 24mm 28mm 24mm;
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
@@ -2353,24 +2353,24 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
         /* Standardized two-logo header */
         .conf-header-grid {
             display: grid;
-            grid-template-columns: 28mm 1fr 28mm;
-            gap: 4mm;
+            grid-template-columns: 25mm 1fr 25mm;
+            gap: 3.5mm;
             align-items: center;
-            margin-bottom: 1mm;
+            margin-bottom: 0.8mm;
             width: 100%;
         }
         .conf-logo-slot {
-            width: 28mm;
-            height: 28mm;
+            width: 25mm;
+            height: 25mm;
             display: flex;
             align-items: center;
             justify-content: center;
         }
         .conf-logo-slot img {
-            width: 28mm;
-            height: 28mm;
-            max-width: 28mm;
-            max-height: 28mm;
+            width: 25mm;
+            height: 25mm;
+            max-width: 25mm;
+            max-height: 25mm;
             object-fit: contain;
             display: block;
         }
@@ -2383,56 +2383,56 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
         }
         .conf-title-text {
             font-family: 'Times New Roman', Georgia, serif;
-            font-size: 36pt;
+            font-size: 33pt;
             font-weight: 700;
             color: #1F5A7A;
             letter-spacing: 0.5px;
             margin: 0;
-            line-height: 1.1;
+            line-height: 1.05;
         }
         .conf-mission-name {
             font-family: 'Times New Roman', Arial, sans-serif;
-            font-size: 15pt;
+            font-size: 14pt;
             font-weight: 700;
             font-variant: small-caps;
             color: #1F5A7A;
             letter-spacing: 2px;
             text-transform: uppercase;
-            margin: 1mm 0 0.5mm 0;
-            line-height: 1.15;
+            margin: 0.8mm 0 0.3mm 0;
+            line-height: 1.1;
         }
         .conf-mission-loc {
             font-family: Georgia, 'Times New Roman', serif;
-            font-size: 11pt;
+            font-size: 10.5pt;
             color: #555555;
             letter-spacing: 0.3px;
             margin: 0;
-            line-height: 1.1;
+            line-height: 1.05;
         }
         .conf-gold-divider {
             width: 70%;
             height: 0.75pt;
             background: linear-gradient(to right, rgba(200, 155, 60, 0) 0%, rgba(200, 155, 60, 1) 15%, rgba(200, 155, 60, 1) 85%, rgba(200, 155, 60, 0) 100%);
-            margin: 1.5mm auto 2mm auto;
+            margin: 1mm auto 1.2mm auto;
             border: none;
         }
 
         /* Recipient Name: Primary visual anchor */
         .conf-recipient-wrap {
-            margin-top: 1.5mm;
-            margin-bottom: 1.5mm;
+            margin-top: 1.2mm;
+            margin-bottom: 1.2mm;
             text-align: center;
             width: 100%;
         }
         .conf-recipient-name {
             font-family: 'Times New Roman', Georgia, serif;
-            font-size: 30pt;
+            font-size: 28pt;
             font-weight: 800;
             letter-spacing: 1.5px;
             color: #111827;
             text-transform: uppercase;
             margin: 0;
-            line-height: 1.1;
+            line-height: 1.05;
             white-space: nowrap;
             overflow: hidden;
         }
@@ -2440,17 +2440,17 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
             width: 55%;
             height: 0;
             border-bottom: 0.75pt solid #C89B3C;
-            margin: 2.5mm auto 1.5mm auto;
+            margin: 1.8mm auto 1.2mm auto;
         }
 
         .conf-sacrament-line {
             font-family: Georgia, 'Times New Roman', serif;
             font-style: italic;
-            font-size: 18pt;
+            font-size: 16.5pt;
             color: #111827;
             text-align: center;
-            margin: 1mm 0 1.5mm 0;
-            line-height: 1.15;
+            margin: 0.8mm 0 1mm 0;
+            line-height: 1.1;
         }
 
         .conf-canonical-block {
@@ -2462,10 +2462,10 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
         }
         .conf-canon-date-line {
             font-family: 'Times New Roman', Georgia, serif;
-            font-size: 13pt;
+            font-size: 12pt;
             color: #111827;
-            margin: 1.5mm 0;
-            line-height: 1.25;
+            margin: 0.8mm 0;
+            line-height: 1.2;
         }
         .conf-blank {
             display: inline-block;
@@ -2480,71 +2480,72 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
         .conf-blank-yr { min-width: 9mm; }
         .conf-bishop-lead {
             font-family: Georgia, 'Times New Roman', serif;
-            font-size: 11pt;
+            font-size: 10.5pt;
             color: #4b5563;
-            margin-bottom: 0.5mm;
-            line-height: 1.2;
+            margin-bottom: 0.2mm;
+            line-height: 1.15;
         }
         .conf-bishop-name {
             font-family: 'Times New Roman', Georgia, serif;
-            font-size: 15pt;
+            font-size: 14pt;
             font-weight: 700;
             color: #111827;
-            margin-bottom: 0.5mm;
-            line-height: 1.2;
+            margin-bottom: 0.2mm;
+            line-height: 1.15;
             white-space: nowrap;
             overflow: hidden;
         }
         .conf-bishop-title {
             font-family: Georgia, 'Times New Roman', serif;
-            font-size: 11pt;
+            font-size: 10.5pt;
             color: #374151;
-            line-height: 1.2;
-            margin-bottom: 0.5mm;
+            line-height: 1.15;
+            margin-bottom: 0.2mm;
         }
         .conf-delegate-confirmed-line {
             font-family: Georgia, 'Times New Roman', serif;
-            font-size: 11pt;
+            font-size: 10.5pt;
             color: #374151;
-            line-height: 1.2;
-            margin-bottom: 0.8mm;
+            line-height: 1.15;
+            margin-bottom: 0.4mm;
         }
         .conf-confirmed-name-display {
             font-family: 'Times New Roman', Georgia, serif;
-            font-size: 16pt;
+            font-size: 15pt;
             font-weight: 700;
             color: #111827;
             text-transform: uppercase;
             letter-spacing: 1px;
-            margin-bottom: 1.2mm;
+            margin-bottom: 0.8mm;
             white-space: nowrap;
             overflow: hidden;
-            line-height: 1.2;
+            line-height: 1.15;
         }
 
-        /* Labeled Parents & Sponsors Block */
+        /* Labeled Parents & Sponsors Block - Equal rule directly beneath all four names */
         .conf-parents-block {
             width: 60%;
-            margin: 1.5mm auto;
+            margin: 1.2mm auto;
             display: flex;
             flex-direction: column;
-            gap: 1.5mm;
+            gap: 1.2mm;
         }
         .conf-parent-row {
             text-align: center;
-            padding: 0.6mm 0;
+            padding: 0;
+            width: 100%;
         }
         .conf-parent-caption {
             font-family: Georgia, 'Times New Roman', serif;
-            font-size: 9pt;
+            font-size: 8.5pt;
             font-style: italic;
             color: #555555;
             line-height: 1.1;
-            margin-bottom: 0.5mm;
+            margin-bottom: 0.3mm;
         }
         .conf-parent-val {
             font-family: 'Times New Roman', Georgia, serif;
-            font-size: 14pt;
+            font-size: 13pt;
             font-weight: 700;
             color: #111827;
             text-transform: uppercase;
@@ -2552,33 +2553,32 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
             white-space: nowrap;
             overflow: hidden;
             line-height: 1.15;
+            min-height: 4.5mm;
+            display: block;
         }
         .conf-parent-rule {
             border-bottom: 0.75pt solid #C89B3C;
             width: 100%;
-            margin: 2.2mm auto 0 auto;
+            margin: 1.2mm auto 0.4mm auto;
         }
 
         .conf-certify-stmt {
             font-family: Georgia, 'Times New Roman', serif;
-            font-size: 9.5pt;
+            font-size: 9pt;
             font-style: italic;
             color: #4b5563;
-            margin: 1.5mm auto 1mm auto;
+            margin: 1mm auto 0 auto;
             text-align: center;
-            line-height: 1.2;
+            line-height: 1.15;
         }
 
-        /* Bottom Row with Date (Left) and Priest Signature Block (Right) */
-        .conf-bottom-grid {
+        /* Centered Priest Signature Block (Issue date removed, centered horizontally) */
+        .conf-footer-centered {
             margin-top: auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            width: 100%;
-        }
-        .conf-footer-side {
-            width: 28%;
+            padding-top: 8mm; /* Keep at least 8mm clear space between certification sentence and signature line */
+            width: 32%;
+            margin-left: auto;
+            margin-right: auto;
             text-align: center;
             display: flex;
             flex-direction: column;
@@ -2586,7 +2586,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
         }
         .conf-footer-val {
             font-family: 'Times New Roman', Georgia, serif;
-            font-size: 13pt;
+            font-size: 12.5pt;
             font-weight: 700;
             color: #111827;
             text-transform: uppercase;
@@ -2599,42 +2599,38 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
         .conf-footer-rule {
             border-bottom: 0.75pt solid #C89B3C;
             width: 100%;
-            margin: 2.2mm auto 1.5mm auto;
+            margin: 1.5mm auto 1mm auto;
         }
         .conf-footer-sub-caption {
             font-family: Georgia, 'Times New Roman', serif;
-            font-size: 10pt;
+            font-size: 9.5pt;
             font-style: italic;
             color: #1F5A7A;
             line-height: 1.2;
         }
 
-        /* Clean Priest Signature Column with QR Code & Certificate Number */
+        /* Priest Signature Column with QR Code & Certificate Number */
         .conf-qr-wrap {
             text-align: center;
-            margin-bottom: 1mm;
+            margin-bottom: 0.8mm;
         }
         .conf-qr-img {
-            width: 14mm;
-            height: 14mm;
+            width: 10mm;
+            height: 10mm;
             display: inline-block;
         }
         .conf-qr-cert-no {
-            font-size: 6pt;
+            font-size: 5.5pt;
             color: #4b5563;
             font-weight: 700;
             letter-spacing: 0.5px;
             margin-top: 0.2mm;
         }
         .conf-sig-img {
-            height: 8.5mm;
+            height: 8mm;
             object-fit: contain;
             margin-bottom: 0.5mm;
             display: block;
-            z-index: 2;
-        }
-        .conf-sig-space {
-            height: 2mm;
         }
 
         @page {
@@ -3138,7 +3134,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
                         </div>
                         <?php endif; ?>
 
-                        <!-- Three Signer Lines at Bottom Right -->
+                        <!-- Signer Lines at Bottom Right (Catechist Coordinator and Parish Priest) -->
                         <div class="communion-signers-section">
                             <!-- 1. Parish Catechist Coordinator -->
                             <div class="communion-signer-box">
@@ -3152,13 +3148,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
                                 <div class="communion-signer-name"><?php echo e($data['parish_priest'] ?? ''); ?></div>
                                 <div class="communion-signer-line"></div>
                                 <div class="communion-signer-position">Parish Priest</div>
-                            </div>
-
-                            <!-- 3. Principal -->
-                            <div class="communion-signer-box">
-                                <div class="communion-signer-name"><?php echo e($data['principal'] ?? ''); ?></div>
-                                <div class="communion-signer-line"></div>
-                                <div class="communion-signer-position">Principal</div>
                             </div>
                         </div>
                     </div>
@@ -3301,7 +3290,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
         <main class="confirmation-replica-page" id="certificateDocument">
             <section class="confirmation-replica-sheet">
                 <!-- Vector Greek-Key Meander Frame Overlay -->
-                <img src="../assets/img/certificates/confirmation-greek-border.svg" class="ornamental-scallop-border-overlay" alt="" aria-hidden="true">
+                <img src="../assets/img/certificates/confirmation-greek-border.svg?v=20261001b" class="ornamental-scallop-border-overlay" alt="" aria-hidden="true">
 
                 <div class="conf-outer-frame">
                     <div class="conf-inner-frame">
@@ -3354,22 +3343,22 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
                         <div class="conf-parents-block">
                             <div class="conf-parent-row">
                                 <div class="conf-parent-caption">Father's name</div>
-                                <div class="conf-parent-val"><?php echo e(strtoupper($father_name)); ?></div>
+                                <div class="conf-parent-val"><?php echo e(strtoupper($father_name !== '' ? $father_name : 'N/A')); ?></div>
                                 <div class="conf-parent-rule"></div>
                             </div>
                             <div class="conf-parent-row">
                                 <div class="conf-parent-caption">Mother's name</div>
-                                <div class="conf-parent-val"><?php echo e(strtoupper($mother_name)); ?></div>
+                                <div class="conf-parent-val"><?php echo e(strtoupper($mother_name !== '' ? $mother_name : 'N/A')); ?></div>
                                 <div class="conf-parent-rule"></div>
                             </div>
                             <div class="conf-parent-row">
                                 <div class="conf-parent-caption">Godfather's name</div>
-                                <div class="conf-parent-val"><?php echo e(strtoupper($godfather !== 'N/A' ? $godfather : '')); ?></div>
+                                <div class="conf-parent-val"><?php echo e(strtoupper($godfather !== 'N/A' && $godfather !== '' ? $godfather : 'N/A')); ?></div>
                                 <div class="conf-parent-rule"></div>
                             </div>
                             <div class="conf-parent-row">
                                 <div class="conf-parent-caption">Godmother's name</div>
-                                <div class="conf-parent-val"><?php echo e(strtoupper($godmother !== 'N/A' ? $godmother : '')); ?></div>
+                                <div class="conf-parent-val"><?php echo e(strtoupper($godmother !== 'N/A' && $godmother !== '' ? $godmother : 'N/A')); ?></div>
                                 <div class="conf-parent-rule"></div>
                             </div>
                         </div>
@@ -3380,37 +3369,27 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
                         </div>
 
                         <?php if (!empty($display_purpose_clean) && strtolower(trim((string)$display_purpose_clean)) !== 'whatever lawful purpose it may serve' && strtolower(trim((string)$display_purpose_clean)) !== 'n/a'): ?>
-                        <div class="conf-purpose-stmt" style="margin-top: 1mm; margin-bottom: 1mm; font-style: italic; font-size: 7.5pt; color: #1F5A7A; text-align: center; line-height: 1.2;">
+                        <div class="conf-purpose-stmt" style="margin-top: 0.5mm; margin-bottom: 0.5mm; font-style: italic; font-size: 7.5pt; color: #1F5A7A; text-align: center; line-height: 1.2;">
                             Issued upon request for <span style="border-bottom: 1px solid #1F5A7A; font-style: normal; font-weight: 700; padding: 0 3mm;"><?php echo e($display_purpose_clean); ?></span>.
                         </div>
                         <?php endif; ?>
 
-                        <!-- Bottom Row with Date (Left) and Priest Signature Block (Right) -->
-                        <div class="conf-bottom-grid">
-                            <div class="conf-footer-side">
-                                <div class="conf-footer-val"><?php echo e($confirmation_issue_date); ?></div>
-                                <div class="conf-footer-rule"></div>
-                                <div class="conf-footer-sub-caption" style="visibility: hidden;">&nbsp;</div>
-                            </div>
-
-                            <div class="conf-footer-side">
-                                <?php if (!empty($conf_qr_data_uri)): ?>
-                                    <div class="conf-qr-wrap">
-                                        <img src="<?php echo e($conf_qr_data_uri); ?>" class="conf-qr-img" alt="Verification QR Code">
-                                        <?php if (!empty($conf_cert_no)): ?>
-                                            <div class="conf-qr-cert-no"><?php echo e($conf_cert_no); ?></div>
-                                        <?php endif; ?>
-                                    </div>
-                                <?php endif; ?>
-                                <?php if (!empty($confirmation_sig_img)): ?>
-                                    <img src="<?php echo e($confirmation_sig_img); ?>" class="conf-sig-img" alt="Priest Signature">
-                                <?php else: ?>
-                                    <div class="conf-sig-space"></div>
-                                <?php endif; ?>
-                                <div class="conf-footer-val"><?php echo e(strtoupper($confirmation_priest_name)); ?></div>
-                                <div class="conf-footer-rule"></div>
-                                <div class="conf-footer-sub-caption"><?php echo e($confirmation_priest_title); ?></div>
-                            </div>
+                        <!-- Centered Priest Signature Block (Issue date removed, centered horizontally) -->
+                        <div class="conf-footer-centered">
+                            <?php if (!empty($conf_qr_data_uri)): ?>
+                                <div class="conf-qr-wrap">
+                                    <img src="<?php echo e($conf_qr_data_uri); ?>" class="conf-qr-img" alt="Verification QR Code">
+                                    <?php if (!empty($conf_cert_no)): ?>
+                                        <div class="conf-qr-cert-no"><?php echo e($conf_cert_no); ?></div>
+                                    <?php endif; ?>
+                                </div>
+                            <?php endif; ?>
+                            <?php if (!empty($confirmation_sig_img)): ?>
+                                <img src="<?php echo e($confirmation_sig_img); ?>" class="conf-sig-img" alt="Priest Signature">
+                            <?php endif; ?>
+                            <div class="conf-footer-val"><?php echo e(strtoupper($confirmation_priest_name)); ?></div>
+                            <div class="conf-footer-rule"></div>
+                            <div class="conf-footer-sub-caption"><?php echo e($confirmation_priest_title); ?></div>
                         </div>
                     </div>
                 </div>
@@ -3778,7 +3757,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
                     <div class="modal-body p-4">
                         <div class="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 mb-3">
                             <i class="fas fa-circle-info fs-5"></i>
-                            <div>All 7 required fields must be complete before the First Communion certificate can be officially generated and printed.</div>
+                            <div>All 6 required fields must be complete before the First Communion certificate can be officially generated and printed.</div>
                         </div>
 
                         <div class="row g-3">
@@ -3808,17 +3787,13 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
                                 <h6 class="fw-bold small text-muted text-uppercase mb-2"><i class="fas fa-signature me-1"></i> Authorized Signers (Parish Roster)</h6>
                             </div>
 
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <label class="form-label fw-bold small">Parish Catechist Coordinator <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" name="catechist_coordinator" value="<?php echo e($data['catechist_coordinator'] ?? ''); ?>" placeholder="e.g. Sis. Lourdes Fernandez" required>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <label class="form-label fw-bold small">Parish Priest <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" name="parish_priest" value="<?php echo e($data['parish_priest'] ?? ''); ?>" placeholder="e.g. Rev. Fr. Alberto Cahilig, OMI" required>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label fw-bold small">Principal <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" name="principal" value="<?php echo e($data['principal'] ?? ''); ?>" placeholder="e.g. Principal Name" required>
                             </div>
                         </div>
                     </div>
@@ -4047,11 +4022,11 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
 
     function fitConfirmationText() {
         const items = [
-            { selector: '.conf-recipient-name', maxPt: 30, minPt: 16 },
-            { selector: '.conf-bishop-name', maxPt: 15, minPt: 11 },
-            { selector: '.conf-confirmed-name-display', maxPt: 16, minPt: 11 },
-            { selector: '.conf-parent-val', maxPt: 14, minPt: 9 },
-            { selector: '.conf-footer-val', maxPt: 13, minPt: 9 }
+            { selector: '.conf-recipient-name', maxPt: 28, minPt: 16 },
+            { selector: '.conf-bishop-name', maxPt: 14, minPt: 10 },
+            { selector: '.conf-confirmed-name-display', maxPt: 15, minPt: 11 },
+            { selector: '.conf-parent-val', maxPt: 13, minPt: 9 },
+            { selector: '.conf-footer-val', maxPt: 12.5, minPt: 9 }
         ];
         items.forEach(function(cfg) {
             document.querySelectorAll(cfg.selector).forEach(function(el) {
