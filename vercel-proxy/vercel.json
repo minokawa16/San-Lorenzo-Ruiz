@@ -17,6 +17,14 @@
       "dest": "https://tugon-web-production.up.railway.app/api/dashboard/stats.php"
     },
     {
+      "src": "^/api/ai-assistant/?$",
+      "dest": "https://tugon-web-production.up.railway.app/api/ai-assistant.php"
+    },
+    {
+      "src": "^/api/ai-health/?$",
+      "dest": "https://tugon-web-production.up.railway.app/api/ai-health.php"
+    },
+    {
       "src": "^/(.*)$",
       "dest": "https://tugon-web-production.up.railway.app/$1"
     }
