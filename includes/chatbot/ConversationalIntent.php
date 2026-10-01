@@ -82,17 +82,17 @@ final class TugonConversationalIntent
         }
 
         // 5. ACCOUNT / REGISTRATION / VERIFICATION (KB-10, KB-11)
-        if (preg_match('/\b(?:registration rejected|rejected registration|my registration|bakit na-reject ang registration|hindi ma-approve|how to register|magparehistro|mag-register|create (?:an )?account|sign up|sign-up|get verified|account verification|approve account)\b/iu', $normalized)) {
+        if (preg_match('/\b(?:registration rejected|rejected registration|my registration|bakit na-reject ang registration|hindi ma-approve|how to register|how (?:do|can) i register|magparehistro|mag-register|create (?:an )?account|sign up|sign-up|get verified|account verification|verify (?:my )?account|approve account|registration)\b/iu', $normalized)) {
             return self::TOPIC_ACCOUNT_REGISTRATION;
         }
 
         // 6. REQUEST STATUS / TRACKING / REJECTION / RESUBMISSION (KB-20, KB-21)
-        if (preg_match('/\b(?:what does ["\']?(?:pending|processing|completed|rejected)["\']? mean|ano (?:ang )?ibig sabihin ng (?:pending|processing|completed|rejected)|my request says rejected|why was my request rejected|request was rejected|bakit na-reject|resubmit|track (?:my )?requests?|request status|my requests?|reference number|ano na status)\b/iu', $normalized)) {
+        if (preg_match('/\b(?:what does ["\']?(?:pending|processing|completed|rejected)["\']? mean|ano (?:ang )?ibig sabihin ng (?:pending|processing|completed|rejected)|my request says rejected|why was my request rejected|request was rejected|bakit na-reject|resubmit|track(?:ing)?(?:\s+(?:my|the|a|submitted|active))*\s+requests?|how (?:do|can) i track|track my (?:submitted )?request|request status|status of (?:my )?request|my requests?|reference number|ano na status|paano i-track|check (?:the )?status)\b/iu', $normalized)) {
             return self::TOPIC_REQUEST_STATUS;
         }
 
         // 7. PAYMENT (KB-32, KB-45, KB-51)
-        if (preg_match('/\b(?:how do i pay by gcash|pay by gcash|gcash payment|bayad sa gcash|paano magbayad sa gcash|payment options|payment methods?|magbayad sa gcash|send to gcash)\b/iu', $normalized)) {
+        if (preg_match('/\b(?:how (?:do|can) i pay (?:by |via |using )?gcash|pay by gcash|gcash payment|bayad sa gcash|paano magbayad (?:sa |gamit ang )?gcash|payment options|payment methods?|magbayad sa gcash|send to gcash|how to pay|paano magbayad|payment)\b/iu', $normalized)) {
             return self::TOPIC_PAYMENT;
         }
 
@@ -110,12 +110,12 @@ final class TugonConversationalIntent
         }
 
         // 10. SACRAMENTAL SERVICES Intent: Wedding, Baptism, Funeral Mass, Anointing of the Sick
-        if (preg_match('/\b(?:wedding|matrimony|pre-cana|banns|magpakasal|pakasal|kasal|baptism|binyag|pabinyag|magpabunyag|confirmation service|magpakumpil|magpakumpirma|first holy communion|anointing of the sick|sick call|pahid ng langis|dying|naghihingalo|last rites|funeral mass|funeral blessing|wake|burial|misa sa patay|libing|burol|lubong|padasal sa patay|death anniversary mass|how much is a (?:wedding|baptism|funeral)|requirements for (?:a )?(?:wedding|baptism|funeral))\b/iu', $normalized)) {
+        if (preg_match('/\b(?:wedding|matrimony|pre-cana|banns|magpakasal|pakasal|kasal|baptism|binyag|pabinyag|magpabunyag|confirmation service|magpakumpil|magpakumpirma|first holy communion|anointing of the sick|sick call|pahid ng langis|dying|naghihingalo|last rites|funeral mass|funeral blessing|wake|burial|misa sa patay|libing|burol|lubong|padasal sa patay|death anniversary mass|how much is a (?:wedding|baptism|funeral)|requirements for (?:a )?(?:wedding|baptism|funeral|matrimony))\b/iu', $normalized)) {
             return self::TOPIC_SACRAMENTAL_SERVICES;
         }
 
         // 11. MASS / CONFESSION / OFFICE SCHEDULE Intent
-        if (preg_match('/\b(?:is the office open monday|office hours|oras ng opisina|bukas ang opisina|sarado ang opisina|confession|confessions|kumpisal|kompisal|kumpisalan|reconciliation|penance|what time is confession|oras ng kumpisal|kailan ang kumpisal|unsang orasa ang kumpisal|mass schedule|mass times?|sunday mass|weekday mass|daily mass|oras ng misa|iskedyul ng misa|what time is (?:the )?(?:sunday |weekday )?mass|kailan ang misa|unsang orasa ang misa|holy hour|adoration schedule)\b/iu', $normalized)) {
+        if (preg_match('/\b(?:is the office open monday|office hours|oras ng opisina|bukas ang opisina|sarado ang opisina|confession|confessions|kumpisal|kompisal|kumpisalan|reconciliation|penance|what time is confession|oras ng kumpisal|kailan ang kumpisal|unsang orasa ang kumpisal|mass schedules?|mass times?|sunday mass|weekday mass|daily mass|schedule of (?:the )?mass|schedules of (?:the )?mass|oras ng misa|iskedyul ng misa|what time is (?:the )?(?:sunday |weekday )?mass|kailan ang misa|unsang orasa ang misa|holy hour|adoration schedule)\b/iu', $normalized)) {
             return self::TOPIC_MASS_SERVICE_SCHEDULES;
         }
 
@@ -127,6 +127,11 @@ final class TugonConversationalIntent
         // 13. CHURCH TEACHING / PASTORAL CONCERN Intent
         if (preg_match('/\b(?:doctrine|catechism|catholic teaching|church teaching|why do catholics|sin|ten commandments|rosary|lent|advent|bible|aral ng simbahan|katesismo|doktrina)\b/iu', $normalized)) {
             return self::TOPIC_CHURCH_TEACHING;
+        }
+
+        // 14. GENERAL PARISH TOPIC FALLBACK (Prevents false OFF_TOPIC_OR_UNSAFE rejection on valid parish queries)
+        if (preg_match('/\b(?:parish|parokya|church|simbahan|mass|misa|office|opisina|bapt|binyag|confirm|kumpil|communion|komunyon|marriage|wedding|kasal|bless|basbas|bendisyon|certificate|sertipiko|papeles|confess|kumpisal|reconciliation|penance|adoration|novena|rosary|request|kahilingan|reserv|venue|schedule|iskedyul|announcement|anunsyo|payment|bayad|funeral|burial|libing|priest|pari|secretary|kalihim|agnes|calapaan|vicar|sacrament|requirement|kailangan|fee|cost|magkano|upload|aleosan)\b/iu', $normalized)) {
+            return self::TOPIC_HOW_TO_USE_SYSTEM;
         }
 
         return self::TOPIC_OFF_TOPIC_OR_UNSAFE;

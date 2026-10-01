@@ -7,7 +7,7 @@ import { rateLimit } from 'express-rate-limit';
 
 const app = express();
 const port = Number(process.env.PORT) || 3001;
-const model = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
+const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 
 // ==============================================================================
 // TUGON AI — SYSTEM PROMPT & KNOWLEDGE BASE (Aleosan, Cotabato)

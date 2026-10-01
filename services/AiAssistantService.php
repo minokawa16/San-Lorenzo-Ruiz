@@ -988,7 +988,7 @@ final class AiAssistantService
         }
 
         // S. Schedules and Events
-        if (preg_match('/\b(?:where can i (?:see|view|find|check) (?:the )?(?:parish )?schedule|how can i check upcoming (?:parish )?events?|upcoming (?:parish )?events?|parish events?|parish schedule|mass schedule|mass times?|parish calendar|oras ng misa|iskedyul ng misa|upcoming mass schedules|what schedules are available|is (?:there )?(?:a )?(?:sunday|weekday|daily)?\s*(?:\d{1,2}(?::\d{2})?\s*(?:am|pm)?)?\s*mass (?:still )?(?:happening|available|going on)|is sunday 9am mass still happening)\b/iu', $normalized)) {
+        if (preg_match('/\b(?:where can i (?:see|view|find|check) (?:the )?(?:parish )?schedule|how can i check upcoming (?:parish )?events?|upcoming (?:parish )?events?|parish events?|parish schedule|mass schedules?|mass times?|parish calendar|oras ng misa|iskedyul ng misa|upcoming mass schedules|what schedules are available|is (?:there )?(?:a )?(?:sunday|weekday|daily)?\s*(?:\d{1,2}(?::\d{2})?\s*(?:am|pm)?)?\s*mass (?:still )?(?:happening|available|going on)|is sunday 9am mass still happening)\b/iu', $normalized)) {
             $isSpecificMass = (bool) preg_match('/\b(?:is (?:there )?(?:a )?(?:sunday|weekday|daily)?\s*(?:\d{1,2}(?::\d{2})?\s*(?:am|pm)?)|9am|9:00|is sunday.*happening)\b/iu', $normalized);
             if ($isSpecificMass) {
                 $answer = $isFil
@@ -1119,16 +1119,17 @@ final class AiAssistantService
 
         // Route strictly to matching knowledge-base categories by detected intent
         $intentCategories = [
-            TugonConversationalIntent::TOPIC_CERTIFICATES => ['certificates', 'documents'],
-            TugonConversationalIntent::TOPIC_SACRAMENT_REQUESTS => ['sacraments', 'reservations', 'services'],
-            TugonConversationalIntent::TOPIC_BLESSINGS => ['blessings', 'services'],
-            TugonConversationalIntent::TOPIC_FUNERAL_MEMORIAL => ['funeral', 'reservations', 'sacraments'],
-            TugonConversationalIntent::TOPIC_MASS_SERVICE_SCHEDULES => ['schedule', 'mass'],
-            TugonConversationalIntent::TOPIC_MASS_INTENTIONS => ['mass', 'intentions', 'services'],
-            TugonConversationalIntent::TOPIC_PARISH_OFFICE => ['office', 'contact', 'general'],
-            TugonConversationalIntent::TOPIC_EVENTS_MINISTRIES => ['announcements', 'events', 'ministries'],
-            TugonConversationalIntent::TOPIC_HOW_TO_USE_SYSTEM => ['account', 'tracking', 'status', 'system', 'faq'],
-            TugonConversationalIntent::TOPIC_CHURCH_TEACHING => ['doctrine', 'teaching', 'catechism'],
+            TugonConversationalIntent::TOPIC_CERTIFICATES => ['certificates', 'certificate', 'documents', 'records'],
+            TugonConversationalIntent::TOPIC_SACRAMENTAL_SERVICES => ['sacraments', 'sacrament', 'reservations', 'services', 'funeral'],
+            TugonConversationalIntent::TOPIC_BLESSINGS => ['blessings', 'blessing', 'services', 'reservations'],
+            TugonConversationalIntent::TOPIC_REQUEST_STATUS => ['status', 'tracking', 'requests', 'system', 'account'],
+            TugonConversationalIntent::TOPIC_ACCOUNT_REGISTRATION => ['account', 'general', 'security', 'documents'],
+            TugonConversationalIntent::TOPIC_PAYMENT => ['office', 'certificates', 'sacraments', 'general', 'services'],
+            TugonConversationalIntent::TOPIC_SCHEDULE_AVAILABILITY => ['schedule', 'reservations', 'sacraments', 'services', 'status'],
+            TugonConversationalIntent::TOPIC_NOTIFICATIONS => ['notifications', 'account', 'status', 'security'],
+            TugonConversationalIntent::TOPIC_MASS_SERVICE_SCHEDULES => ['schedule', 'general', 'announcements', 'office'],
+            TugonConversationalIntent::TOPIC_PARISH_OFFICE => ['office', 'general', 'contact'],
+            TugonConversationalIntent::TOPIC_CHURCH_TEACHING => ['doctrine', 'teaching', 'sacraments', 'general'],
         ];
 
         $categorySql = '';
@@ -1167,6 +1168,24 @@ final class AiAssistantService
                 $rows[] = $row;
             }
             $stmt->close();
+        }
+
+        // Broad fallback: if category filter produced no matches, search all active approved knowledge
+        if (empty($rows) && $categorySql !== '') {
+            $stmt = $this->db->prepare("SELECT knowledge_id, topic, keywords, answer, steps, category, source, version, effective_date, expiry_date, language, updated_at,
+                MATCH(topic, keywords, answer) AGAINST(? IN BOOLEAN MODE) score
+                FROM chatbot_knowledge WHERE status='active' AND approval_status='approved'
+                AND (effective_date IS NULL OR effective_date <= CURRENT_DATE) AND (expiry_date IS NULL OR expiry_date >= CURRENT_DATE)
+                AND MATCH(topic, keywords, answer) AGAINST(? IN BOOLEAN MODE) HAVING score >= 1.0 ORDER BY score DESC, updated_at DESC LIMIT 3");
+            if ($stmt) {
+                $stmt->bind_param('ss', $boolean, $boolean);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                while ($row = $result->fetch_assoc()) {
+                    $rows[] = $row;
+                }
+                $stmt->close();
+            }
         }
 
         $rows = array_values(array_filter($rows, fn($row) => $this->knowledgeRelevant($expanded, $row)));

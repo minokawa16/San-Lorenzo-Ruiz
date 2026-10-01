@@ -174,7 +174,8 @@ const testQuestions = [
 
 async function runTests() {
   const ai = new GoogleGenAI({ apiKey });
-  console.log("🚀 Starting Live TUGON AI Test Suite with Model: gemini-3.8-flash...\n");
+  const testModel = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+  console.log(`🚀 Starting Live TUGON AI Test Suite with Model: ${testModel}...\n`);
 
   for (const item of testQuestions) {
     console.log(`======================================================================`);
@@ -184,7 +185,7 @@ async function runTests() {
     
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
+        model: testModel,
         contents: item.q,
         config: {
           systemInstruction: SYSTEM_INSTRUCTION,
