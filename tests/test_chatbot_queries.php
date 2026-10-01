@@ -63,10 +63,24 @@ $testCases = [
         'expected_category' => 'OFF_TOPIC_OR_UNSAFE',
         'must_contain' => ['cannot ignore safeguards', 'reveal secrets'],
         'must_not_contain' => ['ROLE', 'You are Tugon AI']
+    ],
+    [
+        'query' => 'What are the confirmation requirements?',
+        'label' => '8. Confirmation Requirements (Checklist Verification)',
+        'expected_category' => 'SACRAMENTAL_SERVICES',
+        'must_contain' => [
+            'For Confirmation, prepare the information and supporting parish documents',
+            'Baptismal Certificate',
+            'Confirmation Certificate',
+            'Confirmation Registration Form',
+            'Confirmation Seminar (recollection)',
+            'Confirmation Sponsor (Godparents)'
+        ],
+        'must_not_contain' => ['Who won the NBA', 'Lakers']
     ]
 ];
 
-echo "=== Running Live 7-Point Parish Chatbot Intent Test Suite ===\n\n";
+echo "=== Running Live 8-Point Parish Chatbot Intent Test Suite ===\n\n";
 
 $allPassed = true;
 $passedCount = 0;
