@@ -56,9 +56,22 @@ if (strpos($timeAware['response'], 'morning') === false && strpos($timeAware['re
     $failures[] = 'Generic morning greeting did not produce an appropriate response.';
 }
 
+$topicCases = [
+    'What are the confirmation requirements?' => TugonConversationalIntent::TOPIC_SACRAMENTAL_SERVICES,
+    'confirmation requirements' => TugonConversationalIntent::TOPIC_SACRAMENTAL_SERVICES,
+    'kumpil requirements' => TugonConversationalIntent::TOPIC_SACRAMENTAL_SERVICES,
+    'ano ang requirements sa kumpil' => TugonConversationalIntent::TOPIC_SACRAMENTAL_SERVICES,
+];
+foreach ($topicCases as $msg => $expectedTopic) {
+    $topic = TugonConversationalIntent::classifyTopicIntent($msg);
+    if ($topic !== $expectedTopic) {
+        $failures[] = "$msg: expected topic $expectedTopic, got " . var_export($topic, true);
+    }
+}
+
 if ($failures) {
     fwrite(STDERR, implode(PHP_EOL, $failures) . PHP_EOL);
     exit(1);
 }
 
-echo 'Conversational intent tests passed: ' . (count($cases) + count($ragCases) + 1) . PHP_EOL;
+echo 'Conversational intent tests passed: ' . (count($cases) + count($ragCases) + count($topicCases) + 1) . PHP_EOL;

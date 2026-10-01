@@ -109,8 +109,8 @@ final class TugonConversationalIntent
             return self::TOPIC_BLESSINGS;
         }
 
-        // 10. SACRAMENTAL SERVICES Intent: Wedding, Baptism, Funeral Mass, Anointing of the Sick
-        if (preg_match('/\b(?:wedding|matrimony|pre-cana|banns|magpakasal|pakasal|kasal|baptism|binyag|pabinyag|magpabunyag|confirmation service|magpakumpil|magpakumpirma|first holy communion|anointing of the sick|sick call|pahid ng langis|dying|naghihingalo|last rites|funeral mass|funeral blessing|wake|burial|misa sa patay|libing|burol|lubong|padasal sa patay|death anniversary mass|how much is a (?:wedding|baptism|funeral)|requirements for (?:a )?(?:wedding|baptism|funeral|matrimony))\b/iu', $normalized)) {
+        // 10. SACRAMENTAL SERVICES Intent: Wedding, Baptism, Funeral Mass, Anointing of the Sick, Confirmation
+        if (preg_match('/\b(?:wedding|matrimony|pre-cana|banns|magpakasal|pakasal|kasal|baptism|binyag|pabinyag|magpabunyag|confirmation|confirmation service|kumpil|magpakumpil|magpakumpirma|first holy communion|anointing of the sick|sick call|pahid ng langis|dying|naghihingalo|last rites|funeral mass|funeral blessing|wake|burial|misa sa patay|libing|burol|lubong|padasal sa patay|death anniversary mass|how much is a (?:wedding|baptism|funeral)|requirements for (?:a )?(?:wedding|baptism|funeral|matrimony|confirmation))\b/iu', $normalized)) {
             return self::TOPIC_SACRAMENTAL_SERVICES;
         }
 
@@ -130,7 +130,7 @@ final class TugonConversationalIntent
         }
 
         // 14. GENERAL PARISH TOPIC FALLBACK (Prevents false OFF_TOPIC_OR_UNSAFE rejection on valid parish queries)
-        if (preg_match('/\b(?:parish|parokya|church|simbahan|mass|misa|office|opisina|bapt|binyag|confirm|kumpil|communion|komunyon|marriage|wedding|kasal|bless|basbas|bendisyon|certificate|sertipiko|papeles|confess|kumpisal|reconciliation|penance|adoration|novena|rosary|request|kahilingan|reserv|venue|schedule|iskedyul|announcement|anunsyo|payment|bayad|funeral|burial|libing|priest|pari|secretary|kalihim|agnes|calapaan|vicar|sacrament|requirement|kailangan|fee|cost|magkano|upload|aleosan)\b/iu', $normalized)) {
+        if (preg_match('/\b(?:parish|parokya|church|simbahan|mass|misa|office|opisina|bapt(?:ism)?|binyag|confirm(?:ation)?|kumpil|communion|komunyon|marriage|wedding|kasal|bless|basbas|bendisyon|certificate|sertipiko|papeles|confess|kumpisal|reconciliation|penance|adoration|novena|rosary|request|kahilingan|reserv|venue|schedule|iskedyul|announcement|anunsyo|payment|bayad|funeral|burial|libing|priest|pari|secretary|kalihim|agnes|calapaan|vicar|sacrament|requirements?|kailangan|fee|cost|magkano|upload|aleosan)\b/iu', $normalized)) {
             return self::TOPIC_HOW_TO_USE_SYSTEM;
         }
 

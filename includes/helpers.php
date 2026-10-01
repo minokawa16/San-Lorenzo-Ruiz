@@ -1195,7 +1195,7 @@ function chatbotKnowledgeOfficialDefaults() {
             'Confirmation Requirements',
             'what are the confirmation requirements,confirmation requirements,ano ang requirements sa kumpirmasyon,what documents are needed for confirmation,how can i request confirmation,requirements for confirmation,confirmation,kumpil,pakumpil,confirmand,requirements,papers,documents',
             'For Confirmation, prepare the information and supporting parish documents requested by the parish office.',
-            "Baptismal Certificate\nConfirmation Registration Form\nConfirmation Seminar (recollection)\nConfirmation Sponsor (Godparents)",
+            "Baptismal Certificate\nConfirmation Certificate\nConfirmation Registration Form\nConfirmation Seminar (recollection)\nConfirmation Sponsor (Godparents)",
             'sacrament'
         ],
         [
