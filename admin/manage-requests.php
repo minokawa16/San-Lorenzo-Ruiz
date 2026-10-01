@@ -1,14 +1,21 @@
 <?php
 /**
  * Manage Requests Page
- * Admin interface for managing user requests
+ * Admin interface for managing user requests and sacramental reservations
  */
 
+// Send no-cache headers so one admin's results are never cached for another
+if (!headers_sent()) {
+    header('Cache-Control: private, no-store, no-cache, must-revalidate');
+    header('Pragma: no-cache');
+    header('Expires: 0');
+}
+
 // Include centralized session management
-include '../includes/session.php';
-include '../database/config.php';
-include '../includes/helpers.php';
-require_once '../services/ReservationService.php';
+require_once __DIR__ . '/../includes/session.php';
+require_once __DIR__ . '/../database/config.php';
+require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../services/ReservationService.php';
 
 // Require admin access
 requireAdmin();
@@ -27,61 +34,99 @@ $success = '';
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') requireValidCsrfToken();
 
 // Ensure Request Archive Column Function - Documents this helper's role in the parish management workflow.
-function ensureRequestArchiveColumn($conn) {
-    return columnExists($conn, 'requests', 'deleted_at');
+if (!function_exists('ensureRequestArchiveColumn')) {
+    function ensureRequestArchiveColumn($conn) {
+        return columnExists($conn, 'requests', 'deleted_at');
+    }
+}
+
+// Helper to construct filter URLs preserving active parameters
+if (!function_exists('adminRequestsUrl')) {
+    function adminRequestsUrl(array $params = []): string {
+        global $service_date;
+        $activeServiceDate = isset($service_date) ? $service_date : '';
+        if ($activeServiceDate === '' && isset($_GET['service_date'])) {
+            $rawDate = trim((string) $_GET['service_date']);
+            if (preg_match('/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/', $rawDate) || $rawDate === 'this_week') {
+                $activeServiceDate = $rawDate;
+            }
+        }
+        $current = [
+            'status' => $_GET['status'] ?? '',
+            'type' => $_GET['type'] ?? '',
+            'service_date' => $activeServiceDate,
+            'q' => $_GET['q'] ?? '',
+            'page' => $_GET['page'] ?? ''
+        ];
+        $merged = array_merge($current, $params);
+        $clean = [];
+        foreach ($merged as $k => $v) {
+            $vStr = trim((string) $v);
+            if ($vStr !== '') {
+                $clean[$k] = $vStr;
+            }
+        }
+        return 'manage-requests.php' . (!empty($clean) ? '?' . http_build_query($clean) : '');
+    }
 }
 
 // Request Category Helpers - Keep admin filtering readable while preserving existing request values.
-function adminRequestTypeGroups() {
-    return [
-        'certificate' => [
-            'label' => 'Certificate',
-            'types' => [
-                'baptismal_certificate', 'baptism_certification',
-                'confirmation_certificate', 'confirmation_certification',
-                'first_communion_certificate', 'first_communion_certification',
-                'marriage_certification', 'funeral_certification'
-            ]
-        ],
-        'blessing' => [
-            'label' => 'Blessing',
-            'types' => ['house_blessing', 'car_blessing', 'vehicle_blessing', 'business_blessing', 'office_blessing', 'event_blessing', 'other_blessing']
-        ],
-        'sacramental' => [
-            'label' => 'Sacramental Services',
-            'types' => [
-                'baptism_service',
-                'marriage_wedding_service',
-                'funeral_mass',
-                'anointing_of_the_sick',
-                'patronal_fiesta',
-                'church_reservation',
-                'wedding_reservation',
-                'burial_reservation',
-                'wedding',
-                'baptism',
-                'confirmation',
-                'burial',
-                'church_venue'
-            ]
-        ],
-    ];
-}
-
-function adminRequestCategorySql($column) {
-    $cases = [];
-    foreach (adminRequestTypeGroups() as $category => $group) {
-        $quoted = array_map(function ($type) {
-            return "'" . addslashes($type) . "'";
-        }, $group['types']);
-        $cases[] = "WHEN $column IN (" . implode(',', $quoted) . ") THEN '$category'";
+if (!function_exists('adminRequestTypeGroups')) {
+    function adminRequestTypeGroups() {
+        return [
+            'certificate' => [
+                'label' => 'Certificate',
+                'types' => [
+                    'baptismal_certificate', 'baptism_certification',
+                    'confirmation_certificate', 'confirmation_certification',
+                    'first_communion_certificate', 'first_communion_certification',
+                    'marriage_certification', 'funeral_certification'
+                ]
+            ],
+            'blessing' => [
+                'label' => 'Blessing',
+                'types' => ['house_blessing', 'car_blessing', 'vehicle_blessing', 'business_blessing', 'office_blessing', 'event_blessing', 'other_blessing']
+            ],
+            'sacramental' => [
+                'label' => 'Sacramental Services',
+                'types' => [
+                    'baptism_service',
+                    'marriage_wedding_service',
+                    'funeral_mass',
+                    'anointing_of_the_sick',
+                    'patronal_fiesta',
+                    'church_reservation',
+                    'wedding_reservation',
+                    'burial_reservation',
+                    'wedding',
+                    'baptism',
+                    'confirmation',
+                    'burial',
+                    'church_venue'
+                ]
+            ],
+        ];
     }
-    return 'CASE ' . implode(' ', $cases) . " ELSE 'other' END";
 }
 
-function adminRequestCategoryLabel($category) {
-    $groups = adminRequestTypeGroups();
-    return $groups[$category]['label'] ?? 'Other';
+if (!function_exists('adminRequestCategorySql')) {
+    function adminRequestCategorySql($column) {
+        $cases = [];
+        foreach (adminRequestTypeGroups() as $category => $group) {
+            $quoted = array_map(function ($type) {
+                return "'" . addslashes($type) . "'";
+            }, $group['types']);
+            $cases[] = "WHEN $column IN (" . implode(',', $quoted) . ") THEN '$category'";
+        }
+        return 'CASE ' . implode(' ', $cases) . " ELSE 'other' END";
+    }
+}
+
+if (!function_exists('adminRequestCategoryLabel')) {
+    function adminRequestCategoryLabel($category) {
+        $groups = adminRequestTypeGroups();
+        return $groups[$category]['label'] ?? 'Other';
+    }
 }
 
 if (!ensureRequestArchiveColumn($conn)) {
@@ -183,35 +228,112 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
     }
 }
 
+// Manila timezone calculations for quick chips and comparisons
+$tz = new DateTimeZone('Asia/Manila');
+$now = new DateTime('now', $tz);
+$today_str = $now->format('Y-m-d');
+$tomorrow_str = (clone $now)->modify('+1 day')->format('Y-m-d');
+$dayOfWeek = (int) $now->format('N'); // 1 (Mon) to 7 (Sun)
+$weekStartDt = (clone $now)->modify('-' . ($dayOfWeek - 1) . ' days');
+$weekEndDt = (clone $weekStartDt)->modify('+6 days');
+$week_start_str = $weekStartDt->format('Y-m-d');
+$week_end_str = $weekEndDt->format('Y-m-d');
+
 // Get filter parameters
-$status_filter = $_GET['status'] ?? '';
-$type_filter = $_GET['type'] ?? '';
+$status_filter = strtolower(trim((string) ($_GET['status'] ?? '')));
+$type_filter = strtolower(trim((string) ($_GET['type'] ?? $_GET['category'] ?? '')));
 $search = trim($_GET['q'] ?? '');
+$service_date = trim((string) ($_GET['service_date'] ?? ''));
+
 $type_groups = adminRequestTypeGroups();
 $type_filter = isset($type_groups[$type_filter]) ? $type_filter : '';
+
+// Validate service_date (YYYY-MM-DD or 'this_week')
+$is_valid_date = false;
+$is_week_filter = ($service_date === 'this_week');
+
+if (preg_match('/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/', $service_date)) {
+    $dateParts = explode('-', $service_date);
+    if (checkdate((int) $dateParts[1], (int) $dateParts[2], (int) $dateParts[0])) {
+        $is_valid_date = true;
+    }
+}
+
+// Reject any invalid format safely
+if (!$is_valid_date && !$is_week_filter) {
+    $service_date = '';
+}
+
+// Category behavior: If Category is Certificates, service date does not apply
+if ($type_filter === 'certificate') {
+    $service_date = '';
+    $is_valid_date = false;
+    $is_week_filter = false;
+}
+
+$show_certificate_note = false;
+
 $request_category_sql = adminRequestCategorySql('r.request_type');
 $reservation_category_sql = adminRequestCategorySql('r.reservation_type');
-$request_where = ["r.deleted_at IS NULL", "NOT EXISTS (SELECT 1 FROM reservations linked_reservation WHERE linked_reservation.request_id=r.request_id)"];
+
+$request_where = [
+    "r.deleted_at IS NULL",
+    "NOT EXISTS (SELECT 1 FROM reservations linked_reservation WHERE linked_reservation.request_id=r.request_id)"
+];
 $reservation_where = ["1=1"];
-if (!empty($status_filter)) {
-    $status_filter = $conn->real_escape_string($status_filter);
-    $request_where[] = "r.status = '$status_filter'";
-    $reservation_where[] = "r.status = '$status_filter'";
+
+if (!empty($status_filter) && in_array($status_filter, ['pending', 'processing', 'completed', 'rejected'], true)) {
+    $status_safe = $conn->real_escape_string($status_filter);
+    $request_where[] = "r.status = '$status_safe'";
+    $reservation_where[] = "r.status = '$status_safe'";
 }
+
 if (!empty($type_filter)) {
     $type_filter_safe = $conn->real_escape_string($type_filter);
     $request_where[] = "($request_category_sql) = '$type_filter_safe'";
     $reservation_where[] = "($reservation_category_sql) = '$type_filter_safe'";
 }
+
 if ($search !== '') {
     $search_safe = $conn->real_escape_string('%' . $search . '%');
     $request_where[] = "(r.reference_number LIKE '$search_safe' OR r.request_type LIKE '$search_safe' OR r.description LIKE '$search_safe' OR r.admin_response LIKE '$search_safe' OR u.fullname LIKE '$search_safe' OR u.email LIKE '$search_safe')";
     $reservation_where[] = "(CONCAT('RES-', LPAD(r.reservation_id, 6, '0')) LIKE '$search_safe' OR r.reservation_type LIKE '$search_safe' OR r.event_details LIKE '$search_safe' OR r.admin_notes LIKE '$search_safe' OR u.fullname LIKE '$search_safe' OR u.email LIKE '$search_safe')";
 }
+
+// Service Date Filter Application
+if ($service_date !== '') {
+    if ($type_filter === '') {
+        // "All Categories" with active date filter: exclude certificates
+        $request_where[] = "($request_category_sql) IN ('blessing', 'sacramental')";
+        $show_certificate_note = true;
+    } elseif ($type_filter === 'blessing') {
+        // Reservations table only has sacramental items
+        $reservation_where[] = "1=0";
+    }
+
+    if ($is_valid_date) {
+        $service_date_safe = $conn->real_escape_string($service_date);
+        $next_day = date('Y-m-d', strtotime($service_date . ' +1 day'));
+        $next_day_safe = $conn->real_escape_string($next_day);
+
+        // Direct date range comparison for prepared index utilization without wrapping column in function
+        $request_where[] = "(s_locks.slot_date >= '$service_date_safe' AND s_locks.slot_date < '$next_day_safe')";
+        $reservation_where[] = "(r.event_date >= '$service_date_safe' AND r.event_date < '$next_day_safe')";
+    } elseif ($is_week_filter) {
+        $week_start_safe = $conn->real_escape_string($week_start_str);
+        $week_next_day = date('Y-m-d', strtotime($week_end_str . ' +1 day'));
+        $week_next_safe = $conn->real_escape_string($week_next_day);
+
+        $request_where[] = "(s_locks.slot_date >= '$week_start_safe' AND s_locks.slot_date < '$week_next_safe')";
+        $reservation_where[] = "(r.event_date >= '$week_start_safe' AND r.event_date < '$week_next_safe')";
+    }
+}
+
 $request_where_sql = implode(' AND ', $request_where);
 $reservation_where_sql = implode(' AND ', $reservation_where);
 
 $page = intval($_GET['page'] ?? 1);
+if ($page < 1) $page = 1;
 $limit = 10;
 
 $has_record_holder_col = columnExists($conn, 'requests', 'record_holder_name');
@@ -242,8 +364,8 @@ $request_select = "
         u.fullname,
         u.email,
         NULL AS phone_number,
-        NULL AS event_date,
-        NULL AS event_time,
+        COALESCE(s_locks.slot_date, se.event_date) AS event_date,
+        COALESCE(s_locks.slot_time, se.start_time) AS event_time,
         COUNT(DISTINCT d.document_id) AS document_count,
         COUNT(DISTINCT p.payment_id) AS payment_count,
         COUNT(DISTINCT CASE WHEN p.status = 'verified' THEN p.payment_id END) AS verified_payment_count,
@@ -256,6 +378,8 @@ $request_select = "
     JOIN users u ON r.user_id = u.id
     LEFT JOIN request_documents d ON d.request_id = r.request_id AND d.document_type = 'requirement' AND d.deleted_at IS NULL
     LEFT JOIN request_payments p ON p.request_id = r.request_id
+    LEFT JOIN schedule_slot_locks s_locks ON s_locks.source_type = 'request' AND s_locks.source_id = r.request_id AND s_locks.status = 'active'
+    LEFT JOIN schedule_events se ON se.source_type = 'request' AND se.source_id = r.request_id AND se.status != 'cancelled'
     WHERE $request_where_sql
     GROUP BY r.request_id
 ";
@@ -299,12 +423,64 @@ if (!$total_result) {
 }
 $pagination = getPaginationData($page, $limit, $total);
 
+// Sort by requested schedule time (earliest to latest) when service date is filtered; otherwise by submission date
+$order_by_sql = ($service_date !== '')
+    ? "event_date ASC, COALESCE(event_time, '23:59:59') ASC, submitted_at ASC"
+    : "submitted_at DESC";
+
 $sql = "SELECT * FROM ($unified_sql) unified_items
-        ORDER BY submitted_at DESC
+        ORDER BY $order_by_sql
         LIMIT {$pagination['offset']}, {$pagination['limit']}";
 $result = $conn->query($sql);
 if (!$result) {
     $error = 'Error loading requests: ' . $conn->error;
+}
+
+// Collect rows and calculate same-time schedule overlaps
+$requests_list = [];
+$overlapping_items = [];
+$date_slots = [];
+
+if ($result) {
+    while ($row = $result->fetch_assoc()) {
+        $requests_list[] = $row;
+        if (!empty($row['event_date']) && !empty($row['event_time']) && ($row['item_category'] ?? '') !== 'certificate') {
+            $dayKey = (string) $row['event_date'];
+            $timeRaw = (string) $row['event_time'];
+            $ts = strtotime('2000-01-01 ' . $timeRaw);
+            if ($ts !== false) {
+                $startMin = (int) date('H', $ts) * 60 + (int) date('i', $ts);
+                $endMin = $startMin + 60; // Standard 1-hour booking slot
+                $itemKey = $row['item_source'] . '_' . $row['item_id'];
+                $date_slots[$dayKey][] = [
+                    'key' => $itemKey,
+                    'start' => $startMin,
+                    'end' => $endMin
+                ];
+            }
+        }
+    }
+}
+
+foreach ($date_slots as $dayKey => $slots) {
+    $n = count($slots);
+    for ($i = 0; $i < $n; $i++) {
+        for ($j = $i + 1; $j < $n; $j++) {
+            // Two 1-hour slots overlap if start1 < end2 AND end1 > start2
+            if ($slots[$i]['start'] < $slots[$j]['end'] && $slots[$i]['end'] > $slots[$j]['start']) {
+                $overlapping_items[$slots[$i]['key']] = true;
+                $overlapping_items[$slots[$j]['key']] = true;
+            }
+        }
+    }
+}
+
+// Summary bar text
+$formatted_summary_date = '';
+if ($service_date === 'this_week') {
+    $formatted_summary_date = 'this week (' . date('l, M j', strtotime($week_start_str)) . ' – ' . date('l, M j, Y', strtotime($week_end_str)) . ')';
+} elseif ($is_valid_date) {
+    $formatted_summary_date = date('l, M j, Y', strtotime($service_date));
 }
 
 $page_title = 'Manage Requests';
@@ -330,48 +506,67 @@ include '../templates/header.php';
     ?>
 
     <?php if ($error): ?>
-        <div class="alert alert-danger alert-dismissible fade show">
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
             <?php echo $error; ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     <?php endif; ?>
 
     <?php if ($success): ?>
-        <div class="alert alert-success alert-dismissible fade show">
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
             <?php echo $success; ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     <?php endif; ?>
 
     <div class="card pds-card pds-request-management">
         <div class="card-body">
-            <!-- Filter Buttons -->
+            <!-- Filter Tabs -->
             <div class="pds-filter-tabs mb-3" role="group" aria-label="Filter by request status">
-                <a href="?status=&type=<?php echo urlencode($type_filter); ?>&q=<?php echo urlencode($search); ?>" data-status="all" class="pds-filter-tab <?php echo empty($status_filter) ? 'active' : ''; ?>">
+                <a href="<?php echo e(adminRequestsUrl(['status' => '', 'page' => '1'])); ?>" 
+                   data-status="all" 
+                   class="pds-filter-tab <?php echo empty($status_filter) ? 'active' : ''; ?>">
                     All
                 </a>
-                <a href="?status=pending&type=<?php echo urlencode($type_filter); ?>&q=<?php echo urlencode($search); ?>" data-status="pending" class="pds-filter-tab <?php echo $status_filter == 'pending' ? 'active' : ''; ?>">
+                <a href="<?php echo e(adminRequestsUrl(['status' => 'pending', 'page' => '1'])); ?>" 
+                   data-status="pending" 
+                   class="pds-filter-tab <?php echo $status_filter === 'pending' ? 'active' : ''; ?>">
                     Pending
                 </a>
-                <a href="?status=processing&type=<?php echo urlencode($type_filter); ?>&q=<?php echo urlencode($search); ?>" data-status="processing" class="pds-filter-tab <?php echo $status_filter == 'processing' ? 'active' : ''; ?>">
+                <a href="<?php echo e(adminRequestsUrl(['status' => 'processing', 'page' => '1'])); ?>" 
+                   data-status="processing" 
+                   class="pds-filter-tab <?php echo $status_filter === 'processing' ? 'active' : ''; ?>">
                     Processing
                 </a>
-                <a href="?status=completed&type=<?php echo urlencode($type_filter); ?>&q=<?php echo urlencode($search); ?>" data-status="completed" class="pds-filter-tab <?php echo $status_filter == 'completed' ? 'active' : ''; ?>">
+                <a href="<?php echo e(adminRequestsUrl(['status' => 'completed', 'page' => '1'])); ?>" 
+                   data-status="completed" 
+                   class="pds-filter-tab <?php echo $status_filter === 'completed' ? 'active' : ''; ?>">
                     Completed
                 </a>
-                <a href="?status=rejected&type=<?php echo urlencode($type_filter); ?>&q=<?php echo urlencode($search); ?>" data-status="rejected" class="pds-filter-tab <?php echo $status_filter == 'rejected' ? 'active' : ''; ?>">
+                <a href="<?php echo e(adminRequestsUrl(['status' => 'rejected', 'page' => '1'])); ?>" 
+                   data-status="rejected" 
+                   class="pds-filter-tab <?php echo $status_filter === 'rejected' ? 'active' : ''; ?>">
                     Rejected
                 </a>
             </div>
 
-            <form class="row g-2 align-items-end mb-3" method="GET" action="">
-                <div class="col-md-5">
+            <!-- Filter Controls Form -->
+            <form id="requestsFilterForm" class="row g-2 align-items-end mb-3" method="GET" action="manage-requests.php">
+                <input type="hidden" name="status" value="<?php echo e($status_filter); ?>">
+
+                <div class="col-xl-3 col-lg-3 col-md-6 col-12">
                     <label for="requestSearch" class="form-label">Search</label>
-                    <input id="requestSearch" class="form-control" type="text" name="q" value="<?php echo e($search); ?>" placeholder="Search reference, parishioner, type, or details">
+                    <input id="requestSearch" 
+                           class="form-control pds-form-control" 
+                           type="text" 
+                           name="q" 
+                           value="<?php echo e($search); ?>" 
+                           placeholder="Search reference, parishioner, type, or details">
                 </div>
-                <div class="col-md-3">
+
+                <div class="col-xl-2 col-lg-2 col-md-6 col-12">
                     <label for="requestTypeFilter" class="form-label">Request Category</label>
-                    <select id="requestTypeFilter" class="form-select" name="type">
+                    <select id="requestTypeFilter" class="form-select pds-form-select" name="type">
                         <option value="">All Categories</option>
                         <?php foreach ($type_groups as $category => $group): ?>
                             <option value="<?php echo e($category); ?>" <?php echo $type_filter === $category ? 'selected' : ''; ?>>
@@ -380,9 +575,51 @@ include '../templates/header.php';
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div class="col-md-2">
+
+                <div class="col-xl-3 col-lg-3 col-md-6 col-12">
+                    <label for="serviceDateInput" class="form-label">Service Date</label>
+                    <div id="serviceDateWrap" class="pds-service-date-wrap position-relative">
+                        <i class="fas fa-calendar-alt service-date-calendar-icon" aria-hidden="true" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); pointer-events: none;"></i>
+                        <input id="serviceDateInput" 
+                               class="form-control pds-form-control pds-service-date-input" 
+                               type="text" 
+                               name="service_date" 
+                               value="<?php echo e($service_date); ?>" 
+                               placeholder="YYYY-MM-DD" 
+                               style="padding-left: 42px;" 
+                               autocomplete="off" 
+                               <?php echo $type_filter === 'certificate' ? 'disabled' : ''; ?> 
+                               aria-describedby="serviceDateHelper">
+                        <button type="button" 
+                                id="serviceDateClearBtn" 
+                                class="service-date-clear-btn" 
+                                aria-label="Clear date filter" 
+                                style="<?php echo empty($service_date) ? 'display: none;' : ''; ?>">
+                            <i class="fas fa-times" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                    <div id="serviceDateHelper" class="form-text small text-muted">
+                        <?php echo $type_filter === 'certificate' ? 'Not applicable to certificates' : 'Day the parishioner wants the blessing or service.'; ?>
+                    </div>
+                    <div class="service-date-chips d-flex gap-1 mt-1">
+                        <button type="button" 
+                                class="service-date-chip <?php echo $service_date === $today_str ? 'active' : ''; ?>" 
+                                data-date="<?php echo $today_str; ?>" 
+                                aria-label="Filter requests for today">Today</button>
+                        <button type="button" 
+                                class="service-date-chip <?php echo $service_date === $tomorrow_str ? 'active' : ''; ?>" 
+                                data-date="<?php echo $tomorrow_str; ?>" 
+                                aria-label="Filter requests for tomorrow">Tomorrow</button>
+                        <button type="button" 
+                                class="service-date-chip <?php echo $service_date === 'this_week' ? 'active' : ''; ?>" 
+                                data-date="this_week" 
+                                aria-label="Filter requests for this week">This week</button>
+                    </div>
+                </div>
+
+                <div class="col-xl-2 col-lg-2 col-md-6 col-12">
                     <label for="requestStatusFilter" class="form-label">Status</label>
-                    <select id="requestStatusFilter" class="form-select" name="status">
+                    <select id="requestStatusFilter" class="form-select pds-form-select" name="status">
                         <option value="">All Statuses</option>
                         <?php foreach (['pending', 'processing', 'completed', 'rejected'] as $status_option): ?>
                             <option value="<?php echo e($status_option); ?>" <?php echo $status_filter === $status_option ? 'selected' : ''; ?>>
@@ -391,52 +628,78 @@ include '../templates/header.php';
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div class="col-md-2 d-grid d-md-flex gap-2">
-                    <button class="btn btn-primary pds-btn pds-btn-primary-gold" type="submit"><i class="fas fa-filter"></i> Apply</button>
-                    <?php if ($search !== '' || $status_filter !== '' || $type_filter !== ''): ?>
-                        <a class="btn btn-outline-secondary pds-btn pds-btn-ghost-outline" href="manage-requests.php">Clear</a>
+
+                <div class="col-xl-2 col-lg-2 col-md-12 col-12 d-grid d-md-flex gap-2">
+                    <button class="btn btn-primary pds-btn pds-btn-primary-gold" type="submit">
+                        <i class="fas fa-filter"></i> Apply
+                    </button>
+                    <?php if ($search !== '' || $status_filter !== '' || $type_filter !== '' || $service_date !== ''): ?>
+                        <a class="btn btn-outline-secondary pds-btn pds-btn-ghost-outline" href="manage-requests.php">
+                            Clear
+                        </a>
                     <?php endif; ?>
                 </div>
             </form>
 
+            <!-- Result Summary Bar when Service Date is Active -->
+            <?php if ($service_date !== ''): ?>
+                <div class="alert alert-light border d-flex align-items-center justify-content-between pds-service-date-summary mb-3" role="status">
+                    <div class="d-flex align-items-center flex-wrap gap-2">
+                        <span class="badge bg-dark text-gold"><i class="fas fa-calendar-day me-1"></i> Service Date</span>
+                        <span>
+                            <?php if ($total > 0): ?>
+                                <strong>Showing <?php echo $total; ?> <?php echo $total === 1 ? 'request' : 'requests'; ?></strong> for <?php echo e($formatted_summary_date); ?>
+                            <?php else: ?>
+                                <span>No blessing or service requests for this day.</span>
+                            <?php endif; ?>
+                        </span>
+                        <?php if ($show_certificate_note): ?>
+                            <span class="text-muted small ps-2 border-start"><i class="fas fa-info-circle me-1"></i>Certificates are not shown because they have no service date.</span>
+                        <?php endif; ?>
+                    </div>
+                    <div>
+                        <a href="<?php echo e(adminRequestsUrl(['service_date' => '', 'page' => '1'])); ?>" class="btn btn-sm btn-outline-secondary pds-btn-clear-date" aria-label="Clear service date filter">
+                            <i class="fas fa-times me-1"></i>Clear date
+                        </a>
+                    </div>
+                </div>
+            <?php endif; ?>
+
             <!-- Requests Table -->
-            <?php if ($result && $result->num_rows > 0): ?>
+            <?php if (!empty($requests_list)): ?>
                 <div class="table-responsive pds-table-wrap">
-                    <table class="table table-hover pds-phase-table">
+                    <table class="table table-hover pds-phase-table align-middle" style="min-width: 980px;">
                         <thead>
                             <tr>
                                 <th>Ref #</th>
                                 <th>User</th>
                                 <th>Type</th>
+                                <th>Requested Schedule</th>
                                 <th>Requirements</th>
                                 <th>Payments</th>
                                 <th>Status</th>
-                                <th>Date</th>
+                                <th>Submitted</th>
                                 <th>Action</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php while ($request = $result->fetch_assoc()): ?>
+                            <?php foreach ($requests_list as $request): ?>
                                 <?php
                                     $is_reservation = $request['item_source'] === 'reservation';
                                     $type_label = ucfirst(str_replace('_', ' ', $request['item_type']));
                                     $category_label = adminRequestCategoryLabel($request['item_category']);
-                                    $details = (string) ($request['details'] ?? '');
-                                    if ($is_reservation && !empty($request['event_date'])) {
-                                        $details = trim(
-                                            'Schedule: ' . formatDate($request['event_date']) . ' ' . ($request['event_time'] ? formatTime($request['event_time']) : '') .
-                                            "\n" . $details
-                                        );
-                                    }
+                                    $has_schedule = !empty($request['event_date']) && ($request['item_category'] ?? '') !== 'certificate';
+                                    $itemKey = $request['item_source'] . '_' . $request['item_id'];
+                                    $has_conflict = !empty($overlapping_items[$itemKey]);
                                 ?>
                                 <tr>
-                                    <td><strong><?php echo $request['reference_number']; ?></strong></td>
+                                    <td><strong><?php echo e($request['reference_number']); ?></strong></td>
                                     <td>
                                         <div class="d-flex align-items-center gap-2">
                                             <?php echo renderUserAvatar($request, 32); ?>
                                             <div>
                                                 <div><strong><?php echo sanitize($request['fullname']); ?></strong></div>
-                                                <small class="text-muted"><?php echo $request['email']; ?></small>
+                                                <small class="text-muted"><?php echo e($request['email']); ?></small>
                                             </div>
                                         </div>
                                     </td>
@@ -467,6 +730,20 @@ include '../templates/header.php';
                                                     </span>
                                                 </div>
                                             <?php endif; ?>
+                                        <?php endif; ?>
+                                    </td>
+                                    <!-- Requested Schedule Column -->
+                                    <td>
+                                        <?php if ($has_schedule): ?>
+                                            <div class="fw-semibold text-dark"><?php echo formatDate($request['event_date']); ?></div>
+                                            <div class="text-muted small"><?php echo formatScheduleSlotRange($request['event_time']); ?></div>
+                                            <?php if ($has_conflict): ?>
+                                                <span class="badge pds-badge-conflict mt-1" title="Schedule conflict: overlapping time slot on the same day">
+                                                    <i class="fas fa-clock me-1"></i>Same time
+                                                </span>
+                                            <?php endif; ?>
+                                        <?php else: ?>
+                                            <span class="text-muted">—</span>
                                         <?php endif; ?>
                                     </td>
                                     <td>
@@ -519,28 +796,39 @@ include '../templates/header.php';
                                         </div>
                                     </td>
                                 </tr>
-                            <?php endwhile; ?>
+                            <?php endforeach; ?>
                         </tbody>
                     </table>
                 </div>
 
                 <!-- Pagination -->
                 <?php if ($pagination['total_pages'] > 1): ?>
-                    <nav class="mt-3">
+                    <nav class="mt-3" aria-label="Requests pagination">
                         <ul class="pagination justify-content-center">
                             <?php for ($i = 1; $i <= $pagination['total_pages']; $i++): ?>
                                 <li class="page-item <?php echo $i == $page ? 'active' : ''; ?>">
-                                    <a class="page-link" href="?page=<?php echo $i; ?>&status=<?php echo urlencode($status_filter); ?>&type=<?php echo urlencode($type_filter); ?>&q=<?php echo urlencode($search); ?>"><?php echo $i; ?></a>
+                                    <a class="page-link" href="<?php echo e(adminRequestsUrl(['page' => $i])); ?>">
+                                        <?php echo $i; ?>
+                                    </a>
                                 </li>
                             <?php endfor; ?>
                         </ul>
                     </nav>
                 <?php endif; ?>
             <?php else: ?>
-                <div class="alert alert-info">No requests found</div>
+                <div class="alert alert-info">
+                    <?php if ($service_date !== ''): ?>
+                        No blessing or service requests for this day. 
+                        <a href="<?php echo e(adminRequestsUrl(['service_date' => '', 'page' => '1'])); ?>" class="alert-link ms-2">Clear date</a>
+                    <?php else: ?>
+                        No requests found.
+                    <?php endif; ?>
+                </div>
             <?php endif; ?>
         </div>
     </div>
 </div>
+
+<script src="../assets/js/admin-service-date-filter.js?v=<?php echo file_exists(__DIR__ . '/../assets/js/admin-service-date-filter.js') ? filemtime(__DIR__ . '/../assets/js/admin-service-date-filter.js') : time(); ?>"></script>
 
 <?php include '../templates/footer.php'; ?>
