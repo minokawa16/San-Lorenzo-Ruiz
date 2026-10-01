@@ -914,9 +914,20 @@ class CertificatePdfService
         return $day . 'TH';
     }
 
+    public static function fitFontSize(string $text, int $maxPt, int $minPt, int $maxChars): string
+    {
+        $len = mb_strlen(trim($text));
+        if ($len <= $maxChars) {
+            return $maxPt . 'pt';
+        }
+        $ratio = max(0.5, $maxChars / $len);
+        $size = max($minPt, (int)round($maxPt * $ratio));
+        return $size . 'pt';
+    }
+
     /**
      * Renders the complete, official HTML template for the Certificate of Confirmation.
-     * Output is landscape A4 / US Letter, 300 DPI print-ready, with pure SVG Greek-key border and gold seal.
+     * Output is landscape A4 / US Letter, 300 DPI print-ready, with pure SVG Greek-key border.
      */
     public function renderConfirmationCertificateHtml(array $record, array $options = []): string
     {
@@ -928,13 +939,12 @@ class CertificatePdfService
                 : (file_exists($root . '/assets/img/archdiocese-crest.jfif') ? $root . '/assets/img/archdiocese-crest.jfif' : $root . '/assets/img/archdiocese-crest.jpg'));
         $slrPath = !empty($record['logoRightUrl']) && file_exists($record['logoRightUrl'])
             ? $record['logoRightUrl']
-            : (file_exists($root . '/assets/img/certificates/confirmation-medallion-transparent.png')
-                ? $root . '/assets/img/certificates/confirmation-medallion-transparent.png'
-                : (file_exists($root . '/assets/img/san-lorenzo-logo.png') ? $root . '/assets/img/san-lorenzo-logo.png' : $root . '/assets/img/san-lorenzo-logo.jpg'));
+            : (file_exists($root . '/assets/img/certificates/slr_logo.png')
+                ? $root . '/assets/img/certificates/slr_logo.png'
+                : (file_exists($root . '/assets/img/certificates/confirmation-medallion-transparent.png')
+                    ? $root . '/assets/img/certificates/confirmation-medallion-transparent.png'
+                    : (file_exists($root . '/assets/img/san-lorenzo-logo.png') ? $root . '/assets/img/san-lorenzo-logo.png' : $root . '/assets/img/san-lorenzo-logo.jpg')));
         $borderPath = $root . '/assets/img/certificates/confirmation-greek-border.svg';
-        $sealPath = !empty($record['sealUrl']) && file_exists($record['sealUrl'])
-            ? $record['sealUrl']
-            : $root . '/assets/img/certificates/gold-embossed-parish-seal.svg';
 
         $crestExt = strtolower(pathinfo($crestPath, PATHINFO_EXTENSION));
         $crestMime = ($crestExt === 'png') ? 'image/png' : (($crestExt === 'svg') ? 'image/svg+xml' : 'image/jpeg');
@@ -945,7 +955,6 @@ class CertificatePdfService
         $slrUri = self::fileToDataUri($slrPath, $slrMime);
 
         $borderUri = self::fileToDataUri($borderPath, 'image/svg+xml');
-        $sealUri = self::fileToDataUri($sealPath, 'image/svg+xml');
 
         // Resolve data model fields
         $parishName = strtoupper(trim((string)($record['parishName'] ?? 'SAN LORENZO RUIZ MISSION STATION')));
@@ -1000,6 +1009,15 @@ class CertificatePdfService
             }
         }
 
+        $confirmandFontSize = self::fitFontSize($confirmandName, 30, 18, 26);
+        $bishopFontSize = self::fitFontSize($bishopName, 15, 11, 35);
+        $confirmedRepeatFontSize = self::fitFontSize($confirmandName, 16, 12, 30);
+        $fatherFontSize = self::fitFontSize($fatherName, 14, 10, 28);
+        $motherFontSize = self::fitFontSize($motherName, 14, 10, 28);
+        $godfatherFontSize = self::fitFontSize($godfatherName, 14, 10, 28);
+        $godmotherFontSize = self::fitFontSize($godmotherName, 14, 10, 28);
+        $priestFontSize = self::fitFontSize($priestName, 13, 10, 30);
+
         $paper = strtolower(trim((string)($options['paper'] ?? 'a4')));
         $pageSize = ($paper === 'letter') ? 'letter landscape' : 'a4 landscape';
         $pageWidth = ($paper === 'letter') ? '279.4mm' : '297mm';
@@ -1048,26 +1066,30 @@ class CertificatePdfService
         }
         .cert-content {
             position: absolute;
-            left: 20mm;
-            top: 13mm;
-            right: 20mm;
-            bottom: 12mm;
+            left: 26mm;
+            top: 26mm;
+            right: 26mm;
+            bottom: 26mm;
+            height: 158mm;
+            box-sizing: border-box;
             z-index: 10;
             text-align: center;
         }
         .header-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 1.5mm;
+            margin-bottom: 1mm;
         }
         .header-logo-cell {
-            width: 25mm;
+            width: 28mm;
+            height: 28mm;
             vertical-align: middle;
             text-align: center;
         }
         .header-logo-cell img {
-            max-width: 24mm;
-            max-height: 24mm;
+            height: 28mm;
+            max-width: 28mm;
+            object-fit: contain;
             display: inline-block;
         }
         .header-title-cell {
@@ -1077,106 +1099,119 @@ class CertificatePdfService
         }
         .cert-title-text {
             font-family: 'Times New Roman', Georgia, serif;
-            font-size: 25pt;
+            font-size: 36pt;
             font-weight: 700;
             color: #1F5A7A;
             letter-spacing: 0.5px;
-            margin: 0 0 1mm 0;
+            margin: 0;
             line-height: 1.1;
         }
         .parish-name-text {
             font-family: 'Times New Roman', Arial, sans-serif;
-            font-size: 11pt;
-            font-weight: 800;
+            font-size: 15pt;
+            font-weight: 700;
+            font-variant: small-caps;
             color: #1F5A7A;
-            letter-spacing: 1.5px;
+            letter-spacing: 2px;
             text-transform: uppercase;
-            margin: 0 0 0.4mm 0;
+            margin: 1mm 0 0.5mm 0;
+            line-height: 1.15;
         }
         .parish-location-text {
             font-family: Georgia, 'Times New Roman', serif;
-            font-size: 8.5pt;
+            font-size: 11pt;
             color: #555555;
             letter-spacing: 0.3px;
             margin: 0;
-        }
-        .gold-divider-line {
-            width: 82%;
-            height: 1px;
-            background: #C89B3C;
-            margin: 1.8mm auto;
+            line-height: 1.1;
         }
         .recipient-name {
             font-family: 'Times New Roman', Georgia, serif;
-            font-size: 19pt;
+            font-size: <?php echo $confirmandFontSize; ?>;
             font-weight: 800;
             color: #111827;
-            letter-spacing: 2px;
+            letter-spacing: 1.5px;
             text-transform: uppercase;
-            margin: 1.2mm 0 0.8mm;
-            line-height: 1.15;
+            margin: 1.5mm 0 0 0;
+            line-height: 1.1;
             white-space: nowrap;
             overflow: hidden;
         }
+        .recipient-rule {
+            width: 55%;
+            height: 0;
+            border-bottom: 0.75pt solid #C89B3C;
+            margin: 2.5mm auto 1.5mm auto;
+        }
         .sacrament-line {
             font-family: Georgia, 'Times New Roman', serif;
-            font-size: 13pt;
+            font-size: 18pt;
             font-style: italic;
             color: #111827;
-            margin: 0.8mm 0 1.2mm;
-            line-height: 1.1;
+            margin: 1mm 0 1.5mm 0;
+            line-height: 1.15;
         }
         .canon-date-line {
-            font-size: 9pt;
+            font-family: 'Times New Roman', Georgia, serif;
+            font-size: 13pt;
             color: #111827;
-            margin-bottom: 1.2mm;
-            line-height: 1.3;
+            margin: 1.5mm 0;
+            line-height: 1.25;
         }
         .canon-blank {
             display: inline-block;
-            border-bottom: 1.5px solid #1F5A7A;
+            border-bottom: 0.75pt solid #C89B3C;
             color: #111827;
             font-weight: 700;
             padding: 0 4px;
             text-align: center;
         }
         .bishop-lead {
-            font-size: 8.2pt;
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 11pt;
             color: #4b5563;
-            margin-bottom: 0.3mm;
+            margin-bottom: 0.5mm;
+            line-height: 1.2;
         }
         .bishop-name {
-            font-size: 10.8pt;
-            font-weight: 800;
+            font-family: 'Times New Roman', Georgia, serif;
+            font-size: <?php echo $bishopFontSize; ?>;
+            font-weight: 700;
             color: #111827;
-            margin-bottom: 0.3mm;
-            line-height: 1.1;
+            margin-bottom: 0.5mm;
+            line-height: 1.2;
             white-space: nowrap;
             overflow: hidden;
         }
         .bishop-title {
-            font-size: 8.2pt;
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 11pt;
             color: #374151;
-            line-height: 1.1;
+            line-height: 1.2;
+            margin-bottom: 0.5mm;
         }
         .delegate-confirmed-line {
-            font-size: 8.2pt;
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 11pt;
             color: #374151;
-            margin-top: 0.3mm;
-            margin-bottom: 0.6mm;
+            line-height: 1.2;
+            margin-bottom: 0.8mm;
         }
         .confirmed-name-display {
-            font-size: 9.5pt;
+            font-family: 'Times New Roman', Georgia, serif;
+            font-size: <?php echo $confirmedRepeatFontSize; ?>;
             font-weight: 700;
             color: #111827;
             text-transform: uppercase;
-            margin-bottom: 0.8mm;
+            letter-spacing: 1px;
+            margin-bottom: 1.2mm;
             white-space: nowrap;
             overflow: hidden;
+            line-height: 1.2;
         }
         .parents-sponsors-table {
-            width: 78%;
-            margin: 0 auto;
+            width: 60%;
+            margin: 1.5mm auto;
             border-collapse: collapse;
         }
         .parent-row-cell {
@@ -1185,76 +1220,76 @@ class CertificatePdfService
         }
         .parent-caption {
             font-family: Georgia, 'Times New Roman', serif;
-            font-size: 7.5pt;
+            font-size: 9pt;
             font-style: italic;
             color: #555555;
-            line-height: 1;
-            margin-bottom: 0.3mm;
+            line-height: 1.1;
+            margin-bottom: 0.5mm;
         }
         .parent-val {
-            font-size: 9.5pt;
+            font-family: 'Times New Roman', Georgia, serif;
+            font-size: 14pt;
             font-weight: 700;
             color: #111827;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             white-space: nowrap;
             overflow: hidden;
-            line-height: 1.1;
+            line-height: 1.15;
         }
         .parent-rule {
-            border-bottom: 1px solid #C89B3C;
-            width: 90%;
-            margin: 0.4mm auto 0.3mm;
+            border-bottom: 0.75pt solid #C89B3C;
+            width: 100%;
+            margin: 2.2mm auto 0 auto;
         }
         .cert-statement {
             font-family: Georgia, 'Times New Roman', serif;
-            font-size: 7.5pt;
+            font-size: 9.5pt;
             font-style: italic;
             color: #4b5563;
-            margin: 1.5mm auto 1mm;
+            margin: 1.5mm auto 1mm auto;
             text-align: center;
+            line-height: 1.2;
         }
         .footer-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 1mm;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
         }
         .footer-side-cell {
-            width: 38%;
+            width: 28%;
             vertical-align: bottom;
             text-align: center;
-            padding-bottom: 1.5mm;
+            padding: 0;
         }
-        .footer-seal-cell {
-            width: 24%;
-            vertical-align: middle;
-            text-align: center;
-        }
-        .footer-seal-img {
-            width: 23mm;
-            height: 23mm;
-            display: inline-block;
+        .footer-space-cell {
+            width: 44%;
+            padding: 0;
         }
         .footer-val-text {
-            font-size: 8.8pt;
+            font-size: <?php echo $priestFontSize; ?>;
             font-weight: 700;
             color: #111827;
             text-transform: uppercase;
             letter-spacing: 0.3px;
             white-space: nowrap;
             overflow: hidden;
-            line-height: 1.1;
+            line-height: 1.2;
         }
         .footer-rule {
-            border-bottom: 1px solid #1F5A7A;
-            width: 80%;
-            margin: 0.8mm auto 0.5mm;
+            border-bottom: 0.75pt solid #C89B3C;
+            width: 100%;
+            margin: 2.2mm auto 1.5mm auto;
         }
         .footer-sub-caption {
             font-family: Georgia, 'Times New Roman', serif;
-            font-size: 7.5pt;
+            font-size: 10pt;
             font-style: italic;
             color: #1F5A7A;
+            line-height: 1.2;
         }
         .qr-wrap {
             text-align: center;
@@ -1296,17 +1331,30 @@ class CertificatePdfService
                     </td>
                     <td class="header-logo-cell">
                         <?php if (!empty($slrUri)): ?>
-                            <img src="<?php echo $slrUri; ?>" alt="San Lorenzo Ruiz Medallion" />
+                            <img src="<?php echo $slrUri; ?>" alt="San Lorenzo Ruiz Logo" />
                         <?php endif; ?>
                     </td>
                 </tr>
             </table>
 
-            <div class="gold-divider-line"></div>
+            <!-- Header Divider: 70% width, softly fading ends -->
+            <div style="text-align: center; margin: 1.5mm auto 2mm auto;">
+                <svg width="70%" height="2" viewBox="0 0 700 2" style="display: block; margin: 0 auto;" preserveAspectRatio="none">
+                    <defs>
+                        <linearGradient id="goldFadeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#C89B3C" stop-opacity="0" />
+                            <stop offset="15%" stop-color="#C89B3C" stop-opacity="1" />
+                            <stop offset="85%" stop-color="#C89B3C" stop-opacity="1" />
+                            <stop offset="100%" stop-color="#C89B3C" stop-opacity="0" />
+                        </linearGradient>
+                    </defs>
+                    <rect x="0" y="0" width="700" height="1.5" fill="url(#goldFadeGrad)" />
+                </svg>
+            </div>
 
             <!-- 2. Recipient Full Name -->
             <div class="recipient-name"><?php echo htmlspecialchars($confirmandName); ?></div>
-            <div class="gold-divider-line" style="width: 50%; margin: 0.8mm auto 1.2mm;"></div>
+            <div class="recipient-rule"></div>
 
             <!-- 3. Sacrament Declaration -->
             <div class="sacrament-line">received the Holy Sacrament of Confirmation</div>
@@ -1332,28 +1380,28 @@ class CertificatePdfService
                 <tr>
                     <td class="parent-row-cell">
                         <div class="parent-caption">Father's name</div>
-                        <div class="parent-val"><?php echo htmlspecialchars($fatherName); ?></div>
+                        <div class="parent-val" style="font-size: <?php echo $fatherFontSize; ?>;"><?php echo htmlspecialchars($fatherName); ?></div>
                         <div class="parent-rule"></div>
                     </td>
                 </tr>
                 <tr>
                     <td class="parent-row-cell">
                         <div class="parent-caption">Mother's name</div>
-                        <div class="parent-val"><?php echo htmlspecialchars($motherName); ?></div>
+                        <div class="parent-val" style="font-size: <?php echo $motherFontSize; ?>;"><?php echo htmlspecialchars($motherName); ?></div>
                         <div class="parent-rule"></div>
                     </td>
                 </tr>
                 <tr>
                     <td class="parent-row-cell">
                         <div class="parent-caption">Godfather's name</div>
-                        <div class="parent-val"><?php echo htmlspecialchars($godfatherName !== '' ? $godfatherName : 'N/A'); ?></div>
+                        <div class="parent-val" style="font-size: <?php echo $godfatherFontSize; ?>;"><?php echo htmlspecialchars($godfatherName !== '' ? $godfatherName : 'N/A'); ?></div>
                         <div class="parent-rule"></div>
                     </td>
                 </tr>
                 <tr>
                     <td class="parent-row-cell">
                         <div class="parent-caption">Godmother's name</div>
-                        <div class="parent-val"><?php echo htmlspecialchars($godmotherName !== '' ? $godmotherName : 'N/A'); ?></div>
+                        <div class="parent-val" style="font-size: <?php echo $godmotherFontSize; ?>;"><?php echo htmlspecialchars($godmotherName !== '' ? $godmotherName : 'N/A'); ?></div>
                         <div class="parent-rule"></div>
                     </td>
                 </tr>
@@ -1364,17 +1412,15 @@ class CertificatePdfService
                 This is to certify that this certificate is a true copy of Confirmation Record kept in this parish.
             </div>
 
-            <!-- 9. Footer: Issue Date, Gold Embossed Seal, QR Code & Priest Signature Block -->
+            <!-- 9. Footer: Issue Date (Left) and Priest Signature Block (Right) -->
             <table class="footer-table">
                 <tr>
                     <td class="footer-side-cell">
                         <div class="footer-val-text"><?php echo htmlspecialchars($issueDateFormatted); ?></div>
                         <div class="footer-rule"></div>
-                        <div class="footer-sub-caption">Date</div>
+                        <div class="footer-sub-caption" style="visibility: hidden;">&nbsp;</div>
                     </td>
-                    <td class="footer-seal-cell">
-                        <img src="<?php echo $sealUri; ?>" class="footer-seal-img" alt="Official Parish Seal" />
-                    </td>
+                    <td class="footer-space-cell"></td>
                     <td class="footer-side-cell">
                         <?php if (!empty($qrUri)): ?>
                             <div class="qr-wrap">
