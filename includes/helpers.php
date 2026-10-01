@@ -2613,6 +2613,38 @@ function formatTime($time) {
     return date('g:i A', strtotime($time));
 }
 
+/**
+ * Format a schedule slot time range in 12-hour lowercase am/pm format
+ * without leading zeros and with minutes only when non-zero.
+ * Defaults to a 1-hour slot (60 minutes).
+ * Example: '09:00:00' -> '9am – 10am'
+ * Example: '08:30:00' -> '8:30am – 9:30am'
+ * Example: '14:00:00' -> '2pm – 3pm'
+ */
+function formatScheduleSlotRange($time, int $durationMinutes = 60): string {
+    if (empty($time) || !is_string($time)) {
+        return '—';
+    }
+    $raw = trim($time);
+    if ($raw === '' || $raw === 'none' || $raw === '00:00:00') {
+        return '—';
+    }
+    $tsStart = strtotime('2000-01-01 ' . $raw);
+    if ($tsStart === false) {
+        return $raw;
+    }
+    $tsEnd = $tsStart + ($durationMinutes * 60);
+
+    $formatPoint = static function(int $ts): string {
+        $min = date('i', $ts);
+        $ampm = strtolower(date('a', $ts));
+        $hour = date('g', $ts);
+        return $min === '00' ? "{$hour}{$ampm}" : "{$hour}:{$min}{$ampm}";
+    };
+
+    return $formatPoint($tsStart) . ' – ' . $formatPoint($tsEnd);
+}
+
 // Calendar Validation - Cleans and normalizes strings, dates, times, colors, and end-time defaults.
 if (!function_exists('cleanCalendarValue')) {
     function cleanCalendarValue($value, $max = 255) {
