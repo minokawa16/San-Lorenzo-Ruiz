@@ -219,9 +219,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $missing = [];
             if (empty($record['fullname']))       $missing[] = "Recipient's Full Name";
             if (empty($record['communion_date']))  $missing[] = 'Date of First Communion';
-            if ($ov_officiating === '')           $missing[] = 'Officiating Priest';
             if ($ov_in_charge === '')             $missing[] = 'Priest in Charge (Parish Priest)';
             
+            if ($ov_officiating === '') {
+                $ov_officiating = !empty($record['priest']) ? $record['priest'] : $ov_in_charge;
+            }
             $record['priest'] = $ov_officiating;
             $record['officiating_priest'] = $ov_officiating;
             $record['parish_priest'] = $ov_in_charge;
@@ -952,7 +954,7 @@ include __DIR__ . '/../templates/header.php';
                     <div id="communionFieldsContainer" style="display:none;">
                         <div class="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 mb-3">
                             <i class="fas fa-circle-info fs-5"></i>
-                            <div>First Communion record. Verify and complete all required fields. <strong>Full Name</strong>, <strong>Date of First Communion</strong>, <strong>Priest in Charge</strong>, and <strong>Officiating Priest</strong> are required.</div>
+                            <div>First Communion record. Verify and complete all required fields. <strong>Full Name</strong>, <strong>Date of First Communion</strong>, and <strong>Priest in Charge</strong> are required.</div>
                         </div>
                         <div class="row g-2">
                             <div class="col-md-12">
@@ -975,7 +977,7 @@ include __DIR__ . '/../templates/header.php';
                                 <label class="form-label small fw-bold">Catechist Coordinator</label>
                                 <input type="text" class="form-control form-control-sm" name="override_catechist_coordinator" id="com_override_catechist" placeholder="e.g. Sis. Lourdes Fernandez">
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-12">
                                 <label class="form-label small fw-bold">Priest in Charge (Parish Priest) <span class="text-danger">*</span></label>
                                 <div class="priest-autocomplete-wrapper">
                                     <input type="text" class="form-control form-control-sm priest-autocomplete-input" name="com_override_priest_in_charge" id="com_override_priest_in_charge" placeholder="Type to search or enter priest's name..." list="priestSuggestionsDatalist" autocomplete="off" required>
@@ -983,19 +985,6 @@ include __DIR__ . '/../templates/header.php';
                                 </div>
                                 <div class="form-text text-muted small" style="font-size: 0.72rem;">
                                     Parish presiding priest. Defaults to current parish priest; fully editable.
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <label class="form-label small fw-bold mb-0">Officiating Priest <span class="text-danger">*</span></label>
-                                    <span class="badge bg-warning text-dark py-0 px-1" style="font-size:0.68rem;"><i class="fas fa-hand-pointer me-1"></i> Secretary Assigned</span>
-                                </div>
-                                <div class="priest-autocomplete-wrapper">
-                                    <input type="text" class="form-control form-control-sm priest-autocomplete-input priest-select-highlight" name="com_override_officiating_priest" id="com_override_officiating_priest" placeholder="Type to search or enter priest's name..." list="priestSuggestionsDatalist" autocomplete="off" required>
-                                    <div class="priest-autocomplete-dropdown"></div>
-                                </div>
-                                <div class="form-text text-muted small" style="font-size: 0.72rem;">
-                                    Assigned manually by secretary. Never carried over from parishioner requests.
                                 </div>
                             </div>
                         </div>
@@ -1658,9 +1647,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (fld('com_override_domicile'))         fld('com_override_domicile').value = d.domicile || '';
                     if (fld('com_override_parents'))          fld('com_override_parents').value = d.parents || '';
                     if (fld('com_override_catechist'))        fld('com_override_catechist').value = d.catechist_coordinator || '';
-                    if (fld('com_override_principal'))        fld('com_override_principal').value = d.principal || '';
                     if (fld('com_override_priest_in_charge')) fld('com_override_priest_in_charge').value = d.parish_priest || d.priest_in_charge || DEFAULT_PARISH_PRIEST;
-                    if (fld('com_override_officiating_priest')) fld('com_override_officiating_priest').value = d.priest || d.officiating_priest || '';
                 } else if (isConfirmation) {
                     const fld = id => document.getElementById(id);
                     if (fld('conf_override_fullname'))             fld('conf_override_fullname').value = d.fullname || '';
@@ -1731,15 +1718,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const elName = document.getElementById('com_override_fullname');
             const elDate = document.getElementById('com_override_communion_date');
             const elInCharge = document.getElementById('com_override_priest_in_charge');
-            const elOfficiating = document.getElementById('com_override_officiating_priest');
             if (!elName || !elName.value.trim()) { missing.push("Recipient's Full Name"); if (elName) elName.classList.add('is-invalid'); }
             else if (elName) elName.classList.remove('is-invalid');
             if (!elDate || !elDate.value.trim()) { missing.push('Date of First Communion'); if (elDate) elDate.classList.add('is-invalid'); }
             else if (elDate) elDate.classList.remove('is-invalid');
             if (!elInCharge || !elInCharge.value.trim()) { missing.push('Priest in Charge (Parish Priest)'); if (elInCharge) elInCharge.classList.add('is-invalid'); }
             else if (elInCharge) elInCharge.classList.remove('is-invalid');
-            if (!elOfficiating || !elOfficiating.value.trim()) { missing.push('Officiating Priest'); if (elOfficiating) elOfficiating.classList.add('is-invalid'); }
-            else if (elOfficiating) elOfficiating.classList.remove('is-invalid');
         } else if (isConfirmation) {
             const elName = document.getElementById('conf_override_fullname');
             const elDate = document.getElementById('conf_override_confirmation_date');
