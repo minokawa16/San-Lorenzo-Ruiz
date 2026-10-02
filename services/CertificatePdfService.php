@@ -246,40 +246,100 @@ class CertificatePdfService
     public function renderBaptismCertificateHtml(array $record, array $options = []): string
     {
         $root = dirname(__DIR__);
-        $crestPath = $root . '/assets/img/archdiocese-crest.jpg';
-        $slrPath = $root . '/assets/img/san-lorenzo-logo.jpg';
-        $borderPath = $root . '/assets/img/certificates/baptism-official-border.svg';
 
-        $crestUri = self::fileToDataUri($crestPath, 'image/jpeg');
-        $slrUri = self::fileToDataUri($slrPath, 'image/jpeg');
-        $borderUri = self::fileToDataUri($borderPath, 'image/svg+xml');
+        // Configurable image paths with fallbacks
+        $crestPath = !empty($options['logo_left']) && file_exists($options['logo_left'])
+            ? $options['logo_left']
+            : (!empty($record['logo_left']) && file_exists($record['logo_left'])
+                ? $record['logo_left']
+                : (file_exists($root . '/assets/img/certificates/archdiocese-crest-transparent.png')
+                    ? $root . '/assets/img/certificates/archdiocese-crest-transparent.png'
+                    : $root . '/assets/img/archdiocese-crest.jpg'));
 
-        $fullname = strtoupper(trim((string)($record['fullname'] ?? '')));
-        $birth_place = trim((string)($record['birth_place'] ?? ''));
-        $birth_date = !empty($record['birth_date']) ? date('F j, Y', strtotime($record['birth_date'])) : '';
+        $slrPath = !empty($options['logo_right']) && file_exists($options['logo_right'])
+            ? $options['logo_right']
+            : (!empty($record['logo_right']) && file_exists($record['logo_right'])
+                ? $record['logo_right']
+                : (file_exists($root . '/assets/img/certificates/slr_logo.png')
+                    ? $root . '/assets/img/certificates/slr_logo.png'
+                    : $root . '/assets/img/san-lorenzo-logo.png'));
+
+        $sealPath = !empty($options['seal_image']) && file_exists($options['seal_image'])
+            ? $options['seal_image']
+            : (!empty($record['seal_image']) && file_exists($record['seal_image'])
+                ? $record['seal_image']
+                : (file_exists($root . '/assets/img/certificates/gold-embossed-parish-seal.svg')
+                    ? $root . '/assets/img/certificates/gold-embossed-parish-seal.svg'
+                    : ''));
+
+        // Embedded Base64 Data URIs
+        $crestUri = self::fileToDataUri($crestPath);
+        $slrUri = self::fileToDataUri($slrPath);
+        $sealUri = !empty($sealPath) ? self::fileToDataUri($sealPath) : '';
+
+        // Local Base64 Fonts for zero-CDN offline reliability
+        $fontRegular = self::fileToDataUri($root . '/assets/fonts/ebgaramond/EBGaramond-Regular.ttf', 'font/truetype');
+        $fontItalic = self::fileToDataUri($root . '/assets/fonts/ebgaramond/EBGaramond-italic.ttf', 'font/truetype');
+        $fontBold = self::fileToDataUri($root . '/assets/fonts/ebgaramond/EBGaramond-bold.ttf', 'font/truetype');
+        $fontBoldItalic = self::fileToDataUri($root . '/assets/fonts/ebgaramond/EBGaramond-bolditalic.ttf', 'font/truetype');
+
+        // Header strings (configurable)
+        $dioceseName = trim((string)($options['diocese_name'] ?? ($record['diocese_name'] ?? 'ARCHDIOCESE OF COTABATO')));
+        $parishName = trim((string)($options['parish_name'] ?? ($record['parish_name'] ?? 'SAN LORENZO RUIZ MISSION STATION')));
+        $parishLocation = trim((string)($options['parish_location'] ?? ($record['parish_location'] ?? 'Aleosan, Cotabato')));
+
+        // Data values
+        $rawFullname = trim((string)($record['fullname'] ?? ''));
+        $fullname = mb_strtoupper($rawFullname, 'UTF-8');
+        $birthPlace = trim((string)($record['birth_place'] ?? ''));
+
+        // Long date formatting in Asia/Manila
+        $tz = new DateTimeZone('Asia/Manila');
+        $formatDate = function($dateStr) use ($tz) {
+            $str = trim((string)$dateStr);
+            if ($str === '' || $str === '0000-00-00' || $str === 'N/A') return '';
+            try {
+                $dt = new DateTime($str, $tz);
+                return $dt->format('F j, Y');
+            } catch (\Throwable $e) {
+                return $str;
+            }
+        };
+
+        $birthDate = $formatDate($record['birth_date'] ?? '');
         $residence = trim((string)($record['parent_address'] ?? ($record['residence'] ?? '')));
-        $father_name = trim((string)($record['father_name'] ?? ''));
-        $father_birth_place = trim((string)($record['father_birth_place'] ?? ''));
-        $mother_name = trim((string)($record['mother_name'] ?? ''));
-        $mother_birth_place = trim((string)($record['mother_birth_place'] ?? ''));
-        $baptism_date = !empty($record['baptism_date']) ? date('F j, Y', strtotime($record['baptism_date'])) : '';
 
-        // Officiating Priest formatting
-        $priest = trim((string)($record['priest'] ?? ($record['officiating_priest'] ?? '')));
-        $priest = preg_replace('/^(?:by\s+the\s+)?(?:rev\.?\s*fr\.?\s*|father\s*|fr\.?\s*)(.*)$/i', '$1', $priest);
-        $priest = trim($priest);
+        $fatherName = trim((string)($record['father_name'] ?? ''));
+        $fatherBirthPlace = trim((string)($record['father_birth_place'] ?? ''));
 
-        $sponsors = self::parseSponsors($record['godparents'] ?? ($record['sponsors'] ?? ''));
-        $priestInCharge = $this->getPriestInChargeName();
-        $priestInChargeTitle = $this->getPriestInChargeTitle();
-        $controlNumber = $this->getControlNumber($record);
+        $motherName = trim((string)($record['mother_name'] ?? ''));
+        $motherBirthPlace = trim((string)($record['mother_birth_place'] ?? ''));
 
-        $purpose = trim((string)($record['purpose'] ?? ''));
-        $showPurpose = ($purpose !== '' && strtolower($purpose) !== 'n/a' && strtolower($purpose) !== 'whatever lawful purpose it may serve');
+        $baptismDate = $formatDate($record['baptism_date'] ?? '');
 
-        // Font scaling for sponsors if long list
+        $rawPriest = trim((string)($record['priest'] ?? ($record['officiating_priest'] ?? '')));
+        $priestClean = preg_replace('/^(?:by\s+the\s+)?(?:rev\.?\s*fr\.?\s*|father\s*|fr\.?\s*)/i', '', $rawPriest);
+        $officiatingMinister = mb_strtoupper(trim($priestClean), 'UTF-8');
+
+        // Sponsors parsing
+        $sponsorsRaw = $record['godparents'] ?? ($record['sponsors'] ?? ($record['sponsor'] ?? ''));
+        $sponsors = self::parseSponsors($sponsorsRaw);
+        if (empty($sponsors)) {
+            $sponsors = ['']; // at least one empty underlined line
+        } elseif (count($sponsors) > 6) {
+            $sponsors = array_slice($sponsors, 0, 6);
+        }
+
+        // Priest-in-charge
+        $priestInCharge = !empty($record['priest_in_charge']) ? trim((string)$record['priest_in_charge']) : $this->getPriestInChargeName();
+        $priestInCharge = mb_strtoupper($priestInCharge, 'UTF-8');
+        $priestTitle = !empty($record['priest_title']) ? trim((string)$record['priest_title']) : (!empty($record['signatory_title']) ? trim((string)$record['signatory_title']) : $this->getPriestInChargeTitle());
+
+        // Sponsor count styling adaptation
         $sponsorCount = count($sponsors);
-        $sponsorLineClass = $sponsorCount > 4 ? 'compact-sponsors' : '';
+        $groupGap = ($sponsorCount > 4) ? '3mm' : '4mm';
+        $rowGap = ($sponsorCount > 4) ? '5.2mm' : '6.2mm';
+        $valFontSize = ($sponsorCount > 4) ? '11pt' : '11.5pt';
 
         ob_start();
         ?>
@@ -287,524 +347,461 @@ class CertificatePdfService
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Certificate of Baptism - <?php echo htmlspecialchars($fullname); ?></title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>Certificate of Baptism - <?php echo htmlspecialchars($fullname, ENT_QUOTES, 'UTF-8'); ?></title>
     <style>
         @page {
-            size: letter portrait;
+            size: 210mm 297mm;
             margin: 0;
         }
+        @font-face {
+            font-family: 'EBGaramond';
+            src: url('<?php echo $fontRegular; ?>') format('truetype');
+            font-weight: 400;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'EBGaramond';
+            src: url('<?php echo $fontItalic; ?>') format('truetype');
+            font-weight: 400;
+            font-style: italic;
+        }
+        @font-face {
+            font-family: 'EBGaramond';
+            src: url('<?php echo $fontBold; ?>') format('truetype');
+            font-weight: 700;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'EBGaramond';
+            src: url('<?php echo $fontBoldItalic; ?>') format('truetype');
+            font-weight: 700;
+            font-style: italic;
+        }
+
         *, *::before, *::after {
             box-sizing: border-box;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
         }
-        body {
+        html, body {
             margin: 0;
             padding: 0;
-            background: #e9e5dd;
-            color: #111111;
-            font-family: 'Times New Roman', Times, Georgia, serif;
+            width: 210mm;
+            height: 297mm;
+            background-color: #FBF7EC;
+            color: #222222;
+            font-family: 'EBGaramond', 'Times New Roman', Georgia, serif;
+            -webkit-font-smoothing: antialiased;
         }
-        .cert-outer-frame {
-            width: 8.5in;
-            height: 11in;
+        .cert-page {
+            width: 210mm;
+            height: 297mm;
             position: relative;
-            background: #fbf7ee url('<?php echo $borderUri; ?>') no-repeat center center;
-            background-size: 100% 100%;
+            background-color: #FBF7EC;
             overflow: hidden;
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.22);
             box-sizing: border-box;
         }
-        .cert-inner-content {
-            position: relative;
-            z-index: 10;
-            padding: 58px 64px 44px 64px;
-            width: 100%;
-            height: 100%;
+
+        /* ── VECTOR SVG BORDER (Outer Navy 0.8mm, Inner Gold 0.25mm) ── */
+        .cert-border-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 210mm;
+            height: 297mm;
+            pointer-events: none;
+            z-index: 1;
         }
 
-        /* ── HEADER ── */
-        .cert-header-table {
+        /* ── INNER CONTENT CONTAINER (Stays >= 12mm inside gold line => >= 25.5mm from page edge) ── */
+        .cert-inner {
+            position: absolute;
+            top: 25.5mm;
+            left: 25.5mm;
+            width: 159mm;
+            height: 246mm;
+            z-index: 10;
+            box-sizing: border-box;
+        }
+
+        /* ── HEADER TABLE ── */
+        .header-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 6px;
+            table-layout: fixed;
         }
-        .cert-header-table td {
+        .header-logo-left {
+            width: 24mm;
+            height: 24mm;
             vertical-align: middle;
+            text-align: left;
             padding: 0;
         }
-        .crest-cell {
-            width: 82px;
-            text-align: left;
-        }
-        .seal-cell {
-            width: 82px;
+        .header-logo-right {
+            width: 24mm;
+            height: 24mm;
+            vertical-align: middle;
             text-align: right;
+            padding: 0;
         }
-        .header-logo {
-            width: 76px;
-            height: 76px;
+        .header-logo-img {
+            width: 24mm;
+            height: 24mm;
+            max-width: 24mm;
+            max-height: 24mm;
             object-fit: contain;
             display: inline-block;
+            vertical-align: middle;
+            background: transparent;
         }
-        .header-center {
+        .header-center-text {
+            vertical-align: middle;
             text-align: center;
-            padding: 0 10px;
-        }
-        .header-church {
-            font-family: 'Times New Roman', Georgia, serif;
-            font-size: 11.5pt;
-            font-weight: 700;
-            color: #5c1414;
-            letter-spacing: 2.2px;
-            text-transform: uppercase;
-            margin: 0 0 2px 0;
-            line-height: 1.15;
+            padding: 0 2mm;
         }
         .header-diocese {
-            font-family: 'Times New Roman', Georgia, serif;
-            font-size: 13.5pt;
-            font-weight: 800;
-            color: #5c1414;
-            letter-spacing: 1.5px;
+            font-size: 10pt;
+            letter-spacing: 2.2px;
+            color: #1F3A5F;
             text-transform: uppercase;
-            margin: 0 0 2px 0;
+            margin: 0 0 1.2mm 0;
             line-height: 1.15;
+            font-weight: 500;
         }
-        .header-mission {
-            font-family: 'Times New Roman', Georgia, serif;
-            font-size: 13pt;
-            font-weight: 800;
-            color: #5c1414;
-            letter-spacing: 1px;
+        .header-parish {
+            font-size: 12pt;
+            font-weight: 700;
+            color: #1F3A5F;
+            letter-spacing: 1.2px;
             text-transform: uppercase;
-            margin: 0 0 2px 0;
+            margin: 0 0 1.2mm 0;
             line-height: 1.15;
         }
         .header-location {
-            font-family: 'Times New Roman', Georgia, serif;
-            font-size: 10.5pt;
-            font-weight: 700;
-            color: #5c1414;
-            letter-spacing: 2.5px;
-            text-transform: uppercase;
-            margin: 0 0 6px 0;
+            font-size: 10pt;
+            font-style: italic;
+            color: #6B6B6B;
+            margin: 0;
             line-height: 1.15;
         }
-        .header-title {
-            font-family: 'Times New Roman', Georgia, serif;
-            font-size: 21pt;
-            font-weight: 800;
-            color: #631818;
-            letter-spacing: 3.5px;
-            text-transform: uppercase;
-            margin: 4px 0 2px 0;
-            line-height: 1.1;
-        }
-        .header-cross-divider {
+
+        /* ── GOLD DIVIDER WITH CENTER DIAMOND (Open diamond, 60% inner width ~95mm) ── */
+        .header-divider-wrap {
             text-align: center;
-            font-size: 10pt;
-            color: #8c6427;
-            line-height: 1;
-            margin: 2px 0;
+            margin: 3.5mm auto 2.5mm auto;
+            width: 95mm;
+            height: 6px;
         }
-        .header-subtitle {
-            font-family: 'Times New Roman', Georgia, serif;
-            font-size: 11pt;
-            font-style: italic;
-            color: #4a3525;
-            margin: 1px 0 0 0;
-            letter-spacing: 0.5px;
+        .header-divider-svg {
+            display: block;
+            margin: 0 auto;
+            width: 95mm;
+            height: 6px;
         }
 
-        /* ── BODY FIELDS (Traditional Fill-in-the-Blank Lines) ── */
-        .cert-body-form {
-            width: 100%;
-            margin-top: 14px;
-            margin-bottom: auto;
+        /* ── TITLE BLOCK ── */
+        .title-block {
+            text-align: center;
+            margin-top: 1mm;
+            margin-bottom: 4mm;
         }
-        /* Table-based layout for Dompdf compatibility (flexbox not supported) */
-        .cert-field-row {
-            display: table;
-            width: 100%;
-            margin-bottom: 7.5px;
-            box-sizing: border-box;
-            table-layout: fixed;
+        .title-main {
+            font-size: 30pt;
+            color: #1F3A5F;
+            letter-spacing: 1.5px;
+            line-height: 1.1;
+            margin: 0;
+            font-weight: 400;
         }
-        .cert-field-row.indent {
-            padding-left: 36px;
-            width: calc(100% - 36px);
-        }
-        .cert-field-row.sponsor-extra {
-            padding-left: 84px;
-            width: calc(100% - 84px);
-            margin-top: -1px;
-        }
-        .field-label {
-            display: table-cell;
-            font-family: 'Times New Roman', Times, Georgia, serif;
-            font-size: 11.8pt;
-            font-weight: 700;
-            font-style: italic;
-            color: #561212;
-            white-space: nowrap;
-            padding-right: 8px;
-            padding-bottom: 4.5px;
-            vertical-align: bottom;
-            width: 1%;
-            line-height: 1.2;
-            box-sizing: border-box;
-        }
-        .field-fill-line {
-            display: table-cell;
-            width: 100%;
-            border-bottom: 1.2px solid #561212;
-            padding-left: 6px;
-            padding-bottom: 4.5px;
-            vertical-align: bottom;
-            line-height: 1.2;
-            box-sizing: border-box;
-        }
-        .field-value {
-            font-family: 'Times New Roman', Times, Georgia, serif;
-            font-size: 11.8pt;
-            font-weight: 700;
-            color: #111111;
-            letter-spacing: 0.2px;
-            white-space: nowrap;
-            line-height: 1.2;
-        }
-        .field-value.name-value {
-            font-size: 13.5pt;
-            font-weight: 800;
-            letter-spacing: 0.8px;
-            text-transform: uppercase;
-        }
-
-        /* Compact styling if many sponsors */
-        .compact-sponsors .cert-field-row {
-            margin-bottom: 5px;
-        }
-        .compact-sponsors .field-label {
-            font-size: 10.8pt;
-            padding-bottom: 3.5px;
-        }
-        .compact-sponsors .field-fill-line {
-            padding-bottom: 3.5px;
-        }
-        .compact-sponsors .field-value {
-            font-size: 10.8pt;
-        }
-
-        .cert-purpose-text {
-            font-family: 'Times New Roman', Times, Georgia, serif;
+        .title-sub {
             font-size: 10.5pt;
             font-style: italic;
-            color: #561212;
-            text-align: center;
-            margin-top: 8px;
-            line-height: 1.3;
-        }
-        .cert-purpose-text span {
-            font-family: 'Times New Roman', Times, Georgia, serif;
-            font-style: normal;
-            font-weight: 700;
-            border-bottom: 1.2px solid #561212;
-            padding: 0 6px 3px 6px;
+            color: #6B6B6B;
+            margin-top: 1.2mm;
+            margin-bottom: 0;
+            line-height: 1.2;
+            letter-spacing: 0.3px;
         }
 
-        /* ── FOOTER (Dry Seal, Cross & Priest Signature) ── */
+        /* ── FIELDS AREA ── */
+        .fields-container {
+            width: 100%;
+            margin-top: 2mm;
+            box-sizing: border-box;
+        }
+        .field-group {
+            margin-bottom: <?php echo $groupGap; ?>;
+            width: 100%;
+        }
+        .field-group:last-child {
+            margin-bottom: 0;
+        }
+        .field-row-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            margin-bottom: <?php echo $rowGap; ?>;
+        }
+        .field-row-table:last-child {
+            margin-bottom: 0;
+        }
+        .field-label-cell {
+            width: 38mm;
+            vertical-align: bottom;
+            text-align: left;
+            padding: 0 2mm 1.5px 0;
+            font-size: 10.5pt;
+            font-style: italic;
+            color: #8A6D2B;
+            white-space: nowrap;
+            line-height: 1.2;
+        }
+        .field-value-cell {
+            vertical-align: bottom;
+            text-align: left;
+            padding: 0 0 1.5px 1.5mm;
+            border-bottom: 0.5px solid #D8CBA6;
+            line-height: 1.2;
+        }
+        .field-value-text {
+            font-size: <?php echo $valFontSize; ?>;
+            color: #222222;
+            white-space: nowrap;
+            overflow: hidden;
+            display: block;
+            line-height: 1.2;
+        }
+        .field-value-text.name-value {
+            font-size: 13pt;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: #222222;
+        }
+        .field-value-text.minister-value {
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #222222;
+        }
+
+        /* ── FOOTER AREA ── */
         .cert-footer-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 8px;
+            table-layout: fixed;
+            position: absolute;
+            bottom: 0;
+            left: 0;
         }
-        .cert-footer-table td {
+        .footer-seal-cell {
+            width: 28mm;
+            height: 28mm;
+            vertical-align: middle;
+            text-align: left;
+            padding: 0;
+        }
+        .parish-seal-img {
+            width: 28mm;
+            height: 28mm;
+            max-width: 28mm;
+            max-height: 28mm;
+            object-fit: contain;
+            display: inline-block;
+            background: transparent;
+        }
+        .footer-middle-cell {
             vertical-align: bottom;
             padding: 0;
         }
-        .footer-seal-col {
-            width: 48%;
-            text-align: left;
-        }
-        .footer-seal-wrapper {
-            display: inline-block;
-        }
-        .footer-seal-wrapper .dry-seal-stamp {
-            margin-right: 16px;
-        }
-        .dry-seal-stamp {
-            width: 82px;
-            height: 82px;
-            border: 1.5px dashed #7a2323;
-            border-radius: 50%;
-            display: inline-block;
+        .footer-sig-cell {
+            width: 66mm;
+            vertical-align: bottom;
             text-align: center;
-            color: #7a2323;
-            padding: 4px;
-            box-shadow: inset 0 0 0 2px rgba(122, 35, 35, 0.15);
-            vertical-align: middle;
+            padding: 0;
         }
-        .dry-seal-cross {
-            font-size: 11pt;
-            line-height: 1;
-            margin-bottom: 2px;
+        .sig-line {
+            width: 62mm;
+            margin: 0 auto;
+            border-bottom: 1px solid #1F3A5F;
+            padding-bottom: 1.5mm;
+            min-height: 5mm;
         }
-        .dry-seal-text-main {
-            font-family: 'Times New Roman', serif;
-            font-size: 6.8pt;
+        .sig-name {
+            font-size: 10.5pt;
             font-weight: 700;
-            letter-spacing: 0.8px;
+            color: #222222;
             text-transform: uppercase;
+            letter-spacing: 0.4px;
             line-height: 1.15;
-        }
-        .dry-seal-text-sub {
-            font-family: 'Times New Roman', serif;
-            font-size: 6.2pt;
-            font-weight: 600;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            margin-top: 2px;
-        }
-
-        .gold-cross-ornament {
-            font-size: 34pt;
-            color: #c59b27;
-            line-height: 1;
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.15);
-            display: inline-block;
-        }
-
-        .footer-sig-col {
-            width: 52%;
-            text-align: center;
-        }
-        .signature-box {
-            display: inline-block;
-            width: 100%;
-            max-width: 320px;
-            text-align: center;
-        }
-        .signature-name-line {
-            border-bottom: 1.3px solid #561212;
-            padding-bottom: 2px;
-            font-family: 'Times New Roman', Georgia, serif;
-            font-size: 11.5pt;
-            font-weight: 800;
-            color: #111111;
-            letter-spacing: 0.6px;
-            text-transform: uppercase;
             white-space: nowrap;
         }
-        .signature-title-label {
-            font-family: 'Times New Roman', Georgia, serif;
-            font-size: 10.5pt;
+        .sig-title {
+            font-size: 10pt;
             font-style: italic;
-            color: #561212;
-            margin-top: 3px;
-        }
-
-        /* ── SECURITY / CONTROL NUMBER ── */
-        .cert-control-number {
-            position: absolute;
-            bottom: 24px;
-            right: 48px;
-            font-family: 'Courier New', monospace;
-            font-size: 7pt;
-            color: #8c6427;
-            letter-spacing: 0.8px;
-            text-align: right;
-            z-index: 15;
-        }
-
-        /* ── PRINT RULES ── */
-        @media print {
-            body {
-                background: #ffffff !important;
-                margin: 0 !important;
-                padding: 0 !important;
-            }
-            .cert-outer-frame {
-                box-shadow: none !important;
-                margin: 0 !important;
-                width: 100vw !important;
-                height: 100vh !important;
-                page-break-inside: avoid !important;
-                break-inside: avoid !important;
-            }
+            color: #6B6B6B;
+            margin-top: 1.2mm;
+            line-height: 1.15;
+            white-space: nowrap;
         }
     </style>
 </head>
 <body>
-    <div class="cert-outer-frame">
-        <div class="cert-inner-content">
+    <div class="cert-page">
+        <!-- Pure SVG Vector Border (Square corners, no ornaments) -->
+        <svg class="cert-border-svg" viewBox="0 0 210 297" width="210mm" height="297mm">
+            <!-- Outer Navy Frame: 0.8mm thick, inset 10mm from page edge -->
+            <rect x="10" y="10" width="190" height="277" fill="none" stroke="#1F3A5F" stroke-width="0.8" />
+            <!-- Inner Thin Gold Line: 0.25mm thick, 3.5mm inside navy line (13.5mm from page edge) -->
+            <rect x="13.5" y="13.5" width="183" height="270" fill="none" stroke="#B8923A" stroke-width="0.25" />
+        </svg>
+
+        <div class="cert-inner">
             <!-- ── HEADER ── -->
-            <table class="cert-header-table">
+            <table class="header-table">
                 <tr>
-                    <td class="crest-cell">
-                        <?php if ($crestUri): ?>
-                            <img src="<?php echo $crestUri; ?>" alt="Archdiocese Crest" class="header-logo">
+                    <td class="header-logo-left">
+                        <?php if (!empty($crestUri)): ?>
+                            <img class="header-logo-img" src="<?php echo $crestUri; ?>" alt="Archdiocese Coat of Arms">
                         <?php endif; ?>
                     </td>
-                    <td class="header-center">
-                        <div class="header-church">ROMAN CATHOLIC CHURCH</div>
-                        <div class="header-diocese">ARCHDIOCESE OF COTABATO</div>
-                        <div class="header-mission">SAN LORENZO RUIZ MISSION STATION</div>
-                        <div class="header-location">ALEOSAN, COTABATO</div>
-                        <div class="header-title">CERTIFICATE OF BAPTISM</div>
-                        <div class="header-cross-divider">❖</div>
-                        <div class="header-subtitle">Issued from the Official Parish Records</div>
+                    <td class="header-center-text">
+                        <div class="header-diocese"><?php echo htmlspecialchars($dioceseName, ENT_QUOTES, 'UTF-8'); ?></div>
+                        <div class="header-parish"><?php echo htmlspecialchars($parishName, ENT_QUOTES, 'UTF-8'); ?></div>
+                        <div class="header-location"><?php echo htmlspecialchars($parishLocation, ENT_QUOTES, 'UTF-8'); ?></div>
                     </td>
-                    <td class="seal-cell">
-                        <?php if ($slrUri): ?>
-                            <img src="<?php echo $slrUri; ?>" alt="San Lorenzo Ruiz Medallion" class="header-logo">
+                    <td class="header-logo-right">
+                        <?php if (!empty($slrUri)): ?>
+                            <img class="header-logo-img" src="<?php echo $slrUri; ?>" alt="San Lorenzo Ruiz Logo">
                         <?php endif; ?>
                     </td>
                 </tr>
             </table>
 
-            <!-- ── DYNAMIC BODY FORM ── -->
-            <div class="cert-body-form <?php echo $sponsorLineClass; ?>">
-                <!-- Name -->
-                <div class="cert-field-row">
-                    <span class="field-label">Name:</span>
-                    <div class="field-fill-line">
-                        <span class="field-value name-value"><?php echo htmlspecialchars($fullname); ?></span>
-                    </div>
-                </div>
-
-                <!-- Birthplace (indented) -->
-                <div class="cert-field-row indent">
-                    <span class="field-label">Birthplace:</span>
-                    <div class="field-fill-line">
-                        <span class="field-value"><?php echo htmlspecialchars($birth_place); ?></span>
-                    </div>
-                </div>
-
-                <!-- Birthday (indented) -->
-                <div class="cert-field-row indent">
-                    <span class="field-label">Birthday:</span>
-                    <div class="field-fill-line">
-                        <span class="field-value"><?php echo htmlspecialchars($birth_date); ?></span>
-                    </div>
-                </div>
-
-                <!-- Residence (indented) -->
-                <div class="cert-field-row indent">
-                    <span class="field-label">Residence:</span>
-                    <div class="field-fill-line">
-                        <span class="field-value"><?php echo htmlspecialchars($residence); ?></span>
-                    </div>
-                </div>
-
-                <!-- Father -->
-                <div class="cert-field-row">
-                    <span class="field-label">Father:</span>
-                    <div class="field-fill-line">
-                        <span class="field-value"><?php echo htmlspecialchars($father_name); ?></span>
-                    </div>
-                </div>
-
-                <!-- Father's Birthplace (indented) -->
-                <div class="cert-field-row indent">
-                    <span class="field-label">Birthplace:</span>
-                    <div class="field-fill-line">
-                        <span class="field-value"><?php echo htmlspecialchars($father_birth_place); ?></span>
-                    </div>
-                </div>
-
-                <!-- Mother -->
-                <div class="cert-field-row">
-                    <span class="field-label">Mother:</span>
-                    <div class="field-fill-line">
-                        <span class="field-value"><?php echo htmlspecialchars($mother_name); ?></span>
-                    </div>
-                </div>
-
-                <!-- Mother's Birthplace (indented) -->
-                <div class="cert-field-row indent">
-                    <span class="field-label">Birthplace:</span>
-                    <div class="field-fill-line">
-                        <span class="field-value"><?php echo htmlspecialchars($mother_birth_place); ?></span>
-                    </div>
-                </div>
-
-                <!-- Date of Baptism -->
-                <div class="cert-field-row">
-                    <span class="field-label">Date of Baptism:</span>
-                    <div class="field-fill-line">
-                        <span class="field-value"><?php echo htmlspecialchars($baptism_date); ?></span>
-                    </div>
-                </div>
-
-                <!-- Officiating Priest (indented) -->
-                <div class="cert-field-row indent">
-                    <span class="field-label">by the Rev. Fr.</span>
-                    <div class="field-fill-line">
-                        <span class="field-value"><?php echo htmlspecialchars($priest); ?></span>
-                    </div>
-                </div>
-
-                <!-- Sponsors (multi-line) -->
-                <?php if (!empty($sponsors)): ?>
-                    <?php foreach ($sponsors as $idx => $sponsor): ?>
-                        <?php if ($idx === 0): ?>
-                            <div class="cert-field-row">
-                                <span class="field-label">Sponsors:</span>
-                                <div class="field-fill-line">
-                                    <span class="field-value"><?php echo htmlspecialchars($sponsor); ?></span>
-                                </div>
-                            </div>
-                        <?php else: ?>
-                            <div class="cert-field-row sponsor-extra">
-                                <div class="field-fill-line">
-                                    <span class="field-value"><?php echo htmlspecialchars($sponsor); ?></span>
-                                </div>
-                            </div>
-                        <?php endif; ?>
-                    <?php endforeach; ?>
-                <?php else: ?>
-                    <div class="cert-field-row">
-                        <span class="field-label">Sponsors:</span>
-                        <div class="field-fill-line">
-                            <span class="field-value">N/A</span>
-                        </div>
-                    </div>
-                <?php endif; ?>
-
-                <?php if ($showPurpose): ?>
-                    <div class="cert-purpose-text">
-                        Issued upon official parish request for <span><?php echo htmlspecialchars($purpose); ?></span>.
-                    </div>
-                <?php endif; ?>
+            <!-- ── GOLD DIVIDER WITH CENTER OPEN DIAMOND (~60% inner width = 95mm) ── -->
+            <div class="header-divider-wrap">
+                <svg class="header-divider-svg" viewBox="0 0 100 6">
+                    <line x1="0" y1="3" x2="46" y2="3" stroke="#B8923A" stroke-width="0.6"/>
+                    <polygon points="50,0.5 53.5,3 50,5.5 46.5,3" fill="none" stroke="#B8923A" stroke-width="0.6"/>
+                    <line x1="53.5" y1="3" x2="100" y2="3" stroke="#B8923A" stroke-width="0.6"/>
+                </svg>
             </div>
 
-            <!-- ── FOOTER ── -->
+            <!-- ── TITLE BLOCK ── -->
+            <div class="title-block">
+                <h1 class="title-main">Certificate of Baptism</h1>
+                <div class="title-sub">Issued from the Official Parish Records</div>
+            </div>
+
+            <!-- ── TWO-COLUMN FIELDS AREA ── -->
+            <div class="fields-container">
+                <!-- Group 1: Name, Birthplace, Birthday, Residence -->
+                <div class="field-group">
+                    <table class="field-row-table">
+                        <tr>
+                            <td class="field-label-cell">Name:</td>
+                            <td class="field-value-cell"><span class="field-value-text name-value"><?php echo htmlspecialchars($fullname, ENT_QUOTES, 'UTF-8'); ?></span></td>
+                        </tr>
+                    </table>
+                    <table class="field-row-table">
+                        <tr>
+                            <td class="field-label-cell">Birthplace:</td>
+                            <td class="field-value-cell"><span class="field-value-text"><?php echo htmlspecialchars($birthPlace, ENT_QUOTES, 'UTF-8'); ?></span></td>
+                        </tr>
+                    </table>
+                    <table class="field-row-table">
+                        <tr>
+                            <td class="field-label-cell">Birthday:</td>
+                            <td class="field-value-cell"><span class="field-value-text"><?php echo htmlspecialchars($birthDate, ENT_QUOTES, 'UTF-8'); ?></span></td>
+                        </tr>
+                    </table>
+                    <table class="field-row-table">
+                        <tr>
+                            <td class="field-label-cell">Residence:</td>
+                            <td class="field-value-cell"><span class="field-value-text"><?php echo htmlspecialchars($residence, ENT_QUOTES, 'UTF-8'); ?></span></td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- Group 2: Father, Birthplace -->
+                <div class="field-group">
+                    <table class="field-row-table">
+                        <tr>
+                            <td class="field-label-cell">Father:</td>
+                            <td class="field-value-cell"><span class="field-value-text"><?php echo htmlspecialchars($fatherName, ENT_QUOTES, 'UTF-8'); ?></span></td>
+                        </tr>
+                    </table>
+                    <table class="field-row-table">
+                        <tr>
+                            <td class="field-label-cell">Birthplace:</td>
+                            <td class="field-value-cell"><span class="field-value-text"><?php echo htmlspecialchars($fatherBirthPlace, ENT_QUOTES, 'UTF-8'); ?></span></td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- Group 3: Mother, Birthplace -->
+                <div class="field-group">
+                    <table class="field-row-table">
+                        <tr>
+                            <td class="field-label-cell">Mother:</td>
+                            <td class="field-value-cell"><span class="field-value-text"><?php echo htmlspecialchars($motherName, ENT_QUOTES, 'UTF-8'); ?></span></td>
+                        </tr>
+                    </table>
+                    <table class="field-row-table">
+                        <tr>
+                            <td class="field-label-cell">Birthplace:</td>
+                            <td class="field-value-cell"><span class="field-value-text"><?php echo htmlspecialchars($motherBirthPlace, ENT_QUOTES, 'UTF-8'); ?></span></td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- Group 4: Date of Baptism, By the Rev. Fr. -->
+                <div class="field-group">
+                    <table class="field-row-table">
+                        <tr>
+                            <td class="field-label-cell">Date of Baptism:</td>
+                            <td class="field-value-cell"><span class="field-value-text"><?php echo htmlspecialchars($baptismDate, ENT_QUOTES, 'UTF-8'); ?></span></td>
+                        </tr>
+                    </table>
+                    <table class="field-row-table">
+                        <tr>
+                            <td class="field-label-cell">By the Rev. Fr.</td>
+                            <td class="field-value-cell"><span class="field-value-text minister-value"><?php echo htmlspecialchars($officiatingMinister, ENT_QUOTES, 'UTF-8'); ?></span></td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- Group 5: Sponsors (Dynamic List 1-6 lines, aligned) -->
+                <div class="field-group">
+                    <?php foreach ($sponsors as $idx => $sponsor): ?>
+                    <table class="field-row-table">
+                        <tr>
+                            <td class="field-label-cell"><?php echo ($idx === 0) ? 'Sponsors:' : ''; ?></td>
+                            <td class="field-value-cell"><span class="field-value-text"><?php echo htmlspecialchars(trim((string)$sponsor), ENT_QUOTES, 'UTF-8'); ?></span></td>
+                        </tr>
+                    </table>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+
+            <!-- ── FOOTER: SEAL (28mm) AND SIGNATURE (62mm) ── -->
             <table class="cert-footer-table">
                 <tr>
-                    <td class="footer-seal-col">
-                        <div class="footer-seal-wrapper">
-                            <div class="dry-seal-stamp">
-                                <span class="dry-seal-cross">✠</span>
-                                <span class="dry-seal-text-main">OFFICIAL<br>PARISH SEAL</span>
-                                <span class="dry-seal-text-sub">DRY SEAL</span>
-                            </div>
-                            <span class="gold-cross-ornament">✠</span>
-                        </div>
+                    <td class="footer-seal-cell">
+                        <?php if (!empty($sealUri)): ?>
+                            <img class="parish-seal-img" src="<?php echo $sealUri; ?>" alt="Parish Seal">
+                        <?php endif; ?>
                     </td>
-                    <td class="footer-sig-col">
-                        <div class="signature-box">
-                            <div class="signature-name-line"><?php echo htmlspecialchars($priestInCharge); ?></div>
-                            <div class="signature-title-label"><?php echo htmlspecialchars($priestInChargeTitle); ?></div>
+                    <td class="footer-middle-cell"></td>
+                    <td class="footer-sig-cell">
+                        <div class="sig-line">
+                            <div class="sig-name"><?php echo htmlspecialchars($priestInCharge, ENT_QUOTES, 'UTF-8'); ?></div>
                         </div>
+                        <div class="sig-title"><?php echo htmlspecialchars($priestTitle, ENT_QUOTES, 'UTF-8'); ?></div>
                     </td>
                 </tr>
             </table>
-
-            <!-- Security & Control Number -->
-            <div class="cert-control-number">
-                Official Parish Record &bull; Ref # <?php echo htmlspecialchars($controlNumber); ?>
-            </div>
         </div>
     </div>
 </body>
@@ -814,7 +811,7 @@ class CertificatePdfService
     }
 
     /**
-     * Generates a Dompdf instance with configured fonts and Letter paper dimensions.
+     * Generates a Dompdf instance with configured fonts and A4 portrait dimensions.
      */
     public function generateBaptismPdf(array $record, array $options = []): Dompdf
     {
@@ -828,17 +825,16 @@ class CertificatePdfService
         $dompdfOptions = new Options();
         $dompdfOptions->set('isHtml5ParserEnabled', true);
         $dompdfOptions->set('isRemoteEnabled', true);
-        $dompdfOptions->set('defaultFont', 'Times-Roman');
-        $dompdfOptions->set('dpi', 150);
+        $dompdfOptions->set('defaultFont', 'EBGaramond');
+        $dompdfOptions->set('dpi', 300);
 
         $dompdf = new Dompdf($dompdfOptions);
-        $dompdf->loadHtml($html);
-        $dompdf->setPaper('letter', 'portrait');
+        $dompdf->loadHtml($html, 'UTF-8');
+        $dompdf->setPaper('a4', 'portrait');
         $dompdf->render();
 
         return $dompdf;
     }
-
     /**
      * Streams the generated PDF directly to the browser for download or inline preview.
      */

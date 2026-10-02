@@ -1118,6 +1118,9 @@ $conf_archdiocese_logo = !empty($layout_images['diocese_logo']) ? certificateLay
 $mission_logo = !empty($layout_images['parish_logo']) ? certificateLayoutAssetUrl($layout_images['parish_logo']) : certificateAssetUrl('assets/img/san-lorenzo-logo-final.jfif', certificateAssetUrl('assets/img/san-lorenzo-logo.png', '../church image.png'));
 $conf_medallion_logo = !empty($layout_images['parish_logo']) ? certificateLayoutAssetUrl($layout_images['parish_logo']) : certificateAssetUrl('assets/img/certificates/slr_logo.png', certificateAssetUrl('assets/img/certificates/confirmation-medallion-transparent.png', certificateAssetUrl('assets/img/san-lorenzo-logo-final.jfif', '../church image.png')));
 $parish_logo = $mission_logo;
+$bap_archdiocese_logo = !empty($layout_images['diocese_logo']) ? certificateLayoutAssetUrl($layout_images['diocese_logo']) : certificateAssetUrl('assets/img/certificates/archdiocese-crest-transparent.png', certificateAssetUrl('assets/img/archdiocese-crest.jpg'));
+$bap_mission_logo = !empty($layout_images['parish_logo']) ? certificateLayoutAssetUrl($layout_images['parish_logo']) : certificateAssetUrl('assets/img/certificates/slr_logo.png', certificateAssetUrl('assets/img/san-lorenzo-logo.png'));
+$bap_seal_logo = !empty($layout_images['seal_image']) ? certificateLayoutAssetUrl($layout_images['seal_image']) : (file_exists(__DIR__ . '/../assets/img/certificates/gold-embossed-parish-seal.svg') ? certificateAssetUrl('assets/img/certificates/gold-embossed-parish-seal.svg') : '');
 $certificate_backgrounds = [
     'baptism' => certificateAssetUrl('baptism.webp', $parish_logo),
     'baptism_certification' => certificateAssetUrl('baptism.webp', $parish_logo),
@@ -1308,13 +1311,37 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Alex+Brush&family=Cinzel:wght@600;700;800&family=EB+Garamond:ital,wght@0,400..700;1,400..700&family=Montserrat:wght@500;600;700;800&family=Pinyon+Script&family=UnifrakturMaguntia&display=swap" rel="stylesheet">
     <style>
+        @font-face {
+            font-family: 'EBGaramond';
+            src: url('../assets/fonts/ebgaramond/EBGaramond-Regular.ttf?v=20261002bap') format('truetype');
+            font-weight: 400;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'EBGaramond';
+            src: url('../assets/fonts/ebgaramond/EBGaramond-italic.ttf?v=20261002bap') format('truetype');
+            font-weight: 400;
+            font-style: italic;
+        }
+        @font-face {
+            font-family: 'EBGaramond';
+            src: url('../assets/fonts/ebgaramond/EBGaramond-bold.ttf?v=20261002bap') format('truetype');
+            font-weight: 700;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'EBGaramond';
+            src: url('../assets/fonts/ebgaramond/EBGaramond-bolditalic.ttf?v=20261002bap') format('truetype');
+            font-weight: 700;
+            font-style: italic;
+        }
         :root {
             --ink: <?php echo e(layoutCssValue($layout_typography['font_color'] ?? '', '#151515')); ?>;
             --muted: #4c4c4c;
             --line: <?php echo e($layout_border_color); ?>;
             --accent-line: <?php echo e($layout_border_color); ?>;
-            --cert-width: <?php echo $is_communion_cert ? '279.4mm' : ($is_confirmation_cert ? '297mm' : (($cert_type === 'baptism' || $is_baptism_certification) ? '8in' : ($is_certification ? '215.9mm' : '8in'))); ?>;
-            --cert-height: <?php echo $is_communion_cert ? '215.9mm' : ($is_confirmation_cert ? '210mm' : (($cert_type === 'baptism' || $is_baptism_certification) ? '10in' : ($is_certification ? '165.1mm' : '10in'))); ?>;
+            --cert-width: <?php echo $is_communion_cert ? '279.4mm' : ($is_confirmation_cert ? '297mm' : ($cert_type === 'baptism' ? '210mm' : ($is_baptism_certification ? '8in' : ($is_certification ? '215.9mm' : '8in')))); ?>;
+            --cert-height: <?php echo $is_communion_cert ? '215.9mm' : ($is_confirmation_cert ? '210mm' : ($cert_type === 'baptism' ? '297mm' : ($is_baptism_certification ? '10in' : ($is_certification ? '165.1mm' : '10in')))); ?>;
             --conf-blue: #1F5A7A;
             --conf-ink: #111827;
             --conf-gold: #C89B3C;
@@ -1333,7 +1360,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
         .cert-toolbar { max-width: 900px; margin: 18px auto; display: flex; justify-content: space-between; gap: 12px; align-items: center; }
         .cert-toolbar h1 { font-size: 1.2rem; margin: 0; font-weight: 800; }
         .certificate-page { width: var(--cert-width); height: var(--cert-height); margin: 0 auto 24px; background: #fff; padding: 4mm; box-shadow: 0 18px 42px rgba(15, 23, 42, .18); overflow: hidden; }
-        .certificate-page.baptism-page { width: 8in; height: 10in; max-width: 8in; max-height: 10in; padding: 0; margin: 0 auto 24px; background: #ffffff; box-shadow: 0 18px 45px rgba(15, 23, 42, 0.18); overflow: hidden; position: relative; box-sizing: border-box; }
+        .certificate-page.baptism-page { width: 210mm; height: 297mm; max-width: 210mm; max-height: 297mm; padding: 0; margin: 0 auto 24px; background: #FBF7EC; box-shadow: 0 18px 45px rgba(15, 23, 42, 0.18); overflow: hidden; position: relative; box-sizing: border-box; }
         .certificate-sheet {
             height: 100%;
             border: <?php echo e($layout_border_width . ' ' . $layout_border_style . ' ' . $layout_border_color); ?>;
@@ -1365,13 +1392,14 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
             width: 100%;
             height: 100%;
             box-sizing: border-box;
-            padding: 9.5mm 12mm 9mm;
+            padding: 0;
             position: relative;
             overflow: hidden;
-            background: #fffdf9 url('../assets/img/certificates/baptism-official-border.svg') no-repeat center center;
-            background-size: 100% 100%;
+            background: #FBF7EC;
             border: none;
             box-shadow: none;
+            font-family: 'EBGaramond', 'Times New Roman', Georgia, serif;
+            color: #222222;
         }
         .certificate-sheet.baptism-sheet::before {
             display: none;
@@ -1569,184 +1597,235 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
         .qr-row { display: flex; align-items: center; justify-content: flex-end; gap: 2mm; margin-top: 1.5mm; }
         .seal-area { width: 22mm; height: 14mm; border: 1px dashed #777; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 6.6px; color: #555; margin-left: auto; }
 
-        /* Traditional Parish Baptism Record Layout - 8x10 Elevated Design */
-        .trad-baptism-form {
+                /* ── RESTRAINED NAVY & GOLD BAPTISMAL CERTIFICATE STYLES ── */
+        .cert-border-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 210mm;
+            height: 297mm;
+            pointer-events: none;
+            z-index: 1;
+        }
+        .cert-inner {
+            position: absolute;
+            top: 25.5mm;
+            left: 25.5mm;
+            width: 159mm;
+            height: 246mm;
+            z-index: 10;
+            box-sizing: border-box;
+        }
+        .header-table {
             width: 100%;
-            max-width: 164mm;
-            margin: 4.5mm auto 0;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+        .header-logo-left {
+            width: 24mm;
+            height: 24mm;
+            vertical-align: middle;
             text-align: left;
-            font-size: 10pt;
-            box-sizing: border-box;
+            padding: 0;
         }
-        .trad-row {
-            display: flex;
-            align-items: flex-end;
-            min-height: 7.2mm;
-            border-bottom: none;
-            margin-bottom: 3.2mm;
-            width: 100%;
-            box-sizing: border-box;
+        .header-logo-right {
+            width: 24mm;
+            height: 24mm;
+            vertical-align: middle;
+            text-align: right;
+            padding: 0;
         }
-        .trad-row.indent {
-            padding-left: 9.5mm;
+        .header-logo-img {
+            width: 24mm;
+            height: 24mm;
+            max-width: 24mm;
+            max-height: 24mm;
+            object-fit: contain;
+            display: inline-block;
+            vertical-align: middle;
+            background: transparent;
         }
-        .trad-row.sponsor-extra {
-            padding-left: 21mm;
-            margin-top: -1mm;
-        }
-        .trad-lbl {
-            font-family: 'EB Garamond', Georgia, 'Times New Roman', serif;
-            font-style: italic;
-            font-weight: 700;
-            color: #781912;
-            white-space: nowrap;
-            margin-right: 3mm;
-            padding-bottom: 4.5px;
-            font-size: 11.5pt;
-            line-height: 1.2;
-            letter-spacing: 0.2px;
-            flex-shrink: 0;
-            box-sizing: border-box;
-        }
-        .trad-val {
-            flex: 1;
-            min-width: 0;
-            border-bottom: 1.2px solid #781912;
-            padding-bottom: 4.5px;
-            padding-left: 2mm;
-            font-family: 'EB Garamond', Georgia, 'Times New Roman', serif;
-            font-size: 11.5pt;
-            font-weight: 700;
-            color: #0f172a;
-            letter-spacing: 0.2px;
-            line-height: 1.2;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            box-sizing: border-box;
-        }
-        .trad-val.name-val {
-            font-size: 13pt;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            color: #000000;
-        }
-
-        .trad-purpose-line {
-            margin: 3.5mm auto 0;
-            font-family: 'EB Garamond', Georgia, 'Times New Roman', serif;
-            font-size: 10.2pt;
-            font-style: italic;
-            color: #781912;
+        .header-center-text {
+            vertical-align: middle;
             text-align: center;
-            line-height: 1.35;
-            max-width: 164mm;
-        }
-        .trad-purpose-val {
-            font-family: 'EB Garamond', Georgia, 'Times New Roman', serif;
-            font-style: normal;
-            font-weight: 700;
-            font-size: 10.5pt;
-            color: #0f172a;
-            border-bottom: 1.2px solid #781912;
-            padding: 0 2.5mm 3px;
-        }
-
-        /* Formal Seal and Signature Block */
-        .signature-grid {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            max-width: 164mm;
-            margin: 4.5mm auto 0;
             padding: 0 2mm;
-            box-sizing: border-box;
         }
-        .signature-grid.single-signature {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
+        .header-diocese {
+            font-size: 10pt;
+            letter-spacing: 2.2px;
+            color: #1F3A5F;
+            text-transform: uppercase;
+            margin: 0 0 1.2mm 0;
+            line-height: 1.15;
+            font-weight: 500;
         }
-        .seal-area {
-            width: 30mm;
-            height: 30mm;
-            border: 1.4px solid #781912;
-            border-radius: 50%;
-            outline: 1px dashed rgba(120, 25, 18, 0.5);
-            outline-offset: -3.2mm;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            background: rgba(255, 255, 255, 0.75);
-            box-sizing: border-box;
-            margin: 0;
-        }
-        .seal-emblem-text {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-        .seal-cross {
-            font-size: 9.5pt;
-            color: #781912;
-            line-height: 1;
-            margin-bottom: 0.5mm;
-        }
-        .seal-title {
-            font-family: 'Cinzel', serif;
-            font-size: 6.2pt;
+        .header-parish {
+            font-size: 12pt;
             font-weight: 700;
-            letter-spacing: 0.6px;
-            color: #781912;
-            line-height: 1.1;
+            color: #1F3A5F;
+            letter-spacing: 1.2px;
             text-transform: uppercase;
-        }
-        .seal-dry {
-            font-family: 'Cinzel', serif;
-            font-size: 5.2pt;
-            font-weight: 600;
-            letter-spacing: 0.8px;
-            color: #781912;
-            margin-top: 0.5mm;
-            text-transform: uppercase;
-        }
-        .signature {
-            min-width: 72mm;
-            text-align: center;
-        }
-        .signature-line {
-            border-bottom: 1.2px solid #781912;
-            padding-bottom: 1mm;
-            min-height: 7.5mm;
-            display: flex;
-            align-items: flex-end;
-            justify-content: center;
-            font-family: 'Cinzel', 'EB Garamond', Georgia, serif;
-            font-size: 10.5pt;
-            font-weight: 800;
-            letter-spacing: 0.5px;
-            color: #0f172a;
+            margin: 0 0 1.2mm 0;
             line-height: 1.15;
         }
-        .signature-title, .signature span {
-            display: block;
-            font-family: 'EB Garamond', Georgia, serif;
-            font-size: 9.2pt;
+        .header-location {
+            font-size: 10pt;
             font-style: italic;
-            font-weight: 600;
-            color: #781912;
+            color: #6B6B6B;
+            margin: 0;
+            line-height: 1.15;
+        }
+        .header-divider-wrap {
+            text-align: center;
+            margin: 3.5mm auto 2.5mm auto;
+            width: 95mm;
+            height: 6px;
+        }
+        .header-divider-svg {
+            display: block;
+            margin: 0 auto;
+            width: 95mm;
+            height: 6px;
+        }
+        .title-block {
+            text-align: center;
+            margin-top: 1mm;
+            margin-bottom: 4mm;
+        }
+        .title-main {
+            font-size: 30pt;
+            color: #1F3A5F;
+            letter-spacing: 1.5px;
+            line-height: 1.1;
+            margin: 0;
+            font-weight: 400;
+        }
+        .title-sub {
+            font-size: 10.5pt;
+            font-style: italic;
+            color: #6B6B6B;
             margin-top: 1.2mm;
+            margin-bottom: 0;
+            line-height: 1.2;
             letter-spacing: 0.3px;
         }
-        .certificate-signature-img {
-            max-height: 14mm;
-            margin-bottom: -4mm;
+        .fields-container {
+            width: 100%;
+            margin-top: 2mm;
+            box-sizing: border-box;
+        }
+        .field-group {
+            margin-bottom: 4mm;
+            width: 100%;
+        }
+        .field-group:last-child {
+            margin-bottom: 0;
+        }
+        .field-row-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            margin-bottom: 6.2mm;
+        }
+        .field-row-table:last-child {
+            margin-bottom: 0;
+        }
+        .field-label-cell {
+            width: 38mm;
+            vertical-align: bottom;
+            text-align: left;
+            padding: 0 2mm 1.5px 0;
+            font-size: 10.5pt;
+            font-style: italic;
+            color: #8A6D2B;
+            white-space: nowrap;
+            line-height: 1.2;
+        }
+        .field-value-cell {
+            vertical-align: bottom;
+            text-align: left;
+            padding: 0 0 1.5px 1.5mm;
+            border-bottom: 0.5px solid #D8CBA6;
+            line-height: 1.2;
+        }
+        .field-value-text {
+            font-size: 11.5pt;
+            color: #222222;
+            white-space: nowrap;
+            overflow: hidden;
             display: block;
-            margin-left: auto;
-            margin-right: auto;
+            line-height: 1.2;
+        }
+        .field-value-text.name-value {
+            font-size: 13pt;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: #222222;
+        }
+        .field-value-text.minister-value {
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #222222;
+        }
+        .cert-footer-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+        }
+        .footer-seal-cell {
+            width: 28mm;
+            height: 28mm;
+            vertical-align: middle;
+            text-align: left;
+            padding: 0;
+        }
+        .parish-seal-img {
+            width: 28mm;
+            height: 28mm;
+            max-width: 28mm;
+            max-height: 28mm;
+            object-fit: contain;
+            display: inline-block;
+            background: transparent;
+        }
+        .footer-middle-cell {
+            vertical-align: bottom;
+            padding: 0;
+        }
+        .footer-sig-cell {
+            width: 66mm;
+            vertical-align: bottom;
+            text-align: center;
+            padding: 0;
+        }
+        .sig-line {
+            width: 62mm;
+            margin: 0 auto;
+            border-bottom: 1px solid #1F3A5F;
+            padding-bottom: 1.5mm;
+            min-height: 5mm;
+        }
+        .sig-name {
+            font-size: 10.5pt;
+            font-weight: 700;
+            color: #222222;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            line-height: 1.15;
+            white-space: nowrap;
+        }
+        .sig-title {
+            font-size: 10pt;
+            font-style: italic;
+            color: #6B6B6B;
+            margin-top: 1.2mm;
+            line-height: 1.15;
+            white-space: nowrap;
         }
         .seal-signature-row.single-signature { grid-template-columns: 20mm 1fr; }
         .certificate-number { position: absolute; top: 4mm; right: 5mm; font-family: Arial, sans-serif; font-size: 7px; font-weight: 800; }
@@ -2643,7 +2722,10 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
             <?php elseif ($is_certification && !$is_baptism_certification): ?>
             size: 8.5in 6.5in landscape;
             margin: 0;
-            <?php elseif ($cert_type === 'baptism' || $is_baptism_certification): ?>
+            <?php elseif ($cert_type === 'baptism'): ?>
+            size: 210mm 297mm portrait;
+            margin: 0;
+            <?php elseif ($is_baptism_certification): ?>
             size: 8in 10in portrait;
             margin: 0;
             <?php else: ?>
@@ -2655,7 +2737,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
             html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; width: 100% !important; height: auto !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             .cert-toolbar, .cert-toolbar *, .cert-admin-meta, .cert-admin-meta *, .alert, .alert-warning, .alert-danger, .alert-success, .btn, button, nav, footer { display: none !important; visibility: hidden !important; height: 0 !important; margin: 0 !important; padding: 0 !important; border: 0 !important; }
             .certificate-page { width: var(--cert-width) !important; height: var(--cert-height) !important; margin: 0 auto !important; padding: 0 !important; box-shadow: none !important; page-break-before: avoid !important; page-break-after: avoid !important; page-break-inside: avoid !important; break-inside: avoid !important; transform: none !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-            .certificate-page.baptism-page { width: 8in !important; height: 10in !important; max-width: 8in !important; max-height: 10in !important; margin: 0 auto !important; padding: 0 !important; box-shadow: none !important; page-break-inside: avoid !important; break-inside: avoid !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            .certificate-page.baptism-page { width: 210mm !important; height: 297mm !important; max-width: 210mm !important; max-height: 297mm !important; margin: 0 auto !important; padding: 0 !important; box-shadow: none !important; page-break-inside: avoid !important; break-inside: avoid !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             .certificate-sheet.baptism-sheet { width: 100% !important; height: 100% !important; page-break-inside: avoid !important; break-inside: avoid !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             .confirmation-replica-page { width: 297mm !important; height: 210mm !important; margin: 0 auto !important; padding: 0 !important; box-shadow: none !important; page-break-before: avoid !important; page-break-after: avoid !important; page-break-inside: avoid !important; break-inside: avoid !important; transform: none !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             .simple-cert-page { width: 8.5in !important; height: 6.5in !important; margin: 0 auto !important; padding: 0 !important; box-shadow: none !important; background: #fdfbf7 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
@@ -2790,19 +2872,14 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
     <?php endif; ?>
 
     <?php if ($cert_type === 'baptism'): ?>
+        <?php if ($is_baptism_certification): ?>
         <main class="certificate-page baptism-page" id="certificateDocument">
             <section class="certificate-sheet baptism-sheet">
-                <?php echo $certificate_template_layer; ?>
-                <?php echo layoutImageTag($certificate_layout_settings, 'watermark', 'layout-watermark-image', 'Certificate watermark'); ?>
-                <div class="watermark-text"><?php echo e($layout_watermark_text); ?></div>
-                <?php if ($cert_type !== 'baptism' && $issue['certificate_number'] !== 'PREVIEW - NOT ISSUED'): ?>
-                    <div class="certificate-number"><?php echo e($issue['certificate_number']); ?></div>
-                <?php endif; ?>
                 <div class="cert-content">
                     <header class="cert-header baptism-header">
                         <div class="certificate-logo-slot">
-                            <?php if ($archdiocese_logo): ?>
-                                <img class="certificate-logo archdiocese-logo" src="<?php echo e($archdiocese_logo); ?>" alt="Official Archdiocese of Cotabato crest">
+                            <?php if ($bap_archdiocese_logo): ?>
+                                <img class="certificate-logo archdiocese-logo" src="<?php echo e($bap_archdiocese_logo); ?>" alt="Official Archdiocese of Cotabato crest">
                             <?php endif; ?>
                         </div>
                         <div>
@@ -2815,258 +2892,268 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
                             <div class="cert-subline baptism-subline"><?php echo e($layout_certificate_subtitle); ?></div>
                         </div>
                         <div class="certificate-logo-slot">
-                            <img class="certificate-logo parish-logo" src="<?php echo e($mission_logo); ?>" alt="San Lorenzo Ruiz Mission Station logo">
+                            <img class="certificate-logo parish-logo" src="<?php echo e($bap_mission_logo); ?>" alt="San Lorenzo Ruiz Mission Station logo">
                         </div>
                     </header>
 
-                    <?php if ($is_baptism_certification): ?>
-                        <div class="cert-meta-row">
-                            <div><strong>Certificate No.:</strong> <?php echo e($issue['certificate_number']); ?></div>
-                            <div><strong>Date Issued:</strong> <?php echo e(displayDate($issue['issued_at'] ?? date('Y-m-d'))); ?></div>
+                    <div class="cert-meta-row">
+                        <div><strong>Certificate No.:</strong> <?php echo e($issue['certificate_number']); ?></div>
+                        <div><strong>Date Issued:</strong> <?php echo e(displayDate($issue['issued_at'] ?? date('Y-m-d'))); ?></div>
+                    </div>
+
+                    <div class="recommendation-form">
+                        <div class="recommendation-heading">This is to certify</div>
+                        <div class="form-line">
+                            <span class="prompt">That</span>
+                            <span class="fill"><?php echo e($data['fullname'] ?? 'N/A'); ?></span>
                         </div>
-
-                        <div class="recommendation-form">
-                            <div class="recommendation-heading">This is to certify</div>
-                            <div class="form-line">
-                                <span class="prompt">That</span>
-                                <span class="fill"><?php echo e($data['fullname'] ?? 'N/A'); ?></span>
-                            </div>
-                            <div class="form-line">
-                                <span class="prompt">Child of</span>
-                                <span class="fill"><?php echo e($father_name); ?></span>
-                            </div>
-                            <?php if (!empty($father_birth_place)): ?>
-                            <div class="form-line">
-                                <span class="prompt">Father's Birthplace:</span>
-                                <span class="fill"><?php echo e($father_birth_place); ?></span>
-                            </div>
-                            <?php endif; ?>
-                            <div class="form-line">
-                                <span class="prompt">and</span>
-                                <span class="fill"><?php echo e($mother_name); ?></span>
-                            </div>
-                            <?php if (!empty($mother_birth_place)): ?>
-                            <div class="form-line">
-                                <span class="prompt">Mother's Birthplace:</span>
-                                <span class="fill"><?php echo e($mother_birth_place); ?></span>
-                            </div>
-                            <?php endif; ?>
-                            <div class="form-line">
-                                <span class="prompt">born on the</span>
-                                <span class="fill small"><?php echo e($birth_day); ?></span>
-                                <span class="plain">day of</span>
-                                <span class="fill medium"><?php echo e($birth_month); ?></span>
-                                <span class="plain"><?php echo e($birth_year); ?></span>
-                            </div>
-                            <div class="form-line">
-                                <span class="prompt">in</span>
-                                <span class="fill"><?php echo e($data['birth_place'] ?? 'N/A'); ?></span>
-                            </div>
-
-                            <div class="recommendation-heading">
-                                Was solemnly baptized<br>
-                                <span style="font-size: 7.7px;">according to the rite of the Roman Catholic Church</span>
-                            </div>
-
-                            <div class="form-line">
-                                <span class="prompt">on the</span>
-                                <span class="fill small"><?php echo e($baptism_day); ?></span>
-                                <span class="plain">day of</span>
-                                <span class="fill medium"><?php echo e($baptism_month); ?></span>
-                                <span class="plain"><?php echo e($baptism_year); ?></span>
-                            </div>
-                            <?php
-                            $bap_priest_val = trim((string)($data['priest'] ?? ($data['officiating_priest'] ?? '')));
-                            $bap_priest_prefix = 'by the Rev. Fr.';
-                            if (preg_match('/^(?:most\s+rev|bishop|archbishop|msgr)/i', $bap_priest_val)) {
-                                $bap_priest_prefix = 'by His Excellency';
-                            } elseif (preg_match('/^(?:rev\.?\s*fr\.?|father|fr\.?)/i', $bap_priest_val)) {
-                                $bap_priest_prefix = 'by the';
-                            }
-                            ?>
-                            <div class="form-line">
-                                <span class="prompt"><?php echo $bap_priest_prefix; ?></span>
-                                <span class="fill"><?php echo e($bap_priest_val ?: 'N/A'); ?></span>
-                            </div>
-                            <div class="form-line">
-                                <span class="prompt">the Sponsors being</span>
-                                <span class="fill"><?php echo e(!empty($data['godparents']) ? $data['godparents'] : (trim($godfather . ' / ' . $godmother, " /\t\n\r\0\x0B") ?: 'N/A')); ?></span>
-                            </div>
-                            <div class="form-line">
-                                <span class="prompt">at</span>
-                                <span class="fill"><?php echo e($display_parish_name . ', ' . $display_ceremony_place); ?></span>
-                            </div>
-
-                            <div class="recommendation-heading" style="font-size: 8.2px;">
-                                as appears from the Book of Baptism
-                            </div>
-
-                            <div class="registry-line-grid">
-                                <div class="registry-line-item"><span class="prompt">Vol. No.</span><span class="fill"><?php echo e($volume_no); ?></span></div>
-                                <div class="registry-line-item"><span class="prompt">Page</span><span class="fill"><?php echo e($page_no); ?></span></div>
-                                <div class="registry-line-item"><span class="prompt">Entry No.</span><span class="fill"><?php echo e($entry_no); ?></span></div>
-                                <div class="registry-line-item"><span class="prompt">Year</span><span class="fill"><?php echo e($baptism_year); ?></span></div>
-                            </div>
-
-<?php if (!empty($data['purpose']) && strtolower(trim((string)$data['purpose'])) !== 'whatever lawful purpose it may serve' && strtolower(trim((string)$data['purpose'])) !== 'n/a'): ?>
-                            <div class="recommendation-purpose">
-                                <span class="prompt">This is issued upon request for</span>
-                                <span class="fill"><?php echo e($data['purpose']); ?></span>
-                                <span class="prompt">this</span>
-                                <span class="fill"><?php echo e($issued_day . ' day of ' . $issued_month . ', ' . $issued_year); ?></span>
-                            </div>
-<?php else: ?>
-                            <div class="recommendation-purpose" style="grid-template-columns: auto 1fr;">
-                                <span class="prompt">Issued this</span>
-                                <span class="fill"><?php echo e($issued_day . ' day of ' . $issued_month . ', ' . $issued_year); ?></span>
-                            </div>
-<?php endif; ?>
-                            <div class="form-line" style="margin-top: 1mm;">
-                                <span class="prompt">in the Lord</span>
-                                <span class="fill"><?php echo e($display_ceremony_place); ?></span>
-                            </div>
-                            <?php if (!empty($data['remarks'])): ?>
-                                <div class="form-line">
-                                    <span class="prompt">Remarks</span>
-                                    <span class="fill"><?php echo e($data['remarks']); ?></span>
-                                </div>
-                            <?php endif; ?>
+                        <div class="form-line">
+                            <span class="prompt">Child of</span>
+                            <span class="fill"><?php echo e($father_name); ?></span>
                         </div>
-
-                        <div class="seal-signature-row<?php echo !$show_secretary_sign ? ' single-signature' : ''; ?>">
-                            <div class="official-seal-area"><?php echo layoutImageTag($certificate_layout_settings, 'official_seal', 'certificate-logo', 'Official seal') ?: 'Official<br>Parish Seal<br>Dry Seal'; ?></div>
-                            <div class="certified-block">
-                                <div class="certified-label">Certified Correct:</div>
-                                <div class="certified-line"><?php echo layoutImageTag($certificate_layout_settings, 'priest_signature', 'certificate-logo', 'Priest signature') . e($layout_priest_name); ?></div>
-                                <span><?php echo e($layout_priest_position); ?></span>
-                            </div>
-                            <?php if ($show_secretary_sign): ?>
-                            <div class="certified-block">
-                                <div class="certified-label">By Authority:</div>
-                                <div class="certified-line"><?php echo layoutImageTag($certificate_layout_settings, 'secretary_signature', 'certificate-logo', 'Secretary signature') . e($layout_secretary_name); ?></div>
-                                <span><?php echo e($layout_secretary_position); ?></span>
-                            </div>
-                            <?php endif; ?>
-                        </div>
-                    <?php else: ?>
-                        <!-- Traditional Standard Parish Baptismal Record Layout -->
-                        <div class="trad-baptism-form">
-                            <!-- 1. Name -->
-                            <div class="trad-row">
-                                <span class="trad-lbl">Name:</span>
-                                <span class="trad-val name-val"><?php echo e($baptism_name); ?></span>
-                            </div>
-
-                            <!-- 2. Birthplace (indented) -->
-                            <div class="trad-row indent">
-                                <span class="trad-lbl">Birthplace:</span>
-                                <span class="trad-val"><?php echo e($baptism_birth_place); ?></span>
-                            </div>
-
-                            <!-- 3. Birthday (indented) -->
-                            <div class="trad-row indent">
-                                <span class="trad-lbl">Birthday:</span>
-                                <span class="trad-val"><?php echo e($baptism_birth_date); ?></span>
-                            </div>
-
-                            <!-- 4. Residence (indented) -->
-                            <div class="trad-row indent">
-                                <span class="trad-lbl">Residence:</span>
-                                <span class="trad-val"><?php echo e($baptism_residence); ?></span>
-                            </div>
-
-                            <!-- 5. Father -->
-                            <div class="trad-row">
-                                <span class="trad-lbl">Father:</span>
-                                <span class="trad-val"><?php echo e($baptism_father); ?></span>
-                            </div>
-
-                            <!-- 6. Father's Birthplace (indented) -->
-                            <div class="trad-row indent">
-                                <span class="trad-lbl">Birthplace:</span>
-                                <span class="trad-val"><?php echo e($baptism_father_birthplace); ?></span>
-                            </div>
-
-                            <!-- 7. Mother -->
-                            <div class="trad-row">
-                                <span class="trad-lbl">Mother:</span>
-                                <span class="trad-val"><?php echo e($baptism_mother); ?></span>
-                            </div>
-
-                            <!-- 8. Mother's Birthplace (indented) -->
-                            <div class="trad-row indent">
-                                <span class="trad-lbl">Birthplace:</span>
-                                <span class="trad-val"><?php echo e($baptism_mother_birthplace); ?></span>
-                            </div>
-
-                            <!-- 9. Date of Baptism -->
-                            <div class="trad-row">
-                                <span class="trad-lbl">Date of Baptism:</span>
-                                <span class="trad-val"><?php echo e($baptism_date_str); ?></span>
-                            </div>
-
-                            <!-- 10. Officiating Priest (indented) -->
-                            <div class="trad-row indent">
-                                <span class="trad-lbl">by the Rev. Fr.</span>
-                                <span class="trad-val"><?php echo e($display_officiating_priest); ?></span>
-                            </div>
-
-                            <!-- 11. Sponsors / Ninong-Ninang (multi-line list) -->
-                            <?php foreach ($baptism_sponsors as $idx => $sponsor): ?>
-                                <?php if ($idx === 0): ?>
-                                    <div class="trad-row">
-                                        <span class="trad-lbl">Sponsors:</span>
-                                        <span class="trad-val"><?php echo e($sponsor); ?></span>
-                                    </div>
-                                <?php else: ?>
-                                    <div class="trad-row sponsor-extra">
-                                        <span class="trad-val"><?php echo e($sponsor); ?></span>
-                                    </div>
-                                <?php endif; ?>
-                            <?php endforeach; ?>
-                        </div>
-
-                        <?php if (!empty($display_purpose_clean) && strtolower(trim((string)$display_purpose_clean)) !== 'whatever lawful purpose it may serve' && strtolower(trim((string)$display_purpose_clean)) !== 'n/a'): ?>
-                        <div class="trad-purpose-line">
-                            Issued upon request for <span class="trad-purpose-val"><?php echo e($display_purpose_clean); ?></span>.
+                        <?php if (!empty($father_birth_place)): ?>
+                        <div class="form-line">
+                            <span class="prompt">Father's Birthplace:</span>
+                            <span class="fill"><?php echo e($father_birth_place); ?></span>
                         </div>
                         <?php endif; ?>
-
-                        <div class="signature-grid<?php echo !$show_secretary_sign ? ' single-signature' : ''; ?>">
-                            <div class="d-flex align-items-center gap-3">
-                                <div class="seal-area">
-                                    <div class="seal-emblem-text">
-                                        <div class="seal-cross">✠</div>
-                                        <div class="seal-title">OFFICIAL<br>PARISH SEAL</div>
-                                        <div class="seal-dry">DRY SEAL</div>
-                                    </div>
-                                </div>
-                                <span class="gold-cross-ornament" style="font-size: 32pt; color: #c59b27; line-height: 1; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.15);">✠</span>
-                            </div>
-                            <div class="signature priest-sig">
-                                <div class="signature-line"><?php echo layoutImageTag($certificate_layout_settings, 'priest_signature', 'certificate-signature-img', 'Priest signature') . e($layout_priest_name); ?></div>
-                                <span class="signature-title"><?php echo e($layout_priest_position); ?></span>
-                            </div>
-                            <?php if ($show_secretary_sign): ?>
-                            <div class="signature sec-sig">
-                                <div class="signature-line"><?php echo layoutImageTag($certificate_layout_settings, 'secretary_signature', 'certificate-signature-img', 'Secretary signature') . e($layout_secretary_name); ?></div>
-                                <span class="signature-title"><?php echo e($layout_secretary_position); ?></span>
-                            </div>
-                            <?php endif; ?>
+                        <div class="form-line">
+                            <span class="prompt">and</span>
+                            <span class="fill"><?php echo e($mother_name); ?></span>
                         </div>
-                        <div class="cert-control-number" style="position: absolute; bottom: 5mm; right: 10mm; font-family: 'Courier New', monospace; font-size: 7pt; color: #8c6427; letter-spacing: 0.8px;">
-                            Official Parish Record &bull; Ref # <?php echo e(!empty($data['request_id']) ? 'REQ-' . $data['request_id'] : sprintf('TUGON-BAP-%s-%04d', (!empty($data['baptism_date']) ? date('Y', strtotime($data['baptism_date'])) : date('Y')), intval($data['baptism_id'] ?? 1))); ?>
+                        <?php if (!empty($mother_birth_place)): ?>
+                        <div class="form-line">
+                            <span class="prompt">Mother's Birthplace:</span>
+                            <span class="fill"><?php echo e($mother_birth_place); ?></span>
                         </div>
-                    <?php endif; ?>
-                </div>
-                <?php if (!$is_manual_certificate && $cert_type !== 'baptism'): ?>
-                    <div class="verification-code">
-                        <span>Verify: <?php echo e($verification_url); ?></span>
-                        <span>Unauthorized alteration invalidates this certificate.</span>
+                        <?php endif; ?>
+                        <div class="form-line">
+                            <span class="prompt">Born in</span>
+                            <span class="fill"><?php echo e($birth_place); ?></span>
+                        </div>
+                        <div class="form-line">
+                            <span class="prompt">on the</span>
+                            <span class="fill small"><?php echo e($birth_day); ?></span>
+                            <span class="prompt">day of</span>
+                            <span class="fill medium"><?php echo e($birth_month); ?></span>
+                            <span class="plain"><?php echo e($birth_year); ?></span>
+                        </div>
+                        <div class="form-line">
+                            <span class="prompt">has received</span>
+                            <span class="plain">in this Mission Station</span>
+                        </div>
+                        <div class="recommendation-heading">The Holy Sacrament of Baptism</div>
+                        <div class="form-line">
+                            <span class="prompt">on the</span>
+                            <span class="fill small"><?php echo e($baptism_day); ?></span>
+                            <span class="prompt">day of</span>
+                            <span class="fill medium"><?php echo e($baptism_month); ?></span>
+                            <span class="plain"><?php echo e($baptism_year); ?></span>
+                        </div>
+                        <div class="form-line">
+                            <span class="prompt">by the Rev.</span>
+                            <span class="fill"><?php echo e($display_officiating_priest); ?></span>
+                        </div>
+                        <div class="form-line">
+                            <span class="prompt">the Sponsors being</span>
+                            <span class="fill"><?php echo e($sponsor_one); ?></span>
+                        </div>
+                        <?php if (!empty($sponsor_two)): ?>
+                        <div class="form-line">
+                            <span class="prompt">and</span>
+                            <span class="fill"><?php echo e($sponsor_two); ?></span>
+                        </div>
+                        <?php endif; ?>
+                        <div class="form-line">
+                            <span class="prompt">as appears from the Book of Baptism</span>
+                        </div>
+                        <div class="registry-line-grid">
+                            <div class="registry-line-item"><span class="prompt">Book</span><span class="fill"><?php echo e($registry_book); ?></span></div>
+                            <div class="registry-line-item"><span class="prompt">Page</span><span class="fill"><?php echo e($registry_page); ?></span></div>
+                            <div class="registry-line-item"><span class="prompt">Line</span><span class="fill"><?php echo e($registry_line); ?></span></div>
+                            <div class="registry-line-item"><span class="prompt">Year</span><span class="fill"><?php echo e($baptism_year); ?></span></div>
+                        </div>
                     </div>
-                <?php endif; ?>
+
+                    <div class="seal-signature-row">
+                        <div class="official-seal-area">
+                            <span>SEAL HERE</span>
+                        </div>
+                        <div class="certified-block">
+                            <div class="certified-label">Prepared by:</div>
+                            <div class="certified-line"><?php echo layoutImageTag($certificate_layout_settings, 'secretary_signature', 'certificate-logo', 'Secretary signature') . e($layout_secretary_name); ?></div>
+                            <span><?php echo e($layout_secretary_position); ?></span>
+                        </div>
+                        <div class="certified-block">
+                            <div class="certified-label">Attested by:</div>
+                            <div class="certified-line"><?php echo layoutImageTag($certificate_layout_settings, 'priest_signature', 'certificate-logo', 'Priest signature') . e($layout_priest_name); ?></div>
+                            <span><?php echo e($layout_priest_position); ?></span>
+                        </div>
+                    </div>
+                </div>
             </section>
         </main>
+        <?php else: ?>
+        <!-- ── REDESIGNED BAPTISMAL CERTIFICATE (A4 Portrait, Navy & Gold, No Ref #) ── -->
+        <main class="certificate-page baptism-page" id="certificateDocument">
+            <section class="certificate-sheet baptism-sheet">
+                <!-- Pure SVG Vector Border (Square corners, no ornaments) -->
+                <svg class="cert-border-svg" viewBox="0 0 210 297" width="210mm" height="297mm">
+                    <!-- Outer Navy Frame: 0.8mm thick, inset 10mm from page edge -->
+                    <rect x="10" y="10" width="190" height="277" fill="none" stroke="#1F3A5F" stroke-width="0.8" />
+                    <!-- Inner Thin Gold Line: 0.25mm thick, 3.5mm inside navy line (13.5mm from page edge) -->
+                    <rect x="13.5" y="13.5" width="183" height="270" fill="none" stroke="#B8923A" stroke-width="0.25" />
+                </svg>
+
+                <div class="cert-inner">
+                    <!-- ── HEADER ── -->
+                    <table class="header-table">
+                        <tr>
+                            <td class="header-logo-left">
+                                <img class="header-logo-img" src="<?php echo e($bap_archdiocese_logo); ?>" alt="Archdiocese Coat of Arms">
+                            </td>
+                            <td class="header-center-text">
+                                <div class="header-diocese"><?php echo e(!empty($layout_diocese_name) ? strtoupper($layout_diocese_name) : 'ARCHDIOCESE OF COTABATO'); ?></div>
+                                <div class="header-parish"><?php echo e(!empty($display_parish_name) ? strtoupper($display_parish_name) : 'SAN LORENZO RUIZ MISSION STATION'); ?></div>
+                                <div class="header-location"><?php echo e(!empty($display_ceremony_place) ? $display_ceremony_place : 'Aleosan, Cotabato'); ?></div>
+                            </td>
+                            <td class="header-logo-right">
+                                <img class="header-logo-img" src="<?php echo e($bap_mission_logo); ?>" alt="San Lorenzo Ruiz Logo">
+                            </td>
+                        </tr>
+                    </table>
+
+                    <!-- ── GOLD DIVIDER WITH CENTER OPEN DIAMOND (~60% inner width = 95mm) ── -->
+                    <div class="header-divider-wrap">
+                        <svg class="header-divider-svg" viewBox="0 0 100 6">
+                            <line x1="0" y1="3" x2="46" y2="3" stroke="#B8923A" stroke-width="0.6"/>
+                            <polygon points="50,0.5 53.5,3 50,5.5 46.5,3" fill="none" stroke="#B8923A" stroke-width="0.6"/>
+                            <line x1="53.5" y1="3" x2="100" y2="3" stroke="#B8923A" stroke-width="0.6"/>
+                        </svg>
+                    </div>
+
+                    <!-- ── TITLE BLOCK ── -->
+                    <div class="title-block">
+                        <h1 class="title-main">Certificate of Baptism</h1>
+                        <div class="title-sub">Issued from the Official Parish Records</div>
+                    </div>
+
+                    <!-- ── TWO-COLUMN FIELDS AREA ── -->
+                    <div class="fields-container">
+                        <!-- Group 1: Name, Birthplace, Birthday, Residence -->
+                        <div class="field-group">
+                            <table class="field-row-table">
+                                <tr>
+                                    <td class="field-label-cell">Name:</td>
+                                    <td class="field-value-cell"><span class="field-value-text name-value"><?php echo e(mb_strtoupper((string)($data['fullname'] ?? ''), 'UTF-8')); ?></span></td>
+                                </tr>
+                            </table>
+                            <table class="field-row-table">
+                                <tr>
+                                    <td class="field-label-cell">Birthplace:</td>
+                                    <td class="field-value-cell"><span class="field-value-text"><?php echo e($baptism_birth_place); ?></span></td>
+                                </tr>
+                            </table>
+                            <table class="field-row-table">
+                                <tr>
+                                    <td class="field-label-cell">Birthday:</td>
+                                    <td class="field-value-cell"><span class="field-value-text"><?php echo e($baptism_birth_date); ?></span></td>
+                                </tr>
+                            </table>
+                            <table class="field-row-table">
+                                <tr>
+                                    <td class="field-label-cell">Residence:</td>
+                                    <td class="field-value-cell"><span class="field-value-text"><?php echo e($baptism_residence); ?></span></td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <!-- Group 2: Father, Birthplace -->
+                        <div class="field-group">
+                            <table class="field-row-table">
+                                <tr>
+                                    <td class="field-label-cell">Father:</td>
+                                    <td class="field-value-cell"><span class="field-value-text"><?php echo e($baptism_father); ?></span></td>
+                                </tr>
+                            </table>
+                            <table class="field-row-table">
+                                <tr>
+                                    <td class="field-label-cell">Birthplace:</td>
+                                    <td class="field-value-cell"><span class="field-value-text"><?php echo e($baptism_father_birthplace); ?></span></td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <!-- Group 3: Mother, Birthplace -->
+                        <div class="field-group">
+                            <table class="field-row-table">
+                                <tr>
+                                    <td class="field-label-cell">Mother:</td>
+                                    <td class="field-value-cell"><span class="field-value-text"><?php echo e($baptism_mother); ?></span></td>
+                                </tr>
+                            </table>
+                            <table class="field-row-table">
+                                <tr>
+                                    <td class="field-label-cell">Birthplace:</td>
+                                    <td class="field-value-cell"><span class="field-value-text"><?php echo e($baptism_mother_birthplace); ?></span></td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <!-- Group 4: Date of Baptism, By the Rev. Fr. -->
+                        <div class="field-group">
+                            <table class="field-row-table">
+                                <tr>
+                                    <td class="field-label-cell">Date of Baptism:</td>
+                                    <td class="field-value-cell"><span class="field-value-text"><?php echo e($baptism_date_str); ?></span></td>
+                                </tr>
+                            </table>
+                            <table class="field-row-table">
+                                <tr>
+                                    <td class="field-label-cell">By the Rev. Fr.</td>
+                                    <td class="field-value-cell"><span class="field-value-text minister-value"><?php echo e(mb_strtoupper(preg_replace('/^(?:by\s+the\s+)?(?:rev\.?\s*fr\.?\s*|father\s*|fr\.?\s*)/i', '', (string)$display_officiating_priest), 'UTF-8')); ?></span></td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <!-- Group 5: Sponsors (Dynamic List 1-6 lines, aligned) -->
+                        <div class="field-group">
+                            <?php 
+                            $render_sponsors = !empty($baptism_sponsors) ? $baptism_sponsors : [''];
+                            if (count($render_sponsors) > 6) $render_sponsors = array_slice($render_sponsors, 0, 6);
+                            foreach ($render_sponsors as $idx => $sponsor): 
+                            ?>
+                            <table class="field-row-table">
+                                <tr>
+                                    <td class="field-label-cell"><?php echo ($idx === 0) ? 'Sponsors:' : ''; ?></td>
+                                    <td class="field-value-cell"><span class="field-value-text"><?php echo e(trim((string)$sponsor)); ?></span></td>
+                                </tr>
+                            </table>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+
+                    <!-- ── FOOTER: SEAL (28mm) AND SIGNATURE (62mm) ── -->
+                    <table class="cert-footer-table">
+                        <tr>
+                            <td class="footer-seal-cell">
+                                <?php if (!empty($bap_seal_logo)): ?>
+                                    <img class="parish-seal-img" src="<?php echo e($bap_seal_logo); ?>" alt="Parish Seal">
+                                <?php endif; ?>
+                            </td>
+                            <td class="footer-middle-cell"></td>
+                            <td class="footer-sig-cell">
+                                <div class="sig-line">
+                                    <div class="sig-name"><?php echo e(mb_strtoupper((string)$layout_priest_name, 'UTF-8')); ?></div>
+                                </div>
+                                <div class="sig-title"><?php echo e(!empty($layout_priest_position) ? $layout_priest_position : 'Priest-in-Charge'); ?></div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </section>
+        </main>
+        <?php endif; ?>
     <?php elseif ($is_communion_cert): ?>
         <main class="certificate-page communion-page" id="certificateDocument">
             <section class="communion-sheet">
