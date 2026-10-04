@@ -849,58 +849,13 @@ include '../templates/header.php';
                         <label class="form-label" for="assigned_personnel">Assigned personnel / ministry</label>
                         <input type="text" class="form-control" id="assigned_personnel" maxlength="150">
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label" for="priority">Priority</label>
-                        <select class="form-select" id="priority">
-                            <option value="low">Low</option>
-                            <option value="normal" selected>Normal</option>
-                            <option value="high">High</option>
-                            <option value="urgent">Urgent</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label" for="recurrence_rule">Recurring</label>
-                        <select class="form-select" id="recurrence_rule">
-                            <option value="none">Does not repeat</option>
-                            <option value="daily">Daily</option>
-                            <option value="weekly">Weekly</option>
-                            <option value="monthly">Monthly</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label" for="status">Status</label>
-                        <select class="form-select" id="status">
-                            <option value="upcoming">Upcoming</option>
-                            <option value="ongoing">Ongoing</option>
-                            <option value="finished">Finished</option>
-                            <option value="cancelled">Cancelled</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label" for="visibility">Visibility</label>
-                        <select class="form-select" id="visibility">
-                            <option value="public">Public</option>
-                            <option value="private">Private</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label" for="approval_status">Approval</label>
-                        <select class="form-select" id="approval_status">
-                            <option value="approved">Approved</option>
-                            <option value="pending">Pending</option>
-                            <option value="rejected">Rejected</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label" for="reminder_minutes">Reminder</label>
-                        <select class="form-select" id="reminder_minutes">
-                            <option value="0">No reminder</option>
-                            <option value="15">15 minutes before</option>
-                            <option value="30" selected>30 minutes before</option>
-                            <option value="60">1 hour before</option>
-                            <option value="1440">1 day before</option>
-                        </select>
-                    </div>
+                    <!-- Standard Default System Values for Schedule / Announcement Processing -->
+                    <input type="hidden" id="priority" value="normal">
+                    <input type="hidden" id="recurrence_rule" value="none">
+                    <input type="hidden" id="status" value="upcoming">
+                    <input type="hidden" id="visibility" value="public">
+                    <input type="hidden" id="approval_status" value="approved">
+                    <input type="hidden" id="reminder_minutes" value="0">
                     <div class="col-12">
                         <label class="form-label">Color label</label>
                         <input type="hidden" id="color_label" value="#1a73e8">
@@ -1189,6 +1144,12 @@ function resetForm(date = new Date()) {
     document.getElementById('start_time').value = '08:00';
     document.getElementById('end_time').value = '09:00';
     document.getElementById('color_label').value = '#1a73e8';
+    document.getElementById('priority').value = 'normal';
+    document.getElementById('recurrence_rule').value = 'none';
+    document.getElementById('status').value = 'upcoming';
+    document.getElementById('visibility').value = 'public';
+    document.getElementById('approval_status').value = 'approved';
+    document.getElementById('reminder_minutes').value = '0';
     document.getElementById('deleteEventBtn').classList.add('d-none');
     setActiveColor('#1a73e8');
 }
