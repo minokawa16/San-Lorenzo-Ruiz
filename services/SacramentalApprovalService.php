@@ -137,6 +137,11 @@ class SacramentalApprovalService {
                         throw new DomainException($calendarConflict['message']);
                     }
                 }
+            } else {
+                $ceremonyDate = trim((string)($options['ceremony_date'] ?? ''));
+                if ($ceremonyDate === '' || !validDateValue($ceremonyDate)) {
+                    throw new InvalidArgumentException('Please provide the Ceremony Date before completing this request.');
+                }
             }
 
             // 3. Update Request status to target status

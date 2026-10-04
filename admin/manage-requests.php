@@ -180,6 +180,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
                 $sacramentalService = new SacramentalApprovalService($conn);
                 $completionResult = $sacramentalService->completeRequest($request_id, (int)$_SESSION['user_id'], [
                     'admin_response' => $admin_response,
+                    'ceremony_date' => !empty($_POST['ceremony_date']) ? trim((string)$_POST['ceremony_date']) : null,
                     'target_status' => 'completed'
                 ]);
                 $success = 'Request marked as completed! ' . (!empty($completionResult['sacramental_record']['registered']) ? 'Sacramental record registered and calendar schedule locked.' : 'Calendar schedule locked.');

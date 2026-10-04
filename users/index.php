@@ -44,7 +44,7 @@ $status_map = [
     'approved'            => 'processing',
     'processing'          => 'processing',
     'scheduled'           => 'processing',
-    'ready_for_release'   => 'ready_to_download',
+    'ready_for_release'   => 'completed',
     'completed'           => 'completed',
     'rejected'            => 'rejected',
     'cancelled'           => 'cancelled',
@@ -542,6 +542,7 @@ $body_extra_class = $show_mobile_dashboard_features ? 'user-dashboard-feature-vi
         display: flex !important;
         flex-direction: column !important;
         justify-content: space-between !important;
+        height: 100% !important;
         min-height: 94px !important;
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
         transition: all 0.15s ease !important;
@@ -685,7 +686,7 @@ $body_extra_class = $show_mobile_dashboard_features ? 'user-dashboard-feature-vi
         </div>
     </section>
 
-    <!-- ── Personal Stat Cards (8 cards – scoped to logged-in parishioner) ── -->
+    <!-- ── Personal Stat Cards (6 cards – scoped to logged-in parishioner) ── -->
     <div class="dashboard-stats-grid" role="region" aria-label="My activity summary">
 
         <!-- 1. My Total Requests -->
