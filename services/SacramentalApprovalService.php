@@ -119,19 +119,23 @@ class SacramentalApprovalService {
                 }
             }
 
-            // 2. Validate calendar schedule conflict before completing (skip conflict if already has its own event)
-            $calendarConflict = requestApprovalConflict($this->conn, $requestId);
-            if ($calendarConflict['conflict']) {
-                $chkEv = $this->conn->prepare("SELECT schedule_id FROM schedule_events WHERE source_type = 'request' AND source_id = ? LIMIT 1");
-                $hasOwnEvent = false;
-                if ($chkEv) {
-                    $chkEv->bind_param('i', $requestId);
-                    $chkEv->execute();
-                    $hasOwnEvent = (bool) $chkEv->get_result()->fetch_assoc();
-                    $chkEv->close();
-                }
-                if (!$hasOwnEvent) {
-                    throw new DomainException($calendarConflict['message']);
+            // 2. Validate calendar schedule conflict before completing (skip conflict for First Communion and Confirmation)
+            $requestType = strtolower(trim((string) ($request['request_type'] ?? '')));
+            $isCommOrConf = in_array($requestType, ['first_communion_service', 'first_communion', 'communion', 'confirmation_service', 'confirmation'], true);
+            if (!$isCommOrConf) {
+                $calendarConflict = requestApprovalConflict($this->conn, $requestId);
+                if ($calendarConflict['conflict']) {
+                    $chkEv = $this->conn->prepare("SELECT schedule_id FROM schedule_events WHERE source_type = 'request' AND source_id = ? LIMIT 1");
+                    $hasOwnEvent = false;
+                    if ($chkEv) {
+                        $chkEv->bind_param('i', $requestId);
+                        $chkEv->execute();
+                        $hasOwnEvent = (bool) $chkEv->get_result()->fetch_assoc();
+                        $chkEv->close();
+                    }
+                    if (!$hasOwnEvent) {
+                        throw new DomainException($calendarConflict['message']);
+                    }
                 }
             }
 
@@ -241,11 +245,11 @@ class SacramentalApprovalService {
         }
 
         if ($requestType === 'first_communion_service' || $requestType === 'first_communion' || $requestType === 'communion') {
-            return $this->populateFirstCommunionRecord($requestId, $description, $request, $officiatingPriest, $parishPriest);
+            return $this->populateFirstCommunionRecord($requestId, $description, $request, $officiatingPriest, $parishPriest, $options['ceremony_date'] ?? null);
         }
 
         if ($requestType === 'confirmation_service' || $requestType === 'confirmation') {
-            return $this->populateConfirmationRecord($requestId, $description, $request, $officiatingPriest, $parishPriest);
+            return $this->populateConfirmationRecord($requestId, $description, $request, $officiatingPriest, $parishPriest, $options['ceremony_date'] ?? null);
         }
 
         return [
@@ -621,11 +625,14 @@ class SacramentalApprovalService {
     /**
      * Populates first_communion_records.
      */
-    private function populateFirstCommunionRecord(int $requestId, string $desc, array $request, string $priest, string $parishPriest = ''): array {
+    private function populateFirstCommunionRecord(int $requestId, string $desc, array $request, string $priest, string $parishPriest = '', ?string $ceremonyDate = null): array {
         if ($parishPriest === '') {
             $parishPriest = function_exists('getParishPriestName') ? getParishPriestName($this->conn) : $this->getDefaultOfficiatingPriest();
         }
         $parsed = $this->parseCommunionDescription($desc, $request);
+        if (!empty($ceremonyDate) && validDateValue($ceremonyDate)) {
+            $parsed['communion_date'] = $ceremonyDate;
+        }
         if (!empty($parsed['preferred_minister']) && (strcasecmp($priest, 'Rev. Fr. Parish Priest') === 0 || $priest === '' || strcasecmp($priest, 'Parish office will assign') === 0)) {
             $priest = $parsed['preferred_minister'];
         }
@@ -711,11 +718,14 @@ class SacramentalApprovalService {
     /**
      * Populates confirmation_records.
      */
-    private function populateConfirmationRecord(int $requestId, string $desc, array $request, string $priest, string $parishPriest = ''): array {
+    private function populateConfirmationRecord(int $requestId, string $desc, array $request, string $priest, string $parishPriest = '', ?string $ceremonyDate = null): array {
         if ($parishPriest === '') {
             $parishPriest = function_exists('getParishPriestName') ? getParishPriestName($this->conn) : $this->getDefaultOfficiatingPriest();
         }
         $parsed = $this->parseConfirmationDescription($desc, $request);
+        if (!empty($ceremonyDate) && validDateValue($ceremonyDate)) {
+            $parsed['confirmation_date'] = $ceremonyDate;
+        }
 
         // Check if a record already exists for this request_id to prevent duplicates
         $stmt = $this->conn->prepare("SELECT confirmation_id, registry_no FROM confirmation_records WHERE request_id = ? LIMIT 1");
@@ -806,6 +816,19 @@ class SacramentalApprovalService {
     public function populateParishCalendarEvent(array $request, array $sacramentalRecord, int $actorUserId): array {
         $requestId = intval($request['request_id']);
         $description = (string) ($request['description'] ?? '');
+
+        $requestType = strtolower(trim((string) ($request['request_type'] ?? '')));
+        if ($requestType === 'first_communion_service' || $requestType === 'first_communion' || $requestType === 'communion' || $requestType === 'confirmation_service' || $requestType === 'confirmation') {
+            return [
+                'schedule_id' => 0,
+                'title' => '',
+                'event_date' => $sacramentalRecord['event_date'] ?? null,
+                'start_time' => '',
+                'end_time' => '',
+                'created' => false,
+                'message' => 'Ceremony schedule is managed directly in Parish Calendar.'
+            ];
+        }
 
         // Extract schedule date and time
         $eventDate = requestCalendarField($description, ['Date of Baptism', 'Date of Marriage', 'Preferred date', 'Date of Patronal Fiesta', 'Date']);
@@ -978,7 +1001,12 @@ class SacramentalApprovalService {
         $formattedTime = date('g:i A', strtotime($startTime));
 
         $statusWord = ($request['status'] ?? '') === 'completed' ? 'completed' : 'approved';
-        $message = "Your request for {$serviceLabel} on {$formattedDate} at {$formattedTime} has been {$statusWord} and added to the official parish schedule.";
+        $isCommOrConf = in_array($requestType, ['first_communion_service', 'first_communion', 'communion', 'confirmation_service', 'confirmation'], true);
+        if ($isCommOrConf) {
+            $message = "Your request for {$serviceLabel} has been {$statusWord}. Please check your request details or the parish calendar for ceremony announcements.";
+        } else {
+            $message = "Your request for {$serviceLabel} on {$formattedDate} at {$formattedTime} has been {$statusWord} and added to the official parish schedule.";
+        }
         $title = "Request " . ucfirst($statusWord) . ": {$serviceLabel}";
 
         // 1. Direct in-app notification insertion

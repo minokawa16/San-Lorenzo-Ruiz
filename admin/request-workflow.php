@@ -207,8 +207,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         } elseif ($status === 'completed') {
             require_once __DIR__ . '/../services/SacramentalApprovalService.php';
             $is_sacramental_type = SacramentalApprovalService::isSacramentalRequestType($request_type);
+            $is_comm_or_conf_action = in_array($request_type, ['first_communion_service', 'first_communion', 'communion', 'confirmation_service', 'confirmation'], true);
+            $ceremony_date = trim((string)($_POST['ceremony_date'] ?? ''));
 
-            if ($is_sacramental_type) {
+            if ($is_comm_or_conf_action && ($ceremony_date === '' || !validDateValue($ceremony_date))) {
+                $error = 'Please provide the Ceremony Date before completing this request.';
+            } elseif ($is_sacramental_type) {
                 try {
                     $sacramentalService = new SacramentalApprovalService($conn);
                     $officiating_priest = trim($_POST['officiating_priest'] ?? $_POST['minister'] ?? '');
@@ -217,12 +221,16 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                         'admin_response' => $admin_response,
                         'officiating_priest' => $officiating_priest,
                         'parish_priest' => $parish_priest,
+                        'ceremony_date' => $ceremony_date ?: null,
                         'target_status' => 'completed'
                     ]);
                     $request['status'] = 'completed';
                     $request['admin_response'] = $admin_response;
                     if ($is_funeral_action) {
                         $success = 'Funeral record has been added to Funeral Records. Request marked as completed and calendar schedule updated.';
+                    } elseif ($is_comm_or_conf_action) {
+                        $serviceName = str_contains($request_type, 'communion') ? 'First Communion' : 'Confirmation';
+                        $success = "Request marked as completed! {$serviceName} record registered with ceremony date " . formatDate($ceremony_date) . ".";
                     } else {
                         $success = 'Request marked as completed! Sacramental record registered and calendar schedule updated.';
                     }
@@ -687,8 +695,44 @@ if (!function_exists('extractFormalDocumentDetails')) {
     }
 }
 
+$raw_req_type = strtolower(trim((string)($request['request_type'] ?? '')));
+$is_comm_or_conf = in_array($raw_req_type, ['first_communion_service', 'first_communion', 'communion', 'confirmation_service', 'confirmation'], true);
 $formalDetails = extractFormalDocumentDetails($request, $linked_reservation, $documents_by_type);
 $parsedSections = parseSubmittedApplicationForm((string)($request['description'] ?? ''));
+
+if ($is_comm_or_conf && !empty($parsedSections)) {
+    foreach ($parsedSections as $secName => &$secItems) {
+        $secItems = array_values(array_filter($secItems, function($item) {
+            if (($item['type'] ?? '') === 'field') {
+                $lbl = strtolower(trim($item['label'] ?? ''));
+                if (in_array($lbl, ['preferred date', 'preferred time', 'year', 'confirmation year', 'month and day', 'month & day'], true)) {
+                    return false;
+                }
+            }
+            return true;
+        }));
+    }
+    unset($secItems);
+    $parsedSections = array_filter($parsedSections, static fn($items) => !empty($items));
+}
+
+$existing_ceremony_date = '';
+if ($is_comm_or_conf) {
+    if (in_array($raw_req_type, ['first_communion_service', 'first_communion', 'communion'], true)) {
+        $chkRec = $conn->prepare("SELECT communion_date FROM first_communion_records WHERE request_id = ? LIMIT 1");
+    } else {
+        $chkRec = $conn->prepare("SELECT confirmation_date FROM confirmation_records WHERE request_id = ? LIMIT 1");
+    }
+    if ($chkRec) {
+        $chkRec->bind_param('i', $request_id);
+        $chkRec->execute();
+        $recRow = $chkRec->get_result()->fetch_assoc();
+        $chkRec->close();
+        if ($recRow) {
+            $existing_ceremony_date = $recRow['communion_date'] ?? $recRow['confirmation_date'] ?? '';
+        }
+    }
+}
 
 $disp_status = strtolower($request['status'] ?? 'pending');
 if ($disp_status === 'submitted') {
@@ -1613,9 +1657,10 @@ $breadcrumbs = [
                     <div class="mb-4">
                         <div class="formal-section-title">
                             <i class="fas fa-calendar-day text-primary"></i>
-                            Section 1: Application Overview & Schedule
+                            Section 1: Application Overview<?php echo !$is_comm_or_conf ? ' & Schedule' : ''; ?>
                         </div>
                         <div class="row g-3">
+                            <?php if (!$is_comm_or_conf): ?>
                             <div class="col-12 col-sm-6 col-md-3">
                                 <span class="micro-label">Preferred Date</span>
                                 <div class="meta-value">
@@ -1640,6 +1685,20 @@ $breadcrumbs = [
                                     <?php echo e($formalDetails['schedule']['venue']); ?>
                                 </div>
                             </div>
+                            <?php else: ?>
+                            <div class="col-12 col-sm-6">
+                                <span class="micro-label">Assigned Priest / Minister</span>
+                                <div class="meta-value">
+                                    <?php echo e($formalDetails['schedule']['assigned_priest']); ?>
+                                </div>
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <span class="micro-label">Venue / Location</span>
+                                <div class="meta-value">
+                                    <?php echo e($formalDetails['schedule']['venue']); ?>
+                                </div>
+                            </div>
+                            <?php endif; ?>
                         </div>
                     </div>
 
@@ -2190,7 +2249,7 @@ $breadcrumbs = [
                                     <option value="">-- Select Minister / Officiating Priest --</option>
                                     <?php foreach ($priest_roster as $p_opt): ?>
                                         <option value="<?php echo htmlspecialchars($p_opt); ?>" <?php echo (!empty($funeral_fields['minister']) && strcasecmp($funeral_fields['minister'], $p_opt) === 0) ? 'selected' : ''; ?>>
-                                            <?php echo htmlspecialchars($p_opt); ?>
+                                             <?php echo htmlspecialchars($p_opt); ?>
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
@@ -2209,6 +2268,24 @@ $breadcrumbs = [
                                 <div class="rw-field-caption">Confirmed canonical Parish Priest for official registry.</div>
                             </div>
                         </div>
+
+                        <?php if ($is_comm_or_conf): ?>
+                            <div class="row g-3 mt-1 mb-2" id="commConfCeremonyGroup">
+                                <div class="col-md-6">
+                                    <label for="ceremony_date" class="rw-meta-label">CEREMONY DATE <span class="text-danger">*</span></label>
+                                    <input type="date" 
+                                           class="form-control border-secondary-subtle py-1.5 fw-semibold" 
+                                           id="ceremony_date" 
+                                           name="ceremony_date" 
+                                           value="<?php echo htmlspecialchars($_POST['ceremony_date'] ?? $existing_ceremony_date ?? ''); ?>" 
+                                           style="font-size: 0.88rem; height: 38px; border-radius: 8px;">
+                                    <div class="rw-field-caption">Required ceremony date for official sacramental registry record.</div>
+                                    <div class="invalid-feedback d-none text-danger small mt-1" id="ceremonyDateFeedback">
+                                        <i class="fas fa-circle-exclamation me-1"></i>Please provide the Ceremony Date before completing this request.
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endif; ?>
                     <?php endif; ?>
 
                     <?php if ($is_funeral): ?>
@@ -2315,6 +2392,40 @@ document.addEventListener('DOMContentLoaded', function () {
 
         formCollapse.addEventListener('hide.bs.collapse', function () {
             toggleBtn.setAttribute('aria-expanded', 'false');
+        });
+    }
+
+    const reviewStatusForm = document.getElementById('reviewStatusForm');
+    const statusSelect = document.getElementById('status');
+    const ceremonyDateInput = document.getElementById('ceremony_date');
+    const ceremonyDateFeedback = document.getElementById('ceremonyDateFeedback');
+
+    if (reviewStatusForm && ceremonyDateInput) {
+        reviewStatusForm.addEventListener('submit', function (e) {
+            if (statusSelect && statusSelect.value === 'completed') {
+                if (!ceremonyDateInput.value.trim()) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    ceremonyDateInput.classList.add('is-invalid');
+                    if (ceremonyDateFeedback) {
+                        ceremonyDateFeedback.classList.remove('d-none');
+                        ceremonyDateFeedback.style.display = 'block';
+                    }
+                    ceremonyDateInput.focus();
+                    ceremonyDateInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    return false;
+                }
+            }
+        });
+
+        ceremonyDateInput.addEventListener('input', function () {
+            if (ceremonyDateInput.value.trim()) {
+                ceremonyDateInput.classList.remove('is-invalid');
+                if (ceremonyDateFeedback) {
+                    ceremonyDateFeedback.classList.add('d-none');
+                    ceremonyDateFeedback.style.display = 'none';
+                }
+            }
         });
     }
 });

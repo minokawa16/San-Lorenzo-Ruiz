@@ -49,7 +49,7 @@ $status_map = [
     'approved'            => 'processing',
     'processing'          => 'processing',
     'scheduled'           => 'processing',
-    'ready_for_release'   => 'ready_to_download',
+    'ready_for_release'   => 'completed',
     'completed'           => 'completed',
     'rejected'            => 'rejected',
     'cancelled'           => 'cancelled',
@@ -61,8 +61,6 @@ $personal_stats = [
     'processing'            => 0,
     'completed'             => 0,
     'rejected'              => 0,
-    'ready_to_download'     => 0,
-    'upcoming_reservations' => 0,
     'parish_announcements'  => 0,
 ];
 
@@ -83,17 +81,6 @@ if ($stmt) {
             $personal_stats[$bucket] += $cnt;
         }
     }
-    $stmt->close();
-}
-
-// 2. Upcoming reservation count (this user, future dates)
-$stmt = $conn->prepare(
-    'SELECT COUNT(*) AS cnt FROM reservations WHERE user_id = ? AND event_date >= CURDATE() AND status != \'cancelled\''
-);
-if ($stmt) {
-    $stmt->bind_param('i', $user_id);
-    $stmt->execute();
-    $personal_stats['upcoming_reservations'] = intval($stmt->get_result()->fetch_assoc()['cnt'] ?? 0);
     $stmt->close();
 }
 

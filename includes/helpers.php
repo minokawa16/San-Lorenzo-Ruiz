@@ -3294,9 +3294,7 @@ function syncApprovedRequestToCalendar($conn, $request_id, $admin_user_id) {
         'marriage_wedding_service',
         'funeral_mass',
         'anointing_of_the_sick',
-        'patronal_fiesta',
-        'confirmation_service',
-        'first_communion_service'
+        'patronal_fiesta'
     ];
 
     $request_id = intval($request_id);

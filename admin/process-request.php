@@ -128,6 +128,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
         }
 
+        $is_comm_or_conf = in_array($req_type_norm, ['first_communion_service', 'first_communion', 'communion', 'confirmation_service', 'confirmation'], true);
+        $ceremony_date = trim((string)($_POST['ceremony_date'] ?? ''));
+
+        // Enforce Ceremony Date for First Communion and Confirmation completions
+        if ($is_comm_or_conf && ($action === 'complete' || $action === 'approve' || in_array($new_status, ['approved', 'completed'], true))) {
+            if ($ceremony_date === '' || !validDateValue($ceremony_date)) {
+                throw new Exception('Please provide the Ceremony Date before completing this request.');
+            }
+        }
+
         // Process funeral sheet updates if submitted
         if ($is_funeral_request && isset($_POST['funeral_sheet']) && is_array($_POST['funeral_sheet'])) {
             $f_deceased = trim((string)($_POST['funeral_sheet']['deceased_name'] ?? ''));
@@ -198,6 +208,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     'admin_response' => $admin_response,
                     'officiating_priest' => $officiating_priest,
                     'parish_priest' => $parish_priest,
+                    'ceremony_date' => $ceremony_date ?: null,
                     'target_status' => $new_status === 'approved' ? 'approved' : 'completed'
                 ]);
 

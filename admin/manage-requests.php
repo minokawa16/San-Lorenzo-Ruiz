@@ -306,6 +306,8 @@ if ($search !== '') {
 
 // Service Date Filter Application
 if ($service_date !== '') {
+    $request_where[] = "LOWER(r.request_type) NOT IN ('first_communion_service', 'first_communion', 'communion', 'confirmation_service', 'confirmation')";
+    $reservation_where[] = "LOWER(r.reservation_type) NOT IN ('first_communion_service', 'first_communion', 'communion', 'confirmation_service', 'confirmation')";
     if ($type_filter === '') {
         // "All Categories" with active date filter: exclude certificates
         $request_where[] = "($request_category_sql) IN ('blessing', 'sacramental')";
@@ -740,7 +742,9 @@ include '../templates/header.php';
                                         default => ucfirst(str_replace('_', ' ', $request['item_type']))
                                     };
                                     $category_label = adminRequestCategoryLabel($request['item_category']);
-                                    $has_schedule = !empty($request['event_date']) && ($request['item_category'] ?? '') !== 'certificate';
+                                    $raw_item_type = strtolower((string)($request['item_type'] ?? ''));
+                                    $is_comm_or_conf = in_array($raw_item_type, ['first_communion_service', 'first_communion', 'communion', 'confirmation_service', 'confirmation'], true);
+                                    $has_schedule = !empty($request['event_date']) && ($request['item_category'] ?? '') !== 'certificate' && !$is_comm_or_conf;
                                     $itemKey = $request['item_source'] . '_' . $request['item_id'];
                                     $has_conflict = !empty($overlapping_items[$itemKey]);
                                 ?>

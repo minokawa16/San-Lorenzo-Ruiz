@@ -56,7 +56,6 @@ $personal_stats = [
     'processing'        => 0,
     'completed'         => 0,
     'rejected'          => 0,
-    'ready_to_download' => 0,
 ];
 
 // Single prepared query – all counts for this user in one round-trip
@@ -76,18 +75,6 @@ if ($stmt) {
             $personal_stats[$bucket] += $cnt;
         }
     }
-    $stmt->close();
-}
-
-// Upcoming reservation count (this user, future dates)
-$personal_stats['upcoming_reservations'] = 0;
-$stmt = $conn->prepare(
-    'SELECT COUNT(*) AS cnt FROM reservations WHERE user_id = ? AND event_date >= CURDATE() AND status != \'cancelled\''
-);
-if ($stmt) {
-    $stmt->bind_param('i', $user_id);
-    $stmt->execute();
-    $personal_stats['upcoming_reservations'] = intval($stmt->get_result()->fetch_assoc()['cnt'] ?? 0);
     $stmt->close();
 }
 
@@ -534,12 +521,12 @@ $body_extra_class = $show_mobile_dashboard_features ? 'user-dashboard-feature-vi
         }
     }
 
-    /* ── 8 Stat Cards High Density Grid ───────────────────── */
+    /* ── 6 Stat Cards 3x2 Grid ───────────────────── */
     .dashboard-stats-grid,
     body.user-area .dashboard-stats-grid {
         display: grid !important;
-        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-        gap: 12px !important;
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 14px !important;
         margin-bottom: 20px !important;
         width: 100% !important;
     }
@@ -648,21 +635,14 @@ $body_extra_class = $show_mobile_dashboard_features ? 'user-dashboard-feature-vi
     .trend-pill.danger { background: #fee2e2 !important; color: #991b1b !important; }
     .trend-pill.neutral { background: #f1f5f9 !important; color: #475569 !important; }
 
-    @media (max-width: 1200px) {
+    @media (max-width: 1023px) {
         .dashboard-stats-grid,
         body.user-area .dashboard-stats-grid {
-            grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+            grid-template-columns: repeat(2, 1fr) !important;
         }
     }
 
-    @media (max-width: 900px) {
-        .dashboard-stats-grid,
-        body.user-area .dashboard-stats-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-        }
-    }
-
-    @media (max-width: 480px) {
+    @media (max-width: 639px) {
         .dashboard-stats-grid,
         body.user-area .dashboard-stats-grid {
             grid-template-columns: 1fr !important;
@@ -783,40 +763,6 @@ $body_extra_class = $show_mobile_dashboard_features ? 'user-dashboard-feature-vi
             </div>
         </a>
 
-        <!-- 6. Ready to Download -->
-        <a href="my-requests.php?status=ready_for_release" class="stat-card-compact" id="pcard-ready" aria-label="View requests ready to download"
-           style="<?php echo $personal_stats['ready_to_download'] > 0 ? 'border-color:#6ee7b7;' : ''; ?>">
-            <div class="stat-card-header">
-                <span class="stat-card-label">Ready to Download</span>
-                <span class="stat-card-icon icon-emerald"><i class="fas fa-download"></i></span>
-            </div>
-            <div class="stat-card-value" style="<?php echo $personal_stats['ready_to_download'] > 0 ? 'color:#059669;' : ''; ?>">
-                <?php echo number_format($personal_stats['ready_to_download']); ?>
-            </div>
-            <div class="stat-card-footer">
-                <?php if ($personal_stats['ready_to_download'] > 0): ?>
-                    <span class="trend-pill success"><i class="fas fa-arrow-down"></i> Available now</span>
-                <?php else: ?>
-                    <span class="trend-pill neutral"><i class="fas fa-minus"></i> None ready</span>
-                <?php endif; ?>
-            </div>
-        </a>
-
-        <!-- 7. Upcoming Schedule (my reservations) -->
-        <a href="make-reservation.php" class="stat-card-compact" id="pcard-reservations" aria-label="View my upcoming reservations">
-            <div class="stat-card-header">
-                <span class="stat-card-label">Upcoming Schedule</span>
-                <span class="stat-card-icon icon-purple"><i class="fas fa-calendar-check"></i></span>
-            </div>
-            <div class="stat-card-value"><?php echo number_format($personal_stats['upcoming_reservations']); ?></div>
-            <div class="stat-card-footer">
-                <?php if ($personal_stats['upcoming_reservations'] > 0): ?>
-                    <span class="trend-pill warning"><i class="fas fa-calendar"></i> Upcoming</span>
-                <?php else: ?>
-                    <span class="trend-pill neutral"><i class="fas fa-calendar-xmark"></i> None booked</span>
-                <?php endif; ?>
-            </div>
-        </a>
 
         <!-- 8. Parish Announcements (active, public) -->
         <a href="announcements.php" class="stat-card-compact" id="pcard-announcements" aria-label="View parish announcements">
@@ -996,8 +942,6 @@ document.addEventListener('DOMContentLoaded', function () {
             updateVal('#pcard-processing', s.processing);
             updateVal('#pcard-completed', s.completed);
             updateVal('#pcard-rejected', s.rejected);
-            updateVal('#pcard-ready', s.ready_to_download);
-            updateVal('#pcard-reservations', s.upcoming_reservations);
             updateVal('#pcard-announcements', s.parish_announcements);
         } catch (e) {
             // Retain server-rendered counts if fetch fails

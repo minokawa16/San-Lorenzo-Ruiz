@@ -298,7 +298,26 @@ $page_title = 'View Request';
 
                     <div class="mb-4">
                         <h6 class="text-muted mb-2">Description</h6>
-                        <p class="mb-0" style="white-space: pre-line;"><?php echo sanitize($request['description'] ?? 'No description provided'); ?></p>
+                        <?php
+                            $desc_text = (string)($request['description'] ?? 'No description provided');
+                            $raw_rtype = strtolower((string)($request['request_type'] ?? ''));
+                            if (in_array($raw_rtype, ['first_communion_service', 'first_communion', 'communion', 'confirmation_service', 'confirmation'], true) && $desc_text !== '') {
+                                $lines = explode("\n", $desc_text);
+                                $filtered_lines = [];
+                                foreach ($lines as $line) {
+                                    $trimmed_line = trim($line);
+                                    if (preg_match('/^(preferred date|preferred time|year|confirmation year|month and day|month & day)\s*:/i', $trimmed_line)) {
+                                        continue;
+                                    }
+                                    $filtered_lines[] = $line;
+                                }
+                                $desc_text = trim(implode("\n", $filtered_lines));
+                                if ($desc_text === '') {
+                                    $desc_text = 'No description provided';
+                                }
+                            }
+                        ?>
+                        <p class="mb-0" style="white-space: pre-line;"><?php echo sanitize($desc_text); ?></p>
                     </div>
 
                     <?php if ($reservation): ?>

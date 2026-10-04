@@ -58,13 +58,11 @@ $blessingTypes = [
 
 $sacramentalRequestTypes = [
     'baptism_service', 'marriage_wedding_service', 'funeral_mass',
-    'anointing_of_the_sick', 'patronal_fiesta',
-    'first_communion_service', 'first_communion', 'communion',
-    'confirmation_service', 'confirmation'
+    'anointing_of_the_sick', 'patronal_fiesta'
 ];
 
 $sacramentalReservationTypes = [
-    'wedding', 'baptism', 'confirmation', 'burial', 'church_venue',
+    'wedding', 'baptism', 'burial', 'church_venue',
     'church_reservation', 'wedding_reservation', 'burial_reservation'
 ];
 
