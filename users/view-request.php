@@ -281,7 +281,20 @@ $page_title = 'View Request';
                         </div>
                         <div class="col-md-6">
                             <h6 class="text-muted mb-2">Request Type</h6>
-                            <p class="lead"><?php echo e(ucfirst(str_replace('_', ' ', $request['request_type']))); ?></p>
+                            <?php
+                                $raw_view_type = strtolower((string)($request['request_type'] ?? ''));
+                                $disp_view_type = match ($raw_view_type) {
+                                    'first_communion_service', 'first_communion', 'communion' => 'First Communion',
+                                    'confirmation_service', 'confirmation' => 'Confirmation',
+                                    'baptism_service', 'baptism' => 'Baptism',
+                                    'marriage_wedding_service', 'marriage', 'wedding' => 'Marriage / Wedding',
+                                    'funeral_mass', 'funeral' => 'Funeral Mass',
+                                    'anointing_of_the_sick' => 'Anointing of the Sick',
+                                    'patronal_fiesta' => 'Patronal Fiesta',
+                                    default => ucfirst(str_replace('_', ' ', $request['request_type']))
+                                };
+                            ?>
+                            <p class="lead"><?php echo e($disp_view_type); ?></p>
                         </div>
                     </div>
 

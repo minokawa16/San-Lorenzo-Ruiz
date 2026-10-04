@@ -2094,7 +2094,7 @@ if ($stmt) {
                 </div>
 
                 <div class="request-review-section">
-                    <h3><i class="fas fa-calendar-check"></i> Applicant, Schedule, and Location</h3>
+                    <h3 id="reviewScheduleHeading"><i class="fas fa-calendar-check"></i> Applicant, Schedule, and Location</h3>
                     <dl class="request-review-grid" id="reviewScheduleInfo"></dl>
                 </div>
 
@@ -3362,6 +3362,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 ['Place of Burial', formValue('funeral_place_of_burial') || 'Not provided'],
                 ['Minister / Officiant', formValue('funeral_minister') || 'To be assigned by the parish']
             ]);
+        }
+
+        const reviewSchedHead = document.getElementById('reviewScheduleHeading');
+        if (reviewSchedHead) {
+            if (communionSelected || confirmationSelected) {
+                reviewSchedHead.innerHTML = '<i class="fas fa-user-circle"></i> Applicant &amp; Additional Details';
+            } else {
+                reviewSchedHead.innerHTML = '<i class="fas fa-calendar-check"></i> Applicant, Schedule, and Location';
+            }
         }
 
         const scheduleReviewItems = [
