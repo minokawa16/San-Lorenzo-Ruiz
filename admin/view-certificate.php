@@ -1120,7 +1120,6 @@ $conf_medallion_logo = !empty($layout_images['parish_logo']) ? certificateLayout
 $parish_logo = $mission_logo;
 $bap_archdiocese_logo = !empty($layout_images['diocese_logo']) ? certificateLayoutAssetUrl($layout_images['diocese_logo']) : certificateAssetUrl('assets/img/certificates/archdiocese-crest-transparent.png', certificateAssetUrl('assets/img/archdiocese-crest.jpg'));
 $bap_mission_logo = !empty($layout_images['parish_logo']) ? certificateLayoutAssetUrl($layout_images['parish_logo']) : certificateAssetUrl('assets/img/certificates/slr_logo.png', certificateAssetUrl('assets/img/san-lorenzo-logo.png'));
-$bap_seal_logo = !empty($layout_images['seal_image']) ? certificateLayoutAssetUrl($layout_images['seal_image']) : (file_exists(__DIR__ . '/../assets/img/certificates/gold-embossed-parish-seal.svg') ? certificateAssetUrl('assets/img/certificates/gold-embossed-parish-seal.svg') : '');
 $certificate_backgrounds = [
     'baptism' => certificateAssetUrl('baptism.webp', $parish_logo),
     'baptism_certification' => certificateAssetUrl('baptism.webp', $parish_logo),
@@ -1783,15 +1782,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
             vertical-align: middle;
             text-align: left;
             padding: 0;
-        }
-        .parish-seal-img {
-            width: 28mm;
-            height: 28mm;
-            max-width: 28mm;
-            max-height: 28mm;
-            object-fit: contain;
-            display: inline-block;
-            background: transparent;
         }
         .footer-middle-cell {
             vertical-align: bottom;
@@ -3133,14 +3123,10 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
                         </div>
                     </div>
 
-                    <!-- ── FOOTER: SEAL (28mm) AND SIGNATURE (62mm) ── -->
+                    <!-- ── FOOTER: SEAL AREA (28mm) AND SIGNATURE (62mm) ── -->
                     <table class="cert-footer-table">
                         <tr>
-                            <td class="footer-seal-cell">
-                                <?php if (!empty($bap_seal_logo)): ?>
-                                    <img class="parish-seal-img" src="<?php echo e($bap_seal_logo); ?>" alt="Parish Seal">
-                                <?php endif; ?>
-                            </td>
+                            <td class="footer-seal-cell"></td>
                             <td class="footer-middle-cell"></td>
                             <td class="footer-sig-cell">
                                 <div class="sig-line">

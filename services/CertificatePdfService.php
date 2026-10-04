@@ -264,18 +264,9 @@ class CertificatePdfService
                     ? $root . '/assets/img/certificates/slr_logo.png'
                     : $root . '/assets/img/san-lorenzo-logo.png'));
 
-        $sealPath = !empty($options['seal_image']) && file_exists($options['seal_image'])
-            ? $options['seal_image']
-            : (!empty($record['seal_image']) && file_exists($record['seal_image'])
-                ? $record['seal_image']
-                : (file_exists($root . '/assets/img/certificates/gold-embossed-parish-seal.svg')
-                    ? $root . '/assets/img/certificates/gold-embossed-parish-seal.svg'
-                    : ''));
-
         // Embedded Base64 Data URIs
         $crestUri = self::fileToDataUri($crestPath);
         $slrUri = self::fileToDataUri($slrPath);
-        $sealUri = !empty($sealPath) ? self::fileToDataUri($sealPath) : '';
 
         // Local Base64 Fonts for zero-CDN offline reliability
         $fontRegular = self::fileToDataUri($root . '/assets/fonts/ebgaramond/EBGaramond-Regular.ttf', 'font/truetype');
@@ -602,15 +593,6 @@ class CertificatePdfService
             text-align: left;
             padding: 0;
         }
-        .parish-seal-img {
-            width: 28mm;
-            height: 28mm;
-            max-width: 28mm;
-            max-height: 28mm;
-            object-fit: contain;
-            display: inline-block;
-            background: transparent;
-        }
         .footer-middle-cell {
             vertical-align: bottom;
             padding: 0;
@@ -785,14 +767,10 @@ class CertificatePdfService
                 </div>
             </div>
 
-            <!-- ── FOOTER: SEAL (28mm) AND SIGNATURE (62mm) ── -->
+            <!-- ── FOOTER: SEAL AREA (28mm) AND SIGNATURE (62mm) ── -->
             <table class="cert-footer-table">
                 <tr>
-                    <td class="footer-seal-cell">
-                        <?php if (!empty($sealUri)): ?>
-                            <img class="parish-seal-img" src="<?php echo $sealUri; ?>" alt="Parish Seal">
-                        <?php endif; ?>
-                    </td>
+                    <td class="footer-seal-cell"></td>
                     <td class="footer-middle-cell"></td>
                     <td class="footer-sig-cell">
                         <div class="sig-line">
