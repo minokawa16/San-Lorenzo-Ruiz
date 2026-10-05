@@ -288,12 +288,12 @@ class CertificatePdfService
         $tz = new DateTimeZone('Asia/Manila');
         $formatDate = function($dateStr) use ($tz) {
             $str = trim((string)$dateStr);
-            if ($str === '' || $str === '0000-00-00' || $str === 'N/A') return '';
+            if ($str === '' || $str === '0000-00-00' || $str === 'N/A' || strtolower($str) === 'null' || $str === '1970-01-01') return '';
             try {
                 $dt = new DateTime($str, $tz);
-                return $dt->format('F j, Y');
+                return $dt->format('F d, Y');
             } catch (\Throwable $e) {
-                return $str;
+                return '';
             }
         };
 
@@ -695,7 +695,7 @@ class CertificatePdfService
                     <table class="field-row-table">
                         <tr>
                             <td class="field-label-cell">Birthday:</td>
-                            <td class="field-value-cell"><span class="field-value-text"><?php echo htmlspecialchars($birthDate, ENT_QUOTES, 'UTF-8'); ?></span></td>
+                            <td class="field-value-cell"><span class="field-value-text"><?php echo !empty($birthDate) ? htmlspecialchars($birthDate, ENT_QUOTES, 'UTF-8') : '&nbsp;'; ?></span></td>
                         </tr>
                     </table>
                     <table class="field-row-table">

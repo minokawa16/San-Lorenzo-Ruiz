@@ -11,6 +11,9 @@ include '../includes/helpers.php';
 include '../database/config.php';
 require_once '../services/SacramentalRecordService.php';
 
+header("Cache-Control: private, no-store, max-age=0, must-revalidate");
+header("Pragma: no-cache");
+
 // Define BASE_URL if not already defined
 if (!defined('BASE_URL')) {
     define('BASE_URL', '/ParishSystem/');
@@ -64,12 +67,23 @@ function ensure_baptism_record_book_schema($conn) {
 
 // Format Baptism Record Date Function - Documents this helper's role in the parish management workflow.
 function format_baptism_record_date($date_value, $format = 'M d, Y') {
-    if (empty($date_value) || $date_value === '0000-00-00') {
+    if (empty($date_value)) {
         return 'N/A';
     }
-
-    $timestamp = strtotime($date_value);
-    return $timestamp ? date($format, $timestamp) : 'N/A';
+    $val = trim((string)$date_value);
+    if ($val === '' || $val === '0000-00-00' || strtolower($val) === 'null' || $val === '1970-01-01' || $val === 'N/A') {
+        return 'N/A';
+    }
+    try {
+        $tz = new DateTimeZone('Asia/Manila');
+        $dt = new DateTime($val, $tz);
+        if ($dt->format('Y-m-d') === '1970-01-01' && strpos($val, '1970') === false) {
+            return 'N/A';
+        }
+        return $dt->format($format);
+    } catch (\Throwable $e) {
+        return 'N/A';
+    }
 }
 
 // Js Value Function - Documents this helper's role in the parish management workflow.
@@ -142,7 +156,26 @@ if ($action === 'add' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $status = $_POST['status'] ?? 'active';
     $request_id = !empty($_POST['request_id']) ? (int)$_POST['request_id'] : null;
 
-    if ($fullname && $baptism_date && $parents) {
+    $tz = new DateTimeZone('Asia/Manila');
+    $today = (new DateTime('now', $tz))->format('Y-m-d');
+    $min_birth = (new DateTime('-120 years', $tz))->format('Y-m-d');
+
+    if (empty($birth_date)) {
+        $message = "Birthdate is required.";
+        $alert_type = "danger";
+    } elseif (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $birth_date) || !strtotime($birth_date)) {
+        $message = "Birthdate must be a valid date in YYYY-MM-DD format.";
+        $alert_type = "danger";
+    } elseif ($birth_date > $today) {
+        $message = "Birthdate cannot be in the future.";
+        $alert_type = "danger";
+    } elseif ($birth_date < $min_birth) {
+        $message = "Birthdate cannot be more than 120 years ago.";
+        $alert_type = "danger";
+    } elseif (!empty($baptism_date) && $birth_date > $baptism_date) {
+        $message = "Birthdate must be before or equal to the Date Baptized.";
+        $alert_type = "danger";
+    } elseif ($fullname && $baptism_date && $parents) {
         $stmt = $conn->prepare("INSERT INTO baptism_records (registry_no, book_no, page_no, fullname, birth_date, birth_place, birth_status, parents, father_name, father_birth_place, mother_name, mother_birth_place, parent_address, baptism_date, godparents, parish_address, priest, remarks, parish_priest, parish_secretary, status, request_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         if ($stmt) {
             $stmt->bind_param("sssssssssssssssssssssi", $registry_no, $book_no, $page_no, $fullname, $birth_date, $birth_place, $birth_status, $parents, $father_name, $father_birth_place, $mother_name, $mother_birth_place, $parent_address, $baptism_date, $godparents, $parish_address, $priest, $remarks, $parish_priest, $parish_secretary, $status, $request_id);
@@ -205,7 +238,27 @@ if ($action === 'edit' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $status = $_POST['status'] ?? 'active';
     $request_id = !empty($_POST['request_id']) ? (int)$_POST['request_id'] : null;
 
-    if ($record_id && $fullname && $baptism_date && $parents) {
+    $tz = new DateTimeZone('Asia/Manila');
+    $today = (new DateTime('now', $tz))->format('Y-m-d');
+    $min_birth = (new DateTime('-120 years', $tz))->format('Y-m-d');
+
+    if (!empty($birth_date)) {
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $birth_date) || !strtotime($birth_date)) {
+            $message = "Birthdate must be a valid date in YYYY-MM-DD format.";
+            $alert_type = "danger";
+        } elseif ($birth_date > $today) {
+            $message = "Birthdate cannot be in the future.";
+            $alert_type = "danger";
+        } elseif ($birth_date < $min_birth) {
+            $message = "Birthdate cannot be more than 120 years ago.";
+            $alert_type = "danger";
+        } elseif (!empty($baptism_date) && $birth_date > $baptism_date) {
+            $message = "Birthdate must be before or equal to the Date Baptized.";
+            $alert_type = "danger";
+        }
+    }
+
+    if (empty($message) && $record_id && $fullname && $baptism_date && $parents) {
         $stmt = $conn->prepare("UPDATE baptism_records SET registry_no=?, book_no=?, page_no=?, fullname=?, birth_date=?, birth_place=?, birth_status=?, parents=?, father_name=?, father_birth_place=?, mother_name=?, mother_birth_place=?, parent_address=?, baptism_date=?, godparents=?, parish_address=?, priest=?, remarks=?, parish_priest=?, parish_secretary=?, status=?, request_id=? WHERE baptism_id=?");
         if ($stmt) {
             $stmt->bind_param("sssssssssssssssssssssii", $registry_no, $book_no, $page_no, $fullname, $birth_date, $birth_place, $birth_status, $parents, $father_name, $father_birth_place, $mother_name, $mother_birth_place, $parent_address, $baptism_date, $godparents, $parish_address, $priest, $remarks, $parish_priest, $parish_secretary, $status, $request_id, $record_id);
@@ -260,12 +313,12 @@ $params = array();
 $param_types = "";
 
 if (!empty($search)) {
-    $where_clauses[] = "(fullname LIKE ? OR book_no LIKE ? OR page_no LIKE ? OR parents LIKE ? OR parent_address LIKE ? OR godparents LIKE ? OR parish_address LIKE ? OR priest LIKE ? OR birth_place LIKE ? OR parish_priest LIKE ? OR parish_secretary LIKE ?)";
+    $where_clauses[] = "(fullname LIKE ? OR book_no LIKE ? OR page_no LIKE ? OR parents LIKE ? OR parent_address LIKE ? OR godparents LIKE ? OR parish_address LIKE ? OR priest LIKE ? OR birth_place LIKE ? OR parish_priest LIKE ? OR parish_secretary LIKE ? OR baptism_date LIKE ? OR birth_date LIKE ?)";
     $search_param = "%$search%";
-    for ($i = 0; $i < 11; $i++) {
+    for ($i = 0; $i < 13; $i++) {
         $params[] = $search_param;
     }
-    $param_types .= "sssssssssss";
+    $param_types .= "sssssssssssss";
 }
 
 if ($status_filter === 'active') {
@@ -317,24 +370,6 @@ if ($req_stmt) {
     $req_stmt->close();
 }
 
-// Stats for formal metrics banner
-$stat_total = 0;
-$stat_active = 0;
-$stat_archived = 0;
-$stat_books = 0;
-
-$stat_res = $conn->query("SELECT 
-    COUNT(*) as total,
-    SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active,
-    SUM(CASE WHEN status = 'archived' THEN 1 ELSE 0 END) as archived,
-    COUNT(DISTINCT NULLIF(TRIM(book_no), '')) as books
-FROM baptism_records");
-if ($stat_res && $stat_row = $stat_res->fetch_assoc()) {
-    $stat_total = (int)($stat_row['total'] ?? 0);
-    $stat_active = (int)($stat_row['active'] ?? 0);
-    $stat_archived = (int)($stat_row['archived'] ?? 0);
-    $stat_books = (int)($stat_row['books'] ?? 0);
-}
 
 $page_title = 'Baptism Records';
 $breadcrumbs = [
@@ -370,37 +405,6 @@ include '../templates/header.php';
             margin-bottom: 30px;
         }
 
-        /* ── Formal Stats Ribbon ────────────────────────── */
-        .registry-stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 14px;
-            margin-bottom: 20px;
-        }
-
-        .registry-stat-card {
-            background: #FFFFFF;
-            border: 1px solid var(--parish-border);
-            border-radius: 12px;
-            padding: 16px 18px;
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
-            transition: transform 0.15s ease, box-shadow 0.15s ease;
-        }
-
-        .registry-stat-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.07);
-        }
-
-        .registry-stat-card.active-stat-filter {
-            border-color: var(--parish-gold);
-            box-shadow: 0 0 0 2px rgba(200, 155, 60, 0.35);
-            background: #FFFDF9;
-        }
-
         .btn-formal-archives {
             display: inline-flex;
             align-items: center;
@@ -422,48 +426,48 @@ include '../templates/header.php';
             border-color: #C4B5FD;
         }
 
-        .registry-stat-icon {
-            width: 44px;
-            height: 44px;
-            min-width: 44px;
-            border-radius: 10px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.2rem;
-            background: var(--parish-gold-light);
-            color: var(--parish-gold-dark);
+        /* ── Date Input with Calendar Icon ──────────────── */
+        .date-input-wrapper {
+            position: relative;
+            width: 100%;
         }
 
-        .registry-stat-icon.icon-active {
-            background: #DCFCE7;
-            color: #166534;
+        .date-input-wrapper i.fa-calendar-days {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+            color: #64748B;
+            font-size: 0.95rem;
+            z-index: 2;
         }
 
-        .registry-stat-icon.icon-archived {
-            background: #F1F5F9;
-            color: #475569;
+        .date-input-wrapper input[type="date"] {
+            padding-left: 42px !important;
+            width: 100%;
+            cursor: pointer;
+            position: relative;
         }
 
-        .registry-stat-icon.icon-books {
-            background: #E0F2FE;
-            color: #0369A1;
+        .date-input-wrapper input[type="date"]::-webkit-calendar-picker-indicator {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
         }
 
-        .registry-stat-content strong {
-            display: block;
-            font-size: 1.45rem;
-            font-weight: 800;
-            color: var(--parish-navy);
-            line-height: 1.1;
-        }
-
-        .registry-stat-content span {
-            font-size: 0.78rem;
+        .field-validation-error {
+            display: none;
+            color: #DC2626;
+            font-size: 0.8rem;
             font-weight: 600;
-            color: var(--parish-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.03em;
+            margin-top: 4px;
         }
 
         /* ── Formal Search & Filter Card ─────────────────── */
@@ -681,13 +685,14 @@ include '../templates/header.php';
             width: 100%;
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
         }
 
         .formal-records-table {
             width: 100%;
             border-collapse: collapse;
             font-size: 0.86rem;
-            min-width: 1300px;
+            min-width: 1540px;
         }
 
         .formal-records-table thead {
@@ -820,25 +825,31 @@ include '../templates/header.php';
 
         /* ── Action Buttons ─────────────────────────────── */
         .record-actions-wrap {
-            display: flex;
+            display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 6px;
             white-space: nowrap;
+            flex-wrap: nowrap;
         }
 
         .btn-reg-action {
             height: 32px;
-            padding: 0 10px;
+            min-width: 76px;
+            padding: 0 12px;
             border-radius: 6px;
             font-size: 0.8rem;
             font-weight: 600;
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 5px;
             cursor: pointer;
             border: 1px solid transparent;
             transition: all 0.15s ease;
             text-decoration: none;
+            white-space: nowrap;
+            box-sizing: border-box;
         }
 
         .btn-reg-edit {
@@ -1221,9 +1232,6 @@ include '../templates/header.php';
         }
 
         @media (max-width: 768px) {
-            .registry-stats-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
             .registry-control-flex {
                 flex-direction: column;
                 align-items: stretch;
@@ -1257,45 +1265,13 @@ include '../templates/header.php';
             </div>
         <?php endif; ?>
 
-        <!-- Formal Stats Ribbon -->
-        <div class="registry-stats-grid">
-            <a href="baptism-records.php?status=all" class="registry-stat-card <?php echo $status_filter === 'all' ? 'active-stat-filter' : ''; ?>" style="text-decoration: none; color: inherit;" title="View all records (active and archived)">
-                <div class="registry-stat-icon"><i class="fas fa-water"></i></div>
-                <div class="registry-stat-content">
-                    <strong><?php echo number_format($stat_total); ?></strong>
-                    <span>Total Baptism Records</span>
-                </div>
-            </a>
-            <a href="baptism-records.php?status=active" class="registry-stat-card <?php echo $status_filter === 'active' ? 'active-stat-filter' : ''; ?>" style="text-decoration: none; color: inherit;" title="View active baptism registry entries (default)">
-                <div class="registry-stat-icon icon-active"><i class="fas fa-circle-check"></i></div>
-                <div class="registry-stat-content">
-                    <strong><?php echo number_format($stat_active); ?></strong>
-                    <span>Active Records (Default)</span>
-                </div>
-            </a>
-            <a href="baptism-records.php?status=archived" class="registry-stat-card <?php echo $status_filter === 'archived' ? 'active-stat-filter' : ''; ?>" style="text-decoration: none; color: inherit;" title="View archived baptism records">
-                <div class="registry-stat-icon icon-archived"><i class="fas fa-box-archive"></i></div>
-                <div class="registry-stat-content">
-                    <strong><?php echo number_format($stat_archived); ?></strong>
-                    <span>Archived Records</span>
-                </div>
-            </a>
-            <div class="registry-stat-card">
-                <div class="registry-stat-icon icon-books"><i class="fas fa-book-bible"></i></div>
-                <div class="registry-stat-content">
-                    <strong><?php echo number_format($stat_books); ?></strong>
-                    <span>Registry Books</span>
-                </div>
-            </div>
-        </div>
-
         <!-- Formal Search & Control Bar -->
         <div class="registry-control-card">
             <div class="registry-control-flex">
                 <div class="registry-filter-form">
                     <div class="search-input-wrap">
                         <i class="fas fa-magnifying-glass"></i>
-                        <input type="text" id="searchInput" placeholder="Search by name, book, page, parents, sponsors, minister..." value="<?php echo htmlspecialchars($search); ?>">
+                        <input type="text" id="searchInput" placeholder="Search by name, book, page, birthdate, date baptized, parents, sponsors, minister..." value="<?php echo htmlspecialchars($search); ?>">
                     </div>
                     <div class="status-select-wrap">
                         <select id="statusFilter" onchange="applyFilter()" aria-label="Filter records by status">
@@ -1375,18 +1351,18 @@ include '../templates/header.php';
                 <table class="formal-records-table">
                     <thead>
                         <tr>
-                            <th style="width: 70px; text-align: center;">Year</th>
-                            <th style="width: 115px;">Date Baptized</th>
-                            <th style="width: 190px;">Person Baptized</th>
-                            <th style="width: 115px;">Birth</th>
-                            <th style="width: 200px;">Parents</th>
-                            <th style="width: 210px;">Sponsors</th>
-                            <th style="width: 160px;">Minister</th>
-                            <th style="width: 160px;">Parish Priest</th>
-                            <th style="width: 140px;">Secretary</th>
-                            <th style="width: 120px;">Remarks</th>
-                            <th style="width: 90px; text-align: center;">Status</th>
-                            <th style="width: 110px; text-align: center;">Actions</th>
+                            <th style="width: 70px; min-width: 70px; text-align: center;">Year</th>
+                            <th style="width: 120px; min-width: 120px;">Date Baptized</th>
+                            <th style="width: 200px; min-width: 200px;">Person Baptized</th>
+                            <th style="width: 125px; min-width: 125px;">BIRTHDATE</th>
+                            <th style="width: 200px; min-width: 200px;">Parents</th>
+                            <th style="width: 210px; min-width: 210px;">Sponsors</th>
+                            <th style="width: 160px; min-width: 160px;">Minister</th>
+                            <th style="width: 160px; min-width: 160px;">Parish Priest</th>
+                            <th style="width: 140px; min-width: 140px;">Secretary</th>
+                            <th style="width: 120px; min-width: 120px;">Remarks</th>
+                            <th style="width: 95px; min-width: 95px; text-align: center;">Status</th>
+                            <th style="width: 175px; min-width: 175px; text-align: center;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1439,7 +1415,7 @@ include '../templates/header.php';
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <span style="font-weight: 600; color: #1E293B;">
+                                        <span class="date-baptized-badge">
                                             <?php echo format_baptism_record_date($record['birth_date'] ?? '', 'M d, Y'); ?>
                                         </span>
                                     </td>
@@ -1482,7 +1458,7 @@ include '../templates/header.php';
                                             </div>
                                         <?php endif; ?>
                                     </td>
-                                    <td style="text-align: center;">
+                                    <td style="text-align: center; width: 175px; min-width: 175px; white-space: nowrap;">
                                         <div class="record-actions-wrap justify-content-center">
                                             <?php if (!$is_archived): ?>
                                                 <a href="generate-cert.php?id=<?php echo (int)$record['baptism_id']; ?>&type=baptism" class="btn-reg-action" style="color: #92400e; border-color: #fde68a; background: #fffbeb;" title="Generate Official Certificate of Baptism">
@@ -1630,12 +1606,20 @@ include '../templates/header.php';
                             <input type="text" id="fullName" name="fullname" required placeholder="First Name, Middle Name, Last Name, Suffix">
                         </div>
                         <div class="form-group">
-                            <label for="baptismDate">Date of Baptism <span class="required-mark">*</span></label>
-                            <input type="date" id="baptismDate" name="baptism_date" required>
+                            <label for="birthDate">Birthdate <span class="required-mark">*</span></label>
+                            <div class="date-input-wrapper">
+                                <i class="fas fa-calendar-days" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); pointer-events: none;"></i>
+                                <input type="date" id="birthDate" name="birth_date" required class="date-picker-custom" min="<?php echo date('Y-m-d', strtotime('-120 years')); ?>" max="<?php echo date('Y-m-d'); ?>">
+                            </div>
+                            <div id="birthDateError" class="field-validation-error"></div>
                         </div>
                         <div class="form-group">
-                            <label for="birthDate">Date of Birth <span class="required-mark">*</span></label>
-                            <input type="date" id="birthDate" name="birth_date" required max="<?php echo date('Y-m-d'); ?>">
+                            <label for="baptismDate">Date of Baptism <span class="required-mark">*</span></label>
+                            <div class="date-input-wrapper">
+                                <i class="fas fa-calendar-days" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); pointer-events: none;"></i>
+                                <input type="date" id="baptismDate" name="baptism_date" required class="date-picker-custom" max="<?php echo date('Y-m-d'); ?>">
+                            </div>
+                            <div id="baptismDateError" class="field-validation-error"></div>
                         </div>
                         <div class="form-group">
                             <label for="birthPlace">Place of Birth <span class="required-mark">*</span></label>
@@ -1859,6 +1843,14 @@ include '../templates/header.php';
                 const reasonInput = document.getElementById('correctionReason');
                 if (reasonInput) reasonInput.removeAttribute('required');
             }
+            const bErr = document.getElementById('birthDateError');
+            if (bErr) { bErr.textContent = ''; bErr.style.display = 'none'; }
+            const bInputEl = document.getElementById('birthDate');
+            if (bInputEl) bInputEl.style.borderColor = '';
+            const bapErr = document.getElementById('baptismDateError');
+            if (bapErr) { bapErr.textContent = ''; bapErr.style.display = 'none'; }
+            const bapInputEl = document.getElementById('baptismDate');
+            if (bapInputEl) bapInputEl.style.borderColor = '';
             document.getElementById('recordModal').classList.add('show');
             document.body.classList.add('modal-open');
         }
@@ -1903,12 +1895,118 @@ include '../templates/header.php';
                 const reasonInput = document.getElementById('correctionReason');
                 if (reasonInput) reasonInput.setAttribute('required', 'required');
             }
+            const bErr = document.getElementById('birthDateError');
+            if (bErr) { bErr.textContent = ''; bErr.style.display = 'none'; }
+            const bInputEl = document.getElementById('birthDate');
+            if (bInputEl) bInputEl.style.borderColor = '';
+            const bapErr = document.getElementById('baptismDateError');
+            if (bapErr) { bapErr.textContent = ''; bapErr.style.display = 'none'; }
+            const bapInputEl = document.getElementById('baptismDate');
+            if (bapInputEl) bapInputEl.style.borderColor = '';
             document.getElementById('recordModal').classList.add('show');
             document.body.classList.add('modal-open');
         }
 
+        // Inline Validation for Birthdate and Date Baptized
+        function validateBirthdate() {
+            const birthInput = document.getElementById('birthDate');
+            const baptismInput = document.getElementById('baptismDate');
+            const birthErr = document.getElementById('birthDateError');
+            const baptismErr = document.getElementById('baptismDateError');
+            if (!birthInput || !birthErr) return true;
+
+            const birthVal = (birthInput.value || '').trim();
+            const baptismVal = baptismInput ? (baptismInput.value || '').trim() : '';
+
+            // Reset error states
+            birthErr.textContent = '';
+            birthErr.style.display = 'none';
+            birthInput.style.borderColor = '';
+            if (baptismErr) {
+                baptismErr.textContent = '';
+                baptismErr.style.display = 'none';
+                if (baptismInput) baptismInput.style.borderColor = '';
+            }
+
+            if (!birthVal) {
+                birthErr.textContent = 'Birthdate is required.';
+                birthErr.style.display = 'block';
+                birthInput.style.borderColor = '#DC2626';
+                return false;
+            }
+
+            const birthDate = new Date(birthVal + 'T00:00:00');
+            if (isNaN(birthDate.getTime())) {
+                birthErr.textContent = 'Please enter a valid birthdate (YYYY-MM-DD).';
+                birthErr.style.display = 'block';
+                birthInput.style.borderColor = '#DC2626';
+                return false;
+            }
+
+            // Current date in Asia/Manila
+            const now = new Date();
+            const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' }).format(now);
+            const todayDate = new Date(todayStr + 'T00:00:00');
+
+            if (birthDate > todayDate) {
+                birthErr.textContent = 'Birthdate cannot be in the future.';
+                birthErr.style.display = 'block';
+                birthInput.style.borderColor = '#DC2626';
+                return false;
+            }
+
+            const minDate = new Date(todayDate);
+            minDate.setFullYear(minDate.getFullYear() - 120);
+            if (birthDate < minDate) {
+                birthErr.textContent = 'Birthdate cannot be more than 120 years ago.';
+                birthErr.style.display = 'block';
+                birthInput.style.borderColor = '#DC2626';
+                return false;
+            }
+
+            if (baptismVal) {
+                const baptismDate = new Date(baptismVal + 'T00:00:00');
+                if (!isNaN(baptismDate.getTime()) && birthDate > baptismDate) {
+                    birthErr.textContent = 'Birthdate must be before or equal to the Date Baptized.';
+                    birthErr.style.display = 'block';
+                    birthInput.style.borderColor = '#DC2626';
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        // Keep date inputs clickable across the whole field to trigger native picker
+        const bInput = document.getElementById('birthDate');
+        const bapInput = document.getElementById('baptismDate');
+        if (bInput) {
+            bInput.addEventListener('input', validateBirthdate);
+            bInput.addEventListener('change', validateBirthdate);
+            bInput.addEventListener('click', function() {
+                if (typeof this.showPicker === 'function') {
+                    try { this.showPicker(); } catch (err) {}
+                }
+            });
+        }
+        if (bapInput) {
+            bapInput.addEventListener('input', validateBirthdate);
+            bapInput.addEventListener('change', validateBirthdate);
+            bapInput.addEventListener('click', function() {
+                if (typeof this.showPicker === 'function') {
+                    try { this.showPicker(); } catch (err) {}
+                }
+            });
+        }
+
         // Validation on form submission
         document.getElementById('recordForm').addEventListener('submit', function(e) {
+            if (!validateBirthdate()) {
+                e.preventDefault();
+                const bEl = document.getElementById('birthDate');
+                if (bEl) bEl.focus();
+                return false;
+            }
             const minister = (document.getElementById('priestName').value || '').trim();
             const parishPriest = (document.getElementById('parishPriest').value || '').trim();
             if (!minister || minister === 'Rev. Fr. Parish Priest' || minister === 'N/A') {

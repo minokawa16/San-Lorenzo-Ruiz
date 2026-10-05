@@ -78,9 +78,22 @@ final class SacramentalRecordService
         foreach ($dateFields as $field) {
             if (!empty($data[$field]) && !$this->realDate((string)$data[$field])) $errors[] = $this->label($field) . ' must be a real date in YYYY-MM-DD format.';
         }
-        $today = date('Y-m-d');
-        foreach ($cfg['birth'] as $field) if (!empty($data[$field]) && $data[$field] > $today) $errors[] = $this->label($field) . ' cannot be in the future.';
-        if ($type !== 'marriage' && !empty($data[$cfg['birth'][0]]) && !empty($data[$cfg['event']]) && $data[$cfg['event']] < $data[$cfg['birth'][0]]) $errors[] = 'The sacramental event cannot occur before birth.';
+        $tz = new DateTimeZone('Asia/Manila');
+        $today = (new DateTime('now', $tz))->format('Y-m-d');
+        $minBirthDate = (new DateTime('-120 years', $tz))->format('Y-m-d');
+        foreach ($cfg['birth'] as $field) {
+            if (!empty($data[$field])) {
+                if ($data[$field] > $today) {
+                    $errors[] = $this->label($field) . ' cannot be in the future.';
+                } elseif ($data[$field] < $minBirthDate) {
+                    $errors[] = $this->label($field) . ' cannot be more than 120 years ago.';
+                }
+            }
+        }
+        if ($type !== 'marriage' && !empty($data[$cfg['birth'][0]]) && !empty($data[$cfg['event']]) && $data[$cfg['event']] < $data[$cfg['birth'][0]]) {
+            $eventLabel = ($type === 'baptism') ? 'date baptized' : strtolower($this->label($cfg['event']));
+            $errors[] = $this->label($cfg['birth'][0]) . ' must be before or equal to the ' . $eventLabel . '.';
+        }
         if ($type === 'marriage' && !empty($data['wedding_date'])) {
             foreach (['husband_birth_date','wife_birth_date'] as $field) if (!empty($data[$field]) && $data['wedding_date'] < $data[$field]) $errors[] = 'Marriage cannot occur before either spouse was born.';
         }
@@ -183,7 +196,7 @@ final class SacramentalRecordService
     private function fingerprint(array $cfg,array $data):string { $values=[];foreach(array_merge($cfg['name'],$cfg['birth'],[$cfg['event']])as$f)$values[]=$this->normalize($data[$f]??'');if(isset($data['parents']))$values[]=$this->normalize($data['parents']);if(isset($data['husband_parents']))$values[]=$this->normalize($data['husband_parents']);if(isset($data['wife_parents']))$values[]=$this->normalize($data['wife_parents']);return hash('sha256',implode('|',$values)); }
     private function normalize($v):string { $v=mb_strtolower(trim((string)$v),'UTF-8');return preg_replace('/[^\pL\pN]+/u','',$v)??''; }
     private function realDate(string $v):bool { $d=DateTimeImmutable::createFromFormat('!Y-m-d',$v);return $d&&$d->format('Y-m-d')===$v; }
-    private function label(string $f):string { return ucfirst(str_replace('_',' ',$f)); }
+    private function label(string $f):string { if ($f === 'birth_date') return 'Birthdate'; return ucfirst(str_replace('_',' ',$f)); }
     private function bind(mysqli_stmt $stmt,array &$values):void { $types='';foreach($values as$v)$types.=is_int($v)?'i':'s';$refs=[$types];foreach($values as$i=>&$v)$refs[]=&$v;call_user_func_array([$stmt,'bind_param'],$refs); }
     private function audit(int $actor,string $action,string $table,int $id,$old,$new):void { if(function_exists('createAuditLog'))createAuditLog($this->db,$actor,$action,$table,$id,$old,$new); }
 }

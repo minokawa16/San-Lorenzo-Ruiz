@@ -847,7 +847,18 @@ if ($godfather === '' && $godmother === '' && !empty($data['sponsor'])) {
 // Standard Parish Baptismal Record Variables
 $baptism_name = trim((string)($data['fullname'] ?? ''));
 $baptism_birth_place = trim((string)($data['birth_place'] ?? ''));
-$baptism_birth_date = !empty($data['birth_date']) ? displayDate($data['birth_date'], 'F j, Y') : 'N/A';
+$bdate_raw = trim((string)($data['birth_date'] ?? ''));
+if ($bdate_raw !== '' && $bdate_raw !== '0000-00-00' && strtolower($bdate_raw) !== 'null' && strtolower($bdate_raw) !== 'n/a' && $bdate_raw !== '1970-01-01') {
+    try {
+        $tz = new DateTimeZone('Asia/Manila');
+        $b_dt = new DateTime($bdate_raw, $tz);
+        $baptism_birth_date = $b_dt->format('F d, Y');
+    } catch (\Throwable $e) {
+        $baptism_birth_date = '';
+    }
+} else {
+    $baptism_birth_date = '';
+}
 $baptism_residence = trim((string)($data['residence'] ?? ($data['domicile'] ?? ($data['parent_address'] ?? ($data['parish_address'] ?? '')))));
 $baptism_father = $father_name;
 $baptism_father_birthplace = $father_birth_place;
@@ -963,10 +974,18 @@ $issued_timestamp = strtotime($issue['issued_at'] ?? date('Y-m-d')) ?: time();
 $issued_day = date('jS', $issued_timestamp);
 $issued_month = date('F', $issued_timestamp);
 $issued_year = date('Y', $issued_timestamp);
-$birth_timestamp = strtotime($data['birth_date'] ?? '');
-$birth_day = $birth_timestamp ? date('jS', $birth_timestamp) : 'N/A';
-$birth_month = $birth_timestamp ? date('F', $birth_timestamp) : 'N/A';
-$birth_year = $birth_timestamp ? date('Y', $birth_timestamp) : 'N/A';
+$bdate_raw_cert = trim((string)($data['birth_date'] ?? ''));
+if ($bdate_raw_cert !== '' && $bdate_raw_cert !== '0000-00-00' && strtolower($bdate_raw_cert) !== 'null' && strtolower($bdate_raw_cert) !== 'n/a' && $bdate_raw_cert !== '1970-01-01') {
+    $birth_timestamp = strtotime($bdate_raw_cert);
+    $birth_day = $birth_timestamp ? date('jS', $birth_timestamp) : '';
+    $birth_month = $birth_timestamp ? date('F', $birth_timestamp) : '';
+    $birth_year = $birth_timestamp ? date('Y', $birth_timestamp) : '';
+} else {
+    $birth_timestamp = false;
+    $birth_day = '';
+    $birth_month = '';
+    $birth_year = '';
+}
 $baptism_timestamp = strtotime($data['baptism_date'] ?? '');
 $baptism_day = $baptism_timestamp ? date('jS', $baptism_timestamp) : 'N/A';
 $baptism_month = $baptism_timestamp ? date('F', $baptism_timestamp) : 'N/A';
@@ -3047,7 +3066,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
                             <table class="field-row-table">
                                 <tr>
                                     <td class="field-label-cell">Birthday:</td>
-                                    <td class="field-value-cell"><span class="field-value-text"><?php echo e($baptism_birth_date); ?></span></td>
+                                    <td class="field-value-cell"><span class="field-value-text"><?php echo !empty($baptism_birth_date) ? e($baptism_birth_date) : '&nbsp;'; ?></span></td>
                                 </tr>
                             </table>
                             <table class="field-row-table">
