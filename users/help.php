@@ -930,7 +930,7 @@ include '../includes/breadcrumb.php';
             <div class="step-card-body">
               <div class="step-card-title">Fill in Record Details &amp; Upload Requirements</div>
               <p class="step-card-desc">
-                Enter the certificate holder's name, sacrament date or approximate year, parents' names, and upload required supporting files (such as a <strong>PSA Birth Certificate</strong> or <strong>Valid ID</strong>). Accepted formats are strictly <strong>PDF and images (JPG, PNG, WEBP)</strong> up to <strong>5 MB</strong> per file for immediate in-browser viewing and verification.
+                Enter the certificate holder's name, sacrament date or approximate year, parents' names, and upload required supporting files (such as a <strong>PSA of the person on the record</strong>). Accepted formats are strictly <strong>PDF and images (JPG, PNG, WEBP)</strong> up to <strong>5 MB</strong> per file for immediate in-browser viewing and verification.
               </p>
             </div>
           </div>

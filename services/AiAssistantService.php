@@ -509,8 +509,8 @@ final class AiAssistantService
             elseif (preg_match('/\bmarriage|kasal/i', $normalized)) $certType = 'Marriage Certificate';
 
             $answer = $isFil
-                ? "Narito po ang mga hakbang para sa paghiling ng **{$certType}**:\n\n1. Pumunta sa **Certificate Request** page.\n2. Piliin ang **{$certType}**.\n3. Ilagay ang mga personal na detalye (Pangalan, Petsa ng Kapanganakan, Pangalan ng mga Magulang) at layunin ng request.\n4. Mag-upload ng malinaw na kopya ng **PSA / Birth Certificate** o Valid ID.\n5. I-click ang **Submit Certificate Request** at itabi ang inyong Reference Number.\n\n[Open Certificate Requests](../users/request-certificate.php)"
-                : "Here is the step-by-step guide to request an official **{$certType}**:\n\n1. Open the **Certificate Request** page.\n2. Select **{$certType}**.\n3. Fill in the required personal details (Full Name, Date of Birth, Parents' Names) and purpose of request.\n4. Upload a clear copy of your **PSA / Birth Certificate** or Valid ID.\n5. Click **Submit Certificate Request** and save your assigned Reference Number.\n\n[Open Certificate Requests](../users/request-certificate.php)";
+                ? "Narito po ang mga hakbang para sa paghiling ng **{$certType}**:\n\n1. Pumunta sa **Certificate Request** page.\n2. Piliin ang **{$certType}**.\n3. Ilagay ang mga personal na detalye (Pangalan, Petsa ng Kapanganakan, Pangalan ng mga Magulang) at layunin ng request.\n4. Mag-upload ng malinaw na kopya ng **PSA ng taong nasa talaan (PSA of the person on the record)**.\n5. I-click ang **Submit Certificate Request** at itabi ang inyong Reference Number.\n\n[Open Certificate Requests](../users/request-certificate.php)"
+                : "Here is the step-by-step guide to request an official **{$certType}**:\n\n1. Open the **Certificate Request** page.\n2. Select **{$certType}**.\n3. Fill in the required personal details (Full Name, Date of Birth, Parents' Names) and purpose of request.\n4. Upload a clear copy of the **PSA of the person on the record**.\n5. Click **Submit Certificate Request** and save your assigned Reference Number.\n\n[Open Certificate Requests](../users/request-certificate.php)";
             return [
                 'answer' => $answer,
                 'prompts' => ['What documents do I need to submit?', 'How long does certificate processing take?', 'Track My Requests']
@@ -578,8 +578,8 @@ final class AiAssistantService
 
         if (preg_match('/\b(?:how (?:do|can) i upload (?:my )?valid id|what documents (?:do i need to submit|to submit)|what documents do i need|paano mag-?upload ng id|anong dokumento ang kailangan)\b/iu', $normalized)) {
             $answer = $isFil
-                ? "Gabay sa **Pag-upload ng Valid ID at Dokumento**:\n\n• **Paano mag-upload**: Sa form, i-click ang 'Choose File' o i-drag ang malinaw na kopya (JPG, PNG, WEBP, o PDF). Tiyaking maliwanag at kitang-kita ang 4 na sulok ng ID.\n• **Mga Tinatanggap na Valid ID**: PhilSys National ID, Driver's License, Passport, UMID, Postal ID, PRC ID, Voter's ID.\n• **Pangunahing Dokumento**:\n  - *Sertipiko*: PSA Birth Certificate, Valid ID\n  - *Binyag*: PSA Birth Certificate ng bata, Marriage Contract ng magulang\n  - *Kasal*: PSA Birth Certs, CENOMAR, Annotated Baptismal/Confirmation certs, Pre-Cana cert, Marriage License.\n\n[Request Certificate](../users/request-certificate.php)"
-                : "Guide for **Uploading Valid ID and Supporting Documents**:\n\n• **How to upload**: Click 'Choose File' or drag your file (JPG, PNG, WEBP, or PDF) into the upload box. Ensure good lighting and all 4 corners are visible.\n• **Accepted Valid IDs**: PhilSys National ID, Driver's License, Passport, UMID, Postal ID, PRC ID, Voter's ID.\n• **Required Documents**:\n  - *Certificates*: PSA Birth Certificate & Valid ID\n  - *Baptism Service*: Child's PSA Birth Certificate & Parents' Marriage Contract\n  - *Wedding Service*: PSA Birth Certs, CENOMAR, Annotated Baptismal/Confirmation certs, Pre-Cana cert, Marriage License.\n\n[Request Certificate](../users/request-certificate.php)";
+                ? "Gabay sa **Pag-upload ng Dokumento**:\n\n• **Paano mag-upload**: Sa form, i-click ang 'Choose File' o i-drag ang malinaw na kopya (JPG, PNG, WEBP, o PDF). Tiyaking maliwanag at kitang-kita ang 4 na sulok ng dokumento.\n• **Pangunahing Dokumento**:\n  - *Lahat ng Sertipiko (All Certificates)*: **PSA ng taong nasa talaan (PSA of the person on the record)**\n  - *Account Registration*: Valid Government ID (PhilSys National ID, Driver's License, Passport, UMID, Postal ID, PRC ID, Voter's ID)\n  - *Binyag Service*: PSA Birth Certificate ng bata, Marriage Contract ng magulang\n  - *Kasal Service*: PSA Birth Certs, CENOMAR, Annotated Baptismal/Confirmation certs, Pre-Cana cert, Marriage License.\n\n[Request Certificate](../users/request-certificate.php)"
+                : "Guide for **Uploading Supporting Documents**:\n\n• **How to upload**: Click 'Choose File' or drag your file (JPG, PNG, WEBP, or PDF) into the upload box. Ensure good lighting and all 4 corners are visible.\n• **Required Documents**:\n  - *All Certificates*: **PSA of the person on the record**\n  - *Account Registration*: Valid Government ID (PhilSys National ID, Driver's License, Passport, UMID, Postal ID, PRC ID, Voter's ID)\n  - *Baptism Service*: Child's PSA Birth Certificate & Parents' Marriage Contract\n  - *Wedding Service*: PSA Birth Certs, CENOMAR, Annotated Baptismal/Confirmation certs, Pre-Cana cert, Marriage License.\n\n[Request Certificate](../users/request-certificate.php)";
             return [
                 'answer' => $answer,
                 'prompts' => ['Requirements for Baptism', 'Requirements for Marriage', 'Request Certificate']
@@ -602,18 +602,16 @@ final class AiAssistantService
                 $answer = $isFil
                     ? "Para kumuha ng **Baptismal Certificate** para sa inyong anak o sarili:\n\n" .
                       "• **Mga Kailangan**:\n" .
-                      "  - Kopya ng **PSA o Local Civil Registrar Birth Certificate** ng bininyagan\n" .
-                      "  - Buong pangalan ng bata, petsa ng kapanganakan, at pangalan ng mga magulang\n" .
-                      "  - Valid Government ID ng magulang o humihiling (o Authorization Letter at ID kung kinatawan)\n" .
+                      "  - **PSA ng taong nasa talaan (PSA of the person on the record)**\n" .
+                      "  - Buong pangalan ng bininyagan, petsa ng kapanganakan, at pangalan ng mga magulang\n" .
                       "  - Layunin ng request\n" .
                       "• **Bayad at Pagproseso**: **₱100.00** bawat kopya | **1 hanggang 3 araw ng trabaho**\n" .
                       "• **Paano Mag-request**: Magsumite online sa pamamagitan ng [Certificate Request](../users/request-certificate.php) o personal sa tanggapan ng parokya (Martes–Sabado 8:00 AM–5:00 PM, Linggo 7:00 AM–12:00 PM).\n\n" .
                       "Nais po ba ninyong tulungan ko kayo sa pagsumite ng kahilingang ito?"
                     : "To obtain an official **Baptismal Certificate** for your child or yourself:\n\n" .
                       "• **Requirements**:\n" .
-                      "  - Photocopy of **PSA / Local Civil Registrar Birth Certificate**\n" .
+                      "  - **PSA of the person on the record**\n" .
                       "  - Complete record details: Full name of the baptized, date of birth, and parents' full names\n" .
-                      "  - Valid Government ID of parent/requester (or authorization letter and ID if representative)\n" .
                       "  - Purpose of the certificate\n" .
                       "• **Fee & Processing**: **₱100.00** per copy | **1 to 3 working days**\n" .
                       "• **Where & How to Request**: Submit online via [Baptismal Certificate Request](../users/request-certificate.php) or at the Parish Office during office hours (Tuesday–Saturday 8:00 AM–5:00 PM, Sunday 7:00 AM–12:00 PM).\n\n" .
@@ -628,7 +626,7 @@ final class AiAssistantService
                 $answer = $isFil
                     ? "Para sa **Sertipiko ng Kasal (Marriage Certificate)**, narito ang mga kailangan:\n\n" .
                       "• **Mga Kailangan**:\n" .
-                      "  - Valid Government ID ng humihiling (o Authorization Letter at ID kung kinatawan)\n" .
+                      "  - **PSA ng taong nasa talaan (PSA of the person on the record)**\n" .
                       "  - Buong pangalan ng mag-asawa (Groom at Bride kabilang ang maiden name)\n" .
                       "  - Petsa ng kasal sa simbahan\n" .
                       "  - Layunin ng paghingi ng sertipiko\n" .
@@ -637,7 +635,7 @@ final class AiAssistantService
                       "Nais po ba ninyong tulungan ko kayo sa pagsumite ng kahilingang ito?"
                     : "To request an official parish **Marriage Certificate**:\n\n" .
                       "• **Requirements**:\n" .
-                      "  - Valid Government ID of requester (or authorization letter and ID if representative)\n" .
+                      "  - **PSA of the person on the record**\n" .
                       "  - Full names of husband and wife (including bride's maiden name)\n" .
                       "  - Date and place of church marriage\n" .
                       "  - Purpose of the certificate\n" .
@@ -654,20 +652,44 @@ final class AiAssistantService
                 $answer = $isFil
                     ? "Para sa **Confirmation Certificate (Sertipiko ng Kumpil)**, narito ang mga kailangan:\n\n" .
                       "• **Mga Kailangan**:\n" .
-                      "  - Kopya ng PSA Birth Certificate o Baptismal Certificate\n" .
+                      "  - **PSA ng taong nasa talaan (PSA of the person on the record)**\n" .
                       "  - Buong pangalan ng kinumpilan at tinatayang taon ng kumpil\n" .
                       "  - Pangalan ng mga magulang\n" .
-                      "  - Valid Government ID ng humihiling\n" .
+                      "  - Layunin ng paghingi ng sertipiko\n" .
                       "• **Bayad at Pagproseso**: **₱100.00** bawat kopya | **1 hanggang 3 araw ng trabaho**\n" .
                       "• **Paano Mag-request**: Magsumite sa [Request Certificate](../users/request-certificate.php) o personal sa Parish Office (Martes–Sabado 8:00 AM–5:00 PM, Linggo 7:00 AM–12:00 PM)."
                     : "For an official parish **Confirmation Certificate**:\n\n" .
                       "• **Requirements**:\n" .
-                      "  - Copy of PSA Birth Certificate or Baptismal Certificate\n" .
+                      "  - **PSA of the person on the record**\n" .
                       "  - Confirmand's full name and approximate year of confirmation\n" .
                       "  - Names of parents\n" .
-                      "  - Valid Government ID of requester\n" .
+                      "  - Purpose of the certificate\n" .
                       "• **Fee & Processing**: **₱100.00** per copy | **1 to 3 working days**\n" .
                       "• **Where & How to Request**: Submit online via [Confirmation Certificate Request](../users/request-certificate.php) or at the Parish Office (Tuesday–Saturday 8:00 AM–5:00 PM, Sunday 7:00 AM–12:00 PM).";
+                return [
+                    'answer' => $answer,
+                    'prompts' => ['Request Certificate', 'Track My Requests', 'Parish Office Hours']
+                ];
+            }
+
+            if ($isCommunion) {
+                $answer = $isFil
+                    ? "Para sa **First Communion Certificate (Sertipiko ng Unang Komunyon)**, narito ang mga kailangan:\n\n" .
+                      "• **Mga Kailangan**:\n" .
+                      "  - **PSA ng taong nasa talaan (PSA of the person on the record)**\n" .
+                      "  - Buong pangalan ng tumanggap ng komunyon at tinatayang petsa o taon\n" .
+                      "  - Pangalan ng mga magulang\n" .
+                      "  - Layunin ng request\n" .
+                      "• **Bayad at Pagproseso**: **₱100.00** bawat kopya | **1 hanggang 3 araw ng trabaho**\n" .
+                      "• **Paano Mag-request**: Magsumite sa [Request Certificate](../users/request-certificate.php) o personal sa Parish Office (Martes–Sabado 8:00 AM–5:00 PM, Linggo 7:00 AM–12:00 PM)."
+                    : "For an official parish **First Communion Certificate**:\n\n" .
+                      "• **Requirements**:\n" .
+                      "  - **PSA of the person on the record**\n" .
+                      "  - Communicant's full name and approximate date or year of First Communion\n" .
+                      "  - Names of parents\n" .
+                      "  - Purpose of the certificate\n" .
+                      "• **Fee & Processing**: **₱100.00** per copy | **1 to 3 working days**\n" .
+                      "• **Where & How to Request**: Submit online via [First Communion Certificate Request](../users/request-certificate.php) or at the Parish Office (Tuesday–Saturday 8:00 AM–5:00 PM, Sunday 7:00 AM–12:00 PM).";
                 return [
                     'answer' => $answer,
                     'prompts' => ['Request Certificate', 'Track My Requests', 'Parish Office Hours']
@@ -678,18 +700,18 @@ final class AiAssistantService
                 $answer = $isFil
                     ? "Para sa **Death / Funeral Certificate (Sertipiko ng Yumao)**:\n\n" .
                       "• **Mga Kailangan**:\n" .
-                      "  - Certified copy ng PSA o Local Civil Registrar Death Certificate\n" .
+                      "  - **PSA ng taong nasa talaan (PSA of the person on the record)** o Certified PSA Death Certificate\n" .
                       "  - Buong pangalan ng yumao, petsa ng kapanganakan, at petsa ng pagpanaw\n" .
                       "  - Petsa ng libing o misa sa patay\n" .
-                      "  - Valid ID ng humihiling na kamag-anak\n" .
+                      "  - Layunin ng request\n" .
                       "• **Bayad at Pagproseso**: **₱100.00** bawat kopya | **1 hanggang 3 araw ng trabaho**\n" .
                       "• **Paano Mag-request**: Magsumite sa [Request Certificate](../users/request-certificate.php) o sa Parish Office."
                     : "For an official parish **Death / Funeral Certificate**:\n\n" .
                       "• **Requirements**:\n" .
-                      "  - Certified copy of PSA or Local Civil Registrar Death Certificate\n" .
+                      "  - **PSA of the person on the record** (or certified copy of PSA Death Certificate)\n" .
                       "  - Deceased person's full name, birth date, and date of passing\n" .
                       "  - Date of funeral blessing / burial\n" .
-                      "  - Valid Government ID of immediate kin\n" .
+                      "  - Purpose of the certificate\n" .
                       "• **Fee & Processing**: **₱100.00** per copy | **1 to 3 working days**\n" .
                       "• **Where & How to Request**: Submit online through [Request Certificate](../users/request-certificate.php) or at the Parish Office.";
                 return [
@@ -700,16 +722,16 @@ final class AiAssistantService
 
             // General / Vague Certificate Requirements (Part 1 Step 4 & Part 3 Example 1)
             $answer = $isFil
-                ? "Malugod po kayong tutulungan! Aling sertipiko po ang inyong kailangan: **Baptismal**, **Confirmation**, **Marriage**, o **Death**? Sa pangkalahatan, narito ang mga pangunahing kailangan:\n\n" .
-                  "• **Valid Government ID** ng humihiling (o Authorization Letter at ID kung kinatawan)\n" .
+                ? "Malugod po kayong tutulungan! Aling sertipiko po ang inyong kailangan: **Baptismal**, **Confirmation**, **First Communion**, **Marriage**, o **Death**? Sa pangkalahatan, narito ang mga pangunahing kailangan:\n\n" .
+                  "• **PSA ng taong nasa talaan (PSA of the person on the record)**\n" .
                   "• **Buong pangalan** ng nasa talaan at **petsa ng sakramento**\n" .
                   "• **Pangalan ng mga magulang**\n" .
                   "• **Layunin ng request** (school, kasal, pasaporte, atbp.)\n" .
                   "• **Bayad**: **₱100.00** bawat kopya | **Pagproseso**: **1 hanggang 3 araw ng trabaho**\n\n" .
                   "Maaari po kayong magsumite online sa pamamagitan ng [Certificate Request](../users/request-certificate.php) o personal sa opisina ng parokya (Martes–Sabado 8:00 AM–5:00 PM, Linggo 7:00 AM–12:00 PM).\n\n" .
                   "Sabihin lamang po kung alin sa mga ito ang inyong kailangan, at ibibigay ko ang tiyak na mga kailangan at detalye."
-                : "Happy to help! Which certificate do you need: **Baptismal**, **Confirmation**, **Marriage**, or **Death**? In general, you'll need:\n\n" .
-                  "• A **Valid Government ID** (or authorization letter and ID if requesting on behalf of someone else)\n" .
+                : "Happy to help! Which certificate do you need: **Baptismal**, **Confirmation**, **First Communion**, **Marriage**, or **Death**? In general, you'll need:\n\n" .
+                  "• **PSA of the person on the record**\n" .
                   "• The **full name** of the person on the record and **date of the sacrament**\n" .
                   "• The **names of the parents**\n" .
                   "• **Purpose of the request**\n" .
@@ -718,7 +740,7 @@ final class AiAssistantService
                   "Tell me which one, and I'll give you the exact requirements, fee, and processing time.";
             return [
                 'answer' => $answer,
-                'prompts' => ['Baptismal Certificate', 'Confirmation Certificate', 'Marriage Certificate', 'Death Certificate']
+                'prompts' => ['Baptismal Certificate', 'Confirmation Certificate', 'First Communion Certificate', 'Marriage Certificate', 'Death Certificate']
             ];
         }
 
@@ -864,8 +886,8 @@ final class AiAssistantService
                     : "TUGON requires a **Valid ID** to safeguard sacramental records, prevent fraudulent requests, and ensure official certificates are released only to verified individuals or authorized representatives.";
             } elseif (preg_match('/\bwithout uploading|no document/i', $normalized)) {
                 $answer = $isFil
-                    ? "Hindi po maaaring mag-submit nang walang kinakailangang dokumento. Ang mga mandatoryong dokumento (tulad ng PSA Birth Certificate o Valid ID) ay kailangan bago maiproseso ang request."
-                    : "No, you cannot submit without the required documents. Mandatory supporting documents (such as a PSA Birth Certificate or Valid ID) must be attached before submitting.";
+                    ? "Hindi po maaaring mag-submit nang walang kinakailangang dokumento. Ang mga mandatoryong dokumento (tulad ng PSA ng taong nasa talaan para sa mga sertipiko) ay kailangan bago maiproseso ang request."
+                    : "No, you cannot submit without the required documents. Mandatory supporting documents (such as the PSA of the person on the record for certificates) must be attached before submitting.";
             } elseif (preg_match('/\bblurry|malabo/i', $normalized)) {
                 $answer = $isFil
                     ? "Kung malabo ang na-upload na dokumento, buksan ang inyong request sa [My Requests](../users/my-requests.php) o magsumite ng bago na may malinaw at maliwanag na litrato (JPG/PNG) o scanned PDF kung saan kita ang lahat ng sulok."

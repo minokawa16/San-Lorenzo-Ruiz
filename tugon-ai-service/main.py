@@ -104,10 +104,10 @@ KB-21: Rejected request: Open My Requests, read admin remarks, fix specified iss
 
 ## B4. Certificate requests
 KB-30: Certificates available: 1. Baptismal, 2. Confirmation, 3. First Communion, 4. Marriage, 5. Death/Funeral, 6. Good Moral / Parish Certification.
-KB-31: Certificate requirements: Valid government ID of requester; Authorization letter + ID of representative (if claiming for another); PSA or Local Civil Registrar copy (to cross-check); Record info: full name of person on record, approximate date/year of sacrament, parents' full names (including mother's maiden name), purpose of request.
+KB-31: Certificate requirements: PSA of the person on the record; Record info: full name of person on record, approximate date/year of sacrament, parents' full names (including mother's maiden name), purpose of request.
 KB-32: Fee: ₱100.00 per copy. Processing time: typically 1 to 3 working days. Payment: Cash at office on pickup OR GCash to Agnes Calapaan (Parish Secretary) at 0997 742 8176 (enter reference number & upload receipt screenshot).
-KB-33: Online steps: Log in -> Request Certificate -> Choose type and purpose -> Enter details and approximate year -> Upload valid ID & PSA copy -> Choose payment method -> Submit & save reference number (REQ-2026-XXXX) -> Track in My Requests -> Download or pick up when Completed.
-KB-34: Representative: Must present signed authorization letter and own valid ID, plus record owner's ID and PSA copy.
+KB-33: Online steps: Log in -> Request Certificate -> Choose type and purpose -> Enter details and approximate year -> Upload PSA of the person on the record -> Choose payment method -> Submit & save reference number (REQ-2026-XXXX) -> Track in My Requests -> Download or pick up when Completed.
+KB-34: Representative: Must present signed authorization letter and own valid ID, plus the PSA of the person on the record.
 KB-35: Marriage purposes: Baptismal and Confirmation certificates must carry annotation "For Marriage Purposes" and be issued within the last 6 months. Select "Marriage Preparation" as purpose.
 
 ## B5. Sacramental services
