@@ -172,9 +172,7 @@ All requests (certificates, services, blessings) use the same four statuses. Tra
 
 ### KB-31 Certificate requirements
 **Keywords:** requirements certificate, ano kailangan, kinakailangan, how to get certificate, papeles
-- **Valid government ID** of the requester
-- **Authorization letter + ID of the representative**, if requesting for someone else
-- **PSA or Local Civil Registrar copy** of the Birth / Marriage / Death Certificate (used to cross-check the data)
+- **PSA of the person on the record**
 - **Record information:**
   - Full name of the person on the sacramental record
   - Approximate date or year of the sacrament
@@ -195,7 +193,7 @@ All requests (certificates, services, blessings) use the same four statuses. Tra
 2. Open **Request Certificate**.
 3. Choose the **Certificate Type** and the **Purpose**.
 4. Enter the person's complete details and the approximate year of the sacrament.
-5. Upload the supporting documents (valid ID and PSA certificate).
+5. Upload the supporting document (**PSA of the person on the record**).
 6. Choose the payment method (GCash or cash on pick-up). For GCash, enter the reference number and upload the receipt.
 7. Submit, and **save your reference number** (`REQ-2026-XXXX`).
 8. Track progress in **My Requests**.
@@ -203,7 +201,7 @@ All requests (certificates, services, blessings) use the same four statuses. Tra
 
 ### KB-34 Requesting on behalf of someone else
 **Keywords:** representative, authorization letter, for my child, for my mother, kahit sino
-- A representative must present an **authorization letter** and the representative's own **valid ID**, in addition to the documents above.
+- A representative must present an **authorization letter** and the representative's own **valid ID**, in addition to the **PSA of the person on the record**.
 - Certificates are released only to the owner or an authorized representative. The Tugon AI cannot share any person's records in chat.
 
 ### KB-35 Certificate for marriage purposes
