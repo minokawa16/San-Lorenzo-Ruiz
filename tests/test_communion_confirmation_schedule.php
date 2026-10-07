@@ -360,6 +360,28 @@ assertTest(
     "Part 6: RequestRepository category order follows Part 6 specification"
 );
 
+// -------------------------------------------------------------
+// PART 7: SECTION 3 DATE & TIME REMOVAL & NOTICE VERIFICATION
+// -------------------------------------------------------------
+$reqServiceContent = file_get_contents(__DIR__ . '/../users/request-service.php');
+
+assertTest(
+    strpos($reqServiceContent, 'id="communionConfirmationScheduleNotice"') !== false,
+    "Part 7.1: Section 3 contains #communionConfirmationScheduleNotice element"
+);
+
+assertTest(
+    strpos($reqServiceContent, 'The date and time for First Communion / Confirmation will be scheduled and set directly by the Parish Administrator.') !== false,
+    "Part 7.2: Section 3 contains exact helper note text regarding Admin schedule assignment"
+);
+
+assertTest(
+    strpos($reqServiceContent, 'if (communionSelected || confirmationSelected)') !== false &&
+    strpos($reqServiceContent, 'generalServiceDateGroup.style.display = \'none\';') !== false &&
+    strpos($reqServiceContent, 'preferredTimeGroup.style.display = \'none\';') !== false,
+    "Part 7.3: toggleDateInputs hides generalServiceDateGroup and preferredTimeGroup for Communion and Confirmation"
+);
+
 echo "\n-------------------------------------------------------------\n";
 echo "SUMMARY: Total Passed: {$passed}, Total Failed: {$failed}\n";
 echo "-------------------------------------------------------------\n";

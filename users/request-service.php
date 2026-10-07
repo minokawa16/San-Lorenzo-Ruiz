@@ -1901,6 +1901,16 @@ if ($stmt) {
                         <input type="text" class="form-control request-form-control" id="location" name="location" placeholder="Church, chapel, home, hospital, cemetery, or venue" required>
                     </div>
 
+                    <!-- Schedule Notice (First Communion and Confirmation only) -->
+                    <div class="col-12" id="communionConfirmationScheduleNotice" style="display: none;">
+                        <div class="alert alert-info d-flex align-items-center gap-2 mb-0" style="background-color: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; border-radius: 10px;">
+                            <i class="fas fa-calendar-check text-success fs-5"></i>
+                            <div>
+                                <strong>Note:</strong> The date and time for First Communion / Confirmation will be scheduled and set directly by the Parish Administrator.
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Requirements Upload Section (First Communion and Confirmation forms only) -->
                     <div class="col-12" id="communionConfirmationRequirementsSection" style="display: none;">
                         <div class="card border-0 shadow-sm req-section-card mb-2" style="background: #ffffff; border: 1px solid #e2e8f0 !important; border-radius: 12px;">
@@ -2705,108 +2715,151 @@ document.addEventListener('DOMContentLoaded', function() {
         const patronalSelected = isPatronalSelected();
         const preferredTimeGroup = document.getElementById('preferredTimeGroup');
         const preferredTimeSelect = document.getElementById('preferred_time');
+        const locGroup = document.getElementById('locationGroup');
+        const locInput = document.getElementById('location');
+        const s3Title = document.getElementById('step3Title');
+        const s3Sub = document.getElementById('step3Subtitle');
+        const noticeEl = document.getElementById('communionConfirmationScheduleNotice');
 
         if (communionSelected || confirmationSelected) {
+            // First Communion & Confirmation: Date and Time are set by Admin only.
+            // Hide and unrequire date, time, location, and sync card.
             if (scheduleSyncCard) {
                 scheduleSyncCard.hidden = true;
                 scheduleSyncCard.style.display = 'none';
             }
-            if (patronalGroup) patronalGroup.style.display = 'none';
-            if (patronalDate) patronalDate.required = false;
-            if (generalServiceDateGroup) generalServiceDateGroup.style.display = 'none';
-            if (generalServiceDate) generalServiceDate.required = false;
+            if (patronalGroup) {
+                patronalGroup.style.display = 'none';
+            }
+            if (patronalDate) {
+                patronalDate.required = false;
+                patronalDate.value = '';
+                clearFieldError(patronalDate);
+            }
+            if (generalServiceDateGroup) {
+                generalServiceDateGroup.style.display = 'none';
+            }
+            if (generalServiceDate) {
+                generalServiceDate.required = false;
+                generalServiceDate.value = '';
+                clearFieldError(generalServiceDate);
+            }
+            if (preferredDate) {
+                preferredDate.value = '';
+            }
 
-            if (preferredTimeGroup) preferredTimeGroup.style.display = 'none';
+            if (preferredTimeGroup) {
+                preferredTimeGroup.style.display = 'none';
+            }
             if (preferredTimeSelect) {
                 preferredTimeSelect.required = false;
                 preferredTimeSelect.value = '';
+                clearFieldError(preferredTimeSelect);
             }
-            const locGroup = document.getElementById('locationGroup');
-            const locInput = document.getElementById('location');
-            if (locGroup) locGroup.style.display = 'none';
+
+            if (locGroup) {
+                locGroup.style.display = 'none';
+            }
             if (locInput) {
                 locInput.required = false;
-                if (!locInput.value.trim()) locInput.value = 'San Lorenzo Ruiz Parish Church';
+                if (!locInput.value.trim()) {
+                    locInput.value = 'San Lorenzo Ruiz Parish Church';
+                }
+                clearFieldError(locInput);
             }
-            const s3Title = document.getElementById('step3Title');
-            const s3Sub = document.getElementById('step3Subtitle');
-            if (s3Title) s3Title.textContent = 'Requirements & Additional Details';
-            if (s3Sub) s3Sub.textContent = 'Upload required certificate documents and provide any additional details.';
-        } else {
-            const locGroup = document.getElementById('locationGroup');
-            const locInput = document.getElementById('location');
-            if (locGroup) locGroup.style.display = '';
-            if (locInput) locInput.required = true;
-            const s3Title = document.getElementById('step3Title');
-            const s3Sub = document.getElementById('step3Subtitle');
-            if (s3Title) s3Title.textContent = 'Schedule and Location';
-            if (s3Sub) s3Sub.textContent = 'Provide your preferred service schedule and complete location.';
-        }
 
-        if (baptismSelected) {
-            if (preferredTimeGroup) preferredTimeGroup.style.display = '';
-            if (preferredTimeSelect) preferredTimeSelect.required = true;
-            if (scheduleSyncCard) {
-                scheduleSyncCard.hidden = false;
-                scheduleSyncCard.style.display = '';
+            if (s3Title) {
+                s3Title.textContent = 'Requirements & Additional Details';
             }
-            if (scheduleSyncTitle) {
-                scheduleSyncTitle.textContent = 'Baptism Schedule Synchronized';
+            if (s3Sub) {
+                s3Sub.textContent = 'Upload required certificate documents and provide any additional details.';
             }
-            if (patronalGroup) patronalGroup.style.display = 'none';
-            if (patronalDate) patronalDate.required = false;
-            if (generalServiceDateGroup) generalServiceDateGroup.style.display = 'none';
-            if (generalServiceDate) generalServiceDate.required = false;
-        } else if (marriageSelected) {
-            if (preferredTimeGroup) preferredTimeGroup.style.display = '';
-            if (preferredTimeSelect) preferredTimeSelect.required = true;
-            if (scheduleSyncCard) {
-                scheduleSyncCard.hidden = false;
-                scheduleSyncCard.style.display = '';
+            if (noticeEl) {
+                noticeEl.style.display = '';
             }
-            if (scheduleSyncTitle) {
-                scheduleSyncTitle.textContent = 'Wedding Schedule Synchronized';
-            }
-            if (patronalGroup) patronalGroup.style.display = 'none';
-            if (patronalDate) patronalDate.required = false;
-            if (generalServiceDateGroup) generalServiceDateGroup.style.display = 'none';
-            if (generalServiceDate) generalServiceDate.required = false;
-        } else if (funeralSelected) {
-            if (preferredTimeGroup) preferredTimeGroup.style.display = '';
-            if (preferredTimeSelect) preferredTimeSelect.required = true;
-            if (scheduleSyncCard) {
-                scheduleSyncCard.hidden = false;
-                scheduleSyncCard.style.display = '';
-            }
-            if (scheduleSyncTitle) {
-                scheduleSyncTitle.textContent = 'Funeral Mass Schedule Synchronized';
-            }
-            if (patronalGroup) patronalGroup.style.display = 'none';
-            if (patronalDate) patronalDate.required = false;
-            if (generalServiceDateGroup) generalServiceDateGroup.style.display = 'none';
-            if (generalServiceDate) generalServiceDate.required = false;
-        } else if (patronalSelected) {
-            if (preferredTimeGroup) preferredTimeGroup.style.display = '';
-            if (preferredTimeSelect) preferredTimeSelect.required = true;
-            if (scheduleSyncCard) {
-                scheduleSyncCard.hidden = true;
-                scheduleSyncCard.style.display = 'none';
-            }
-            if (patronalGroup) patronalGroup.style.display = '';
-            if (patronalDate) patronalDate.required = true;
-            if (generalServiceDateGroup) generalServiceDateGroup.style.display = 'none';
-            if (generalServiceDate) generalServiceDate.required = false;
         } else {
-            if (preferredTimeGroup) preferredTimeGroup.style.display = '';
-            if (preferredTimeSelect) preferredTimeSelect.required = true;
-            if (scheduleSyncCard) {
-                scheduleSyncCard.hidden = true;
-                scheduleSyncCard.style.display = 'none';
+            // Other sacramental services: standard schedule & location selection
+            if (noticeEl) {
+                noticeEl.style.display = 'none';
             }
-            if (patronalGroup) patronalGroup.style.display = 'none';
-            if (patronalDate) patronalDate.required = false;
-            if (generalServiceDateGroup) generalServiceDateGroup.style.display = '';
-            if (generalServiceDate) generalServiceDate.required = true;
+            if (locGroup) {
+                locGroup.style.display = '';
+            }
+            if (locInput) {
+                locInput.required = true;
+            }
+            if (s3Title) {
+                s3Title.textContent = 'Schedule and Location';
+            }
+            if (s3Sub) {
+                s3Sub.textContent = 'Provide your preferred service schedule and complete location.';
+            }
+
+            if (baptismSelected) {
+                if (preferredTimeGroup) preferredTimeGroup.style.display = '';
+                if (preferredTimeSelect) preferredTimeSelect.required = true;
+                if (scheduleSyncCard) {
+                    scheduleSyncCard.hidden = false;
+                    scheduleSyncCard.style.display = '';
+                }
+                if (scheduleSyncTitle) {
+                    scheduleSyncTitle.textContent = 'Baptism Schedule Synchronized';
+                }
+                if (patronalGroup) patronalGroup.style.display = 'none';
+                if (patronalDate) patronalDate.required = false;
+                if (generalServiceDateGroup) generalServiceDateGroup.style.display = 'none';
+                if (generalServiceDate) generalServiceDate.required = false;
+            } else if (marriageSelected) {
+                if (preferredTimeGroup) preferredTimeGroup.style.display = '';
+                if (preferredTimeSelect) preferredTimeSelect.required = true;
+                if (scheduleSyncCard) {
+                    scheduleSyncCard.hidden = false;
+                    scheduleSyncCard.style.display = '';
+                }
+                if (scheduleSyncTitle) {
+                    scheduleSyncTitle.textContent = 'Wedding Schedule Synchronized';
+                }
+                if (patronalGroup) patronalGroup.style.display = 'none';
+                if (patronalDate) patronalDate.required = false;
+                if (generalServiceDateGroup) generalServiceDateGroup.style.display = 'none';
+                if (generalServiceDate) generalServiceDate.required = false;
+            } else if (funeralSelected) {
+                if (preferredTimeGroup) preferredTimeGroup.style.display = '';
+                if (preferredTimeSelect) preferredTimeSelect.required = true;
+                if (scheduleSyncCard) {
+                    scheduleSyncCard.hidden = false;
+                    scheduleSyncCard.style.display = '';
+                }
+                if (scheduleSyncTitle) {
+                    scheduleSyncTitle.textContent = 'Funeral Mass Schedule Synchronized';
+                }
+                if (patronalGroup) patronalGroup.style.display = 'none';
+                if (patronalDate) patronalDate.required = false;
+                if (generalServiceDateGroup) generalServiceDateGroup.style.display = 'none';
+                if (generalServiceDate) generalServiceDate.required = false;
+            } else if (patronalSelected) {
+                if (preferredTimeGroup) preferredTimeGroup.style.display = '';
+                if (preferredTimeSelect) preferredTimeSelect.required = true;
+                if (scheduleSyncCard) {
+                    scheduleSyncCard.hidden = true;
+                    scheduleSyncCard.style.display = 'none';
+                }
+                if (patronalGroup) patronalGroup.style.display = '';
+                if (patronalDate) patronalDate.required = true;
+                if (generalServiceDateGroup) generalServiceDateGroup.style.display = 'none';
+                if (generalServiceDate) generalServiceDate.required = false;
+            } else {
+                if (preferredTimeGroup) preferredTimeGroup.style.display = '';
+                if (preferredTimeSelect) preferredTimeSelect.required = true;
+                if (scheduleSyncCard) {
+                    scheduleSyncCard.hidden = true;
+                    scheduleSyncCard.style.display = 'none';
+                }
+                if (patronalGroup) patronalGroup.style.display = 'none';
+                if (patronalDate) patronalDate.required = false;
+                if (generalServiceDateGroup) generalServiceDateGroup.style.display = '';
+                if (generalServiceDate) generalServiceDate.required = true;
+            }
         }
         syncScheduleDate();
         updateSpecialRequirementsState();
@@ -3016,7 +3069,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function validateForReview() {
         updateSpecialRequirementsState();
-        const invalidFields = [];
+        let invalidFields = [];
         const seenRadioGroups = new Set();
         serviceForm.querySelectorAll('[required]').forEach(function(field) {
             if (field.disabled) {
@@ -3034,6 +3087,30 @@ document.addEventListener('DOMContentLoaded', function() {
                 addFieldError(field);
             }
         });
+
+        if (isCommunionSelected() || isConfirmationSelected()) {
+            if (generalServiceDate) {
+                generalServiceDate.required = false;
+                clearFieldError(generalServiceDate);
+            }
+            if (preferredTimeSelect) {
+                preferredTimeSelect.required = false;
+                clearFieldError(preferredTimeSelect);
+            }
+            if (patronalDate) {
+                patronalDate.required = false;
+                clearFieldError(patronalDate);
+            }
+            const locInput = document.getElementById('location');
+            if (locInput) {
+                locInput.required = false;
+                clearFieldError(locInput);
+            }
+            const dateAndLocInputs = [generalServiceDate, preferredTimeSelect, patronalDate, locInput, preferredDate];
+            invalidFields = invalidFields.filter(function(f) {
+                return !dateAndLocInputs.includes(f);
+            });
+        }
 
         if (isCommunionSelected()) {
             if (!bapCertInput || !bapCertInput.files || !bapCertInput.files.length) {
@@ -3433,6 +3510,8 @@ document.addEventListener('DOMContentLoaded', function() {
             scheduleReviewItems.push([scheduleDateLabel, displayDate(scheduleDate)]);
             scheduleReviewItems.push(['Preferred Time', displayTime(document.getElementById('preferred_time').value)]);
             scheduleReviewItems.push(['Location', document.getElementById('location').value.trim()]);
+        } else {
+            scheduleReviewItems.push(['Ceremony Schedule', 'To be scheduled and set directly by the Parish Administrator']);
         }
 
         scheduleReviewItems.push(['Additional Details', document.getElementById('details').value.trim() || 'None']);
