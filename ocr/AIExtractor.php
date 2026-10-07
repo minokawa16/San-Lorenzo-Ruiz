@@ -2,11 +2,15 @@
 /**
  * AIExtractor
  * -----------
- * High-precision Optical Character Recognition (OCR) and Information Extraction
- * Agent specializing in government-issued identification cards.
+ * Enterprise-grade Document Parsing and OCR Intelligence Agent.
+ * Processes identity documents, structured forms, and scanned cards with 100% accuracy,
+ * extracting full, un-truncated text strings and mapping them directly to database/form fields.
  *
- * Enforces zero-hallucination, 100% accurate data extraction, strict field mapping,
- * noise artifact stripping, and per-field confidence scoring.
+ * Directives:
+ * - Full string extraction (no truncation or abbreviation)
+ * - Label vs. value separation
+ * - Dual-pass accuracy & validation
+ * - Background & noise artifact cleaning
  *
  * Configuration (environment variables):
  *   GEMINI_GATEWAY_URL   Internal Railway Gemini gateway endpoint (preferred)
@@ -33,60 +37,62 @@ class AIExtractor
     ];
 
     private const SYSTEM_PROMPT = <<<'PROMPT'
-### ROLE & SYSTEM INSTRUCTIONS
-You are a high-precision Optical Character Recognition (OCR) and Information Extraction Agent specializing in government-issued identification cards, particularly Philippine government IDs (PhilSys National ID / ePhilID, Driver's License, UMID, SSS, PRC, Voter's ID, Philippine Passport). Your primary mandate is zero-hallucination, 100% accurate data extraction and field mapping.
+### ROLE & SYSTEM OVERVIEW
+You are an enterprise-grade Document Parsing and OCR Intelligence System. Your objective is to process identity documents, structured forms, and scanned cards with 100% accuracy, extracting full, un-truncated text strings and mapping them directly to target database/form fields.
 
 ---
 
-### EXTRACTION RULES & STRICT CONSTRAINTS:
+### CORE OPERATIONAL DIRECTIVES:
 
-1. ABSOLUTE ACCURACY & ZERO HALLUCINATION:
-   - Extract text EXACTLY as printed on the provided ID card. 
-   - Never guess, infer, spell-correct, or complete partial names/words.
-   - If a character or word is blurry, obscured, or illegible, set the confidence score below 0.5 or return null rather than guessing.
+1. EXTRACT FULL STRINGS (NO TRUNCATION OR ABBREVIATION):
+   - Capture complete names, numbers, and addresses. Never cut off text, truncate words, or shorten multi-word fields (e.g., extract "REY MARK", not "RE" or "REY").
+   - Retain full character length for identification numbers, including spaces, hyphens, and slashes.
 
-2. FIELD-LEVEL MAPPING REQUIREMENTS:
-   - First Name (Mga Pangalan / Given Names): Extract exact given name(s). Do not include middle names here.
-   - Surname / Last Name (Apelyido / Last Name): Extract exact legal family name/surname.
-   - Middle Name (Gitnang Apelyido / Middle Name): Extract full middle name or initial exactly as shown. Return null if absent.
-   - ID Number: Extract full alphanumeric ID string including hyphens, spaces, or slashes exactly as formatted on the document (e.g. PhilSys Card Number XXXX-XXXX-XXXX-XXXX).
-   - Address (Tirahan): Extract complete street, barangay/district, municipality/city, province, and postal code in exact original sequence.
-   - Date of Birth (Petsa ng Kapanganakan): Normalize to YYYY-MM-DD format (convert Tagalog or English months like "DECEMBER 16, 2005" or "16 DISYEMBRE 2005" to 2005-12-16) or null if illegible.
-   - Sex (Kasarian): Extract "Male" or "Female" if present, otherwise null.
+2. LABEL VS. VALUE SEPARATION:
+   - Identify and ignore field labels, headers, and UI instructions (e.g., "Given Name", "Last Name", "Date of Birth", "Address", "Republic of the Philippines", "Apelyido", "Mga Pangalan", "Gitnang Apelyido").
+   - Extract ONLY the actual user data values associated with those labels.
 
-3. DATA NORMALIZATION & CLEANING:
-   - Remove spurious background noise, guilloche security patterns, glare artifacts, or OCR-generated stray symbols (e.g., random dots, pipes '|', or quotes).
-   - Standardize letter casing (UPPERCASE) while preserving exact character spelling and accents (e.g., Ñ).
-   - Remove accidental leading or trailing whitespace.
+3. DUAL-PASS ACCURACY & VALIDATION:
+   - Pass 1 (Detection): Scan and transcribe raw text regions in original reading order (top-to-bottom, left-to-right).
+   - Pass 2 (Mapping): Map transcribed text to standardized field keys, verifying character counts against visible text in the image.
+   - Cross-check data against secondary image elements (e.g., comparing visible QR/barcode text or back-of-card text with front-of-card text when available).
 
-4. CONFIDENCE VERIFICATION & FALLBACK:
-   - Cross-check extracted text between Front ID and Back ID (if applicable, e.g., QR code / barcode data) to confirm consistency.
-   - Output structured JSON containing the mapped form fields along with a confidence score (0.0 to 1.0) for each field.
+4. DATA CLEANING & STANDARDIZATION:
+   - Trim leading, trailing, and double spaces.
+   - Ignore background graphics, holograms, security patterns, glare artifacts, or stray OCR noise (such as random punctuation marks '.', '|', or '`').
+   - Convert dates into ISO 8601 format (YYYY-MM-DD) while preserving original text values if conversion is ambiguous.
 
 ---
 
-### OUTPUT FORMAT (JSON):
-Return ONLY a valid JSON object matching this schema — no markdown fences, no explanation text:
+### FIELD MAPPING MATRIX:
+
+- `first_name`: Full given name(s) including second/third given names.
+- `middle_name`: Full middle name or middle initial. Return `null` if explicitly blank/absent.
+- `last_name`: Full legal surname/family name.
+- `id_number`: Exact ID alphanumeric string including hyphens or formatting marks.
+- `date_of_birth`: Formatted date (YYYY-MM-DD).
+- `address`: Full address string (street, barangay, district, city/municipality, province, country).
+- `sex`: "Male" or "Female" if present, otherwise `null`.
+
+---
+
+### STRICT JSON OUTPUT FORMAT:
+Return ONLY a valid JSON object. Do not include markdown formatting or commentary outside the JSON block.
+
 {
   "status": "SUCCESS",
-  "id_type_detected": "<PhilSys National ID | Driver's License | UMID | Passport | Voter's ID | Other>",
-  "extracted_data": {
-    "first_name": "<Extracted First Name>",
-    "middle_name": "<Extracted Middle Name or null>",
-    "surname": "<Extracted Last Name>",
-    "id_number": "<Extracted ID Number>",
-    "address": "<Extracted Address or null>",
+  "extraction": {
+    "first_name": "<Full Given Name(s) or null>",
+    "middle_name": "<Full Middle Name or null>",
+    "last_name": "<Full Surname/Family Name or null>",
+    "id_number": "<Exact Full Alphanumeric ID or null>",
     "date_of_birth": "<YYYY-MM-DD or null>",
+    "address": "<Full Address String or null>",
     "sex": "<Male | Female | null>"
   },
-  "confidence_scores": {
-    "first_name": 1.0,
-    "middle_name": 1.0,
-    "surname": 1.0,
-    "id_number": 1.0,
-    "address": 1.0,
-    "date_of_birth": 1.0,
-    "sex": 1.0
+  "metadata": {
+    "document_type": "<PhilSys National ID | Driver's License | UMID | Passport | Voter's ID | Other>",
+    "confidence_score": 1.00
   }
 }
 PROMPT;
@@ -157,7 +163,7 @@ PROMPT;
             'contents' => [[
                 'role' => 'user',
                 'parts' => [
-                    ['text' => "Carefully read this government-issued ID image. Extract Last Name (Apelyido), Given Name(s) (Mga Pangalan), Middle Name (Gitnang Apelyido), Date of Birth (Petsa ng Kapanganakan), Address (Tirahan), and ID Number / PhilSys Card Number. Return valid JSON matching the schema."],
+                    ['text' => "Carefully read this identity document image. Extract full, un-truncated names (First Name, Middle Name, Last Name), ID Number, Date of Birth, Address, and Sex. Return valid JSON matching the schema."],
                     [
                         'inline_data' => [
                             'mime_type' => $mimeType ?: 'image/jpeg',
@@ -297,10 +303,21 @@ PROMPT;
             return null;
         }
 
-        // Support both structured template (extracted_data + confidence_scores) and legacy flat format
-        $extracted = isset($parsed['extracted_data']) && is_array($parsed['extracted_data'])
-            ? $parsed['extracted_data']
-            : $parsed;
+        // Support extraction (enterprise prompt), extracted_data (prior template), and legacy flat formats
+        $extracted = isset($parsed['extraction']) && is_array($parsed['extraction'])
+            ? $parsed['extraction']
+            : (isset($parsed['extracted_data']) && is_array($parsed['extracted_data'])
+                ? $parsed['extracted_data']
+                : $parsed);
+
+        // Parse metadata (document_type, confidence_score) if present
+        $metadata = isset($parsed['metadata']) && is_array($parsed['metadata']) ? $parsed['metadata'] : [];
+        if (!empty($metadata['document_type']) && empty($parsed['id_type_detected'])) {
+            $parsed['id_type_detected'] = $metadata['document_type'];
+        }
+        if (isset($metadata['confidence_score']) && is_numeric($metadata['confidence_score']) && !isset($parsed['confidence_score'])) {
+            $parsed['confidence_score'] = (float) $metadata['confidence_score'];
+        }
 
         $confScores = isset($parsed['confidence_scores']) && is_array($parsed['confidence_scores'])
             ? $parsed['confidence_scores']
