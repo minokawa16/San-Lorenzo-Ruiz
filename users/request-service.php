@@ -2271,12 +2271,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             if (submitRequestBtn) {
-                submitRequestBtn.disabled = !bapUploaded;
-                if (!bapUploaded) {
-                    submitRequestBtn.setAttribute('title', 'Please upload your Baptismal Certificate before reviewing.');
-                } else {
-                    submitRequestBtn.removeAttribute('title');
-                }
+                submitRequestBtn.disabled = false;
+                submitRequestBtn.removeAttribute('title');
             }
         } else if (confirmationSelected) {
             commConfReqSection.style.display = '';
@@ -2302,12 +2298,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             if (submitRequestBtn) {
-                submitRequestBtn.disabled = !(bapUploaded && commUploaded);
-                if (!(bapUploaded && commUploaded)) {
-                    submitRequestBtn.setAttribute('title', 'Please upload both Baptismal and First Communion Certificates before reviewing.');
-                } else {
-                    submitRequestBtn.removeAttribute('title');
-                }
+                submitRequestBtn.disabled = false;
+                submitRequestBtn.removeAttribute('title');
             }
         } else {
             commConfReqSection.style.display = 'none';
@@ -3012,10 +3004,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function validationWrapper(field) {
+        if (!field) return null;
         if (field.type === 'radio') {
             return document.querySelector('.request-type-grid');
         }
-        return field.closest('.investigation-field')
+        return field.closest('.req-slot-col')
+            || field.closest('.req-dropzone')
+            || field.closest('.investigation-field')
             || field.closest('.investigation-grid-full')
             || field.closest('.baptism-sheet-field')
             || field.closest('.marriage-upload-cell')
@@ -3075,6 +3070,9 @@ document.addEventListener('DOMContentLoaded', function() {
             if (field.disabled) {
                 return;
             }
+            if (field === bapCertInput || field === commCertInput) {
+                return;
+            }
             if (field.type === 'radio') {
                 if (seenRadioGroups.has(field.name)) {
                     return;
@@ -3114,7 +3112,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (isCommunionSelected()) {
             if (!bapCertInput || !bapCertInput.files || !bapCertInput.files.length) {
-                if (bapCertInput) invalidFields.push(bapCertInput);
+                if (bapCertInput && !invalidFields.includes(bapCertInput)) invalidFields.push(bapCertInput);
                 const bapSlot = document.getElementById('bapCertDropzone');
                 if (bapSlot) bapSlot.classList.add('has-error');
                 const bapErr = document.getElementById('bapCertError');
@@ -3123,6 +3121,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     t.textContent = 'Please upload your Baptismal Certificate before submitting.';
                     bapErr.style.display = '';
                 }
+            } else {
+                const bapSlot = document.getElementById('bapCertDropzone');
+                if (bapSlot) bapSlot.classList.remove('has-error');
+                const bapErr = document.getElementById('bapCertError');
+                if (bapErr) bapErr.style.display = 'none';
             }
 
             const fName = formValue('communion_father_name');
@@ -3171,7 +3174,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (isConfirmationSelected()) {
             if (!bapCertInput || !bapCertInput.files || !bapCertInput.files.length) {
-                if (bapCertInput) invalidFields.push(bapCertInput);
+                if (bapCertInput && !invalidFields.includes(bapCertInput)) invalidFields.push(bapCertInput);
                 const bapSlot = document.getElementById('bapCertDropzone');
                 if (bapSlot) bapSlot.classList.add('has-error');
                 const bapErr = document.getElementById('bapCertError');
@@ -3180,9 +3183,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     t.textContent = 'Please upload your Baptismal Certificate before submitting.';
                     bapErr.style.display = '';
                 }
+            } else {
+                const bapSlot = document.getElementById('bapCertDropzone');
+                if (bapSlot) bapSlot.classList.remove('has-error');
+                const bapErr = document.getElementById('bapCertError');
+                if (bapErr) bapErr.style.display = 'none';
             }
             if (!commCertInput || !commCertInput.files || !commCertInput.files.length) {
-                if (commCertInput) invalidFields.push(commCertInput);
+                if (commCertInput && !invalidFields.includes(commCertInput)) invalidFields.push(commCertInput);
                 const commSlot = document.getElementById('commCertDropzone');
                 if (commSlot) commSlot.classList.add('has-error');
                 const commErr = document.getElementById('commCertError');
@@ -3191,6 +3199,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     t.textContent = 'Please upload your First Communion Certificate before submitting.';
                     commErr.style.display = '';
                 }
+            } else {
+                const commSlot = document.getElementById('commCertDropzone');
+                if (commSlot) commSlot.classList.remove('has-error');
+                const commErr = document.getElementById('commCertError');
+                if (commErr) commErr.style.display = 'none';
             }
 
             const fName = formValue('confirmation_father_name');

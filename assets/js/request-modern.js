@@ -666,7 +666,9 @@
         // Form-level change delegation to catch dynamic date synchronizations
         if (requestForm) {
             requestForm.addEventListener('change', function(e) {
-                if (e.target && (e.target.type === 'date' || e.target.type === 'radio')) {
+                if (e.target && e.target.type === 'radio') {
+                    evaluateScheduleAvailability();
+                } else if (e.target && e.target.type === 'date') {
                     triggerDebouncedCheck();
                 }
             });

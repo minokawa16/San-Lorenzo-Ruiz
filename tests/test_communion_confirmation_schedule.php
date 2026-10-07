@@ -382,6 +382,26 @@ assertTest(
     "Part 7.3: toggleDateInputs hides generalServiceDateGroup and preferredTimeGroup for Communion and Confirmation"
 );
 
+// -------------------------------------------------------------
+// PART 8: SUBMIT BUTTON INTERACTIVITY & VALIDATION
+// -------------------------------------------------------------
+assertTest(
+    strpos($reqServiceContent, 'submitRequestBtn.disabled = !bapUploaded') === false &&
+    strpos($reqServiceContent, 'submitRequestBtn.disabled = !(bapUploaded && commUploaded)') === false,
+    "Part 8.1: updateCommConfRequirementsState never disables submit button prior to click"
+);
+
+assertTest(
+    strpos($reqServiceContent, "field.closest('.req-slot-col')") !== false &&
+    strpos($reqServiceContent, "field.closest('.req-dropzone')") !== false,
+    "Part 8.2: validationWrapper targets requirement slot containers for scroll-into-view navigation"
+);
+
+assertTest(
+    strpos($reqServiceContent, "if (field === bapCertInput || field === commCertInput)") !== false,
+    "Part 8.3: validateForReview prevents duplicate generic inline errors on certificate slots"
+);
+
 echo "\n-------------------------------------------------------------\n";
 echo "SUMMARY: Total Passed: {$passed}, Total Failed: {$failed}\n";
 echo "-------------------------------------------------------------\n";
@@ -390,3 +410,4 @@ if ($failed > 0) {
     exit(1);
 }
 exit(0);
+
