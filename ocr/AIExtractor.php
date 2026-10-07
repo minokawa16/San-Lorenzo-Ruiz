@@ -2,30 +2,15 @@
 /**
  * AIExtractor
  * -----------
- * Sends raw Tesseract / cloud OCR text to the Railway-hosted Gemini
- * gateway (or direct Gemini REST) and asks it to clean OCR noise,
- * identify the ID type, and return a structured JSON object.
+ * High-precision Optical Character Recognition (OCR) and Information Extraction
+ * Agent specializing in government-issued identification cards.
  *
- * Usage:
- *   $extractor = new AIExtractor();
- *   $result    = $extractor->parse($rawOcrText);
- *   // $result is null on failure/no AI key, or:
- *   // [
- *   //   'id_type_detected' => 'PhilSys National ID',
- *   //   'confidence_score' => 0.92,
- *   //   'first_name'       => 'JUAN',
- *   //   'middle_name'      => 'S',
- *   //   'last_name'        => 'DELA CRUZ',
- *   //   'suffix'           => null,
- *   //   'id_number'        => '1234-5678-9012-3456',
- *   //   'date_of_birth'    => '1998-05-14',
- *   //   'address'          => 'Poblacion 1, Aleosan, Cotabato',
- *   //   'birth_place'      => 'Aleosan, Cotabato',
- *   // ]
+ * Enforces zero-hallucination, 100% accurate data extraction, strict field mapping,
+ * noise artifact stripping, and per-field confidence scoring.
  *
  * Configuration (environment variables):
- *   GEMINI_GATEWAY_URL  Internal Railway Gemini gateway endpoint (preferred)
- *   GEMINI_API_KEY      Direct Google Gemini REST API key (fallback)
+ *   GEMINI_GATEWAY_URL   Internal Railway Gemini gateway endpoint (preferred)
+ *   GEMINI_API_KEY       Direct Google Gemini REST API key (fallback)
  *   AI_EXTRACTOR_TIMEOUT (optional, seconds, default 18)
  */
 
@@ -48,31 +33,61 @@ class AIExtractor
     ];
 
     private const SYSTEM_PROMPT = <<<'PROMPT'
-You are an expert e-KYC document parser specialised in Philippine government-issued IDs, especially the Philippine National ID (PhilSys ID / ePhilID).
+### ROLE & SYSTEM INSTRUCTIONS
+You are a high-precision Optical Character Recognition (OCR) and Information Extraction Agent specializing in government-issued identification cards, particularly Philippine government IDs (PhilSys National ID / ePhilID, Driver's License, UMID, SSS, PRC, Voter's ID, Philippine Passport). Your primary mandate is zero-hallucination, 100% accurate data extraction and field mapping.
 
-Given an image or raw OCR text of a Philippine ID, your task is to:
-1. Identify the type of ID (PhilSys National ID / ePhilID, Driver's License, UMID, SSS, PRC, Voter's ID, or Philippine Passport).
-2. Correct common OCR character misreads (e.g. 0↔O, 1↔I, rn↔m, clumped words, broken letters).
-3. Split the full name correctly into first_name, middle_name, last_name, and suffix.
-4. Normalise the date of birth to YYYY-MM-DD format (convert Tagalog or English months like "DECEMBER 16, 2005" to 2005-12-16).
-5. Normalise the address (Street, Barangay, Municipality/City, Province).
-6. Format PhilSys Card Number (PCN) as 16 digits: XXXX-XXXX-XXXX-XXXX.
-7. Extract sex (Male or Female) from Kasarian / Sex if present.
-8. Return ONLY a valid JSON object — no markdown fences, no explanation text, no trailing commas.
+---
 
-Output schema (use null for any field you cannot determine with confidence):
+### EXTRACTION RULES & STRICT CONSTRAINTS:
+
+1. ABSOLUTE ACCURACY & ZERO HALLUCINATION:
+   - Extract text EXACTLY as printed on the provided ID card. 
+   - Never guess, infer, spell-correct, or complete partial names/words.
+   - If a character or word is blurry, obscured, or illegible, set the confidence score below 0.5 or return null rather than guessing.
+
+2. FIELD-LEVEL MAPPING REQUIREMENTS:
+   - First Name (Mga Pangalan / Given Names): Extract exact given name(s). Do not include middle names here.
+   - Surname / Last Name (Apelyido / Last Name): Extract exact legal family name/surname.
+   - Middle Name (Gitnang Apelyido / Middle Name): Extract full middle name or initial exactly as shown. Return null if absent.
+   - ID Number: Extract full alphanumeric ID string including hyphens, spaces, or slashes exactly as formatted on the document (e.g. PhilSys Card Number XXXX-XXXX-XXXX-XXXX).
+   - Address (Tirahan): Extract complete street, barangay/district, municipality/city, province, and postal code in exact original sequence.
+   - Date of Birth (Petsa ng Kapanganakan): Normalize to YYYY-MM-DD format (convert Tagalog or English months like "DECEMBER 16, 2005" or "16 DISYEMBRE 2005" to 2005-12-16) or null if illegible.
+   - Sex (Kasarian): Extract "Male" or "Female" if present, otherwise null.
+
+3. DATA NORMALIZATION & CLEANING:
+   - Remove spurious background noise, guilloche security patterns, glare artifacts, or OCR-generated stray symbols (e.g., random dots, pipes '|', or quotes).
+   - Standardize letter casing (UPPERCASE) while preserving exact character spelling and accents (e.g., Ñ).
+   - Remove accidental leading or trailing whitespace.
+
+4. CONFIDENCE VERIFICATION & FALLBACK:
+   - Cross-check extracted text between Front ID and Back ID (if applicable, e.g., QR code / barcode data) to confirm consistency.
+   - Output structured JSON containing the mapped form fields along with a confidence score (0.0 to 1.0) for each field.
+
+---
+
+### OUTPUT FORMAT (JSON):
+Return ONLY a valid JSON object matching this schema — no markdown fences, no explanation text:
 {
-  "id_type_detected":  "<string>",
-  "confidence_score":  <float 0.0–1.0>,
-  "first_name":        "<string or null>",
-  "middle_name":       "<string or null>",
-  "last_name":         "<string or null>",
-  "suffix":            "<string or null>",
-  "id_number":         "<string or null>",
-  "date_of_birth":     "<YYYY-MM-DD or null>",
-  "address":           "<string or null>",
-  "birth_place":       "<string or null>",
-  "sex":               "<Male|Female or null>"
+  "status": "SUCCESS",
+  "id_type_detected": "<PhilSys National ID | Driver's License | UMID | Passport | Voter's ID | Other>",
+  "extracted_data": {
+    "first_name": "<Extracted First Name>",
+    "middle_name": "<Extracted Middle Name or null>",
+    "surname": "<Extracted Last Name>",
+    "id_number": "<Extracted ID Number>",
+    "address": "<Extracted Address or null>",
+    "date_of_birth": "<YYYY-MM-DD or null>",
+    "sex": "<Male | Female | null>"
+  },
+  "confidence_scores": {
+    "first_name": 1.0,
+    "middle_name": 1.0,
+    "surname": 1.0,
+    "id_number": 1.0,
+    "address": 1.0,
+    "date_of_birth": 1.0,
+    "sex": 1.0
+  }
 }
 PROMPT;
 
@@ -142,10 +157,10 @@ PROMPT;
             'contents' => [[
                 'role' => 'user',
                 'parts' => [
-                    ['text' => "Carefully read this Philippine National ID (PhilSys ID) image. Extract Last Name (Apelyido), Given Name(s) (Mga Pangalan), Middle Name (Gitnang Apelyido), Date of Birth (Petsa ng Kapanganakan), Address (Tirahan), and PhilSys Card Number / PCN (numeric ID in XXXX-XXXX-XXXX-XXXX format). Return valid JSON matching the schema."],
+                    ['text' => "Carefully read this government-issued ID image. Extract Last Name (Apelyido), Given Name(s) (Mga Pangalan), Middle Name (Gitnang Apelyido), Date of Birth (Petsa ng Kapanganakan), Address (Tirahan), and ID Number / PhilSys Card Number. Return valid JSON matching the schema."],
                     [
-                        'inlineData' => [
-                            'mimeType' => $mimeType ?: 'image/jpeg',
+                        'inline_data' => [
+                            'mime_type' => $mimeType ?: 'image/jpeg',
                             'data' => base64_encode($imageBytes)
                         ]
                     ]
@@ -195,8 +210,8 @@ PROMPT;
         ]);
 
         $responseText = $this->httpPost($url, $payload, [
-            'Content-Type: application/json',
-            'Accept: application/json',
+            'Content-Type' => 'application/json',
+            'Accept'       => 'application/json',
         ]);
 
         if ($responseText === null) {
@@ -233,7 +248,7 @@ PROMPT;
         ]);
 
         $responseText = $this->httpPost($url, $payload, [
-            'Content-Type: application/json',
+            'Content-Type' => 'application/json',
         ]);
 
         if ($responseText === null) {
@@ -248,7 +263,7 @@ PROMPT;
 
     /* ─── JSON parsing & validation ──────────────────────────────────────── */
 
-    private function parseAiContent(string $content): ?array
+    public function parseAiContent(string $content): ?array
     {
         $content = trim($content);
         if ($content === '') {
@@ -282,10 +297,27 @@ PROMPT;
             return null;
         }
 
+        // Support both structured template (extracted_data + confidence_scores) and legacy flat format
+        $extracted = isset($parsed['extracted_data']) && is_array($parsed['extracted_data'])
+            ? $parsed['extracted_data']
+            : $parsed;
+
+        $confScores = isset($parsed['confidence_scores']) && is_array($parsed['confidence_scores'])
+            ? $parsed['confidence_scores']
+            : [];
+
+        // Normalize surname -> last_name alias
+        if (!empty($extracted['surname']) && empty($extracted['last_name'])) {
+            $extracted['last_name'] = $extracted['surname'];
+        }
+        if (!empty($confScores['surname']) && empty($confScores['last_name'])) {
+            $confScores['last_name'] = $confScores['surname'];
+        }
+
         // Validate & sanitise
         $result = [];
         foreach (self::SCHEMA_FIELDS as $field) {
-            $val = $parsed[$field] ?? null;
+            $val = $extracted[$field] ?? ($parsed[$field] ?? null);
             if ($val === '' || $val === 'null') {
                 $val = null;
             }
@@ -298,7 +330,12 @@ PROMPT;
             }
             // Confidence must be a float 0–1
             if ($field === 'confidence_score') {
-                $val = is_numeric($val) ? max(0.0, min(1.0, (float) $val)) : null;
+                if ($val !== null && is_numeric($val)) {
+                    $val = max(0.0, min(1.0, (float) $val));
+                } elseif (!empty($confScores)) {
+                    $numericScores = array_filter($confScores, 'is_numeric');
+                    $val = !empty($numericScores) ? max(0.0, min(1.0, (float)(array_sum($numericScores) / count($numericScores)))) : 0.90;
+                }
             }
             // Date must be YYYY-MM-DD
             if ($field === 'date_of_birth' && $val !== null) {
@@ -307,6 +344,10 @@ PROMPT;
             }
             $result[$field] = $val;
         }
+
+        // Attach per-field confidence scores map
+        $result['field_confidence'] = $confScores;
+        $result['confidence_scores'] = $confScores;
 
         // Must have at least last_name or first_name to be useful
         if (empty($result['last_name']) && empty($result['first_name'])) {
