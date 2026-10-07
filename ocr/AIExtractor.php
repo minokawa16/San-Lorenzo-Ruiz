@@ -8,9 +8,10 @@
  *
  * Directives:
  * - Full string extraction (no truncation or abbreviation)
- * - Label vs. value separation
+ * - Concurrently parses front and back ID cards
+ * - Label vs. value separation (filters out 'Apelyido', 'Given Names', 'RE', 'FI')
  * - Dual-pass accuracy & validation
- * - Background & noise artifact cleaning
+ * - Background & noise artifact cleaning (guilloche / security patterns)
  *
  * Configuration (environment variables):
  *   GEMINI_GATEWAY_URL   Internal Railway Gemini gateway endpoint (preferred)
@@ -38,7 +39,7 @@ class AIExtractor
 
     private const SYSTEM_PROMPT = <<<'PROMPT'
 ### ROLE & SYSTEM OVERVIEW
-You are an enterprise-grade Document Parsing and OCR Intelligence System. Your objective is to process identity documents, structured forms, and scanned cards with 100% accuracy, extracting full, un-truncated text strings and mapping them directly to target database/form fields.
+You are an enterprise-grade Document Parsing and OCR Intelligence System. Your objective is to process Philippine identity documents (PhilSys National ID, Driver's License, UMID, Passport, Voter's ID, PRC) with 100% accuracy, extracting full, un-truncated text strings and mapping them directly to target database fields.
 
 ---
 
@@ -47,37 +48,37 @@ You are an enterprise-grade Document Parsing and OCR Intelligence System. Your o
 1. EXTRACT FULL STRINGS (NO TRUNCATION OR ABBREVIATION):
    - Capture complete names, numbers, and addresses. Never cut off text, truncate words, or shorten multi-word fields (e.g., extract "REY MARK", not "RE" or "REY").
    - Retain full character length for identification numbers, including spaces, hyphens, and slashes.
+   - For Philippine National ID (PhilSys), extract the full 16-digit PhilSys Card Number (PCN) in format "XXXX-XXXX-XXXX-XXXX".
 
-2. LABEL VS. VALUE SEPARATION:
-   - Identify and ignore field labels, headers, and UI instructions (e.g., "Given Name", "Last Name", "Date of Birth", "Address", "Republic of the Philippines", "Apelyido", "Mga Pangalan", "Gitnang Apelyido").
+2. STRICT LABEL VS. VALUE SEPARATION:
+   - Identify and completely ignore field labels, headers, and UI instructions in both English and Filipino:
+     - "Given Name", "Given Names", "First Name", "Mga Pangalan"
+     - "Last Name", "Surname", "Apelyido"
+     - "Middle Name", "Gitnang Apelyido"
+     - "Date of Birth", "Birthdate", "Araw ng Kapanganakan"
+     - "Place of Birth", "Birth Place", "Lugar ng Kapanganakan"
+     - "Address", "Tirahan", "Permanent Address"
+     - "Sex", "Gender", "Kasarian"
+     - "Republic of the Philippines", "Republika ng Pilipinas", "PhilSys"
+   - NEVER capture label abbreviations or two-letter noise fragments such as "FI", "RE", "AP", "GIT", or "MGA".
    - Extract ONLY the actual user data values associated with those labels.
 
-3. DUAL-PASS ACCURACY & VALIDATION:
-   - Pass 1 (Detection): Scan and transcribe raw text regions in original reading order (top-to-bottom, left-to-right).
-   - Pass 2 (Mapping): Map transcribed text to standardized field keys, verifying character counts against visible text in the image.
-   - Cross-check data against secondary image elements (e.g., comparing visible QR/barcode text or back-of-card text with front-of-card text when available).
+3. FRONT & BACK CONCURRENT PROCESSING:
+   - If both Front and Back images are provided, combine and cross-validate details:
+     - Front side typically contains: Given Names, Last Name, Middle Name, 16-digit PCN, and Photo.
+     - Back side typically contains: Date of Birth, Place of Birth, Sex, Blood Type, Marital Status, and QR code.
+   - Extract Date of Birth, Place of Birth, and Sex from the back side if they are located there.
 
 4. DATA CLEANING & STANDARDIZATION:
-   - Trim leading, trailing, and double spaces.
-   - Ignore background graphics, holograms, security patterns, glare artifacts, or stray OCR noise (such as random punctuation marks '.', '|', or '`').
-   - Convert dates into ISO 8601 format (YYYY-MM-DD) while preserving original text values if conversion is ambiguous.
-
----
-
-### FIELD MAPPING MATRIX:
-
-- `first_name`: Full given name(s) including second/third given names.
-- `middle_name`: Full middle name or middle initial. Return `null` if explicitly blank/absent.
-- `last_name`: Full legal surname/family name.
-- `id_number`: Exact ID alphanumeric string including hyphens or formatting marks.
-- `date_of_birth`: Formatted date (YYYY-MM-DD).
-- `address`: Full address string (street, barangay, district, city/municipality, province, country).
-- `sex`: "Male" or "Female" if present, otherwise `null`.
+   - Trim leading, trailing, and duplicate spaces.
+   - Ignore background graphics, holograms, security guilloche patterns, glare artifacts, or stray OCR noise.
+   - Convert dates into ISO 8601 format (YYYY-MM-DD).
+   - Standardize Sex to "Male" or "Female".
 
 ---
 
 ### STRICT JSON OUTPUT FORMAT:
-Return ONLY a valid JSON object. Do not include markdown formatting or commentary outside the JSON block.
+Return ONLY a valid JSON object matching this schema. Do not include markdown formatting or commentary outside the JSON block.
 
 {
   "status": "SUCCESS",
@@ -85,14 +86,15 @@ Return ONLY a valid JSON object. Do not include markdown formatting or commentar
     "first_name": "<Full Given Name(s) or null>",
     "middle_name": "<Full Middle Name or null>",
     "last_name": "<Full Surname/Family Name or null>",
-    "id_number": "<Exact Full Alphanumeric ID or null>",
+    "id_number": "<Exact Full Alphanumeric ID / 16-digit PCN or null>",
     "date_of_birth": "<YYYY-MM-DD or null>",
     "address": "<Full Address String or null>",
+    "birth_place": "<City/Municipality, Province or null>",
     "sex": "<Male | Female | null>"
   },
   "metadata": {
-    "document_type": "<PhilSys National ID | Driver's License | UMID | Passport | Voter's ID | Other>",
-    "confidence_score": 1.00
+    "document_type": "<PhilSys National ID | Driver's License | UMID | Passport | Other>",
+    "confidence_score": 0.99
   }
 }
 PROMPT;
@@ -136,15 +138,19 @@ PROMPT;
             }
         }
 
-        // No AI backend available — caller falls back to regex-parsed result
         return null;
     }
 
     /**
-     * Direct multimodal document extraction: sends ID image directly to Gemini API.
+     * Direct multimodal document extraction: sends front (and optional back) ID image directly to Gemini API.
      * High accuracy through security backgrounds (guilloche patterns).
+     *
+     * @param string      $imagePath      Path to the front ID image
+     * @param string|null $backImagePath  Optional path to the back ID image
+     * @param string|null $mimeType       MIME type of the front image
+     * @return array|null
      */
-    public function parseImage(string $imagePath, ?string $mimeType = 'image/jpeg'): ?array
+    public function parseImage(string $imagePath, ?string $backImagePath = null, ?string $mimeType = 'image/jpeg'): ?array
     {
         $apiKey = trim((string) getenv('GEMINI_API_KEY'));
         if ($apiKey === '' || !is_file($imagePath)) {
@@ -156,26 +162,65 @@ PROMPT;
             return null;
         }
 
+        $parts = [
+            [
+                'text' => "Carefully read and parse the provided Philippine government ID image(s)" . ($backImagePath && is_file($backImagePath) ? " (Front side and Back side provided)" : " (Front side)") . ".\n" .
+                          "STRICT RULES:\n" .
+                          "- Extract FULL, UN-TRUNCATED names (First Name, Middle Name, Last Name). Never truncate words or return partial fragments like 'FI', 'RE', or labels.\n" .
+                          "- Filter out and ignore ALL field labels and headers: 'Apelyido', 'Given Names', 'Mga Pangalan', 'Gitnang Apelyido', 'Kasarian', 'Araw ng Kapanganakan', 'Tirahan', 'Republic of the Philippines', 'PhilSys', etc.\n" .
+                          "- Extract exact ID alphanumeric or 16-digit PCN number without omitting digits.\n" .
+                          "- Convert Date of Birth to ISO YYYY-MM-DD.\n" .
+                          "- Return valid JSON matching the schema."
+            ],
+            [
+                'inline_data' => [
+                    'mime_type' => $mimeType ?: 'image/jpeg',
+                    'data'      => base64_encode($imageBytes),
+                ],
+            ],
+        ];
+
+        if ($backImagePath && is_file($backImagePath)) {
+            $backBytes = (string) file_get_contents($backImagePath);
+            if ($backBytes !== '') {
+                $backMime = @mime_content_type($backImagePath) ?: ($mimeType ?: 'image/jpeg');
+                $parts[] = [
+                    'inline_data' => [
+                        'mime_type' => $backMime,
+                        'data'      => base64_encode($backBytes),
+                    ],
+                ];
+            }
+        }
+
         $url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' . urlencode($apiKey);
 
         $payload = json_encode([
             'system_instruction' => ['parts' => [['text' => self::SYSTEM_PROMPT]]],
             'contents' => [[
-                'role' => 'user',
-                'parts' => [
-                    ['text' => "Carefully read this identity document image. Extract full, un-truncated names (First Name, Middle Name, Last Name), ID Number, Date of Birth, Address, and Sex. Return valid JSON matching the schema."],
-                    [
-                        'inline_data' => [
-                            'mime_type' => $mimeType ?: 'image/jpeg',
-                            'data' => base64_encode($imageBytes)
-                        ]
-                    ]
-                ]
+                'role'  => 'user',
+                'parts' => $parts,
             ]],
             'generationConfig' => [
-                'temperature' => 0.1,
-                'maxOutputTokens' => 768,
+                'temperature'      => 0.1,
+                'maxOutputTokens'  => 1024,
                 'responseMimeType' => 'application/json',
+                'responseSchema'   => [
+                    'type'       => 'OBJECT',
+                    'properties' => [
+                        'first_name'        => ['type' => 'STRING'],
+                        'middle_name'       => ['type' => 'STRING'],
+                        'last_name'         => ['type' => 'STRING'],
+                        'id_number'         => ['type' => 'STRING'],
+                        'date_of_birth'     => ['type' => 'STRING'],
+                        'address'           => ['type' => 'STRING'],
+                        'birth_place'       => ['type' => 'STRING'],
+                        'sex'               => ['type' => 'STRING'],
+                        'id_type_detected'  => ['type' => 'STRING'],
+                        'confidence_score'  => ['type' => 'NUMBER'],
+                    ],
+                    'required' => ['first_name', 'last_name'],
+                ],
             ],
         ]);
 
@@ -183,6 +228,24 @@ PROMPT;
             'Content-Type' => 'application/json',
         ]);
 
+        // Fallback without responseSchema if model/proxy returned non-2xx
+        if ($responseText === null) {
+            $payloadFallback = json_encode([
+                'system_instruction' => ['parts' => [['text' => self::SYSTEM_PROMPT]]],
+                'contents' => [[
+                    'role'  => 'user',
+                    'parts' => $parts,
+                ]],
+                'generationConfig' => [
+                    'temperature'      => 0.1,
+                    'maxOutputTokens'  => 1024,
+                    'responseMimeType' => 'application/json',
+                ],
+            ]);
+            $responseText = $this->httpPost($url, $payloadFallback, ['Content-Type' => 'application/json']);
+        }
+
+        // Secondary fallback to gemini-1.5-flash
         if ($responseText === null) {
             $urlFallback = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' . urlencode($apiKey);
             $responseText = $this->httpPost($urlFallback, $payload, ['Content-Type' => 'application/json']);
@@ -224,7 +287,6 @@ PROMPT;
             return null;
         }
 
-        // Gateway returns OpenAI-compatible response
         $data = json_decode($responseText, true);
         $content = $data['choices'][0]['message']['content']
                 ?? $data['message']['content']
@@ -303,7 +365,7 @@ PROMPT;
             return null;
         }
 
-        // Support extraction (enterprise prompt), extracted_data (prior template), and legacy flat formats
+        // Support extraction (enterprise prompt), extracted_data (prior template), and flat schema formats
         $extracted = isset($parsed['extraction']) && is_array($parsed['extraction'])
             ? $parsed['extraction']
             : (isset($parsed['extracted_data']) && is_array($parsed['extracted_data'])
@@ -333,27 +395,54 @@ PROMPT;
 
         // Validate & sanitise
         $result = [];
+        $labelTokensToStrip = [
+            '/^(?:APELYIDO|LAST\s*NAME|SURNAME)[\s:.-]+/i',
+            '/^(?:MGA\s*PANGALAN|GIVEN\s*NAMES?|FIRST\s*NAME)[\s:.-]+/i',
+            '/^(?:GITNANG\s*APELYIDO|MIDDLE\s*NAME)[\s:.-]+/i',
+            '/^(?:KASARIAN|SEX|GENDER)[\s:.-]+/i',
+            '/^(?:ARAW\s*NG\s*KAPANGANAKAN|DATE\s*OF\s*BIRTH|DOB|BIRTHDATE)[\s:.-]+/i',
+            '/^(?:LUGAR\s*NG\s*KAPANGANAKAN|PLACE\s*OF\s*BIRTH|POB)[\s:.-]+/i',
+            '/^(?:TIRAHAN|ADDRESS)[\s:.-]+/i',
+        ];
+
         foreach (self::SCHEMA_FIELDS as $field) {
             $val = $extracted[$field] ?? ($parsed[$field] ?? null);
-            if ($val === '' || $val === 'null') {
+            if ($val === '' || $val === 'null' || $val === 'N/A') {
                 $val = null;
             }
+
             // Normalise strings
             if (is_string($val)) {
                 $val = trim($val);
-                if ($field !== 'id_type_detected' && $field !== 'date_of_birth') {
-                    $val = mb_strtoupper($val, 'UTF-8');
+
+                // Strip leading label prefixes if present
+                foreach ($labelTokensToStrip as $pattern) {
+                    $val = trim((string) preg_replace($pattern, '', $val));
+                }
+
+                // Filter out isolated label or noise fragments like "RE", "FI", "APELYIDO"
+                $upper = mb_strtoupper($val, 'UTF-8');
+                if (in_array($upper, ['RE', 'FI', 'APELYIDO', 'MGA PANGALAN', 'GIVEN NAMES', 'GITNANG APELYIDO', 'LAST NAME', 'FIRST NAME', 'MIDDLE NAME', 'SURNAME'], true)) {
+                    $val = null;
+                } else {
+                    if ($field !== 'id_type_detected' && $field !== 'date_of_birth') {
+                        $val = mb_strtoupper($val, 'UTF-8');
+                    }
                 }
             }
+
             // Confidence must be a float 0–1
             if ($field === 'confidence_score') {
                 if ($val !== null && is_numeric($val)) {
                     $val = max(0.0, min(1.0, (float) $val));
                 } elseif (!empty($confScores)) {
                     $numericScores = array_filter($confScores, 'is_numeric');
-                    $val = !empty($numericScores) ? max(0.0, min(1.0, (float)(array_sum($numericScores) / count($numericScores)))) : 0.90;
+                    $val = !empty($numericScores) ? max(0.0, min(1.0, (float)(array_sum($numericScores) / count($numericScores)))) : 0.99;
+                } else {
+                    $val = 0.99;
                 }
             }
+
             // Date must be YYYY-MM-DD
             if ($field === 'date_of_birth' && $val !== null) {
                 $d = DateTime::createFromFormat('Y-m-d', (string) $val);
@@ -395,7 +484,6 @@ PROMPT;
         curl_close($ch);
 
         if ($response === false || $curlError !== '' || $httpCode < 200 || $httpCode >= 300) {
-            // Soft failure — let caller fall through to next backend
             error_log('[AIExtractor] HTTP ' . $httpCode . ' from ' . parse_url($url, PHP_URL_HOST) . ': ' . ($curlError ?: 'non-2xx response'));
             return null;
         }

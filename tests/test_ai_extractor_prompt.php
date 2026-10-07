@@ -105,5 +105,43 @@ $sampleEmpty = json_encode([
 $result5 = $extractor->parseAiContent($sampleEmpty);
 assertAITest($result5 === null, "Test 5.1: Rejects payload with missing names");
 
+// Test 6: Label stripping and noise token ("RE", "FI") filtering
+$sampleWithLabels = json_encode([
+    'status' => 'SUCCESS',
+    'extraction' => [
+        'first_name' => 'Given Names: Juan Carlos',
+        'middle_name' => 'Gitnang Apelyido: Dela Cruz',
+        'last_name' => 'Apelyido: Cavañas',
+        'id_number' => '1234-5678-9012-3456',
+        'address' => 'Tirahan: Barangay Poblacion, Aleosan, Cotabato',
+        'sex' => 'Kasarian: Male'
+    ]
+]);
+$result6 = $extractor->parseAiContent($sampleWithLabels);
+assertAITest($result6 !== null, "Test 6.1: parseAiContent handles label-prefixed payload");
+assertAITest(($result6['first_name'] ?? '') === 'JUAN CARLOS', "Test 6.2: Strips 'Given Names:' label prefix");
+assertAITest(($result6['middle_name'] ?? '') === 'DELA CRUZ', "Test 6.3: Strips 'Gitnang Apelyido:' label prefix");
+assertAITest(($result6['last_name'] ?? '') === 'CAVAÑAS', "Test 6.4: Strips 'Apelyido:' label prefix");
+assertAITest(($result6['address'] ?? '') === 'BARANGAY POBLACION, ALEOSAN, COTABATO', "Test 6.5: Strips 'Tirahan:' label prefix");
+
+// Test 6.6: Isolated noise fragments ("RE", "FI") filtered out
+$sampleNoise = json_encode([
+    'status' => 'SUCCESS',
+    'extraction' => [
+        'first_name' => 'FI',
+        'last_name' => 'RE'
+    ]
+]);
+$resultNoise = $extractor->parseAiContent($sampleNoise);
+assertAITest($resultNoise === null, "Test 6.6: Filters out isolated 'RE' and 'FI' noise fragments");
+
+// Test 7: parseImage method signature supports concurrent front and back images
+$ref = new ReflectionMethod(AIExtractor::class, 'parseImage');
+$params = $ref->getParameters();
+assertAITest(count($params) >= 2, "Test 7.1: parseImage has parameters for front and back images");
+assertAITest($params[0]->getName() === 'imagePath', "Test 7.2: First param is imagePath");
+assertAITest($params[1]->getName() === 'backImagePath', "Test 7.3: Second param is backImagePath");
+
 echo "\nSummary: Total Passed: $passed, Total Failed: $failed\n";
 exit($failed === 0 ? 0 : 1);
+
