@@ -2,16 +2,20 @@
 /**
  * AIExtractor
  * -----------
- * Enterprise-grade Document Parsing and OCR Intelligence Agent.
- * Processes identity documents, structured forms, and scanned cards with 100% accuracy,
+ * Strict Identity-Document Extraction and OCR Intelligence Agent.
+ * Processes Philippine identity documents with maximum accuracy,
  * extracting full, un-truncated text strings and mapping them directly to database/form fields.
  *
- * Directives:
- * - Full string extraction (no truncation or abbreviation)
- * - Concurrently parses front and back ID cards
- * - Label vs. value separation (filters out 'Apelyido', 'Given Names', 'RE', 'FI')
- * - Dual-pass accuracy & validation
- * - Background & noise artifact cleaning (guilloche / security patterns)
+ * Rules:
+ * - Accuracy is prioritized over filling every field.
+ * - Never invent, assume, infer, hallucinate, or fabricate information.
+ * - Concurrently parses front and back ID cards.
+ * - Identifies document type first.
+ * - Strictly label-based extraction (ignores headers like 'Apelyido', 'Given Name', 'RE', 'FI').
+ * - Preserves compound surnames; separates suffixes (JR, SR, III, etc.).
+ * - Validates date of birth (ISO YYYY-MM-DD) and checks valid calendar date.
+ * - Never derives birthplace from address.
+ * - Real, un-inflated confidence scores.
  *
  * Configuration (environment variables):
  *   GEMINI_GATEWAY_URL   Internal Railway Gemini gateway endpoint (preferred)
@@ -25,6 +29,7 @@ class AIExtractor
 {
     private const SCHEMA_FIELDS = [
         'id_type_detected',
+        'document_confidence',
         'confidence_score',
         'first_name',
         'middle_name',
@@ -38,64 +43,118 @@ class AIExtractor
     ];
 
     private const SYSTEM_PROMPT = <<<'PROMPT'
-### ROLE & SYSTEM OVERVIEW
-You are an enterprise-grade Document Parsing and OCR Intelligence System. Your objective is to process Philippine identity documents (PhilSys National ID, Driver's License, UMID, Passport, Voter's ID, PRC) with 100% accuracy, extracting full, un-truncated text strings and mapping them directly to target database fields.
+You are a strict identity-document extraction system for the TUGON Parish registration system.
 
----
+Your task is to read ONLY information visibly printed on the provided ID.
 
-### CORE OPERATIONAL DIRECTIVES:
+Do not guess.
+Do not infer.
+Do not hallucinate.
+Do not complete missing information from general knowledge.
+Do not use a person's name to infer sex.
+Do not use an address to infer birthplace.
+Do not invent missing characters.
 
-1. EXTRACT FULL STRINGS (NO TRUNCATION OR ABBREVIATION):
-   - Capture complete names, numbers, and addresses. Never cut off text, truncate words, or shorten multi-word fields (e.g., extract "REY MARK", not "RE" or "REY").
-   - Retain full character length for identification numbers, including spaces, hyphens, and slashes.
-   - For Philippine National ID (PhilSys), extract the full 16-digit PhilSys Card Number (PCN) in format "XXXX-XXXX-XXXX-XXXX".
+Identify the document type first.
 
-2. STRICT LABEL VS. VALUE SEPARATION:
-   - Identify and completely ignore field labels, headers, and UI instructions in both English and Filipino:
-     - "Given Name", "Given Names", "First Name", "Mga Pangalan"
-     - "Last Name", "Surname", "Apelyido"
-     - "Middle Name", "Gitnang Apelyido"
-     - "Date of Birth", "Birthdate", "Araw ng Kapanganakan"
-     - "Place of Birth", "Birth Place", "Lugar ng Kapanganakan"
-     - "Address", "Tirahan", "Permanent Address"
-     - "Sex", "Gender", "Kasarian"
-     - "Republic of the Philippines", "Republika ng Pilipinas", "PhilSys"
-   - NEVER capture label abbreviations or two-letter noise fragments such as "FI", "RE", "AP", "GIT", or "MGA".
-   - Extract ONLY the actual user data values associated with those labels.
+Then extract only these fields:
 
-3. FRONT & BACK CONCURRENT PROCESSING:
-   - If both Front and Back images are provided, combine and cross-validate details:
-     - Front side typically contains: Given Names, Last Name, Middle Name, 16-digit PCN, and Photo.
-     - Back side typically contains: Date of Birth, Place of Birth, Sex, Blood Type, Marital Status, and QR code.
-   - Extract Date of Birth, Place of Birth, and Sex from the back side if they are located there.
+- first_name
+- middle_name
+- last_name
+- suffix
+- id_number
+- date_of_birth
+- address
+- birth_place
+- sex
 
-4. DATA CLEANING & STANDARDIZATION:
-   - Trim leading, trailing, and duplicate spaces.
-   - Ignore background graphics, holograms, security guilloche patterns, glare artifacts, or stray OCR noise.
-   - Convert dates into ISO 8601 format (YYYY-MM-DD).
-   - Standardize Sex to "Male" or "Female".
+Use the labels printed on the ID to determine which value belongs to each field.
 
----
+Preserve the exact spelling shown on the ID.
 
-### STRICT JSON OUTPUT FORMAT:
-Return ONLY a valid JSON object matching this schema. Do not include markdown formatting or commentary outside the JSON block.
+For names:
+- Do not split names incorrectly.
+- Do not move words between first, middle, and last name.
+- Preserve compound surnames (e.g., DELA CRUZ, SAN JOSE, DE GUZMAN).
+- Preserve suffixes separately (e.g., JR, SR, II, III).
+- Never capture two-letter label fragments like "FI" or "RE".
+
+For ID numbers:
+- Preserve all digits and characters.
+- Never replace letters and numbers based only on assumptions.
+- Validate the expected format when possible (e.g., PhilSys 16 digits).
+
+For dates:
+- Verify the date is valid.
+- Convert valid dates to YYYY-MM-DD.
+- If uncertain, return null.
+
+For address:
+- Preserve the complete address as printed.
+- Do not invent missing parts.
+
+For birthplace:
+- Only extract it if explicitly shown on the document.
+- Never derive birthplace from address.
+
+For sex:
+- Extract only when explicitly shown.
+- Normalize M/MALE to Male and F/FEMALE to Female.
+
+If a field cannot be confidently read, return null.
+
+Accuracy is more important than completeness.
+
+Return ONLY valid JSON.
+
+Do not add explanations.
+
+Schema:
 
 {
   "status": "SUCCESS",
-  "extraction": {
-    "first_name": "<Full Given Name(s) or null>",
-    "middle_name": "<Full Middle Name or null>",
-    "last_name": "<Full Surname/Family Name or null>",
-    "id_number": "<Exact Full Alphanumeric ID / 16-digit PCN or null>",
-    "date_of_birth": "<YYYY-MM-DD or null>",
-    "address": "<Full Address String or null>",
-    "birth_place": "<City/Municipality, Province or null>",
-    "sex": "<Male | Female | null>"
+  "id_type_detected": null,
+  "document_confidence": 0.0,
+  "fields": {
+    "first_name": {
+      "value": null,
+      "confidence": 0.0
+    },
+    "middle_name": {
+      "value": null,
+      "confidence": 0.0
+    },
+    "last_name": {
+      "value": null,
+      "confidence": 0.0
+    },
+    "suffix": {
+      "value": null,
+      "confidence": 0.0
+    },
+    "id_number": {
+      "value": null,
+      "confidence": 0.0
+    },
+    "date_of_birth": {
+      "value": null,
+      "confidence": 0.0
+    },
+    "address": {
+      "value": null,
+      "confidence": 0.0
+    },
+    "birth_place": {
+      "value": null,
+      "confidence": 0.0
+    },
+    "sex": {
+      "value": null,
+      "confidence": 0.0
+    }
   },
-  "metadata": {
-    "document_type": "<PhilSys National ID | Driver's License | UMID | Passport | Other>",
-    "confidence_score": 0.99
-  }
+  "needs_review": false
 }
 PROMPT;
 
@@ -162,16 +221,12 @@ PROMPT;
             return null;
         }
 
+        $promptText = "Read and extract all visible identity fields from the provided ID card" .
+                      ($backImagePath && is_file($backImagePath) ? " (Front and Back side provided)" : " (Front side)") .
+                      ". Follow all strict rules: never guess or infer missing values, reject label noise like 'Apelyido' or 'FI', convert dates to YYYY-MM-DD, and return JSON matching the schema.";
+
         $parts = [
-            [
-                'text' => "Carefully read and parse the provided Philippine government ID image(s)" . ($backImagePath && is_file($backImagePath) ? " (Front side and Back side provided)" : " (Front side)") . ".\n" .
-                          "STRICT RULES:\n" .
-                          "- Extract FULL, UN-TRUNCATED names (First Name, Middle Name, Last Name). Never truncate words or return partial fragments like 'FI', 'RE', or labels.\n" .
-                          "- Filter out and ignore ALL field labels and headers: 'Apelyido', 'Given Names', 'Mga Pangalan', 'Gitnang Apelyido', 'Kasarian', 'Araw ng Kapanganakan', 'Tirahan', 'Republic of the Philippines', 'PhilSys', etc.\n" .
-                          "- Extract exact ID alphanumeric or 16-digit PCN number without omitting digits.\n" .
-                          "- Convert Date of Birth to ISO YYYY-MM-DD.\n" .
-                          "- Return valid JSON matching the schema."
-            ],
+            ['text' => $promptText],
             [
                 'inline_data' => [
                     'mime_type' => $mimeType ?: 'image/jpeg',
@@ -205,45 +260,12 @@ PROMPT;
                 'temperature'      => 0.1,
                 'maxOutputTokens'  => 1024,
                 'responseMimeType' => 'application/json',
-                'responseSchema'   => [
-                    'type'       => 'OBJECT',
-                    'properties' => [
-                        'first_name'        => ['type' => 'STRING'],
-                        'middle_name'       => ['type' => 'STRING'],
-                        'last_name'         => ['type' => 'STRING'],
-                        'id_number'         => ['type' => 'STRING'],
-                        'date_of_birth'     => ['type' => 'STRING'],
-                        'address'           => ['type' => 'STRING'],
-                        'birth_place'       => ['type' => 'STRING'],
-                        'sex'               => ['type' => 'STRING'],
-                        'id_type_detected'  => ['type' => 'STRING'],
-                        'confidence_score'  => ['type' => 'NUMBER'],
-                    ],
-                    'required' => ['first_name', 'last_name'],
-                ],
             ],
         ]);
 
         $responseText = $this->httpPost($url, $payload, [
             'Content-Type' => 'application/json',
         ]);
-
-        // Fallback without responseSchema if model/proxy returned non-2xx
-        if ($responseText === null) {
-            $payloadFallback = json_encode([
-                'system_instruction' => ['parts' => [['text' => self::SYSTEM_PROMPT]]],
-                'contents' => [[
-                    'role'  => 'user',
-                    'parts' => $parts,
-                ]],
-                'generationConfig' => [
-                    'temperature'      => 0.1,
-                    'maxOutputTokens'  => 1024,
-                    'responseMimeType' => 'application/json',
-                ],
-            ]);
-            $responseText = $this->httpPost($url, $payloadFallback, ['Content-Type' => 'application/json']);
-        }
 
         // Secondary fallback to gemini-1.5-flash
         if ($responseText === null) {
@@ -262,10 +284,6 @@ PROMPT;
 
     /* ─── Railway Gemini Gateway ─────────────────────────────────────────── */
 
-    /**
-     * Calls the internal Railway Gemini gateway which uses the OpenAI-compatible
-     * chat completion API format (used by the TUGON chatbot).
-     */
     private function callGeminiGateway(string $url, string $ocrText): ?array
     {
         $payload = json_encode([
@@ -329,7 +347,7 @@ PROMPT;
         return $this->parseAiContent((string) ($content ?? ''));
     }
 
-    /* ─── JSON parsing & validation ──────────────────────────────────────── */
+    /* ─── JSON parsing, validation & honest confidence ───────────────────── */
 
     public function parseAiContent(string $content): ?array
     {
@@ -365,100 +383,179 @@ PROMPT;
             return null;
         }
 
-        // Support extraction (enterprise prompt), extracted_data (prior template), and flat schema formats
-        $extracted = isset($parsed['extraction']) && is_array($parsed['extraction'])
-            ? $parsed['extraction']
-            : (isset($parsed['extracted_data']) && is_array($parsed['extracted_data'])
-                ? $parsed['extracted_data']
-                : $parsed);
+        $result = [
+            'id_type_detected'    => null,
+            'document_confidence' => 0.0,
+            'overall_confidence'  => 0.0,
+            'needs_review'        => false,
+            'first_name'          => null,
+            'middle_name'         => null,
+            'last_name'           => null,
+            'suffix'              => null,
+            'id_number'           => null,
+            'date_of_birth'       => null,
+            'address'             => null,
+            'birth_place'         => null,
+            'sex'                 => null,
+            'field_confidence'    => [],
+            'fields'              => [],
+        ];
 
-        // Parse metadata (document_type, confidence_score) if present
+        // 1. Detect document type and confidence
         $metadata = isset($parsed['metadata']) && is_array($parsed['metadata']) ? $parsed['metadata'] : [];
-        if (!empty($metadata['document_type']) && empty($parsed['id_type_detected'])) {
-            $parsed['id_type_detected'] = $metadata['document_type'];
-        }
-        if (isset($metadata['confidence_score']) && is_numeric($metadata['confidence_score']) && !isset($parsed['confidence_score'])) {
-            $parsed['confidence_score'] = (float) $metadata['confidence_score'];
+        $result['id_type_detected'] = $parsed['id_type_detected']
+            ?? ($metadata['document_type'] ?? null);
+
+        $docConf = $parsed['document_confidence'] ?? ($metadata['confidence_score'] ?? null);
+        $result['document_confidence'] = is_numeric($docConf) ? max(0.0, min(1.0, (float) $docConf)) : 0.90;
+
+        $result['needs_review'] = (bool) ($parsed['needs_review'] ?? false);
+
+        // 2. Identify extracted fields structure (Section 20 Schema vs extraction vs flat)
+        $rawFields = [];
+        $confScores = [];
+
+        if (isset($parsed['fields']) && is_array($parsed['fields'])) {
+            foreach ($parsed['fields'] as $k => $item) {
+                if (is_array($item)) {
+                    $rawFields[$k] = $item['value'] ?? null;
+                    if (isset($item['confidence']) && is_numeric($item['confidence'])) {
+                        $confScores[$k] = max(0.0, min(1.0, (float) $item['confidence']));
+                    }
+                } else {
+                    $rawFields[$k] = $item;
+                }
+            }
+        } elseif (isset($parsed['extraction']) && is_array($parsed['extraction'])) {
+            $rawFields = $parsed['extraction'];
+        } elseif (isset($parsed['extracted_data']) && is_array($parsed['extracted_data'])) {
+            $rawFields = $parsed['extracted_data'];
+        } else {
+            $rawFields = $parsed;
         }
 
-        $confScores = isset($parsed['confidence_scores']) && is_array($parsed['confidence_scores'])
-            ? $parsed['confidence_scores']
-            : [];
+        if (isset($parsed['confidence_scores']) && is_array($parsed['confidence_scores'])) {
+            foreach ($parsed['confidence_scores'] as $k => $sc) {
+                if (is_numeric($sc)) $confScores[$k] = max(0.0, min(1.0, (float) $sc));
+            }
+        }
 
-        // Normalize surname -> last_name alias
-        if (!empty($extracted['surname']) && empty($extracted['last_name'])) {
-            $extracted['last_name'] = $extracted['surname'];
+        // Surname alias normalization
+        if (!empty($rawFields['surname']) && empty($rawFields['last_name'])) {
+            $rawFields['last_name'] = $rawFields['surname'];
         }
         if (!empty($confScores['surname']) && empty($confScores['last_name'])) {
             $confScores['last_name'] = $confScores['surname'];
         }
 
-        // Validate & sanitise
-        $result = [];
         $labelTokensToStrip = [
-            '/^(?:APELYIDO|LAST\s*NAME|SURNAME)[\s:.-]+/i',
-            '/^(?:MGA\s*PANGALAN|GIVEN\s*NAMES?|FIRST\s*NAME)[\s:.-]+/i',
-            '/^(?:GITNANG\s*APELYIDO|MIDDLE\s*NAME)[\s:.-]+/i',
-            '/^(?:KASARIAN|SEX|GENDER)[\s:.-]+/i',
-            '/^(?:ARAW\s*NG\s*KAPANGANAKAN|DATE\s*OF\s*BIRTH|DOB|BIRTHDATE)[\s:.-]+/i',
-            '/^(?:LUGAR\s*NG\s*KAPANGANAKAN|PLACE\s*OF\s*BIRTH|POB)[\s:.-]+/i',
-            '/^(?:TIRAHAN|ADDRESS)[\s:.-]+/i',
+            '/^(?:APELYIDO|LAST\s*NAME|SURNAME)[\s:.-]+/iu',
+            '/^(?:MGA\s*PANGALAN|GIVEN\s*NAMES?|FIRST\s*NAME)[\s:.-]+/iu',
+            '/^(?:GITNANG\s*APELYIDO|MIDDLE\s*NAME)[\s:.-]+/iu',
+            '/^(?:KASARIAN|SEX|GENDER)[\s:.-]+/iu',
+            '/^(?:ARAW\s*NG\s*KAPANGANAKAN|DATE\s*OF\s*BIRTH|DOB|BIRTHDATE)[\s:.-]+/iu',
+            '/^(?:LUGAR\s*NG\s*KAPANGANAKAN|PLACE\s*OF\s*BIRTH|POB)[\s:.-]+/iu',
+            '/^(?:TIRAHAN|ADDRESS|RESIDENCE)[\s:.-]+/iu',
         ];
 
-        foreach (self::SCHEMA_FIELDS as $field) {
-            $val = $extracted[$field] ?? ($parsed[$field] ?? null);
-            if ($val === '' || $val === 'null' || $val === 'N/A') {
+        $targetKeys = ['first_name', 'middle_name', 'last_name', 'suffix', 'id_number', 'date_of_birth', 'address', 'birth_place', 'sex'];
+
+        foreach ($targetKeys as $key) {
+            $val = $rawFields[$key] ?? null;
+            if ($val === '' || $val === 'null' || $val === 'N/A' || $val === 'NONE') {
                 $val = null;
             }
 
-            // Normalise strings
             if (is_string($val)) {
                 $val = trim($val);
 
-                // Strip leading label prefixes if present
+                // Strip leading label prefixes
                 foreach ($labelTokensToStrip as $pattern) {
                     $val = trim((string) preg_replace($pattern, '', $val));
                 }
 
                 // Filter out isolated label or noise fragments like "RE", "FI", "APELYIDO"
                 $upper = mb_strtoupper($val, 'UTF-8');
-                if (in_array($upper, ['RE', 'FI', 'APELYIDO', 'MGA PANGALAN', 'GIVEN NAMES', 'GITNANG APELYIDO', 'LAST NAME', 'FIRST NAME', 'MIDDLE NAME', 'SURNAME'], true)) {
+                if (in_array($upper, ['RE', 'FI', 'APELYIDO', 'MGA PANGALAN', 'GIVEN NAMES', 'GITNANG APELYIDO', 'LAST NAME', 'FIRST NAME', 'MIDDLE NAME', 'SURNAME', 'KASARIAN', 'TIRAHAN', 'DOB'], true)) {
                     $val = null;
                 } else {
-                    if ($field !== 'id_type_detected' && $field !== 'date_of_birth') {
+                    if ($key !== 'id_type_detected' && $key !== 'date_of_birth') {
                         $val = mb_strtoupper($val, 'UTF-8');
                     }
                 }
             }
 
-            // Confidence must be a float 0–1
-            if ($field === 'confidence_score') {
-                if ($val !== null && is_numeric($val)) {
-                    $val = max(0.0, min(1.0, (float) $val));
-                } elseif (!empty($confScores)) {
-                    $numericScores = array_filter($confScores, 'is_numeric');
-                    $val = !empty($numericScores) ? max(0.0, min(1.0, (float)(array_sum($numericScores) / count($numericScores)))) : 0.99;
+            // Normalization per field
+            if ($key === 'date_of_birth' && $val !== null) {
+                $d = DateTime::createFromFormat('Y-m-d', (string) $val);
+                if ($d instanceof DateTime && $d->format('Y-m-d') === $val) {
+                    $year = (int) $d->format('Y');
+                    $month = (int) $d->format('n');
+                    $day = (int) $d->format('j');
+                    $today = new DateTime('today');
+                    if (checkdate($month, $day, $year) && $year >= 1900 && $d <= $today && $today->diff($d)->y <= 125) {
+                        $val = $d->format('Y-m-d');
+                    } else {
+                        $val = null;
+                    }
                 } else {
-                    $val = 0.99;
+                    $val = null;
                 }
             }
 
-            // Date must be YYYY-MM-DD
-            if ($field === 'date_of_birth' && $val !== null) {
-                $d = DateTime::createFromFormat('Y-m-d', (string) $val);
-                $val = ($d instanceof DateTime && $d->format('Y-m-d') === $val) ? $val : null;
+            if ($key === 'sex' && $val !== null) {
+                $upperSex = mb_strtoupper($val, 'UTF-8');
+                if (str_contains($upperSex, 'FEMALE') || str_contains($upperSex, 'BABAE') || $upperSex === 'F') {
+                    $val = 'Female';
+                } elseif (str_contains($upperSex, 'MALE') || str_contains($upperSex, 'LALAKI') || $upperSex === 'M') {
+                    $val = 'Male';
+                } else {
+                    $val = null;
+                }
             }
-            $result[$field] = $val;
+
+            // Suffix separation if attached to last_name
+            if ($key === 'last_name' && $val !== null && empty($result['suffix'])) {
+                foreach (['JR.', 'JR', 'SR.', 'SR', 'II', 'III', 'IV', 'V', 'VI'] as $suf) {
+                    if (preg_match('/(?:,\s*|\s+)' . preg_quote($suf, '/') . '$/i', $val)) {
+                        $val = trim(preg_replace('/(?:,\s*|\s+)' . preg_quote($suf, '/') . '$/i', '', $val), " ,.-");
+                        $result['suffix'] = mb_strtoupper($suf, 'UTF-8');
+                        break;
+                    }
+                }
+            }
+
+            $conf = $confScores[$key] ?? ($val !== null ? 0.95 : 0.0);
+            $result[$key] = $val;
+            $result['field_confidence'][$key] = $conf;
+
+            $status = 'not_found';
+            if ($val !== null) {
+                $status = ($conf >= 0.95) ? 'verified' : 'needs_review';
+            }
+
+            $result['fields'][$key] = [
+                'value'      => $val,
+                'confidence' => $conf,
+                'status'     => $status,
+                'source'     => 'gemini',
+            ];
         }
 
-        // Attach per-field confidence scores map
-        $result['field_confidence'] = $confScores;
-        $result['confidence_scores'] = $confScores;
-
-        // Must have at least last_name or first_name to be useful
+        // Must have at least last_name or first_name
         if (empty($result['last_name']) && empty($result['first_name'])) {
             return null;
         }
+
+        // Overall confidence calculation
+        $presentScores = array_values(array_filter($result['field_confidence'], fn($v) => is_numeric($v) && $v > 0));
+        $result['overall_confidence'] = !empty($presentScores)
+            ? round(array_sum($presentScores) / count($presentScores), 2)
+            : 0.90;
+        $explicitConf = $parsed['confidence_score'] ?? ($metadata['confidence_score'] ?? null);
+        $result['confidence_score'] = is_numeric($explicitConf)
+            ? (float) $explicitConf
+            : $result['overall_confidence'];
 
         return $result;
     }

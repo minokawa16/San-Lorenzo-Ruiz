@@ -2397,6 +2397,58 @@ $has_logo = is_file($logo_file);
             background: rgba(34, 197, 94, 0.04) !important;
         }
 
+        .form-control.ocr-verified {
+            border-color: rgba(34, 197, 94, 0.65) !important;
+            background: rgba(34, 197, 94, 0.06) !important;
+        }
+
+        .form-control.ocr-corrected {
+            border-color: rgba(59, 130, 246, 0.65) !important;
+            background: rgba(59, 130, 246, 0.06) !important;
+        }
+
+        .form-control.ocr-review {
+            border-color: rgba(245, 158, 11, 0.65) !important;
+            background: rgba(245, 158, 11, 0.06) !important;
+        }
+
+        .field-ocr-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.74rem;
+            font-weight: 700;
+            margin-top: 5px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            letter-spacing: 0.2px;
+            width: fit-content;
+        }
+
+        .field-ocr-badge.verified {
+            color: #86efac;
+            background: rgba(34, 197, 94, 0.18);
+            border: 1px solid rgba(74, 222, 128, 0.35);
+        }
+
+        .field-ocr-badge.corrected {
+            color: #93c5fd;
+            background: rgba(59, 130, 246, 0.18);
+            border: 1px solid rgba(96, 165, 250, 0.35);
+        }
+
+        .field-ocr-badge.review {
+            color: #fde047;
+            background: rgba(245, 158, 11, 0.18);
+            border: 1px solid rgba(251, 191, 36, 0.35);
+        }
+
+        .field-ocr-badge.not-found {
+            color: rgba(255, 248, 235, 0.7);
+            background: rgba(255, 248, 235, 0.08);
+            border: 1px solid rgba(255, 248, 235, 0.16);
+        }
+
         /* ===== SCROLLABLE TERMS BOX ===== */
         .terms-scroll-box {
             height: 260px;
@@ -4149,6 +4201,7 @@ $has_logo = is_file($logo_file);
                 retakeFrontBtn.style.display = 'none';
                 setIdOcrStatus('warning', 'Capture your Front ID and Back ID to auto-fill registration details via OCR.');
                 idOcrStatusInput.value = 'pending';
+                if (typeof clearAllFieldOcrBadges === 'function') clearAllFieldOcrBadges();
                 ['surname','first_name','middle_initial','address','birth_place','id_number','birthdate'].forEach(n => {
                     if (fields[n]) fields[n].classList.remove('ocr-autofilled');
                 });
@@ -4168,6 +4221,7 @@ $has_logo = is_file($logo_file);
                 retakeBackBtn.style.display = 'none';
                 setIdOcrStatus('warning', 'Capture your Front ID and Back ID to auto-fill registration details via OCR.');
                 idOcrStatusInput.value = 'pending';
+                if (typeof clearAllFieldOcrBadges === 'function') clearAllFieldOcrBadges();
                 switchScannerTab('back');
                 updateSubmitGate();
             });
@@ -4187,6 +4241,7 @@ $has_logo = is_file($logo_file);
                 fields.face_capture.value = 'manual';
                 fields.valid_id_capture.value = 'manual';
                 fields.valid_id_back_capture.value = 'manual';
+                if (typeof clearAllFieldOcrBadges === 'function') clearAllFieldOcrBadges();
                 setIdOcrStatus('warning', 'Manual entry mode — fill in your details below.');
                 setFaceStatus('warning', 'Identity will be verified manually by the Parish Office.');
                 faceMatchStatusInput.value = 'admin_review';
@@ -4198,6 +4253,21 @@ $has_logo = is_file($logo_file);
                 if (step2) step2.scrollIntoView({ behavior: 'smooth', block: 'start' });
             });
         }
+
+        // Auto-clear review/not-found badge when parishioner edits manually
+        ['surname', 'first_name', 'middle_initial', 'address', 'birth_place', 'id_number', 'birthdate'].forEach(name => {
+            if (fields[name]) {
+                fields[name].addEventListener('input', () => {
+                    const group = fields[name].closest('.field-group');
+                    if (group) {
+                        const b = group.querySelector('.field-ocr-badge');
+                        if (b && (b.classList.contains('review') || b.classList.contains('not-found'))) {
+                            b.remove();
+                        }
+                    }
+                });
+            }
+        });
 
         // ── CSRF Helpers ─────────────────────────────────────────────────────
         function currentCsrfField() {
@@ -4327,11 +4397,181 @@ $has_logo = is_file($logo_file);
             if (!match) return new Date(NaN);
             return new Date(Number(match[3]), Number(match[1]) - 1, Number(match[2]));
         }
-        function inferBirthPlaceFromAddress(address) {
-            const parts = String(address || '').split(',').map(p => p.trim()).filter(Boolean);
-            if (parts.length < 2) return '';
-            return (parts[parts.length - 2] + ', ' + parts[parts.length - 1]).toUpperCase();
+        // ── Levenshtein Distance for conservative fuzzy comparison ────────────
+        function levenshteinDistance(a, b) {
+            if (a === b) return 0;
+            if (!a.length) return b.length;
+            if (!b.length) return b.length;
+            const matrix = [];
+            for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+            for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+            for (let i = 1; i <= b.length; i++) {
+                for (let j = 1; j <= a.length; j++) {
+                    if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                        matrix[i][j] = matrix[i - 1][j - 1];
+                    } else {
+                        matrix[i][j] = Math.min(
+                            matrix[i - 1][j - 1] + 1,
+                            matrix[i][j - 1] + 1,
+                            matrix[i - 1][j] + 1
+                        );
+                    }
+                }
+            }
+            return matrix[b.length][a.length];
         }
+
+        // ── Clear all field-level OCR badges and styling ─────────────────────
+        function clearAllFieldOcrBadges() {
+            document.querySelectorAll('.field-ocr-badge').forEach(el => el.remove());
+            ['surname', 'first_name', 'middle_initial', 'address', 'birth_place', 'id_number', 'birthdate'].forEach(name => {
+                if (fields[name]) {
+                    fields[name].classList.remove('ocr-autofilled', 'ocr-verified', 'ocr-corrected', 'ocr-review');
+                }
+            });
+        }
+
+        // ── Set Field OCR status badge ────────────────────────────────────────
+        function setFieldOcrBadge(fieldName, status, customText) {
+            const field = fields[fieldName];
+            const group = field ? field.closest('.field-group') : null;
+            if (!group) return;
+
+            let badge = group.querySelector('.field-ocr-badge');
+            if (badge) badge.remove();
+
+            if (field) {
+                field.classList.remove('ocr-autofilled', 'ocr-verified', 'ocr-corrected', 'ocr-review');
+            }
+
+            if (!status || status === 'clear') return;
+
+            badge = document.createElement('div');
+            badge.className = 'field-ocr-badge ' + status;
+
+            let text = customText || '';
+            let icon = '';
+            if (status === 'verified') {
+                text = text || '✓ Verified from ID';
+                icon = '<i class="fas fa-circle-check"></i> ';
+                if (field) field.classList.add('ocr-autofilled', 'ocr-verified');
+            } else if (status === 'corrected') {
+                text = text || '✓ Corrected using ID';
+                icon = '<i class="fas fa-wand-magic-sparkles"></i> ';
+                if (field) field.classList.add('ocr-autofilled', 'ocr-corrected');
+            } else if (status === 'review') {
+                text = text || '⚠ Please verify this field';
+                icon = '<i class="fas fa-triangle-exclamation"></i> ';
+                if (field) field.classList.add('ocr-review');
+            } else if (status === 'not-found') {
+                text = text || 'Not detected — enter manually';
+                icon = '<i class="fas fa-pen"></i> ';
+            }
+
+            badge.innerHTML = icon + '<span>' + text + '</span>';
+
+            const errTarget = group.querySelector('[data-error-for="' + fieldName + '"]');
+            if (errTarget) {
+                errTarget.insertAdjacentElement('beforebegin', badge);
+            } else {
+                group.appendChild(badge);
+            }
+        }
+
+        // ── Process single field with strict confidence thresholds ──────────
+        // Thresholds:
+        // >= 0.95: safe to auto-fill (verified)
+        // 0.85 - 0.94: fill but mark for verification (review)
+        // < 0.85: do NOT auto-fill (conservative, never hallucinate)
+        // Does not overwrite pre-entered user data with worse OCR.
+        function processFieldOcr(formFieldName, apiKey, data, fmt) {
+            const fieldInput = fields[formFieldName];
+            if (!fieldInput) return { filled: false, status: 'none' };
+
+            const audit = (data.fields && data.fields[apiKey]) ? data.fields[apiKey] : null;
+            const idData = data.id_data || {};
+            const rawVal = (audit && audit.value !== null && audit.value !== undefined)
+                ? audit.value
+                : (idData[apiKey] ?? null);
+            const confidence = audit ? Number(audit.confidence ?? 0) : Number(idData.field_confidence?.[apiKey] ?? 0);
+
+            const currentVal = fieldInput.value ? fieldInput.value.trim() : '';
+
+            // If no value was detected on the ID or confidence is below 0.85
+            if (!rawVal || String(rawVal).trim() === '' || confidence < 0.85) {
+                if (!rawVal || String(rawVal).trim() === '') {
+                    setFieldOcrBadge(formFieldName, 'not-found', 'Not detected — enter manually');
+                } else {
+                    // Low confidence OCR (< 0.85) — do not auto-fill
+                    if (currentVal) {
+                        setFieldOcrBadge(formFieldName, 'review', '⚠ Low confidence (' + Math.round(confidence * 100) + '%) — verify your entry');
+                    } else {
+                        setFieldOcrBadge(formFieldName, 'not-found', 'Low confidence — enter manually');
+                    }
+                }
+                return { filled: false, status: (rawVal && currentVal ? 'review' : 'not-found') };
+            }
+
+            // Format candidate value
+            let candidateVal = fmt ? fmt(rawVal) : String(rawVal).trim();
+            if (!candidateVal || String(candidateVal).trim() === '') {
+                setFieldOcrBadge(formFieldName, 'not-found', 'Not detected — enter manually');
+                return { filled: false, status: 'not-found' };
+            }
+
+            // If user has not typed anything in this field yet
+            if (!currentVal) {
+                fieldInput.value = candidateVal;
+                setFieldError(formFieldName, '');
+                try {
+                    fieldInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    fieldInput.dispatchEvent(new Event('change', { bubbles: true }));
+                } catch (e) {}
+
+                if (confidence >= 0.95) {
+                    setFieldOcrBadge(formFieldName, 'verified', '✓ Verified from ID');
+                    return { filled: true, status: 'verified' };
+                } else {
+                    // 0.85 - 0.94: fill but mark for verification
+                    setFieldOcrBadge(formFieldName, 'review', '⚠ Please verify this field');
+                    return { filled: true, status: 'review' };
+                }
+            }
+
+            // User ALREADY entered a value manually:
+            const normUser = currentVal.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const normCandidate = candidateVal.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+            if (normUser === normCandidate) {
+                // Exact match
+                fieldInput.value = candidateVal;
+                setFieldError(formFieldName, '');
+                setFieldOcrBadge(formFieldName, 'verified', '✓ Verified from ID');
+                return { filled: true, status: 'verified' };
+            }
+
+            // Values differ: check similarity and confidence
+            const dist = levenshteinDistance(normUser, normCandidate);
+            const maxLen = Math.max(normUser.length, normCandidate.length);
+            const similarity = maxLen > 0 ? (1 - dist / maxLen) : 0;
+
+            // High confidence ID extraction with close typo: correct it
+            if (confidence >= 0.95 && similarity >= 0.70) {
+                fieldInput.value = candidateVal;
+                setFieldError(formFieldName, '');
+                try {
+                    fieldInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    fieldInput.dispatchEvent(new Event('change', { bubbles: true }));
+                } catch (e) {}
+                setFieldOcrBadge(formFieldName, 'corrected', '✓ Corrected using ID');
+                return { filled: true, status: 'corrected' };
+            } else {
+                // Conflicting or lower confidence: KEEP user value! Do NOT overwrite!
+                setFieldOcrBadge(formFieldName, 'review', '⚠ ID shows: "' + candidateVal + '" — verify');
+                return { filled: false, status: 'review' };
+            }
+        }
+
         function extractFirstJsonObject(text) {
             const source = String(text || '');
             const start = source.indexOf('{');
@@ -4412,60 +4652,72 @@ $has_logo = is_file($logo_file);
                     throw new Error('The ID text could not be scanned clearly. Retake the ID photo and try again.');
                 }
 
+                // STEP 1 Image Quality & Success Check
                 if (!res.ok || !data.success) {
-                    throw new Error(data.error || 'The ID text could not be scanned.');
+                    const qualityReason = (data.image_quality && data.image_quality.reason)
+                        ? data.image_quality.reason
+                        : (data.error || 'ID image is unclear. Please retake the photo with the entire ID visible and readable.');
+                    throw new Error(qualityReason);
+                }
+
+                if (data.image_quality && data.image_quality.pass === false) {
+                    throw new Error(data.image_quality.reason || 'ID image is unclear. Please retake the photo with the entire ID visible and readable.');
                 }
 
                 const idData = data.id_data || {};
+                const fieldsAudit = data.fields || {};
 
-                function fillFromOcr(fieldName, value, fmt) {
-                    if (!value || !fields[fieldName]) return false;
-                    const next = fmt ? fmt(value) : value;
-                    if (!next || String(next).trim() === '') return false;
-                    fields[fieldName].value = next;
-                    fields[fieldName].classList.add('ocr-autofilled');
-                    setFieldError(fieldName, '');
-                    try {
-                        fields[fieldName].dispatchEvent(new Event('input', { bubbles: true }));
-                        fields[fieldName].dispatchEvent(new Event('change', { bubbles: true }));
-                    } catch (e) {}
-                    return true;
+                clearAllFieldOcrBadges();
+
+                let verifiedCount = 0;
+                let correctedCount = 0;
+                let reviewCount = 0;
+                let filledCount = 0;
+
+                function applyOcr(formFieldName, apiKey, fmt) {
+                    const resField = processFieldOcr(formFieldName, apiKey, data, fmt);
+                    if (resField.filled) filledCount++;
+                    if (resField.status === 'verified') verifiedCount++;
+                    else if (resField.status === 'corrected') correctedCount++;
+                    else if (resField.status === 'review') reviewCount++;
+                    return resField;
                 }
 
-                let filledCount = 0;
-                if (fillFromOcr('surname', idData.last_name)) filledCount++;
-                if (fillFromOcr('first_name', idData.first_name)) filledCount++;
-                if (fillFromOcr('middle_initial', idData.middle_name, v => String(v).replace(/[^A-Za-z]/g, '').slice(0, 1).toUpperCase())) filledCount++;
-                if (fillFromOcr('address', idData.address)) filledCount++;
-                if (fillFromOcr('birth_place', idData.birth_place)) filledCount++;
-                if (fillFromOcr('id_number', idData.id_number_formatted || idData.id_number)) filledCount++;
-                if (fillFromOcr('birthdate', idData.date_of_birth_display || idData.date_of_birth, v => /^\d{4}-\d{2}-\d{2}$/.test(v) ? formatIsoDateForDisplay(v) : v)) filledCount++;
+                // Strict Label-Based Field Mapping
+                applyOcr('surname', 'last_name');
+                applyOcr('first_name', 'first_name');
+                applyOcr('middle_initial', 'middle_name', v => String(v).replace(/[^A-Za-z]/g, '').slice(0, 1).toUpperCase());
+                applyOcr('address', 'address');
+                applyOcr('birth_place', 'birth_place'); // Strictly from document, never inferred from address
+                applyOcr('id_number', 'id_number', v => (idData.id_number_formatted || v));
+                applyOcr('birthdate', 'date_of_birth', v => {
+                    const iso = (idData.date_of_birth && /^\d{4}-\d{2}-\d{2}$/.test(idData.date_of_birth)) ? idData.date_of_birth : v;
+                    return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? formatIsoDateForDisplay(iso) : iso;
+                });
 
-                // Sex field (if present)
-                if (idData.sex && fields.sex) {
+                // Sex field (strict extraction, normalized)
+                if (fields.sex && idData.sex) {
                     const s = String(idData.sex).trim().toUpperCase();
-                    if (s === 'MALE' || s === 'M') fields.sex.value = 'male';
-                    else if (s === 'FEMALE' || s === 'F') fields.sex.value = 'female';
-                    try { fields.sex.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
+                    const sexConf = Number(fieldsAudit.sex?.confidence ?? idData.field_confidence?.sex ?? 0);
+                    if (sexConf >= 0.85) {
+                        if (s === 'MALE' || s === 'M') fields.sex.value = 'male';
+                        else if (s === 'FEMALE' || s === 'F') fields.sex.value = 'female';
+                        try { fields.sex.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
+                    }
                 }
 
                 const isAiEnhanced = Boolean(data.ai_enhanced);
                 const idTypeLabel  = data.id_type_detected ? ' (' + data.id_type_detected + ')' : '';
-                const readLabels   = ['last_name', 'first_name', 'middle_name', 'address', 'date_of_birth', 'birth_place', 'id_number']
-                    .filter(k => Boolean(idData[k]))
-                    .map(k => k.replace(/_/g, ' '));
-                const readSummary  = readLabels.length ? ' Read: ' + readLabels.join(', ') + '.' : '';
 
-                if (filledCount === 0) {
-                    setIdOcrStatus('error', 'OCR could not read text from the ID. You can enter your details manually below.');
+                if (filledCount === 0 && reviewCount === 0 && verifiedCount === 0) {
+                    setIdOcrStatus('error', 'OCR could not read verified text from the ID. You can enter your details manually below.');
                     return;
                 }
 
-                const hasCore = Boolean(idData.first_name || idData.last_name);
-                if (hasCore) {
-                    setIdOcrStatus('success', 'ID scanned successfully' + idTypeLabel + ' and auto-filled registration details.' + readSummary, isAiEnhanced);
+                if (reviewCount > 0) {
+                    setIdOcrStatus('review', 'ID scanned' + idTypeLabel + '. Please verify the highlighted fields below.', isAiEnhanced);
                 } else {
-                    setIdOcrStatus('review', 'Some fields need your review — check and correct the highlighted fields below.' + readSummary, isAiEnhanced);
+                    setIdOcrStatus('success', 'ID scanned successfully' + idTypeLabel + ' — verified details auto-filled.', isAiEnhanced);
                 }
 
                 // Face validation (non-blocking)

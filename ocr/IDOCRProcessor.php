@@ -84,6 +84,210 @@ class IDOCRProcessor
     }
 
     /**
+     * Assesses uploaded image quality before attempting OCR extraction.
+     * Flags images that are too dark, washed out by glare, extremely blurry,
+     * cropped to tiny dimensions, or corrupted.
+     *
+     * @param  string $imagePath
+     * @return array{pass: bool, reason: ?string, issues: array, metrics: array}
+     */
+    public static function evaluateImageQuality(string $imagePath): array
+    {
+        if (!is_file($imagePath) || filesize($imagePath) < 80) {
+            return [
+                'pass'    => false,
+                'reason'  => 'ID image is unclear. Please retake the photo with the entire ID visible and readable.',
+                'issues'  => ['file_missing_or_empty'],
+                'metrics' => [],
+            ];
+        }
+
+        $imageInfo = @getimagesize($imagePath);
+        if (!$imageInfo) {
+            return [
+                'pass'    => false,
+                'reason'  => 'Invalid or corrupted image file. Please upload a clear JPG, PNG, or WEBP photo.',
+                'issues'  => ['unsupported_or_corrupt_image'],
+                'metrics' => [],
+            ];
+        }
+
+        $w = (int) $imageInfo[0];
+        $h = (int) $imageInfo[1];
+        $issues = [];
+        $aspect = $w / max(1, $h);
+
+        // 1. Resolution / dimensions check
+        if ($w < 320 || $h < 200) {
+            $issues[] = 'resolution_too_low';
+            $issues[] = 'too_small';
+        }
+
+        // 2. Aspect ratio check (standard ID card is ~1.58:1; reject extreme vertical or horizontal strips)
+        if ($aspect < 0.35 || $aspect > 3.5) {
+            $issues[] = 'extreme_aspect_ratio';
+            $issues[] = 'extreme_aspect_ratio_or_cropped';
+        }
+
+        $metrics = ['width' => $w, 'height' => $h, 'aspect' => round($aspect, 2)];
+
+        if (extension_loaded('gd')) {
+            try {
+                $mime = $imageInfo['mime'] ?? '';
+                $src = false;
+                switch ($mime) {
+                    case 'image/jpeg': $src = @imagecreatefromjpeg($imagePath); break;
+                    case 'image/png':  $src = @imagecreatefrompng($imagePath); break;
+                    case 'image/webp': $src = @imagecreatefromwebp($imagePath); break;
+                }
+
+                if ($src) {
+                    $sampleW = 80;
+                    $sampleH = 80;
+                    $sample = imagecreatetruecolor($sampleW, $sampleH);
+                    imagecopyresampled($sample, $src, 0, 0, 0, 0, $sampleW, $sampleH, $w, $h);
+
+                    $totalLuma = 0;
+                    $lumas = [];
+                    $glareCount = 0;
+                    $darkCount = 0;
+
+                    for ($y = 0; $y < $sampleH; $y++) {
+                        for ($x = 0; $x < $sampleW; $x++) {
+                            $rgb = imagecolorat($sample, $x, $y);
+                            $r = ($rgb >> 16) & 0xFF;
+                            $g = ($rgb >> 8) & 0xFF;
+                            $b = $rgb & 0xFF;
+                            $luma = (0.299 * $r) + (0.587 * $g) + (0.114 * $b);
+                            $lumas[] = $luma;
+                            $totalLuma += $luma;
+                            if ($luma > 248) $glareCount++;
+                            if ($luma < 25)  $darkCount++;
+                        }
+                    }
+
+                    $totalPixels = count($lumas);
+                    $meanLuma = $totalLuma / max(1, $totalPixels);
+
+                    $variance = 0;
+                    foreach ($lumas as $l) {
+                        $variance += pow($l - $meanLuma, 2);
+                    }
+                    $stdDev = sqrt($variance / max(1, $totalPixels));
+
+                    $glarePct = ($glareCount / max(1, $totalPixels)) * 100;
+                    $darkPct  = ($darkCount / max(1, $totalPixels)) * 100;
+
+                    $metrics['mean_brightness'] = round($meanLuma, 1);
+                    $metrics['contrast_stddev'] = round($stdDev, 1);
+                    $metrics['glare_percent']   = round($glarePct, 1);
+                    $metrics['dark_percent']    = round($darkPct, 1);
+
+                    // Insufficient lighting
+                    if ($meanLuma < 28 && $darkPct > 55) {
+                        $issues[] = 'insufficient_lighting';
+                    }
+
+                    // Blown out glare
+                    if ($meanLuma > 245 || ($glarePct > 65 && $stdDev < 15)) {
+                        $issues[] = 'excessive_glare';
+                    }
+
+                    // Zero or near-zero contrast (pure solid blank background)
+                    if ($stdDev < 3.0) {
+                        $issues[] = 'extremely_low_contrast_or_blank';
+                    }
+
+                    imagedestroy($sample);
+                    imagedestroy($src);
+                }
+            } catch (Throwable $e) {
+                // Non-blocking fallback
+            }
+        }
+
+        $pass = empty($issues);
+        $reason = null;
+        if (!$pass) {
+            if (in_array('insufficient_lighting', $issues, true)) {
+                $reason = 'ID image is too dark. Please retake the photo in better lighting.';
+            } elseif (in_array('excessive_glare', $issues, true)) {
+                $reason = 'ID image has excessive glare. Please tilt the ID away from direct flash or reflection.';
+            } elseif (in_array('resolution_too_low', $issues, true) || in_array('too_small', $issues, true)) {
+                $reason = 'ID image is too small. Please move the camera closer to the ID.';
+            } else {
+                $reason = 'ID image is unclear. Please retake the photo with the entire ID visible and readable.';
+            }
+        }
+
+        return [
+            'pass'    => $pass,
+            'reason'  => $reason,
+            'issues'  => $issues,
+            'metrics' => $metrics,
+        ];
+    }
+
+    /**
+     * Determines document type from visible text keywords.
+     *
+     * @param  string $text
+     * @return array{type: string, confidence: float}
+     */
+    public static function detectDocumentType(string $text): array
+    {
+        $upper = mb_strtoupper($text, 'UTF-8');
+
+        // Check specific IDs first before generic Republic header
+        if (preg_match('/(PASAPORTE|PASSPORT|DEPARTMENT OF FOREIGN AFFAIRS|DFA)/u', $upper)) {
+            return ['type' => 'Passport', 'confidence' => 0.98];
+        }
+        if (preg_match('/(DRIVER\'S LICENSE|DRIVERS LICENSE|LAND TRANSPORTATION OFFICE|LTO|NON-PROFESSIONAL DRIVER|PROFESSIONAL DRIVER)/u', $upper)) {
+            return ['type' => 'Driver\'s License', 'confidence' => 0.97];
+        }
+        if (preg_match('/(UNIFIED MULTI-PURPOSE|UMID|COMMON REFERENCE NUMBER|CRN|SOCIAL SECURITY SYSTEM|GSIS)/u', $upper)) {
+            return ['type' => 'UMID', 'confidence' => 0.96];
+        }
+        if (preg_match('/(POSTAL ID|PHILPOST|PHILIPPINE POSTAL CORPORATION)/u', $upper)) {
+            return ['type' => 'Postal ID', 'confidence' => 0.95];
+        }
+        if (preg_match('/(VOTER\'S|VOTERS|COMMISSION ON ELECTIONS|COMELEC)/u', $upper)) {
+            return ['type' => 'Voter\'s ID', 'confidence' => 0.95];
+        }
+        if (preg_match('/(PROFESSIONAL REGULATION COMMISSION|PRC)/u', $upper)) {
+            return ['type' => 'PRC ID', 'confidence' => 0.95];
+        }
+        if (preg_match('/(STUDENT ID|SCHOOL ID|UNIVERSITY|COLLEGE|ACADEMY)/u', $upper)) {
+            return ['type' => 'School ID', 'confidence' => 0.90];
+        }
+        if (preg_match('/(PAMBANSANG PAGKAKAKILANLAN|PHILIPPINE IDENTIFICATION|PHILSYS|NATIONAL ID|REPUBLIKA NG PILIPINAS)/u', $upper)) {
+            return ['type' => 'Philippine National ID / PhilSys', 'confidence' => 0.98];
+        }
+
+        return ['type' => 'Government/School ID', 'confidence' => 0.65];
+    }
+
+    /**
+     * Extracts recognized generation suffixes (JR, SR, III, etc.) from a name string
+     * so that surnames are kept strictly distinct from suffixes.
+     *
+     * @param  string $name (Passed by reference and cleaned)
+     * @return string|null
+     */
+    public static function extractSuffix(string &$name): ?string
+    {
+        $suffixes = ['JR.', 'JR', 'SR.', 'SR', 'II', 'III', 'IV', 'V', 'VI'];
+        foreach ($suffixes as $suf) {
+            $pattern = '/(?:,\s*|\s+)' . preg_quote($suf, '/') . '$/i';
+            if (preg_match($pattern, $name)) {
+                $name = trim(preg_replace($pattern, '', $name), " \t\n\r\0\x0B,.-");
+                return mb_strtoupper($suf, 'UTF-8');
+            }
+        }
+        return null;
+    }
+
+    /**
      * Full pipeline: preprocess -> OCR -> parse fields.
      * Returns an array like:
      *   ['last_name' => 'MARK', 'first_name' => 'REY', 'middle_name' => '...',
@@ -91,6 +295,7 @@ class IDOCRProcessor
      * Any field it couldn't confidently find will be null.
      */
     public function scanID(string $uploadedImagePath): array
+
     {
         $texts = [];
 
@@ -133,6 +338,10 @@ class IDOCRProcessor
         }
         $fields       = $this->mergeFieldCandidates($parsed);
         $fields['raw_text'] = $rawText;
+
+        $docType = self::detectDocumentType($rawText);
+        $fields['id_type_detected']    = $docType['type'];
+        $fields['document_confidence'] = $docType['confidence'];
 
         // Clean up temp file
         if ($cleanedImage && is_file($cleanedImage) && $cleanedImage !== $uploadedImagePath) {
@@ -502,6 +711,21 @@ class IDOCRProcessor
         }
         $this->repairPhilIdFields($result, $lines, $text);
 
+        // Separate recognized suffixes (JR, SR, III, etc.) from last_name and first_name
+        $result['suffix'] = null;
+        if (!empty($result['last_name'])) {
+            $suf = self::extractSuffix($result['last_name']);
+            if ($suf) {
+                $result['suffix'] = $suf;
+            }
+        }
+        if (empty($result['suffix']) && !empty($result['first_name'])) {
+            $suf = self::extractSuffix($result['first_name']);
+            if ($suf) {
+                $result['suffix'] = $suf;
+            }
+        }
+
         return $result;
     }
 
@@ -672,6 +896,7 @@ class IDOCRProcessor
             }
 
             $rest = mb_substr($text, $pos + mb_strlen($label));
+            $rest = preg_replace('/^(?:\s*[\/\-:]\s*(?:PLACE OF BIRTH|LUGAR NG KAPANGANAKAN|POB))*\s*[:\-]?\s*/ui', '', $rest);
             $rest = ltrim($rest, ": \t-\n");
             $restUpper = mb_strtoupper($rest);
             $cutAt = mb_strlen($rest);
@@ -701,13 +926,6 @@ class IDOCRProcessor
             if ($place !== '' && mb_strlen($place) >= 3) {
                 return $place;
             }
-        }
-
-        if (preg_match('/LUGAR[\s\S]{0,220}?\b([A-Z ]{3,40},\s*COTABATO)\b/u', $upper, $m)) {
-            return trim(preg_replace('/\s+/', ' ', $m[1]), " \t\n\r\0\x0B.,-");
-        }
-        if (preg_match('/\b(ALEOSAN,\s*COTABATO)\b/u', $upper, $m)) {
-            return trim($m[1]);
         }
 
         return null;
@@ -820,44 +1038,89 @@ class IDOCRProcessor
             $raw = preg_replace('/[A-Z ]*EMBER/u', 'DECEMBER', $raw);
         }
 
-        // If numeric date has day > 12 first (e.g. 16/12/2005 or 16-12-2005), prioritize d/m/Y
-        if (preg_match('/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/', $raw, $m)) {
-            $num1 = (int) $m[1];
-            $num2 = (int) $m[2];
-            $yr = (int) $m[3];
-            if ($num1 > 12 && $num2 <= 12) {
-                $d = DateTime::createFromFormat('!d-m-Y', "{$num1}-{$num2}-{$yr}");
-                if ($d instanceof DateTime && $yr >= 1900 && $d <= new DateTime('today')) {
-                    return $d->format('Y-m-d');
-                }
-            } elseif ($num2 > 12 && $num1 <= 12) {
-                $d = DateTime::createFromFormat('!m-d-Y', "{$num1}-{$num2}-{$yr}");
-                if ($d instanceof DateTime && $yr >= 1900 && $d <= new DateTime('today')) {
-                    return $d->format('Y-m-d');
-                }
+        // Reject corrupted date tokens containing letters mixed with digits in numeric positions (e.g. "12/0B/2007", "2O05-12-16")
+        if (preg_match('/\b\d{1,2}[\/\-\.][A-Za-z0-9]{1,2}[\/\-\.]\d{2,4}\b/', $raw, $corruptMatch)) {
+            if (preg_match('/[0-9][A-Za-z]|[A-Za-z][0-9]/', $corruptMatch[0])) {
+                return null;
             }
         }
 
+        // 1. Direct YYYY-MM-DD or YYYY/MM/DD strict validation
+        if (preg_match('/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/', $raw, $ymd)) {
+            $y = (int) $ymd[1];
+            $m = (int) $ymd[2];
+            $d = (int) $ymd[3];
+            if (!checkdate($m, $d, $y)) {
+                return null;
+            }
+            $dt = DateTime::createFromFormat('!Y-m-d', sprintf('%04d-%02d-%02d', $y, $m, $d));
+            $today = new DateTime('today');
+            if ($dt instanceof DateTime && $y >= 1900 && $dt <= $today && $today->diff($dt)->y <= 125) {
+                return $dt->format('Y-m-d');
+            }
+            return null;
+        }
+
+        // 2. Direct DD/MM/YYYY or MM/DD/YYYY numeric check
+        if (preg_match('/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/', $raw, $m)) {
+            $num1 = (int) $m[1];
+            $num2 = (int) $m[2];
+            $yr   = (int) $m[3];
+            $today = new DateTime('today');
+
+            // If day is strictly > 12, it must be DD/MM/YYYY
+            if ($num1 > 12 && $num2 <= 12) {
+                if (!checkdate($num2, $num1, $yr)) return null;
+                $d = DateTime::createFromFormat('!d-m-Y', "{$num1}-{$num2}-{$yr}");
+                if ($d instanceof DateTime && $yr >= 1900 && $d <= $today && $today->diff($d)->y <= 125) {
+                    return $d->format('Y-m-d');
+                }
+                return null;
+            }
+            // If second number is strictly > 12, it must be MM/DD/YYYY
+            if ($num2 > 12 && $num1 <= 12) {
+                if (!checkdate($num1, $num2, $yr)) return null;
+                $d = DateTime::createFromFormat('!m-d-Y', "{$num1}-{$num2}-{$yr}");
+                if ($d instanceof DateTime && $yr >= 1900 && $d <= $today && $today->diff($d)->y <= 125) {
+                    return $d->format('Y-m-d');
+                }
+                return null;
+            }
+            // If both <= 12, check default MM/DD/YYYY first, then DD/MM/YYYY
+            if ($num1 <= 12 && $num2 <= 12) {
+                if (checkdate($num1, $num2, $yr)) {
+                    $d = DateTime::createFromFormat('!m-d-Y', "{$num1}-{$num2}-{$yr}");
+                    if ($d instanceof DateTime && $yr >= 1900 && $d <= $today && $today->diff($d)->y <= 125) {
+                        return $d->format('Y-m-d');
+                    }
+                }
+                if (checkdate($num2, $num1, $yr)) {
+                    $d = DateTime::createFromFormat('!d-m-Y', "{$num1}-{$num2}-{$yr}");
+                    if ($d instanceof DateTime && $yr >= 1900 && $d <= $today && $today->diff($d)->y <= 125) {
+                        return $d->format('Y-m-d');
+                    }
+                }
+            }
+            return null;
+        }
+
+        // 3. Textual month formats (English and Tagalog translated)
         $formats = [
             'F d, Y', 'F d Y', 'd F Y', 'd F, Y',
             'M d, Y', 'M d Y', 'd M Y', 'd M, Y',
-            'Y-m-d', 'Y/m/d',
-            'm/d/Y', 'd/m/Y', 'm-d-Y', 'd-m-Y', 'd.m.Y'
         ];
+        $today = new DateTime('today');
         foreach ($formats as $fmt) {
             $d = DateTime::createFromFormat('!' . $fmt, $raw);
             $errs = DateTime::getLastErrors();
             if ($d instanceof DateTime && empty($errs['warning_count']) && empty($errs['error_count'])) {
-                $year = (int) $d->format('Y');
-                if ($year >= 1900 && $d <= new DateTime('today')) {
+                $year  = (int) $d->format('Y');
+                $month = (int) $d->format('n');
+                $day   = (int) $d->format('j');
+                if (checkdate($month, $day, $year) && $year >= 1900 && $d <= $today && $today->diff($d)->y <= 125) {
                     return $d->format('Y-m-d');
                 }
             }
-        }
-
-        $ts = strtotime($raw);
-        if ($ts !== false && $ts > 0 && $ts <= time()) {
-            return date('Y-m-d', $ts);
         }
 
         return null;
@@ -880,9 +1143,6 @@ class IDOCRProcessor
         $address = mb_strtoupper($address);
         $address = preg_replace('/^[^A-Z]*(IGS|IG5|LGS|A)\s*=?.?\s*/u', '', $address);
         $address = str_replace(['ALEQSZN', 'ALEQSN', 'ALEOS4N'], 'ALEOSAN', $address);
-        if (preg_match('/(SITIO\b.+?COTABATO)/u', $address, $m)) {
-            $address = $m[1];
-        }
         $address = preg_replace('/[^A-Z0-9,.\- ]/u', '', $address);
         $address = preg_replace('/\s+/', ' ', $address);
         return trim($address, " \t\n\r\0\x0B.,-");
