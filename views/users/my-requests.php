@@ -78,17 +78,41 @@
                                         <?php
                                             $raw_rtype = strtolower((string)$request['request_type']);
                                             $disp_rtype = match ($raw_rtype) {
+                                                'baptism_service', 'baptism' => 'Baptism',
                                                 'first_communion_service', 'first_communion', 'communion' => 'First Communion',
                                                 'confirmation_service', 'confirmation' => 'Confirmation',
-                                                'baptism_service', 'baptism' => 'Baptism',
                                                 'marriage_wedding_service', 'marriage', 'wedding' => 'Marriage / Wedding',
                                                 'funeral_mass', 'funeral' => 'Funeral Mass',
                                                 'anointing_of_the_sick' => 'Anointing of the Sick',
                                                 'patronal_fiesta' => 'Patronal Fiesta',
                                                 default => ucfirst(str_replace('_', ' ', $request['request_type']))
                                             };
+                                            $isCommOrConf = in_array($raw_rtype, ['first_communion_service', 'first_communion', 'communion', 'confirmation_service', 'confirmation'], true);
+                                            $reqStatus = strtolower((string)($request['status'] ?? 'pending'));
                                         ?>
-                                        <span class="fw-semibold text-dark"><?php echo e($disp_rtype); ?></span>
+                                        <div class="fw-semibold text-dark"><?php echo e($disp_rtype); ?></div>
+                                        <?php if ($isCommOrConf): ?>
+                                            <?php if ($reqStatus === 'completed' && !empty($request['ceremony_date']) && !empty($request['ceremony_time'])): ?>
+                                                <?php
+                                                    $tzManila = new DateTimeZone('Asia/Manila');
+                                                    $cDt = new DateTime($request['ceremony_date'] . ' ' . $request['ceremony_time'], $tzManila);
+                                                    $schedShort = $cDt->format('M j, Y, g:i A');
+                                                ?>
+                                                <div class="text-secondary small mt-1 d-inline-flex align-items-center" style="gap: 6px; font-size: 0.82rem; font-weight: 500;">
+                                                    <span class="d-inline-flex align-items-center justify-content-center text-success" style="width: 16px; height: 16px; flex-shrink: 0;" aria-hidden="true">
+                                                        <i class="fas fa-calendar-check" style="font-size: 0.8rem;"></i>
+                                                    </span>
+                                                    <span><?php echo e($schedShort); ?></span>
+                                                </div>
+                                            <?php else: ?>
+                                                <div class="text-muted small mt-1 d-inline-flex align-items-center" style="gap: 6px; font-size: 0.8rem;">
+                                                    <span class="d-inline-flex align-items-center justify-content-center text-muted" style="width: 16px; height: 16px; flex-shrink: 0;" aria-hidden="true">
+                                                        <i class="fas fa-clock" style="font-size: 0.75rem;"></i>
+                                                    </span>
+                                                    <span>Schedule: To be announced by the parish office.</span>
+                                                </div>
+                                            <?php endif; ?>
+                                        <?php endif; ?>
                                     </td>
                                     <td class="py-3 px-3" data-label="Status">
                                         <?php 

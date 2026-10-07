@@ -5,6 +5,9 @@
  * HTTP/session concerns remain here; query and presentation logic live in the
  * controller, service, repository, and view layers.
  */
+header('Cache-Control: private, no-store, no-cache, must-revalidate');
+header('Pragma: no-cache');
+
 require_once dirname(__DIR__) . '/includes/session.php';
 require_once dirname(__DIR__) . '/database/config.php';
 require_once dirname(__DIR__) . '/includes/helpers.php';

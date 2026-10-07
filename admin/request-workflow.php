@@ -209,28 +209,55 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $is_sacramental_type = SacramentalApprovalService::isSacramentalRequestType($request_type);
             $is_comm_or_conf_action = in_array($request_type, ['first_communion_service', 'first_communion', 'communion', 'confirmation_service', 'confirmation'], true);
             $ceremony_date = trim((string)($_POST['ceremony_date'] ?? ''));
+            $ceremony_time = trim((string)($_POST['ceremony_time'] ?? ''));
+            $ceremony_minister = trim((string)($_POST['ceremony_minister'] ?? ''));
+            if ($ceremony_minister === 'Other' && !empty($_POST['ceremony_minister_other'])) {
+                $ceremony_minister = trim((string)$_POST['ceremony_minister_other']);
+            }
 
-            if ($is_comm_or_conf_action && ($ceremony_date === '' || !validDateValue($ceremony_date))) {
-                $error = 'Please provide the Ceremony Date before completing this request.';
-            } elseif ($is_sacramental_type) {
+            if ($is_comm_or_conf_action) {
+                $missing_schedule = [];
+                if ($ceremony_date === '' || !validDateValue($ceremony_date)) {
+                    $missing_schedule[] = 'Ceremony Date';
+                }
+                if ($ceremony_time === '') {
+                    $missing_schedule[] = 'Ceremony Time';
+                }
+                if ($ceremony_minister === '' || $ceremony_minister === 'Other') {
+                    $missing_schedule[] = 'Minister';
+                }
+                if (!empty($missing_schedule)) {
+                    http_response_code(422);
+                    $error = 'Cannot complete request: The following required fields are missing: ' . implode(', ', $missing_schedule) . '.';
+                }
+            }
+
+            if (empty($error) && $is_sacramental_type) {
                 try {
                     $sacramentalService = new SacramentalApprovalService($conn);
-                    $officiating_priest = trim($_POST['officiating_priest'] ?? $_POST['minister'] ?? '');
+                    $officiating_priest = $is_comm_or_conf_action ? $ceremony_minister : trim($_POST['officiating_priest'] ?? $_POST['minister'] ?? '');
                     $parish_priest = trim($_POST['parish_priest'] ?? '');
                     $completionResult = $sacramentalService->completeRequest($request_id, (int)$_SESSION['user_id'], [
                         'admin_response' => $admin_response,
                         'officiating_priest' => $officiating_priest,
                         'parish_priest' => $parish_priest,
                         'ceremony_date' => $ceremony_date ?: null,
+                        'ceremony_time' => $ceremony_time ?: null,
+                        'ceremony_minister' => $ceremony_minister ?: null,
                         'target_status' => 'completed'
                     ]);
                     $request['status'] = 'completed';
                     $request['admin_response'] = $admin_response;
+                    if ($is_comm_or_conf_action) {
+                        $request['ceremony_date'] = $ceremony_date;
+                        $request['ceremony_time'] = $ceremony_time;
+                        $request['ceremony_minister'] = $ceremony_minister;
+                    }
                     if ($is_funeral_action) {
                         $success = 'Funeral record has been added to Funeral Records. Request marked as completed and calendar schedule updated.';
                     } elseif ($is_comm_or_conf_action) {
                         $serviceName = str_contains($request_type, 'communion') ? 'First Communion' : 'Confirmation';
-                        $success = "Request marked as completed! {$serviceName} record registered with ceremony date " . formatDate($ceremony_date) . ".";
+                        $success = "Request marked as completed! {$serviceName} record registered with ceremony date " . formatDate($ceremony_date) . " at " . date('g:i A', strtotime($ceremony_time)) . ".";
                     } else {
                         $success = 'Request marked as completed! Sacramental record registered and calendar schedule updated.';
                     }
@@ -716,21 +743,38 @@ if ($is_comm_or_conf && !empty($parsedSections)) {
     $parsedSections = array_filter($parsedSections, static fn($items) => !empty($items));
 }
 
-$existing_ceremony_date = '';
+$existing_ceremony_date = $request['ceremony_date'] ?? '';
+$existing_ceremony_time = $request['ceremony_time'] ?? '';
+$existing_ceremony_minister = $request['ceremony_minister'] ?? '';
+
 if ($is_comm_or_conf) {
     if (in_array($raw_req_type, ['first_communion_service', 'first_communion', 'communion'], true)) {
-        $chkRec = $conn->prepare("SELECT communion_date FROM first_communion_records WHERE request_id = ? LIMIT 1");
-    } else {
-        $chkRec = $conn->prepare("SELECT confirmation_date FROM confirmation_records WHERE request_id = ? LIMIT 1");
-    }
-    if ($chkRec) {
-        $chkRec->bind_param('i', $request_id);
-        $chkRec->execute();
-        $recRow = $chkRec->get_result()->fetch_assoc();
-        $chkRec->close();
-        if ($recRow) {
-            $existing_ceremony_date = $recRow['communion_date'] ?? $recRow['confirmation_date'] ?? '';
+        $chkRec = $conn->prepare("SELECT communion_date, priest FROM first_communion_records WHERE request_id = ? LIMIT 1");
+        if ($chkRec) {
+            $chkRec->bind_param('i', $request_id);
+            $chkRec->execute();
+            $recRow = $chkRec->get_result()->fetch_assoc();
+            $chkRec->close();
+            if ($recRow) {
+                if (empty($existing_ceremony_date)) $existing_ceremony_date = $recRow['communion_date'] ?? '';
+                if (empty($existing_ceremony_minister)) $existing_ceremony_minister = $recRow['priest'] ?? '';
+            }
         }
+    } else {
+        $chkRec = $conn->prepare("SELECT confirmation_date, bishop_priest FROM confirmation_records WHERE request_id = ? LIMIT 1");
+        if ($chkRec) {
+            $chkRec->bind_param('i', $request_id);
+            $chkRec->execute();
+            $recRow = $chkRec->get_result()->fetch_assoc();
+            $chkRec->close();
+            if ($recRow) {
+                if (empty($existing_ceremony_date)) $existing_ceremony_date = $recRow['confirmation_date'] ?? '';
+                if (empty($existing_ceremony_minister)) $existing_ceremony_minister = $recRow['bishop_priest'] ?? '';
+            }
+        }
+    }
+    if (empty($existing_ceremony_minister) && !str_contains($raw_req_type, 'communion')) {
+        $existing_ceremony_minister = 'Bp. Angelito R. Lampon, O.M.I., D.D.';
     }
 }
 
@@ -2241,48 +2285,122 @@ $breadcrumbs = [
                     <?php if ($is_sacramental): 
                         $priest_roster = getParishPriestRoster($conn);
                         $default_parish_priest = getParishPriestName($conn);
+                        $is_communion = in_array($raw_req_type, ['first_communion_service', 'first_communion', 'communion'], true);
+                        $is_confirmation = in_array($raw_req_type, ['confirmation_service', 'confirmation'], true);
                     ?>
-                        <div class="row g-3 mt-1 mb-2">
-                            <div class="col-md-6">
-                                <label for="workflow_minister" class="rw-meta-label">MINISTER / OFFICIATING PRIEST <span class="text-danger">*</span></label>
-                                <select class="form-select border-secondary-subtle py-1.5 fw-semibold" id="workflow_minister" name="officiating_priest" style="font-size: 0.88rem; height: 38px; border-radius: 8px;">
-                                    <option value="">-- Select Minister / Officiating Priest --</option>
-                                    <?php foreach ($priest_roster as $p_opt): ?>
-                                        <option value="<?php echo htmlspecialchars($p_opt); ?>" <?php echo (!empty($funeral_fields['minister']) && strcasecmp($funeral_fields['minister'], $p_opt) === 0) ? 'selected' : ''; ?>>
-                                             <?php echo htmlspecialchars($p_opt); ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                                <div class="rw-field-caption">Required when marking sacramental request completed.</div>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="workflow_parish_priest" class="rw-meta-label">PARISH PRIEST <span class="text-danger">*</span></label>
-                                <select class="form-select border-secondary-subtle py-1.5 fw-semibold" id="workflow_parish_priest" name="parish_priest" style="font-size: 0.88rem; height: 38px; border-radius: 8px;">
-                                    <option value="">-- Select Parish Priest --</option>
-                                    <?php foreach ($priest_roster as $p_opt): ?>
-                                        <option value="<?php echo htmlspecialchars($p_opt); ?>" <?php echo ($p_opt === $default_parish_priest) ? 'selected' : ''; ?>>
-                                            <?php echo htmlspecialchars($p_opt); ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                                <div class="rw-field-caption">Confirmed canonical Parish Priest for official registry.</div>
-                            </div>
-                        </div>
-
                         <?php if ($is_comm_or_conf): ?>
-                            <div class="row g-3 mt-1 mb-2" id="commConfCeremonyGroup">
-                                <div class="col-md-6">
-                                    <label for="ceremony_date" class="rw-meta-label">CEREMONY DATE <span class="text-danger">*</span></label>
-                                    <input type="date" 
-                                           class="form-control border-secondary-subtle py-1.5 fw-semibold" 
-                                           id="ceremony_date" 
-                                           name="ceremony_date" 
-                                           value="<?php echo htmlspecialchars($_POST['ceremony_date'] ?? $existing_ceremony_date ?? ''); ?>" 
-                                           style="font-size: 0.88rem; height: 38px; border-radius: 8px;">
-                                    <div class="rw-field-caption">Required ceremony date for official sacramental registry record.</div>
-                                    <div class="invalid-feedback d-none text-danger small mt-1" id="ceremonyDateFeedback">
-                                        <i class="fas fa-circle-exclamation me-1"></i>Please provide the Ceremony Date before completing this request.
+                            <div class="p-3 rounded-3 border mb-3" id="commConfCeremonyCard" style="background: #fafaf8;">
+                                <div class="fw-bold text-dark small border-bottom pb-2 mb-3">
+                                    <i class="fas fa-calendar-check text-primary me-1"></i> CEREMONY SCHEDULE &amp; MINISTER (REQUIRED FOR COMPLETION)
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label for="ceremony_date" class="rw-meta-label">CEREMONY DATE <span class="text-danger">*</span></label>
+                                        <input type="date" 
+                                               class="form-control border-secondary-subtle py-1.5 fw-semibold" 
+                                               id="ceremony_date" 
+                                               name="ceremony_date" 
+                                               value="<?php echo htmlspecialchars($_POST['ceremony_date'] ?? $existing_ceremony_date ?? ''); ?>" 
+                                               style="font-size: 0.88rem; height: 38px; border-radius: 8px;">
+                                        <div class="rw-field-caption">Required ceremony date for official sacramental registry record.</div>
+                                        <div class="invalid-feedback d-none text-danger small mt-1" id="ceremonyDateFeedback">
+                                            <i class="fas fa-circle-exclamation me-1"></i>Please provide the Ceremony Date before completing this request.
+                                        </div>
                                     </div>
+                                    <div class="col-md-6">
+                                        <label for="ceremony_time" class="rw-meta-label">CEREMONY TIME <span class="text-danger">*</span></label>
+                                        <select class="form-select border-secondary-subtle py-1.5 fw-semibold" id="ceremony_time" name="ceremony_time" style="font-size: 0.88rem; height: 38px; border-radius: 8px;">
+                                            <option value="">-- Select Hourly Ceremony Time --</option>
+                                            <?php
+                                            $hourly_slots = [
+                                                '06:00' => '06:00 AM', '07:00' => '07:00 AM', '08:00' => '08:00 AM',
+                                                '09:00' => '09:00 AM', '10:00' => '10:00 AM', '11:00' => '11:00 AM',
+                                                '12:00' => '12:00 PM', '13:00' => '01:00 PM', '14:00' => '02:00 PM',
+                                                '15:00' => '03:00 PM', '16:00' => '04:00 PM', '17:00' => '05:00 PM',
+                                                '18:00' => '06:00 PM', '19:00' => '07:00 PM'
+                                            ];
+                                            $curr_time = !empty($_POST['ceremony_time']) ? trim((string)$_POST['ceremony_time']) : (!empty($existing_ceremony_time) ? date('H:i', strtotime($existing_ceremony_time)) : '');
+                                            foreach ($hourly_slots as $slot_val => $slot_lbl):
+                                            ?>
+                                                <option value="<?php echo $slot_val; ?>" <?php echo ($curr_time === $slot_val) ? 'selected' : ''; ?>>
+                                                    <?php echo $slot_lbl; ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <div class="rw-field-caption">Required hourly time slot for the ceremony.</div>
+                                        <div class="invalid-feedback d-none text-danger small mt-1" id="ceremonyTimeFeedback">
+                                            <i class="fas fa-circle-exclamation me-1"></i>Please select the Ceremony Time before completing this request.
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="<?php echo $is_communion ? 'ceremony_minister_select' : 'ceremony_minister'; ?>" class="rw-meta-label">
+                                            <?php echo $is_communion ? 'MINISTER' : 'OFFICIATING MINISTER / BISHOP'; ?> <span class="text-danger">*</span>
+                                        </label>
+                                        <?php if ($is_communion): ?>
+                                            <?php
+                                            $comm_opts = ['Rev. Fr. Alberto G. Cahilig, OMI', 'Rev. Fr. Alvin Vicente C. Barretto, OMI'];
+                                            $cur_min = $_POST['ceremony_minister'] ?? $existing_ceremony_minister ?? '';
+                                            $is_other = !empty($cur_min) && !in_array($cur_min, $comm_opts, true);
+                                            ?>
+                                            <select class="form-select border-secondary-subtle py-1.5 fw-semibold" id="ceremony_minister_select" name="ceremony_minister" style="font-size: 0.88rem; height: 38px; border-radius: 8px;">
+                                                <option value="">-- Select Minister --</option>
+                                                <?php foreach ($comm_opts as $c_opt): ?>
+                                                    <option value="<?php echo htmlspecialchars($c_opt); ?>" <?php echo ($cur_min === $c_opt) ? 'selected' : ''; ?>>
+                                                        <?php echo htmlspecialchars($c_opt); ?>
+                                                    </option>
+                                                <?php endforeach; ?>
+                                                <option value="Other" <?php echo ($is_other || $cur_min === 'Other') ? 'selected' : ''; ?>>Other</option>
+                                            </select>
+                                            <div id="ceremonyMinisterOtherWrap" class="mt-2 <?php echo ($is_other || $cur_min === 'Other') ? '' : 'd-none'; ?>">
+                                                <input type="text" class="form-control border-secondary-subtle py-1.5 fw-semibold" id="ceremony_minister_other" name="ceremony_minister_other" value="<?php echo htmlspecialchars($is_other ? $cur_min : ($_POST['ceremony_minister_other'] ?? '')); ?>" placeholder="Enter Minister's Full Name" style="font-size: 0.88rem; height: 38px; border-radius: 8px;">
+                                            </div>
+                                        <?php else: ?>
+                                            <input type="text" class="form-control border-secondary-subtle py-1.5 fw-semibold" id="ceremony_minister" name="ceremony_minister" value="<?php echo htmlspecialchars($_POST['ceremony_minister'] ?? $existing_ceremony_minister ?? 'Bp. Angelito R. Lampon, O.M.I., D.D.'); ?>" placeholder="Bp. Angelito R. Lampon, O.M.I., D.D." style="font-size: 0.88rem; height: 38px; border-radius: 8px;">
+                                        <?php endif; ?>
+                                        <div class="rw-field-caption">Required officiating minister for official registry.</div>
+                                        <div class="invalid-feedback d-none text-danger small mt-1" id="ceremonyMinisterFeedback">
+                                            <i class="fas fa-circle-exclamation me-1"></i>Please provide the Minister before completing this request.
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="workflow_parish_priest" class="rw-meta-label">PARISH PRIEST <span class="text-danger">*</span></label>
+                                        <select class="form-select border-secondary-subtle py-1.5 fw-semibold" id="workflow_parish_priest" name="parish_priest" style="font-size: 0.88rem; height: 38px; border-radius: 8px;">
+                                            <option value="">-- Select Parish Priest --</option>
+                                            <?php foreach ($priest_roster as $p_opt): ?>
+                                                <option value="<?php echo htmlspecialchars($p_opt); ?>" <?php echo ($p_opt === $default_parish_priest) ? 'selected' : ''; ?>>
+                                                    <?php echo htmlspecialchars($p_opt); ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <div class="rw-field-caption">Confirmed canonical Parish Priest for official registry.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php else: ?>
+                            <div class="row g-3 mt-1 mb-2">
+                                <div class="col-md-6">
+                                    <label for="workflow_minister" class="rw-meta-label">MINISTER / OFFICIATING PRIEST <span class="text-danger">*</span></label>
+                                    <select class="form-select border-secondary-subtle py-1.5 fw-semibold" id="workflow_minister" name="officiating_priest" style="font-size: 0.88rem; height: 38px; border-radius: 8px;">
+                                        <option value="">-- Select Minister / Officiating Priest --</option>
+                                        <?php foreach ($priest_roster as $p_opt): ?>
+                                            <option value="<?php echo htmlspecialchars($p_opt); ?>" <?php echo (!empty($funeral_fields['minister']) && strcasecmp($funeral_fields['minister'], $p_opt) === 0) ? 'selected' : ''; ?>>
+                                                 <?php echo htmlspecialchars($p_opt); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <div class="rw-field-caption">Required when marking sacramental request completed.</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="workflow_parish_priest" class="rw-meta-label">PARISH PRIEST <span class="text-danger">*</span></label>
+                                    <select class="form-select border-secondary-subtle py-1.5 fw-semibold" id="workflow_parish_priest" name="parish_priest" style="font-size: 0.88rem; height: 38px; border-radius: 8px;">
+                                        <option value="">-- Select Parish Priest --</option>
+                                        <?php foreach ($priest_roster as $p_opt): ?>
+                                            <option value="<?php echo htmlspecialchars($p_opt); ?>" <?php echo ($p_opt === $default_parish_priest) ? 'selected' : ''; ?>>
+                                                <?php echo htmlspecialchars($p_opt); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <div class="rw-field-caption">Confirmed canonical Parish Priest for official registry.</div>
                                 </div>
                             </div>
                         <?php endif; ?>
@@ -2399,34 +2517,148 @@ document.addEventListener('DOMContentLoaded', function () {
     const statusSelect = document.getElementById('status');
     const ceremonyDateInput = document.getElementById('ceremony_date');
     const ceremonyDateFeedback = document.getElementById('ceremonyDateFeedback');
+    const ceremonyTimeSelect = document.getElementById('ceremony_time');
+    const ceremonyTimeFeedback = document.getElementById('ceremonyTimeFeedback');
+    const ceremonyMinisterSelect = document.getElementById('ceremony_minister_select');
+    const ceremonyMinisterOtherWrap = document.getElementById('ceremonyMinisterOtherWrap');
+    const ceremonyMinisterOtherInput = document.getElementById('ceremony_minister_other');
+    const ceremonyMinisterTextInput = document.getElementById('ceremony_minister');
+    const ceremonyMinisterFeedback = document.getElementById('ceremonyMinisterFeedback');
 
-    if (reviewStatusForm && ceremonyDateInput) {
+    if (ceremonyMinisterSelect && ceremonyMinisterOtherWrap) {
+        ceremonyMinisterSelect.addEventListener('change', function () {
+            if (this.value === 'Other') {
+                ceremonyMinisterOtherWrap.classList.remove('d-none');
+                if (ceremonyMinisterOtherInput) ceremonyMinisterOtherInput.focus();
+            } else {
+                ceremonyMinisterOtherWrap.classList.add('d-none');
+            }
+        });
+    }
+
+    if (reviewStatusForm) {
         reviewStatusForm.addEventListener('submit', function (e) {
             if (statusSelect && statusSelect.value === 'completed') {
-                if (!ceremonyDateInput.value.trim()) {
-                    e.preventDefault();
-                    e.stopPropagation();
+                let hasError = false;
+                let firstErrorEl = null;
+
+                if (ceremonyDateInput && !ceremonyDateInput.value.trim()) {
+                    hasError = true;
                     ceremonyDateInput.classList.add('is-invalid');
                     if (ceremonyDateFeedback) {
                         ceremonyDateFeedback.classList.remove('d-none');
                         ceremonyDateFeedback.style.display = 'block';
                     }
-                    ceremonyDateInput.focus();
-                    ceremonyDateInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    if (!firstErrorEl) firstErrorEl = ceremonyDateInput;
+                }
+
+                if (ceremonyTimeSelect && !ceremonyTimeSelect.value.trim()) {
+                    hasError = true;
+                    ceremonyTimeSelect.classList.add('is-invalid');
+                    if (ceremonyTimeFeedback) {
+                        ceremonyTimeFeedback.classList.remove('d-none');
+                        ceremonyTimeFeedback.style.display = 'block';
+                    }
+                    if (!firstErrorEl) firstErrorEl = ceremonyTimeSelect;
+                }
+
+                if (ceremonyMinisterSelect) {
+                    const selVal = ceremonyMinisterSelect.value.trim();
+                    const otherVal = ceremonyMinisterOtherInput ? ceremonyMinisterOtherInput.value.trim() : '';
+                    if (!selVal || (selVal === 'Other' && !otherVal)) {
+                        hasError = true;
+                        ceremonyMinisterSelect.classList.add('is-invalid');
+                        if (selVal === 'Other' && ceremonyMinisterOtherInput) {
+                            ceremonyMinisterOtherInput.classList.add('is-invalid');
+                        }
+                        if (ceremonyMinisterFeedback) {
+                            ceremonyMinisterFeedback.classList.remove('d-none');
+                            ceremonyMinisterFeedback.style.display = 'block';
+                        }
+                        if (!firstErrorEl) firstErrorEl = (selVal === 'Other' && ceremonyMinisterOtherInput) ? ceremonyMinisterOtherInput : ceremonyMinisterSelect;
+                    }
+                } else if (ceremonyMinisterTextInput && !ceremonyMinisterTextInput.value.trim()) {
+                    hasError = true;
+                    ceremonyMinisterTextInput.classList.add('is-invalid');
+                    if (ceremonyMinisterFeedback) {
+                        ceremonyMinisterFeedback.classList.remove('d-none');
+                        ceremonyMinisterFeedback.style.display = 'block';
+                    }
+                    if (!firstErrorEl) firstErrorEl = ceremonyMinisterTextInput;
+                }
+
+                if (hasError) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (firstErrorEl) {
+                        firstErrorEl.focus();
+                        firstErrorEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
                     return false;
                 }
             }
         });
 
-        ceremonyDateInput.addEventListener('input', function () {
-            if (ceremonyDateInput.value.trim()) {
-                ceremonyDateInput.classList.remove('is-invalid');
-                if (ceremonyDateFeedback) {
-                    ceremonyDateFeedback.classList.add('d-none');
-                    ceremonyDateFeedback.style.display = 'none';
+        if (ceremonyDateInput) {
+            ceremonyDateInput.addEventListener('input', function () {
+                if (ceremonyDateInput.value.trim()) {
+                    ceremonyDateInput.classList.remove('is-invalid');
+                    if (ceremonyDateFeedback) {
+                        ceremonyDateFeedback.classList.add('d-none');
+                        ceremonyDateFeedback.style.display = 'none';
+                    }
                 }
-            }
-        });
+            });
+        }
+
+        if (ceremonyTimeSelect) {
+            ceremonyTimeSelect.addEventListener('change', function () {
+                if (ceremonyTimeSelect.value.trim()) {
+                    ceremonyTimeSelect.classList.remove('is-invalid');
+                    if (ceremonyTimeFeedback) {
+                        ceremonyTimeFeedback.classList.add('d-none');
+                        ceremonyTimeFeedback.style.display = 'none';
+                    }
+                }
+            });
+        }
+
+        if (ceremonyMinisterSelect) {
+            ceremonyMinisterSelect.addEventListener('change', function () {
+                if (ceremonyMinisterSelect.value.trim() && ceremonyMinisterSelect.value !== 'Other') {
+                    ceremonyMinisterSelect.classList.remove('is-invalid');
+                    if (ceremonyMinisterFeedback) {
+                        ceremonyMinisterFeedback.classList.add('d-none');
+                        ceremonyMinisterFeedback.style.display = 'none';
+                    }
+                }
+            });
+        }
+
+        if (ceremonyMinisterOtherInput) {
+            ceremonyMinisterOtherInput.addEventListener('input', function () {
+                if (ceremonyMinisterOtherInput.value.trim()) {
+                    ceremonyMinisterOtherInput.classList.remove('is-invalid');
+                    if (ceremonyMinisterSelect) ceremonyMinisterSelect.classList.remove('is-invalid');
+                    if (ceremonyMinisterFeedback) {
+                        ceremonyMinisterFeedback.classList.add('d-none');
+                        ceremonyMinisterFeedback.style.display = 'none';
+                    }
+                }
+            });
+        }
+
+        if (ceremonyMinisterTextInput) {
+            ceremonyMinisterTextInput.addEventListener('input', function () {
+                if (ceremonyMinisterTextInput.value.trim()) {
+                    ceremonyMinisterTextInput.classList.remove('is-invalid');
+                    if (ceremonyMinisterFeedback) {
+                        ceremonyMinisterFeedback.classList.add('d-none');
+                        ceremonyMinisterFeedback.style.display = 'none';
+                    }
+                }
+            });
+        }
     }
 });
 </script>

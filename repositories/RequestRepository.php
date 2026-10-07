@@ -23,9 +23,10 @@ class RequestRepository
             'funeral_certification', 'funeral_certificate', 'certificate'
         ],
         'sacramental_services' => [
-            'baptism_service', 'confirmation_service', 'first_communion_service',
-            'first_communion', 'communion',
-            'marriage_wedding_service', 'anointing_of_the_sick', 'funeral_mass',
+            'baptism_service',
+            'first_communion_service', 'first_communion', 'communion',
+            'confirmation_service', 'confirmation',
+            'marriage_wedding_service', 'funeral_mass', 'anointing_of_the_sick',
             'patronal_fiesta', 'church_reservation', 'wedding_reservation',
             'burial_reservation', 'wedding', 'baptism', 'confirmation',
             'burial', 'church_venue', 'sacramental_service', 'reservation'

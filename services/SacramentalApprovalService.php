@@ -138,22 +138,54 @@ class SacramentalApprovalService {
                     }
                 }
             } else {
-                $ceremonyDate = trim((string)($options['ceremony_date'] ?? ''));
+                $ceremonyDate = trim((string)($options['ceremony_date'] ?? $request['ceremony_date'] ?? ''));
+                $ceremonyTime = trim((string)($options['ceremony_time'] ?? $request['ceremony_time'] ?? ''));
+                $ceremonyMinister = trim((string)($options['ceremony_minister'] ?? $options['officiating_priest'] ?? $request['ceremony_minister'] ?? ''));
+
+                $missingSchedule = [];
                 if ($ceremonyDate === '' || !validDateValue($ceremonyDate)) {
-                    throw new InvalidArgumentException('Please provide the Ceremony Date before completing this request.');
+                    $missingSchedule[] = 'Ceremony Date';
                 }
+                if ($ceremonyTime === '') {
+                    $missingSchedule[] = 'Ceremony Time';
+                }
+                if ($ceremonyMinister === '') {
+                    $missingSchedule[] = 'Minister';
+                }
+
+                if (!empty($missingSchedule)) {
+                    http_response_code(422);
+                    throw new InvalidArgumentException('Cannot complete request: The following required fields are missing: ' . implode(', ', $missingSchedule) . '.');
+                }
+
+                $officiatingPriest = $ceremonyMinister;
+                $options['ceremony_date'] = $ceremonyDate;
+                $options['ceremony_time'] = $ceremonyTime;
+                $options['ceremony_minister'] = $ceremonyMinister;
             }
 
-            // 3. Update Request status to target status
-            $updStmt = $this->conn->prepare("
-                UPDATE requests 
-                SET status = ?, admin_response = ?, updated_at = NOW() 
-                WHERE request_id = ?
-            ");
-            if (!$updStmt) {
-                throw new RuntimeException("Failed to prepare request update statement: " . $this->conn->error);
+            // 3. Update Request status to target status (including ceremony schedule for Communion & Confirmation)
+            if ($isCommOrConf) {
+                $updStmt = $this->conn->prepare("
+                    UPDATE requests 
+                    SET status = ?, admin_response = ?, ceremony_date = ?, ceremony_time = ?, ceremony_minister = ?, updated_at = NOW() 
+                    WHERE request_id = ?
+                ");
+                if (!$updStmt) {
+                    throw new RuntimeException("Failed to prepare request update statement: " . $this->conn->error);
+                }
+                $updStmt->bind_param('sssssi', $targetStatus, $adminResponse, $ceremonyDate, $ceremonyTime, $ceremonyMinister, $requestId);
+            } else {
+                $updStmt = $this->conn->prepare("
+                    UPDATE requests 
+                    SET status = ?, admin_response = ?, updated_at = NOW() 
+                    WHERE request_id = ?
+                ");
+                if (!$updStmt) {
+                    throw new RuntimeException("Failed to prepare request update statement: " . $this->conn->error);
+                }
+                $updStmt->bind_param('ssi', $targetStatus, $adminResponse, $requestId);
             }
-            $updStmt->bind_param('ssi', $targetStatus, $adminResponse, $requestId);
             if (!$updStmt->execute()) {
                 $err = $updStmt->error;
                 $updStmt->close();
@@ -176,6 +208,11 @@ class SacramentalApprovalService {
             // Update local request array for downstream steps
             $request['status'] = $targetStatus;
             $request['admin_response'] = $adminResponse;
+            if ($isCommOrConf) {
+                $request['ceremony_date'] = $ceremonyDate;
+                $request['ceremony_time'] = $ceremonyTime;
+                $request['ceremony_minister'] = $ceremonyMinister;
+            }
 
             // 4. Action 1: Transfer and populate service data into official Sacramental Records
             $sacramentalRecord = $this->populateSacramentalRecord($request, $officiatingPriest, $actorUserId, array_merge($options, [
@@ -637,8 +674,12 @@ class SacramentalApprovalService {
         $parsed = $this->parseCommunionDescription($desc, $request);
         if (!empty($ceremonyDate) && validDateValue($ceremonyDate)) {
             $parsed['communion_date'] = $ceremonyDate;
+        } elseif (!empty($request['ceremony_date']) && validDateValue($request['ceremony_date'])) {
+            $parsed['communion_date'] = $request['ceremony_date'];
         }
-        if (!empty($parsed['preferred_minister']) && (strcasecmp($priest, 'Rev. Fr. Parish Priest') === 0 || $priest === '' || strcasecmp($priest, 'Parish office will assign') === 0)) {
+        if (!empty($request['ceremony_minister'])) {
+            $priest = $request['ceremony_minister'];
+        } elseif (!empty($parsed['preferred_minister']) && (strcasecmp($priest, 'Rev. Fr. Parish Priest') === 0 || $priest === '' || strcasecmp($priest, 'Parish office will assign') === 0)) {
             $priest = $parsed['preferred_minister'];
         }
 
@@ -730,6 +771,11 @@ class SacramentalApprovalService {
         $parsed = $this->parseConfirmationDescription($desc, $request);
         if (!empty($ceremonyDate) && validDateValue($ceremonyDate)) {
             $parsed['confirmation_date'] = $ceremonyDate;
+        } elseif (!empty($request['ceremony_date']) && validDateValue($request['ceremony_date'])) {
+            $parsed['confirmation_date'] = $request['ceremony_date'];
+        }
+        if (!empty($request['ceremony_minister'])) {
+            $priest = $request['ceremony_minister'];
         }
 
         // Check if a record already exists for this request_id to prevent duplicates
@@ -1007,24 +1053,81 @@ class SacramentalApprovalService {
 
         $statusWord = ($request['status'] ?? '') === 'completed' ? 'completed' : 'approved';
         $isCommOrConf = in_array($requestType, ['first_communion_service', 'first_communion', 'communion', 'confirmation_service', 'confirmation'], true);
-        if ($isCommOrConf) {
+        $requestId = intval($request['request_id'] ?? 0);
+        $refNo = !empty($request['reference_number']) ? $request['reference_number'] : ('REQ-' . $requestId);
+
+        $actionKey = ($statusWord === 'completed') ? 'request.completed' : 'request.view';
+        $cDateStr = '';
+        $cTimeStr = '';
+        $cMinister = '';
+        $shortPlace = '';
+
+        if ($isCommOrConf && $statusWord === 'completed') {
+            $cDate = $request['ceremony_date'] ?? '';
+            $cTime = $request['ceremony_time'] ?? '';
+            $cMinister = trim((string)($request['ceremony_minister'] ?? ''));
+            $cDateStr = !empty($cDate) ? date('M j, Y', strtotime($cDate)) : '';
+            $cTimeStr = !empty($cTime) ? date('g:i A', strtotime($cTime)) : '';
+            $shortPlace = function_exists('getParishPlaceName') ? getParishPlaceName($this->conn, true) : 'San Lorenzo Ruiz Mission Station';
+
+            $title = "Request Completed: {$serviceLabel}";
+            $message = "TUGON: Your {$serviceLabel} request {$refNo} is completed. Ceremony: {$cDateStr}, {$cTimeStr} at {$shortPlace}. Minister: {$cMinister}. See My Requests for details.";
+            if (strlen($message) > 295) {
+                $message = "TUGON: {$serviceLabel} request {$refNo} completed. Ceremony: {$cDateStr}, {$cTimeStr} at {$shortPlace}. Minister: {$cMinister}. See My Requests.";
+                if (strlen($message) > 295) {
+                    $message = substr($message, 0, 292) . '...';
+                }
+            }
+        } elseif ($isCommOrConf) {
+            $title = "Request " . ucfirst($statusWord) . ": {$serviceLabel}";
             $message = "Your request for {$serviceLabel} has been {$statusWord}. Please check your request details or the parish calendar for ceremony announcements.";
         } else {
+            $title = "Request " . ucfirst($statusWord) . ": {$serviceLabel}";
             $message = "Your request for {$serviceLabel} on {$formattedDate} at {$formattedTime} has been {$statusWord} and added to the official parish schedule.";
         }
-        $title = "Request " . ucfirst($statusWord) . ": {$serviceLabel}";
+
+        // Deduplication & idempotency check: do not duplicate if request is completed twice or on page refresh
+        $chkNotif = $this->conn->prepare("SELECT notification_id, message FROM notifications WHERE user_id = ? AND entity_type = 'request' AND entity_id = ? AND action_key = 'request.completed' ORDER BY notification_id DESC LIMIT 1");
+        if ($chkNotif) {
+            $chkNotif->bind_param('ii', $userId, $requestId);
+            $chkNotif->execute();
+            $prevNotif = $chkNotif->get_result()->fetch_assoc();
+            $chkNotif->close();
+
+            if ($prevNotif && $statusWord === 'completed') {
+                if ($isCommOrConf) {
+                    $prevMsg = (string)($prevNotif['message'] ?? '');
+                    $schedSig = "{$cDateStr}, {$cTimeStr}";
+                    if ($schedSig !== ', ' && str_contains($prevMsg, $schedSig) && ($cMinister === '' || str_contains($prevMsg, $cMinister))) {
+                        // Schedule has not changed; do not duplicate notification
+                        return;
+                    }
+                    // Schedule was updated after completion: send short update notice
+                    $title = "Schedule Updated: {$serviceLabel}";
+                    $message = "TUGON: Schedule updated for your {$serviceLabel} request {$refNo}. Ceremony: {$cDateStr}, {$cTimeStr} at {$shortPlace}. Minister: {$cMinister}. See My Requests.";
+                    if (strlen($message) > 295) {
+                        $message = substr($message, 0, 292) . '...';
+                    }
+                } else {
+                    return;
+                }
+            }
+        }
 
         // 1. Direct in-app notification insertion
-        $requestId = intval($request['request_id'] ?? 0);
-        $ins = $this->conn->prepare("INSERT INTO notifications (user_id, notification_type, title, message, entity_type, entity_id, action_key, state, is_read) VALUES (?, 'request', ?, ?, 'request', ?, 'request.view', 'unread', 0)");
+        $ins = $this->conn->prepare("INSERT INTO notifications (user_id, notification_type, title, message, entity_type, entity_id, action_key, state, is_read) VALUES (?, 'request', ?, ?, 'request', ?, ?, 'unread', 0)");
         if ($ins) {
-            $ins->bind_param('issi', $userId, $title, $message, $requestId);
+            $ins->bind_param('issis', $userId, $title, $message, $requestId, $actionKey);
             $ins->execute();
             $ins->close();
         }
 
-        // 2. Multi-channel notification delivery (handles email & SMS preference check)
-        dispatchNotificationDelivery($this->conn, $userId, $title, $message, 'requests');
+        // 2. Multi-channel notification delivery (email & SMS preference check; failure does not block completion)
+        try {
+            dispatchNotificationDelivery($this->conn, $userId, $title, $message, 'requests');
+        } catch (Throwable $e) {
+            error_log('Outbound notification dispatch failed for request #' . $requestId . ': ' . $e->getMessage());
+        }
     }
 
     /**

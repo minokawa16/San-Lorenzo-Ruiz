@@ -43,21 +43,21 @@ if (!empty($user_profile)) {
 }
 
 $service_types = [
+    'baptism_service' => 'Baptism',
     'first_communion_service' => 'First Communion',
     'confirmation_service' => 'Confirmation',
-    'baptism_service' => 'Baptism',
     'marriage_wedding_service' => 'Marriage / Wedding',
-    'anointing_of_the_sick' => 'Anointing of the Sick',
     'funeral_mass' => 'Funeral Mass',
+    'anointing_of_the_sick' => 'Anointing of the Sick',
     'patronal_fiesta' => 'Patronal Fiesta'
 ];
 $service_meta = [
+    'baptism_service' => ['icon' => 'fa-water', 'hint' => 'Schedule a baptism service with parish coordination.'],
     'first_communion_service' => ['icon' => 'fa-bread-slice', 'hint' => 'Request First Communion service scheduling.'],
     'confirmation_service' => ['icon' => 'fa-dove', 'hint' => 'Request Holy Confirmation service scheduling.'],
-    'baptism_service' => ['icon' => 'fa-water', 'hint' => 'Schedule a baptism service with parish coordination.'],
     'marriage_wedding_service' => ['icon' => 'fa-ring', 'hint' => 'Request wedding or marriage service scheduling.'],
-    'anointing_of_the_sick' => ['icon' => 'fa-hand-holding-medical', 'hint' => 'Request pastoral care and anointing schedule.'],
     'funeral_mass' => ['icon' => 'fa-cross', 'hint' => 'Coordinate funeral Mass details with the parish.'],
+    'anointing_of_the_sick' => ['icon' => 'fa-hand-holding-medical', 'hint' => 'Request pastoral care and anointing schedule.'],
     'patronal_fiesta' => ['icon' => 'fa-church', 'hint' => 'Submit Patronal Fiesta details for parish review.']
 ];
 $baptism_requirements = [
@@ -499,7 +499,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $comm_domicile = trim((string) ($_POST['communion_domicile'] ?? ''));
             $comm_father = trim((string) ($_POST['communion_father_name'] ?? ''));
             $comm_mother = trim((string) ($_POST['communion_mother_name'] ?? ''));
-            $comm_minister = trim((string) ($_POST['communion_minister'] ?? ''));
             $comm_bap_date = trim((string) ($_POST['communion_baptismal_date'] ?? ''));
             $comm_bap_place = trim((string) ($_POST['communion_baptismal_place'] ?? ''));
 
@@ -515,29 +514,22 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 $respond(false, 'Domicile is required.', ['status_code' => 422]);
             }
 
-            if ($comm_father === '' && $comm_mother === '') {
-                $respond(false, 'At least one parent name (Father or Mother) is required.', ['status_code' => 422]);
+            if ($comm_father === '') {
+                $respond(false, 'Father\'s Full Name is required.', ['status_code' => 422]);
             }
-            if ($comm_father !== '' && !preg_match($validNamePattern, $comm_father)) {
+            if (!preg_match($validNamePattern, $comm_father)) {
                 $respond(false, 'Father\'s name may only contain letters, spaces, periods, hyphens, apostrophes, and the letter ñ.', ['status_code' => 422]);
             }
-            if ($comm_mother !== '' && !preg_match($validNamePattern, $comm_mother)) {
+
+            if ($comm_mother === '') {
+                $respond(false, 'Mother\'s Full Maiden Name is required.', ['status_code' => 422]);
+            }
+            if (!preg_match($validNamePattern, $comm_mother)) {
                 $respond(false, 'Mother\'s maiden name may only contain letters, spaces, periods, hyphens, apostrophes, and the letter ñ.', ['status_code' => 422]);
             }
-            $father_upper = $comm_father !== '' ? $cleanName($comm_father) : '';
-            $mother_upper = $comm_mother !== '' ? $cleanName($comm_mother) : '';
-            $parents_str = ($father_upper !== '' && $mother_upper !== '') 
-                ? ($father_upper . ' / ' . $mother_upper) 
-                : ($father_upper ?: $mother_upper);
-
-            $allowed_ministers = [
-                'Parish office will assign',
-                'Rev. Fr. Alberto G. Cahilig, OMI',
-                'Rev. Fr. Alvin Vicente C. Barretto, OMI'
-            ];
-            if ($comm_minister !== '' && !in_array($comm_minister, $allowed_ministers, true)) {
-                $comm_minister = 'Parish office will assign';
-            }
+            $father_upper = $cleanName($comm_father);
+            $mother_upper = $cleanName($comm_mother);
+            $parents_str = $father_upper . ' / ' . $mother_upper;
 
             $today_manila = (new DateTime('now', new DateTimeZone('Asia/Manila')))->format('Y-m-d');
             if ($comm_bap_date === '' || !serviceValidDate($comm_bap_date)) {
@@ -559,10 +551,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 "\n--- FIRST COMMUNION APPLICATION ---",
                 'Name of Communicant: ' . $comm_name_upper,
                 'Domicile: ' . $comm_domicile,
-                'Father: ' . ($father_upper ?: 'N/A'),
-                'Mother: ' . ($mother_upper ?: 'N/A'),
+                'Father: ' . $father_upper,
+                'Mother: ' . $mother_upper,
                 'Parents: ' . $parents_str,
-                'Minister: ' . ($comm_minister ?: 'Parish office will assign'),
                 'Baptismal Date: ' . $comm_bap_date,
                 'Baptismal Place: ' . $comm_bap_place,
                 'Details: ' . ($details !== '' ? $details : 'None')
@@ -643,20 +634,22 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 $respond(false, 'Place of Baptism is required.', ['status_code' => 422]);
             }
 
-            if ($conf_father === '' && $conf_mother === '') {
-                $respond(false, 'At least one parent name (Father or Mother) is required.', ['status_code' => 422]);
+            if ($conf_father === '') {
+                $respond(false, 'Father\'s Full Name is required.', ['status_code' => 422]);
             }
-            if ($conf_father !== '' && !preg_match($validNamePattern, $conf_father)) {
+            if (!preg_match($validNamePattern, $conf_father)) {
                 $respond(false, 'Father\'s name may only contain letters, spaces, periods, hyphens, apostrophes, and the letter ñ.', ['status_code' => 422]);
             }
-            if ($conf_mother !== '' && !preg_match($validNamePattern, $conf_mother)) {
+
+            if ($conf_mother === '') {
+                $respond(false, 'Mother\'s Full Maiden Name is required.', ['status_code' => 422]);
+            }
+            if (!preg_match($validNamePattern, $conf_mother)) {
                 $respond(false, 'Mother\'s maiden name may only contain letters, spaces, periods, hyphens, apostrophes, and the letter ñ.', ['status_code' => 422]);
             }
-            $father_upper = $conf_father !== '' ? $cleanName($conf_father) : '';
-            $mother_upper = $conf_mother !== '' ? $cleanName($conf_mother) : '';
-            $parents_str = ($father_upper !== '' && $mother_upper !== '') 
-                ? ($father_upper . ' / ' . $mother_upper) 
-                : ($father_upper ?: $mother_upper);
+            $father_upper = $cleanName($conf_father);
+            $mother_upper = $cleanName($conf_mother);
+            $parents_str = $father_upper . ' / ' . $mother_upper;
 
             if ($conf_sponsor === '') {
                 $respond(false, 'Sponsor / Godparent full name is required.', ['status_code' => 422]);
@@ -677,8 +670,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 'Parish of Origin: ' . $conf_origin_parish,
                 'Province: ' . $conf_province,
                 'Place of Baptism: ' . $conf_bap_place,
-                'Father: ' . ($father_upper ?: 'N/A'),
-                'Mother: ' . ($mother_upper ?: 'N/A'),
+                'Father: ' . $father_upper,
+                'Mother: ' . $mother_upper,
                 'Parents: ' . $parents_str,
                 'Sponsor / Godparent: ' . $conf_sponsor_upper,
                 'Details: ' . ($details !== '' ? $details : 'None')
@@ -1029,6 +1022,64 @@ if ($stmt) {
 }
 .text-uppercase {
     text-transform: uppercase !important;
+}
+
+/* Two-column aligned row with equal 44px height, top alignment, and icon centering */
+.pds-aligned-row {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    align-items: start !important;
+    gap: 14px !important;
+}
+@media (max-width: 640px) {
+    .pds-aligned-row {
+        grid-template-columns: 1fr !important;
+    }
+}
+.pds-aligned-row .investigation-field {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+.pds-aligned-row label {
+    display: block !important;
+    margin-bottom: 6px !important;
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+    line-height: 1.3 !important;
+    min-height: 20px !important;
+}
+.pds-aligned-row .pds-input-icon-wrap {
+    position: relative !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    max-height: 44px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+.pds-aligned-row .pds-input-icon-wrap > i:first-child {
+    position: absolute !important;
+    left: 14px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    font-size: 15px !important;
+    line-height: 1 !important;
+    z-index: 5 !important;
+}
+.pds-aligned-row .pds-input-icon-wrap .form-control,
+.pds-aligned-row .pds-input-icon-wrap input {
+    height: 44px !important;
+    min-height: 44px !important;
+    max-height: 44px !important;
+    line-height: 44px !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    padding-left: 44px !important;
+    padding-right: 14px !important;
+    font-size: 0.92rem !important;
+    box-sizing: border-box !important;
 }
 
 /* Requirements Upload Section for First Communion & Confirmation */
@@ -1644,54 +1695,41 @@ if ($stmt) {
                             </div>
                         </div>
 
-                        <div class="investigation-grid-2 mt-3">
+                        <div class="investigation-grid-2 mt-3 pds-aligned-row">
                             <div class="investigation-field">
-                                <label for="communion_father_name">3a. Father's Full Name <small class="text-muted fw-normal">(Optional if Mother provided)</small></label>
+                                <label for="communion_father_name">3a. Father's Full Name <span class="text-danger">*</span></label>
                                 <div class="pds-input-icon-wrap">
                                     <i class="fas fa-person"></i>
-                                    <input type="text" class="form-control request-form-control text-uppercase" id="communion_father_name" name="communion_father_name" placeholder="Father's complete name" data-communion-field autocomplete="off">
+                                    <input type="text" class="form-control request-form-control text-uppercase" id="communion_father_name" name="communion_father_name" placeholder="Father's complete name" data-communion-field autocomplete="off" required>
                                 </div>
                             </div>
                             <div class="investigation-field">
-                                <label for="communion_mother_name">3b. Mother's Full Maiden Name <small class="text-muted fw-normal">(Optional if Father provided)</small></label>
+                                <label for="communion_mother_name">3b. Mother's Full Maiden Name <span class="text-danger">*</span></label>
                                 <div class="pds-input-icon-wrap">
                                     <i class="fas fa-person-dress"></i>
-                                    <input type="text" class="form-control request-form-control text-uppercase" id="communion_mother_name" name="communion_mother_name" placeholder="Mother's complete maiden name" data-communion-field autocomplete="off">
+                                    <input type="text" class="form-control request-form-control text-uppercase" id="communion_mother_name" name="communion_mother_name" placeholder="Mother's complete maiden name" data-communion-field autocomplete="off" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="investigation-grid-2 mt-3 pds-aligned-row">
+                            <div class="investigation-field">
+                                <label for="communion_baptismal_date">4. Baptismal Date <span class="text-danger">*</span></label>
+                                <div class="pds-input-icon-wrap">
+                                    <i class="fas fa-water"></i>
+                                    <input type="date" class="form-control request-form-control" id="communion_baptismal_date" name="communion_baptismal_date" max="<?php echo (new DateTime('now', new DateTimeZone('Asia/Manila')))->format('Y-m-d'); ?>" data-communion-field required>
+                                </div>
+                            </div>
+                            <div class="investigation-field">
+                                <label for="communion_baptismal_place">5. Baptismal Place <span class="text-danger">*</span></label>
+                                <div class="pds-input-icon-wrap">
+                                    <i class="fas fa-place-of-worship"></i>
+                                    <input type="text" class="form-control request-form-control" id="communion_baptismal_place" name="communion_baptismal_place" list="baptismalPlaceSuggestions" placeholder="Place of Baptism" data-communion-field autocomplete="off" required>
                                 </div>
                             </div>
                         </div>
                         <div class="investigation-field mt-1">
-                            <small class="text-muted"><i class="fas fa-info-circle"></i> At least one parent name is required. Saved in registry format "FATHER / MOTHER".</small>
-                        </div>
-
-                        <div class="investigation-grid-full mt-3">
-                            <label for="communion_minister">4. Minister <small class="text-muted fw-normal">(Optional)</small></label>
-                            <div class="pds-input-icon-wrap">
-                                <i class="fas fa-user-tie"></i>
-                                <select class="form-select request-form-control" id="communion_minister" name="communion_minister" data-communion-field>
-                                    <option value="Parish office will assign">Parish office will assign</option>
-                                    <option value="Rev. Fr. Alberto G. Cahilig, OMI">Rev. Fr. Alberto G. Cahilig, OMI</option>
-                                    <option value="Rev. Fr. Alvin Vicente C. Barretto, OMI">Rev. Fr. Alvin Vicente C. Barretto, OMI</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="investigation-grid-2 mt-3">
-                            <div class="investigation-field">
-                                <label for="communion_baptismal_date">5. Baptismal Date <span class="text-danger">*</span></label>
-                                <div class="pds-input-icon-wrap">
-                                    <i class="fas fa-water"></i>
-                                    <input type="date" class="form-control request-form-control" id="communion_baptismal_date" name="communion_baptismal_date" max="<?php echo (new DateTime('now', new DateTimeZone('Asia/Manila')))->format('Y-m-d'); ?>" data-communion-field>
-                                </div>
-                                <small class="text-muted">Must be a valid past date.</small>
-                            </div>
-                            <div class="investigation-field">
-                                <label for="communion_baptismal_place">6. Baptismal Place <span class="text-danger">*</span></label>
-                                <div class="pds-input-icon-wrap">
-                                    <i class="fas fa-place-of-worship"></i>
-                                    <input type="text" class="form-control request-form-control" id="communion_baptismal_place" name="communion_baptismal_place" list="baptismalPlaceSuggestions" placeholder="Place of Baptism" data-communion-field autocomplete="off">
-                                </div>
-                            </div>
+                            <small class="text-muted">Must be a valid past date.</small>
                         </div>
                     </div>
                 </div>
@@ -1711,7 +1749,7 @@ if ($stmt) {
                             <label for="confirmation_fullname">1. Name of Confirmed Person <span class="text-danger">*</span></label>
                             <div class="pds-input-icon-wrap">
                                 <i class="fas fa-user"></i>
-                                <input type="text" class="form-control request-form-control text-uppercase" id="confirmation_fullname" name="confirmation_fullname" placeholder="Full name of confirmed person" data-confirmation-field autocomplete="off">
+                                <input type="text" class="form-control request-form-control text-uppercase" id="confirmation_fullname" name="confirmation_fullname" placeholder="Full name of confirmed person" data-confirmation-field autocomplete="off" required>
                             </div>
                             <small class="text-muted">Enter full name without numbers or symbols. Saved in UPPERCASE.</small>
                         </div>
@@ -1720,24 +1758,24 @@ if ($stmt) {
                             <label for="confirmation_age">2. Age <span class="text-danger">*</span></label>
                             <div class="pds-input-icon-wrap">
                                 <i class="fas fa-hashtag"></i>
-                                <input type="number" class="form-control request-form-control" id="confirmation_age" name="confirmation_age" min="7" max="120" step="1" placeholder="Age (7 to 120)" data-confirmation-field>
+                                <input type="number" class="form-control request-form-control" id="confirmation_age" name="confirmation_age" min="7" max="120" step="1" placeholder="Age (7 to 120)" data-confirmation-field required>
                             </div>
                             <small class="text-muted">Must be a whole number between 7 and 120.</small>
                         </div>
 
-                        <div class="investigation-grid-2 mt-3">
+                        <div class="investigation-grid-2 mt-3 pds-aligned-row">
                             <div class="investigation-field">
                                 <label for="confirmation_origin_parish">3. Parish of Origin <span class="text-danger">*</span></label>
                                 <div class="pds-input-icon-wrap">
                                     <i class="fas fa-church"></i>
-                                    <input type="text" class="form-control request-form-control" id="confirmation_origin_parish" name="confirmation_origin_parish" placeholder="e.g. San Lorenzo Ruiz Parish" data-confirmation-field autocomplete="off">
+                                    <input type="text" class="form-control request-form-control" id="confirmation_origin_parish" name="confirmation_origin_parish" placeholder="e.g. San Lorenzo Ruiz Parish" data-confirmation-field autocomplete="off" required>
                                 </div>
                             </div>
                             <div class="investigation-field">
                                 <label for="confirmation_province">4. Province <span class="text-danger">*</span></label>
                                 <div class="pds-input-icon-wrap">
                                     <i class="fas fa-map-location-dot"></i>
-                                    <input type="text" class="form-control request-form-control" id="confirmation_province" name="confirmation_province" value="Cotabato" placeholder="Province" data-confirmation-field autocomplete="off">
+                                    <input type="text" class="form-control request-form-control" id="confirmation_province" name="confirmation_province" value="Cotabato" placeholder="Province" data-confirmation-field autocomplete="off" required>
                                 </div>
                             </div>
                         </div>
@@ -1746,35 +1784,32 @@ if ($stmt) {
                             <label for="confirmation_baptismal_place">5. Place of Baptism <span class="text-danger">*</span></label>
                             <div class="pds-input-icon-wrap">
                                 <i class="fas fa-water"></i>
-                                <input type="text" class="form-control request-form-control" id="confirmation_baptismal_place" name="confirmation_baptismal_place" list="baptismalPlaceSuggestions" placeholder="Place of Baptism" data-confirmation-field autocomplete="off">
+                                <input type="text" class="form-control request-form-control" id="confirmation_baptismal_place" name="confirmation_baptismal_place" list="baptismalPlaceSuggestions" placeholder="Place of Baptism" data-confirmation-field autocomplete="off" required>
                             </div>
                         </div>
 
-                        <div class="investigation-grid-2 mt-3">
+                        <div class="investigation-grid-2 mt-3 pds-aligned-row">
                             <div class="investigation-field">
-                                <label for="confirmation_father_name">6a. Father's Full Name <small class="text-muted fw-normal">(Optional if Mother provided)</small></label>
+                                <label for="confirmation_father_name">6a. Father's Full Name <span class="text-danger">*</span></label>
                                 <div class="pds-input-icon-wrap">
                                     <i class="fas fa-person"></i>
-                                    <input type="text" class="form-control request-form-control text-uppercase" id="confirmation_father_name" name="confirmation_father_name" placeholder="Father's complete name" data-confirmation-field autocomplete="off">
+                                    <input type="text" class="form-control request-form-control text-uppercase" id="confirmation_father_name" name="confirmation_father_name" placeholder="Father's complete name" data-confirmation-field autocomplete="off" required>
                                 </div>
                             </div>
                             <div class="investigation-field">
-                                <label for="confirmation_mother_name">6b. Mother's Full Maiden Name <small class="text-muted fw-normal">(Optional if Father provided)</small></label>
+                                <label for="confirmation_mother_name">6b. Mother's Full Maiden Name <span class="text-danger">*</span></label>
                                 <div class="pds-input-icon-wrap">
                                     <i class="fas fa-person-dress"></i>
-                                    <input type="text" class="form-control request-form-control text-uppercase" id="confirmation_mother_name" name="confirmation_mother_name" placeholder="Mother's complete maiden name" data-confirmation-field autocomplete="off">
+                                    <input type="text" class="form-control request-form-control text-uppercase" id="confirmation_mother_name" name="confirmation_mother_name" placeholder="Mother's complete maiden name" data-confirmation-field autocomplete="off" required>
                                 </div>
                             </div>
-                        </div>
-                        <div class="investigation-field mt-1">
-                            <small class="text-muted"><i class="fas fa-info-circle"></i> At least one parent name is required. Saved in registry format "FATHER / MOTHER".</small>
                         </div>
 
                         <div class="investigation-grid-full mt-3">
                             <label for="confirmation_sponsor">7. Sponsor / Godparent <span class="text-danger">*</span></label>
                             <div class="pds-input-icon-wrap">
                                 <i class="fas fa-user-check"></i>
-                                <input type="text" class="form-control request-form-control text-uppercase" id="confirmation_sponsor" name="confirmation_sponsor" placeholder="Full name of sponsor / godparent" data-confirmation-field autocomplete="off">
+                                <input type="text" class="form-control request-form-control text-uppercase" id="confirmation_sponsor" name="confirmation_sponsor" placeholder="Full name of sponsor / godparent" data-confirmation-field autocomplete="off" required>
                             </div>
                             <small class="text-muted">Single Godparent / Sponsor full name. Saved in UPPERCASE.</small>
                         </div>
@@ -2803,16 +2838,14 @@ document.addEventListener('DOMContentLoaded', function() {
         updateCommConfRequirementsState();
 
         communionFields.forEach(function(field) {
-            const isOptional = field.id === 'communion_father_name' || field.id === 'communion_mother_name' || field.id === 'communion_minister';
-            field.required = communionSelected && !isOptional;
+            field.required = communionSelected;
             if (!field.required) {
                 clearFieldError(field);
             }
         });
 
         confirmationFields.forEach(function(field) {
-            const isOptional = field.id === 'confirmation_father_name' || field.id === 'confirmation_mother_name';
-            field.required = confirmationSelected && !isOptional;
+            field.required = confirmationSelected;
             if (!field.required) {
                 clearFieldError(field);
             }
@@ -3019,12 +3052,16 @@ document.addEventListener('DOMContentLoaded', function() {
             const mName = formValue('communion_mother_name');
             const fEl = document.getElementById('communion_father_name');
             const mEl = document.getElementById('communion_mother_name');
-            if (!fName && !mName) {
+            if (!fName) {
                 addFieldError(fEl);
-                addFieldError(mEl);
                 invalidFields.push(fEl);
             } else {
                 clearFieldError(fEl);
+            }
+            if (!mName) {
+                addFieldError(mEl);
+                invalidFields.push(mEl);
+            } else {
                 clearFieldError(mEl);
             }
 
@@ -3083,12 +3120,16 @@ document.addEventListener('DOMContentLoaded', function() {
             const mName = formValue('confirmation_mother_name');
             const fEl = document.getElementById('confirmation_father_name');
             const mEl = document.getElementById('confirmation_mother_name');
-            if (!fName && !mName) {
+            if (!fName) {
                 addFieldError(fEl);
-                addFieldError(mEl);
                 invalidFields.push(fEl);
             } else {
                 clearFieldError(fEl);
+            }
+            if (!mName) {
+                addFieldError(mEl);
+                invalidFields.push(mEl);
+            } else {
                 clearFieldError(mEl);
             }
 
@@ -3270,7 +3311,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 ['Father\'s Full Name', fName || 'None'],
                 ['Mother\'s Full Maiden Name', mName || 'None'],
                 ['Parents', parentsStr],
-                ['Minister', formValue('communion_minister') || 'Parish office will assign'],
                 ['Baptismal Date', displayDate(formValue('communion_baptismal_date'))],
                 ['Baptismal Place', formValue('communion_baptismal_place')]
             ]);
@@ -3690,5 +3730,5 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-<script src="../assets/js/request-modern.js"></script>
+<script src="../assets/js/request-modern.js?v=<?php echo filemtime(__DIR__ . '/../assets/js/request-modern.js'); ?>"></script>
 <?php include '../templates/footer.php'; ?>

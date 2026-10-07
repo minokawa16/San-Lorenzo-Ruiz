@@ -2,6 +2,9 @@
 /**
  * Request Detail Module - Shows the status, remarks, and timeline for a single user request.
  */
+header('Cache-Control: private, no-store, no-cache, must-revalidate');
+header('Pragma: no-cache');
+
 include '../includes/session.php';
 include '../config/security.php';
 include '../database/config.php';
@@ -284,9 +287,9 @@ $page_title = 'View Request';
                             <?php
                                 $raw_view_type = strtolower((string)($request['request_type'] ?? ''));
                                 $disp_view_type = match ($raw_view_type) {
+                                    'baptism_service', 'baptism' => 'Baptism',
                                     'first_communion_service', 'first_communion', 'communion' => 'First Communion',
                                     'confirmation_service', 'confirmation' => 'Confirmation',
-                                    'baptism_service', 'baptism' => 'Baptism',
                                     'marriage_wedding_service', 'marriage', 'wedding' => 'Marriage / Wedding',
                                     'funeral_mass', 'funeral' => 'Funeral Mass',
                                     'anointing_of_the_sick' => 'Anointing of the Sick',
@@ -309,6 +312,68 @@ $page_title = 'View Request';
                         </div>
                     </div>
 
+                    <?php 
+                        $isCommOrConfView = in_array($raw_view_type, ['first_communion_service', 'first_communion', 'communion', 'confirmation_service', 'confirmation'], true);
+                        $isCompletedView = strtolower((string)($request['status'] ?? '')) === 'completed';
+                        $hasCeremonySched = !empty($request['ceremony_date']) && !empty($request['ceremony_time']);
+                    ?>
+                    <?php if ($isCommOrConfView): ?>
+                        <?php if ($isCompletedView && $hasCeremonySched): ?>
+                            <?php
+                                $tzManila = new DateTimeZone('Asia/Manila');
+                                $cDt = new DateTime($request['ceremony_date'] . ' ' . $request['ceremony_time'], $tzManila);
+                                $ceremonyDateLong = $cDt->format('l, F j, Y');
+                                $ceremonyTimeStr = $cDt->format('g:i A');
+                                $ceremonyPlace = getParishPlaceName($conn);
+                                $ceremonyMinister = trim((string)($request['ceremony_minister'] ?? 'Parish Priest'));
+                            ?>
+                            <div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); border: 1.5px solid #86efac !important; border-radius: 14px;">
+                                <div class="card-body p-4">
+                                    <div class="d-flex align-items-start gap-3">
+                                        <div class="d-flex align-items-center justify-content-center flex-shrink-0" style="width: 48px; height: 48px; border-radius: 12px; background: #16a34a; color: #ffffff; font-size: 1.35rem; box-shadow: 0 4px 10px rgba(22, 163, 74, 0.25);">
+                                            <i class="fas fa-calendar-check"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                                                <h5 class="fw-bold text-dark mb-0" style="font-family: 'Playfair Display', Georgia, serif;">Confirmed Ceremony Schedule</h5>
+                                                <span class="badge bg-success text-white px-2.5 py-1 rounded-pill" style="font-size: 0.78rem;">
+                                                    <i class="fas fa-check-circle me-1"></i> Confirmed by Parish Office
+                                                </span>
+                                            </div>
+                                            <div class="row g-3">
+                                                <div class="col-sm-6 col-md-3">
+                                                    <span class="text-muted d-block small mb-1 text-uppercase fw-semibold" style="letter-spacing: 0.5px; font-size: 0.75rem;">Ceremony Date</span>
+                                                    <strong class="text-dark d-block" style="font-size: 0.95rem;"><?php echo e($ceremonyDateLong); ?></strong>
+                                                </div>
+                                                <div class="col-sm-6 col-md-3">
+                                                    <span class="text-muted d-block small mb-1 text-uppercase fw-semibold" style="letter-spacing: 0.5px; font-size: 0.75rem;">Time</span>
+                                                    <strong class="text-dark d-block" style="font-size: 0.95rem;"><?php echo e($ceremonyTimeStr); ?></strong>
+                                                </div>
+                                                <div class="col-sm-6 col-md-3">
+                                                    <span class="text-muted d-block small mb-1 text-uppercase fw-semibold" style="letter-spacing: 0.5px; font-size: 0.75rem;">Place</span>
+                                                    <strong class="text-dark d-block" style="font-size: 0.95rem;"><?php echo e($ceremonyPlace); ?></strong>
+                                                </div>
+                                                <div class="col-sm-6 col-md-3">
+                                                    <span class="text-muted d-block small mb-1 text-uppercase fw-semibold" style="letter-spacing: 0.5px; font-size: 0.75rem;">Minister</span>
+                                                    <strong class="text-dark d-block" style="font-size: 0.95rem;"><?php echo e($ceremonyMinister); ?></strong>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php else: ?>
+                            <div class="card border-0 mb-4" style="background: #FAF7F2; border: 1px dashed #D6C7B2 !important; border-radius: 12px;">
+                                <div class="card-body p-3 d-flex align-items-center gap-2 text-muted" style="font-size: 0.9rem;">
+                                    <span class="d-inline-flex align-items-center justify-content-center text-secondary" style="width: 24px; height: 24px; flex-shrink: 0;">
+                                        <i class="fas fa-calendar-alt"></i>
+                                    </span>
+                                    <span>Schedule: To be announced by the parish office.</span>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                    <?php endif; ?>
+
                     <div class="mb-4">
                         <h6 class="text-muted mb-2">Description</h6>
                         <?php
@@ -319,7 +384,7 @@ $page_title = 'View Request';
                                 $filtered_lines = [];
                                 foreach ($lines as $line) {
                                     $trimmed_line = trim($line);
-                                    if (preg_match('/^(preferred date|preferred time|year|confirmation year|month and day|month & day)\s*:/i', $trimmed_line)) {
+                                    if (preg_match('/^(preferred date|requested date|requested service date|preferred time|preferred time slot|ceremony date|ceremony time|minister|officiating priest|year|confirmation year|month and day|month & day)\s*:/i', $trimmed_line)) {
                                         continue;
                                     }
                                     $filtered_lines[] = $line;

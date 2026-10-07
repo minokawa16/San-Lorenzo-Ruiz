@@ -130,12 +130,29 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         $is_comm_or_conf = in_array($req_type_norm, ['first_communion_service', 'first_communion', 'communion', 'confirmation_service', 'confirmation'], true);
         $ceremony_date = trim((string)($_POST['ceremony_date'] ?? ''));
+        $ceremony_time = trim((string)($_POST['ceremony_time'] ?? ''));
+        $ceremony_minister = trim((string)($_POST['ceremony_minister'] ?? ''));
+        if ($ceremony_minister === 'Other' && !empty($_POST['ceremony_minister_other'])) {
+            $ceremony_minister = trim((string)$_POST['ceremony_minister_other']);
+        }
 
-        // Enforce Ceremony Date for First Communion and Confirmation completions
+        // Enforce Ceremony Date, Time, and Minister for First Communion and Confirmation completions
         if ($is_comm_or_conf && ($action === 'complete' || $action === 'approve' || in_array($new_status, ['approved', 'completed'], true))) {
+            $missing_schedule = [];
             if ($ceremony_date === '' || !validDateValue($ceremony_date)) {
-                throw new Exception('Please provide the Ceremony Date before completing this request.');
+                $missing_schedule[] = 'Ceremony Date';
             }
+            if ($ceremony_time === '') {
+                $missing_schedule[] = 'Ceremony Time';
+            }
+            if ($ceremony_minister === '' || $ceremony_minister === 'Other') {
+                $missing_schedule[] = 'Minister';
+            }
+            if (!empty($missing_schedule)) {
+                http_response_code(422);
+                throw new Exception('Cannot complete request: The following required fields are missing: ' . implode(', ', $missing_schedule) . '.');
+            }
+            $officiating_priest = $ceremony_minister;
         }
 
         // Process funeral sheet updates if submitted
@@ -209,6 +226,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     'officiating_priest' => $officiating_priest,
                     'parish_priest' => $parish_priest,
                     'ceremony_date' => $ceremony_date ?: null,
+                    'ceremony_time' => $ceremony_time ?: null,
+                    'ceremony_minister' => $ceremony_minister ?: null,
                     'target_status' => $new_status === 'approved' ? 'approved' : 'completed'
                 ]);
 

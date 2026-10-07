@@ -227,7 +227,12 @@ function userAllowsNotificationCategory($conn, $user_id, $category, $channel) {
 }
 
 function notificationSmsMessage($title, $message) {
-    $text = trim('TUGON Parish System: ' . (string) $title . "\n" . (string) $message);
+    $msg_str = trim((string) $message);
+    if (str_starts_with($msg_str, 'TUGON:')) {
+        $text = $msg_str;
+    } else {
+        $text = trim('TUGON Parish System: ' . (string) $title . "\n" . $msg_str);
+    }
     $text = preg_replace('/[ \t]+/', ' ', $text);
     $text = preg_replace("/\n{3,}/", "\n\n", $text);
     return strlen($text) > 480 ? substr($text, 0, 477) . '...' : $text;
@@ -3347,7 +3352,7 @@ function syncApprovedRequestToCalendar($conn, $request_id, $admin_user_id) {
     $type_label = ucfirst(str_replace('_', ' ', $request['request_type']));
     $title = $type_label . ' - ' . $request['fullname'];
     $blessing_request_types = ['house_blessing', 'car_blessing', 'vehicle_blessing', 'business_blessing', 'office_blessing', 'event_blessing', 'other_blessing'];
-    $service_request_types = ['baptism_service', 'marriage_wedding_service', 'funeral_mass', 'anointing_of_the_sick', 'patronal_fiesta', 'confirmation_service', 'first_communion_service'];
+    $service_request_types = ['baptism_service', 'first_communion_service', 'confirmation_service', 'marriage_wedding_service', 'funeral_mass', 'anointing_of_the_sick', 'patronal_fiesta'];
     $category = in_array($request['request_type'], $blessing_request_types, true) ? 'blessing' : (in_array($request['request_type'], $service_request_types, true) ? 'sacramental' : 'reservation');
     if ($request['request_type'] === 'patronal_fiesta') {
         $category = 'patronal_fiesta';
@@ -4065,3 +4070,51 @@ function getCertificateCategoryConfig(): array {
     ];
 }
 
+/**
+ * Returns the parish place name and location from system settings without hardcoding.
+ */
+function getParishPlaceName($conn, bool $short = false): string {
+    $defaultLong = 'San Lorenzo Ruiz Mission Station, Aleosan, Cotabato';
+    $defaultShort = 'San Lorenzo Ruiz Mission Station';
+
+    if (!$conn || !function_exists('tableExists') || !tableExists($conn, 'system_settings')) {
+        return $short ? $defaultShort : $defaultLong;
+    }
+
+    try {
+        $keys = ['parish_name', 'parish_location', 'parish_address', 'church_name', 'parish.name', 'parish.address'];
+        $placeholders = implode(',', array_fill(0, count($keys), '?'));
+        $stmt = $conn->prepare("SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN ($placeholders) AND setting_value IS NOT NULL AND setting_value != ''");
+        if ($stmt) {
+            $types = str_repeat('s', count($keys));
+            $stmt->bind_param($types, ...$keys);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            $settings = [];
+            while ($row = $res->fetch_assoc()) {
+                $settings[$row['setting_key']] = trim($row['setting_value']);
+            }
+            $stmt->close();
+
+            $pName = $settings['parish_name'] ?? $settings['church_name'] ?? $settings['parish.name'] ?? '';
+            $pLoc = $settings['parish_location'] ?? $settings['parish_address'] ?? $settings['parish.address'] ?? '';
+
+            if ($short && $pName !== '') {
+                return $pName;
+            }
+            if ($pName !== '' && $pLoc !== '') {
+                return $pName . ', ' . $pLoc;
+            }
+            if ($pName !== '') {
+                return $pName;
+            }
+            if ($pLoc !== '') {
+                return $pLoc;
+            }
+        }
+    } catch (Throwable $e) {
+        // Fallback gracefully on query error
+    }
+
+    return $short ? $defaultShort : $defaultLong;
+}

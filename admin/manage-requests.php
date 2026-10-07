@@ -181,6 +181,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
                 $completionResult = $sacramentalService->completeRequest($request_id, (int)$_SESSION['user_id'], [
                     'admin_response' => $admin_response,
                     'ceremony_date' => !empty($_POST['ceremony_date']) ? trim((string)$_POST['ceremony_date']) : null,
+                    'ceremony_time' => !empty($_POST['ceremony_time']) ? trim((string)$_POST['ceremony_time']) : null,
+                    'ceremony_minister' => !empty($_POST['ceremony_minister']) ? trim((string)$_POST['ceremony_minister']) : (!empty($_POST['officiating_priest']) ? trim((string)$_POST['officiating_priest']) : null),
                     'target_status' => 'completed'
                 ]);
                 $success = 'Request marked as completed! ' . (!empty($completionResult['sacramental_record']['registered']) ? 'Sacramental record registered and calendar schedule locked.' : 'Calendar schedule locked.');
@@ -371,6 +373,9 @@ $request_select = "
         u.fullname,
         u.email,
         NULL AS phone_number,
+        r.ceremony_date,
+        r.ceremony_time,
+        r.ceremony_minister,
         COALESCE(s_locks.slot_date, se.event_date) AS event_date,
         COALESCE(s_locks.slot_time, se.event_time) AS event_time,
         COALESCE(doc_counts.document_count, 0) AS document_count,
@@ -431,6 +436,9 @@ $reservation_select = "
         u.fullname,
         u.email,
         u.phone_number,
+        NULL AS ceremony_date,
+        NULL AS ceremony_time,
+        NULL AS ceremony_minister,
         r.event_date,
         r.event_time,
         0 AS document_count,
@@ -791,7 +799,14 @@ include '../templates/header.php';
                                     </td>
                                     <!-- Requested Schedule Column -->
                                     <td>
-                                        <?php if ($has_schedule): ?>
+                                        <?php if ($is_comm_or_conf): ?>
+                                            <?php if (!empty($request['ceremony_date']) && !empty($request['ceremony_time'])): ?>
+                                                <div class="fw-semibold text-dark"><?php echo date('M j, Y', strtotime($request['ceremony_date'])); ?></div>
+                                                <div class="text-muted small"><?php echo strtolower(date('ga', strtotime($request['ceremony_time']))); ?></div>
+                                            <?php else: ?>
+                                                <span class="text-muted">—</span>
+                                            <?php endif; ?>
+                                        <?php elseif ($has_schedule): ?>
                                             <div class="fw-semibold text-dark"><?php echo formatDate($request['event_date']); ?></div>
                                             <?php if (!empty($request['event_time'])): ?>
                                                 <div class="text-muted small"><?php echo formatScheduleSlotRange($request['event_time']); ?></div>
