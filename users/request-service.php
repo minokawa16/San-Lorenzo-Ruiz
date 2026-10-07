@@ -2,6 +2,10 @@
 /**
  * Service Request Module - Handles reservation and parish service request submissions.
  */
+header("Cache-Control: private, no-cache, no-store, must-revalidate");
+header("Pragma: no-cache");
+header("Expires: 0");
+
 include '../includes/session.php';
 include '../config/security.php';
 include '../database/config.php';
@@ -1176,7 +1180,7 @@ if ($stmt) {
 
         <form method="POST" action="" enctype="multipart/form-data" id="serviceRequestForm" data-modern-request-form novalidate>
             <?php echo csrfInput(); ?>
-            <div class="request-validation-banner" id="serviceValidationBanner" role="alert" hidden>
+            <div class="request-validation-banner" id="serviceValidationBanner" role="alert" aria-live="polite" hidden>
                 <i class="fas fa-triangle-exclamation"></i>
                 <span>Please fill up the highlighted fields before continuing.</span>
             </div>
@@ -2174,10 +2178,23 @@ document.addEventListener('DOMContentLoaded', function() {
     const patronalDate = document.getElementById('patronal_fiesta_date');
     const generalServiceDateGroup = document.getElementById('generalServiceDateGroup');
     const generalServiceDate = document.getElementById('general_service_date');
+    const preferredTimeGroup = document.getElementById('preferredTimeGroup');
+    const preferredTimeSelect = document.getElementById('preferred_time');
+    const locGroup = document.getElementById('locationGroup');
+    const locInput = document.getElementById('location');
+    const step3Title = document.getElementById('step3Title');
+    const step3Subtitle = document.getElementById('step3Subtitle');
+    const communionConfNotice = document.getElementById('communionConfirmationScheduleNotice');
     const scheduleSyncCard = document.getElementById('scheduleSyncCard');
     const scheduleSyncTitle = document.getElementById('scheduleSyncTitle');
     const scheduleSyncText = document.getElementById('scheduleSyncText');
     const preferredDate = document.getElementById('preferred_date');
+
+    const firstCommunionCard = document.getElementById('firstCommunionCard');
+    const communionFields = Array.from(document.querySelectorAll('[data-communion-field]'));
+    const confirmationCard = document.getElementById('confirmationCard');
+    const confirmationFields = Array.from(document.querySelectorAll('[data-confirmation-field]'));
+
     const baptismRequirementsCard = document.getElementById('baptismRequirementsCard');
     const baptismRequirementWarning = document.getElementById('baptismRequirementWarning');
     const baptismSheetFields = Array.from(document.querySelectorAll('[data-baptism-sheet]'));
@@ -2422,6 +2439,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             }
                         }
                         updateCommConfRequirementsState();
+                        if (window._pendingReviewAfterUpload) {
+                            window._pendingReviewAfterUpload = false;
+                            openReview();
+                        }
                     }, 120);
                 }
             }, 50);
@@ -2523,12 +2544,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-
-    const firstCommunionCard = document.getElementById('firstCommunionCard');
-    const communionFields = Array.from(document.querySelectorAll('[data-communion-field]'));
-
-    const confirmationCard = document.getElementById('confirmationCard');
-    const confirmationFields = Array.from(document.querySelectorAll('[data-confirmation-field]'));
 
     function requirementFilesReady(group) {
         const inputs = requirementFileInputs.filter(function(input) {
@@ -2705,13 +2720,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const marriageSelected = isMarriageSelected();
         const funeralSelected = isFuneralSelected();
         const patronalSelected = isPatronalSelected();
-        const preferredTimeGroup = document.getElementById('preferredTimeGroup');
-        const preferredTimeSelect = document.getElementById('preferred_time');
-        const locGroup = document.getElementById('locationGroup');
-        const locInput = document.getElementById('location');
-        const s3Title = document.getElementById('step3Title');
-        const s3Sub = document.getElementById('step3Subtitle');
-        const noticeEl = document.getElementById('communionConfirmationScheduleNotice');
 
         if (communionSelected || confirmationSelected) {
             // First Communion & Confirmation: Date and Time are set by Admin only.
@@ -2724,6 +2732,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 patronalGroup.style.display = 'none';
             }
             if (patronalDate) {
+                patronalDate.disabled = true;
                 patronalDate.required = false;
                 patronalDate.value = '';
                 clearFieldError(patronalDate);
@@ -2732,11 +2741,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 generalServiceDateGroup.style.display = 'none';
             }
             if (generalServiceDate) {
+                generalServiceDate.disabled = true;
                 generalServiceDate.required = false;
                 generalServiceDate.value = '';
                 clearFieldError(generalServiceDate);
             }
             if (preferredDate) {
+                preferredDate.disabled = true;
                 preferredDate.value = '';
             }
 
@@ -2744,6 +2755,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 preferredTimeGroup.style.display = 'none';
             }
             if (preferredTimeSelect) {
+                preferredTimeSelect.disabled = true;
                 preferredTimeSelect.required = false;
                 preferredTimeSelect.value = '';
                 clearFieldError(preferredTimeSelect);
@@ -2760,36 +2772,40 @@ document.addEventListener('DOMContentLoaded', function() {
                 clearFieldError(locInput);
             }
 
-            if (s3Title) {
-                s3Title.textContent = 'Requirements & Additional Details';
+            if (step3Title) {
+                step3Title.textContent = 'Requirements & Additional Details';
             }
-            if (s3Sub) {
-                s3Sub.textContent = 'Upload required certificate documents and provide any additional details.';
+            if (step3Subtitle) {
+                step3Subtitle.textContent = 'Upload required certificate documents and provide any additional details.';
             }
-            if (noticeEl) {
-                noticeEl.style.display = '';
+            if (communionConfNotice) {
+                communionConfNotice.style.display = '';
             }
         } else {
             // Other sacramental services: standard schedule & location selection
-            if (noticeEl) {
-                noticeEl.style.display = 'none';
+            if (communionConfNotice) {
+                communionConfNotice.style.display = 'none';
             }
             if (locGroup) {
                 locGroup.style.display = '';
             }
             if (locInput) {
+                locInput.disabled = false;
                 locInput.required = true;
             }
-            if (s3Title) {
-                s3Title.textContent = 'Schedule and Location';
+            if (step3Title) {
+                step3Title.textContent = 'Schedule and Location';
             }
-            if (s3Sub) {
-                s3Sub.textContent = 'Provide your preferred service schedule and complete location.';
+            if (step3Subtitle) {
+                step3Subtitle.textContent = 'Provide your preferred service schedule and complete location.';
             }
 
             if (baptismSelected) {
                 if (preferredTimeGroup) preferredTimeGroup.style.display = '';
-                if (preferredTimeSelect) preferredTimeSelect.required = true;
+                if (preferredTimeSelect) {
+                    preferredTimeSelect.disabled = false;
+                    preferredTimeSelect.required = true;
+                }
                 if (scheduleSyncCard) {
                     scheduleSyncCard.hidden = false;
                     scheduleSyncCard.style.display = '';
@@ -2798,12 +2814,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     scheduleSyncTitle.textContent = 'Baptism Schedule Synchronized';
                 }
                 if (patronalGroup) patronalGroup.style.display = 'none';
-                if (patronalDate) patronalDate.required = false;
+                if (patronalDate) {
+                    patronalDate.disabled = true;
+                    patronalDate.required = false;
+                }
                 if (generalServiceDateGroup) generalServiceDateGroup.style.display = 'none';
-                if (generalServiceDate) generalServiceDate.required = false;
+                if (generalServiceDate) {
+                    generalServiceDate.disabled = true;
+                    generalServiceDate.required = false;
+                }
             } else if (marriageSelected) {
                 if (preferredTimeGroup) preferredTimeGroup.style.display = '';
-                if (preferredTimeSelect) preferredTimeSelect.required = true;
+                if (preferredTimeSelect) {
+                    preferredTimeSelect.disabled = false;
+                    preferredTimeSelect.required = true;
+                }
                 if (scheduleSyncCard) {
                     scheduleSyncCard.hidden = false;
                     scheduleSyncCard.style.display = '';
@@ -2812,12 +2837,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     scheduleSyncTitle.textContent = 'Wedding Schedule Synchronized';
                 }
                 if (patronalGroup) patronalGroup.style.display = 'none';
-                if (patronalDate) patronalDate.required = false;
+                if (patronalDate) {
+                    patronalDate.disabled = true;
+                    patronalDate.required = false;
+                }
                 if (generalServiceDateGroup) generalServiceDateGroup.style.display = 'none';
-                if (generalServiceDate) generalServiceDate.required = false;
+                if (generalServiceDate) {
+                    generalServiceDate.disabled = true;
+                    generalServiceDate.required = false;
+                }
             } else if (funeralSelected) {
                 if (preferredTimeGroup) preferredTimeGroup.style.display = '';
-                if (preferredTimeSelect) preferredTimeSelect.required = true;
+                if (preferredTimeSelect) {
+                    preferredTimeSelect.disabled = false;
+                    preferredTimeSelect.required = true;
+                }
                 if (scheduleSyncCard) {
                     scheduleSyncCard.hidden = false;
                     scheduleSyncCard.style.display = '';
@@ -2826,31 +2860,55 @@ document.addEventListener('DOMContentLoaded', function() {
                     scheduleSyncTitle.textContent = 'Funeral Mass Schedule Synchronized';
                 }
                 if (patronalGroup) patronalGroup.style.display = 'none';
-                if (patronalDate) patronalDate.required = false;
+                if (patronalDate) {
+                    patronalDate.disabled = true;
+                    patronalDate.required = false;
+                }
                 if (generalServiceDateGroup) generalServiceDateGroup.style.display = 'none';
-                if (generalServiceDate) generalServiceDate.required = false;
+                if (generalServiceDate) {
+                    generalServiceDate.disabled = true;
+                    generalServiceDate.required = false;
+                }
             } else if (patronalSelected) {
                 if (preferredTimeGroup) preferredTimeGroup.style.display = '';
-                if (preferredTimeSelect) preferredTimeSelect.required = true;
+                if (preferredTimeSelect) {
+                    preferredTimeSelect.disabled = false;
+                    preferredTimeSelect.required = true;
+                }
                 if (scheduleSyncCard) {
                     scheduleSyncCard.hidden = true;
                     scheduleSyncCard.style.display = 'none';
                 }
                 if (patronalGroup) patronalGroup.style.display = '';
-                if (patronalDate) patronalDate.required = true;
+                if (patronalDate) {
+                    patronalDate.disabled = false;
+                    patronalDate.required = true;
+                }
                 if (generalServiceDateGroup) generalServiceDateGroup.style.display = 'none';
-                if (generalServiceDate) generalServiceDate.required = false;
+                if (generalServiceDate) {
+                    generalServiceDate.disabled = true;
+                    generalServiceDate.required = false;
+                }
             } else {
                 if (preferredTimeGroup) preferredTimeGroup.style.display = '';
-                if (preferredTimeSelect) preferredTimeSelect.required = true;
+                if (preferredTimeSelect) {
+                    preferredTimeSelect.disabled = false;
+                    preferredTimeSelect.required = true;
+                }
                 if (scheduleSyncCard) {
                     scheduleSyncCard.hidden = true;
                     scheduleSyncCard.style.display = 'none';
                 }
                 if (patronalGroup) patronalGroup.style.display = 'none';
-                if (patronalDate) patronalDate.required = false;
+                if (patronalDate) {
+                    patronalDate.disabled = true;
+                    patronalDate.required = false;
+                }
                 if (generalServiceDateGroup) generalServiceDateGroup.style.display = '';
-                if (generalServiceDate) generalServiceDate.required = true;
+                if (generalServiceDate) {
+                    generalServiceDate.disabled = false;
+                    generalServiceDate.required = true;
+                }
             }
         }
         syncScheduleDate();
@@ -2883,6 +2941,7 @@ document.addEventListener('DOMContentLoaded', function() {
         updateCommConfRequirementsState();
 
         communionFields.forEach(function(field) {
+            field.disabled = !communionSelected;
             field.required = communionSelected;
             if (!field.required) {
                 clearFieldError(field);
@@ -2890,6 +2949,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         confirmationFields.forEach(function(field) {
+            field.disabled = !confirmationSelected;
             field.required = confirmationSelected;
             if (!field.required) {
                 clearFieldError(field);
@@ -2897,6 +2957,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         baptismSheetFields.forEach(function(field) {
+            field.disabled = !baptismSelected;
             field.required = baptismSelected;
             if (!field.required) {
                 clearFieldError(field);
@@ -2904,6 +2965,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         marriageSheetFields.forEach(function(field) {
+            field.disabled = !marriageSelected;
             const isOptional = field.id === 'marriage_additional_sponsors';
             field.required = marriageSelected && !isOptional;
             if (!field.required) {
@@ -2912,6 +2974,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         funeralSheetFields.forEach(function(field) {
+            field.disabled = !funeralSelected;
             const isOptional = field.id === 'funeral_minister';
             field.required = funeralSelected && !isOptional;
             if (!field.required) {
@@ -2921,11 +2984,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
         requirementFileInputs.forEach(function(input) {
             const isMandatory = input.dataset.requirementMandatory !== 'false';
-            input.required = isMandatory && (
-                (input.dataset.requirementGroup === 'baptism' && baptismSelected) ||
+            const belongsToActive = (input.dataset.requirementGroup === 'baptism' && baptismSelected) ||
                 (input.dataset.requirementGroup === 'marriage' && marriageSelected) ||
-                (input.dataset.requirementGroup === 'funeral' && funeralSelected)
-            );
+                (input.dataset.requirementGroup === 'funeral' && funeralSelected);
+            input.disabled = !belongsToActive;
+            input.required = isMandatory && belongsToActive;
             if (!input.required) {
                 clearFieldError(input);
             }
@@ -3015,41 +3078,120 @@ document.addEventListener('DOMContentLoaded', function() {
             || field.closest('.baptism-sheet-field')
             || field.closest('.marriage-upload-cell')
             || field.closest('.requirement-upload-item')
+            || field.closest('.pds-input-icon-wrap')
             || field.closest('.col-md-6')
             || field.closest('.col-12')
             || field.parentElement;
     }
 
-    function clearFieldError(field) {
-        const wrapper = validationWrapper(field);
-        if (!wrapper) {
-            return;
+    function getFieldFriendlyErrorMessage(field) {
+        if (!field) return 'Please fill in this required field.';
+        const id = field.id || '';
+        const fieldMessages = {
+            'communion_communicant_name': "Enter the communicant's full name",
+            'communion_domicile': "Enter the communicant's domicile / address",
+            'communion_father_name': "Enter the father's full name",
+            'communion_mother_name': "Enter the mother's full maiden name",
+            'communion_baptismal_date': "Enter a valid past baptismal date",
+            'communion_baptismal_place': "Enter the place of baptism",
+            'confirmation_fullname': "Enter the name of the confirmed person",
+            'confirmation_age': "Enter a valid age between 7 and 120",
+            'confirmation_origin_parish': "Enter the parish of origin",
+            'confirmation_province': "Enter the province",
+            'confirmation_baptismal_place': "Enter the place of baptism",
+            'confirmation_father_name': "Enter the father's full name",
+            'confirmation_mother_name': "Enter the mother's full maiden name",
+            'confirmation_sponsor': "Enter the sponsor / godparent's name",
+            'baptism_child_name': "Enter the child's full name",
+            'baptism_birth_date': "Enter the child's date of birth",
+            'baptism_birth_place': "Enter the place of birth",
+            'baptism_date': "Enter the scheduled date of baptism",
+            'baptism_father_name': "Enter the father's complete name",
+            'baptism_father_origin': "Enter the father's place of origin / residence",
+            'baptism_mother_name': "Enter the mother's complete maiden name",
+            'baptism_mother_origin': "Enter the mother's place of origin / residence",
+            'baptism_parents_marriage': "Enter the parents' marriage status",
+            'baptism_sponsor_male_name': "Enter the principal male sponsor",
+            'baptism_sponsor_female_name': "Enter the principal female sponsor",
+            'marriage_groom_name': "Enter the groom's full name",
+            'marriage_groom_birth_date': "Enter the groom's date of birth",
+            'marriage_groom_birth_place': "Enter the groom's place of birth",
+            'marriage_groom_residence': "Enter the groom's residence",
+            'marriage_groom_religion': "Enter the groom's religion",
+            'marriage_groom_father_name': "Enter the groom's father's name",
+            'marriage_groom_mother_name': "Enter the groom's mother's maiden name",
+            'marriage_bride_name': "Enter the bride's full name",
+            'marriage_bride_birth_date': "Enter the bride's date of birth",
+            'marriage_bride_birth_place': "Enter the bride's place of birth",
+            'marriage_bride_residence': "Enter the bride's residence",
+            'marriage_bride_religion': "Enter the bride's religion",
+            'marriage_bride_father_name': "Enter the bride's father's name",
+            'marriage_bride_mother_name': "Enter the bride's mother's maiden name",
+            'marriage_witness_male': "Enter the male principal sponsor",
+            'marriage_witness_female': "Enter the female principal sponsor",
+            'marriage_wedding_date': "Enter the scheduled wedding date",
+            'funeral_deceased_name': "Enter the deceased's full name",
+            'funeral_date_of_death': "Enter the date of death",
+            'funeral_date_of_burial': "Enter the date of burial / funeral mass",
+            'funeral_civil_status': "Select the deceased's civil status",
+            'funeral_rites': "Select the type of funeral rites",
+            'funeral_cause_of_death': "Enter the cause of death",
+            'funeral_place_of_burial': "Enter the place of burial / cemetery",
+            'preferred_time': "Select your preferred time slot",
+            'general_service_date': "Select your requested service date",
+            'patronal_fiesta_date': "Select the date of patronal fiesta",
+            'location': "Enter the service location"
+        };
+        if (fieldMessages[id]) {
+            return fieldMessages[id];
         }
-        wrapper.classList.remove('request-field-error', 'is-missing');
-        const error = wrapper.querySelector(':scope > .request-inline-error');
-        if (error) {
-            error.remove();
+        const wrapper = validationWrapper(field);
+        if (wrapper) {
+            const label = wrapper.querySelector('label');
+            if (label) {
+                const labelText = label.textContent.replace(/[*0-9\.\(\)]/g, '').replace(/optional/i, '').trim();
+                if (labelText) return 'Please fill in ' + labelText + '.';
+            }
+        }
+        return 'Please fill in this required field.';
+    }
+
+    function clearFieldError(field) {
+        if (!field) return;
+        const wrapper = validationWrapper(field);
+        if (wrapper) {
+            wrapper.classList.remove('request-field-error', 'is-missing');
+            const error = wrapper.querySelector(':scope > .request-inline-error');
+            if (error) {
+                error.remove();
+            }
         }
         if (field.type === 'radio') {
             document.querySelectorAll('input[name="request_type"]').forEach(function(radio) {
                 radio.removeAttribute('aria-invalid');
+                radio.classList.remove('is-invalid');
             });
         } else {
             field.removeAttribute('aria-invalid');
+            field.classList.remove('is-invalid');
         }
     }
 
-    function addFieldError(field) {
+    function addFieldError(field, customMsg) {
+        if (!field) return;
         const wrapper = validationWrapper(field);
-        if (!wrapper || wrapper.classList.contains('request-field-error')) {
-            return;
-        }
+        if (!wrapper) return;
         wrapper.classList.add('request-field-error');
         field.setAttribute('aria-invalid', 'true');
-        const error = document.createElement('div');
-        error.className = 'request-inline-error';
-        error.innerHTML = '<i class="fas fa-triangle-exclamation"></i><span>You haven\'t filled up this field yet.</span>';
-        wrapper.appendChild(error);
+        field.classList.add('is-invalid');
+        let error = wrapper.querySelector(':scope > .request-inline-error');
+        if (!error) {
+            error = document.createElement('div');
+            error.className = 'request-inline-error';
+            wrapper.appendChild(error);
+        }
+        const msgText = customMsg || getFieldFriendlyErrorMessage(field);
+        error.innerHTML = '<i class="fas fa-triangle-exclamation"></i><span>' + escapeHtml(msgText) + '</span>';
     }
 
     function fieldIsComplete(field) {
@@ -3062,10 +3204,62 @@ document.addEventListener('DOMContentLoaded', function() {
         return field.value.trim() !== '' && field.checkValidity();
     }
 
+    function validateSingleFieldOnBlur(field) {
+        if (!field || field.disabled) return;
+        if (field.type === 'button' || field.type === 'submit' || field.type === 'reset') return;
+        if (field.type === 'file') return;
+
+        const val = field.value.trim();
+        if (field.required && !val) {
+            addFieldError(field);
+            return;
+        }
+
+        if (val) {
+            if (field.id === 'communion_baptismal_date') {
+                const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' }).format(new Date());
+                if (val > todayStr) {
+                    addFieldError(field, "Baptismal date must be a valid past date (cannot be in the future).");
+                    return;
+                }
+            } else if (field.id === 'confirmation_age') {
+                const age = parseInt(val, 10);
+                if (isNaN(age) || age < 7 || age > 120) {
+                    addFieldError(field, "Age must be a valid whole number between 7 and 120.");
+                    return;
+                }
+            } else if (['communion_communicant_name', 'communion_father_name', 'communion_mother_name', 'confirmation_fullname', 'confirmation_father_name', 'confirmation_mother_name', 'confirmation_sponsor'].includes(field.id)) {
+                const nameRegex = /^[a-zA-Z\s\.\'\-ñÑ\u00C0-\u017F]+$/;
+                if (!nameRegex.test(val)) {
+                    addFieldError(field, "Name should contain letters, spaces, hyphens, and apostrophes only.");
+                    return;
+                }
+            }
+        }
+
+        clearFieldError(field);
+        if (validationBanner) {
+            validationBanner.hidden = !serviceForm.querySelector('.request-field-error');
+        }
+    }
+
     function validateForReview() {
         updateSpecialRequirementsState();
         let invalidFields = [];
         const seenRadioGroups = new Set();
+
+        // 1. In-progress upload check
+        const progressSlots = Array.from(document.querySelectorAll('.req-slot-progress'));
+        const activeProgress = progressSlots.some(function(slot) {
+            return slot.style.display !== 'none' && slot.offsetParent !== null;
+        });
+        if (activeProgress) {
+            window._pendingReviewAfterUpload = true;
+            showServiceError('Uploading your document... please wait.');
+            return false;
+        }
+
+        // 2. Active required fields check
         serviceForm.querySelectorAll('[required]').forEach(function(field) {
             if (field.disabled) {
                 return;
@@ -3086,193 +3280,244 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        if (isCommunionSelected() || isConfirmationSelected()) {
-            if (generalServiceDate) {
-                generalServiceDate.required = false;
-                clearFieldError(generalServiceDate);
-            }
-            if (preferredTimeSelect) {
-                preferredTimeSelect.required = false;
-                clearFieldError(preferredTimeSelect);
-            }
-            if (patronalDate) {
-                patronalDate.required = false;
-                clearFieldError(patronalDate);
-            }
-            const locInput = document.getElementById('location');
-            if (locInput) {
-                locInput.required = false;
-                clearFieldError(locInput);
-            }
-            const dateAndLocInputs = [generalServiceDate, preferredTimeSelect, patronalDate, locInput, preferredDate];
-            invalidFields = invalidFields.filter(function(f) {
-                return !dateAndLocInputs.includes(f);
-            });
-        }
-
+        // 3. Communion-specific validation
         if (isCommunionSelected()) {
             if (!bapCertInput || !bapCertInput.files || !bapCertInput.files.length) {
                 if (bapCertInput && !invalidFields.includes(bapCertInput)) invalidFields.push(bapCertInput);
-                const bapSlot = document.getElementById('bapCertDropzone');
-                if (bapSlot) bapSlot.classList.add('has-error');
-                const bapErr = document.getElementById('bapCertError');
-                if (bapErr) {
-                    const t = bapErr.querySelector('.req-error-text') || bapErr;
+                if (bapCertDropzone) bapCertDropzone.classList.add('has-error');
+                if (bapCertError) {
+                    const t = bapCertError.querySelector('.req-error-text') || bapCertError;
                     t.textContent = 'Please upload your Baptismal Certificate before submitting.';
-                    bapErr.style.display = '';
+                    bapCertError.style.display = '';
                 }
             } else {
-                const bapSlot = document.getElementById('bapCertDropzone');
-                if (bapSlot) bapSlot.classList.remove('has-error');
-                const bapErr = document.getElementById('bapCertError');
-                if (bapErr) bapErr.style.display = 'none';
+                if (bapCertDropzone) bapCertDropzone.classList.remove('has-error');
+                if (bapCertError) bapCertError.style.display = 'none';
             }
 
-            const fName = formValue('communion_father_name');
-            const mName = formValue('communion_mother_name');
+            const cEl = document.getElementById('communion_communicant_name');
+            const cName = formValue('communion_communicant_name');
+            if (!cName) {
+                addFieldError(cEl, "Enter the communicant's full name");
+                if (cEl && !invalidFields.includes(cEl)) invalidFields.push(cEl);
+            } else {
+                const nameRegex = /^[a-zA-Z\s\.\'\-ñÑ\u00C0-\u017F]+$/;
+                if (!nameRegex.test(cName)) {
+                    addFieldError(cEl, "Communicant's name should contain letters, spaces, hyphens, and apostrophes only.");
+                    if (cEl && !invalidFields.includes(cEl)) invalidFields.push(cEl);
+                } else {
+                    clearFieldError(cEl);
+                }
+            }
+
+            const domEl = document.getElementById('communion_domicile');
+            const domVal = formValue('communion_domicile');
+            if (!domVal) {
+                addFieldError(domEl, "Enter the communicant's domicile / address");
+                if (domEl && !invalidFields.includes(domEl)) invalidFields.push(domEl);
+            } else {
+                clearFieldError(domEl);
+            }
+
             const fEl = document.getElementById('communion_father_name');
-            const mEl = document.getElementById('communion_mother_name');
+            const fName = formValue('communion_father_name');
             if (!fName) {
-                addFieldError(fEl);
-                invalidFields.push(fEl);
+                addFieldError(fEl, "Enter the father's full name");
+                if (fEl && !invalidFields.includes(fEl)) invalidFields.push(fEl);
             } else {
-                clearFieldError(fEl);
-            }
-            if (!mName) {
-                addFieldError(mEl);
-                invalidFields.push(mEl);
-            } else {
-                clearFieldError(mEl);
+                const nameRegex = /^[a-zA-Z\s\.\'\-ñÑ\u00C0-\u017F]+$/;
+                if (!nameRegex.test(fName)) {
+                    addFieldError(fEl, "Father's name should contain letters, spaces, hyphens, and apostrophes only.");
+                    if (fEl && !invalidFields.includes(fEl)) invalidFields.push(fEl);
+                } else {
+                    clearFieldError(fEl);
+                }
             }
 
-            const bapD = formValue('communion_baptismal_date');
+            const mEl = document.getElementById('communion_mother_name');
+            const mName = formValue('communion_mother_name');
+            if (!mName) {
+                addFieldError(mEl, "Enter the mother's full maiden name");
+                if (mEl && !invalidFields.includes(mEl)) invalidFields.push(mEl);
+            } else {
+                const nameRegex = /^[a-zA-Z\s\.\'\-ñÑ\u00C0-\u017F]+$/;
+                if (!nameRegex.test(mName)) {
+                    addFieldError(mEl, "Mother's maiden name should contain letters, spaces, hyphens, and apostrophes only.");
+                    if (mEl && !invalidFields.includes(mEl)) invalidFields.push(mEl);
+                } else {
+                    clearFieldError(mEl);
+                }
+            }
+
             const bapEl = document.getElementById('communion_baptismal_date');
-            if (bapD) {
+            const bapD = formValue('communion_baptismal_date');
+            if (!bapD) {
+                addFieldError(bapEl, "Enter a valid past baptismal date");
+                if (bapEl && !invalidFields.includes(bapEl)) invalidFields.push(bapEl);
+            } else {
                 const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' }).format(new Date());
                 if (bapD > todayStr) {
-                    addFieldError(bapEl);
-                    invalidFields.push(bapEl);
+                    addFieldError(bapEl, "Baptismal date must be a valid past date (cannot be in the future).");
+                    if (bapEl && !invalidFields.includes(bapEl)) invalidFields.push(bapEl);
+                } else {
+                    clearFieldError(bapEl);
                 }
             }
 
-            const nameRegex = /^[a-zA-Z\s\.\'\-ñÑ\u00C0-\u017F]+$/;
-            const cName = formValue('communion_communicant_name');
-            const cEl = document.getElementById('communion_communicant_name');
-            if (cName && !nameRegex.test(cName)) {
-                addFieldError(cEl);
-                invalidFields.push(cEl);
-            }
-            if (fName && !nameRegex.test(fName)) {
-                addFieldError(fEl);
-                invalidFields.push(fEl);
-            }
-            if (mName && !nameRegex.test(mName)) {
-                addFieldError(mEl);
-                invalidFields.push(mEl);
+            const placeEl = document.getElementById('communion_baptismal_place');
+            const placeVal = formValue('communion_baptismal_place');
+            if (!placeVal) {
+                addFieldError(placeEl, "Enter the place of baptism");
+                if (placeEl && !invalidFields.includes(placeEl)) invalidFields.push(placeEl);
+            } else {
+                clearFieldError(placeEl);
             }
         }
 
+        // 4. Confirmation-specific validation
         if (isConfirmationSelected()) {
             if (!bapCertInput || !bapCertInput.files || !bapCertInput.files.length) {
                 if (bapCertInput && !invalidFields.includes(bapCertInput)) invalidFields.push(bapCertInput);
-                const bapSlot = document.getElementById('bapCertDropzone');
-                if (bapSlot) bapSlot.classList.add('has-error');
-                const bapErr = document.getElementById('bapCertError');
-                if (bapErr) {
-                    const t = bapErr.querySelector('.req-error-text') || bapErr;
+                if (bapCertDropzone) bapCertDropzone.classList.add('has-error');
+                if (bapCertError) {
+                    const t = bapCertError.querySelector('.req-error-text') || bapCertError;
                     t.textContent = 'Please upload your Baptismal Certificate before submitting.';
-                    bapErr.style.display = '';
+                    bapCertError.style.display = '';
                 }
             } else {
-                const bapSlot = document.getElementById('bapCertDropzone');
-                if (bapSlot) bapSlot.classList.remove('has-error');
-                const bapErr = document.getElementById('bapCertError');
-                if (bapErr) bapErr.style.display = 'none';
-            }
-            if (!commCertInput || !commCertInput.files || !commCertInput.files.length) {
-                if (commCertInput && !invalidFields.includes(commCertInput)) invalidFields.push(commCertInput);
-                const commSlot = document.getElementById('commCertDropzone');
-                if (commSlot) commSlot.classList.add('has-error');
-                const commErr = document.getElementById('commCertError');
-                if (commErr) {
-                    const t = commErr.querySelector('.req-error-text') || commErr;
-                    t.textContent = 'Please upload your First Communion Certificate before submitting.';
-                    commErr.style.display = '';
-                }
-            } else {
-                const commSlot = document.getElementById('commCertDropzone');
-                if (commSlot) commSlot.classList.remove('has-error');
-                const commErr = document.getElementById('commCertError');
-                if (commErr) commErr.style.display = 'none';
+                if (bapCertDropzone) bapCertDropzone.classList.remove('has-error');
+                if (bapCertError) bapCertError.style.display = 'none';
             }
 
-            const fName = formValue('confirmation_father_name');
-            const mName = formValue('confirmation_mother_name');
+            if (!commCertInput || !commCertInput.files || !commCertInput.files.length) {
+                if (commCertInput && !invalidFields.includes(commCertInput)) invalidFields.push(commCertInput);
+                if (commCertDropzone) commCertDropzone.classList.add('has-error');
+                if (commCertError) {
+                    const t = commCertError.querySelector('.req-error-text') || commCertError;
+                    t.textContent = 'Please upload your First Communion Certificate before submitting.';
+                    commCertError.style.display = '';
+                }
+            } else {
+                if (commCertDropzone) commCertDropzone.classList.remove('has-error');
+                if (commCertError) commCertError.style.display = 'none';
+            }
+
+            const nameRegex = /^[a-zA-Z\s\.\'\-ñÑ\u00C0-\u017F]+$/;
+            const cfEl = document.getElementById('confirmation_fullname');
+            const cfName = formValue('confirmation_fullname');
+            if (!cfName) {
+                addFieldError(cfEl, "Enter the name of the confirmed person");
+                if (cfEl && !invalidFields.includes(cfEl)) invalidFields.push(cfEl);
+            } else if (!nameRegex.test(cfName)) {
+                addFieldError(cfEl, "Name should contain letters, spaces, hyphens, and apostrophes only.");
+                if (cfEl && !invalidFields.includes(cfEl)) invalidFields.push(cfEl);
+            } else {
+                clearFieldError(cfEl);
+            }
+
+            const ageEl = document.getElementById('confirmation_age');
+            const ageVal = parseInt(formValue('confirmation_age'), 10);
+            if (isNaN(ageVal) || ageVal < 7 || ageVal > 120) {
+                addFieldError(ageEl, "Age must be a valid whole number between 7 and 120.");
+                if (ageEl && !invalidFields.includes(ageEl)) invalidFields.push(ageEl);
+            } else {
+                clearFieldError(ageEl);
+            }
+
+            const parEl = document.getElementById('confirmation_origin_parish');
+            if (!formValue('confirmation_origin_parish')) {
+                addFieldError(parEl, "Enter the parish of origin");
+                if (parEl && !invalidFields.includes(parEl)) invalidFields.push(parEl);
+            } else {
+                clearFieldError(parEl);
+            }
+
+            const provEl = document.getElementById('confirmation_province');
+            if (!formValue('confirmation_province')) {
+                addFieldError(provEl, "Enter the province");
+                if (provEl && !invalidFields.includes(provEl)) invalidFields.push(provEl);
+            } else {
+                clearFieldError(provEl);
+            }
+
+            const bPlEl = document.getElementById('confirmation_baptismal_place');
+            if (!formValue('confirmation_baptismal_place')) {
+                addFieldError(bPlEl, "Enter the place of baptism");
+                if (bPlEl && !invalidFields.includes(bPlEl)) invalidFields.push(bPlEl);
+            } else {
+                clearFieldError(bPlEl);
+            }
+
             const fEl = document.getElementById('confirmation_father_name');
-            const mEl = document.getElementById('confirmation_mother_name');
+            const fName = formValue('confirmation_father_name');
             if (!fName) {
-                addFieldError(fEl);
-                invalidFields.push(fEl);
+                addFieldError(fEl, "Enter the father's full name");
+                if (fEl && !invalidFields.includes(fEl)) invalidFields.push(fEl);
+            } else if (!nameRegex.test(fName)) {
+                addFieldError(fEl, "Father's name should contain letters, spaces, hyphens, and apostrophes only.");
+                if (fEl && !invalidFields.includes(fEl)) invalidFields.push(fEl);
             } else {
                 clearFieldError(fEl);
             }
+
+            const mEl = document.getElementById('confirmation_mother_name');
+            const mName = formValue('confirmation_mother_name');
             if (!mName) {
-                addFieldError(mEl);
-                invalidFields.push(mEl);
+                addFieldError(mEl, "Enter the mother's full maiden name");
+                if (mEl && !invalidFields.includes(mEl)) invalidFields.push(mEl);
+            } else if (!nameRegex.test(mName)) {
+                addFieldError(mEl, "Mother's maiden name should contain letters, spaces, hyphens, and apostrophes only.");
+                if (mEl && !invalidFields.includes(mEl)) invalidFields.push(mEl);
             } else {
                 clearFieldError(mEl);
             }
 
-            const nameRegex = /^[a-zA-Z\s\.\'\-ñÑ\u00C0-\u017F]+$/;
-            const cfName = formValue('confirmation_fullname');
-            const cfEl = document.getElementById('confirmation_fullname');
-            if (cfName && !nameRegex.test(cfName)) {
-                addFieldError(cfEl);
-                invalidFields.push(cfEl);
-            }
-            if (fName && !nameRegex.test(fName)) {
-                addFieldError(fEl);
-                invalidFields.push(fEl);
-            }
-            if (mName && !nameRegex.test(mName)) {
-                addFieldError(mEl);
-                invalidFields.push(mEl);
-            }
-
-            const spName = formValue('confirmation_sponsor');
             const spEl = document.getElementById('confirmation_sponsor');
-            if (spName && !nameRegex.test(spName)) {
-                addFieldError(spEl);
-                invalidFields.push(spEl);
-            }
-
-            const ageVal = parseInt(formValue('confirmation_age'), 10);
-            const ageEl = document.getElementById('confirmation_age');
-            if (isNaN(ageVal) || ageVal < 7 || ageVal > 120) {
-                addFieldError(ageEl);
-                invalidFields.push(ageEl);
+            const spName = formValue('confirmation_sponsor');
+            if (!spName) {
+                addFieldError(spEl, "Enter the sponsor / godparent's name");
+                if (spEl && !invalidFields.includes(spEl)) invalidFields.push(spEl);
+            } else if (!nameRegex.test(spName)) {
+                addFieldError(spEl, "Sponsor's name should contain letters, spaces, hyphens, and apostrophes only.");
+                if (spEl && !invalidFields.includes(spEl)) invalidFields.push(spEl);
+            } else {
+                clearFieldError(spEl);
             }
         }
 
-        validationBanner.hidden = invalidFields.length === 0;
-        if (invalidFields.length) {
-            const firstWrapper = validationWrapper(invalidFields[0]);
-            if (firstWrapper) {
-                firstWrapper.scrollIntoView({behavior: 'smooth', block: 'center'});
+        // Filter out any disabled fields
+        invalidFields = invalidFields.filter(function(f) {
+            return f && !f.disabled;
+        });
+
+        if (invalidFields.length > 0) {
+            const count = invalidFields.length;
+            const msg = count === 1 ? 'Please fix 1 field to continue.' : ('Please fix ' + count + ' fields to continue.');
+            if (validationBanner) {
+                validationBanner.innerHTML = '<i class="fas fa-triangle-exclamation"></i> <span>' + msg + '</span>';
+                validationBanner.setAttribute('aria-live', 'polite');
+                validationBanner.setAttribute('role', 'alert');
+                validationBanner.hidden = false;
             }
+            const firstWrapper = validationWrapper(invalidFields[0]) || invalidFields[0];
+            firstWrapper.scrollIntoView({behavior: 'smooth', block: 'center'});
             window.setTimeout(function() {
-                if (invalidFields[0].type !== 'file') {
+                if (invalidFields[0].type !== 'file' && typeof invalidFields[0].focus === 'function') {
                     invalidFields[0].focus({preventScroll: true});
                 }
             }, 350);
             return false;
         }
 
+        if (validationBanner) {
+            validationBanner.hidden = true;
+        }
+
         if (!isCommunionSelected() && !isConfirmationSelected() && window.hasScheduleConflictState) {
             const prefTime = document.getElementById('preferred_time');
             if (prefTime) {
                 clearFieldError(prefTime);
-                addFieldError(prefTime);
+                addFieldError(prefTime, 'This date and time is already occupied. Please choose another slot.');
                 prefTime.classList.add('is-invalid');
                 const timeWrap = validationWrapper(prefTime);
                 if (timeWrap) {
@@ -3283,6 +3528,7 @@ document.addEventListener('DOMContentLoaded', function() {
             showServiceError(window.lastConflictMessage || 'This date and time is already occupied. Please choose another date or time.');
             return false;
         }
+
         return true;
     }
 
@@ -3521,25 +3767,30 @@ document.addEventListener('DOMContentLoaded', function() {
                 scheduleDateLabel = 'Date of Patronal Fiesta';
             }
             scheduleReviewItems.push([scheduleDateLabel, displayDate(scheduleDate)]);
-            scheduleReviewItems.push(['Preferred Time', displayTime(document.getElementById('preferred_time').value)]);
-            scheduleReviewItems.push(['Location', document.getElementById('location').value.trim()]);
-        } else {
-            scheduleReviewItems.push(['Ceremony Schedule', 'To be scheduled and set directly by the Parish Administrator']);
+            scheduleReviewItems.push(['Preferred Time', displayTime(formValue('preferred_time'))]);
+            scheduleReviewItems.push(['Location', formValue('location')]);
         }
 
-        scheduleReviewItems.push(['Additional Details', document.getElementById('details').value.trim() || 'None']);
+        scheduleReviewItems.push(['Additional Details', formValue('details') || 'None']);
         renderReviewItems('reviewScheduleInfo', scheduleReviewItems);
     }
 
     function openReview() {
-        if (!validateForReview()) {
-            return;
+        try {
+            if (!validateForReview()) {
+                return;
+            }
+            populateReview();
+            if (validationBanner) {
+                validationBanner.hidden = true;
+            }
+            entryPanel.hidden = true;
+            reviewPanel.hidden = false;
+            reviewPanel.scrollIntoView({behavior: 'smooth', block: 'start'});
+        } catch (err) {
+            console.error('Error opening review screen:', err);
+            showServiceError('Something went wrong preparing the review screen. Please try again.');
         }
-        populateReview();
-        validationBanner.hidden = true;
-        entryPanel.hidden = true;
-        reviewPanel.hidden = false;
-        reviewPanel.scrollIntoView({behavior: 'smooth', block: 'start'});
     }
 
     const typeRadios = document.querySelectorAll('input[name="request_type"]');
@@ -3617,16 +3868,27 @@ document.addEventListener('DOMContentLoaded', function() {
         updateSpecialRequirementsState();
     }
 
+    serviceForm.addEventListener('focusout', function(event) {
+        validateSingleFieldOnBlur(event.target);
+    });
     serviceForm.addEventListener('input', function(event) {
-        if (event.target.matches('[required]') && fieldIsComplete(event.target)) {
-            clearFieldError(event.target);
-            validationBanner.hidden = !serviceForm.querySelector('.request-field-error');
+        const field = event.target;
+        if (field.classList.contains('is-invalid') || (validationWrapper(field) && validationWrapper(field).classList.contains('request-field-error'))) {
+            validateSingleFieldOnBlur(field);
         }
     });
     serviceForm.addEventListener('change', function(event) {
-        if (event.target.matches('[required]') && fieldIsComplete(event.target)) {
-            clearFieldError(event.target);
-            validationBanner.hidden = !serviceForm.querySelector('.request-field-error');
+        const field = event.target;
+        if (field.classList.contains('is-invalid') || (validationWrapper(field) && validationWrapper(field).classList.contains('request-field-error'))) {
+            validateSingleFieldOnBlur(field);
+        }
+    });
+    serviceForm.addEventListener('keydown', function(event) {
+        if (event.key === 'Enter' && event.target.tagName !== 'TEXTAREA') {
+            if (reviewPanel && reviewPanel.hidden) {
+                event.preventDefault();
+                openReview();
+            }
         }
     });
     function showServiceError(message) {
@@ -3805,12 +4067,37 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    submitRequestBtn.addEventListener('click', openReview);
-    reviewBackBtn.addEventListener('click', function() {
-        reviewPanel.hidden = true;
-        entryPanel.hidden = false;
-        entryPanel.scrollIntoView({behavior: 'smooth', block: 'start'});
+    if (submitRequestBtn) {
+        submitRequestBtn.addEventListener('click', openReview);
+    }
+    if (reviewBackBtn) {
+        reviewBackBtn.addEventListener('click', function() {
+            reviewPanel.hidden = true;
+            entryPanel.hidden = false;
+            entryPanel.scrollIntoView({behavior: 'smooth', block: 'start'});
+        });
+    }
+
+    // Delegated click listener for absolute stability across DOM updates
+    document.addEventListener('click', function(event) {
+        const sBtn = event.target.closest('#submitRequestBtn');
+        if (sBtn) {
+            event.preventDefault();
+            openReview();
+            return;
+        }
+        const bBtn = event.target.closest('#serviceReviewBack');
+        if (bBtn) {
+            event.preventDefault();
+            if (reviewPanel) reviewPanel.hidden = true;
+            if (entryPanel) {
+                entryPanel.hidden = false;
+                entryPanel.scrollIntoView({behavior: 'smooth', block: 'start'});
+            }
+            return;
+        }
     });
+
     serviceForm.addEventListener('submit', function(event) {
         event.preventDefault();
         if (event.submitter !== confirmSubmitBtn && reviewPanel.hidden) {
