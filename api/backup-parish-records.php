@@ -395,9 +395,9 @@ if ($action === 'preview_restore') {
 
 if ($action === 'execute_restore') {
     header('Content-Type: application/json; charset=utf-8');
-    $confirm_code = trim((string)($_POST['confirmation'] ?? ''));
-    if ($confirm_code !== 'CONFIRM RESTORE') {
-        echo json_encode(['success' => false, 'error' => 'Typed confirmation mismatch. You must type "CONFIRM RESTORE" exactly to proceed.']);
+    $confirm_code = strtoupper(trim((string)($_POST['confirmation'] ?? '')));
+    if ($confirm_code !== 'RESTORE' && $confirm_code !== 'CONFIRM RESTORE') {
+        echo json_encode(['success' => false, 'error' => 'Typed confirmation mismatch. You must type RESTORE to continue.']);
         exit;
     }
 
@@ -744,11 +744,13 @@ try {
     if (isset($temp_zip) && file_exists($temp_zip)) {
         @unlink($temp_zip);
     }
+    error_log("[BACKUP ERROR] " . $e->getMessage() . "\n" . $e->getTraceAsString());
     header('Content-Type: application/json; charset=utf-8');
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'error' => 'Backup export failed: ' . $e->getMessage()
+        'error' => 'Something went wrong. Please try again or contact your administrator.',
+        'technical_details' => $e->getMessage()
     ]);
     exit;
 }
