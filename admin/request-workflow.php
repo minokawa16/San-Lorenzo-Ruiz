@@ -195,13 +195,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         }
 
         if (!in_array($status, $allowed_statuses, true)) {
-            $error = 'Invalid request status. Allowed: Pending, Processing, Ready, Completed, Rejected.';
+            $error = 'Invalid request status. Allowed: Pending, Processing, Completed, Rejected.';
         } elseif ($funeral_validation_error !== null) {
             $error = $funeral_validation_error;
-        } elseif (in_array($status, ['processing', 'ready', 'ready_for_pickup', 'completed'], true) && $requires_supporting_docs && $requirement_count <= 0) {
+        } elseif (in_array($status, ['processing', 'ready', 'ready_for_pickup', 'completed'], true) && !$is_certificate && $requires_supporting_docs && $requirement_count <= 0) {
             $error = 'This request cannot move forward until at least one supporting requirement is attached.';
-        } elseif ($status === 'completed' && $is_certificate && $released_count <= 0 && $requires_supporting_docs) {
-            $error = 'Upload a released certificate or parish office file before marking this request completed.';
         } elseif ($status === 'completed' && $is_certificate && intval($current_payment_summary['total']) > 0 && intval($current_payment_summary['verified']) <= 0) {
             $error = 'A submitted payment receipt must be verified before marking this request completed.';
         } elseif ($status === 'completed') {
@@ -1647,12 +1645,44 @@ $breadcrumbs = [
                 </div>
 
                 <!-- C. Collapsible Application Drawer Toggle Bar -->
+                <script>
+                function toggleSubmittedApplicationDrawer(e) {
+                    if (e) {
+                        if (typeof e.preventDefault === 'function') e.preventDefault();
+                        if (typeof e.stopPropagation === 'function') e.stopPropagation();
+                    }
+                    var drawer = document.getElementById('submittedFormCollapse');
+                    var btn = document.getElementById('toggleApplicationFormBtn');
+                    var text = document.getElementById('toggleText');
+                    var chevron = document.getElementById('toggleChevron');
+                    if (!drawer) return false;
+
+                    var isHidden = (window.getComputedStyle(drawer).display === 'none') || !drawer.classList.contains('show');
+
+                    if (isHidden) {
+                        drawer.classList.remove('collapse');
+                        drawer.classList.add('show');
+                        drawer.style.display = 'block';
+                        if (btn) btn.setAttribute('aria-expanded', 'true');
+                        if (text) text.textContent = 'Hide Submitted Application Form';
+                        if (chevron) chevron.style.transform = 'rotate(180deg)';
+                    } else {
+                        drawer.classList.remove('show');
+                        drawer.classList.add('collapse');
+                        drawer.style.display = 'none';
+                        if (btn) btn.setAttribute('aria-expanded', 'false');
+                        if (text) text.textContent = 'View Submitted Application Form';
+                        if (chevron) chevron.style.transform = 'none';
+                    }
+                    return false;
+                }
+                window.toggleSubmittedApplicationDrawer = toggleSubmittedApplicationDrawer;
+                </script>
                 <div class="rw-app-drawer-toggle-bar">
                     <button class="rw-toggle-drawer-btn" 
                             type="button" 
                             id="toggleApplicationFormBtn" 
-                            data-bs-toggle="collapse" 
-                            data-bs-target="#submittedFormCollapse" 
+                            onclick="toggleSubmittedApplicationDrawer(event)" 
                             aria-expanded="false" 
                             aria-controls="submittedFormCollapse">
                         <span>📄</span>
@@ -1667,7 +1697,7 @@ $breadcrumbs = [
         <!-- 2. COLLAPSIBLE FORMAL BOX: "SUBMITTED APPLICATION FORM"   -->
         <!-- (Hidden/collapsed by default until toggled open)          -->
         <!-- ========================================================= -->
-        <div class="collapse mb-4" id="submittedFormCollapse">
+        <div class="collapse mb-4" id="submittedFormCollapse" style="display: none;">
             <div class="formal-document-container">
                 <!-- Neutral Gray Header Border with Title and Reference Tracking Badge -->
                 <div class="formal-doc-header d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -1951,11 +1981,10 @@ $breadcrumbs = [
                 </span>
             </div>
             <div class="rw-section-body">
-                <form id="workflowStatusUpdateForm" method="POST">
+                <form id="workflowStatusUpdateForm" method="POST" onsubmit="return handleWorkflowStatusSubmit(event)">
                     <?php echo csrfInput(); ?>
                     <input type="hidden" name="action" value="update_status">
                     <input type="hidden" name="request_id" value="<?php echo intval($request_id); ?>">
-                    <input type="hidden" name="ajax" value="1">
 
                     <div class="row g-3 align-items-end">
                         <div class="col-md-3">
@@ -1965,12 +1994,11 @@ $breadcrumbs = [
                                 $status_options = [
                                     'pending'    => 'Pending',
                                     'processing' => 'Processing',
-                                    'ready'      => 'Ready',
                                     'completed'  => 'Completed',
                                     'rejected'   => 'Rejected'
                                 ];
                                 $active_status_val = strtolower($request['status'] ?? 'pending');
-                                if ($active_status_val === 'ready_for_pickup') $active_status_val = 'ready';
+                                if ($active_status_val === 'ready_for_pickup' || $active_status_val === 'ready') $active_status_val = 'processing';
                                 foreach ($status_options as $val => $lbl):
                                 ?>
                                     <option value="<?php echo $val; ?>" <?php echo ($active_status_val === $val) ? 'selected' : ''; ?>>
@@ -2595,157 +2623,115 @@ $breadcrumbs = [
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-    // ── 1. Resilient Drawer Toggle for "View Submitted Application Form" ──
-    const formCollapse = document.getElementById('submittedFormCollapse');
-    const toggleBtn = document.getElementById('toggleApplicationFormBtn');
-    const toggleText = document.getElementById('toggleText');
-    const toggleChevron = document.getElementById('toggleChevron');
+// Global status badge style mappings
+window.workflowStatusBadgeStyles = {
+    'pending': 'background: #dcfce7; color: #166534; border: 1px solid #bbf7d0;',
+    'processing': 'background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;',
+    'completed': 'background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;',
+    'rejected': 'background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;'
+};
 
-    if (toggleBtn && formCollapse) {
-        function updateDrawerState(isExpanded) {
-            toggleBtn.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
-            if (toggleText) {
-                toggleText.textContent = isExpanded ? 'Hide Submitted Application Form' : 'View Submitted Application Form';
-            }
-            if (toggleChevron) {
-                toggleChevron.style.transform = isExpanded ? 'rotate(180deg)' : 'none';
-            }
-        }
-
-        toggleBtn.addEventListener('click', function (e) {
-            e.preventDefault();
-            if (typeof bootstrap !== 'undefined' && bootstrap.Collapse) {
-                const bsCollapse = bootstrap.Collapse.getOrCreateInstance(formCollapse, { toggle: false });
-                bsCollapse.toggle();
-            } else {
-                const isCurrentlyOpen = formCollapse.classList.contains('show') || (formCollapse.style.display === 'block');
-                if (isCurrentlyOpen) {
-                    formCollapse.classList.remove('show');
-                    formCollapse.style.display = 'none';
-                    updateDrawerState(false);
-                } else {
-                    formCollapse.classList.add('show');
-                    formCollapse.style.display = 'block';
-                    updateDrawerState(true);
-                }
-            }
+function showStatusToast(message, type) {
+    if (window.ParishNotify && typeof window.ParishNotify.show === 'function') {
+        window.ParishNotify.show({
+            type: type === 'success' ? 'success' : 'error',
+            message: message,
+            title: type === 'success' ? 'Status Updated' : 'Update Failed'
         });
-
-        formCollapse.addEventListener('show.bs.collapse', function () {
-            formCollapse.style.display = '';
-            updateDrawerState(true);
-        });
-
-        formCollapse.addEventListener('hide.bs.collapse', function () {
-            formCollapse.style.display = '';
-            updateDrawerState(false);
-        });
+        return;
     }
 
-    // ── 2. Request Status Update with Live Badge Refresh & Toast ──
+    let container = document.getElementById('parishToastContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'parishToastContainer';
+        container.className = 'parish-toast-container';
+        container.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 99999;';
+        document.body.appendChild(container);
+    }
+    const toast = document.createElement('div');
+    toast.className = 'alert alert-' + (type === 'success' ? 'success' : 'danger') + ' shadow-sm d-flex align-items-center gap-2 mb-2';
+    toast.style.cssText = 'min-width: 280px; max-width: 420px; z-index: 99999; animation: fadeIn 0.2s ease-in;';
+    toast.innerHTML = '<i class="fas ' + (type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle') + '"></i><span>' + message + '</span>';
+    container.appendChild(toast);
+    setTimeout(function() {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s ease';
+        setTimeout(function() { toast.remove(); }, 300);
+    }, 4000);
+}
+window.showStatusToast = showStatusToast;
+
+async function handleWorkflowStatusSubmit(e) {
+    if (e) {
+        if (typeof e.preventDefault === 'function') e.preventDefault();
+        if (typeof e.stopPropagation === 'function') e.stopPropagation();
+    }
     const statusForm = document.getElementById('workflowStatusUpdateForm');
+    if (!statusForm) return false;
+
     const btnSubmitStatus = document.getElementById('btnSubmitStatusUpdate');
     const btnIcon = document.getElementById('btnStatusUpdateIcon');
     const btnText = document.getElementById('btnStatusUpdateText');
     const headerBadge = document.getElementById('headerStatusBadge');
     const cardBadge = document.getElementById('cardStatusBadge');
 
-    const statusBadgeStyles = {
-        'pending': 'background: #dcfce7; color: #166534; border: 1px solid #bbf7d0;',
-        'processing': 'background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;',
-        'ready': 'background: #fef9c3; color: #854d0e; border: 1px solid #fde047;',
-        'ready_for_pickup': 'background: #fef9c3; color: #854d0e; border: 1px solid #fde047;',
-        'completed': 'background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;',
-        'rejected': 'background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;'
-    };
+    const submitBtn = btnSubmitStatus || statusForm.querySelector('button[type="submit"]');
+    const originalIconClass = btnIcon ? btnIcon.className : '';
+    const originalText = btnText ? btnText.textContent : 'Update Status';
 
-    function showStatusToast(message, type) {
-        if (window.ParishNotify && typeof window.ParishNotify.show === 'function') {
-            window.ParishNotify.show({
-                type: type === 'success' ? 'success' : 'error',
-                message: message,
-                title: type === 'success' ? 'Status Updated' : 'Update Failed'
-            });
-            return;
-        }
+    if (submitBtn) submitBtn.disabled = true;
+    if (btnIcon) btnIcon.className = 'fas fa-spinner fa-spin';
+    if (btnText) btnText.textContent = 'Updating...';
 
-        let container = document.getElementById('parishToastContainer');
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'parishToastContainer';
-            container.className = 'parish-toast-container';
-            document.body.appendChild(container);
-        }
-        const toast = document.createElement('div');
-        toast.className = 'alert alert-' + (type === 'success' ? 'success' : 'danger') + ' shadow-sm d-flex align-items-center gap-2 mb-2';
-        toast.style.cssText = 'min-width: 280px; max-width: 420px; z-index: 9999; animation: fadeIn 0.2s ease-in;';
-        toast.innerHTML = '<i class="fas ' + (type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle') + '"></i><span>' + message + '</span>';
-        container.appendChild(toast);
-        setTimeout(function() {
-            toast.style.opacity = '0';
-            toast.style.transition = 'opacity 0.3s ease';
-            setTimeout(function() { toast.remove(); }, 300);
-        }, 4000);
-    }
+    const formData = new FormData(statusForm);
+    formData.append('ajax', '1');
 
-    if (statusForm) {
-        statusForm.addEventListener('submit', function (e) {
-            e.preventDefault();
-            const submitBtn = btnSubmitStatus || statusForm.querySelector('button[type="submit"]');
-            const originalIconClass = btnIcon ? btnIcon.className : '';
-            const originalText = btnText ? btnText.textContent : 'Update Status';
-
-            if (submitBtn) submitBtn.disabled = true;
-            if (btnIcon) btnIcon.className = 'fas fa-spinner fa-spin';
-            if (btnText) btnText.textContent = 'Updating...';
-
-            const formData = new FormData(statusForm);
-
-            fetch(window.location.href, {
-                method: 'POST',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: formData
-            })
-            .then(async function (response) {
-                const data = await response.json().catch(function() { return null; });
-                if (!response.ok || !data || !data.success) {
-                    const errorMsg = (data && data.message) ? data.message : 'Failed to update request status. Please try again.';
-                    throw new Error(errorMsg);
-                }
-                return data;
-            })
-            .then(function (data) {
-                if (submitBtn) submitBtn.disabled = false;
-                if (btnIcon) btnIcon.className = originalIconClass || 'fas fa-check-circle';
-                if (btnText) btnText.textContent = originalText;
-
-                showStatusToast(data.message || 'Request status updated successfully!', 'success');
-
-                const rawNewStatus = (data.status || '').toLowerCase();
-                const newLabel = data.status_label || (rawNewStatus.charAt(0).toUpperCase() + rawNewStatus.slice(1));
-                const newStyle = statusBadgeStyles[rawNewStatus] || statusBadgeStyles['pending'];
-
-                if (headerBadge) {
-                    headerBadge.textContent = newLabel;
-                    headerBadge.setAttribute('style', newStyle);
-                    headerBadge.setAttribute('aria-label', 'Request Status: ' + newLabel);
-                }
-                if (cardBadge) {
-                    cardBadge.textContent = 'Current: ' + newLabel;
-                    cardBadge.setAttribute('style', newStyle + ' font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 12px;');
-                }
-            })
-            .catch(function (err) {
-                if (submitBtn) submitBtn.disabled = false;
-                if (btnIcon) btnIcon.className = originalIconClass || 'fas fa-check-circle';
-                if (btnText) btnText.textContent = originalText;
-                showStatusToast(err.message, 'error');
-            });
+    try {
+        const response = await fetch(window.location.href, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: formData
         });
+
+        const data = await response.json().catch(function() { return null; });
+        if (!response.ok || !data || !data.success) {
+            const errorMsg = (data && data.message) ? data.message : 'Failed to update request status. Please try again.';
+            throw new Error(errorMsg);
+        }
+
+        if (submitBtn) submitBtn.disabled = false;
+        if (btnIcon) btnIcon.className = originalIconClass || 'fas fa-check-circle';
+        if (btnText) btnText.textContent = originalText;
+
+        showStatusToast(data.message || 'Request status updated successfully!', 'success');
+
+        const rawNewStatus = (data.status || '').toLowerCase();
+        const newLabel = data.status_label || (rawNewStatus.charAt(0).toUpperCase() + rawNewStatus.slice(1));
+        const newStyle = window.workflowStatusBadgeStyles[rawNewStatus] || window.workflowStatusBadgeStyles['pending'];
+
+        if (headerBadge) {
+            headerBadge.textContent = newLabel;
+            headerBadge.setAttribute('style', newStyle);
+            headerBadge.setAttribute('aria-label', 'Request Status: ' + newLabel);
+        }
+        if (cardBadge) {
+            cardBadge.textContent = 'Current: ' + newLabel;
+            cardBadge.setAttribute('style', newStyle + ' font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 12px;');
+        }
+    } catch (err) {
+        if (submitBtn) submitBtn.disabled = false;
+        if (btnIcon) btnIcon.className = originalIconClass || 'fas fa-check-circle';
+        if (btnText) btnText.textContent = originalText;
+        showStatusToast(err.message, 'error');
     }
+    return false;
+}
+window.handleWorkflowStatusSubmit = handleWorkflowStatusSubmit;
+
+document.addEventListener('DOMContentLoaded', function () {
 
     const reviewStatusForm = document.getElementById('reviewStatusForm');
     const statusSelect = document.getElementById('status');
