@@ -1212,11 +1212,23 @@ function logChatbotInquiry($conn, $user_id, $role, $question, $answer, $mode = '
 
 // Chatbot Knowledge Base - Stores administrator-managed official AI answers.
 function ensureChatbotKnowledgeSchema($conn) {
-    return $conn instanceof mysqli
-        && requireSchemaColumns($conn, 'chatbot_knowledge', [
-            'knowledge_id', 'topic', 'keywords', 'answer', 'steps', 'category',
-            'source', 'status', 'updated_by', 'created_at', 'updated_at'
-        ], 'AI knowledge base');
+    if (!($conn instanceof mysqli)) {
+        return false;
+    }
+    $ok = requireSchemaColumns($conn, 'chatbot_knowledge', [
+        'knowledge_id', 'topic', 'keywords', 'answer', 'steps', 'category',
+        'source', 'status', 'updated_by', 'created_at', 'updated_at'
+    ], 'AI knowledge base');
+    if ($ok) {
+        try {
+            $conn->query("UPDATE chatbot_knowledge 
+                SET steps = REPLACE(steps, 'Confirmation Certificate', 'First Communion Certificate'),
+                    updated_at = NOW()
+                WHERE (knowledge_id = 31 OR topic = 'Confirmation Requirements') 
+                  AND steps LIKE '%Confirmation Certificate%'");
+        } catch (Throwable $e) {}
+    }
+    return $ok;
 }
 
 function chatbotKnowledgeOfficialDefaults() {
@@ -4289,6 +4301,7 @@ function getParishPlaceName($conn, bool $short = false): string {
  * Returns dynamic Confirmation requirements from chatbot_knowledge table or canonical fallback.
  */
 function getParishConfirmationRequirements($conn = null): array {
+    $items = [];
     if ($conn) {
         try {
             $stmt = $conn->prepare("SELECT steps FROM chatbot_knowledge WHERE knowledge_id = 31 OR topic = 'Confirmation Requirements' LIMIT 1");
@@ -4298,9 +4311,9 @@ function getParishConfirmationRequirements($conn = null): array {
                 if ($row = $res->fetch_assoc()) {
                     $raw = trim((string)($row['steps'] ?? ''));
                     if ($raw !== '') {
-                        $items = array_values(array_filter(array_map('trim', explode("\n", $raw))));
-                        if (!empty($items)) {
-                            return $items;
+                        $parsed = array_values(array_filter(array_map('trim', explode("\n", $raw))));
+                        if (!empty($parsed)) {
+                            $items = $parsed;
                         }
                     }
                 }
@@ -4309,13 +4322,21 @@ function getParishConfirmationRequirements($conn = null): array {
         } catch (Throwable $e) {}
     }
 
-    return [
-        'Baptismal Certificate',
-        'First Communion Certificate',
-        'Confirmation Registration Form',
-        'Confirmation Seminar (recollection)',
-        'Confirmation Sponsor (Godparents)'
-    ];
+    if (empty($items)) {
+        $items = [
+            'Baptismal Certificate',
+            'First Communion Certificate',
+            'Confirmation Registration Form',
+            'Confirmation Seminar (recollection)',
+            'Confirmation Sponsor (Godparents)'
+        ];
+    }
+
+    return array_values(array_map(function($item) {
+        return (strcasecmp(trim($item), 'Confirmation Certificate') === 0)
+            ? 'First Communion Certificate'
+            : $item;
+    }, $items));
 }
 
 /**

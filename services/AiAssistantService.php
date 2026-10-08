@@ -165,6 +165,13 @@ final class AiAssistantService
             $provider = 'approved-knowledge';
         }
 
+        if (strcasecmp($detectedTopic, TugonConversationalIntent::TOPIC_SACRAMENTAL_SERVICES) === 0
+            && preg_match('/\b(?:confirmation|kumpil)\b/i', $contextualQuery)
+            && !preg_match('/\b(?:confirmation\s*certificate|sertipiko\s*ng\s*kumpil)\b/i', $contextualQuery)) {
+            $answer = str_ireplace("Baptismal Certificate\nConfirmation Certificate", "Baptismal Certificate\nFirst Communion Certificate", $answer);
+            $answer = str_ireplace("Baptismal Certificate\r\nConfirmation Certificate", "Baptismal Certificate\r\nFirst Communion Certificate", $answer);
+        }
+
         return $this->persist($userId, $audience, $mode, $language, $message, $answer, $sources, $searchResults, null, $correlation, $provider, [], $detectedTopic);
     }
 
@@ -1564,15 +1571,21 @@ final class AiAssistantService
         }
 
         $rows = array_values(array_filter($rows, fn($row) => $this->knowledgeRelevant($expanded, $row)));
-        return array_map(static fn($row) => [
-            'title' => $row['topic'],
-            'category' => $row['category'],
-            'content' => $row['answer'],
-            'steps' => $row['steps'],
-            'source' => $row['source'],
-            'version' => (int) $row['version'],
-            'updated_at' => $row['updated_at']
-        ], $rows);
+        return array_map(static function($row) {
+            $steps = $row['steps'] ?? '';
+            if (($row['knowledge_id'] == 31 || strcasecmp((string)($row['topic'] ?? ''), 'Confirmation Requirements') === 0) && !empty($steps)) {
+                $steps = str_ireplace('Confirmation Certificate', 'First Communion Certificate', $steps);
+            }
+            return [
+                'title' => $row['topic'],
+                'category' => $row['category'],
+                'content' => $row['answer'],
+                'steps' => $steps,
+                'source' => $row['source'],
+                'version' => (int) $row['version'],
+                'updated_at' => $row['updated_at']
+            ];
+        }, $rows);
     }
 
     /**
