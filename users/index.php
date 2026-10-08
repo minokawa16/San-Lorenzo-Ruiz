@@ -249,8 +249,7 @@ $next_event = $upcoming_events[0] ?? null;
 $office_hours = 'Mon-Sat, 8:00 AM - 5:00 PM';
 
 $page_title = 'User Dashboard';
-$show_mobile_dashboard_features = ($_GET['view'] ?? '') === 'dashboard';
-$body_extra_class = $show_mobile_dashboard_features ? 'user-dashboard-feature-view' : 'user-dashboard-menu-view';
+$body_extra_class = 'parishioner-dashboard';
 ?>
 <?php include '../templates/header.php'; ?>
 
@@ -636,21 +635,193 @@ $body_extra_class = $show_mobile_dashboard_features ? 'user-dashboard-feature-vi
     .trend-pill.danger { background: #fee2e2 !important; color: #991b1b !important; }
     .trend-pill.neutral { background: #f1f5f9 !important; color: #475569 !important; }
 
-    @media (max-width: 1023px) {
+    /* ── Desktop Default (>= 768px): Hide mobile module tiles, show stat cards ── */
+    .user-mobile-module-grid {
+        display: none !important;
+    }
+
+    @media (min-width: 1024px) {
+        .dashboard-stats-grid,
+        body.user-area .dashboard-stats-grid {
+            grid-template-columns: repeat(3, 1fr) !important;
+        }
+    }
+
+    @media (min-width: 768px) and (max-width: 1023px) {
         .dashboard-stats-grid,
         body.user-area .dashboard-stats-grid {
             grid-template-columns: repeat(2, 1fr) !important;
         }
     }
 
-    @media (max-width: 639px) {
+    /* ── Mobile Phone View (TASK 1 & TASK 2: max-width: 767px) ── */
+    @media (max-width: 767px) {
+        /* TASK 1: Hide stat cards on mobile */
         .dashboard-stats-grid,
         body.user-area .dashboard-stats-grid {
-            grid-template-columns: 1fr !important;
+            display: none !important;
+        }
+
+        /* TASK 1: Show module tiles grid on mobile */
+        .user-mobile-module-grid,
+        body.user-area .user-mobile-module-grid {
+            display: grid !important;
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 12px !important;
+            margin-bottom: 16px !important;
+            width: 100% !important;
+        }
+
+        @media (min-width: 401px) and (max-width: 767px) {
+            .user-mobile-module-grid,
+            body.user-area .user-mobile-module-grid {
+                grid-template-columns: repeat(3, 1fr) !important;
+                gap: 10px !important;
+            }
+        }
+
+        .user-module-tile,
+        body.user-area .user-module-tile {
+            position: relative !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            text-align: center !important;
+            min-height: 84px !important;
+            padding: 12px 8px !important;
+            background: #FFFFFF !important;
+            border: 1px solid #E8E1D5 !important;
+            border-radius: 12px !important;
+            text-decoration: none !important;
+            color: #1F2937 !important;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04) !important;
+            transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease !important;
+            -webkit-tap-highlight-color: transparent !important;
+        }
+
+        .user-module-tile:active,
+        body.user-area .user-module-tile:active {
+            transform: scale(0.96) !important;
+            background: #F8F5EE !important;
+        }
+
+        .user-module-tile.is-active,
+        body.user-area .user-module-tile.is-active {
+            background: #FAF7F0 !important;
+            border: 2px solid #8C6427 !important;
+            box-shadow: 0 3px 10px rgba(140, 100, 39, 0.12) !important;
+        }
+
+        .user-module-tile.is-active .user-module-tile-icon-wrap {
+            background: #8C6427 !important;
+            color: #FFFFFF !important;
+            border-color: #8C6427 !important;
+        }
+
+        .user-module-tile.is-active .user-module-tile-label {
+            color: #1E3626 !important;
+            font-weight: 700 !important;
+        }
+
+        .user-module-tile-icon-wrap,
+        body.user-area .user-module-tile-icon-wrap {
+            position: relative !important;
+            width: 38px !important;
+            height: 38px !important;
+            border-radius: 10px !important;
+            background: rgba(200, 155, 60, 0.12) !important;
+            color: #8C6427 !important;
+            border: 1px solid rgba(200, 155, 60, 0.28) !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-size: 17px !important;
+            margin-bottom: 7px !important;
+            flex-shrink: 0 !important;
+        }
+
+        .user-module-tile-badge,
+        body.user-area .user-module-tile-badge {
+            position: absolute !important;
+            top: -5px !important;
+            right: -7px !important;
+            min-width: 18px !important;
+            height: 18px !important;
+            padding: 0 4px !important;
+            border-radius: 999px !important;
+            background: #DC2626 !important;
+            color: #FFFFFF !important;
+            font-size: 10px !important;
+            font-weight: 800 !important;
+            line-height: 18px !important;
+            text-align: center !important;
+            border: 2px solid #FFFFFF !important;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+        }
+
+        .user-module-tile-badge.badge-warning {
+            background: #D97706 !important;
+        }
+
+        .user-module-tile-label,
+        body.user-area .user-module-tile-label {
+            font-size: 12.5px !important;
+            font-weight: 600 !important;
+            line-height: 1.25 !important;
+            color: #2E3A2D !important;
+            letter-spacing: -0.1px !important;
+            word-break: break-word !important;
+            max-width: 100% !important;
+        }
+
+        /* TASK 2: Welcome card mobile refinement */
+        .client-welcome-panel,
+        body.user-area .client-welcome-panel {
+            padding: 14px 16px !important;
+            border-radius: 12px !important;
+            margin-bottom: 14px !important;
+        }
+
+        .client-welcome-panel h1,
+        body.user-area .client-welcome-panel h1 {
+            font-size: 16px !important;
+            line-height: 1.35 !important;
+            font-weight: 700 !important;
+            word-break: break-word !important;
+            overflow-wrap: break-word !important;
+        }
+
+        .client-welcome-name,
+        body.user-area .client-welcome-name {
+            display: inline !important;
+            margin-left: 4px !important;
+            word-break: break-word !important;
+            color: #2E3A2D !important;
+        }
+
+        .client-verse,
+        body.user-area .client-verse {
+            margin: 6px 0 0 !important;
+            font-size: 12px !important;
+            line-height: 1.45 !important;
+            color: #5C584E !important;
+            font-style: italic !important;
+        }
+
+        .client-verse span,
+        body.user-area .client-verse span {
+            display: block !important;
+            margin-top: 3px !important;
+            margin-left: 0 !important;
+            font-size: 11px !important;
+            color: #8C6427 !important;
+            font-weight: 600 !important;
+            font-style: normal !important;
         }
     }
 
-    /* ── Desktop: always show full dashboard, hide mobile-only sections ── */
+    /* ── Desktop: always show full dashboard panels, hide mobile-only sections ── */
     @media (min-width: 900px) {
         .client-dashboard > .dashboard-removed {
             display: grid !important;
@@ -666,7 +837,7 @@ $body_extra_class = $show_mobile_dashboard_features ? 'user-dashboard-feature-vi
         }
     }
 
-    /* ── Mobile/Tablet (<900px): hide desktop panels, show mobile sections ── */
+    /* ── Mobile/Tablet (<900px): hide desktop panels ── */
     @media (max-width: 899px) {
         .client-dashboard > .dashboard-removed {
             display: none !important;
@@ -674,11 +845,11 @@ $body_extra_class = $show_mobile_dashboard_features ? 'user-dashboard-feature-vi
     }
 </style>
 
-<div class="client-dashboard<?php echo $show_mobile_dashboard_features ? ' show-dashboard-features' : ' show-mobile-menu'; ?>">
+<div class="client-dashboard">
     <!-- Parishioner Welcome Banner -->
     <section class="client-welcome-panel" aria-label="Parishioner welcome dashboard">
         <div>
-            <h1>Welcome back,<span class="client-welcome-name"><?php echo e($user_name); ?></span></h1>
+            <h1>Welcome back, <span class="client-welcome-name"><?php echo e($user_name); ?></span></h1>
             <p class="client-verse">
                 "The Lord bless you and keep you; the Lord make his face shine on you and be gracious to you."
                 <span>Numbers 6:24-25</span>
@@ -778,6 +949,33 @@ $body_extra_class = $show_mobile_dashboard_features ? 'user-dashboard-feature-vi
         </a>
 
     </div>
+
+    <!-- ── Mobile Parishioner Module Tiles Grid (TASK 1: Phone-only view) ── -->
+    <?php
+    require_once __DIR__ . '/../includes/user-nav-config.php';
+    $parishioner_nav = getParishionerNavConfig($conn, $user_id, $personal_stats['pending'] ?? 0);
+    $parishioner_modules = $parishioner_nav['modules'] ?? [];
+    ?>
+    <nav class="user-mobile-module-grid" role="navigation" aria-label="Parishioner Modules">
+        <?php foreach ($parishioner_modules as $pmod): ?>
+            <?php
+            $pmod_active = !empty($pmod['active']);
+            $pmod_badge = (int)($pmod['badge'] ?? 0);
+            $pmod_badge_class = ($pmod['key'] === 'requests') ? 'badge-warning' : 'badge-danger';
+            $pmod_label = $pmod['short_title'] ?? $pmod['title'];
+            $pmod_attrs = !empty($pmod['is_ai']) ? ' data-open-ai-chat="true"' : '';
+            ?>
+            <a href="<?php echo e($pmod['url']); ?>" class="user-module-tile<?php echo $pmod_active ? ' is-active' : ''; ?>" id="mobile-tile-<?php echo e($pmod['key']); ?>"<?php echo $pmod_attrs; ?><?php echo $pmod_active ? ' aria-current="page"' : ''; ?>>
+                <span class="user-module-tile-icon-wrap" aria-hidden="true">
+                    <i class="fas <?php echo e($pmod['icon']); ?>"></i>
+                    <?php if ($pmod_badge > 0): ?>
+                        <span class="user-module-tile-badge <?php echo $pmod_badge_class; ?>"><?php echo $pmod_badge; ?></span>
+                    <?php endif; ?>
+                </span>
+                <span class="user-module-tile-label"><?php echo e($pmod_label); ?></span>
+            </a>
+        <?php endforeach; ?>
+    </nav>
 
     <section class="client-dashboard-grid dashboard-removed">
         <div class="client-stack">
@@ -944,6 +1142,24 @@ document.addEventListener('DOMContentLoaded', function () {
             updateVal('#pcard-completed', s.completed);
             updateVal('#pcard-rejected', s.rejected);
             updateVal('#pcard-announcements', s.parish_announcements);
+
+            // Also update mobile tile badge for pending requests
+            if (s.pending !== undefined) {
+                const pCnt = Number(s.pending);
+                let reqBadge = document.querySelector('#mobile-tile-requests .user-module-tile-badge');
+                if (!reqBadge && pCnt > 0) {
+                    const iconWrap = document.querySelector('#mobile-tile-requests .user-module-tile-icon-wrap');
+                    if (iconWrap) {
+                        reqBadge = document.createElement('span');
+                        reqBadge.className = 'user-module-tile-badge badge-warning';
+                        iconWrap.appendChild(reqBadge);
+                    }
+                }
+                if (reqBadge) {
+                    reqBadge.textContent = pCnt > 99 ? '99+' : pCnt;
+                    reqBadge.style.display = pCnt > 0 ? '' : 'none';
+                }
+            }
         } catch (e) {
             // Retain server-rendered counts if fetch fails
         }

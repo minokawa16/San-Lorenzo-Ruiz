@@ -279,10 +279,13 @@ if (isLoggedIn()) {
                         <h1><?php echo e($user_header_title); ?></h1>
                         <p><?php echo e($user_header_description); ?></p>
                     </div>
-                    <div class="mobile-dashboard-brand" aria-hidden="true">
-                        <strong><span>TUGON</span></strong>
-                        <small>Welcome back, <?php echo e($header_user_first_name); ?></small>
-                    </div>
+                    <a href="<?php echo BASE_URL; ?>users/index.php" class="mobile-dashboard-brand" aria-label="Go to Parish Dashboard">
+                        <span class="mobile-brand-icon"><i class="fas fa-church"></i></span>
+                        <div class="mobile-brand-text">
+                            <strong>TUGON</strong>
+                            <small><?php echo e($user_header_title !== 'Dashboard' ? $user_header_title : 'Parish Portal'); ?></small>
+                        </div>
+                    </a>
                 </div>
                 <div class="app-header-right admin-global-actions user-global-actions">
                     <div class="dropdown">

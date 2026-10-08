@@ -1685,10 +1685,31 @@
             display: none !important;
         }
 
-        @media (max-width: 599px) {
-            html body .ai-assistant-widget {
-                bottom: calc(16px + env(safe-area-inset-bottom));
-                right: 16px;
+        @media (max-width: 767px) {
+            html body .ai-assistant-widget,
+            html body.user-area .ai-assistant-widget {
+                bottom: max(14px, env(safe-area-inset-bottom)) !important;
+                right: 14px !important;
+                z-index: 9999 !important;
+            }
+            html body .ai-assistant-trigger,
+            html body.user-area .ai-assistant-trigger {
+                width: 44px !important;
+                height: 44px !important;
+                min-width: 44px !important;
+                min-height: 44px !important;
+                font-size: 1.15rem !important;
+                box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16) !important;
+            }
+            html body .ai-assistant-icon i,
+            html body .ai-assistant-close-icon i {
+                font-size: 1.15rem !important;
+            }
+            /* Add bottom clearance on mobile so floating chat button never covers content */
+            body.user-area .user-content,
+            body.user-area .page-content,
+            body.user-area .client-dashboard {
+                padding-bottom: calc(70px + env(safe-area-inset-bottom, 16px)) !important;
             }
             html body #aiAssistantPanel.is-open,
             html body .ai-assistant-panel.is-open,

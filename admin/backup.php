@@ -291,18 +291,21 @@ $breadcrumbs = [
         background-color: var(--parish-bg) !important;
         font-family: 'Work Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         color: var(--parish-text);
-        font-size: 18px !important;
-        line-height: 1.6;
+        font-size: 16px !important;
+        line-height: 1.5 !important;
         -webkit-font-smoothing: antialiased;
     }
 
     .backup-container {
         max-width: 820px;
         margin: 0 auto;
-        padding: 28px 18px 80px;
+        padding: 24px 16px 80px;
         display: flex;
         flex-direction: column;
         gap: 24px;
+        box-sizing: border-box;
+        width: 100%;
+        overflow-x: hidden;
     }
 
     /* Page Header */
@@ -474,30 +477,37 @@ $breadcrumbs = [
         border-radius: 18px;
         padding: 26px 26px;
         box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+        box-sizing: border-box;
+        width: 100%;
+    }
+    @media (max-width: 600px) {
+        .section-box {
+            padding: 20px 16px;
+        }
     }
     .section-header-row {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 14px;
+        margin-bottom: 12px;
         gap: 14px;
         flex-wrap: wrap;
     }
     .section-title {
         font-family: 'Lora', Georgia, serif;
-        font-size: 1.45rem;
-        font-weight: 700;
+        font-size: 20px !important;
+        font-weight: 600 !important;
         color: var(--parish-text);
         margin: 0;
         display: flex;
         align-items: center;
         gap: 10px;
-        line-height: 1.3;
+        line-height: 1.4;
     }
     .section-desc {
-        font-size: 1.1rem;
-        color: var(--parish-muted);
-        line-height: 1.55;
+        font-size: 15px !important;
+        color: #44403C !important;
+        line-height: 1.5 !important;
     }
 
     /* Clean Saved Backups List (Mobile-friendly, generous fonts) */
@@ -518,6 +528,7 @@ $breadcrumbs = [
         gap: 16px;
         flex-wrap: wrap;
         transition: background 0.15s ease;
+        box-sizing: border-box;
     }
     .backup-item:hover {
         background: #F4F1E8;
@@ -526,8 +537,8 @@ $breadcrumbs = [
         display: flex;
         align-items: center;
         gap: 16px;
-        min-width: 240px;
-        flex: 1;
+        min-width: 0;
+        flex: 1 1 240px;
     }
     .backup-icon-badge {
         width: 48px;
@@ -543,25 +554,28 @@ $breadcrumbs = [
     }
     .backup-item-title {
         font-weight: 700;
-        font-size: 1.15rem;
+        font-size: 16px !important;
         color: #1C1917;
         margin-bottom: 3px;
+        line-height: 1.4;
     }
     .backup-item-meta {
-        font-size: 1.02rem;
-        color: #574D3F;
+        font-size: 15px !important;
+        color: #4B5563 !important;
+        line-height: 1.4;
     }
     .backup-item-actions {
         display: flex;
         align-items: center;
         gap: 10px;
+        flex-wrap: wrap;
     }
     .btn-action {
         min-height: 48px !important;
         padding: 10px 20px !important;
         border-radius: 10px !important;
-        font-size: 1.05rem !important;
-        font-weight: 600 !important;
+        font-size: 16px !important;
+        font-weight: 700 !important;
         display: inline-flex;
         align-items: center;
         gap: 8px;
@@ -593,17 +607,21 @@ $breadcrumbs = [
         border-radius: 18px;
         overflow: hidden;
         transition: all 0.2s ease;
+        box-sizing: border-box;
+        width: 100%;
     }
     details.expand-card summary {
-        padding: 22px 26px;
-        font-size: 1.25rem;
-        font-weight: 700;
+        padding: 20px 24px;
+        font-size: 20px !important;
+        font-weight: 600 !important;
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: space-between;
         list-style: none;
         user-select: none;
+        min-height: 48px;
+        line-height: 1.4;
     }
     details.expand-card summary::-webkit-details-marker {
         display: none;
@@ -612,90 +630,485 @@ $breadcrumbs = [
         content: '\f078';
         font-family: 'Font Awesome 6 Free', 'Font Awesome 5 Free';
         font-weight: 900;
-        font-size: 1.05rem;
+        font-size: 1rem;
         color: #8C6427;
         transition: transform 0.2s ease;
     }
     details.expand-card[open] summary::after {
         transform: rotate(180deg);
     }
+    .expand-title {
+        font-size: 20px !important;
+        font-weight: 600 !important;
+        color: var(--parish-text);
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .expand-sub-label {
+        font-size: 15px !important;
+        font-weight: 400 !important;
+        color: #574D3F !important;
+    }
     .expand-content {
-        padding: 0 26px 26px;
+        padding: 0 24px 24px;
         border-top: 1.5px solid #EFEAE0;
+        box-sizing: border-box;
+    }
+    @media (max-width: 600px) {
+        details.expand-card summary {
+            padding: 18px 16px;
+        }
+        .expand-content {
+            padding: 0 16px 20px;
+        }
     }
 
-    /* Form Controls, Inputs, Selects, and Dropdown Options */
+    /* Form Controls, Inputs, Selects */
     .form-control, .form-select, select, input[type="text"], input[type="date"], input[type="file"] {
-        min-height: 56px !important;
-        font-size: 1.15rem !important; /* ~20px */
+        min-height: 50px !important;
+        font-size: 16px !important; /* 16px prevents iOS zoom */
         line-height: 1.5 !important;
-        padding: 12px 18px !important;
+        padding: 12px 16px !important;
         border-radius: 12px !important;
         border: 1.5px solid var(--parish-border) !important;
         color: var(--parish-text) !important;
         background-color: #FFFFFF !important;
+        box-sizing: border-box !important;
+        width: 100%;
     }
     .form-control:focus, .form-select:focus, select:focus {
         border-color: var(--parish-gold) !important;
         box-shadow: 0 0 0 3px rgba(140, 100, 39, 0.18) !important;
+        outline: none;
     }
 
-    /* Target the dropdown <option> items explicitly */
+    /* Fallback native option styling */
     select.form-select option, select option {
-        font-size: 1.15rem !important;
-        padding: 14px 18px !important;
+        font-size: 16px !important;
+        padding: 13px 18px !important;
+        min-height: 48px !important;
         background-color: #FFFFFF !important;
         color: #1C1917 !important;
         font-family: 'Work Sans', sans-serif !important;
+        line-height: 1.5 !important;
     }
 
     .form-label {
-        font-size: 1.15rem !important;
+        font-size: 16px !important;
         font-weight: 700 !important;
         color: var(--parish-text) !important;
         margin-bottom: 8px !important;
         display: block;
+        line-height: 1.5 !important;
     }
     .form-text, .text-muted-helper {
-        font-size: 1.05rem !important;
-        color: #574D3F !important;
+        font-size: 15px !important;
+        color: #44403C !important;
         margin-top: 8px !important;
         line-height: 1.5 !important;
     }
 
     /* Buttons */
     .btn {
-        min-height: 54px !important;
-        font-size: 1.12rem !important;
-        font-weight: 600 !important;
+        min-height: 48px !important;
+        font-size: 16.5px !important;
+        font-weight: 700 !important;
         border-radius: 12px !important;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        line-height: 1.3;
+        transition: all 0.15s ease;
+        box-sizing: border-box;
     }
 
-    /* Checkbox & Switch sizes */
-    .form-check-input {
-        width: 26px !important;
-        height: 26px !important;
+    /* Single Consistent 24px Checkbox (No gold-outline variant) */
+    .parish-checkbox,
+    input[type="checkbox"].form-check-input,
+    input[type="checkbox"].category-checkbox {
+        appearance: none !important;
+        -webkit-appearance: none !important;
+        width: 24px !important;
+        height: 24px !important;
+        min-width: 24px !important;
+        min-height: 24px !important;
+        border: 2px solid #CBD5E1 !important;
+        border-radius: 6px !important;
+        background-color: #FFFFFF !important;
         cursor: pointer;
-        margin-top: 2px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        position: relative !important;
+        flex-shrink: 0 !important;
+        transition: all 0.15s ease-in-out;
     }
-    .form-check-label {
-        font-size: 1.12rem !important;
-        padding-left: 8px;
+    .parish-checkbox:hover,
+    input[type="checkbox"].form-check-input:hover,
+    input[type="checkbox"].category-checkbox:hover {
+        border-color: #8C6427 !important;
+    }
+    .parish-checkbox:checked,
+    input[type="checkbox"].form-check-input:checked,
+    input[type="checkbox"].category-checkbox:checked {
+        background-color: #1E3626 !important;
+        border-color: #1E3626 !important;
+    }
+    .parish-checkbox:checked::after,
+    input[type="checkbox"].form-check-input:checked::after,
+    input[type="checkbox"].category-checkbox:checked::after {
+        content: "" !important;
+        display: block !important;
+        width: 6px !important;
+        height: 11px !important;
+        border: solid #FFFFFF !important;
+        border-width: 0 2.5px 2.5px 0 !important;
+        transform: rotate(45deg) translate(-1px, -1px) !important;
+    }
+    .parish-checkbox:focus,
+    input[type="checkbox"].form-check-input:focus,
+    input[type="checkbox"].category-checkbox:focus {
+        outline: none !important;
+        box-shadow: 0 0 0 3px rgba(30, 54, 38, 0.20) !important;
+    }
+
+    /* Consistent 24px Radio Component */
+    .parish-radio,
+    input[type="radio"].form-check-input {
+        appearance: none !important;
+        -webkit-appearance: none !important;
+        width: 24px !important;
+        height: 24px !important;
+        min-width: 24px !important;
+        min-height: 24px !important;
+        border: 2px solid #CBD5E1 !important;
+        border-radius: 50% !important;
+        background-color: #FFFFFF !important;
         cursor: pointer;
-        user-select: none;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        position: relative !important;
+        flex-shrink: 0 !important;
+        transition: all 0.15s ease-in-out;
+    }
+    .parish-radio:hover,
+    input[type="radio"].form-check-input:hover {
+        border-color: #8C6427 !important;
+    }
+    .parish-radio:checked,
+    input[type="radio"].form-check-input:checked {
+        border-color: #1E3626 !important;
+        background-color: #FFFFFF !important;
+    }
+    .parish-radio:checked::after,
+    input[type="radio"].form-check-input:checked::after {
+        content: "" !important;
+        display: block !important;
+        width: 12px !important;
+        height: 12px !important;
+        border-radius: 50% !important;
+        background-color: #1E3626 !important;
+    }
+    .parish-radio:focus,
+    input[type="radio"].form-check-input:focus {
+        outline: none !important;
+        box-shadow: 0 0 0 3px rgba(30, 54, 38, 0.20) !important;
+    }
+
+    /* Custom Dropdown Component for Automatic Backups (16px options, >=12px vertical padding) */
+    .custom-dropdown-wrap {
+        position: relative;
+        width: 100%;
+    }
+    .custom-dropdown-native {
+        position: absolute !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        width: 1px !important;
+        height: 1px !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+    }
+    .custom-dropdown-trigger {
+        width: 100%;
+        min-height: 52px;
+        height: 52px;
+        padding: 12px 18px;
+        background: #FFFFFF;
+        border: 1.5px solid var(--parish-border);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 16px !important;
+        font-weight: 500;
+        color: var(--parish-text);
+        cursor: pointer;
+        transition: all 0.15s ease;
+        text-align: left;
+        box-sizing: border-box;
+    }
+    .custom-dropdown-trigger:hover {
+        border-color: #8C6427;
+    }
+    .custom-dropdown-trigger:focus,
+    .custom-dropdown-wrap.is-open .custom-dropdown-trigger {
+        border-color: var(--parish-green);
+        box-shadow: 0 0 0 3px rgba(30, 54, 38, 0.15);
+        outline: none;
+    }
+    .custom-dropdown-selected {
+        font-size: 16px !important;
+        color: #1C1917;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        padding-right: 10px;
         line-height: 1.5;
     }
+    .custom-dropdown-chevron {
+        font-size: 14px;
+        color: #8C6427;
+        transition: transform 0.2s ease;
+        flex-shrink: 0;
+    }
+    .custom-dropdown-wrap.is-open .custom-dropdown-chevron {
+        transform: rotate(180deg);
+    }
+    .custom-dropdown-menu {
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        right: 0;
+        background: #FFFFFF;
+        border: 1.5px solid var(--parish-border);
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.10);
+        padding: 6px 0;
+        margin: 0;
+        list-style: none;
+        z-index: 1060;
+        display: none;
+        max-height: 320px;
+        overflow-y: auto;
+    }
+    .custom-dropdown-wrap.is-open .custom-dropdown-menu {
+        display: block;
+    }
+    .custom-dropdown-item {
+        font-size: 16px !important;
+        padding: 13px 18px !important; /* At least 12px vertical padding */
+        min-height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        color: #1C1917;
+        cursor: pointer;
+        transition: background 0.12s ease;
+        line-height: 1.5;
+    }
+    .custom-dropdown-item:hover,
+    .custom-dropdown-item:focus {
+        background-color: #F4F8F4;
+        color: var(--parish-green);
+        outline: none;
+    }
+    .custom-dropdown-item.is-selected {
+        background-color: #FAF5EA;
+        font-weight: 600;
+        color: var(--parish-green);
+    }
+    .dropdown-item-check {
+        font-size: 14px;
+        color: var(--parish-green);
+        display: none;
+    }
+    .custom-dropdown-item.is-selected .dropdown-item-check {
+        display: inline-block;
+    }
 
-    /* Record row in advanced options */
-    .record-row {
+    /* Advanced Options: Groups & Subheadings (24px between groups, 12px between rows) */
+    .adv-group {
+        margin-bottom: 24px;
+    }
+    .adv-group-title {
+        font-family: 'Lora', Georgia, serif;
+        font-size: 20px !important;
+        font-weight: 600 !important;
+        color: var(--parish-text);
+        margin: 0 0 12px 0;
+        line-height: 1.4;
+    }
+    .adv-rows-group {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        width: 100%;
+    }
+
+    /* Advanced Options: Format Grid (3 equal cards desktop, stacked mobile) */
+    .adv-format-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        width: 100%;
+    }
+    @media (max-width: 680px) {
+        .adv-format-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    .adv-format-card {
         background: #FAFAF7;
         border: 1.5px solid #E5DFD3;
         border-radius: 12px;
-        padding: 16px 18px;
-        margin-bottom: 12px;
+        padding: 14px 16px;
+        min-height: 52px;
         display: flex;
         align-items: center;
-        gap: 16px;
+        gap: 12px;
+        cursor: pointer;
+        user-select: none;
+        transition: all 0.15s ease;
+        width: 100%;
+        box-sizing: border-box;
+        margin: 0;
+    }
+    .adv-format-card:hover {
+        border-color: #D1C7B7;
+        background: #FCFAF6;
+    }
+    .adv-format-card.is-selected {
+        border-color: var(--parish-green);
+        background: #F4F8F4;
+    }
+    .adv-format-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        flex: 1;
+    }
+    .adv-format-name {
+        font-size: 16px !important;
+        font-weight: 700 !important;
+        color: #1C1917 !important;
+        display: block;
+        line-height: 1.3 !important;
+    }
+    .adv-format-desc {
+        font-size: 15px !important;
+        color: #4B5563 !important;
+        display: block;
+        line-height: 1.4 !important;
+    }
+
+    /* Option Row Cards (Single consistent card style: same border, bg, 16px padding, 12px radius) */
+    .record-row,
+    .adv-option-card {
+        background: #FAFAF7;
+        border: 1.5px solid #E5DFD3;
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 0;
+        width: 100%;
+        box-sizing: border-box;
+        transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .record-row:hover,
+    .adv-option-card:hover {
+        border-color: #D1C7B7;
+        background: #FCFAF6;
+    }
+    .record-row.is-selected,
+    .adv-option-card.is-selected {
+        border-color: #CBD5E1;
+        background: #FAFAF7;
+    }
+    .adv-option-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-height: 48px;
+        width: 100%;
+        cursor: pointer;
+        user-select: none;
+        margin: 0;
+    }
+    .adv-option-label-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        flex: 1;
+        cursor: pointer;
+        user-select: none;
+    }
+    .adv-option-title {
+        font-size: 16px !important;
+        font-weight: 700 !important;
+        color: #1C1917 !important;
+        line-height: 1.4 !important;
+    }
+    .adv-option-desc {
+        font-size: 15px !important;
+        color: #4B5563 !important;
+        line-height: 1.5 !important;
+        font-weight: 400 !important;
+    }
+    .adv-indented-fields {
+        margin-left: 36px;
+        margin-top: 14px;
+        padding-top: 14px;
+        border-top: 1px dashed #E5DFD3;
+        box-sizing: border-box;
+    }
+    @media (max-width: 500px) {
+        .adv-indented-fields {
+            margin-left: 0;
+        }
+    }
+    @media (max-width: 480px) {
+        .adv-password-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .adv-password-group > .form-control {
+            width: 100% !important;
+            border-radius: 12px !important;
+            margin-bottom: 8px !important;
+        }
+        .adv-password-group > .btn {
+            width: 100% !important;
+            border-radius: 10px !important;
+            margin-left: 0 !important;
+            margin-bottom: 6px !important;
+        }
+    }
+
+    /* Advanced Options Submit Button (Full width, 52px tall, 16.5px bold) */
+    .btn-adv-submit {
+        width: 100% !important;
+        min-height: 52px !important;
+        height: 52px !important;
+        font-size: 16.5px !important;
+        font-weight: 700 !important;
+        background: var(--parish-green) !important;
+        border: none !important;
+        color: #FFFFFF !important;
+        border-radius: 12px !important;
+        margin-top: 24px;
+    }
+    .btn-adv-submit:hover {
+        background: var(--parish-green-hover) !important;
+        color: #FFFFFF !important;
     }
 </style>
 
@@ -857,17 +1270,43 @@ $breadcrumbs = [
             <input type="hidden" name="retention_count" value="10">
 
             <div class="col-sm-8 col-md-7">
-                <label for="autoFreqSelect" class="form-label">
+                <label for="autoFreqSelect" id="autoFreqLabel" class="form-label">
                     Back up automatically every:
                 </label>
-                <select name="auto_frequency" id="autoFreqSelect" class="form-select">
-                    <option value="weekly" <?php echo $cur_auto_freq === 'weekly' ? 'selected' : ''; ?>>Every week (Recommended)</option>
-                    <option value="monthly" <?php echo $cur_auto_freq === 'monthly' ? 'selected' : ''; ?>>Every month</option>
-                    <option value="off" <?php echo $cur_auto_freq === 'off' ? 'selected' : ''; ?>>Off (Only back up when I click the button)</option>
-                </select>
+                <div class="custom-dropdown-wrap" id="autoFreqDropdown">
+                    <select name="auto_frequency" id="autoFreqSelect" class="form-select custom-dropdown-native" aria-hidden="true" tabindex="-1">
+                        <option value="weekly" <?php echo $cur_auto_freq === 'weekly' ? 'selected' : ''; ?>>Every week (Recommended)</option>
+                        <option value="monthly" <?php echo $cur_auto_freq === 'monthly' ? 'selected' : ''; ?>>Every month</option>
+                        <option value="off" <?php echo $cur_auto_freq === 'off' ? 'selected' : ''; ?>>Off (Only back up when I click the button)</option>
+                    </select>
+                    <button type="button" class="custom-dropdown-trigger" id="autoFreqTrigger" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="autoFreqLabel autoFreqSelectedText">
+                        <span class="custom-dropdown-selected" id="autoFreqSelectedText">
+                            <?php
+                            if ($cur_auto_freq === 'monthly') echo 'Every month';
+                            elseif ($cur_auto_freq === 'off') echo 'Off (Only back up when I click the button)';
+                            else echo 'Every week (Recommended)';
+                            ?>
+                        </span>
+                        <i class="fas fa-chevron-down custom-dropdown-chevron"></i>
+                    </button>
+                    <ul class="custom-dropdown-menu" id="autoFreqListbox" role="listbox" aria-labelledby="autoFreqLabel">
+                        <li class="custom-dropdown-item <?php echo $cur_auto_freq === 'weekly' ? 'is-selected' : ''; ?>" role="option" data-value="weekly" aria-selected="<?php echo $cur_auto_freq === 'weekly' ? 'true' : 'false'; ?>" tabindex="0">
+                            <span class="dropdown-item-text">Every week (Recommended)</span>
+                            <i class="fas fa-check dropdown-item-check"></i>
+                        </li>
+                        <li class="custom-dropdown-item <?php echo $cur_auto_freq === 'monthly' ? 'is-selected' : ''; ?>" role="option" data-value="monthly" aria-selected="<?php echo $cur_auto_freq === 'monthly' ? 'true' : 'false'; ?>" tabindex="0">
+                            <span class="dropdown-item-text">Every month</span>
+                            <i class="fas fa-check dropdown-item-check"></i>
+                        </li>
+                        <li class="custom-dropdown-item <?php echo $cur_auto_freq === 'off' ? 'is-selected' : ''; ?>" role="option" data-value="off" aria-selected="<?php echo $cur_auto_freq === 'off' ? 'true' : 'false'; ?>" tabindex="0">
+                            <span class="dropdown-item-text">Off (Only back up when I click the button)</span>
+                            <i class="fas fa-check dropdown-item-check"></i>
+                        </li>
+                    </ul>
+                </div>
             </div>
             <div class="col-sm-4 col-md-5">
-                <button type="submit" class="btn btn-dark w-100 fw-bold" style="background: var(--parish-green); border: none; min-height: 56px;">
+                <button type="submit" class="btn btn-dark w-100 fw-bold" style="background: var(--parish-green); border: none; min-height: 52px;">
                     <i class="fas fa-check me-1"></i> Save Schedule
                 </button>
             </div>
@@ -884,7 +1323,7 @@ $breadcrumbs = [
         <summary>
             <span class="d-flex align-items-center gap-2">
                 <i class="fas fa-rotate-left" style="color: var(--parish-gold);"></i>
-                <span>Bring back records from a backup <span class="text-muted fw-normal" style="font-size: 1.05rem;">(Restore / Import)</span></span>
+                <span class="expand-title">Bring back records from a backup <span class="expand-sub-label">(Restore / Import)</span></span>
             </span>
         </summary>
         <div class="expand-content pt-3">
@@ -936,117 +1375,139 @@ $breadcrumbs = [
         <summary>
             <span class="d-flex align-items-center gap-2">
                 <i class="fas fa-sliders" style="color: var(--parish-gold);"></i>
-                <span>Advanced options <span class="text-muted fw-normal" style="font-size: 1.05rem;">(For administrators)</span></span>
+                <span class="expand-title">Advanced options <span class="expand-sub-label">(For administrators)</span></span>
             </span>
         </summary>
-        <div class="expand-content pt-3">
+        <div class="expand-content pt-4">
             <p class="section-desc mb-4">Customize file formats, record types, date ranges, and encryption password.</p>
 
-            <!-- 1. Format Choice -->
-            <div class="mb-4">
-                <label class="form-label">Backup File Format</label>
-                <div class="d-flex gap-4 flex-wrap pt-1">
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="radio" name="adv_format" id="fmt_csv" value="csv" checked>
-                        <label class="form-check-label" for="fmt_csv">Standard (CSV in a ZIP)</label>
-                    </div>
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="radio" name="adv_format" id="fmt_xlsx" value="xlsx">
-                        <label class="form-check-label" for="fmt_xlsx">Excel (.xlsx)</label>
-                    </div>
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="radio" name="adv_format" id="fmt_json" value="json">
-                        <label class="form-check-label" for="fmt_json">JSON (.json)</label>
-                    </div>
+            <!-- 1. Format Choice (3 equal cards desktop, stacked mobile) -->
+            <div class="adv-group mb-4">
+                <h4 class="adv-group-title">Backup File Format</h4>
+                <div class="adv-format-grid">
+                    <label class="adv-format-card is-selected" for="fmt_csv">
+                        <input class="form-check-input parish-radio" type="radio" name="adv_format" id="fmt_csv" value="csv" checked>
+                        <div class="adv-format-info">
+                            <span class="adv-format-name">Standard</span>
+                            <span class="adv-format-desc">CSV spreadsheet files in a ZIP</span>
+                        </div>
+                    </label>
+                    <label class="adv-format-card" for="fmt_xlsx">
+                        <input class="form-check-input parish-radio" type="radio" name="adv_format" id="fmt_xlsx" value="xlsx">
+                        <div class="adv-format-info">
+                            <span class="adv-format-name">Excel</span>
+                            <span class="adv-format-desc">Microsoft Excel workbook (.xlsx)</span>
+                        </div>
+                    </label>
+                    <label class="adv-format-card" for="fmt_json">
+                        <input class="form-check-input parish-radio" type="radio" name="adv_format" id="fmt_json" value="json">
+                        <div class="adv-format-info">
+                            <span class="adv-format-name">JSON</span>
+                            <span class="adv-format-desc">Structured data archive (.json)</span>
+                        </div>
+                    </label>
                 </div>
             </div>
 
             <!-- 2. Choose Record Types (3 Record Rows for tests & granularity) -->
-            <div class="mb-4">
-                <label class="form-label mb-2">Record Types to Include</label>
-                
-                <div class="record-row is-selected" data-id="sacramental_records">
-                    <input class="form-check-input category-checkbox" type="checkbox" id="cb_sacramental" value="sacramental_records" checked>
-                    <label class="form-check-label fw-bold text-dark mb-0" for="cb_sacramental">
-                        Sacramental Records
-                        <span class="text-muted fw-normal d-block" style="font-size: 1.02rem;">Baptism, Confirmation, Marriage, First Communion, and Funeral registers</span>
+            <div class="adv-group mb-4">
+                <h4 class="adv-group-title">Record Types to Include</h4>
+                <div class="adv-rows-group">
+                    <label class="record-row adv-option-card is-selected" data-id="sacramental_records" for="cb_sacramental">
+                        <input class="form-check-input parish-checkbox category-checkbox" type="checkbox" id="cb_sacramental" value="sacramental_records" checked>
+                        <div class="adv-option-label-wrap">
+                            <span class="adv-option-title">Sacramental Records</span>
+                            <span class="adv-option-desc">Baptism, Confirmation, Marriage, First Communion, and Funeral registers</span>
+                        </div>
                     </label>
-                </div>
 
-                <div class="record-row is-selected" data-id="parishioners">
-                    <input class="form-check-input category-checkbox" type="checkbox" id="cb_parishioners" value="parishioners" checked>
-                    <label class="form-check-label fw-bold text-dark mb-0" for="cb_parishioners">
-                        Parishioners
-                        <span class="text-muted fw-normal d-block" style="font-size: 1.02rem;">Registered parishioners and family directory</span>
+                    <label class="record-row adv-option-card is-selected" data-id="parishioners" for="cb_parishioners">
+                        <input class="form-check-input parish-checkbox category-checkbox" type="checkbox" id="cb_parishioners" value="parishioners" checked>
+                        <div class="adv-option-label-wrap">
+                            <span class="adv-option-title">Parishioners</span>
+                            <span class="adv-option-desc">Registered parishioners and family directory</span>
+                        </div>
                     </label>
-                </div>
 
-                <div class="record-row is-selected" data-id="requests">
-                    <input class="form-check-input category-checkbox" type="checkbox" id="cb_requests" value="requests" checked>
-                    <label class="form-check-label fw-bold text-dark mb-0" for="cb_requests">
-                        Requests
-                        <span class="text-muted fw-normal d-block" style="font-size: 1.02rem;">Certificate, mass intention, and sacrament requests</span>
+                    <label class="record-row adv-option-card is-selected" data-id="requests" for="cb_requests">
+                        <input class="form-check-input parish-checkbox category-checkbox" type="checkbox" id="cb_requests" value="requests" checked>
+                        <div class="adv-option-label-wrap">
+                            <span class="adv-option-title">Requests</span>
+                            <span class="adv-option-desc">Certificate, mass intention, and sacrament requests</span>
+                        </div>
                     </label>
                 </div>
             </div>
 
-            <!-- 3. Uploaded Files Toggle -->
-            <div class="form-check form-switch mb-4 pt-1">
-                <input class="form-check-input" type="checkbox" id="adv_include_files" checked>
-                <label class="form-check-label fw-bold text-dark" for="adv_include_files">
-                    Include uploaded documents &amp; certificates (receipts, seminar docs)
-                </label>
-            </div>
-
-            <!-- 4. Date Range Filter -->
-            <div class="mb-4">
-                <div class="form-check form-switch mb-2">
-                    <input class="form-check-input" type="checkbox" id="adv_enable_date" onchange="toggleAdvDateInputs()">
-                    <label class="form-check-label fw-bold text-dark" for="adv_enable_date">
-                        Filter by date range
+            <!-- 3. Additional Options (Same card style, identical left & right alignment) -->
+            <div class="adv-group mb-4">
+                <h4 class="adv-group-title">Additional Options</h4>
+                <div class="adv-rows-group">
+                    <!-- Include uploaded documents -->
+                    <label class="adv-option-card is-selected" for="adv_include_files">
+                        <div class="adv-option-row">
+                            <input class="form-check-input parish-checkbox" type="checkbox" id="adv_include_files" checked>
+                            <div class="adv-option-label-wrap">
+                                <span class="adv-option-title">Include uploaded documents &amp; certificates</span>
+                                <span class="adv-option-desc">Parishioner receipts, verification files, and seminar attachments</span>
+                            </div>
+                        </div>
                     </label>
-                </div>
-                <div id="advDateInputs" class="row g-3 mt-1" style="display: none;">
-                    <div class="col-6">
-                        <label class="form-label" style="font-size: 1.05rem;">From Date</label>
-                        <input type="date" class="form-control" id="adv_date_from">
+
+                    <!-- Filter by date range (Indented fields inside same card) -->
+                    <div class="adv-option-card" id="adv_date_card">
+                        <label class="adv-option-row" for="adv_enable_date">
+                            <input class="form-check-input parish-checkbox" type="checkbox" id="adv_enable_date" onchange="toggleAdvDateInputs()">
+                            <div class="adv-option-label-wrap">
+                                <span class="adv-option-title">Filter by date range</span>
+                                <span class="adv-option-desc">Only include records created within a specific time window</span>
+                            </div>
+                        </label>
+                        <div id="advDateInputs" class="adv-indented-fields" style="display: none;">
+                            <div class="row g-3">
+                                <div class="col-12 col-md-6">
+                                    <label for="adv_date_from" class="form-label">From Date</label>
+                                    <input type="date" class="form-control" id="adv_date_from">
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label for="adv_date_to" class="form-label">To Date</label>
+                                    <input type="date" class="form-control" id="adv_date_to">
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="col-6">
-                        <label class="form-label" style="font-size: 1.05rem;">To Date</label>
-                        <input type="date" class="form-control" id="adv_date_to">
+
+                    <!-- Password protection (Indented fields inside same card) -->
+                    <div class="adv-option-card" id="adv_password_card">
+                        <label class="adv-option-row" for="adv_enable_password">
+                            <input class="form-check-input parish-checkbox" type="checkbox" id="adv_enable_password" onchange="toggleAdvPassword()">
+                            <div class="adv-option-label-wrap">
+                                <span class="adv-option-title">Password-protect (encrypt) this backup file</span>
+                                <span class="adv-option-desc">Secure the archive using strong encryption for safe transport</span>
+                            </div>
+                        </label>
+                        <div id="advPasswordBox" class="adv-indented-fields" style="display: none;">
+                            <label for="advGeneratedPassword" class="form-label">Generated Strong Password:</label>
+                            <div class="input-group mb-3 adv-password-group">
+                                <input type="text" class="form-control font-monospace" id="advGeneratedPassword" readonly style="letter-spacing: 2px; font-weight: bold; background: #FFFFFF; font-size: 16px;">
+                                <button class="btn btn-outline-secondary px-3 fw-bold" type="button" onclick="copyGeneratedPassword()" id="btnCopyPwd">
+                                    <i class="fas fa-copy me-1"></i> Copy
+                                </button>
+                                <button class="btn btn-outline-secondary px-3 fw-bold" type="button" onclick="printGeneratedPassword()">
+                                    <i class="fas fa-print me-1"></i> Print
+                                </button>
+                            </div>
+                            <div class="alert alert-danger py-2 px-3 mb-0 d-flex align-items-center gap-2" role="alert" style="font-size: 15px; color: #991B1B; background-color: #FEF2F2; border-color: #FECACA; line-height: 1.5;">
+                                <i class="fas fa-triangle-exclamation flex-shrink-0"></i>
+                                <span><strong>Important:</strong> This password cannot be recovered or reset. Make sure to copy or write it down before downloading.</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- 5. Password Protection (Default OFF) -->
-            <div class="mb-4 p-4 rounded-3 bg-light border">
-                <div class="form-check form-switch mb-2">
-                    <input class="form-check-input" type="checkbox" id="adv_enable_password" onchange="toggleAdvPassword()">
-                    <label class="form-check-label fw-bold text-dark" for="adv_enable_password">
-                        Password-protect (encrypt) this backup file
-                    </label>
-                </div>
-
-                <div id="advPasswordBox" style="display: none;" class="mt-3">
-                    <label class="form-label">Generated Strong Password:</label>
-                    <div class="input-group mb-2">
-                        <input type="text" class="form-control font-monospace" id="advGeneratedPassword" readonly style="letter-spacing: 2px; font-weight: bold; background: #FFF; font-size: 1.25rem;">
-                        <button class="btn btn-outline-secondary px-3" type="button" onclick="copyGeneratedPassword()" id="btnCopyPwd">
-                            <i class="fas fa-copy me-1"></i> Copy
-                        </button>
-                        <button class="btn btn-outline-secondary px-3" type="button" onclick="printGeneratedPassword()">
-                            <i class="fas fa-print me-1"></i> Print
-                        </button>
-                    </div>
-                    <div class="alert alert-danger py-2 px-3 mb-0" role="alert" style="font-size: 1.05rem;">
-                        <i class="fas fa-triangle-exclamation me-1"></i>
-                        <strong>Important:</strong> This password cannot be recovered or reset. Make sure to copy or write it down before downloading.
-                    </div>
-                </div>
-            </div>
-
-            <!-- Action Button for Advanced Options -->
-            <button type="button" class="btn btn-dark fw-bold w-100 btn-download-backup" style="background: var(--parish-green); min-height: 58px; font-size: 1.2rem;" onclick="runAdvancedBackup()">
+            <!-- Action Button for Advanced Options (Full width, 52px tall, 16-17px text) -->
+            <button type="button" class="btn btn-dark fw-bold w-100 btn-download-backup btn-adv-submit" style="background: var(--parish-green); min-height: 52px; height: 52px; font-size: 16.5px;" onclick="runAdvancedBackup()">
                 <i class="fas fa-download me-2"></i> Back up with advanced options
             </button>
         </div>
@@ -1323,14 +1784,16 @@ $breadcrumbs = [
     function toggleAdvPassword() {
         var isChecked = document.getElementById('adv_enable_password').checked;
         var box = document.getElementById('advPasswordBox');
+        var card = document.getElementById('adv_password_card');
         if (isChecked) {
-            box.style.display = 'block';
+            if (box) box.style.display = 'block';
             if (!document.getElementById('advGeneratedPassword').value) {
                 document.getElementById('advGeneratedPassword').value = generateStrongPassword();
             }
         } else {
-            box.style.display = 'none';
+            if (box) box.style.display = 'none';
         }
+        if (card) card.classList.toggle('is-selected', isChecked);
     }
 
     function copyGeneratedPassword() {
@@ -1355,8 +1818,81 @@ $breadcrumbs = [
 
     function toggleAdvDateInputs() {
         var on = document.getElementById('adv_enable_date').checked;
-        document.getElementById('advDateInputs').style.display = on ? 'flex' : 'none';
+        var el = document.getElementById('advDateInputs');
+        if (el) el.style.display = on ? 'block' : 'none';
+        var card = document.getElementById('adv_date_card');
+        if (card) card.classList.toggle('is-selected', on);
     }
+
+    // 5. CUSTOM DROPDOWN & SELECTION INTERACTION
+    document.addEventListener('DOMContentLoaded', function () {
+        // Automatic backups custom dropdown
+        var wrap = document.getElementById('autoFreqDropdown');
+        if (wrap) {
+            var trigger = document.getElementById('autoFreqTrigger');
+            var select = document.getElementById('autoFreqSelect');
+            var label = document.getElementById('autoFreqSelectedText');
+            var items = wrap.querySelectorAll('.custom-dropdown-item');
+
+            trigger.addEventListener('click', function(e) {
+                e.preventDefault();
+                var isOpen = wrap.classList.toggle('is-open');
+                trigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            });
+
+            items.forEach(function(item) {
+                item.addEventListener('click', function() {
+                    var val = item.getAttribute('data-value');
+                    var txt = item.querySelector('.dropdown-item-text').textContent;
+                    select.value = val;
+                    label.textContent = txt;
+                    items.forEach(function(i) {
+                        var isSel = (i === item);
+                        i.classList.toggle('is-selected', isSel);
+                        i.setAttribute('aria-selected', isSel ? 'true' : 'false');
+                    });
+                    wrap.classList.remove('is-open');
+                    trigger.setAttribute('aria-expanded', 'false');
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+            });
+
+            document.addEventListener('click', function(e) {
+                if (!wrap.contains(e.target)) {
+                    wrap.classList.remove('is-open');
+                    trigger.setAttribute('aria-expanded', 'false');
+                }
+            });
+
+            wrap.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    wrap.classList.remove('is-open');
+                    trigger.setAttribute('aria-expanded', 'false');
+                    trigger.focus();
+                }
+            });
+        }
+
+        // Advanced option cards toggle highlight on checkbox change
+        document.querySelectorAll('.category-checkbox, #adv_include_files').forEach(function(cb) {
+            cb.addEventListener('change', function() {
+                var card = cb.closest('.adv-option-card, .record-row');
+                if (card) {
+                    card.classList.toggle('is-selected', cb.checked);
+                }
+            });
+        });
+
+        // Backup format radio selection highlight
+        document.querySelectorAll('input[name="adv_format"]').forEach(function(r) {
+            r.addEventListener('change', function() {
+                document.querySelectorAll('.adv-format-card').forEach(function(card) {
+                    var input = card.querySelector('input');
+                    card.classList.toggle('is-selected', input && input.checked);
+                });
+            });
+        });
+    });
 
     // 4. RESTORE PREVIEW & SAFEGUARDED FLOW
     async function checkRestoreFile() {

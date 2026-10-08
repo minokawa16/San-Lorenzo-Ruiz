@@ -38,72 +38,52 @@ $is_primary_user_dashboard = $is_user_dashboard_page && (($_GET['view'] ?? '') !
   </div>
 
   <nav class="sidebar-nav">
-    <div class="nav-section-label"><?php echo e(t('nav.main_menu', 'Main Menu')); ?></div>
-    <a href="<?php echo BASE_URL; ?>users/index.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'index.php' && strpos($_SERVER['PHP_SELF'], '/users/') !== false) ? 'active' : ''; ?>" data-tooltip="<?php echo e(t('nav.dashboard', 'Dashboard')); ?>">
-      <i class="fas fa-table-cells-large"></i>
-      <span><?php echo e(t('nav.dashboard', 'Dashboard')); ?></span>
-    </a>
-    <div class="nav-item nav-collapsible">
-      <button class="nav-link nav-toggle" aria-expanded="false" aria-controls="requestsSubmenu">
-        <i class="fas fa-layer-group"></i>
-        <span><?php echo e(t('nav.my_requests', 'My Requests')); ?></span>
-        <i class="fas fa-chevron-down ms-auto toggle-icon"></i>
-      </button>
-      <div class="nav-submenu" id="requestsSubmenu">
-        <a href="<?php echo BASE_URL; ?>users/request-certificate.php" class="nav-link sublink <?php echo (basename($_SERVER['PHP_SELF']) == 'request-certificate.php') ? 'active' : ''; ?>">
-          <i class="fas fa-certificate"></i>
-          <span><?php echo e(t('nav.certificates', 'Certificates')); ?></span>
-        </a>
-        <a href="<?php echo BASE_URL; ?>users/request-blessing.php" class="nav-link sublink <?php echo (basename($_SERVER['PHP_SELF']) == 'request-blessing.php') ? 'active' : ''; ?>">
-          <i class="fas fa-hands-praying"></i>
-          <span><?php echo e(t('nav.blessings', 'Blessings')); ?></span>
-        </a>
-        <a href="<?php echo BASE_URL; ?>users/request-service.php" class="nav-link sublink <?php echo (basename($_SERVER['PHP_SELF']) == 'request-service.php') ? 'active' : ''; ?>">
-          <i class="fas fa-church"></i>
-          <span><?php echo e(t('nav.sacramental_services', 'Sacramental Services')); ?></span>
-        </a>
-        <a href="<?php echo BASE_URL; ?>users/my-requests.php" class="nav-link sublink <?php echo in_array(basename($_SERVER['PHP_SELF']), ['my-requests.php', 'view-request.php'], true) ? 'active' : ''; ?>">
-          <i class="fas fa-list-check"></i>
-          <span><?php echo e(t('nav.track_requests', 'Track Requests')); ?></span>
-        </a>
-      </div>
-    </div>
-
-    <div class="nav-section-label"><?php echo e(t('nav.communication', 'Communication')); ?></div>
-    <a href="<?php echo BASE_URL; ?>users/view-schedule.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'view-schedule.php') ? 'active' : ''; ?>" data-tooltip="<?php echo e(t('nav.schedule', 'Parish Calendar')); ?>">
-      <i class="fas fa-calendar-days"></i>
-      <span><?php echo e(t('nav.schedule', 'Parish Calendar')); ?></span>
-    </a>
-    <a href="<?php echo BASE_URL; ?>users/announcements.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'announcements.php') ? 'active' : ''; ?>" data-tooltip="<?php echo e(t('nav.announcements', 'Announcements')); ?>">
-      <i class="fas fa-bullhorn"></i>
-      <span><?php echo e(t('nav.announcements', 'Announcements')); ?></span>
-    </a>
-    <a href="<?php echo BASE_URL; ?>users/organization.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'organization.php') ? 'active' : ''; ?>" data-tooltip="<?php echo e(t('nav.organization', 'Parish Organization Chart')); ?>">
-      <i class="fas fa-sitemap"></i>
-      <span><?php echo e(t('nav.organization', 'Parish Organization Chart')); ?></span>
-    </a>
-    <a href="<?php echo BASE_URL; ?>users/notifications.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'notifications.php') ? 'active' : ''; ?>" data-tooltip="<?php echo e(t('nav.notifications', 'Notifications')); ?>">
-      <i class="fas fa-bell"></i>
-      <span><?php echo e(t('nav.notifications', 'Notifications')); ?></span>
-      <?php $sidebar_unread = getUnreadNotificationCount($conn, $_SESSION['user_id'] ?? 0); ?>
-      <?php if ($sidebar_unread > 0): ?>
-        <span class="pill-badge"><?php echo $sidebar_unread; ?></span>
-      <?php endif; ?>
-    </a>
-    <a href="<?php echo BASE_URL; ?>users/ai-assistant.php" class="nav-link nav-item-ai <?php echo (basename($_SERVER['PHP_SELF']) == 'ai-assistant.php') ? 'active' : ''; ?>" data-tooltip="<?php echo e(t('nav.ai_assistant', 'AI Assistant')); ?>" id="sidebarAiAssistantLink" data-open-ai-chat="true" role="button" tabindex="0">
-      <i class="fas fa-robot"></i>
-      <span><?php echo e(t('nav.ai_assistant', 'AI Assistant')); ?></span>
-    </a>
-
-    <div class="nav-section-label"><?php echo e(t('nav.account', 'Account')); ?></div>
-    <a href="<?php echo BASE_URL; ?>auth/profile.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'profile.php') ? 'active' : ''; ?>" data-tooltip="<?php echo e(t('nav.profile_settings', 'Profile Settings')); ?>">
-      <i class="fas fa-user-gear"></i>
-      <span><?php echo e(t('nav.profile_settings', 'Profile Settings')); ?></span>
-    </a>
-    <a href="<?php echo BASE_URL; ?>users/help.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'help.php') ? 'active' : ''; ?>" data-tooltip="<?php echo e(t('nav.help', 'Help & Guide')); ?>">
-      <i class="fas fa-circle-question"></i>
-      <span><?php echo e(t('nav.help', 'Help & Guide')); ?></span>
-    </a>
+    <?php
+    // Canonical navigation config (sections: Main Menu, Communication, Account; icons include fa-table-cells-large)
+    require_once __DIR__ . '/user-nav-config.php';
+    $nav_config = getParishionerNavConfig($conn ?? null, $_SESSION['user_id'] ?? 0);
+    foreach ($nav_config['sections'] as $sec_key => $section):
+    ?>
+      <div class="nav-section-label"><?php echo e($section['label']); ?></div>
+      <?php foreach ($section['items'] as $item): ?>
+        <?php if (!empty($item['is_collapsible'])): ?>
+          <div class="nav-item nav-collapsible">
+            <button class="nav-link nav-toggle" aria-expanded="false" aria-controls="requestsSubmenu">
+              <i class="fas <?php echo e($item['icon']); ?>"></i>
+              <span><?php echo e($item['title']); ?></span>
+              <i class="fas fa-chevron-down ms-auto toggle-icon"></i>
+            </button>
+            <div class="nav-submenu" id="requestsSubmenu">
+              <?php foreach ($item['subitems'] as $sub): ?>
+                <a href="<?php echo e($sub['url']); ?>" class="nav-link sublink <?php echo !empty($sub['active']) ? 'active' : ''; ?>">
+                  <i class="fas <?php echo e($sub['icon']); ?>"></i>
+                  <span><?php echo e($sub['title']); ?></span>
+                  <?php if (!empty($sub['badge']) && $sub['badge'] > 0): ?>
+                    <span class="pill-badge ms-auto"><?php echo (int)$sub['badge']; ?></span>
+                  <?php endif; ?>
+                </a>
+              <?php endforeach; ?>
+            </div>
+          </div>
+        <?php else: ?>
+          <?php
+          $is_ai = !empty($item['is_ai']);
+          $ai_attrs = $is_ai ? ' id="sidebarAiAssistantLink" data-open-ai-chat="true" role="button" tabindex="0"' : '';
+          $extra_classes = $is_ai ? ' nav-item-ai' : '';
+          if (!empty($item['active'])) {
+              $extra_classes .= ' active';
+          }
+          ?>
+          <a href="<?php echo e($item['url']); ?>" class="nav-link<?php echo $extra_classes; ?>" data-tooltip="<?php echo e($item['tooltip']); ?>"<?php echo $ai_attrs; ?>>
+            <i class="fas <?php echo e($item['icon']); ?>"></i>
+            <span><?php echo e($item['title']); ?></span>
+            <?php if (!empty($item['badge']) && $item['badge'] > 0): ?>
+              <span class="pill-badge"><?php echo (int)$item['badge']; ?></span>
+            <?php endif; ?>
+          </a>
+        <?php endif; ?>
+      <?php endforeach; ?>
+    <?php endforeach; ?>
     <a href="<?php echo BASE_URL; ?>auth/logout.php" class="nav-link logout" data-tooltip="<?php echo e(t('nav.logout', 'Logout')); ?>">
       <i class="fas fa-arrow-right-from-bracket"></i>
       <span><?php echo e(t('nav.logout', 'Logout')); ?></span>
