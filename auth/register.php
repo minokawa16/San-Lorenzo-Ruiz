@@ -2238,9 +2238,125 @@ $has_logo = is_file($logo_file);
             border-color: var(--register-border) !important;
         }
 
+        .reg-step.is-current {
+            border-color: rgba(201, 162, 75, 0.6) !important;
+            background: rgba(246, 223, 159, 0.12) !important;
+            box-shadow: 0 0 0 2px rgba(201, 162, 75, 0.2), 0 8px 24px rgba(0, 0, 0, 0.12);
+        }
+
+        .reg-step.is-current .reg-step-badge-num {
+            box-shadow: 0 0 0 4px rgba(201, 162, 75, 0.35), 0 4px 14px rgba(212, 169, 78, 0.45);
+        }
+
         .reg-step.step-complete {
             border-color: rgba(34, 197, 94, 0.38) !important;
             background: rgba(34, 197, 94, 0.04) !important;
+        }
+
+        /* ===== REGISTRATION PROGRESS STEPPER ===== */
+        .registration-progress-stepper {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr;
+            align-items: center;
+            gap: 6px;
+            margin: 0 0 18px 0;
+            padding: 10px 14px;
+            border-radius: 12px;
+            background: rgba(246, 223, 159, 0.08);
+            border: 1px solid var(--register-border);
+        }
+
+        .stepper-step {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 6px;
+            border-radius: 8px;
+            opacity: 0.65;
+            transition: opacity 0.3s ease, transform 0.2s ease;
+        }
+
+        .stepper-step.is-active {
+            opacity: 1;
+            transform: translateY(-1px);
+        }
+
+        .stepper-step.is-complete {
+            opacity: 0.95;
+        }
+
+        .stepper-num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 26px;
+            height: 26px;
+            min-width: 26px;
+            border-radius: 50%;
+            background: rgba(255, 248, 235, 0.15);
+            border: 1px solid rgba(255, 248, 235, 0.25);
+            color: var(--register-text);
+            font-size: 0.76rem;
+            font-weight: 800;
+            transition: all 0.3s ease;
+        }
+
+        .stepper-step.is-active .stepper-num {
+            background: linear-gradient(135deg, var(--register-gold-soft), var(--register-gold));
+            border-color: var(--register-gold);
+            color: #1a150b;
+            box-shadow: 0 0 10px rgba(212, 169, 78, 0.4);
+        }
+
+        .stepper-step.is-complete .stepper-num {
+            background: #22c55e;
+            border-color: #22c55e;
+            color: #ffffff;
+            box-shadow: 0 0 8px rgba(34, 197, 94, 0.35);
+        }
+
+        .stepper-meta {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.15;
+            min-width: 0;
+        }
+
+        .stepper-title {
+            font-size: 0.78rem;
+            font-weight: 800;
+            color: var(--register-text);
+            white-space: nowrap;
+        }
+
+        .stepper-step.is-active .stepper-title {
+            color: var(--register-gold);
+        }
+
+        .stepper-desc {
+            font-size: 0.68rem;
+            color: var(--register-muted);
+            white-space: nowrap;
+        }
+
+        .stepper-divider {
+            height: 2px;
+            min-width: 10px;
+            background: rgba(255, 248, 235, 0.15);
+            border-radius: 2px;
+            transition: background 0.3s ease;
+        }
+
+        .stepper-divider.is-active {
+            background: linear-gradient(90deg, #22c55e, var(--register-gold));
+        }
+
+        @media (max-width: 576px) {
+            .stepper-desc { display: none; }
+            .stepper-step { gap: 4px; padding: 2px; }
+            .stepper-num { width: 22px; height: 22px; min-width: 22px; font-size: 0.7rem; }
+            .stepper-title { font-size: 0.68rem; }
+            .registration-progress-stepper { padding: 8px 10px; gap: 4px; margin-bottom: 14px; }
         }
 
         .reg-step-header {
@@ -2310,6 +2426,14 @@ $has_logo = is_file($logo_file);
             letter-spacing: 0.02em;
             white-space: nowrap;
             border: 1px solid transparent;
+        }
+
+        .step-pill.active,
+        .step-pill.current {
+            background: rgba(201, 162, 75, 0.22);
+            color: #8c6b1f;
+            border-color: rgba(201, 162, 75, 0.55);
+            font-weight: 900;
         }
 
         .step-pill.pending {
@@ -3179,10 +3303,45 @@ $has_logo = is_file($logo_file);
             <form method="POST" action="" class="registration-form" id="registrationForm" novalidate>
                 <?php echo csrfInput(); ?>
 
+                <!-- Registration Progress Stepper -->
+                <nav class="registration-progress-stepper" id="registrationProgressStepper" aria-label="Registration Progress">
+                    <div class="stepper-step is-active" id="stepperStep1" data-step="1">
+                        <span class="stepper-num" id="stepperNum1">1</span>
+                        <div class="stepper-meta">
+                            <span class="stepper-title">Step 1</span>
+                            <span class="stepper-desc">Verification</span>
+                        </div>
+                    </div>
+                    <div class="stepper-divider" id="stepperLine1"></div>
+                    <div class="stepper-step" id="stepperStep2" data-step="2">
+                        <span class="stepper-num" id="stepperNum2">2</span>
+                        <div class="stepper-meta">
+                            <span class="stepper-title">Step 2</span>
+                            <span class="stepper-desc">Personal Info</span>
+                        </div>
+                    </div>
+                    <div class="stepper-divider" id="stepperLine2"></div>
+                    <div class="stepper-step" id="stepperStep3" data-step="3">
+                        <span class="stepper-num" id="stepperNum3">3</span>
+                        <div class="stepper-meta">
+                            <span class="stepper-title">Step 3</span>
+                            <span class="stepper-desc">Terms</span>
+                        </div>
+                    </div>
+                    <div class="stepper-divider" id="stepperLine3"></div>
+                    <div class="stepper-step" id="stepperStep4" data-step="4">
+                        <span class="stepper-num" id="stepperNum4">4</span>
+                        <div class="stepper-meta">
+                            <span class="stepper-title">Step 4</span>
+                            <span class="stepper-desc">Security</span>
+                        </div>
+                    </div>
+                </nav>
+
                 <!-- ═══════════════════════════════════════════
                      STEP 1 — Identity Verification & ID Scan
                 ═══════════════════════════════════════════ -->
-                <div class="reg-step" id="regStep1">
+                <div class="reg-step is-current" id="regStep1">
                     <div class="reg-step-header">
                         <div class="reg-step-badge-num" id="step1Num">1</div>
                         <div class="reg-step-info">
@@ -3190,7 +3349,7 @@ $has_logo = is_file($logo_file);
                             <span>Upload your Face Photo, Front ID, and Back ID — OCR will auto-fill your details.</span>
                         </div>
                         <div class="reg-step-status">
-                            <span class="step-pill pending" id="step1Pill">Pending</span>
+                            <span class="step-pill active" id="step1Pill">Step 1 Active</span>
                         </div>
                     </div>
 
@@ -3418,7 +3577,7 @@ $has_logo = is_file($logo_file);
                             <label for="first_name" class="field-label">First Name</label>
                             <div class="input-wrap">
                                 <i class="fas fa-user field-icon"></i>
-                                <input type="text" class="form-control" id="first_name" name="first_name" value="<?php echo e($form_data['first_name']); ?>" autocomplete="given-name" required autofocus>
+                                <input type="text" class="form-control" id="first_name" name="first_name" value="<?php echo e($form_data['first_name']); ?>" autocomplete="given-name" required>
                             </div>
                             <div class="field-message" data-error-for="first_name"></div>
                         </div>
@@ -4836,7 +4995,7 @@ $has_logo = is_file($logo_file);
             const hasBack  = Boolean(fields.valid_id_back_capture && fields.valid_id_back_capture.value);
             const step1Complete = hasFace && hasFront && hasBack;
             if (regStep1) regStep1.classList.toggle('step-complete', step1Complete);
-            if (step1Pill && !step1Complete) { step1Pill.textContent = 'Pending'; step1Pill.className = 'step-pill pending'; }
+            if (step1Pill && !step1Complete) { step1Pill.textContent = 'Step 1 Active'; step1Pill.className = 'step-pill active'; }
 
             const method = getRegistrationMethod();
             const contactValid = method === 'email'
@@ -4881,6 +5040,9 @@ $has_logo = is_file($logo_file);
                         : 'Step 4: Passwords do not match.';
                     gateNotice.innerHTML = '<i class="fas fa-circle-info"></i><span>' + hint + '</span>';
                 }
+            }
+            if (typeof updateStepProgress === 'function') {
+                updateStepProgress();
             }
         }
 
@@ -4985,8 +5147,259 @@ $has_logo = is_file($logo_file);
         });
 
 
+        // ── Step progression state & UI synchronization ─────────────────────
+        let currentStep = 1;
+
+        function updateStepProgress() {
+            const hasFace  = Boolean(fields.face_capture && fields.face_capture.value);
+            const hasFront = Boolean(fields.valid_id_capture && fields.valid_id_capture.value);
+            const hasBack  = Boolean(fields.valid_id_back_capture && fields.valid_id_back_capture.value);
+            const step1Complete = hasFace && hasFront && hasBack;
+
+            const method = getRegistrationMethod();
+            const contactValid = method === 'email'
+                ? /^[^\s@]+@gmail\.com$/i.test(fields.email.value.trim())
+                : /^(09\d{9}|\+639\d{9})$/.test(fields.phone_number.value.trim());
+            const personalFilled = Boolean(
+                fields.first_name.value.trim() && fields.surname.value.trim() &&
+                fields.chapel_district.value && fields.address.value.trim() &&
+                fields.birthdate.value.trim() && fields.birth_place.value.trim() &&
+                fields.id_number.value.trim() && contactValid
+            );
+            const step2Complete = personalFilled;
+            const step3Complete = Boolean(fields.terms_check && fields.terms_check.checked);
+            const minPasswordLength = <?php echo (int) PASSWORD_MIN_LENGTH; ?>;
+            const passVal    = fields.password ? fields.password.value : '';
+            const confirmVal = fields.confirm_password ? fields.confirm_password.value : '';
+            const step4Complete = passVal.length >= minPasswordLength && passVal === confirmVal;
+
+            // Strict progression guard: Step 2 cannot be active unless Step 1 is valid
+            if (!step1Complete) {
+                currentStep = 1;
+            } else if (!step2Complete) {
+                currentStep = 2;
+            } else if (!step3Complete) {
+                currentStep = 3;
+            } else {
+                currentStep = 4;
+            }
+
+            // Sync step containers
+            const regStep1 = document.getElementById('regStep1');
+            const regStep2 = document.getElementById('regStep2');
+            const regStep3 = document.getElementById('regStep3');
+            const regStep4 = document.getElementById('regStep4');
+
+            if (regStep1) {
+                regStep1.classList.toggle('step-complete', step1Complete);
+                regStep1.classList.toggle('is-current', currentStep === 1);
+            }
+            if (regStep2) {
+                regStep2.classList.toggle('step-complete', step2Complete);
+                regStep2.classList.toggle('is-current', currentStep === 2);
+            }
+            if (regStep3) {
+                regStep3.classList.toggle('step-complete', step3Complete);
+                regStep3.classList.toggle('is-current', currentStep === 3);
+            }
+            if (regStep4) {
+                regStep4.classList.toggle('step-complete', step4Complete);
+                regStep4.classList.toggle('is-current', currentStep === 4);
+            }
+
+            // Sync Pills
+            const step1Pill = document.getElementById('step1Pill');
+            const step2Pill = document.getElementById('step2Pill');
+            const step3Pill = document.getElementById('step3Pill');
+            const step4Pill = document.getElementById('step4Pill');
+
+            if (step1Pill) {
+                if (step1Complete) {
+                    if (!step1Pill.classList.contains('done')) {
+                        step1Pill.textContent = '✓ Scanned';
+                        step1Pill.className = 'step-pill done';
+                    }
+                } else {
+                    step1Pill.textContent = 'Step 1 Active';
+                    step1Pill.className = 'step-pill active';
+                }
+            }
+
+            if (step2Pill) {
+                if (step2Complete) {
+                    step2Pill.textContent = 'Completed';
+                    step2Pill.className = 'step-pill done';
+                } else if (currentStep === 2) {
+                    if (!step2Pill.classList.contains('scanning') && !step2Pill.classList.contains('done')) {
+                        step2Pill.textContent = 'Step 2 Active';
+                        step2Pill.className = 'step-pill active';
+                    }
+                } else {
+                    step2Pill.textContent = 'Pending ID Scan';
+                    step2Pill.className = 'step-pill pending';
+                }
+            }
+
+            if (step3Pill) {
+                if (step3Complete) {
+                    step3Pill.textContent = '\u2713 Agreed';
+                    step3Pill.className = 'step-pill done';
+                } else if (currentStep === 3) {
+                    step3Pill.textContent = 'Step 3 Active';
+                    step3Pill.className = 'step-pill active';
+                }
+            }
+
+            // Sync Stepper Nav
+            const s1 = document.getElementById('stepperStep1');
+            const s2 = document.getElementById('stepperStep2');
+            const s3 = document.getElementById('stepperStep3');
+            const s4 = document.getElementById('stepperStep4');
+            const l1 = document.getElementById('stepperLine1');
+            const l2 = document.getElementById('stepperLine2');
+            const l3 = document.getElementById('stepperLine3');
+
+            if (s1) {
+                s1.classList.toggle('is-active', currentStep === 1);
+                s1.classList.toggle('is-complete', step1Complete);
+                const n1 = document.getElementById('stepperNum1');
+                if (n1) n1.innerHTML = step1Complete ? '<i class="fas fa-check"></i>' : '1';
+            }
+            if (l1) l1.classList.toggle('is-active', step1Complete);
+
+            if (s2) {
+                s2.classList.toggle('is-active', currentStep === 2);
+                s2.classList.toggle('is-complete', step2Complete);
+                const n2 = document.getElementById('stepperNum2');
+                if (n2) n2.innerHTML = step2Complete ? '<i class="fas fa-check"></i>' : '2';
+            }
+            if (l2) l2.classList.toggle('is-active', step1Complete && step2Complete);
+
+            if (s3) {
+                s3.classList.toggle('is-active', currentStep === 3);
+                s3.classList.toggle('is-complete', step3Complete);
+                const n3 = document.getElementById('stepperNum3');
+                if (n3) n3.innerHTML = step3Complete ? '<i class="fas fa-check"></i>' : '3';
+            }
+            if (l3) l3.classList.toggle('is-active', step1Complete && step2Complete && step3Complete);
+
+            if (s4) {
+                s4.classList.toggle('is-active', currentStep === 4);
+                s4.classList.toggle('is-complete', step4Complete);
+                const n4 = document.getElementById('stepperNum4');
+                if (n4) n4.innerHTML = step4Complete ? '<i class="fas fa-check"></i>' : '4';
+            }
+        }
+
+        // ── Mount initialization & reset ────────────────────────────────────
+        function initRegistrationStep() {
+            // Always initialize to Step 1 explicitly
+            currentStep = 1;
+
+            // Clear any persisted step values
+            try {
+                sessionStorage.removeItem('parish_registration_step');
+                localStorage.removeItem('parish_registration_step');
+            } catch (e) {}
+
+            // Prevent browser scroll restoration from restoring down to Step 2
+            if ('scrollRestoration' in history) {
+                history.scrollRestoration = 'manual';
+            }
+
+            // Guard against URL query params (?step=2) or fragment identifier (#regStep2)
+            const hasFace  = Boolean(fields.face_capture && fields.face_capture.value);
+            const hasFront = Boolean(fields.valid_id_capture && fields.valid_id_capture.value);
+            const hasBack  = Boolean(fields.valid_id_back_capture && fields.valid_id_back_capture.value);
+            const step1Complete = hasFace && hasFront && hasBack;
+
+            const url = new URL(window.location.href);
+            if (url.searchParams.has('step') && !step1Complete) {
+                url.searchParams.delete('step');
+                try {
+                    window.history.replaceState(null, '', url.pathname + (url.search ? url.search : ''));
+                } catch (e) {}
+            }
+
+            if (window.location.hash && !step1Complete) {
+                const lowerHash = window.location.hash.toLowerCase();
+                if (lowerHash.includes('step') || lowerHash.includes('first_name') || lowerHash.includes('regstep')) {
+                    try {
+                        window.history.replaceState(null, '', url.pathname + (url.search ? url.search : ''));
+                    } catch (e) {}
+                }
+            }
+
+            // Always start at Step 1 at top of page
+            window.scrollTo(0, 0);
+            requestAnimationFrame(() => window.scrollTo(0, 0));
+            setTimeout(() => window.scrollTo(0, 0), 60);
+
+            // Stepper click handlers
+            const stepperMap = [
+                { id: 'stepperStep1', step: 1, target: 'regStep1' },
+                { id: 'stepperStep2', step: 2, target: 'regStep2' },
+                { id: 'stepperStep3', step: 3, target: 'regStep3' },
+                { id: 'stepperStep4', step: 4, target: 'regStep4' },
+            ];
+            stepperMap.forEach(item => {
+                const el = document.getElementById(item.id);
+                if (!el) return;
+                el.style.cursor = 'pointer';
+                el.addEventListener('click', () => {
+                    const hFace  = Boolean(fields.face_capture && fields.face_capture.value);
+                    const hFront = Boolean(fields.valid_id_capture && fields.valid_id_capture.value);
+                    const hBack  = Boolean(fields.valid_id_back_capture && fields.valid_id_back_capture.value);
+                    const s1Done = hFace && hFront && hBack;
+
+                    if (item.step > 1 && !s1Done) {
+                        showToast('info', 'Step 1 Required', 'Please complete Step 1 (ID & face verification) before moving to Step ' + item.step + '.');
+                        const s1El = document.getElementById('regStep1');
+                        if (s1El) s1El.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        return;
+                    }
+                    const targetEl = document.getElementById(item.target);
+                    if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                });
+            });
+
+            // Guard against Step 2 focus attempts before Step 1 is done
+            const step2Inputs = [
+                fields.first_name, fields.surname, fields.middle_initial,
+                fields.phone_number, fields.email, fields.chapel_district,
+                fields.address, fields.birthdate, fields.birth_place, fields.id_number
+            ];
+            step2Inputs.forEach(inp => {
+                if (!inp) return;
+                inp.addEventListener('focus', () => {
+                    const hFace  = Boolean(fields.face_capture && fields.face_capture.value);
+                    const hFront = Boolean(fields.valid_id_capture && fields.valid_id_capture.value);
+                    const hBack  = Boolean(fields.valid_id_back_capture && fields.valid_id_back_capture.value);
+                    const s1Done = hFace && hFront && hBack;
+                    if (!s1Done && currentStep === 1) {
+                        const banner = document.getElementById('regFieldsBanner');
+                        if (banner && !banner.classList.contains('is-unlocked')) {
+                            banner.style.boxShadow = '0 0 0 2px rgba(212, 169, 78, 0.5)';
+                            setTimeout(() => { banner.style.boxShadow = ''; }, 1200);
+                        }
+                    }
+                });
+            });
+
+            // Clean state when unloading
+            window.addEventListener('beforeunload', () => {
+                try {
+                    sessionStorage.removeItem('parish_registration_step');
+                    localStorage.removeItem('parish_registration_step');
+                } catch (e) {}
+            });
+
+            updateStepProgress();
+        }
+
         // ── Initialize ─────────────────────────────────────────────────────────
         initTermsScrollGate();
+        initRegistrationStep();
         updateSubmitGate();
     </script>
 </body>
