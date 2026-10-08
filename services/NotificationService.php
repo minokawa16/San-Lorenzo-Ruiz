@@ -30,6 +30,9 @@ final class NotificationService
         'request_completed' => 'requests',
         'request_cancelled' => 'requests',
         'request_needs_info' => 'requests',
+        'request_needs_information' => 'requests',
+        'request_needs_correction' => 'requests',
+        'request' => 'requests',
         'certificate_ready' => 'requests',
         'certificate_released' => 'requests',
         'certificate_completed' => 'requests',
@@ -37,6 +40,9 @@ final class NotificationService
         'payment_submitted' => 'requests',
         'payment_verified' => 'requests',
         'payment_rejected' => 'requests',
+        'new_payment' => 'requests',
+        'new_requirement' => 'requests',
+        'requirement_updated' => 'requests',
 
         // Schedules & Reservations
         'reservation_created' => 'schedules',
@@ -54,6 +60,7 @@ final class NotificationService
         'announcement_published' => 'announcements',
         'broadcast_notice' => 'announcements',
         'announcement_reminder' => 'announcements',
+        'announcement' => 'announcements',
 
         // System & Security Notices
         'account_verified' => 'system',
@@ -284,6 +291,7 @@ final class NotificationService
         }
 
         // Outbound channels (Email & SMS)
+        $deliveryResults = [];
         if ($outbound) {
             $channels = [
                 'email' => $this->allows($userId, $category, 'email'),
@@ -292,24 +300,14 @@ final class NotificationService
 
             if ($channels['email'] || $channels['sms']) {
                 if (function_exists('dispatchNotificationDelivery')) {
-                    dispatchNotificationDelivery($this->db, $userId, $title, $message, $category, $channels);
+                    $deliveryResults = dispatchNotificationDelivery($this->db, $userId, $title, $message, $category, $channels);
                 }
             }
         }
 
         // Log notification deliveries if table exists and notification was saved
-        if ($id > 0 && function_exists('tableExists') && tableExists($this->db, 'notification_deliveries')) {
-            foreach (['in_app', 'email', 'sms'] as $channel) {
-                $allowed = $channel === 'in_app' ? $allowInApp : ($outbound && $this->allows($userId, $category, $channel));
-                $status = $allowed ? ($channel === 'in_app' ? 'sent' : 'pending') : 'cancelled';
-                $idempotency = hash('sha256', $id . '|' . $channel . '|' . $userId . '|1');
-                $stmt = $this->db->prepare("INSERT INTO notification_deliveries (notification_id, channel, idempotency_key, status, attempt_count, sent_at, next_attempt_at) VALUES (?, ?, ?, ?, 0, IF(?='sent', NOW(), NULL), IF(?='pending', NOW(), NULL))");
-                if ($stmt) {
-                    $stmt->bind_param('isssss', $id, $channel, $idempotency, $status, $status, $status);
-                    $stmt->execute();
-                    $stmt->close();
-                }
-            }
+        if ($id > 0) {
+            $this->logDeliveries($id, $userId, $category, $allowInApp, $outbound, $deliveryResults);
         }
 
         return $id > 0 ? $id : null;
@@ -379,6 +377,7 @@ final class NotificationService
             }
         }
 
+        $deliveryResults = [];
         if ($outbound) {
             $channels = [
                 'email' => $this->allows($userId, $category, 'email'),
@@ -387,12 +386,64 @@ final class NotificationService
 
             if ($channels['email'] || $channels['sms']) {
                 if (function_exists('dispatchNotificationDelivery')) {
-                    dispatchNotificationDelivery($this->db, $userId, $title, $message, $category, $channels);
+                    $deliveryResults = dispatchNotificationDelivery($this->db, $userId, $title, $message, $category, $channels);
                 }
             }
         }
 
+        if ($id > 0) {
+            $this->logDeliveries($id, $userId, $category, $allowInApp, $outbound, $deliveryResults);
+        }
+
         return $id;
+    }
+
+    private function logDeliveries(int $id, int $userId, string $category, bool $allowInApp, bool $outbound, array $deliveryResults): void
+    {
+        if ($id <= 0 || !function_exists('tableExists') || !tableExists($this->db, 'notification_deliveries')) {
+            return;
+        }
+
+        foreach (['in_app', 'email', 'sms'] as $channel) {
+            $allowed = $channel === 'in_app' ? $allowInApp : ($outbound && $this->allows($userId, $category, $channel));
+            $attempt = $deliveryResults[$channel] ?? null;
+            $providerRef = null;
+            $failureReason = null;
+            $sentAt = null;
+            $failedAt = null;
+            $attemptCount = 0;
+
+            if ($channel === 'in_app') {
+                $status = $allowInApp ? 'sent' : 'cancelled';
+                $attemptCount = $allowInApp ? 1 : 0;
+                $sentAt = $allowInApp ? date('Y-m-d H:i:s') : null;
+            } elseif ($attempt !== null) {
+                if (!empty($attempt['ok']) && empty($attempt['skipped'])) {
+                    $status = 'sent';
+                    $attemptCount = 1;
+                    $sentAt = date('Y-m-d H:i:s');
+                    $providerRef = !empty($attempt['batch_id']) ? (string)$attempt['batch_id'] : null;
+                } elseif (!empty($attempt['skipped'])) {
+                    $status = 'cancelled';
+                    $failureReason = !empty($attempt['error']) ? (string)$attempt['error'] : 'Skipped';
+                } else {
+                    $status = 'failed';
+                    $attemptCount = 1;
+                    $failedAt = date('Y-m-d H:i:s');
+                    $failureReason = !empty($attempt['error']) ? (string)$attempt['error'] : 'Delivery failed';
+                }
+            } else {
+                $status = $allowed ? 'pending' : 'cancelled';
+            }
+
+            $idempotency = hash('sha256', $id . '|' . $channel . '|' . $userId . '|1');
+            $stmt = $this->db->prepare("INSERT INTO notification_deliveries (notification_id, channel, idempotency_key, status, attempt_count, sent_at, failed_at, failure_reason, provider_reference, last_attempt_at, next_attempt_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, IF(?='sent', NOW(), NULL), IF(?='pending', NOW(), NULL))");
+            if ($stmt) {
+                $stmt->bind_param('isssissssss', $id, $channel, $idempotency, $status, $attemptCount, $sentAt, $failedAt, $failureReason, $providerRef, $status, $status);
+                $stmt->execute();
+                $stmt->close();
+            }
+        }
     }
 
     public function transition(int $id, int $userId, string $state): void

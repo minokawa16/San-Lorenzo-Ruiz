@@ -185,6 +185,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
                     'ceremony_minister' => !empty($_POST['ceremony_minister']) ? trim((string)$_POST['ceremony_minister']) : (!empty($_POST['officiating_priest']) ? trim((string)$_POST['officiating_priest']) : null),
                     'target_status' => 'completed'
                 ]);
+                $req_result = $conn->query("SELECT r.user_id, r.reference_number, r.request_type, u.email, u.fullname, u.phone_number FROM requests r JOIN users u ON r.user_id = u.id WHERE r.request_id = $request_id");
+                $req_data = $req_result ? $req_result->fetch_assoc() : null;
+                if ($req_data) {
+                    createRequestStatusNotification($conn, $req_data, 'completed', $admin_response);
+                }
                 $success = 'Request marked as completed! ' . (!empty($completionResult['sacramental_record']['registered']) ? 'Sacramental record registered and calendar schedule locked.' : 'Calendar schedule locked.');
             } catch (Throwable $e) {
                 $error = $e->getMessage();

@@ -194,6 +194,19 @@ final class RequestService {
         try {
             $response = $this->transitionInCurrentTransaction($requestId, $next, $actorId, $reason);
             $this->db->commit();
+
+            // Dispatch notification to user
+            $q = $this->db->prepare("SELECT r.*, u.email, u.fullname, u.phone_number FROM requests r JOIN users u ON r.user_id = u.id WHERE r.request_id = ? LIMIT 1");
+            if ($q) {
+                $q->bind_param('i', $requestId);
+                $q->execute();
+                $reqRow = $q->get_result()->fetch_assoc();
+                $q->close();
+                if ($reqRow && function_exists('createRequestStatusNotification')) {
+                    createRequestStatusNotification($this->db, $reqRow, $next, (string)$reason);
+                }
+            }
+
             return $response;
         } catch (Throwable $e) { $this->db->rollback(); throw $e; }
     }

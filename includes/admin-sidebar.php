@@ -1,4 +1,4 @@
-<?php
+ <?php
 /**
  * ADMIN SIDEBAR NAVIGATION
  * Modern redesigned sidebar matching user sidebar UI/UX

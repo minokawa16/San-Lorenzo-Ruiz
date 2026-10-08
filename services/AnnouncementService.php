@@ -159,6 +159,30 @@ final class AnnouncementService
                 'published',
                 true
             );
+
+            // Synchronize announcement_recipients record if table exists
+            if (function_exists('tableExists') && tableExists($this->db, 'announcement_recipients')) {
+                $uStmt = $this->db->prepare("SELECT email, phone_number FROM users WHERE id = ? LIMIT 1");
+                if ($uStmt) {
+                    $uStmt->bind_param('i', $uid);
+                    $uStmt->execute();
+                    $uRow = $uStmt->get_result()->fetch_assoc();
+                    $uStmt->close();
+                    if ($uRow) {
+                        $recEmail = $uRow['email'] ?? '';
+                        $recPhone = $uRow['phone_number'] ?? '';
+                        $hasPhone = !empty($recPhone);
+                        $logStmt = $this->db->prepare("INSERT INTO announcement_recipients (announcement_id, user_id, email, delivery_status, sms_delivery_status, sent_at, sms_sent_at)
+                            VALUES (?, ?, ?, 'sent', IF(? != '', 'sent', 'skipped'), NOW(), IF(? != '', NOW(), NULL))
+                            ON DUPLICATE KEY UPDATE delivery_status = 'sent', sms_delivery_status = IF(? != '', 'sent', 'skipped'), sent_at = NOW(), sms_sent_at = IF(? != '', NOW(), sms_sent_at)");
+                        if ($logStmt) {
+                            $logStmt->bind_param('iisssss', $id, $uid, $recEmail, $recPhone, $recPhone, $recPhone, $recPhone);
+                            $logStmt->execute();
+                            $logStmt->close();
+                        }
+                    }
+                }
+            }
         }
 
         if ($actor > 0 && function_exists('createAuditLog')) {
@@ -168,7 +192,7 @@ final class AnnouncementService
 
     private function recipients(int $id): array
     {
-        $stmt = $this->db->prepare("SELECT DISTINCT u.id FROM users u JOIN announcements a ON a.announcement_id=? WHERE (u.role IN ('user', 'parishioner', 'member') OR u.role IS NULL OR u.role = '' OR EXISTS(SELECT 1 FROM user_roles ur JOIN roles r ON r.role_id=ur.role_id WHERE ur.user_id=u.id AND r.role_key='parishioner')) AND u.status='active' AND (a.audience_type='everyone' OR a.audience_type IS NULL OR EXISTS(SELECT 1 FROM announcement_audiences aa WHERE aa.announcement_id=a.announcement_id AND ((aa.audience_type='selected_user' AND aa.user_id=u.id) OR (aa.audience_type IN('district','chapel') AND aa.audience_value=u.chapel_district))))");
+        $stmt = $this->db->prepare("SELECT DISTINCT u.id FROM users u JOIN announcements a ON a.announcement_id=? WHERE u.status='active' AND (a.audience_type='everyone' OR a.audience_type IS NULL OR EXISTS(SELECT 1 FROM announcement_audiences aa WHERE aa.announcement_id=a.announcement_id AND ((aa.audience_type='selected_user' AND aa.user_id=u.id) OR (aa.audience_type IN('district','chapel') AND aa.audience_value=u.chapel_district))))");
         $stmt->bind_param('i', $id);
         $stmt->execute();
         $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);

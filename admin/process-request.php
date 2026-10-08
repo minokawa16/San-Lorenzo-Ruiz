@@ -251,6 +251,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     'user_id' => $request['user_id'],
                     'result' => $completionResult
                 ]);
+                createRequestStatusNotification($conn, $request, 'completed', $admin_response);
             } else {
                 $workflow = new RequestService($conn);
                 $workflow->transition($request_id, 'completed', (int) $_SESSION['user_id'], $admin_response);

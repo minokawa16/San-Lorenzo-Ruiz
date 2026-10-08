@@ -246,6 +246,28 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
                         createAuditLog($conn, $user_id, 'UPDATE_PROFILE', 'users', $user_id);
                     }
 
+                    // Save Notification Channel Preferences (Both, SMS only, Email only)
+                    $pref_choice = trim(sanitize($_POST['notification_channel_preference'] ?? 'both'));
+                    if (!in_array($pref_choice, ['both', 'sms', 'email'], true)) {
+                        $pref_choice = 'both';
+                    }
+                    $sms_pref = in_array($pref_choice, ['both', 'sms'], true) ? 1 : 0;
+                    $email_pref = in_array($pref_choice, ['both', 'email'], true) ? 1 : 0;
+
+                    if (tableExists($conn, 'notification_preferences')) {
+                        $categories = ['requests', 'announcements', 'schedules', 'system'];
+                        foreach ($categories as $cat) {
+                            $stmtPref = $conn->prepare("INSERT INTO notification_preferences (user_id, category, in_app_enabled, email_enabled, sms_enabled)
+                                VALUES (?, ?, 1, ?, ?)
+                                ON DUPLICATE KEY UPDATE email_enabled = VALUES(email_enabled), sms_enabled = VALUES(sms_enabled)");
+                            if ($stmtPref) {
+                                $stmtPref->bind_param('isii', $user_id, $cat, $email_pref, $sms_pref);
+                                $stmtPref->execute();
+                                $stmtPref->close();
+                            }
+                        }
+                    }
+
                     $success = 'Profile details updated successfully!';
                     $user = getUserById($conn, $user_id);
                 } else {
@@ -273,6 +295,29 @@ if (!$is_admin) {
 // Pre-fill parsed fields for legacy users
 $display_first_name = (string)($user['first_name'] ?? '');
 $display_middle_name = (string)($user['middle_name'] ?? '');
+
+// Read current notification channel preference
+$cur_notif_channel = 'both';
+if (tableExists($conn, 'notification_preferences')) {
+    $prefQuery = $conn->prepare("SELECT email_enabled, sms_enabled FROM notification_preferences WHERE user_id = ? AND category = 'requests' LIMIT 1");
+    if ($prefQuery) {
+        $prefQuery->bind_param('i', $user_id);
+        $prefQuery->execute();
+        $prefRow = $prefQuery->get_result()->fetch_assoc();
+        $prefQuery->close();
+        if ($prefRow) {
+            $eOn = (int)($prefRow['email_enabled'] ?? 1) === 1;
+            $sOn = (int)($prefRow['sms_enabled'] ?? 1) === 1;
+            if ($eOn && $sOn) {
+                $cur_notif_channel = 'both';
+            } elseif ($sOn) {
+                $cur_notif_channel = 'sms';
+            } elseif ($eOn) {
+                $cur_notif_channel = 'email';
+            }
+        }
+    }
+}
 $display_surname = (string)($user['surname'] ?? '');
 $display_suffix = (string)($user['suffix'] ?? '');
 
@@ -556,6 +601,54 @@ $page_title = $is_admin ? 'Profile Settings' : 'My Profile';
                                                value="<?php echo e($user['phone_number']); ?>" placeholder="09XX-XXX-XXXX" style="border-radius: 0 10px 10px 0;">
                                     </div>
                                     <div class="form-text text-muted small mt-1">Philippine 11-digit mobile number.</div>
+                                </div>
+                            </div>
+
+                            <!-- Notification Preference Options -->
+                            <div class="mt-4 pt-3 border-top" style="border-color: #ece5d8 !important;">
+                                <label class="form-label fw-bold text-dark small mb-2 d-flex align-items-center">
+                                    <i class="fas fa-bell me-2" style="color: #c89b3c;"></i> Notification Channel Preference
+                                </label>
+                                <div class="row g-2">
+                                    <div class="col-12 col-md-4">
+                                        <label class="card h-100 p-3 border rounded-3 position-relative cursor-pointer notif-pref-card" style="cursor: pointer; <?php echo $cur_notif_channel === 'both' ? 'background: #fbf9f4; border-color: #c89b3c !important;' : 'background: #fff; border-color: #e2d9cc;'; ?>">
+                                            <div class="form-check mb-0">
+                                                <input class="form-check-input" type="radio" name="notification_channel_preference" id="notif_pref_both" value="both" <?php echo $cur_notif_channel === 'both' ? 'checked' : ''; ?>>
+                                                <label class="form-check-label fw-semibold text-dark small ms-1" for="notif_pref_both">
+                                                    Both SMS &amp; Email
+                                                </label>
+                                            </div>
+                                            <div class="text-muted small ps-4 mt-1" style="font-size: 0.74rem;">
+                                                Receive instant text messages plus detailed email updates.
+                                            </div>
+                                        </label>
+                                    </div>
+                                    <div class="col-12 col-md-4">
+                                        <label class="card h-100 p-3 border rounded-3 position-relative cursor-pointer notif-pref-card" style="cursor: pointer; <?php echo $cur_notif_channel === 'sms' ? 'background: #fbf9f4; border-color: #c89b3c !important;' : 'background: #fff; border-color: #e2d9cc;'; ?>">
+                                            <div class="form-check mb-0">
+                                                <input class="form-check-input" type="radio" name="notification_channel_preference" id="notif_pref_sms" value="sms" <?php echo $cur_notif_channel === 'sms' ? 'checked' : ''; ?>>
+                                                <label class="form-check-label fw-semibold text-dark small ms-1" for="notif_pref_sms">
+                                                    <i class="fas fa-comment-sms text-success me-1"></i> SMS Only
+                                                </label>
+                                            </div>
+                                            <div class="text-muted small ps-4 mt-1" style="font-size: 0.74rem;">
+                                                Receive SMS alerts on your mobile phone only.
+                                            </div>
+                                        </label>
+                                    </div>
+                                    <div class="col-12 col-md-4">
+                                        <label class="card h-100 p-3 border rounded-3 position-relative cursor-pointer notif-pref-card" style="cursor: pointer; <?php echo $cur_notif_channel === 'email' ? 'background: #fbf9f4; border-color: #c89b3c !important;' : 'background: #fff; border-color: #e2d9cc;'; ?>">
+                                            <div class="form-check mb-0">
+                                                <input class="form-check-input" type="radio" name="notification_channel_preference" id="notif_pref_email" value="email" <?php echo $cur_notif_channel === 'email' ? 'checked' : ''; ?>>
+                                                <label class="form-check-label fw-semibold text-dark small ms-1" for="notif_pref_email">
+                                                    <i class="fas fa-envelope text-primary me-1"></i> Email Only
+                                                </label>
+                                            </div>
+                                            <div class="text-muted small ps-4 mt-1" style="font-size: 0.74rem;">
+                                                Receive email notifications without text messages.
+                                            </div>
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
                         </div>

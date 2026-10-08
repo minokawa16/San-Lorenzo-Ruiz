@@ -277,7 +277,12 @@ function createRequestStatusNotification($conn, array $request, $status, $admin_
     $message .= ' Please open your TUGON account for details and next steps.';
 
     require_once dirname(__DIR__) . '/services/NotificationService.php';
-    $type = 'request_' . ($status === 'needs_correction' ? 'needs_info' : $status);
+    $normStatus = match($status) {
+        'needs_correction', 'needs_information', 'needs_info', 'requires_additional_information', 'correction_requested' => 'needs_info',
+        'ready_for_pickup', 'ready_for_download', 'ready' => 'ready',
+        default => $status
+    };
+    $type = 'request_' . $normStatus;
     $created = (new NotificationService($conn))->create($user_id, $type, [
         'request_reference' => $reference,
         'title' => $title,
@@ -305,14 +310,6 @@ function dispatchNotificationDelivery($conn, $user_id, $title, $message, $catego
     $stmt->close();
 
     if (!$user || ($user['status'] ?? '') !== 'active') {
-        return ['email' => ['ok' => true, 'skipped' => true], 'sms' => ['ok' => true, 'skipped' => true]];
-    }
-
-    $user_role = strtolower((string) ($user['role'] ?? ''));
-    $is_parishioner = in_array($user_role, ['user', 'parishioner', 'member', ''], true)
-        || (function_exists('authenticationRolesForUser') && in_array('parishioner', authenticationRolesForUser($conn, $uid), true));
-
-    if (!$is_parishioner) {
         return ['email' => ['ok' => true, 'skipped' => true], 'sms' => ['ok' => true, 'skipped' => true]];
     }
 
@@ -390,6 +387,43 @@ function createNotificationSafe($conn, $user_id, $title, $message, $send_outboun
     return createNotification($conn, $user_id, $title, $message, $send_outbound, $category, $entity_type, $entity_id, $action_key);
 }
 
+if (!function_exists('sendNotification')) {
+    function sendNotification($conn, $user_id, $type, $title, $message, $entity_type = null, $entity_id = null, $action_key = null) {
+        $user_id = intval($user_id);
+        $category = notificationCategoryFromText($title . ' ' . $type, $message);
+        if ($user_id <= 0) {
+            $adminRes = $conn->query("SELECT id FROM users WHERE role IN ('admin', 'staff', 'administrator') AND status = 'active'");
+            $ok = false;
+            while ($adminRes && $adm = $adminRes->fetch_assoc()) {
+                $ok = createNotification($conn, (int)$adm['id'], $title, $message, true, $category, $entity_type, $entity_id, $action_key) || $ok;
+            }
+            return $ok;
+        }
+        return createNotification($conn, $user_id, $title, $message, true, $category, $entity_type, $entity_id, $action_key);
+    }
+}
+
+// Publish Due Scheduled Announcements Function - Documents this helper's role in the parish management workflow.
+if (!function_exists('publishDueScheduledAnnouncements')) {
+    function publishDueScheduledAnnouncements($conn) {
+        static $last_checked = 0;
+        $now = time();
+        if ($now - $last_checked < 60) {
+            return;
+        }
+        $last_checked = $now;
+        if (!$conn || !tableExists($conn, 'announcements')) {
+            return;
+        }
+        try {
+            require_once dirname(__DIR__) . '/services/AnnouncementService.php';
+            (new AnnouncementService($conn))->tick((int)($_SESSION['user_id'] ?? 0));
+        } catch (Throwable $e) {
+            error_log('Error checking scheduled announcements: ' . $e->getMessage());
+        }
+    }
+}
+
 // System-Wide Automatic Notification Dispatch - Broadcasts to all active parishioners across In-App, Email & SMS.
 function notifyAllActiveParishioners($conn, $title, $message, $category = 'announcements', array $options = []) {
     if (!$conn || !tableExists($conn, 'users')) {
@@ -406,7 +440,9 @@ function notifyAllActiveParishioners($conn, $title, $message, $category = 'annou
     }
 
     $where = ["(status = 'active')"];
-    $where[] = "(role IN ('user', 'parishioner', 'member') OR role IS NULL OR role = '' OR EXISTS(SELECT 1 FROM user_roles ur JOIN roles r ON r.role_id=ur.role_id WHERE ur.user_id=users.id AND r.role_key='parishioner'))";
+    if (empty($options['all_roles'])) {
+        $where[] = "(role IN ('user', 'parishioner', 'member', 'admin', 'staff', 'administrator') OR role IS NULL OR role = '' OR EXISTS(SELECT 1 FROM user_roles ur JOIN roles r ON r.role_id=ur.role_id WHERE ur.user_id=users.id))";
+    }
 
     if (!empty($options['chapel_district'])) {
         $district = $conn->real_escape_string(trim((string)$options['chapel_district']));

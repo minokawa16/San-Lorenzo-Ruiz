@@ -253,6 +253,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                         $request['ceremony_time'] = $ceremony_time;
                         $request['ceremony_minister'] = $ceremony_minister;
                     }
+                    createRequestStatusNotification($conn, $request, 'completed', $admin_response);
                     if ($is_funeral_action) {
                         $success = 'Funeral record has been added to Funeral Records. Request marked as completed and calendar schedule updated.';
                     } elseif ($is_comm_or_conf_action) {
