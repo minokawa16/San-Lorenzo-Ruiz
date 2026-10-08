@@ -9,6 +9,8 @@ if (!isUser()) {
     redirect('../auth/login.php');
 }
 
+redirect('request-service.php');
+
 $breadcrumbs = [
     'Dashboard' => 'index.php',
     'Make Reservation' => null

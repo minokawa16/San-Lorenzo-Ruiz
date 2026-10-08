@@ -112,21 +112,7 @@ if ($stmt) {
     $stmt->close();
 }
 
-$upcoming_reservations = [];
-$stmt = $conn->prepare("SELECT reservation_id, reservation_type, event_date, event_time, event_details, status
-                        FROM reservations
-                        WHERE user_id = ? AND event_date >= CURDATE()
-                        ORDER BY event_date ASC, event_time ASC
-                        LIMIT 4");
-if ($stmt) {
-    $stmt->bind_param('i', $user_id);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    while ($row = $result->fetch_assoc()) {
-        $upcoming_reservations[] = $row;
-    }
-    $stmt->close();
-}
+
 
 $upcoming_events = [];
 $today_schedule = [];
@@ -1082,25 +1068,7 @@ $body_extra_class = 'parishioner-dashboard';
                 <?php endif; ?>
             </article>
 
-            <article class="client-panel">
-                <div class="client-panel-header">
-                    <h2 class="client-section-title">Upcoming Reservations</h2>
-                    <a class="client-link-btn" href="make-reservation.php">Manage</a>
-                </div>
-                <?php if (!empty($upcoming_reservations)): ?>
-                    <div class="client-card-list">
-                        <?php foreach ($upcoming_reservations as $reservation): ?>
-                            <div class="client-list-item">
-                                <strong><?php echo e(dashboardRequestLabel($reservation['reservation_type'])); ?></strong>
-                                <div class="client-list-meta"><?php echo e(formatDate($reservation['event_date'])); ?> · <?php echo e(dashboardTimeRange($reservation['event_time'])); ?></div>
-                                <div><span class="badge bg-<?php echo e(getStatusBadgeClass($reservation['status'])); ?>"><?php echo e(ucfirst($reservation['status'])); ?></span></div>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                <?php else: ?>
-                    <div class="client-empty">You have no upcoming reservations.</div>
-                <?php endif; ?>
-            </article>
+
 
             <article class="client-panel">
                 <div class="client-panel-header">

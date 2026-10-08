@@ -108,8 +108,8 @@ REPLACE INTO chatbot_knowledge (knowledge_id, topic, keywords, answer, steps, ca
  'documents', 'TUGON parish knowledge base', 'active', 'approved', 1, '2026-09-03', 'bilingual', NOW(), SHA2('documents_needed_faq', 256)),
 
 (122, 'Where to View Submitted Requests', 'where to view submitted requests,my requests,tingnan ang mga request,submitted requests list,view requests',
- 'You can view all your submitted certificate requests and blessings in My Requests (users/my-requests.php). For facility and sacramental reservations, open My Reservations (users/my-reservations.php).',
- '1. Open My Requests (users/my-requests.php) for certificates and blessings\n2. Open My Reservations (users/my-reservations.php) for church bookings\n\n[View My Requests](../users/my-requests.php)',
+ 'You can view and track all your submitted certificate requests, sacramental services, and blessings in My Requests (users/my-requests.php).',
+ '1. Open My Requests (users/my-requests.php) to track certificates, sacramental services, and blessings\n2. Click on your Reference Number to review its live timeline, status, and remarks\n\n[View My Requests](../users/my-requests.php)',
  'tracking', 'TUGON parish knowledge base', 'active', 'approved', 1, '2026-09-03', 'bilingual', NOW(), SHA2('view_submitted_faq', 256)),
 
 (123, 'How to Check Details of My Request', 'check request details,request details,view request info,detalye ng request,request status details',
@@ -192,10 +192,10 @@ REPLACE INTO chatbot_knowledge (knowledge_id, topic, keywords, answer, steps, ca
  'Submit online: [Request Blessing](../users/request-blessing.php)',
  'blessings', 'TUGON parish knowledge base', 'active', 'approved', 1, '2026-09-03', 'bilingual', NOW(), SHA2('info_blessing_faq', 256)),
 
-(139, 'How Do I Know If Reservation Was Approved', 'how do i know reservation approved,paano malalaman kung approved,reservation confirmation,check reservation approval',
- 'You will receive an in-app notification, SMS alert, and Email confirmation once approved. You can also verify the status directly in My Reservations (users/my-reservations.php) where the badge turns green (Approved).',
- '• Check in-app notifications 🔔\n• Check SMS text / Email message\n• View live status: [My Reservations](../users/my-reservations.php)',
- 'reservations', 'TUGON parish knowledge base', 'active', 'approved', 1, '2026-09-03', 'bilingual', NOW(), SHA2('reservation_approved_faq', 256)),
+(139, 'How Do I Know If My Request Was Approved', 'how do i know request approved,paano malalaman kung approved,request confirmation,check request approval,approval status',
+ 'You will receive an in-app notification, SMS alert, and Email confirmation once approved. You can also verify the status directly in My Requests (users/my-requests.php) where the badge turns green (Approved or Completed).',
+ '• Check in-app notifications 🔔\n• Check SMS text / Email message\n• View live status: [My Requests](../users/my-requests.php)',
+ 'status', 'TUGON parish knowledge base', 'active', 'approved', 1, '2026-09-03', 'bilingual', NOW(), SHA2('reservation_approved_faq', 256)),
 
 (140, 'Can I Change My Requested Schedule', 'change schedule,reschedule,palitan ang schedule,baguhin ang petsa,change date reservation',
  'If your request is still Pending, you can cancel and submit with your new schedule or contact the parish office. If already Approved, please reach out directly to the parish office so staff can adjust the calendar without conflicting with other bookings.',

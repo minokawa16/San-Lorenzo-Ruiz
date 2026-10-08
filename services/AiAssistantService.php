@@ -430,51 +430,42 @@ final class AiAssistantService
             ];
         }
 
-        // B. User's Own Reservation Count, Listing & Status Inquiry
+        // B. User's Inquiries on Reservations / Bookings -> Unified to My Requests
         $isReservationQuery = (bool) preg_match('/\b(?:(?:how|hoy|hw)\s*many\s*reservations?|count\s*(?:of\s*)?(?:my\s*)?reservations?|number\s*of\s*(?:my\s*)?reservations?|show\s*(?:me\s*)?(?:all\s*)?(?:the\s*)?(?:my\s*)?reservations?|list\s*(?:all\s*)?(?:the\s*)?(?:my\s*)?reservations?|view\s*(?:all\s*)?(?:the\s*)?(?:my\s*)?reservations?|see\s*(?:all\s*)?(?:the\s*)?(?:my\s*)?reservations?|display\s*(?:all\s*)?(?:the\s*)?(?:my\s*)?reservations?|all\s*(?:the\s*)?reservations?\s*(?:that\s*)?i\s*(?:did|have|made|booked)?|reservations?\s*(?:that\s*)?i\s*(?:did|have|made|booked)|what\s*(?:are\s*)?(?:all\s*)?my\s*reservations?|what\s*reservations?\s*(?:do\s*i\s*have|did\s*i\s*(?:make|do|book))|status\s*of\s*(?:my|the)\s*reservations?|check\s*(?:my|the)\s*reservations?|my\s*reservations?(?:\s*status)?|kumusta\s*(?:ang\s*|yung\s*)?reservation|anong\s*status\s*ng\s*reservation|check\s*reservation|mga\s*reservation\s*ko|lahat\s*ng\s*reservation\s*ko|ilan\s*(?:ang\s*|na\s*ang\s*)?reservation\s*ko|ilang\s*reservation\s*(?:meron\s*ako|ang\s*(?:nagawa|na-book)\s*ko)|pakita\s*(?:ang\s*)?mga\s*reservation\s*ko|tingnan\s*(?:ang\s*)?mga\s*reservation\s*ko)\b/iu', $normalized);
         if ($isReservationQuery) {
-            $countStmt = $this->db->prepare("SELECT COUNT(*) AS c FROM reservations WHERE user_id=?");
-            $totalResCount = 0;
-            if ($countStmt) {
-                $countStmt->bind_param('i', $userId);
-                $countStmt->execute();
-                $totalResCount = (int) ($countStmt->get_result()->fetch_assoc()['c'] ?? 0);
-                $countStmt->close();
-            }
-
-            $stmt = $this->db->prepare("SELECT reservation_id, reservation_type, event_date, event_time, status FROM reservations WHERE user_id=? ORDER BY event_date DESC LIMIT 10");
-            $reservations = [];
+            $stmt = $this->db->prepare("SELECT request_id, reference_number, request_type, status, date_requested FROM requests WHERE user_id=? AND deleted_at IS NULL ORDER BY date_requested DESC LIMIT 10");
+            $requests = [];
             if ($stmt) {
                 $stmt->bind_param('i', $userId);
                 $stmt->execute();
                 $result = $stmt->get_result();
                 while ($row = $result->fetch_assoc()) {
-                    $reservations[] = $row;
+                    $requests[] = $row;
                 }
                 $stmt->close();
             }
 
-            if ($totalResCount > 0 && !empty($reservations)) {
+            if (!empty($requests)) {
                 $lines = [];
-                foreach ($reservations as $res) {
-                    $type = ucwords(str_replace('_', ' ', $res['reservation_type']));
-                    $date = date('M d, Y', strtotime($res['event_date']));
-                    $time = substr((string)$res['event_time'], 0, 5);
-                    $status = ucfirst($res['status']);
-                    $lines[] = "• **{$type}** on **{$date}** ({$time})\n  Status: **{$status}**";
+                foreach ($requests as $r) {
+                    $ref = $r['reference_number'] ?: ('REQ-' . $r['request_id']);
+                    $type = ucwords(str_replace('_', ' ', $r['request_type']));
+                    $status = ucfirst($r['status']);
+                    $date = date('M d, Y', strtotime($r['date_requested']));
+                    $lines[] = "• **{$ref}** — {$type}\n  Status: **{$status}** (Submitted on {$date})";
                 }
                 $listStr = implode("\n\n", $lines);
                 $answer = $isFil
-                    ? "Mayroon po kayong **{$totalResCount}** na reservation booking sa talaan:\n\n{$listStr}\n\n[Make Reservation](../users/make-reservation.php)"
-                    : "You have **{$totalResCount}** reservation booking(s) on file:\n\n{$listStr}\n\n[Make Reservation](../users/make-reservation.php)";
+                    ? "Lahat po ng sacramental services, blessings, at certificates ay pinamamahalaan sa **My Requests**:\n\n{$listStr}\n\n[View My Requests](../users/my-requests.php)"
+                    : "All parish sacramental services, blessings, and certificate requests are tracked under **My Requests**:\n\n{$listStr}\n\n[View My Requests](../users/my-requests.php)";
             } else {
                 $answer = $isFil
-                    ? "Wala pa po kayong aktibong reservation sa ating pasilidad o kaganapan (**0 reservations**). Kung nais ninyong magpa-reserve, i-click lamang po ang link sa ibaba:\n\n[Make Reservation](../users/make-reservation.php)"
-                    : "You currently have **0** reservation bookings on file. If you would like to book a parish facility or schedule, click the link below:\n\n[Make Reservation](../users/make-reservation.php)";
+                    ? "Wala po kayong aktibong request sa talaan. Ang lahat ng sacramental services, blessings, at certificates ay isinusumite at sinusubaybayan sa **My Requests**:\n\n[View My Requests](../users/my-requests.php) • [Request Service](../users/request-service.php)"
+                    : "You currently have 0 active requests on file. All sacramental services, blessings, and certificates are submitted and tracked under **My Requests**:\n\n[View My Requests](../users/my-requests.php) • [Request Service](../users/request-service.php)";
             }
             return [
                 'answer' => $answer,
-                'prompts' => ['Make Reservation', 'Parish Schedule', 'Contact Parish Staff']
+                'prompts' => ['Track My Requests', 'Request Service', 'Request Certificate']
             ];
         }
 
@@ -532,7 +523,7 @@ final class AiAssistantService
             ];
         }
 
-        // G. Sacramental Reservations (Baptism Service, Wedding Service, Funeral Mass)
+        // G. Sacramental Services (Baptism Service, Wedding Service, Funeral Mass)
         if (preg_match('/\b(?:how (?:do|can) i (?:request|reserve|book) (?:a )?(?:baptism|marriage|wedding|funeral) (?:service|mass|reservation)|how do i make a sacramental service reservation|magpa-?binyag|magpakasal|misa sa patay|reserve wedding|reserve baptism|reserve funeral)\b/iu', $normalized)) {
             $serviceName = 'Sacramental Service';
             if (preg_match('/\bbaptism|binyag/i', $normalized)) $serviceName = 'Baptism Service';
@@ -540,8 +531,8 @@ final class AiAssistantService
             elseif (preg_match('/\bfuneral|patay|libing/i', $normalized)) $serviceName = 'Funeral Mass / Blessing';
 
             $answer = $isFil
-                ? "Para sa pag-reserve ng **{$serviceName}**:\n\n1. Buksan ang **Request Service** o **Make Reservation** page.\n2. Piliin ang **{$serviceName}**.\n3. Pumili ng bakanteng petsa at oras sa liturgical calendar.\n4. I-upload ang mga kinakailangang dokumento (PSA Birth/Death cert, Marriage contract, atbp.).\n5. Isumite para sa kumpirmasyon ng opisina ng parokya.\n\n[Request Service](../users/request-service.php)"
-                : "To book an official **{$serviceName}**:\n\n1. Open **Request Service** or **Make Reservation**.\n2. Select **{$serviceName}**.\n3. Choose an available calendar date and timeslot.\n4. Upload supporting documents (PSA birth/death cert, marriage contract, etc.).\n5. Submit for parish schedule verification.\n\n[Request Service](../users/request-service.php)";
+                ? "Para sa pag-request ng **{$serviceName}**:\n\n1. Buksan ang **Request Service** page.\n2. Piliin ang **{$serviceName}**.\n3. Pumili ng bakanteng petsa at oras sa liturgical calendar.\n4. I-upload ang mga kinakailangang dokumento (PSA Birth/Death cert, Marriage contract, atbp.).\n5. Isumite para sa kumpirmasyon ng opisina ng parokya.\n\n[Request Service](../users/request-service.php)"
+                : "To request an official **{$serviceName}**:\n\n1. Open the **Request Service** page.\n2. Select **{$serviceName}**.\n3. Choose an available calendar date and timeslot.\n4. Upload supporting documents (PSA birth/death cert, marriage contract, etc.).\n5. Submit for parish schedule verification.\n\n[Request Service](../users/request-service.php)";
             return [
                 'answer' => $answer,
                 'prompts' => ['What are the requirements for ' . $serviceName . '?', 'View Parish Schedules', 'Contact Parish Staff']

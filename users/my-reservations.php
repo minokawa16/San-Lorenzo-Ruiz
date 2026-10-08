@@ -1,6 +1,6 @@
 <?php
 /**
- * My Reservations Redirect Module - Routes parishioners to their reservation records.
+ * My Reservations Redirect Module - Routes parishioners to their request records.
  */
 include '../includes/session.php';
 include '../database/config.php';
@@ -11,5 +11,5 @@ if (!isUser()) {
     redirect('../auth/login.php');
 }
 
-redirect('request-service.php');
+redirect('my-requests.php');
 ?>
