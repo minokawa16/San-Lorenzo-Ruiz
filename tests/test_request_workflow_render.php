@@ -12,7 +12,8 @@ $_SESSION['fully_authenticated'] = true;
 $_SESSION['mfa_verified'] = true;
 $_SESSION['session_fingerprint'] = hash('sha256', authenticationUserAgent());
 
-$_GET['id'] = 332;
+$serviceReq = $conn->query("SELECT request_id FROM requests WHERE request_type NOT LIKE '%certificate%' LIMIT 1")->fetch_assoc();
+$_GET['id'] = $serviceReq ? (int)$serviceReq['request_id'] : 408;
 
 ob_start();
 try {

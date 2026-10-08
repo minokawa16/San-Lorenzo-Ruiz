@@ -2601,6 +2601,16 @@ function formatDate($date) {
     return date('M d, Y', strtotime($date));
 }
 
+if (!function_exists('displayDate')) {
+    function displayDate($date, $format = 'M j, Y') {
+        if (empty($date) || $date === '0000-00-00' || $date === '0000-00-00 00:00:00') {
+            return 'N/A';
+        }
+        $ts = strtotime($date);
+        return $ts !== false ? date($format, $ts) : (string)$date;
+    }
+}
+
 // Format Date Time Function - Documents this helper's role in the parish management workflow.
 function formatDateTime($date) {
     if (empty($date)) {

@@ -19,8 +19,9 @@ if ($request_id <= 0) {
     redirect('manage-requests.php');
 }
 
-$error = '';
-$success = '';
+$error = $_SESSION['flash_error'] ?? '';
+$success = $_SESSION['flash_success'] ?? '';
+unset($_SESSION['flash_error'], $_SESSION['flash_success']);
 
 $stmt = $conn->prepare("
     SELECT r.*, u.fullname, u.email, u.phone_number, u.profile_picture, staff.fullname AS assigned_staff_name
@@ -309,7 +310,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             }
         }
 
-        if (!empty($_POST['ajax']) || (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')) {
+        $is_ajax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
+            || (isset($_SERVER['HTTP_ACCEPT']) && str_contains(strtolower($_SERVER['HTTP_ACCEPT']), 'application/json'));
+
+        if ($is_ajax) {
             header('Content-Type: application/json; charset=utf-8');
             if ($error) {
                 http_response_code(422);
@@ -323,6 +327,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     'admin_response' => $admin_response
                 ]);
             }
+            exit;
+        } else {
+            if ($error) {
+                $_SESSION['flash_error'] = $error;
+            } else {
+                $_SESSION['flash_success'] = $success ?: ('Request status updated to ' . ucfirst(str_replace('_', ' ', $status)) . '.');
+            }
+            header('Location: request-workflow.php?id=' . intval($request_id));
             exit;
         }
     } elseif ($action === 'verify_payment') {
@@ -1657,19 +1669,22 @@ $breadcrumbs = [
                     var chevron = document.getElementById('toggleChevron');
                     if (!drawer) return false;
 
-                    var isHidden = (window.getComputedStyle(drawer).display === 'none') || !drawer.classList.contains('show');
+                    var isCurrentlyOpen = drawer.classList.contains('show') 
+                        || drawer.classList.contains('is-open') 
+                        || (drawer.style.display === 'block');
 
-                    if (isHidden) {
+                    if (!isCurrentlyOpen) {
                         drawer.classList.remove('collapse');
-                        drawer.classList.add('show');
-                        drawer.style.display = 'block';
+                        drawer.classList.add('show', 'is-open');
+                        drawer.style.setProperty('display', 'block', 'important');
+                        drawer.style.setProperty('visibility', 'visible', 'important');
                         if (btn) btn.setAttribute('aria-expanded', 'true');
                         if (text) text.textContent = 'Hide Submitted Application Form';
                         if (chevron) chevron.style.transform = 'rotate(180deg)';
                     } else {
-                        drawer.classList.remove('show');
+                        drawer.classList.remove('show', 'is-open');
                         drawer.classList.add('collapse');
-                        drawer.style.display = 'none';
+                        drawer.style.setProperty('display', 'none', 'important');
                         if (btn) btn.setAttribute('aria-expanded', 'false');
                         if (text) text.textContent = 'View Submitted Application Form';
                         if (chevron) chevron.style.transform = 'none';
@@ -1981,7 +1996,7 @@ $breadcrumbs = [
                 </span>
             </div>
             <div class="rw-section-body">
-                <form id="workflowStatusUpdateForm" method="POST" onsubmit="return handleWorkflowStatusSubmit(event)">
+                <form id="workflowStatusUpdateForm" method="POST" onsubmit="event.preventDefault(); handleWorkflowStatusSubmit(event); return false;">
                     <?php echo csrfInput(); ?>
                     <input type="hidden" name="action" value="update_status">
                     <input type="hidden" name="request_id" value="<?php echo intval($request_id); ?>">
@@ -2012,7 +2027,7 @@ $breadcrumbs = [
                             <input type="text" class="form-control form-control-sm" id="admin_remarks_input" name="admin_response" value="<?php echo e($request['admin_response'] ?? ''); ?>" placeholder="Add remarks, instructions, or pickup notes for parishioner..." style="height: 36px; font-size: 12px;">
                         </div>
                         <div class="col-md-3">
-                            <button type="submit" id="btnSubmitStatusUpdate" class="btn btn-sm btn-parish-gold w-100 d-inline-flex align-items-center justify-content-center gap-1.5" style="height: 36px;">
+                            <button type="button" id="btnSubmitStatusUpdate" onclick="handleWorkflowStatusSubmit(event)" class="btn btn-sm btn-parish-gold w-100 d-inline-flex align-items-center justify-content-center gap-1.5" style="height: 36px;">
                                 <i class="fas fa-check-circle" id="btnStatusUpdateIcon"></i>
                                 <span id="btnStatusUpdateText">Update Status</span>
                             </button>
@@ -2676,7 +2691,7 @@ async function handleWorkflowStatusSubmit(e) {
     const headerBadge = document.getElementById('headerStatusBadge');
     const cardBadge = document.getElementById('cardStatusBadge');
 
-    const submitBtn = btnSubmitStatus || statusForm.querySelector('button[type="submit"]');
+    const submitBtn = btnSubmitStatus || statusForm.querySelector('button[type="submit"]') || statusForm.querySelector('button');
     const originalIconClass = btnIcon ? btnIcon.className : '';
     const originalText = btnText ? btnText.textContent : 'Update Status';
 
@@ -2691,7 +2706,8 @@ async function handleWorkflowStatusSubmit(e) {
         const response = await fetch(window.location.href, {
             method: 'POST',
             headers: {
-                'X-Requested-With': 'XMLHttpRequest'
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
             },
             body: formData
         });
@@ -2720,6 +2736,12 @@ async function handleWorkflowStatusSubmit(e) {
         if (cardBadge) {
             cardBadge.textContent = 'Current: ' + newLabel;
             cardBadge.setAttribute('style', newStyle + ' font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 12px;');
+        }
+
+        if (rawNewStatus === 'completed') {
+            setTimeout(function() {
+                window.location.reload();
+            }, 1200);
         }
     } catch (err) {
         if (submitBtn) submitBtn.disabled = false;
