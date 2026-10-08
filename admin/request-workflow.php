@@ -610,44 +610,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             header('Location: request-workflow.php?id=' . intval($request_id));
             exit;
         }
-    } elseif ($action === 'send_test_sms') {
-        $target_phone = trim((string)($_POST['phone_number'] ?? ''));
-        $test_message = trim((string)($_POST['message'] ?? ''));
-
-        if (empty($target_phone)) {
-            $error = 'Please provide a valid recipient phone number.';
-        } elseif (empty($test_message)) {
-            $error = 'Please provide a message body to send.';
-        } else {
-            $smsResult = sendTugonSms($conn, $target_phone, $test_message, (int)($request['user_id'] ?? $_SESSION['user_id']), 'admin_test');
-            if (!empty($smsResult['ok'])) {
-                $success = "Test SMS queued successfully to {$smsResult['phone']}" . (!empty($smsResult['batch_id']) ? " (Batch: {$smsResult['batch_id']})" : "");
-            } else {
-                $error = "SMS failed: " . ($smsResult['error'] ?? 'Unknown gateway error');
-            }
-        }
-
-        $is_ajax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
-            || (isset($_SERVER['HTTP_ACCEPT']) && str_contains(strtolower($_SERVER['HTTP_ACCEPT']), 'application/json'));
-
-        if ($is_ajax) {
-            header('Content-Type: application/json; charset=utf-8');
-            if ($error) {
-                http_response_code(422);
-                echo json_encode(['success' => false, 'message' => $error, 'sms' => $smsResult ?? null]);
-            } else {
-                echo json_encode(['success' => true, 'message' => $success, 'sms' => $smsResult ?? null]);
-            }
-            exit;
-        } else {
-            if ($error) {
-                $_SESSION['flash_error'] = $error;
-            } else {
-                $_SESSION['flash_success'] = $success;
-            }
-            header('Location: request-workflow.php?id=' . intval($request_id));
-            exit;
-        }
     }
 }
 
@@ -1899,19 +1861,13 @@ $breadcrumbs = [
                     <!-- Row 1: Item 4 - Contact Number -->
                     <div class="rw-meta-cell">
                         <span class="rw-meta-label">CONTACT NUMBER</span>
-                        <div class="rw-meta-value d-flex align-items-center justify-content-between gap-2">
+                        <div class="rw-meta-value">
                             <?php if (!empty($request['phone_number'])): ?>
                                 <a href="tel:<?php echo e($request['phone_number']); ?>" class="rw-phone-link text-truncate">
                                     <?php echo e($request['phone_number']); ?>
                                 </a>
-                                <button type="button" class="btn btn-xs btn-outline-primary py-0 px-2 rounded-pill shadow-none" style="font-size: 11px; white-space: nowrap;" onclick="openTestSmsModal('<?php echo e(addslashes($request['phone_number'])); ?>', '<?php echo e(addslashes($request['fullname'])); ?>')" title="Test TextBee SMS to this number">
-                                    <i class="bi bi-chat-dots-fill me-1"></i>Test SMS
-                                </button>
                             <?php else: ?>
                                 <span class="text-muted fw-normal">None provided</span>
-                                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2 rounded-pill shadow-none" style="font-size: 11px; white-space: nowrap;" onclick="openTestSmsModal('', '<?php echo e(addslashes($request['fullname'])); ?>')" title="Send Test SMS">
-                                    <i class="bi bi-chat-dots me-1"></i>Test SMS
-                                </button>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -3553,144 +3509,7 @@ async function handleRemoveCertificate(requestId) {
     }
 }
 window.handleRemoveCertificate = handleRemoveCertificate;
-
-// Test SMS Modal Functions
-function openTestSmsModal(phone, name) {
-    const modalEl = document.getElementById('testSmsModal');
-    if (!modalEl) return;
-    
-    const phoneInput = document.getElementById('testSmsPhone');
-    const msgInput = document.getElementById('testSmsMessage');
-    const resultBox = document.getElementById('testSmsResult');
-    
-    if (phoneInput) phoneInput.value = phone || '';
-    if (msgInput) {
-        const refNum = '<?php echo addslashes($request['reference_number'] ?? ''); ?>';
-        msgInput.value = `TUGON Parish System: Hello ${name || 'Parishioner'}, this is a test notification regarding your request (${refNum}).`;
-    }
-    if (resultBox) {
-        resultBox.style.display = 'none';
-        resultBox.innerHTML = '';
-    }
-    
-    const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
-    bsModal.show();
-}
-window.openTestSmsModal = openTestSmsModal;
-
-async function submitTestSms() {
-    const phoneInput = document.getElementById('testSmsPhone');
-    const msgInput = document.getElementById('testSmsMessage');
-    const sendBtn = document.getElementById('btnSendTestSms');
-    const resultBox = document.getElementById('testSmsResult');
-    
-    const phone = phoneInput ? phoneInput.value.trim() : '';
-    const message = msgInput ? msgInput.value.trim() : '';
-    
-    if (!phone) {
-        alert('Please enter a valid mobile number (e.g. 09171234567 or +639171234567).');
-        return;
-    }
-    if (!message) {
-        alert('Please enter a message.');
-        return;
-    }
-    
-    const originalBtn = sendBtn ? sendBtn.innerHTML : '';
-    if (sendBtn) {
-        sendBtn.disabled = true;
-        sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Sending via TextBee...';
-    }
-    if (resultBox) {
-        resultBox.style.display = 'none';
-    }
-    
-    try {
-        const formData = new FormData();
-        formData.append('action', 'send_test_sms');
-        formData.append('request_id', '<?php echo (int)$request_id; ?>');
-        formData.append('phone_number', phone);
-        formData.append('message', message);
-        const csrfTokenEl = document.querySelector('input[name="csrf_token"]');
-        if (csrfTokenEl) formData.append('csrf_token', csrfTokenEl.value);
-        
-        const response = await fetch('api_send_test_sms.php', {
-            method: 'POST',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/json'
-            },
-            body: formData
-        });
-        
-        const data = await response.json().catch(() => null);
-        
-        if (resultBox) {
-            resultBox.style.display = 'block';
-            if (response.ok && data && data.success) {
-                const batch = data.data && data.data.batch_id ? `<br><small class="text-muted">Batch ID: <code>${data.data.batch_id}</code></small>` : '';
-                const normPhone = data.data && data.data.formatted_phone ? data.data.formatted_phone : phone;
-                resultBox.className = 'alert alert-success mt-3 mb-0 py-2 px-3 small';
-                resultBox.innerHTML = `<strong><i class="bi bi-check-circle-fill me-1"></i> SMS Dispatched!</strong><br>Queued to <strong>${normPhone}</strong> via TextBee Android gateway.${batch}`;
-                showStatusToast('SMS successfully sent to gateway!', 'success');
-            } else {
-                const errMsg = (data && data.message) ? data.message : 'Gateway request failed.';
-                resultBox.className = 'alert alert-danger mt-3 mb-0 py-2 px-3 small';
-                resultBox.innerHTML = `<strong><i class="bi bi-exclamation-triangle-fill me-1"></i> SMS Delivery Error:</strong><br>${errMsg}`;
-                showStatusToast(errMsg, 'error');
-            }
-        }
-    } catch (err) {
-        if (resultBox) {
-            resultBox.style.display = 'block';
-            resultBox.className = 'alert alert-danger mt-3 mb-0 py-2 px-3 small';
-            resultBox.innerHTML = `<strong><i class="bi bi-exclamation-triangle-fill me-1"></i> Network/API Error:</strong><br>${err.message}`;
-        }
-        showStatusToast(err.message, 'error');
-    } finally {
-        if (sendBtn) {
-            sendBtn.disabled = false;
-            sendBtn.innerHTML = originalBtn;
-        }
-    }
-}
-window.submitTestSms = submitTestSms;
 </script>
-
-<!-- Test SMS Modal -->
-<div class="modal fade" id="testSmsModal" tabindex="-1" aria-labelledby="testSmsModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg" style="border-radius: 12px; overflow: hidden;">
-            <div class="modal-header bg-primary text-white py-3 px-4">
-                <h5 class="modal-title fs-6 fw-bold" id="testSmsModalLabel">
-                    <i class="bi bi-chat-left-dots-fill me-2"></i>Send Test SMS via TextBee
-                </h5>
-                <button type="button" class="btn-close btn-close-white shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-4">
-                <div class="mb-3">
-                    <label for="testSmsPhone" class="form-label small fw-semibold text-secondary mb-1">Recipient Mobile Number</label>
-                    <div class="input-group">
-                        <span class="input-group-text bg-light text-muted"><i class="bi bi-phone"></i></span>
-                        <input type="text" class="form-control" id="testSmsPhone" placeholder="09XXXXXXXXX or +639XXXXXXXXX" autocomplete="off">
-                    </div>
-                    <div class="form-text small">Accepts local (09...) or international (+639...) formats. E.164 normalized before sending.</div>
-                </div>
-                <div class="mb-3">
-                    <label for="testSmsMessage" class="form-label small fw-semibold text-secondary mb-1">Message Content</label>
-                    <textarea class="form-control font-monospace" id="testSmsMessage" rows="4" style="font-size: 13px;" placeholder="Type your SMS notification text here..."></textarea>
-                </div>
-                <div id="testSmsResult" style="display: none;"></div>
-            </div>
-            <div class="modal-footer bg-light px-4 py-3 border-top-0 d-flex justify-content-between">
-                <button type="button" class="btn btn-sm btn-outline-secondary px-3" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-sm btn-primary px-4 fw-semibold" id="btnSendTestSms" onclick="submitTestSms()">
-                    <i class="bi bi-send-fill me-1"></i> Send SMS
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
 
 <?php include '../templates/document-preview-modal.php'; ?>
 
