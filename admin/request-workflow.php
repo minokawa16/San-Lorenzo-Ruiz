@@ -111,7 +111,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $raw_status = trim((string)($_POST['status'] ?? ''));
         $status = strtolower($raw_status);
         $admin_response = trim($_POST['admin_response'] ?? '');
-        $allowed_statuses = ['pending', 'processing', 'completed', 'rejected'];
+        $allowed_statuses = ['pending', 'processing', 'ready', 'ready_for_pickup', 'completed', 'rejected'];
 
         $requirement_count = requestDocumentCount($conn, $request_id, 'requirement');
         $released_count = requestDocumentCount($conn, $request_id, 'released_certificate') + requestDocumentCount($conn, $request_id, 'admin_file');
@@ -195,10 +195,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         }
 
         if (!in_array($status, $allowed_statuses, true)) {
-            $error = 'Invalid request status. Allowed: Pending, Processing, Completed, Rejected.';
+            $error = 'Invalid request status. Allowed: Pending, Processing, Ready, Completed, Rejected.';
         } elseif ($funeral_validation_error !== null) {
             $error = $funeral_validation_error;
-        } elseif (in_array($status, ['processing', 'completed'], true) && $requires_supporting_docs && $requirement_count <= 0) {
+        } elseif (in_array($status, ['processing', 'ready', 'ready_for_pickup', 'completed'], true) && $requires_supporting_docs && $requirement_count <= 0) {
             $error = 'This request cannot move forward until at least one supporting requirement is attached.';
         } elseif ($status === 'completed' && $is_certificate && $released_count <= 0 && $requires_supporting_docs) {
             $error = 'Upload a released certificate or parish office file before marking this request completed.';
@@ -297,11 +297,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     createRequestStatusNotification($conn, $request, $status, $admin_response);
                     $request['status'] = $status;
                     $request['admin_response'] = $admin_response;
-                    if (in_array($status, ['pending', 'processing', 'rejected'], true)) {
+                    if (in_array($status, ['pending', 'processing', 'ready', 'ready_for_pickup', 'rejected'], true)) {
                         cancelLinkedRequestCalendarEvent($conn, $request_id);
                     }
                     $noticePrefix = $updated_funeral_in_db ? 'Funeral record updated! ' : '';
-                    $success = $noticePrefix . 'Request status updated to ' . ucfirst($status) . '.';
+                    $success = $noticePrefix . 'Request status updated to ' . ucfirst(str_replace('_', ' ', $status)) . '.';
                 } else {
                     $error = 'Unable to update request status.';
                 }
@@ -309,6 +309,23 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             } else {
                 $error = 'Unable to prepare request update.';
             }
+        }
+
+        if (!empty($_POST['ajax']) || (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')) {
+            header('Content-Type: application/json; charset=utf-8');
+            if ($error) {
+                http_response_code(422);
+                echo json_encode(['success' => false, 'message' => $error]);
+            } else {
+                echo json_encode([
+                    'success' => true,
+                    'message' => $success ?: ('Request status updated to ' . ucfirst(str_replace('_', ' ', $status)) . '.'),
+                    'status' => $status,
+                    'status_label' => ucfirst(str_replace('_', ' ', $status)),
+                    'admin_response' => $admin_response
+                ]);
+            }
+            exit;
         }
     } elseif ($action === 'verify_payment') {
         $payment_id = intval($_POST['payment_id'] ?? 0);
@@ -1551,7 +1568,7 @@ $breadcrumbs = [
             <div class="rw-hero-banner">
                 <!-- Left Element: Single rounded soft-pill indicator (Strictly NO secondary chips/badges) -->
                 <div class="rw-hero-status">
-                    <span class="rw-status-pill" style="<?php echo $current_pill_style; ?>" aria-label="Request Status: <?php echo e($status_display_label); ?>">
+                    <span class="rw-status-pill" id="headerStatusBadge" style="<?php echo $current_pill_style; ?>" aria-label="Request Status: <?php echo e($status_display_label); ?>">
                         <?php echo e($status_display_label); ?>
                     </span>
                 </div>
@@ -1678,6 +1695,19 @@ $breadcrumbs = [
                         </h6>
                         <div class="text-muted small">Parish Administrative Document &bull; Electronic Service Filing</div>
                     </div>
+
+                    <?php 
+                    $desc_trimmed = trim((string)($request['description'] ?? ''));
+                    $has_form_data = ($desc_trimmed !== '') || !empty($linked_reservation);
+                    ?>
+
+                    <?php if (!$has_form_data): ?>
+                    <div class="alert alert-light border py-4 text-center my-3 rounded-3" style="background: #fafaf8;">
+                        <i class="fas fa-file-circle-question text-secondary fs-3 mb-2 d-block"></i>
+                        <strong class="text-secondary d-block">No form data</strong>
+                        <span class="text-muted small">No structured application form data or details were submitted with this request.</span>
+                    </div>
+                    <?php else: ?>
 
                     <?php if ($linked_reservation): ?>
                     <div class="alert alert-info d-flex align-items-center gap-3 mb-4 py-3 px-3 border-0 shadow-sm rounded-3">
@@ -1897,11 +1927,70 @@ $breadcrumbs = [
                     <?php endif; ?>
 
 
+                    <?php endif; // has_form_data ?>
+
                     <!-- Formal Document Footer Text -->
                     <div class="formal-doc-footer">
                         Submitted electronically via Parish Portal &bull; Reference: <?php echo e($request['reference_number']); ?> &bull; Date Requested: <?php echo formatDate($request['date_requested']); ?>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- ========================================================= -->
+        <!-- ALWAYS VISIBLE: "UPDATE REQUEST STATUS" CARD              -->
+        <!-- ========================================================= -->
+        <div class="rw-card mb-4" id="updateRequestStatusCard">
+            <div class="rw-section-header">
+                <h6 class="rw-section-title">
+                    <i class="fas fa-arrows-rotate" style="color: #8c6225; font-size: 13px;"></i>
+                    UPDATE REQUEST STATUS
+                </h6>
+                <span class="badge" id="cardStatusBadge" style="<?php echo $current_pill_style; ?> font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 12px;">
+                    Current: <?php echo e($status_display_label); ?>
+                </span>
+            </div>
+            <div class="rw-section-body">
+                <form id="workflowStatusUpdateForm" method="POST">
+                    <?php echo csrfInput(); ?>
+                    <input type="hidden" name="action" value="update_status">
+                    <input type="hidden" name="request_id" value="<?php echo intval($request_id); ?>">
+                    <input type="hidden" name="ajax" value="1">
+
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-3">
+                            <label for="new_status_select" class="micro-label">Request Status <span class="text-danger">*</span></label>
+                            <select class="form-select form-select-sm" id="new_status_select" name="status" required style="height: 36px; font-size: 12px; font-weight: 600;">
+                                <?php
+                                $status_options = [
+                                    'pending'    => 'Pending',
+                                    'processing' => 'Processing',
+                                    'ready'      => 'Ready',
+                                    'completed'  => 'Completed',
+                                    'rejected'   => 'Rejected'
+                                ];
+                                $active_status_val = strtolower($request['status'] ?? 'pending');
+                                if ($active_status_val === 'ready_for_pickup') $active_status_val = 'ready';
+                                foreach ($status_options as $val => $lbl):
+                                ?>
+                                    <option value="<?php echo $val; ?>" <?php echo ($active_status_val === $val) ? 'selected' : ''; ?>>
+                                        <?php echo $lbl; ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="admin_remarks_input" class="micro-label">Admin Remarks (Optional)</label>
+                            <input type="text" class="form-control form-control-sm" id="admin_remarks_input" name="admin_response" value="<?php echo e($request['admin_response'] ?? ''); ?>" placeholder="Add remarks, instructions, or pickup notes for parishioner..." style="height: 36px; font-size: 12px;">
+                        </div>
+                        <div class="col-md-3">
+                            <button type="submit" id="btnSubmitStatusUpdate" class="btn btn-sm btn-parish-gold w-100 d-inline-flex align-items-center justify-content-center gap-1.5" style="height: 36px;">
+                                <i class="fas fa-check-circle" id="btnStatusUpdateIcon"></i>
+                                <span id="btnStatusUpdateText">Update Status</span>
+                            </button>
+                        </div>
+                    </div>
+                </form>
             </div>
         </div>
 
@@ -2238,7 +2327,8 @@ $breadcrumbs = [
         </div>
         <?php endif; ?>
 
-        <!-- 3. BOTTOM ACTION SECTION: "REVIEW STATUS & UPDATES" -->
+        <?php if (!$is_certificate): ?>
+        <!-- 3. BOTTOM ACTION SECTION: "REVIEW STATUS & UPDATES" (For Sacramental & Service Requests) -->
         <div class="rw-review-card">
             <div class="rw-review-card-header">
                 <h6 class="rw-review-card-title">
@@ -2493,23 +2583,167 @@ $breadcrumbs = [
                 </form>
             </div>
         </div>
+        <?php else: ?>
+        <div class="rw-action-toolbar mt-3 mb-4">
+            <a href="manage-requests.php" class="rw-back-btn">
+                <span>←</span> Back to Requests
+            </a>
+        </div>
+        <?php endif; ?>
 
     </div>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    // ── 1. Resilient Drawer Toggle for "View Submitted Application Form" ──
     const formCollapse = document.getElementById('submittedFormCollapse');
     const toggleBtn = document.getElementById('toggleApplicationFormBtn');
     const toggleText = document.getElementById('toggleText');
+    const toggleChevron = document.getElementById('toggleChevron');
 
-    if (formCollapse && toggleBtn && toggleText) {
+    if (toggleBtn && formCollapse) {
+        function updateDrawerState(isExpanded) {
+            toggleBtn.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+            if (toggleText) {
+                toggleText.textContent = isExpanded ? 'Hide Submitted Application Form' : 'View Submitted Application Form';
+            }
+            if (toggleChevron) {
+                toggleChevron.style.transform = isExpanded ? 'rotate(180deg)' : 'none';
+            }
+        }
+
+        toggleBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            if (typeof bootstrap !== 'undefined' && bootstrap.Collapse) {
+                const bsCollapse = bootstrap.Collapse.getOrCreateInstance(formCollapse, { toggle: false });
+                bsCollapse.toggle();
+            } else {
+                const isCurrentlyOpen = formCollapse.classList.contains('show') || (formCollapse.style.display === 'block');
+                if (isCurrentlyOpen) {
+                    formCollapse.classList.remove('show');
+                    formCollapse.style.display = 'none';
+                    updateDrawerState(false);
+                } else {
+                    formCollapse.classList.add('show');
+                    formCollapse.style.display = 'block';
+                    updateDrawerState(true);
+                }
+            }
+        });
+
         formCollapse.addEventListener('show.bs.collapse', function () {
-            toggleBtn.setAttribute('aria-expanded', 'true');
+            formCollapse.style.display = '';
+            updateDrawerState(true);
         });
 
         formCollapse.addEventListener('hide.bs.collapse', function () {
-            toggleBtn.setAttribute('aria-expanded', 'false');
+            formCollapse.style.display = '';
+            updateDrawerState(false);
+        });
+    }
+
+    // ── 2. Request Status Update with Live Badge Refresh & Toast ──
+    const statusForm = document.getElementById('workflowStatusUpdateForm');
+    const btnSubmitStatus = document.getElementById('btnSubmitStatusUpdate');
+    const btnIcon = document.getElementById('btnStatusUpdateIcon');
+    const btnText = document.getElementById('btnStatusUpdateText');
+    const headerBadge = document.getElementById('headerStatusBadge');
+    const cardBadge = document.getElementById('cardStatusBadge');
+
+    const statusBadgeStyles = {
+        'pending': 'background: #dcfce7; color: #166534; border: 1px solid #bbf7d0;',
+        'processing': 'background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;',
+        'ready': 'background: #fef9c3; color: #854d0e; border: 1px solid #fde047;',
+        'ready_for_pickup': 'background: #fef9c3; color: #854d0e; border: 1px solid #fde047;',
+        'completed': 'background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;',
+        'rejected': 'background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;'
+    };
+
+    function showStatusToast(message, type) {
+        if (window.ParishNotify && typeof window.ParishNotify.show === 'function') {
+            window.ParishNotify.show({
+                type: type === 'success' ? 'success' : 'error',
+                message: message,
+                title: type === 'success' ? 'Status Updated' : 'Update Failed'
+            });
+            return;
+        }
+
+        let container = document.getElementById('parishToastContainer');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'parishToastContainer';
+            container.className = 'parish-toast-container';
+            document.body.appendChild(container);
+        }
+        const toast = document.createElement('div');
+        toast.className = 'alert alert-' + (type === 'success' ? 'success' : 'danger') + ' shadow-sm d-flex align-items-center gap-2 mb-2';
+        toast.style.cssText = 'min-width: 280px; max-width: 420px; z-index: 9999; animation: fadeIn 0.2s ease-in;';
+        toast.innerHTML = '<i class="fas ' + (type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle') + '"></i><span>' + message + '</span>';
+        container.appendChild(toast);
+        setTimeout(function() {
+            toast.style.opacity = '0';
+            toast.style.transition = 'opacity 0.3s ease';
+            setTimeout(function() { toast.remove(); }, 300);
+        }, 4000);
+    }
+
+    if (statusForm) {
+        statusForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            const submitBtn = btnSubmitStatus || statusForm.querySelector('button[type="submit"]');
+            const originalIconClass = btnIcon ? btnIcon.className : '';
+            const originalText = btnText ? btnText.textContent : 'Update Status';
+
+            if (submitBtn) submitBtn.disabled = true;
+            if (btnIcon) btnIcon.className = 'fas fa-spinner fa-spin';
+            if (btnText) btnText.textContent = 'Updating...';
+
+            const formData = new FormData(statusForm);
+
+            fetch(window.location.href, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            })
+            .then(async function (response) {
+                const data = await response.json().catch(function() { return null; });
+                if (!response.ok || !data || !data.success) {
+                    const errorMsg = (data && data.message) ? data.message : 'Failed to update request status. Please try again.';
+                    throw new Error(errorMsg);
+                }
+                return data;
+            })
+            .then(function (data) {
+                if (submitBtn) submitBtn.disabled = false;
+                if (btnIcon) btnIcon.className = originalIconClass || 'fas fa-check-circle';
+                if (btnText) btnText.textContent = originalText;
+
+                showStatusToast(data.message || 'Request status updated successfully!', 'success');
+
+                const rawNewStatus = (data.status || '').toLowerCase();
+                const newLabel = data.status_label || (rawNewStatus.charAt(0).toUpperCase() + rawNewStatus.slice(1));
+                const newStyle = statusBadgeStyles[rawNewStatus] || statusBadgeStyles['pending'];
+
+                if (headerBadge) {
+                    headerBadge.textContent = newLabel;
+                    headerBadge.setAttribute('style', newStyle);
+                    headerBadge.setAttribute('aria-label', 'Request Status: ' + newLabel);
+                }
+                if (cardBadge) {
+                    cardBadge.textContent = 'Current: ' + newLabel;
+                    cardBadge.setAttribute('style', newStyle + ' font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 12px;');
+                }
+            })
+            .catch(function (err) {
+                if (submitBtn) submitBtn.disabled = false;
+                if (btnIcon) btnIcon.className = originalIconClass || 'fas fa-check-circle';
+                if (btnText) btnText.textContent = originalText;
+                showStatusToast(err.message, 'error');
+            });
         });
     }
 
