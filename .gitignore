@@ -25,6 +25,8 @@ uploads/request_requirements/*
 uploads/avatars/*
 
 # Local backups and exports
+*.bak
+*.bak_*
 backups/*.sql
 backups/*.zip
 backups/*/*.bak

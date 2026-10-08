@@ -345,15 +345,22 @@ function dispatchNotificationDelivery($conn, $user_id, $title, $message, $catego
     }
 
     $phone = trim((string) ($user['phone_number'] ?? ''));
-    if (!empty($channels['sms']) && $phone !== '' && isValidPhilippineMobile($phone) && userAllowsNotificationCategory($conn, $uid, $category, 'sms')) {
-        if ($is_announcement) {
-            // Verbatim announcement SMS: raw body string directly, trimmed of leading/trailing whitespace, preserving internal spacing and newlines
-            $clean_sms = trim((string) $message);
-            if ($clean_sms !== '') {
-                $results['sms'] = sendTugonSms($conn, $phone, $clean_sms, $uid, 'announcement');
-            }
+    if (!empty($channels['sms'])) {
+        if ($phone === '') {
+            $results['sms'] = ['ok' => false, 'error' => 'No phone number registered on user profile.', 'skipped' => true];
+        } elseif (!isValidPhilippineMobile($phone)) {
+            $results['sms'] = ['ok' => false, 'error' => "User phone number '{$phone}' is not a valid Philippine mobile number.", 'skipped' => true];
+        } elseif (!userAllowsNotificationCategory($conn, $uid, $category, 'sms')) {
+            $results['sms'] = ['ok' => false, 'error' => "User has disabled SMS notifications for '{$category}'.", 'skipped' => true];
         } else {
-            $results['sms'] = sendTugonSms($conn, $phone, notificationSmsMessage($title, $message), $uid, $category);
+            if ($is_announcement) {
+                $clean_sms = trim((string) $message);
+                if ($clean_sms !== '') {
+                    $results['sms'] = sendTugonSms($conn, $phone, $clean_sms, $uid, 'announcement');
+                }
+            } else {
+                $results['sms'] = sendTugonSms($conn, $phone, notificationSmsMessage($title, $message), $uid, $category);
+            }
         }
     }
 
@@ -839,42 +846,71 @@ function sendTugonSms($conn, $phone_number, $message, $user_id = null, $type = '
     $ok = false;
     $error = '';
     $sent_at = null;
+    $batch_id = null;
+    $http_status = 0;
 
     $trimmed_message = trim((string) $message);
     if ($trimmed_message === '') {
-        return ['ok' => false, 'error' => 'SMS message is empty or contains only whitespace.', 'sent_at' => null];
+        return [
+            'ok' => false,
+            'error' => 'SMS message is empty or contains only whitespace.',
+            'sent_at' => null,
+            'batch_id' => null,
+            'http_status' => 400,
+            'phone' => $formatted_phone
+        ];
+    }
+
+    if (!isValidPhilippineMobile($formatted_phone)) {
+        $error = "Invalid mobile number '{$phone_number}'. Expected Philippine mobile (09XXXXXXXXX or +639XXXXXXXXX).";
+        return [
+            'ok' => false,
+            'error' => $error,
+            'sent_at' => null,
+            'batch_id' => null,
+            'http_status' => 422,
+            'phone' => $formatted_phone
+        ];
     }
 
     if (function_exists('curl_init')) {
         require_once __DIR__ . '/../config/sms/send_sms.php';
         $response = sendSMS($formatted_phone, $trimmed_message);
         $decoded = json_decode((string) $response, true);
-        $httpStatus = is_array($decoded) ? intval($decoded['http_status'] ?? 0) : 0;
-        $ok = is_array($decoded) && (
-            (($decoded['data']['success'] ?? false) === true) ||
-            (($decoded['success'] ?? false) === true) ||
-            ($httpStatus >= 200 && $httpStatus < 300 && empty($decoded['error']))
-        );
+        $http_status = is_array($decoded) ? intval($decoded['http_status'] ?? 0) : 0;
+        $batch_id = is_array($decoded) ? ($decoded['batch_id'] ?? ($decoded['data']['smsBatchId'] ?? null)) : null;
+
+        $ok = is_array($decoded) && !empty($decoded['success']);
         if (!$ok) {
             $error = is_array($decoded)
-                ? ($decoded['message'] ?? $decoded['error'] ?? ($decoded['response'] ?? 'TextBee SMS request failed.'))
+                ? ($decoded['error'] ?? ($decoded['message'] ?? 'TextBee SMS request failed.'))
                 : (trim((string) $response) ?: 'TextBee SMS request failed.');
+        } else {
+            $sent_at = date('Y-m-d H:i:s');
         }
-        $sent_at = $ok ? date('Y-m-d H:i:s') : null;
     } else {
-        $error = 'cURL is unavailable. SMS was not sent.';
+        $error = 'cURL extension is unavailable. SMS was not sent.';
     }
+
+    $delivery_status = $ok ? 'sent' : 'failed';
+    $log_detail = $ok ? ($batch_id ? "Batch: {$batch_id}" : 'Queued') : $error;
 
     $stmt = $conn->prepare("INSERT INTO sms_notification_logs (user_id, phone_number, message, notification_type, delivery_status, error_message, sent_at) VALUES (?, ?, ?, ?, ?, ?, ?)");
     if ($stmt) {
         $uid = $user_id ? intval($user_id) : 0;
-        $status = $ok ? 'sent' : 'failed';
-        $stmt->bind_param('issssss', $uid, $phone_number, $message, $type, $status, $error, $sent_at);
+        $stmt->bind_param('issssss', $uid, $formatted_phone, $trimmed_message, $type, $delivery_status, $log_detail, $sent_at);
         $stmt->execute();
         $stmt->close();
     }
 
-    return ['ok' => $ok, 'error' => $error, 'sent_at' => $sent_at];
+    return [
+        'ok' => $ok,
+        'error' => $error,
+        'sent_at' => $sent_at,
+        'batch_id' => $batch_id,
+        'http_status' => $http_status,
+        'phone' => $formatted_phone
+    ];
 }
 
 // Tugon Email Template Function - Delivers mobile-responsive HTML templates for all parish updates.

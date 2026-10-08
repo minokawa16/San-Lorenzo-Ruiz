@@ -10,19 +10,22 @@ function isValidEmail($email) {
 }
 
 function isValidPhilippineMobile($phone) {
-    return preg_match('/^(09\d{9}|\+639\d{9}|639\d{9})$/', trim((string) $phone));
+    $digits = preg_replace('/\D/', '', (string) $phone);
+    return (bool) preg_match('/^(09\d{9}|639\d{9}|9\d{9})$/', $digits);
 }
 
 function normalizePhilippineMobileForStorage($phone) {
-    $value = trim((string) $phone);
-    $digits = preg_replace('/\D/', '', $value);
+    $digits = preg_replace('/\D/', '', (string) $phone);
     if (preg_match('/^09\d{9}$/', $digits)) {
         return $digits;
     }
     if (preg_match('/^639\d{9}$/', $digits)) {
         return '0' . substr($digits, 2);
     }
-    return $value;
+    if (preg_match('/^9\d{9}$/', $digits)) {
+        return '0' . $digits;
+    }
+    return trim((string) $phone);
 }
 
 function normalizePhilippineMobileForSms($phone) {
@@ -33,7 +36,14 @@ function normalizePhilippineMobileForSms($phone) {
     if (preg_match('/^639\d{9}$/', $digits)) {
         return '+' . $digits;
     }
-    return trim((string) $phone);
+    if (preg_match('/^9\d{9}$/', $digits)) {
+        return '+63' . $digits;
+    }
+    $trimmed = trim((string) $phone);
+    if (str_starts_with($trimmed, '+')) {
+        return '+' . $digits;
+    }
+    return $trimmed;
 }
 
 function isValidPassword($password) {
