@@ -38,6 +38,7 @@ final class TugonConversationalIntent
     const TOPIC_OFF_TOPIC_OR_UNSAFE = 'OFF_TOPIC_OR_UNSAFE';
 
     // Backwards compatibility aliases
+    const TOPIC_PAYMENTS = 'PAYMENT';
     const TOPIC_SACRAMENT_REQUESTS = 'SACRAMENTAL_SERVICES';
     const TOPIC_FUNERAL_MEMORIAL = 'SACRAMENTAL_SERVICES';
     const TOPIC_MASS_INTENTIONS = 'SACRAMENTAL_SERVICES';
@@ -60,7 +61,7 @@ final class TugonConversationalIntent
         }
 
         // 1. Prompt Injection / Technical Infrastructure Leakage Refusal (Part A Step 5)
-        if (preg_match('/\b(?:ignore (?:all |the )?(?:previous|system|your )?instructions?|tell me (?:your |the )?prompt|what is your prompt|reveal (?:the |your )?(?:prompt|secret|credential)|system prompt|developer instructions|server address|what server does your system run on|database credentials|api endpoints|prompt injection|override system|jailbreak)\b/iu', $normalized)) {
+        if (preg_match('/\b(?:ignore (?:all |the )?(?:previous|system|your )?instructions?|tell me (?:your |the )?(?:prompt|secret|credential)|reveal (?:the |your )?(?:prompt|secret|credential)|system prompt|developer instructions|server address|what server does your system run on|database credentials|api endpoints|prompt injection|override system|jailbreak)\b/iu', $normalized)) {
             return self::TOPIC_OFF_TOPIC_OR_UNSAFE;
         }
 
@@ -81,36 +82,36 @@ final class TugonConversationalIntent
             return self::TOPIC_SCHEDULE_AVAILABILITY;
         }
 
-        // 5. ACCOUNT / REGISTRATION / VERIFICATION (KB-10, KB-11)
-        if (preg_match('/\b(?:registration rejected|rejected registration|my registration|bakit na-reject ang registration|hindi ma-approve|how to register|how (?:do|can) i register|magparehistro|mag-register|create (?:an )?account|sign up|sign-up|get verified|account verification|verify (?:my )?account|approve account|registration)\b/iu', $normalized)) {
+        // 5. ACCOUNT / REGISTRATION / VERIFICATION / PASSWORD (KB-10, KB-11)
+        if (preg_match('/\b(?:registration rejected|rejected registration|my registration|bakit na-reject ang registration|hindi ma-approve|how to register|how (?:do|can) i register|magparehistro|mag-register|create (?:an )?account|sign up|sign-up|get verified|account verification|verify (?:my )?account|approve account|registration|forgot password|forgot my password|nakalimutan.*password|reset password|i\s*can\s*t\s*log\s*in|i\s*can[\'’]?t\s*log\s*in|cannot\s*log\s*in|cant\s*log\s*in|hindi.*makapag.*log|hindi.*makalogin|di makalogin|change password)\b/iu', $normalized)) {
             return self::TOPIC_ACCOUNT_REGISTRATION;
         }
 
         // 6. REQUEST STATUS / TRACKING / REJECTION / RESUBMISSION (KB-20, KB-21)
-        if (preg_match('/\b(?:what does ["\']?(?:pending|processing|completed|rejected)["\']? mean|ano (?:ang )?ibig sabihin ng (?:pending|processing|completed|rejected)|my request says rejected|why was my request rejected|request was rejected|bakit na-reject|resubmit|track(?:ing)?(?:\s+(?:my|the|a|submitted|active))*\s+requests?|how (?:do|can) i track|track my (?:submitted )?request|request status|status of (?:my )?request|my requests?|reference number|ano na status|paano i-track|check (?:the )?status)\b/iu', $normalized)) {
+        if (preg_match('/\b(?:what does ["\']?(?:pending|processing|completed|rejected)["\']? mean|what do (?:the )?(?:request )?statuses mean|ano (?:ang )?ibig sabihin ng.*(?:pending|processing|completed|rejected|status)|statuses mean|status meaning|my request says rejected|why was my request rejected|request was rejected|bakit na-reject|resubmit|track(?:ing)?(?:\s+(?:my|the|a|submitted|active))*\s+requests?|how (?:do|can) i track|track my (?:submitted )?request|request status|status of (?:my )?request|my requests?|reference number|ano na status|paano i-track|check (?:the )?status|check request status|how long does it take|how long|gaano katagal|turnaround time|processing time)\b/iu', $normalized)) {
             return self::TOPIC_REQUEST_STATUS;
         }
 
         // 7. PAYMENT (KB-32, KB-45, KB-51)
-        if (preg_match('/\b(?:how (?:do|can) i pay (?:by |via |using )?gcash|pay by gcash|gcash payment|bayad sa gcash|paano magbayad (?:sa |gamit ang )?gcash|payment options|payment methods?|magbayad sa gcash|send to gcash|how to pay|paano magbayad|payment)\b/iu', $normalized)) {
+        if (preg_match('/\b(?:how (?:do|can) i pay|how to pay|paano magbayad|payment options|payment methods?|pay by gcash|gcash payment|bayad sa gcash|magbayad sa gcash|send to gcash|upload (?:the )?receipt|payment|bayad)\b/iu', $normalized)) {
             return self::TOPIC_PAYMENT;
         }
 
         // 8. CERTIFICATES Intent: Requirements, fees, processing time, how to get/request certificates
         // Whenever certificate/sertipiko/papeles/katibayan/pamatuod is asked.
         if (preg_match('/\b(?:certificates?|certs?|certification|sertipiko|papeles|katibayan|pamatuod)\b/iu', $normalized)
-            || preg_match('/\b(?:how (?:do|can) i get (?:a )?(?:baptismal|marriage|confirmation|death|communion) certificate|how to get (?:the )?certificates?|requirements? (?:on )?(?:how )?to (?:get|request) (?:the )?certificates?|requirements? (?:for|sa) (?:mga )?certificates?|how much is a certificate)\b/iu', $normalized)
+            || preg_match('/\b(?:how (?:do|can) i get (?:a )?(?:baptismal|marriage|confirmation|death|communion) certificate|how to get (?:the )?certificates?|requirements? (?:on )?(?:how )?to (?:get|request) (?:the )?certificates?|requirements? (?:for|sa) (?:mga )?certificates?|how much is a certificate|download certificate|claim certificate|release certificate|online release|pickup certificate)\b/iu', $normalized)
         ) {
             return self::TOPIC_CERTIFICATES;
         }
 
         // 9. BLESSINGS Intent: House, Vehicle, Business, Religious Articles (how to request, offering, lead time)
-        if (preg_match('/\b(?:house blessing|vehicle blessing|car blessing|motorcycle blessing|business blessing|religious articles? blessing|blessing fee|blessing offering|how much (?:is )?(?:a )?(?:house |vehicle |car )?blessing|pabasbas|basbas|bendisyon|bendita|magpa-?bless)\b/iu', $normalized)) {
+        if (preg_match('/\b(?:house blessing|vehicle blessing|car blessing|motorcycle blessing|business blessing|religious articles? blessing|blessing fee|blessing offering|how much (?:is )?(?:a )?(?:house |vehicle |car )?blessing|pabasbas|basbas|bendisyon|bendita|magpa-?bless|how (?:can|do) i request a blessing|how to request a blessing|paano magpa-?bless)\b/iu', $normalized)) {
             return self::TOPIC_BLESSINGS;
         }
 
-        // 10. SACRAMENTAL SERVICES Intent: Wedding, Baptism, Funeral Mass, Anointing of the Sick, Confirmation
-        if (preg_match('/\b(?:wedding|matrimony|pre-cana|banns|magpakasal|pakasal|kasal|baptism|binyag|pabinyag|magpabunyag|confirmation|confirmation service|kumpil|magpakumpil|magpakumpirma|first holy communion|anointing of the sick|sick call|pahid ng langis|dying|naghihingalo|last rites|funeral mass|funeral blessing|wake|burial|misa sa patay|libing|burol|lubong|padasal sa patay|death anniversary mass|how much is a (?:wedding|baptism|funeral)|requirements for (?:a )?(?:wedding|baptism|funeral|matrimony|confirmation))\b/iu', $normalized)) {
+        // 10. SACRAMENTAL SERVICES Intent: Wedding, Baptism, Funeral Mass, Anointing of the Sick, Confirmation, Mass Intention
+        if (preg_match('/\b(?:wedding|matrimony|pre-cana|banns|magpakasal|pakasal|kasal|wedding docs|wedding requirements|papers for (?:wedding|marriage|confirmation)|baptism|binyag|pabinyag|magpabunyag|confirmation|confirmation service|confirmation requirements|kumpil|magpakumpil|magpakumpirma|first holy communion|first communion requirements|anointing of the sick|sick call|pahid ng langis|dying|naghihingalo|last rites|funeral mass|funeral blessing|wake|burial|misa sa patay|libing|burol|lubong|padasal sa patay|death anniversary mass|how much is a (?:wedding|baptism|funeral)|requirements for (?:a )?(?:wedding|baptism|funeral|matrimony|confirmation|kasal|binyag|kumpil)|mass intention|pamisa|paano magpa-?misa|request a mass intention)\b/iu', $normalized)) {
             return self::TOPIC_SACRAMENTAL_SERVICES;
         }
 
@@ -120,7 +121,7 @@ final class TugonConversationalIntent
         }
 
         // 12. PARISH CONTACTS AND STAFF Intent: Location, Priest, Secretary, Phone
-        if (preg_match('/\b(?:where is the parish|location|address|saan ang (?:simbahan|parokya|opisina)|parish office contact|contact(?: info| number)?|phone(?: number)?|telephone|mobile number|secretary|kalihim|agnes(?: calapaan)?|parish priest|priest|kura paroko|father cahilig|alvin barretto)\b/iu', $normalized)) {
+        if (preg_match('/\b(?:where is the parish|location|address|saan ang (?:simbahan|parokya|opisina)|parish office contact|parish office hours|contact(?: info| number)?|phone(?: number)?|telephone|mobile number|secretary|kalihim|agnes(?: calapaan)?|parish priest|priest|kura paroko|father cahilig|alvin barretto|office hours and contact)\b/iu', $normalized)) {
             return self::TOPIC_PARISH_OFFICE;
         }
 
@@ -130,7 +131,7 @@ final class TugonConversationalIntent
         }
 
         // 14. GENERAL PARISH TOPIC FALLBACK (Prevents false OFF_TOPIC_OR_UNSAFE rejection on valid parish queries)
-        if (preg_match('/\b(?:parish|parokya|church|simbahan|mass|misa|office|opisina|bapt(?:ism)?|binyag|confirm(?:ation)?|kumpil|communion|komunyon|marriage|wedding|kasal|bless|basbas|bendisyon|certificate|sertipiko|papeles|confess|kumpisal|reconciliation|penance|adoration|novena|rosary|request|kahilingan|reserv|venue|schedule|iskedyul|announcement|anunsyo|payment|bayad|funeral|burial|libing|priest|pari|secretary|kalihim|agnes|calapaan|vicar|sacrament|requirements?|kailangan|fee|cost|magkano|upload|aleosan)\b/iu', $normalized)) {
+        if (preg_match('/\b(?:parish|parokya|church|simbahan|mass|misa|office|opisina|bapt(?:ism)?|binyag|confirm(?:ation)?|kumpil|communion|komunyon|marriage|wedding|kasal|bless|basbas|bendisyon|certificate|sertipiko|papeles|confess|kumpisal|reconciliation|penance|adoration|novena|rosary|request|kahilingan|reserv|venue|schedule|iskedyul|announcement|anunsyo|pay|payment|bayad|funeral|burial|libing|priest|pari|secretary|kalihim|agnes|calapaan|vicar|sacrament|requirements?|kailangan|fee|cost|magkano|upload|aleosan|status|pending|processing|completed|rejected|login|password|release|pickup|claim|download|intention|pamisa|how long|gaano katagal|turnaround|hours)\b/iu', $normalized)) {
             return self::TOPIC_HOW_TO_USE_SYSTEM;
         }
 

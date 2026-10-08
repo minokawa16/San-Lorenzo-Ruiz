@@ -1237,7 +1237,7 @@ function chatbotKnowledgeOfficialDefaults() {
             'Confirmation Requirements',
             'what are the confirmation requirements,confirmation requirements,ano ang requirements sa kumpirmasyon,what documents are needed for confirmation,how can i request confirmation,requirements for confirmation,confirmation,kumpil,pakumpil,confirmand,requirements,papers,documents',
             'For Confirmation, prepare the information and supporting parish documents requested by the parish office.',
-            "Baptismal Certificate\nConfirmation Certificate\nConfirmation Registration Form\nConfirmation Seminar (recollection)\nConfirmation Sponsor (Godparents)",
+            "Baptismal Certificate\nFirst Communion Certificate\nConfirmation Registration Form\nConfirmation Seminar (recollection)\nConfirmation Sponsor (Godparents)",
             'sacrament'
         ],
         [
@@ -4283,4 +4283,109 @@ function getParishPlaceName($conn, bool $short = false): string {
     }
 
     return $short ? $defaultShort : $defaultLong;
+}
+
+/**
+ * Returns dynamic Confirmation requirements from chatbot_knowledge table or canonical fallback.
+ */
+function getParishConfirmationRequirements($conn = null): array {
+    if ($conn) {
+        try {
+            $stmt = $conn->prepare("SELECT steps FROM chatbot_knowledge WHERE knowledge_id = 31 OR topic = 'Confirmation Requirements' LIMIT 1");
+            if ($stmt) {
+                $stmt->execute();
+                $res = $stmt->get_result();
+                if ($row = $res->fetch_assoc()) {
+                    $raw = trim((string)($row['steps'] ?? ''));
+                    if ($raw !== '') {
+                        $items = array_values(array_filter(array_map('trim', explode("\n", $raw))));
+                        if (!empty($items)) {
+                            return $items;
+                        }
+                    }
+                }
+                $stmt->close();
+            }
+        } catch (Throwable $e) {}
+    }
+
+    return [
+        'Baptismal Certificate',
+        'First Communion Certificate',
+        'Confirmation Registration Form',
+        'Confirmation Seminar (recollection)',
+        'Confirmation Sponsor (Godparents)'
+    ];
+}
+
+/**
+ * Returns dynamic Marriage requirements from system configuration.
+ */
+function getParishMarriageRequirements(): array {
+    return [
+        'pre_cana' => ['label' => 'Pre-Cana', 'mandatory' => true],
+        'municipal_license' => ['label' => 'Municipal License', 'mandatory' => true],
+        'bec_recommendation' => ['label' => 'BEC Recommendation', 'mandatory' => true],
+        'baptismal_certificate_marriage_purpose' => ['label' => 'Baptismal Certificate for Marriage Purpose', 'mandatory' => true],
+        'confirmation_certificate' => ['label' => 'Confirmation Certificate', 'mandatory' => true],
+        'permit_to_marry' => ['label' => 'Permit to Marry', 'mandatory' => true],
+        'co_permit_police_army' => ['label' => 'CO Permit (Police / Army)', 'mandatory' => false, 'badge' => 'Optional / If Applicable']
+    ];
+}
+
+/**
+ * Returns dynamic Baptism service requirements from system configuration.
+ */
+function getParishBaptismRequirements(): array {
+    return [
+        'live_birth_certificate' => 'Photocopy of Live Birth Certificate with Official Registry Number (PSA)',
+        'marriage_certificate_photocopy' => 'Photocopy of Marriage Certificate (if parents are married)',
+        'chapel_recommendation' => 'Chapel Recommendation',
+        'parent_white_cards' => 'White Cards of Parents',
+        'sponsor_white_cards' => 'Two (2) White Cards of Sponsors (Ninong and Ninang)',
+        'pre_baptism_seminar' => 'Pre-Baptismal Seminar attendance'
+    ];
+}
+
+/**
+ * Returns dynamic Blessing types from system configuration.
+ */
+function getParishBlessingTypes(): array {
+    return [
+        'house_blessing' => 'House Blessing',
+        'vehicle_blessing' => 'Vehicle Blessing',
+        'business_blessing' => 'Business Blessing',
+        'office_blessing' => 'Office Blessing',
+        'event_blessing' => 'Event Blessing',
+        'other_blessing' => 'Other Blessing'
+    ];
+}
+
+/**
+ * Returns dynamic certificate requirements specification.
+ */
+function getParishCertificateRequirements(): array {
+    return [
+        'Baptismal Certificate' => "name of the person, father's name, mother's name, and date of baptism.",
+        'First Communion Certificate' => "name of the person, father's name, mother's full name, and date of First Communion.",
+        'Confirmation Certificate' => "name of the person, father's name, mother's name, and date of Confirmation.",
+        'Marriage Certificate' => "name of husband, maiden name of wife, and date of marriage.",
+        'Funeral / Death Certificate' => "name of deceased, date of death, and date of burial."
+    ];
+}
+
+/**
+ * Returns dynamic parish office contact and schedule information.
+ */
+function getParishOfficeInfo($conn = null): array {
+    return [
+        'phone' => '0997 742 8176',
+        'secretary' => 'Agnes C. Calapaan',
+        'priest' => 'Rev. Fr. Alberto G. Cahilig, OMI',
+        'hours' => [
+            'tue_sat' => 'Tuesday to Saturday: 8:00 AM – 5:00 PM (Lunch Break: 12:00 PM – 1:00 PM)',
+            'sun' => 'Sunday: 7:00 AM – 12:00 PM',
+            'mon' => 'Monday: Office Closed'
+        ]
+    ];
 }

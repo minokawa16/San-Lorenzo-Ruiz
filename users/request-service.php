@@ -64,12 +64,13 @@ $service_meta = [
     'anointing_of_the_sick' => ['icon' => 'fa-hand-holding-medical', 'hint' => 'Request pastoral care and anointing schedule.'],
     'patronal_fiesta' => ['icon' => 'fa-church', 'hint' => 'Submit Patronal Fiesta details for parish review.']
 ];
-$baptism_requirements = [
-    'chapel_recommendation' => 'Chapel Recommendation',
+$baptism_requirements = function_exists('getParishBaptismRequirements') ? getParishBaptismRequirements() : [
+    'live_birth_certificate' => 'Photocopy of Live Birth Certificate with Official Registry Number (PSA)',
     'marriage_certificate_photocopy' => 'Photocopy of Marriage Certificate (if married)',
-    'live_birth_certificate' => 'Photocopy of Live Birth Certificate with Official Registry Number',
+    'chapel_recommendation' => 'Chapel Recommendation',
+    'parent_white_cards' => 'White Cards of Parents',
     'sponsor_white_cards' => 'Two (2) White Cards of Sponsors (Ninong and Ninang)',
-    'parent_white_cards' => 'White Cards of Parents'
+    'pre_baptism_seminar' => 'Pre-Baptismal Seminar attendance'
 ];
 $baptism_sheet_fields = [
     'child_name' => 'Name of Child',
@@ -108,7 +109,7 @@ $marriage_sheet_fields = [
     'additional_sponsors' => "Additional Sponsors / Entourage",
     'wedding_date' => "Date of Marriage / Wedding"
 ];
-$marriage_requirements = [
+$marriage_requirements = function_exists('getParishMarriageRequirements') ? getParishMarriageRequirements() : [
     'pre_cana' => ['label' => 'Pre-Cana', 'mandatory' => true],
     'municipal_license' => ['label' => 'Municipal License', 'mandatory' => true],
     'bec_recommendation' => ['label' => 'BEC Recommendation', 'mandatory' => true],

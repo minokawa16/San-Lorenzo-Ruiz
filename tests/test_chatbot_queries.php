@@ -71,7 +71,7 @@ $testCases = [
         'must_contain' => [
             'For Confirmation, prepare the information and supporting parish documents',
             'Baptismal Certificate',
-            'Confirmation Certificate',
+            'First Communion Certificate',
             'Confirmation Registration Form',
             'Confirmation Seminar (recollection)',
             'Confirmation Sponsor (Godparents)'

@@ -20,7 +20,7 @@ ensureExpandedRequestTypeSchema($conn);
 ensureRequestDocumentsSchema($conn);
 ensureEmailNotificationSchema($conn);
 
-$blessing_types = [
+$blessing_types = function_exists('getParishBlessingTypes') ? getParishBlessingTypes() : [
     'house_blessing' => 'House Blessing',
     'vehicle_blessing' => 'Vehicle Blessing',
     'business_blessing' => 'Business Blessing',

@@ -1388,6 +1388,9 @@
             flex-wrap: wrap !important;
             gap: 6px !important;
             margin-top: 2px !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
         }
         html body .ai-quick-chip {
             background: #FFFDF8 !important;
@@ -1403,6 +1406,12 @@
             align-items: center !important;
             gap: 5px !important;
             box-shadow: 0 1px 4px rgba(52, 69, 54, 0.04) !important;
+            max-width: 100% !important;
+            white-space: normal !important;
+            word-break: break-word !important;
+            line-height: 1.35 !important;
+            text-align: left !important;
+            box-sizing: border-box !important;
         }
         html body .ai-quick-chip:hover {
             background: #344536 !important;
@@ -1410,6 +1419,11 @@
             color: #FFFFFF !important;
             transform: translateY(-1px) !important;
             box-shadow: 0 3px 8px rgba(52, 69, 54, 0.18) !important;
+        }
+        html body .ai-reply-quick-prompts {
+            margin-top: 8px !important;
+            margin-bottom: 4px !important;
+            width: 100% !important;
         }
 
         /* ── Chat Messages (AI vs User) ─────────────────────────────── */
@@ -1425,7 +1439,8 @@
         }
         html body .ai-assistant-chat-message.assistant {
             align-self: flex-start !important;
-            max-width: 90% !important;
+            max-width: 92% !important;
+            width: fit-content !important;
         }
         html body .ai-msg-header {
             display: flex !important;
@@ -1734,6 +1749,14 @@
             html body .ai-assistant-mobile-back {
                 display: inline-flex !important;
             }
+            html body .ai-assistant-chat-message.assistant {
+                max-width: 98% !important;
+                width: 100% !important;
+            }
+            html body .ai-quick-chip {
+                font-size: 0.76rem !important;
+                padding: 6px 10px !important;
+            }
         }
     </style>
 
@@ -1781,10 +1804,10 @@
                         <span id="aiAssistantWelcomeSub">I am your TUGON Parish Guide. Feel free to ask about certificate requirements, Mass schedules, sacramental guidelines, or request tracking.</span>
                     </div>
                     <div class="ai-assistant-quick-prompts" id="aiAssistantQuickPrompts">
-                        <button type="button" class="ai-quick-chip" data-ai-prompt="What are the mass schedules?">⛪ Mass Schedules</button>
-                        <button type="button" class="ai-quick-chip" data-ai-prompt="How do I request a Baptismal Certificate?">📜 Baptism Certificate</button>
-                        <button type="button" class="ai-quick-chip" data-ai-prompt="What are the requirements for Matrimony/Wedding?">💍 Wedding Guidelines</button>
-                        <button type="button" class="ai-quick-chip" data-ai-prompt="How do I track my submitted request?">🔍 Track My Request</button>
+                        <button type="button" class="ai-quick-chip" data-ai-prompt="Requirements for Certificates">📜 Requirements for Certificates</button>
+                        <button type="button" class="ai-quick-chip" data-ai-prompt="How to request a Blessing">🙏 How to request a Blessing</button>
+                        <button type="button" class="ai-quick-chip" data-ai-prompt="Confirmation requirements">🕊️ Confirmation requirements</button>
+                        <button type="button" class="ai-quick-chip" data-ai-prompt="Wedding requirements">💍 Wedding requirements</button>
                     </div>
                 </div>
             </div>
@@ -2369,7 +2392,7 @@
                 return result.join('');
             }
 
-            function appendChatMessage(type, title, message, sourcePrompt, stream, steps) {
+            function appendChatMessage(type, title, message, sourcePrompt, stream, steps, prompts) {
                 if (!liveAnswer) {
                     return null;
                 }
@@ -2382,11 +2405,34 @@
                     : '';
                 const copyButton = type === 'assistant' ? '<button type="button" class="ai-assistant-copy" aria-label="Copy response text" title="Copy response"><i class="fas fa-copy"></i> <span>Copy</span></button>' : '';
 
+                function getPromptIcon(text) {
+                    const p = String(text || '').toLowerCase();
+                    if (p.includes('certificate') || p.includes('sertipiko')) return '📜 ';
+                    if (p.includes('blessing') || p.includes('basbas')) return '🙏 ';
+                    if (p.includes('confirmation') || p.includes('kumpil')) return '🕊️ ';
+                    if (p.includes('wedding') || p.includes('marriage') || p.includes('kasal')) return '💍 ';
+                    if (p.includes('baptism') || p.includes('binyag')) return '💧 ';
+                    if (p.includes('status') || p.includes('track') || p.includes('subaybayan')) return '🔍 ';
+                    if (p.includes('pay') || p.includes('fee') || p.includes('magkano') || p.includes('cost') || p.includes('gcash')) return '💳 ';
+                    if (p.includes('schedule') || p.includes('mass') || p.includes('misa')) return '⛪ ';
+                    if (p.includes('hours') || p.includes('office') || p.includes('oras') || p.includes('contact')) return '🕒 ';
+                    return '💬 ';
+                }
+
+                const promptChips = (type === 'assistant' && Array.isArray(prompts) && prompts.length)
+                    ? '<div class="ai-assistant-quick-prompts ai-reply-quick-prompts">' + prompts.map(function(p) {
+                        const cleanPrompt = String(p || '').trim();
+                        if (!cleanPrompt) return '';
+                        const icon = getPromptIcon(cleanPrompt);
+                        return '<button type="button" class="ai-quick-chip" data-ai-prompt="' + escapeHtml(cleanPrompt) + '">' + icon + escapeHtml(cleanPrompt) + '</button>';
+                    }).join('') + '</div>'
+                    : '';
+
                 if (type === 'user') {
                     item.innerHTML = '<div class="ai-msg-bubble user-bubble"><p>' + escapeHtml(message) + '</p></div><div class="ai-assistant-message-meta"><span>' + currentTime() + '</span></div>';
                 } else {
                     const formatted = formatAssistantMarkdown(message);
-                    item.innerHTML = '<div class="ai-msg-header"><span class="ai-avatar-badge" aria-hidden="true"><i class="fas fa-church"></i></span><strong>' + escapeHtml(title) + '</strong></div><div class="ai-msg-bubble assistant-bubble">' + formatted + '</div>' + stepList + '<div class="ai-assistant-message-meta"><span>' + currentTime() + '</span>' + copyButton + '</div>';
+                    item.innerHTML = '<div class="ai-msg-header"><span class="ai-avatar-badge" aria-hidden="true"><i class="fas fa-church"></i></span><strong>' + escapeHtml(title) + '</strong></div><div class="ai-msg-bubble assistant-bubble">' + formatted + '</div>' + stepList + '<div class="ai-assistant-message-meta"><span>' + currentTime() + '</span>' + copyButton + '</div>' + promptChips;
                 }
 
                 liveAnswer.appendChild(item);
@@ -2535,6 +2581,8 @@
                         ? (data.reply || data.answer || chatLabels.noAnswer) 
                         : (data.message || (data.error === 'PAYLOAD_TOO_LARGE' ? 'Your message is too large. Please try a shorter question.' : (data.error || chatLabels.unable)));
                     const title = data.success && data.guidance && data.guidance.title ? data.guidance.title : chatLabels.title;
+                    const defaultPrompts = ['Requirements for Certificates', 'How to request a Blessing', 'Confirmation requirements', 'Wedding requirements'];
+                    const prompts = (data.suggested_prompts && data.suggested_prompts.length) ? data.suggested_prompts : defaultPrompts;
                     const remainingThinking = Math.max(0, thinkingDelayFor(answer) - (Date.now() - startedAt));
                     window.setTimeout(function() {
                         if (loading) {
@@ -2544,7 +2592,7 @@
                         if (liveSubmit) {
                             liveSubmit.disabled = false;
                         }
-                        appendChatMessage('assistant', title, answer, message, true, data.success && data.guidance && data.guidance.steps ? data.guidance.steps : []);
+                        appendChatMessage('assistant', title, answer, message, true, data.success && data.guidance && data.guidance.steps ? data.guidance.steps : [], prompts);
                         conversationHistory.push({role: 'assistant', content: answer});
                         if (!data.success && data.status) {
                             setHealthStatus(data.status);
@@ -2563,7 +2611,8 @@
                         if (liveSubmit) {
                             liveSubmit.disabled = false;
                         }
-                        appendChatMessage('assistant', chatLabels.title, chatLabels.endpointError, message, true);
+                        const defaultPrompts = ['Requirements for Certificates', 'How to request a Blessing', 'Confirmation requirements', 'Wedding requirements'];
+                        appendChatMessage('assistant', chatLabels.title, chatLabels.endpointError, message, true, [], defaultPrompts);
                     }, remainingThinking);
                 });
             }
@@ -2596,10 +2645,10 @@
                             '<span id="aiAssistantWelcomeSub">' + escapeHtml(g.sub) + '</span>' +
                         '</div>' +
                         '<div class="ai-assistant-quick-prompts" id="aiAssistantQuickPrompts">' +
-                            '<button type="button" class="ai-quick-chip" data-ai-prompt="What are the mass schedules?">⛪ Mass Schedules</button>' +
-                            '<button type="button" class="ai-quick-chip" data-ai-prompt="How do I request a Baptismal Certificate?">📜 Baptism Certificate</button>' +
-                            '<button type="button" class="ai-quick-chip" data-ai-prompt="What are the requirements for Matrimony/Wedding?">💍 Wedding Guidelines</button>' +
-                            '<button type="button" class="ai-quick-chip" data-ai-prompt="How do I track my submitted request?">🔍 Track My Request</button>' +
+                            '<button type="button" class="ai-quick-chip" data-ai-prompt="Requirements for Certificates">📜 Requirements for Certificates</button>' +
+                            '<button type="button" class="ai-quick-chip" data-ai-prompt="How to request a Blessing">🙏 How to request a Blessing</button>' +
+                            '<button type="button" class="ai-quick-chip" data-ai-prompt="Confirmation requirements">🕊️ Confirmation requirements</button>' +
+                            '<button type="button" class="ai-quick-chip" data-ai-prompt="Wedding requirements">💍 Wedding requirements</button>' +
                         '</div>' +
                     '</div>';
                     conversationHistory.length = 0;
