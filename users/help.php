@@ -1089,7 +1089,7 @@ include '../includes/breadcrumb.php';
             </div>
             <div>
               <h2 class="usr-section-title">Module 5: Tracking Requests, Online Downloads &amp; Walk-in Claiming</h2>
-              <p class="usr-section-sub">Monitor live status changes, download released digital certificates, and claim physical copies</p>
+              <p class="usr-section-sub">Monitor live status changes, download completed digital certificates, and claim physical copies</p>
             </div>
           </div>
           <span class="usr-section-tag">Track &amp; Claim</span>
@@ -1146,7 +1146,7 @@ include '../includes/breadcrumb.php';
             <div class="step-card-body">
               <div class="step-card-title">Claim at Parish Office (Walk-in Release)</div>
               <p class="step-card-desc">
-                When your status changes to <span class="action-badge action-badge-green"><i class="fas fa-circle-check"></i> Completed</span> or <span class="action-badge action-badge-green"><i class="fas fa-certificate"></i> Released</span>, visit the parish office during open hours, present your <strong>Reference Number</strong> (e.g. <code>REQ-2026-XXXXXX</code>) and a <strong>valid ID</strong>, and settle any pending cash payment.
+                When your status changes to <span class="action-badge action-badge-green"><i class="fas fa-circle-check"></i> Completed</span>, visit the parish office during open hours, present your <strong>Reference Number</strong> (e.g. <code>REQ-2026-XXXXXX</code>) and a <strong>valid ID</strong>, and settle any pending cash payment.
               </p>
             </div>
           </div>

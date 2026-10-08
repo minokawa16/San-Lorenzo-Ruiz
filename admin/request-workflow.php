@@ -491,7 +491,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                             $conn,
                             (int)$request['user_id'],
                             'Certificate Ready for Download',
-                            'Your official certificate for request ' . ($request['reference_number'] ?? ('#' . $request_id)) . ' has been released and is ready for online download.',
+                            'Your official certificate for request ' . ($request['reference_number'] ?? ('#' . $request_id)) . ' has been completed and is ready for online download.',
                             true,
                             'requests',
                             'request',
@@ -504,7 +504,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                                 $conn,
                                 (int)$request['user_id'],
                                 'Certificate Ready for Download - San Lorenzo Ruiz Parish',
-                                'Hello ' . ($request['fullname'] ?? 'Parishioner') . ",\n\nYour certificate request (" . ($request['reference_number'] ?? '') . ") has been approved and issued by the parish office. You may now download your official certificate online.\n\nSan Lorenzo Ruiz Parish"
+                                'Hello ' . ($request['fullname'] ?? 'Parishioner') . ",\n\nYour certificate request (" . ($request['reference_number'] ?? '') . ") has been completed by the parish office. You may now download your official certificate online.\n\nSan Lorenzo Ruiz Parish"
                             );
                         }
 
@@ -512,7 +512,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                         $smsResult = null;
                         $smsFeedback = '';
                         if (!empty($request['phone_number'])) {
-                            $smsMsg = "TUGON Parish System: Your official certificate for request (" . ($request['reference_number'] ?? '') . ") has been released and is ready for online download." . ($release_note ? " Note: " . $release_note : "");
+                            $smsMsg = "TUGON Parish System: Your official certificate for request (" . ($request['reference_number'] ?? '') . ") has been completed and is ready for online download." . ($release_note ? " Note: " . $release_note : "");
                             $smsResult = sendTugonSms($conn, $request['phone_number'], $smsMsg, (int)$request['user_id'], 'certificate_ready_for_download');
                             if (!empty($smsResult['ok'])) {
                                 $smsFeedback = " • SMS queued to {$smsResult['phone']}" . (!empty($smsResult['batch_id']) ? " (Batch: {$smsResult['batch_id']})" : "");
@@ -596,7 +596,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
         createAuditLog($conn, (int)$_SESSION['user_id'], 'REMOVE_CERTIFICATE_RELEASE', 'requests', $request_id);
 
-        $success = 'Released certificate removed successfully.';
+        $success = 'Certificate file removed successfully.';
 
         $is_ajax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
             || (isset($_SERVER['HTTP_ACCEPT']) && str_contains(strtolower($_SERVER['HTTP_ACCEPT']), 'application/json'));
@@ -1841,7 +1841,7 @@ $breadcrumbs = [
             'processing'       => 'background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;',
             'in_progress'      => 'background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;',
             'completed'        => 'background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;',
-            'released'         => 'background: #ede9fe; color: #5b21b6; border: 1px solid #ddd6fe;',
+            'released'         => 'background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;',
             'ready_for_pickup' => 'background: #fef9c3; color: #854d0e; border: 1px solid #fde047;',
             'rejected'         => 'background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;',
             'cancelled'        => 'background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1;'
@@ -3492,7 +3492,7 @@ async function handleUploadCertificateSubmit(e) {
 window.handleUploadCertificateSubmit = handleUploadCertificateSubmit;
 
 async function handleRemoveCertificate(requestId) {
-    if (!confirm('Are you sure you want to remove this released certificate? The parishioner will no longer be able to download it online.')) {
+    if (!confirm('Are you sure you want to remove this certificate file? The parishioner will no longer be able to download it online.')) {
         return;
     }
 
@@ -3525,7 +3525,7 @@ async function handleRemoveCertificate(requestId) {
             throw new Error((data && data.message) ? data.message : 'Failed to remove certificate.');
         }
 
-        showStatusToast(data.message || 'Released certificate removed successfully.', 'success');
+        showStatusToast(data.message || 'Certificate file removed successfully.', 'success');
 
         const releasedSection = document.getElementById('releasedFileSection');
         const dropzoneWrap = document.getElementById('certUploadDropzoneWrap');

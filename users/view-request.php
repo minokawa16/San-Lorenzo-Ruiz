@@ -228,12 +228,11 @@ $page_title = 'View Request';
                             }
                             $has_released_cert = !empty($released_certs);
                             $disp_status = strtolower($request['status'] ?? 'pending');
-                            if ($has_released_cert && in_array($disp_status, ['completed', 'approved', 'released'], true)) {
-                                $disp_status = 'released — available for download';
-                            }
+                            $status_label = ($disp_status === 'completed') ? 'Completed' : ucfirst(str_replace('_', ' ', $disp_status));
                         ?>
                         <span class="badge rounded-pill border px-3 py-1.5 fw-semibold <?php echo getStatusBadgeClass($disp_status); ?>">
-                            <?php echo e(ucwords($disp_status)); ?>
+                            <?php if ($disp_status === 'completed'): ?><i class="fas fa-circle-check me-1"></i><?php endif; ?>
+                            <?php echo e($status_label); ?>
                         </span>
                     </div>
                 </div>
@@ -245,7 +244,7 @@ $page_title = 'View Request';
                         <div class="alert alert-success"><?php echo e($success); ?></div>
                     <?php endif; ?>
 
-                    <?php if ($has_released_cert): ?>
+                    <?php if ($has_released_cert && $disp_status === 'completed'): ?>
                         <div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); border: 1.5px solid #86efac !important; border-radius: 16px;">
                             <div class="card-body p-4">
                                 <div class="d-flex align-items-start gap-3 flex-wrap flex-md-nowrap">
@@ -256,11 +255,11 @@ $page_title = 'View Request';
                                         <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-1">
                                             <h5 class="fw-bold text-dark mb-0" style="font-family: 'Playfair Display', Georgia, serif;">Official Certificate Ready for Download</h5>
                                             <span class="badge bg-success text-white px-2.5 py-1 rounded-pill" style="font-size: 0.78rem;">
-                                                <i class="fas fa-check-circle me-1"></i> Ready for Download
+                                                <i class="fas fa-circle-check me-1"></i> Completed
                                             </span>
                                         </div>
                                         <p class="text-secondary small mb-3">
-                                            The parish office has finalized and released your official certificate. You can preview or download your digital certificate directly below:
+                                            The parish office has finalized and uploaded your official certificate. You can view or download your certificate directly below:
                                         </p>
                                         <?php if (!empty($request['certificate_release_note'])): ?>
                                             <div class="alert alert-light border py-2 px-3 mb-3 small text-secondary" style="background: #ffffff; border-color: #bbf7d0 !important;">
@@ -268,39 +267,24 @@ $page_title = 'View Request';
                                             </div>
                                         <?php endif; ?>
                                         <div class="d-flex flex-column gap-2">
-                                            <?php foreach ($released_certs as $cert): ?>
+                                            <?php foreach ($released_certs as $cert): 
+                                                $cert_name = !empty($cert['original_name']) ? $cert['original_name'] : (!empty($request['certificate_file_name']) ? $request['certificate_file_name'] : 'Official Certificate');
+                                                $c_ext = strtolower(pathinfo($cert_name, PATHINFO_EXTENSION));
+                                                $c_icon = ($c_ext === 'pdf') ? 'fa-file-pdf text-danger' : 'fa-file-image text-primary';
+                                            ?>
                                                 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 p-3 bg-white rounded-3 border shadow-sm" style="border-color: #bbf7d0 !important;">
                                                     <div class="d-flex align-items-center gap-2 text-truncate me-2">
-                                                        <i class="fas fa-file-pdf text-danger fs-3"></i>
+                                                        <i class="fas <?php echo $c_icon; ?> fs-3"></i>
                                                         <div>
-                                                            <strong class="d-block text-dark text-truncate" style="max-width: 320px; font-size: 0.95rem;"><?php echo e($cert['original_name']); ?></strong>
-                                                            <span class="text-muted small"><?php echo !empty($cert['file_size']) ? e(formatFileSize($cert['file_size'])) . ' &bull; ' : ''; ?>Issued <?php echo formatDate($cert['uploaded_at']); ?></span>
+                                                            <strong class="d-block text-dark text-truncate" style="max-width: 320px; font-size: 0.95rem;"><?php echo e($cert_name); ?></strong>
+                                                            <span class="text-muted small"><?php echo !empty($cert['file_size']) ? e(formatFileSize($cert['file_size'])) . ' &bull; ' : ''; ?>Uploaded <?php echo formatDate($cert['uploaded_at']); ?></span>
                                                         </div>
                                                     </div>
                                                     <div class="d-flex align-items-center gap-2 flex-wrap">
-                                                        <?php if (!empty($cert['document_id'])): ?>
-                                                            <button type="button" 
-                                                                    class="btn btn-sm btn-outline-secondary btn-preview-doc"
-                                                                    data-bs-toggle="modal"
-                                                                    data-bs-target="#documentPreviewModal"
-                                                                    data-doc-id="<?php echo intval($cert['document_id']); ?>"
-                                                                    data-doc-name="<?php echo e($cert['original_name']); ?>"
-                                                                    data-doc-file="<?php echo e($cert['original_name']); ?>"
-                                                                    data-doc-size="<?php echo formatFileSize($cert['file_size']); ?>"
-                                                                    data-doc-mime="<?php echo e($cert['mime_type'] ?? ''); ?>">
-                                                                <i class="fas fa-eye me-1"></i> Preview
-                                                            </button>
-                                                        <?php else: ?>
-                                                            <a href="download-certificate.php?request_id=<?php echo intval($request_id); ?>" target="_blank" class="btn btn-sm btn-outline-secondary">
-                                                                <i class="fas fa-eye me-1"></i> Preview
-                                                            </a>
-                                                        <?php endif; ?>
-                                                        <?php
-                                                        $cert_dl_url = !empty($cert['document_id']) 
-                                                            ? ('../request-document.php?id=' . intval($cert['document_id']) . '&download=1')
-                                                            : ('download-certificate.php?request_id=' . intval($request_id) . '&download=1');
-                                                        ?>
-                                                        <a class="btn btn-sm btn-success fw-bold px-3 shadow-sm" href="<?php echo $cert_dl_url; ?>" download>
+                                                        <a href="download-certificate.php?request_id=<?php echo intval($request_id); ?>&view=1" target="_blank" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+                                                            <i class="fas fa-eye me-1"></i> View
+                                                        </a>
+                                                        <a class="btn btn-sm btn-success fw-bold px-3 shadow-sm d-inline-flex align-items-center gap-1" href="download-certificate.php?request_id=<?php echo intval($request_id); ?>&download=1">
                                                             <i class="fas fa-download me-1"></i> Download Certificate
                                                         </a>
                                                     </div>
@@ -309,6 +293,23 @@ $page_title = 'View Request';
                                         </div>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                    <?php elseif ($disp_status === 'completed' && str_contains(strtolower((string)($request['request_type'] ?? '')), 'certif')): ?>
+                        <div class="card border-0 shadow-sm mb-4" style="background: #fffbeb; border: 1.5px solid #fde68a !important; border-radius: 16px;">
+                            <div class="card-body p-4 d-flex align-items-center justify-content-between flex-wrap gap-3">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div style="width: 44px; height: 44px; border-radius: 12px; background: #fef3c7; color: #b45309; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">
+                                        <i class="fas fa-clock"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="fw-bold mb-1 text-dark">Certificate In Preparation</h6>
+                                        <p class="text-secondary small mb-0">Your request status is Completed. The official digital certificate will be available for download here once uploaded by the parish office.</p>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-secondary px-3 py-1.5 fw-semibold" disabled style="opacity: 0.7; cursor: not-allowed;">
+                                    <i class="fas fa-clock me-1"></i> Certificate not ready yet
+                                </button>
                             </div>
                         </div>
                     <?php endif; ?>
@@ -560,39 +561,9 @@ $page_title = 'View Request';
                     $req_type_str = strtolower((string)($request['certificate_type'] ?? ($request['request_type'] ?? '')));
                     $is_baptism_req = (str_contains($req_type_str, 'baptism'));
                     ?>
-                    <?php if ($is_req_completed && $is_baptism_req): ?>
-                        <div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #FFFDF9 0%, #F9F5EC 100%); border: 1.5px solid #dfc27d !important; border-radius: 12px;">
-                            <div class="card-body p-3 p-md-4">
-                                <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
-                                    <div class="d-flex align-items-center gap-3">
-                                        <div style="width: 48px; height: 48px; min-width: 48px; border-radius: 10px; background: #5c1414; color: #ffd700; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; box-shadow: 0 4px 10px rgba(92, 20, 20, 0.25);">
-                                            <i class="fas fa-certificate"></i>
-                                        </div>
-                                        <div>
-                                            <h6 class="fw-bold mb-1" style="color: #5c1414; font-family: 'Playfair Display', Georgia, serif; font-size: 1.05rem;">
-                                                Official Certificate of Baptism Ready
-                                            </h6>
-                                            <p class="text-muted small mb-0">
-                                                Issued by San Lorenzo Ruiz Mission Station from official parish records.
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div class="d-flex gap-2 flex-wrap">
-                                        <a href="download-certificate.php?request_id=<?php echo $request_id; ?>" class="btn btn-outline-dark btn-sm fw-semibold px-3 py-2" target="_blank" style="border-radius: 8px;">
-                                            <i class="fas fa-eye me-1"></i> Preview / Print
-                                        </a>
-                                        <a href="download-certificate.php?request_id=<?php echo $request_id; ?>&download=1" class="btn btn-success btn-sm fw-bold px-3 py-2" style="background: #1b7444; border-color: #1b7444; border-radius: 8px; box-shadow: 0 3px 8px rgba(27, 116, 68, 0.25);">
-                                            <i class="fas fa-file-pdf me-1"></i> Download PDF
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    <?php endif; ?>
-
                     <?php if (!empty($documents_by_type['admin_file']) || !empty($documents_by_type['released_certificate'])): ?>
                         <div class="mb-4">
-                            <h6 class="text-muted mb-2">Certificates from Parish Office</h6>
+                            <h6 class="text-muted mb-2">Uploaded Documents from Parish Office</h6>
                             <div class="list-group">
                                 <?php foreach (array_merge($documents_by_type['released_certificate'], $documents_by_type['admin_file']) as $document): ?>
                                     <div class="list-group-item d-flex justify-content-between align-items-center p-3">
@@ -635,20 +606,29 @@ $page_title = 'View Request';
                         </div>
                     <?php endif; ?>
 
-                    <div class="d-grid gap-2 d-md-flex justify-content-md-between">
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-between align-items-center">
                         <a href="my-requests.php" class="btn btn-outline-secondary">
                             <i class="fas fa-arrow-left"></i> Back to Requests
                         </a>
-                        <?php if ($request['status'] == 'completed'): ?>
-                            <?php if ($is_baptism_req): ?>
-                                <a href="download-certificate.php?request_id=<?php echo $request_id; ?>&download=1" class="btn btn-success fw-bold">
-                                    <i class="fas fa-file-pdf me-1"></i> Download Certificate (PDF)
-                                </a>
-                            <?php else: ?>
-                                <button class="btn btn-primary" onclick="window.print()">
-                                    <i class="fas fa-print"></i> Print/Save as PDF
-                                </button>
-                            <?php endif; ?>
+                        <?php if ($disp_status === 'completed'): ?>
+                            <div class="d-flex gap-2 align-items-center flex-wrap">
+                                <?php if ($has_released_cert): ?>
+                                    <a href="download-certificate.php?request_id=<?php echo $request_id; ?>&view=1" target="_blank" class="btn btn-outline-secondary fw-semibold">
+                                        <i class="fas fa-eye me-1"></i> View Certificate
+                                    </a>
+                                    <a href="download-certificate.php?request_id=<?php echo $request_id; ?>&download=1" class="btn btn-success fw-bold">
+                                        <i class="fas fa-download me-1"></i> Download Certificate
+                                    </a>
+                                <?php elseif (str_contains(strtolower((string)($request['request_type'] ?? '')), 'certif')): ?>
+                                    <button class="btn btn-outline-secondary" disabled style="opacity: 0.7; cursor: not-allowed;">
+                                        <i class="fas fa-clock me-1"></i> Certificate not ready yet
+                                    </button>
+                                <?php else: ?>
+                                    <button class="btn btn-primary" onclick="window.print()">
+                                        <i class="fas fa-print"></i> Print Details
+                                    </button>
+                                <?php endif; ?>
+                            </div>
                         <?php endif; ?>
                     </div>
                 </div>

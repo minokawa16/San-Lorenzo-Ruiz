@@ -39,8 +39,8 @@ function verifyDate($value) {
 }
 
 $status = $certificate['status'] ?? 'invalid';
-if ($certificate && in_array($status, ['issued','released'], true) && (empty($certificate['certificate_hash']) || empty($certificate['pdf_path']))) $status = 'unverified';
-$is_valid = $certificate && in_array($status, ['issued', 'released'], true);
+if ($certificate && in_array($status, ['issued', 'completed', 'released'], true) && (empty($certificate['certificate_hash']) || empty($certificate['pdf_path']))) $status = 'unverified';
+$is_valid = $certificate && in_array($status, ['issued', 'completed', 'released'], true);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -152,7 +152,7 @@ $is_valid = $certificate && in_array($status, ['issued', 'released'], true);
                 <span class="status-pill"><i class="fas fa-circle-xmark"></i> Invalid Certificate</span>
                 <p class="mt-3 mb-0"><?php echo e($error); ?></p>
             <?php else: ?>
-                <span class="status-pill"><i class="fas fa-circle-check"></i> <?php echo e(ucfirst($status)); ?> Certificate</span>
+                <span class="status-pill"><i class="fas fa-circle-check"></i> <?php echo e(in_array(strtolower((string)$status), ['completed', 'released'], true) ? 'Completed' : ucfirst($status)); ?> Certificate</span>
                 <div class="detail-grid">
                     <div class="detail"><span>Certificate Number</span><strong><?php echo e($certificate['certificate_number']); ?></strong></div>
                     <div class="detail"><span>Verification Code</span><strong><?php echo e($certificate['verification_code']); ?></strong></div>

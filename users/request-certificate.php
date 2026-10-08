@@ -121,7 +121,7 @@ $status_meta = [
     'pending' => ['icon' => 'fa-hourglass-half', 'description' => 'Waiting for parish review', 'tone' => 'warning'],
     'approved' => ['icon' => 'fa-circle-check', 'description' => 'Approved by the office', 'tone' => 'success'],
     'processing' => ['icon' => 'fa-gears', 'description' => 'Being prepared', 'tone' => 'primary'],
-    'completed' => ['icon' => 'fa-file-circle-check', 'description' => 'Ready or released', 'tone' => 'info'],
+    'completed' => ['icon' => 'fa-file-circle-check', 'description' => 'Completed & available', 'tone' => 'info'],
     'rejected' => ['icon' => 'fa-circle-xmark', 'description' => 'Needs correction', 'tone' => 'danger'],
     'cancelled' => ['icon' => 'fa-ban', 'description' => 'Cancelled request', 'tone' => 'secondary'],
 ];

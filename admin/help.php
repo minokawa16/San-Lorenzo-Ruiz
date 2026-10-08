@@ -824,7 +824,7 @@ include '../templates/header.php';
               <p class="step-card-desc">
                 Advance the status as you progress:
                 <br>&bull; <span class="action-badge action-badge-blue">Processing</span>: Indicates records are being verified or documents encoded.
-                <br>&bull; <span class="action-badge action-badge-green">Completed</span>: For certificates, upload the released PDF copy; for sacramental services and blessings, selecting the officiating priest registers the official sacramental record and automatically synchronizes the event date to the <strong>Parish Calendar</strong>.
+                <br>&bull; <span class="action-badge action-badge-green">Completed</span>: For certificates, upload the completed certificate file (PDF or image); for sacramental services and blessings, selecting the officiating priest registers the official sacramental record and automatically synchronizes the event date to the <strong>Parish Calendar</strong>.
                 <br>&bull; <span class="action-badge action-badge-red">Rejected</span>: If required documents are missing or invalid, enter a remark explaining what is needed.
               </p>
             </div>

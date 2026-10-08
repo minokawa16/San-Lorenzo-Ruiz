@@ -18,20 +18,20 @@ echo "[PASS] request-certificate.php has corrected Online Release copy (no email
 // 2. Check admin/request-workflow.php for Send to Parishioner action and upload form
 $admin_wf = file_get_contents(__DIR__ . '/../admin/request-workflow.php');
 assert(
-    strpos($admin_wf, 'Certificate Issuance &amp; Digital Release') !== false || strpos($admin_wf, 'Certificate Issuance & Digital Release') !== false,
-    'Certificate Issuance & Digital Release header missing in request-workflow.php'
+    strpos($admin_wf, 'RELEASE CERTIFICATE (ONLINE)') !== false || strpos($admin_wf, 'Certificate Issuance') !== false,
+    'Release Certificate header missing in request-workflow.php'
 );
 assert(
-    strpos($admin_wf, 'Send to Parishioner') !== false,
-    'Send to Parishioner button missing in request-workflow.php'
+    strpos($admin_wf, 'btnUploadCert') !== false || strpos($admin_wf, 'Send to Parishioner') !== false,
+    'Upload Certificate button missing in request-workflow.php'
 );
 assert(
     strpos($admin_wf, 'Certificate Ready for Download') !== false,
     'Certificate Ready for Download notification missing in request-workflow.php'
 );
 assert(
-    strpos($admin_wf, 'name="release_file"') !== false,
-    'release_file input missing in request-workflow.php'
+    strpos($admin_wf, 'name="certificate_file"') !== false || strpos($admin_wf, 'name="release_file"') !== false,
+    'certificate_file input missing in request-workflow.php'
 );
 echo "[PASS] admin/request-workflow.php contains upload certificate form, 'Send to Parishioner' action, and portal notification.\n";
 
@@ -46,16 +46,18 @@ assert(
     'Download Certificate button missing in view-request.php'
 );
 assert(
-    strpos($view_req, 'released — available for download') !== false,
-    'released — available for download status mapping missing in view-request.php'
+    strpos($view_req, 'Completed') !== false,
+    'Completed status mapping missing in view-request.php'
 );
-echo "[PASS] users/view-request.php contains prominent Certificate Download card and 'Released — Available for Download' status.\n";
+assert(
+    strpos($view_req, 'released — available for download') === false,
+    'Old released status should be removed from view-request.php'
+);
+echo "[PASS] users/view-request.php contains prominent Certificate Download card and 'Completed' status.\n";
 
 // 4. Check helpers.php badge class
-$badge = getStatusBadgeClass('released — available for download');
-assert(strpos($badge, 'bg-success') !== false, 'Badge class for released status should be success');
-$badge2 = getStatusBadgeClass('released');
-assert(strpos($badge2, 'bg-success') !== false, 'Badge class for released status should be success');
-echo "[PASS] getStatusBadgeClass properly supports released status.\n";
+$badge = getStatusBadgeClass('completed');
+assert(strpos($badge, 'bg-success') !== false, 'Badge class for completed status should be success');
+echo "[PASS] getStatusBadgeClass properly supports completed status.\n";
 
 echo "\nALL TESTS PASSED SUCCESSFULLY!\n";

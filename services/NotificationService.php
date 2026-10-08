@@ -32,6 +32,7 @@ final class NotificationService
         'request_needs_info' => 'requests',
         'certificate_ready' => 'requests',
         'certificate_released' => 'requests',
+        'certificate_completed' => 'requests',
         'certificate_ready_for_download' => 'requests',
         'payment_submitted' => 'requests',
         'payment_verified' => 'requests',

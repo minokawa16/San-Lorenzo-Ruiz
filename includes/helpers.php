@@ -262,7 +262,7 @@ function createRequestStatusNotification($conn, array $request, $status, $admin_
     } elseif ($status === 'rejected') {
         $message = 'Your ' . $request_type . ' request' . ($reference !== '' ? ' (' . $reference . ')' : '') . ' was rejected by the parish office.';
     } elseif ($status === 'completed') {
-        $message = 'Your ' . $request_type . ' request' . ($reference !== '' ? ' (' . $reference . ')' : '') . ' has been completed. Documents are ready or released.';
+        $message = 'Your ' . $request_type . ' request' . ($reference !== '' ? ' (' . $reference . ')' : '') . ' has been completed. Documents are ready for pickup or download.';
     } elseif ($status === 'cancelled') {
         $message = 'Your ' . $request_type . ' request' . ($reference !== '' ? ' (' . $reference . ')' : '') . ' has been cancelled.';
     } elseif (in_array($status, ['needs_correction', 'needs_info', 'requires_additional_information', 'correction_requested'], true)) {
@@ -494,7 +494,8 @@ function ensureEmailNotificationSchema($conn) {
             ['reservation_cancelled', 'Reservation Cancelled', 'Your reservation was cancelled.', 'Reservation Cancelled', 'TUGON: Reservation was cancelled.'],
             ['reservation_reminder', 'Reservation Reminder', 'Your reservation is scheduled for {{reservation_date}} {{reservation_time}}.', 'Reservation Reminder', 'TUGON: Reservation is scheduled for {{reservation_date}} {{reservation_time}}.'],
             ['certificate_ready', 'Certificate Ready', 'Certificate {{certificate_number}} is ready for pickup or download.', 'Certificate {{certificate_number}} Ready', 'TUGON: Certificate {{certificate_number}} is ready.'],
-            ['certificate_released', 'Certificate Released', 'Certificate {{certificate_number}} was released.', 'Certificate Released', 'TUGON: Certificate {{certificate_number}} released.'],
+            ['certificate_released', 'Certificate Completed', 'Certificate {{certificate_number}} is completed and available.', 'Certificate Completed', 'TUGON: Certificate {{certificate_number}} completed.'],
+            ['certificate_completed', 'Certificate Completed', 'Certificate {{certificate_number}} is completed and available.', 'Certificate Completed', 'TUGON: Certificate {{certificate_number}} completed.'],
             ['announcement_published', 'Parish Announcement', '{{message}}', '{{title}}', '{{message}}'],
             ['broadcast_notice', 'Parish Notice', '{{message}}', '{{title}}', '{{message}}'],
             ['account_verified', 'Account Verified', 'Your email and account have been verified successfully.', 'Account Verified', 'TUGON: Your account has been verified.'],
