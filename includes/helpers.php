@@ -1456,6 +1456,95 @@ function ensureRequestPaymentsSchema($conn) {
         ], 'request payments');
 }
 
+// Request Certificate Release - Ensures certificate release columns exist on requests table.
+function ensureRequestCertificateFileSchema($conn) {
+    if (!($conn instanceof mysqli)) return false;
+    if (!columnExists($conn, 'requests', 'certificate_file_path')) {
+        @$conn->query("ALTER TABLE `requests` ADD COLUMN `certificate_file_path` VARCHAR(255) NULL DEFAULT NULL AFTER `admin_response`");
+    }
+    if (!columnExists($conn, 'requests', 'certificate_file_name')) {
+        @$conn->query("ALTER TABLE `requests` ADD COLUMN `certificate_file_name` VARCHAR(255) NULL DEFAULT NULL AFTER `certificate_file_path`");
+    }
+    if (!columnExists($conn, 'requests', 'certificate_uploaded_by')) {
+        @$conn->query("ALTER TABLE `requests` ADD COLUMN `certificate_uploaded_by` INT NULL DEFAULT NULL AFTER `certificate_file_name`");
+    }
+    if (!columnExists($conn, 'requests', 'certificate_uploaded_at')) {
+        @$conn->query("ALTER TABLE `requests` ADD COLUMN `certificate_uploaded_at` DATETIME NULL DEFAULT NULL AFTER `certificate_uploaded_by`");
+    }
+    if (!columnExists($conn, 'requests', 'certificate_release_note')) {
+        @$conn->query("ALTER TABLE `requests` ADD COLUMN `certificate_release_note` TEXT NULL DEFAULT NULL AFTER `certificate_uploaded_at`");
+    }
+    return true;
+}
+
+// Determines the release method chosen by the applicant ('online', 'walk_in', or '').
+function getRequestReleaseMethod(array $request): string {
+    if (!empty($request['release_method'])) {
+        $val = strtolower(trim((string)$request['release_method']));
+        if (in_array($val, ['online', 'online_release', 'digital'], true)) {
+            return 'online';
+        }
+        if (in_array($val, ['walk_in', 'walk-in', 'pickup', 'office'], true)) {
+            return 'walk_in';
+        }
+    }
+    $desc = (string)($request['description'] ?? '');
+    if (stripos($desc, 'Walk-in') !== false || stripos($desc, 'Pickup') !== false) {
+        return 'walk_in';
+    }
+    if (stripos($desc, 'Online Release') !== false || stripos($desc, 'online') !== false) {
+        return 'online';
+    }
+    return '';
+}
+
+// Returns true only when the request's release method is Online Release.
+function isRequestOnlineRelease(array $request): bool {
+    return getRequestReleaseMethod($request) === 'online';
+}
+
+// Safely resolves the absolute server path of a stored document or certificate.
+function resolveSecureFilePath(string $raw_path): ?string {
+    if (trim($raw_path) === '') return null;
+    $clean_rel = ltrim(str_replace(['\\', '/'], DIRECTORY_SEPARATOR, $raw_path), DIRECTORY_SEPARATOR);
+    $basename = basename($clean_rel);
+
+    if (is_file($raw_path)) {
+        return realpath($raw_path);
+    }
+
+    $candidate_roots = array_filter(array_unique([
+        dirname(__DIR__),
+        __DIR__,
+        rtrim((string)(getenv('TUGON_DATA_DIR') ?: ''), '/\\'),
+        rtrim((string)(getenv('RAILWAY_VOLUME_MOUNT_PATH') ?: ''), '/\\'),
+        '/var/www/tugon-data',
+        '/var/www/html',
+        '/opt/tugon-seed',
+        sys_get_temp_dir(),
+    ]));
+
+    foreach ($candidate_roots as $root) {
+        if (!is_dir($root)) continue;
+
+        $candidates = [
+            $root . DIRECTORY_SEPARATOR . $clean_rel,
+            $root . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'request_requirements' . DIRECTORY_SEPARATOR . $basename,
+            $root . DIRECTORY_SEPARATOR . 'request_requirements' . DIRECTORY_SEPARATOR . $basename,
+            $root . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . $clean_rel,
+            $root . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . $basename,
+        ];
+
+        foreach ($candidates as $cand) {
+            if (is_file($cand)) {
+                return realpath($cand);
+            }
+        }
+    }
+
+    return null;
+}
+
 // Request Documents - Validates, stores, and records uploaded supporting documents.
 function saveRequestDocument($conn, $request_id, $uploaded_by, $file, $document_type = 'requirement', $requirement_name = '') {
     if (!isset($file) || ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
@@ -1497,7 +1586,10 @@ function saveRequestDocument($conn, $request_id, $uploaded_by, $file, $document_
 
     $safe_filename = $document_type . '-request-' . intval($request_id) . '-' . date('YmdHis') . '-' . bin2hex(random_bytes(6)) . '.' . $extension;
     $target_path = $upload_dir . DIRECTORY_SEPARATOR . $safe_filename;
-    if (!move_uploaded_file($tmp_name, $target_path)) {
+    $moved = (php_sapi_name() === 'cli' && is_file($tmp_name))
+        ? copy($tmp_name, $target_path)
+        : move_uploaded_file($tmp_name, $target_path);
+    if (!$moved) {
         return ['ok' => false, 'error' => 'Unable to save the requirements file.'];
     }
 

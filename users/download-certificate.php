@@ -47,10 +47,55 @@ if ($request) {
     }
 
     $req_status = strtolower($request['status'] ?? '');
-    if (!in_array($req_status, ['completed', 'released', 'approved'], true)) {
+    if (!in_array($req_status, ['completed', 'released', 'approved'], true) && !$can_manage_all) {
         http_response_code(400);
         $_SESSION['error'] = 'Certificate generation is only available once your request is Completed by the parish office.';
         redirect('view-request.php?id=' . $request_id);
+    }
+
+    // 1. If an official certificate file was uploaded by the parish office, serve that directly!
+    $cert_file_path = (string)($request['certificate_file_path'] ?? '');
+    $cert_file_name = (string)($request['certificate_file_name'] ?? '');
+
+    if ($cert_file_path === '') {
+        $doc_stmt = $conn->prepare("SELECT * FROM request_documents WHERE request_id = ? AND document_type = 'released_certificate' AND deleted_at IS NULL ORDER BY uploaded_at DESC LIMIT 1");
+        if ($doc_stmt) {
+            $doc_stmt->bind_param('i', $request_id);
+            $doc_stmt->execute();
+            $rel_doc = $doc_stmt->get_result()->fetch_assoc();
+            $doc_stmt->close();
+            if ($rel_doc) {
+                $cert_file_path = (string)($rel_doc['file_path'] ?? '');
+                $cert_file_name = (string)($rel_doc['original_name'] ?? '');
+            }
+        }
+    }
+
+    if ($cert_file_path !== '') {
+        $real_file = resolveSecureFilePath($cert_file_path);
+        if ($real_file && is_file($real_file)) {
+            $filename = $cert_file_name ?: basename($real_file);
+            $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+            $ext_map = [
+                'jpg'  => 'image/jpeg',
+                'jpeg' => 'image/jpeg',
+                'png'  => 'image/png',
+                'webp' => 'image/webp',
+                'pdf'  => 'application/pdf',
+            ];
+            $finfo = function_exists('finfo_open') ? finfo_open(FILEINFO_MIME_TYPE) : false;
+            $detected = $finfo ? finfo_file($finfo, $real_file) : (function_exists('mime_content_type') ? mime_content_type($real_file) : false);
+            if ($finfo) finfo_close($finfo);
+
+            $mime_type = ($detected && $detected !== 'application/octet-stream')
+                ? $detected
+                : ($ext_map[$ext] ?? 'application/pdf');
+
+            $inline = !isset($_GET['download']) || $_GET['download'] !== '1';
+            writeAuditLog($conn, (int)$_SESSION['user_id'], 'DOWNLOAD_RELEASED_CERTIFICATE', 'requests', $request_id, null, null);
+            secureStreamFile($real_file, $mime_type, $filename, $inline);
+            exit;
+        }
     }
 
     // Resolve linked baptism record

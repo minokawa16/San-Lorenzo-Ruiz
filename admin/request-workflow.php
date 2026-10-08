@@ -13,6 +13,7 @@ ensureRequestDocumentsSchema($conn);
 ensureRequestPaymentsSchema($conn);
 ensureEmailNotificationSchema($conn);
 ensureRequestMatchingSchema($conn);
+ensureRequestCertificateFileSchema($conn);
 
 $request_id = intval($_GET['id'] ?? $_POST['request_id'] ?? 0);
 if ($request_id <= 0) {
@@ -361,25 +362,210 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 $error = 'Unable to prepare payment update.';
             }
         }
-    } elseif ($action === 'upload_release') {
-        $document = saveRequestDocument($conn, $request_id, $_SESSION['user_id'], $_FILES['release_file'] ?? null, 'released_certificate');
+    } elseif ($action === 'upload_certificate_release' || $action === 'upload_release') {
+        $file = $_FILES['certificate_file'] ?? $_FILES['release_file'] ?? null;
+        $release_note = trim((string)($_POST['release_note'] ?? $_POST['admin_note'] ?? ''));
+        $mark_completed = !empty($_POST['mark_completed']);
+        $db_file_name = '';
+        $db_file_size = 0;
+        $new_status = $request['status'] ?? 'processing';
 
-        if (!$document['ok'] || empty($document['saved'])) {
-            $error = $document['error'] ?? 'Please choose a certificate file to upload and deliver.';
+        if (!$file || ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+            $error = 'Please select a certificate file to upload.';
+        } elseif (($file['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_OK) {
+            $error = 'File upload failed. Please try again.';
+        } elseif (($file['size'] ?? 0) > (10 * 1024 * 1024)) {
+            $error = 'File size exceeds the 10 MB limit. Please select a smaller file.';
         } else {
-            createAuditLog($conn, $_SESSION['user_id'], 'UPLOAD_REQUEST_FILE', 'request_documents', $document['document_id']);
-            createNotification($conn, $request['user_id'], 'Certificate Ready for Download', 'Your official certificate for request ' . $request['reference_number'] . ' has been released and is ready for download in your portal.', true, 'requests', 'request', (int) $request_id, 'request.view');
+            $ext = strtolower(pathinfo((string)($file['name'] ?? ''), PATHINFO_EXTENSION));
+            $allowed_exts = ['pdf', 'jpg', 'jpeg', 'png', 'webp'];
+            if (!in_array($ext, $allowed_exts, true)) {
+                $error = 'Invalid file type. Only PDF, JPG, PNG, and WEBP files up to 10 MB are accepted.';
+            } else {
+                $val = validateUploadedDocument($file);
+                if (!$val['ok']) {
+                    $error = $val['error'] ?? 'Invalid file format. Only valid PDF, JPG, PNG, or WEBP documents are allowed.';
+                } else {
+                    $doc_result = saveRequestDocument($conn, $request_id, (int)$_SESSION['user_id'], $file, 'released_certificate', 'Official Released Certificate');
+                    if (!$doc_result['ok'] || empty($doc_result['saved'])) {
+                        $error = $doc_result['error'] ?? 'Failed to save the certificate file to secure storage.';
+                    } else {
+                        $doc_id = (int)$doc_result['document_id'];
 
-            if (!empty($_POST['mark_completed'])) {
-                $stmt = $conn->prepare("UPDATE requests SET status = 'completed' WHERE request_id = ?");
-                if ($stmt) {
-                    $stmt->bind_param('i', $request_id);
-                    $stmt->execute();
-                    $stmt->close();
-                    $request['status'] = 'completed';
+                        $stmtDoc = $conn->prepare("SELECT file_path, original_name, file_size, mime_type, uploaded_at FROM request_documents WHERE document_id = ? LIMIT 1");
+                        $stmtDoc->bind_param('i', $doc_id);
+                        $stmtDoc->execute();
+                        $saved_doc = $stmtDoc->get_result()->fetch_assoc();
+                        $stmtDoc->close();
+
+                        $db_file_path = $saved_doc['file_path'] ?? '';
+                        $db_file_name = $saved_doc['original_name'] ?? basename($file['name']);
+                        $db_file_size = (int)($saved_doc['file_size'] ?? $file['size']);
+
+                        // Update certificate columns on requests record
+                        $stmtReq = $conn->prepare("
+                            UPDATE requests 
+                            SET certificate_file_path = ?,
+                                certificate_file_name = ?,
+                                certificate_uploaded_by = ?,
+                                certificate_uploaded_at = NOW(),
+                                certificate_release_note = ?,
+                                updated_at = NOW()
+                            WHERE request_id = ?
+                        ");
+                        if ($stmtReq) {
+                            $admin_user_id = (int)$_SESSION['user_id'];
+                            $stmtReq->bind_param('ssisi', $db_file_path, $db_file_name, $admin_user_id, $release_note, $request_id);
+                            $stmtReq->execute();
+                            $stmtReq->close();
+                        }
+
+                        // Soft-delete older released certificate documents for this request
+                        $stmtOld = $conn->prepare("
+                            UPDATE request_documents 
+                            SET deleted_at = NOW() 
+                            WHERE request_id = ? 
+                              AND document_type = 'released_certificate' 
+                              AND document_id != ?
+                        ");
+                        if ($stmtOld) {
+                            $stmtOld->bind_param('ii', $request_id, $doc_id);
+                            $stmtOld->execute();
+                            $stmtOld->close();
+                        }
+
+                        // Update in-memory request record
+                        $request['certificate_file_path'] = $db_file_path;
+                        $request['certificate_file_name'] = $db_file_name;
+                        $request['certificate_uploaded_by'] = (int)$_SESSION['user_id'];
+                        $request['certificate_uploaded_at'] = date('Y-m-d H:i:s');
+                        $request['certificate_release_note'] = $release_note;
+
+                        createAuditLog($conn, (int)$_SESSION['user_id'], 'UPLOAD_CERTIFICATE_RELEASE', 'requests', $request_id);
+
+                        // If option to mark completed was chosen, complete request
+                        if ($mark_completed) {
+                            $stmtStatus = $conn->prepare("UPDATE requests SET status = 'completed', updated_at = NOW() WHERE request_id = ?");
+                            if ($stmtStatus) {
+                                $stmtStatus->bind_param('i', $request_id);
+                                $stmtStatus->execute();
+                                $stmtStatus->close();
+                                $request['status'] = 'completed';
+                                $new_status = 'completed';
+                                createAuditLog($conn, (int)$_SESSION['user_id'], 'UPDATE_REQUEST_STATUS', 'requests', $request_id);
+                                createRequestStatusNotification($conn, $request, 'completed', $release_note ?: 'Official certificate has been issued and is ready for download.');
+                            }
+                        }
+
+                        // Notify parishioner that certificate is ready for download
+                        createNotification(
+                            $conn,
+                            (int)$request['user_id'],
+                            'Certificate Ready for Download',
+                            'Your official certificate for request ' . ($request['reference_number'] ?? ('#' . $request_id)) . ' has been released and is ready for online download.',
+                            true,
+                            'requests',
+                            'request',
+                            (int)$request_id,
+                            'request.view'
+                        );
+
+                        if (function_exists('queueEmailNotification')) {
+                            @queueEmailNotification(
+                                $conn,
+                                (int)$request['user_id'],
+                                'Certificate Ready for Download - San Lorenzo Ruiz Parish',
+                                'Hello ' . ($request['fullname'] ?? 'Parishioner') . ",\n\nYour certificate request (" . ($request['reference_number'] ?? '') . ") has been approved and issued by the parish office. You may now download your official certificate online.\n\nSan Lorenzo Ruiz Parish"
+                            );
+                        }
+
+                        $success = 'Certificate file successfully uploaded and ready for online download.';
+                    }
                 }
             }
-            $success = 'Certificate file successfully uploaded and sent to parishioner.';
+        }
+
+        $is_ajax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
+            || (isset($_SERVER['HTTP_ACCEPT']) && str_contains(strtolower($_SERVER['HTTP_ACCEPT']), 'application/json'));
+
+        if ($is_ajax) {
+            header('Content-Type: application/json; charset=utf-8');
+            if ($error) {
+                http_response_code(422);
+                echo json_encode(['success' => false, 'message' => $error]);
+            } else {
+                echo json_encode([
+                    'success' => true,
+                    'message' => $success,
+                    'file_name' => $db_file_name,
+                    'file_size' => formatFileSize($db_file_size),
+                    'uploaded_at' => formatDate(date('Y-m-d H:i:s')),
+                    'release_note' => $release_note,
+                    'status' => $new_status,
+                    'status_label' => ucfirst(str_replace('_', ' ', $new_status)),
+                    'download_url' => '../users/download-certificate.php?request_id=' . intval($request_id) . '&download=1',
+                    'view_url' => '../users/download-certificate.php?request_id=' . intval($request_id)
+                ]);
+            }
+            exit;
+        } else {
+            if ($error) {
+                $_SESSION['flash_error'] = $error;
+            } else {
+                $_SESSION['flash_success'] = $success;
+            }
+            header('Location: request-workflow.php?id=' . intval($request_id));
+            exit;
+        }
+    } elseif ($action === 'remove_certificate_release') {
+        $stmtClear = $conn->prepare("
+            UPDATE requests 
+            SET certificate_file_path = NULL,
+                certificate_file_name = NULL,
+                certificate_uploaded_by = NULL,
+                certificate_uploaded_at = NULL,
+                certificate_release_note = NULL,
+                updated_at = NOW()
+            WHERE request_id = ?
+        ");
+        if ($stmtClear) {
+            $stmtClear->bind_param('i', $request_id);
+            $stmtClear->execute();
+            $stmtClear->close();
+        }
+
+        $stmtDelDoc = $conn->prepare("
+            UPDATE request_documents 
+            SET deleted_at = NOW() 
+            WHERE request_id = ? AND document_type = 'released_certificate'
+        ");
+        if ($stmtDelDoc) {
+            $stmtDelDoc->bind_param('i', $request_id);
+            $stmtDelDoc->execute();
+            $stmtDelDoc->close();
+        }
+
+        $request['certificate_file_path'] = null;
+        $request['certificate_file_name'] = null;
+        $request['certificate_uploaded_by'] = null;
+        $request['certificate_uploaded_at'] = null;
+        $request['certificate_release_note'] = null;
+
+        createAuditLog($conn, (int)$_SESSION['user_id'], 'REMOVE_CERTIFICATE_RELEASE', 'requests', $request_id);
+
+        $success = 'Released certificate removed successfully.';
+
+        $is_ajax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
+            || (isset($_SERVER['HTTP_ACCEPT']) && str_contains(strtolower($_SERVER['HTTP_ACCEPT']), 'application/json'));
+
+        if ($is_ajax) {
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['success' => true, 'message' => $success]);
+            exit;
+        } else {
+            $_SESSION['flash_success'] = $success;
+            header('Location: request-workflow.php?id=' . intval($request_id));
+            exit;
         }
     }
 }
@@ -1505,6 +1691,21 @@ $breadcrumbs = [
         display: none !important;
     }
 }
+
+/* Release Certificate Dropzone */
+.cert-dropzone-box {
+    background: #fafaf9;
+    border: 2px dashed #cbd5e1;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
+.cert-dropzone-box:hover,
+.cert-dropzone-box.dragover {
+    background: #fffcf5;
+    border-color: #8c6225;
+    box-shadow: 0 0 0 3px rgba(140, 98, 37, 0.08);
+}
 </style>
 
 <div class="container-fluid px-0">
@@ -2037,6 +2238,169 @@ $breadcrumbs = [
             </div>
         </div>
 
+        <?php if ($is_certificate && isRequestOnlineRelease($request)): ?>
+        <!-- ========================================================= -->
+        <!-- RELEASE CERTIFICATE (ONLINE) CARD                         -->
+        <!-- ========================================================= -->
+        <?php
+        $has_cert_file = !empty($request['certificate_file_path']) || !empty($documents_by_type['released_certificate']);
+        $first_rel_doc = !empty($documents_by_type['released_certificate']) ? $documents_by_type['released_certificate'][0] : null;
+        $rel_file_name = !empty($request['certificate_file_name']) 
+            ? $request['certificate_file_name'] 
+            : ($first_rel_doc['original_name'] ?? basename($request['certificate_file_path'] ?? ''));
+        $rel_uploaded_at = !empty($request['certificate_uploaded_at']) 
+            ? $request['certificate_uploaded_at'] 
+            : ($first_rel_doc['uploaded_at'] ?? $request['updated_at']);
+        $rel_file_size = $first_rel_doc ? formatFileSize($first_rel_doc['file_size']) : '';
+        $rel_note = $request['certificate_release_note'] ?? '';
+        $rel_ext = strtolower(pathinfo((string)$rel_file_name, PATHINFO_EXTENSION));
+        $rel_icon = ($rel_ext === 'pdf') ? 'fa-file-pdf text-danger' : 'fa-file-image text-primary';
+        $download_url = '../users/download-certificate.php?request_id=' . intval($request_id) . '&download=1';
+        $view_url = '../users/download-certificate.php?request_id=' . intval($request_id);
+        ?>
+        <div class="rw-card mb-4" id="releaseCertificateCard" style="border-left: 4px solid #16a34a;">
+            <div class="rw-section-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <h6 class="rw-section-title" style="color: #166534;">
+                    <i class="fas fa-file-circle-check" style="color: #16a34a; font-size: 14px;"></i>
+                    RELEASE CERTIFICATE (ONLINE)
+                </h6>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge" style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 12px;">
+                        <i class="fas fa-globe me-1"></i> Online Release
+                    </span>
+                    <?php if ($has_cert_file): ?>
+                        <span class="badge" id="certStatusBadge" style="background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 12px;">
+                            <i class="fas fa-check me-1"></i> Certificate Available
+                        </span>
+                    <?php else: ?>
+                        <span class="badge" id="certStatusBadge" style="background: #fef9c3; color: #854d0e; border: 1px solid #fde047; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 12px;">
+                            <i class="fas fa-clock me-1"></i> Awaiting Upload
+                        </span>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <div class="rw-section-body">
+                <!-- Released Certificate Details Box (Visible when a file has been uploaded) -->
+                <div id="releasedFileSection" style="<?php echo $has_cert_file ? '' : 'display: none;'; ?>" class="mb-3">
+                    <div class="p-3 rounded-3" style="background: #f8fafc; border: 1px solid #e2e8f0;">
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                            <div class="d-flex align-items-center gap-3 text-truncate me-2" style="max-width: 520px;">
+                                <div class="d-inline-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 22px;">
+                                    <i class="fas <?php echo $rel_icon; ?>" id="releasedFileIcon"></i>
+                                </div>
+                                <div class="text-truncate">
+                                    <span class="fw-bold text-dark d-block text-truncate" id="releasedFileName" style="font-size: 13px;" title="<?php echo e($rel_file_name); ?>">
+                                        <?php echo e($rel_file_name); ?>
+                                    </span>
+                                    <div class="text-muted" style="font-size: 11px;">
+                                        <span id="releasedFileMeta">
+                                            Uploaded: <?php echo formatDate($rel_uploaded_at); ?>
+                                            <?php if ($rel_file_size): ?> &bull; <?php echo e($rel_file_size); ?><?php endif; ?>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center gap-1.5 flex-wrap">
+                                <a href="<?php echo $view_url; ?>" id="btnViewCert" target="_blank" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1" style="font-size: 11.5px; height: 32px; border-radius: 6px;">
+                                    <i class="fas fa-eye"></i> <span>View</span>
+                                </a>
+                                <a href="<?php echo $download_url; ?>" id="btnDownloadCert" download class="btn btn-sm btn-success d-inline-flex align-items-center gap-1" style="font-size: 11.5px; height: 32px; border-radius: 6px;">
+                                    <i class="fas fa-download"></i> <span>Download</span>
+                                </a>
+                                <button type="button" id="btnToggleReplace" onclick="toggleReplaceCertificateZone()" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1" style="font-size: 11.5px; height: 32px; border-radius: 6px;">
+                                    <i class="fas fa-arrows-rotate"></i> <span>Replace</span>
+                                </button>
+                                <button type="button" id="btnRemoveCert" onclick="handleRemoveCertificate(<?php echo $request_id; ?>)" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1" style="font-size: 11.5px; height: 32px; border-radius: 6px;">
+                                    <i class="fas fa-trash-alt"></i> <span>Remove</span>
+                                </button>
+                            </div>
+                        </div>
+                        <?php if ($rel_note): ?>
+                            <div class="mt-2 pt-2 border-top text-secondary" id="releasedNoteWrap" style="font-size: 11.5px;">
+                                <i class="fas fa-comment-dots text-primary me-1"></i> Note to Parishioner: <span class="fst-italic" id="releasedNoteText"><?php echo e($rel_note); ?></span>
+                            </div>
+                        <?php else: ?>
+                            <div class="mt-2 pt-2 border-top text-secondary" id="releasedNoteWrap" style="font-size: 11.5px; display: none;">
+                                <i class="fas fa-comment-dots text-primary me-1"></i> Note to Parishioner: <span class="fst-italic" id="releasedNoteText"></span>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <!-- Dropzone / Upload Form Area (Visible when no file, or when clicking Replace) -->
+                <div id="certUploadDropzoneWrap" style="<?php echo $has_cert_file ? 'display: none;' : ''; ?>">
+                    <form id="certUploadForm" method="POST" enctype="multipart/form-data" action="request-workflow.php?id=<?php echo intval($request_id); ?>" onsubmit="event.preventDefault(); handleUploadCertificateSubmit(event); return false;">
+                        <?php echo csrfInput(); ?>
+                        <input type="hidden" name="action" value="upload_certificate_release">
+                        <input type="hidden" name="request_id" value="<?php echo intval($request_id); ?>">
+
+                        <!-- Drag and drop zone -->
+                        <div class="cert-dropzone-box text-center p-4 rounded-3" id="certDropzone" onclick="document.getElementById('cert_file_input').click();">
+                            <input type="file" id="cert_file_input" name="certificate_file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" style="display: none;" onchange="handleCertFileSelect(this.files)">
+                            <div class="mb-2">
+                                <i class="fas fa-cloud-arrow-up" style="font-size: 32px; color: #8c6225;"></i>
+                            </div>
+                            <div class="fw-semibold text-dark" style="font-size: 13px;">
+                                Drag and drop finished certificate here, or <span class="text-decoration-underline" style="color: #8c6225; cursor: pointer;">browse files</span>
+                            </div>
+                            <div class="text-muted mt-1" style="font-size: 11px;">
+                                Accepted formats: PDF, JPG, PNG, WEBP &bull; Max 10 MB
+                            </div>
+                        </div>
+
+                        <!-- Selected file preview -->
+                        <div id="certFilePreview" class="alert alert-light border mt-2 py-2 px-3 align-items-center justify-content-between" style="display: none; border-color: #cbd5e1 !important;">
+                            <div class="d-flex align-items-center gap-2 text-truncate me-2">
+                                <i class="fas fa-file-lines text-primary" id="previewIcon" style="font-size: 18px;"></i>
+                                <div class="text-truncate">
+                                    <span class="fw-semibold text-dark d-block text-truncate" id="previewFileName" style="font-size: 12px;"></span>
+                                    <span class="text-muted" id="previewFileSize" style="font-size: 10.5px;"></span>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-link text-danger p-0 text-decoration-none fw-semibold" style="font-size: 11.5px;" onclick="clearSelectedCertFile()">
+                                <i class="fas fa-times me-0.5"></i> Clear
+                            </button>
+                        </div>
+                        <div id="certFileError" class="text-danger small mt-1" style="display: none; font-size: 11px;"></div>
+
+                        <!-- Optional Note to Parishioner & Set Completed -->
+                        <div class="row g-2 mt-2 align-items-center">
+                            <div class="col-12 col-md-8">
+                                <label for="cert_note_input" class="micro-label">Optional Note to Parishioner</label>
+                                <input type="text" class="form-control form-control-sm" id="cert_note_input" name="release_note" placeholder="e.g. Your official certificate is ready for download." value="<?php echo e($rel_note ?: 'Your certificate is ready for download.'); ?>" style="height: 36px; font-size: 12px;">
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <div class="pt-md-3">
+                                    <div class="form-check m-0">
+                                        <input class="form-check-input" type="checkbox" id="cert_mark_completed" name="mark_completed" value="1" <?php echo ($request['status'] === 'completed') ? '' : 'checked'; ?> style="width: 14px; height: 14px;">
+                                        <label class="form-check-label" for="cert_mark_completed" style="font-size: 11.5px; color: #334155; cursor: pointer;">
+                                            Set status to <strong>Completed</strong>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Submit Button Area -->
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-3 pt-2 border-top">
+                            <div>
+                                <?php if ($has_cert_file): ?>
+                                    <button type="button" class="btn btn-sm btn-link text-secondary p-0 text-decoration-none" style="font-size: 11.5px;" onclick="toggleReplaceCertificateZone(false)">
+                                        <i class="fas fa-arrow-left me-1"></i> Cancel Replace
+                                    </button>
+                                <?php endif; ?>
+                            </div>
+                            <button type="button" id="btnUploadCert" onclick="handleUploadCertificateSubmit(event)" class="btn btn-sm btn-success fw-semibold d-inline-flex align-items-center gap-1.5" style="height: 36px; font-size: 12px; padding: 0 16px; border-radius: 6px;">
+                                <i class="fas fa-cloud-arrow-up" id="uploadCertIcon"></i>
+                                <span id="uploadCertText"><?php echo $has_cert_file ? 'Upload & Replace Certificate' : 'Upload Certificate'; ?></span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
+
         <!-- ========================================================= -->
         <!-- RECEIPTS & RELEASES                                       -->
         <!-- ========================================================= -->
@@ -2261,114 +2625,7 @@ $breadcrumbs = [
         </div>
         <?php endif; ?>
 
-        <?php if ($is_certificate): ?>
-        <?php
-        $is_online_release = (stripos((string)($request['description'] ?? ''), 'Online Release') !== false) || (stripos((string)($request['description'] ?? ''), 'online') !== false);
-        $is_walkin_release = (stripos((string)($request['description'] ?? ''), 'Walk-in') !== false);
-        $released_files = array_merge($documents_by_type['released_certificate'], $documents_by_type['admin_file']);
-        $first_released = !empty($released_files) ? $released_files[0] : null;
-        ?>
-        <!-- SECTION 2: Certificate Issuance & Digital Release -->
-        <div class="rw-card">
-            <div class="rw-section-header">
-                <h6 class="rw-section-title">
-                    <i class="fas fa-certificate" style="color: #16a34a; font-size: 13px;"></i>
-                    CERTIFICATE ISSUANCE &amp; DIGITAL RELEASE
-                </h6>
-                <div>
-                    <?php if ($is_online_release): ?>
-                        <span class="badge" style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 12px;">
-                            <i class="fas fa-globe me-1"></i> Online Release
-                        </span>
-                    <?php elseif ($is_walkin_release): ?>
-                        <span class="badge" style="background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 12px;">
-                            <i class="fas fa-person-walking me-1"></i> Walk-in Pickup
-                        </span>
-                    <?php endif; ?>
-                </div>
-            </div>
-            <div class="rw-section-body">
-                <form method="POST" enctype="multipart/form-data">
-                    <?php echo csrfInput(); ?>
-                    <input type="hidden" name="action" value="upload_release">
-                    <input type="hidden" name="request_id" value="<?php echo intval($request_id); ?>">
 
-                    <div class="row g-3">
-                        <!-- Left Column: Upload -->
-                        <div class="col-12 col-md-6">
-                            <div class="fw-bold text-dark" style="font-size: 12px; margin-bottom: 2px;">Upload signed certificate</div>
-                            <div class="text-muted" style="font-size: 11.5px; margin-bottom: 6px;">Sends instantly to the parishioner's portal for download. Certificate Ready for Download notification sent.</div>
-                            
-                            <div class="d-flex align-items-center gap-2">
-                                <input type="file" class="form-control form-control-sm" id="release_file" name="release_file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" required style="font-size: 11.5px; padding: 3px 8px; height: 30px;">
-                            </div>
-                            <div class="text-muted" style="font-size: 10.5px; margin-top: 3px;">PDF, JPG, PNG up to 10MB</div>
-                        </div>
-
-                        <!-- Right Column: Released File -->
-                        <div class="col-12 col-md-6">
-                            <div class="fw-bold text-dark" style="font-size: 12px; margin-bottom: 2px;">Released file</div>
-                            <div class="text-muted" style="font-size: 11.5px; margin-bottom: 6px;">Official file currently delivered to applicant.</div>
-
-                            <?php if ($first_released): ?>
-                                <div class="rw-file-card">
-                                    <div class="d-flex align-items-center gap-2 text-truncate me-1">
-                                        <i class="fas fa-file-pdf text-danger flex-shrink-0" style="font-size: 15px;"></i>
-                                        <div class="text-truncate">
-                                            <span class="fw-semibold text-dark d-block text-truncate" style="font-size: 11.5px; max-width: 200px;" title="<?php echo e($first_released['original_name']); ?>">
-                                                <?php echo e($first_released['original_name']); ?>
-                                            </span>
-                                            <span class="text-muted d-block text-truncate" style="font-size: 10.5px;">
-                                                <?php echo e(formatFileSize($first_released['file_size'])); ?> &bull; <?php echo formatDate($first_released['uploaded_at']); ?>
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div class="d-flex align-items-center gap-1 flex-shrink-0">
-                                        <button type="button" 
-                                                class="btn-icon-neutral btn-preview-doc"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#documentPreviewModal"
-                                                data-doc-id="<?php echo intval($first_released['document_id']); ?>"
-                                                data-doc-name="<?php echo e($first_released['original_name']); ?>"
-                                                data-doc-file="<?php echo e($first_released['original_name']); ?>"
-                                                data-doc-size="<?php echo e(formatFileSize($first_released['file_size'])); ?>"
-                                                data-doc-mime="<?php echo e($first_released['mime_type'] ?? ''); ?>"
-                                                title="View file">
-                                            <i class="fas fa-eye"></i>
-                                        </button>
-                                        <a class="btn-icon-gold" 
-                                           href="../request-document.php?id=<?php echo intval($first_released['document_id']); ?>&download=1" 
-                                           title="Download file" 
-                                           download>
-                                            <i class="fas fa-download"></i>
-                                        </a>
-                                    </div>
-                                </div>
-                            <?php else: ?>
-                                <div class="rw-file-card text-muted fst-italic justify-content-center" style="font-size: 11.5px; background: #fafaf8; border-style: dashed;">
-                                    <i class="fas fa-file-circle-question me-1.5 text-secondary" style="font-size: 12px;"></i>
-                                    No certificate released yet.
-                                </div>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-
-                    <!-- Bottom inline checkbox and submit button -->
-                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-2 pt-2 border-top">
-                        <div class="form-check m-0 d-flex align-items-center gap-1.5">
-                            <input class="form-check-input" type="checkbox" name="mark_completed" id="mark_completed" value="1" checked style="margin-top: 0; width: 14px; height: 14px;">
-                            <label class="form-check-label" for="mark_completed" style="font-size: 11.5px; color: #334155; cursor: pointer;">
-                                Mark this request as <strong>Completed (Fulfilled)</strong> and notify the parishioner.
-                            </label>
-                        </div>
-                        <button type="submit" class="btn btn-sm btn-success fw-semibold d-inline-flex align-items-center gap-1.5" style="font-size: 11.5px; padding: 4px 12px; border-radius: 6px;">
-                            <i class="fas fa-paper-plane"></i> Send to Parishioner
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-        <?php endif; ?>
 
         <?php if (!$is_certificate): ?>
         <!-- 3. BOTTOM ACTION SECTION: "REVIEW STATUS & UPDATES" (For Sacramental & Service Requests) -->
@@ -2902,7 +3159,313 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
     }
+
+    // Initialize Certificate Release Dropzone
+    const dropzone = document.getElementById('certDropzone');
+    if (dropzone) {
+        ['dragenter', 'dragover'].forEach(function(eventName) {
+            dropzone.addEventListener(eventName, function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                dropzone.classList.add('dragover');
+            }, false);
+        });
+        ['dragleave', 'drop'].forEach(function(eventName) {
+            dropzone.addEventListener(eventName, function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                dropzone.classList.remove('dragover');
+            }, false);
+        });
+        dropzone.addEventListener('drop', function(e) {
+            const dt = e.dataTransfer;
+            if (dt && dt.files && dt.files.length) {
+                const fileInput = document.getElementById('cert_file_input');
+                if (fileInput) {
+                    fileInput.files = dt.files;
+                    handleCertFileSelect(dt.files);
+                }
+            }
+        }, false);
+    }
 });
+
+// Release Certificate (Online) Operations
+function handleCertFileSelect(files) {
+    if (!files || !files.length) return;
+    const file = files[0];
+    const previewWrap = document.getElementById('certFilePreview');
+    const previewName = document.getElementById('previewFileName');
+    const previewSize = document.getElementById('previewFileSize');
+    const previewIcon = document.getElementById('previewIcon');
+    const errorBox = document.getElementById('certFileError');
+    const uploadBtn = document.getElementById('btnUploadCert');
+
+    const maxBytes = 10 * 1024 * 1024; // 10 MB
+    const ext = file.name.split('.').pop().toLowerCase();
+    const allowedExts = ['pdf', 'jpg', 'jpeg', 'png', 'webp'];
+
+    if (!allowedExts.includes(ext)) {
+        if (errorBox) {
+            errorBox.textContent = 'Invalid file format. Accepted formats: PDF, JPG, PNG, WEBP.';
+            errorBox.style.display = 'block';
+        }
+        if (uploadBtn) uploadBtn.disabled = true;
+        if (previewWrap) previewWrap.style.display = 'none';
+        return;
+    }
+
+    if (file.size > maxBytes) {
+        const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
+        if (errorBox) {
+            errorBox.textContent = 'File size exceeds 10 MB limit (' + sizeMb + ' MB). Please choose a smaller file.';
+            errorBox.style.display = 'block';
+        }
+        if (uploadBtn) uploadBtn.disabled = true;
+        if (previewWrap) previewWrap.style.display = 'none';
+        return;
+    }
+
+    if (errorBox) {
+        errorBox.textContent = '';
+        errorBox.style.display = 'none';
+    }
+    if (uploadBtn) uploadBtn.disabled = false;
+
+    if (previewName) previewName.textContent = file.name;
+    if (previewSize) previewSize.textContent = (file.size < 1048576) ? (Math.round(file.size / 1024) + ' KB') : ((file.size / (1024 * 1024)).toFixed(2) + ' MB');
+    if (previewIcon) {
+        previewIcon.className = (ext === 'pdf') ? 'fas fa-file-pdf text-danger' : 'fas fa-file-image text-primary';
+    }
+    if (previewWrap) previewWrap.style.display = 'flex';
+}
+window.handleCertFileSelect = handleCertFileSelect;
+
+function clearSelectedCertFile() {
+    const input = document.getElementById('cert_file_input');
+    if (input) input.value = '';
+    const previewWrap = document.getElementById('certFilePreview');
+    if (previewWrap) previewWrap.style.display = 'none';
+    const errorBox = document.getElementById('certFileError');
+    if (errorBox) {
+        errorBox.textContent = '';
+        errorBox.style.display = 'none';
+    }
+    const uploadBtn = document.getElementById('btnUploadCert');
+    if (uploadBtn) uploadBtn.disabled = false;
+}
+window.clearSelectedCertFile = clearSelectedCertFile;
+
+function toggleReplaceCertificateZone(show) {
+    const dropzoneWrap = document.getElementById('certUploadDropzoneWrap');
+    const releasedSection = document.getElementById('releasedFileSection');
+    if (!dropzoneWrap || !releasedSection) return;
+
+    if (typeof show === 'boolean') {
+        dropzoneWrap.style.display = show ? 'block' : 'none';
+        releasedSection.style.display = show ? 'none' : 'block';
+    } else {
+        const isCurrentlyHidden = (dropzoneWrap.style.display === 'none' || getComputedStyle(dropzoneWrap).display === 'none');
+        dropzoneWrap.style.display = isCurrentlyHidden ? 'block' : 'none';
+        releasedSection.style.display = isCurrentlyHidden ? 'none' : 'block';
+    }
+}
+window.toggleReplaceCertificateZone = toggleReplaceCertificateZone;
+
+async function handleUploadCertificateSubmit(e) {
+    if (e) {
+        if (typeof e.preventDefault === 'function') e.preventDefault();
+        if (typeof e.stopPropagation === 'function') e.stopPropagation();
+    }
+    const form = document.getElementById('certUploadForm');
+    if (!form) return false;
+
+    const fileInput = document.getElementById('cert_file_input');
+    if (!fileInput || !fileInput.files || !fileInput.files.length) {
+        showStatusToast('Please select or drop a certificate file to upload.', 'error');
+        return false;
+    }
+
+    const file = fileInput.files[0];
+    if (file.size > 10 * 1024 * 1024) {
+        showStatusToast('File size exceeds the 10 MB limit.', 'error');
+        return false;
+    }
+
+    const btn = document.getElementById('btnUploadCert');
+    const icon = document.getElementById('uploadCertIcon');
+    const text = document.getElementById('uploadCertText');
+    const originalText = text ? text.textContent : 'Upload Certificate';
+    const originalIconClass = icon ? icon.className : 'fas fa-cloud-arrow-up';
+
+    if (btn) btn.disabled = true;
+    if (icon) icon.className = 'fas fa-spinner fa-spin';
+    if (text) text.textContent = 'Uploading Certificate...';
+
+    const formData = new FormData(form);
+    formData.append('ajax', '1');
+
+    try {
+        const response = await fetch(window.location.href, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            },
+            body: formData
+        });
+
+        const data = await response.json().catch(function() { return null; });
+        if (!response.ok || !data || !data.success) {
+            const errorMsg = (data && data.message) ? data.message : 'Upload failed. Please check the file and try again.';
+            throw new Error(errorMsg);
+        }
+
+        showStatusToast(data.message || 'Certificate uploaded successfully!', 'success');
+
+        // Update Released File Section DOM
+        const releasedSection = document.getElementById('releasedFileSection');
+        const dropzoneWrap = document.getElementById('certUploadDropzoneWrap');
+        const fileNameEl = document.getElementById('releasedFileName');
+        const fileMetaEl = document.getElementById('releasedFileMeta');
+        const fileIconEl = document.getElementById('releasedFileIcon');
+        const noteWrapEl = document.getElementById('releasedNoteWrap');
+        const noteTextEl = document.getElementById('releasedNoteText');
+        const certBadgeEl = document.getElementById('certStatusBadge');
+        const btnView = document.getElementById('btnViewCert');
+        const btnDownload = document.getElementById('btnDownloadCert');
+
+        if (fileNameEl) {
+            fileNameEl.textContent = data.file_name;
+            fileNameEl.setAttribute('title', data.file_name);
+        }
+        if (fileMetaEl) {
+            fileMetaEl.innerHTML = 'Uploaded: ' + (data.uploaded_at || 'Just now') + (data.file_size ? (' &bull; ' + data.file_size) : '');
+        }
+        if (fileIconEl) {
+            const ext = (data.file_name || '').split('.').pop().toLowerCase();
+            fileIconEl.className = 'fas ' + (ext === 'pdf' ? 'fa-file-pdf text-danger' : 'fa-file-image text-primary');
+        }
+        if (noteWrapEl && noteTextEl) {
+            if (data.release_note && data.release_note.trim()) {
+                noteTextEl.textContent = data.release_note;
+                noteWrapEl.style.display = 'block';
+            } else {
+                noteWrapEl.style.display = 'none';
+            }
+        }
+        if (btnView && data.view_url) btnView.href = data.view_url;
+        if (btnDownload && data.download_url) btnDownload.href = data.download_url;
+
+        if (certBadgeEl) {
+            certBadgeEl.className = 'badge';
+            certBadgeEl.style.cssText = 'background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 12px;';
+            certBadgeEl.innerHTML = '<i class="fas fa-check me-1"></i> Certificate Available';
+        }
+
+        // If status changed to completed, update top badges & select
+        if (data.status === 'completed') {
+            const headerBadge = document.getElementById('headerStatusBadge');
+            const cardBadge = document.getElementById('cardStatusBadge');
+            const statusSelect = document.getElementById('new_status_select');
+            const completedStyle = (window.workflowStatusBadgeStyles && window.workflowStatusBadgeStyles['completed']) || 'background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;';
+
+            if (headerBadge) {
+                headerBadge.textContent = 'Completed';
+                headerBadge.setAttribute('style', completedStyle);
+                headerBadge.setAttribute('aria-label', 'Request Status: Completed');
+            }
+            if (cardBadge) {
+                cardBadge.textContent = 'Current: Completed';
+                cardBadge.setAttribute('style', completedStyle + ' font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 12px;');
+            }
+            if (statusSelect) {
+                statusSelect.value = 'completed';
+            }
+        }
+
+        // Toggle sections
+        if (releasedSection) releasedSection.style.display = 'block';
+        if (dropzoneWrap) dropzoneWrap.style.display = 'none';
+
+        // Clear input & preview
+        clearSelectedCertFile();
+
+        if (btn) btn.disabled = false;
+        if (icon) icon.className = originalIconClass;
+        if (text) text.textContent = 'Upload & Replace Certificate';
+    } catch (err) {
+        if (btn) btn.disabled = false;
+        if (icon) icon.className = originalIconClass;
+        if (text) text.textContent = originalText;
+        showStatusToast(err.message, 'error');
+    }
+    return false;
+}
+window.handleUploadCertificateSubmit = handleUploadCertificateSubmit;
+
+async function handleRemoveCertificate(requestId) {
+    if (!confirm('Are you sure you want to remove this released certificate? The parishioner will no longer be able to download it online.')) {
+        return;
+    }
+
+    const btn = document.getElementById('btnRemoveCert');
+    const originalContent = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Removing...';
+    }
+
+    const formData = new FormData();
+    formData.append('action', 'remove_certificate_release');
+    formData.append('request_id', requestId);
+    const csrfTokenEl = document.querySelector('input[name="csrf_token"]');
+    if (csrfTokenEl) formData.append('csrf_token', csrfTokenEl.value);
+    formData.append('ajax', '1');
+
+    try {
+        const response = await fetch(window.location.href, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            },
+            body: formData
+        });
+
+        const data = await response.json().catch(function() { return null; });
+        if (!response.ok || !data || !data.success) {
+            throw new Error((data && data.message) ? data.message : 'Failed to remove certificate.');
+        }
+
+        showStatusToast(data.message || 'Released certificate removed successfully.', 'success');
+
+        const releasedSection = document.getElementById('releasedFileSection');
+        const dropzoneWrap = document.getElementById('certUploadDropzoneWrap');
+        const certBadgeEl = document.getElementById('certStatusBadge');
+        const text = document.getElementById('uploadCertText');
+
+        if (releasedSection) releasedSection.style.display = 'none';
+        if (dropzoneWrap) dropzoneWrap.style.display = 'block';
+        if (text) text.textContent = 'Upload Certificate';
+
+        if (certBadgeEl) {
+            certBadgeEl.className = 'badge';
+            certBadgeEl.style.cssText = 'background: #fef9c3; color: #854d0e; border: 1px solid #fde047; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 12px;';
+            certBadgeEl.innerHTML = '<i class="fas fa-clock me-1"></i> Awaiting Upload';
+        }
+
+        clearSelectedCertFile();
+    } catch (err) {
+        showStatusToast(err.message, 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalContent;
+        }
+    }
+}
+window.handleRemoveCertificate = handleRemoveCertificate;
 </script>
 
 <?php include '../templates/document-preview-modal.php'; ?>

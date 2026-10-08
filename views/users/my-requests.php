@@ -136,10 +136,12 @@
                                             <?php
                                             $disp_status_lower = strtolower($request['status'] ?? '');
                                             $req_type_str = strtolower((string)($request['certificate_type'] ?? ($request['request_type'] ?? '')));
-                                            if ($disp_status_lower === 'completed' && str_contains($req_type_str, 'baptism')):
+                                            $has_cert_file = !empty($request['certificate_file_path']);
+                                            $can_download_cert = in_array($disp_status_lower, ['completed', 'released'], true) && ($has_cert_file || str_contains($req_type_str, 'baptism') || str_contains($req_type_str, 'certif'));
+                                            if ($can_download_cert):
                                             ?>
-                                                <a href="download-certificate.php?request_id=<?php echo (int) $request['request_id']; ?>&download=1" class="btn btn-sm btn-success px-2.5 py-1 fw-semibold" style="border-radius: 8px;" title="Download Official Certificate of Baptism">
-                                                    <i class="fas fa-file-pdf me-1"></i> Cert
+                                                <a href="download-certificate.php?request_id=<?php echo (int) $request['request_id']; ?>&download=1" class="btn btn-sm btn-success px-2.5 py-1 fw-semibold d-inline-flex align-items-center gap-1" style="border-radius: 8px;" title="Download Certificate">
+                                                    <i class="fas fa-file-pdf"></i> Download Certificate
                                                 </a>
                                             <?php endif; ?>
                                             <a href="view-request.php?id=<?php echo (int) $request['request_id']; ?>" class="btn btn-sm btn-outline-secondary px-3 py-1 fw-semibold" style="border-color: #E8E1D5; border-radius: 8px;">

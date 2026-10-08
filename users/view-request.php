@@ -5,11 +5,11 @@
 header('Cache-Control: private, no-store, no-cache, must-revalidate');
 header('Pragma: no-cache');
 
-include '../includes/session.php';
-include '../config/security.php';
-include '../database/config.php';
-include '../includes/helpers.php';
-require_once '../services/ReservationService.php';
+require_once __DIR__ . '/../includes/session.php';
+require_once __DIR__ . '/../config/security.php';
+require_once __DIR__ . '/../database/config.php';
+require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../services/ReservationService.php';
 
 requireLogin();
 if (!hasPermission('requests.view_own')) {
@@ -50,6 +50,7 @@ $stmt->close();
 
 ensureRequestDocumentsSchema($conn);
 ensureRequestPaymentsSchema($conn);
+ensureRequestCertificateFileSchema($conn);
 $error = '';
 $success = '';
 
@@ -206,6 +207,25 @@ $page_title = 'View Request';
                         <h5 class="mb-0"><i class="fas fa-file-alt"></i> Request Details</h5>
                         <?php 
                             $released_certs = array_merge($documents_by_type['released_certificate'], $documents_by_type['admin_file']);
+                            if (!empty($request['certificate_file_path'])) {
+                                $already_in_docs = false;
+                                foreach ($released_certs as $rc) {
+                                    if (($rc['file_path'] ?? '') === $request['certificate_file_path']) {
+                                        $already_in_docs = true;
+                                        break;
+                                    }
+                                }
+                                if (!$already_in_docs) {
+                                    $released_certs[] = [
+                                        'document_id' => 0,
+                                        'original_name' => $request['certificate_file_name'] ?: 'Official Certificate',
+                                        'file_path' => $request['certificate_file_path'],
+                                        'file_size' => 0,
+                                        'mime_type' => 'application/pdf',
+                                        'uploaded_at' => $request['certificate_uploaded_at'] ?? $request['updated_at']
+                                    ];
+                                }
+                            }
                             $has_released_cert = !empty($released_certs);
                             $disp_status = strtolower($request['status'] ?? 'pending');
                             if ($has_released_cert && in_array($disp_status, ['completed', 'approved', 'released'], true)) {
@@ -242,6 +262,11 @@ $page_title = 'View Request';
                                         <p class="text-secondary small mb-3">
                                             The parish office has finalized and released your official certificate. You can preview or download your digital certificate directly below:
                                         </p>
+                                        <?php if (!empty($request['certificate_release_note'])): ?>
+                                            <div class="alert alert-light border py-2 px-3 mb-3 small text-secondary" style="background: #ffffff; border-color: #bbf7d0 !important;">
+                                                <i class="fas fa-comment-dots text-success me-1"></i> <strong>Note from Parish Office:</strong> <?php echo e($request['certificate_release_note']); ?>
+                                            </div>
+                                        <?php endif; ?>
                                         <div class="d-flex flex-column gap-2">
                                             <?php foreach ($released_certs as $cert): ?>
                                                 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 p-3 bg-white rounded-3 border shadow-sm" style="border-color: #bbf7d0 !important;">
@@ -249,22 +274,33 @@ $page_title = 'View Request';
                                                         <i class="fas fa-file-pdf text-danger fs-3"></i>
                                                         <div>
                                                             <strong class="d-block text-dark text-truncate" style="max-width: 320px; font-size: 0.95rem;"><?php echo e($cert['original_name']); ?></strong>
-                                                            <span class="text-muted small"><?php echo e(formatFileSize($cert['file_size'])); ?> &bull; Issued <?php echo formatDate($cert['uploaded_at']); ?></span>
+                                                            <span class="text-muted small"><?php echo !empty($cert['file_size']) ? e(formatFileSize($cert['file_size'])) . ' &bull; ' : ''; ?>Issued <?php echo formatDate($cert['uploaded_at']); ?></span>
                                                         </div>
                                                     </div>
                                                     <div class="d-flex align-items-center gap-2 flex-wrap">
-                                                        <button type="button" 
-                                                                class="btn btn-sm btn-outline-secondary btn-preview-doc"
-                                                                data-bs-toggle="modal"
-                                                                data-bs-target="#documentPreviewModal"
-                                                                data-doc-id="<?php echo intval($cert['document_id']); ?>"
-                                                                data-doc-name="<?php echo e($cert['original_name']); ?>"
-                                                                data-doc-file="<?php echo e($cert['original_name']); ?>"
-                                                                data-doc-size="<?php echo formatFileSize($cert['file_size']); ?>"
-                                                                data-doc-mime="<?php echo e($cert['mime_type'] ?? ''); ?>">
-                                                            <i class="fas fa-eye me-1"></i> Preview
-                                                        </button>
-                                                        <a class="btn btn-sm btn-success fw-bold px-3 shadow-sm" href="../request-document.php?id=<?php echo intval($cert['document_id']); ?>&download=1" download>
+                                                        <?php if (!empty($cert['document_id'])): ?>
+                                                            <button type="button" 
+                                                                    class="btn btn-sm btn-outline-secondary btn-preview-doc"
+                                                                    data-bs-toggle="modal"
+                                                                    data-bs-target="#documentPreviewModal"
+                                                                    data-doc-id="<?php echo intval($cert['document_id']); ?>"
+                                                                    data-doc-name="<?php echo e($cert['original_name']); ?>"
+                                                                    data-doc-file="<?php echo e($cert['original_name']); ?>"
+                                                                    data-doc-size="<?php echo formatFileSize($cert['file_size']); ?>"
+                                                                    data-doc-mime="<?php echo e($cert['mime_type'] ?? ''); ?>">
+                                                                <i class="fas fa-eye me-1"></i> Preview
+                                                            </button>
+                                                        <?php else: ?>
+                                                            <a href="download-certificate.php?request_id=<?php echo intval($request_id); ?>" target="_blank" class="btn btn-sm btn-outline-secondary">
+                                                                <i class="fas fa-eye me-1"></i> Preview
+                                                            </a>
+                                                        <?php endif; ?>
+                                                        <?php
+                                                        $cert_dl_url = !empty($cert['document_id']) 
+                                                            ? ('../request-document.php?id=' . intval($cert['document_id']) . '&download=1')
+                                                            : ('download-certificate.php?request_id=' . intval($request_id) . '&download=1');
+                                                        ?>
+                                                        <a class="btn btn-sm btn-success fw-bold px-3 shadow-sm" href="<?php echo $cert_dl_url; ?>" download>
                                                             <i class="fas fa-download me-1"></i> Download Certificate
                                                         </a>
                                                     </div>
