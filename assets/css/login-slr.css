@@ -1,6 +1,6 @@
 /* ==========================================================================
    San Lorenzo Ruiz Mission Station — Institutional Login Redesign
-   Aesthetic: Arched Dark Brand Panel + Frosted Cream Glass Card
+   Aesthetic: Unified Frosted Warm-Glass Shell with Dual Integrated Panels
    Self-contained styles for auth/login.php
    ========================================================================== */
 
@@ -73,19 +73,19 @@
 :root {
   --slr-gold: #c9a24b;
   --slr-gold-bright: #d4b25e;
-  --slr-gold-dark: #a87b1f;
-  --slr-gold-amber: #91681c;
-  --slr-gold-chip: rgba(212, 178, 94, 0.16);
-  --slr-gold-glow: rgba(201, 162, 75, 0.45);
+  --slr-gold-dark: #7e5b12; /* Darkened for WCAG AA (>= 4.5:1 on cream) */
+  --slr-gold-amber: #63470b;
+  --slr-gold-chip: rgba(201, 162, 75, 0.16);
+  --slr-gold-glow: rgba(201, 162, 75, 0.40);
+  --slr-shell-border: rgba(201, 162, 75, 0.45);
   
-  --slr-dark-arch-start: #2A2723;
-  --slr-dark-arch-end: #151311;
-  --slr-cream-text: #F5ECD7;
+  --slr-dark-arch-start: rgba(34, 29, 24, 0.94);
+  --slr-dark-arch-end: rgba(18, 15, 13, 0.96);
+  --slr-cream-text: #F7F0E1;
   
-  --slr-card-glass: rgba(255, 250, 240, 0.82);
+  --slr-card-glass: rgba(252, 246, 234, 0.82);
   --slr-card-fallback: #FBF6EA;
-  --slr-card-border: rgba(255, 255, 255, 0.65);
-  --slr-card-shadow: 0 24px 60px rgba(20, 14, 8, 0.28);
+  --slr-card-border: rgba(255, 255, 255, 0.70);
   
   --slr-heading: #2B2118;
   --slr-body-text: #5C5248;
@@ -98,7 +98,7 @@
 html {
   height: 100%;
   box-sizing: border-box;
-  background-color: #1a1714;
+  background-color: #161310;
 }
 
 *, *::before, *::after {
@@ -116,31 +116,35 @@ body.auth-slr-redesign {
   color: var(--slr-body-text);
   position: relative;
   overflow-x: hidden;
-  background-color: #1a1714;
+  background-color: #161310;
 }
 
-/* Fallback warm bokeh background */
+/* --- Section 3: Clean, Rich Background Layers --- */
+
+/* Layer 1: Warm Bokeh Base (Fallback for image failures) */
 .slr-bg-backdrop {
   position: fixed;
   inset: 0;
   z-index: 0;
   background: 
-    radial-gradient(circle at 15% 30%, rgba(212, 178, 94, 0.22) 0%, transparent 40%),
-    radial-gradient(circle at 85% 20%, rgba(168, 123, 31, 0.18) 0%, transparent 35%),
-    radial-gradient(circle at 50% 80%, rgba(201, 162, 75, 0.15) 0%, transparent 45%),
-    #181512;
+    radial-gradient(circle at 18% 28%, rgba(201, 162, 75, 0.22) 0%, transparent 45%),
+    radial-gradient(circle at 82% 22%, rgba(160, 115, 30, 0.18) 0%, transparent 40%),
+    radial-gradient(circle at 50% 75%, rgba(201, 162, 75, 0.15) 0%, transparent 50%),
+    #161310;
   pointer-events: none;
 }
 
-/* Full Viewport Background Image with Warm Golden-Hour Grade */
+/* Layer 2: Church Photo with 12px blur, brightness 0.85, saturate 1.18 */
 .slr-bg-image {
   position: fixed;
-  inset: 0;
+  inset: -20px; /* Slight bleed to prevent white edges under 12px blur */
   z-index: 0;
   background-position: center center;
   background-size: cover;
   background-repeat: no-repeat;
   background-image: url('../img/login-church-bg.webp');
+  filter: blur(12px) brightness(0.85) saturate(1.18);
+  transform: translate3d(0, 0, 0);
   pointer-events: none;
 }
 
@@ -149,86 +153,207 @@ body.auth-slr-redesign {
   background-image: url('../img/login-church-bg.jpg');
 }
 
-/* Dark Warm Overlay */
-.slr-bg-overlay {
+/* Layer 3: Warm Vignette (Darker corners, lighter center) */
+.slr-bg-vignette {
   position: fixed;
   inset: 0;
   z-index: 1;
-  background: rgba(20, 14, 8, 0.38);
+  background: radial-gradient(circle at 50% 50%, rgba(22, 17, 12, 0.35) 0%, rgba(12, 9, 6, 0.82) 100%);
   pointer-events: none;
 }
 
-/* --- Main Centered Container --- */
-.slr-split-container {
+/* Layer 4: Gentle Warm Gold Radial Glow Behind the Shell */
+.slr-bg-glow {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(1200px, 100vw);
+  height: min(780px, 100vh);
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(201, 162, 75, 0.18) 0%, rgba(180, 130, 45, 0.08) 45%, transparent 70%);
+  z-index: 1;
+  pointer-events: none;
+  animation: slr-ambient-drift 24s ease-in-out infinite alternate;
+}
+
+@keyframes slr-ambient-drift {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: translate(-48%, -52%) scale(1.05);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-52%, -48%) scale(0.98);
+    opacity: 0.9;
+  }
+}
+
+/* --- Section 1: One Shared Container (The Login Shell) --- */
+.login-shell {
   position: relative;
   z-index: 2;
   width: min(1120px, 94vw);
-  min-height: 640px;
-  display: flex;
-  align-items: stretch;
-  justify-content: center;
-  gap: 16px;
   margin: 20px auto;
+  border-radius: 40px; /* Consistent 36px to 44px radius */
+  border: 1px solid var(--slr-shell-border);
+  box-shadow: 
+    0 28px 70px rgba(10, 7, 4, 0.50),
+    0 10px 30px rgba(0, 0, 0, 0.30),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  /* Warm dark-to-cream gradient from left to right */
+  background: linear-gradient(135deg, #1B1713 0%, #2A2219 25%, #3A2F22 45%, #7D6544 68%, #EADFC9 88%, #F7F0E1 100%);
+  padding: 16px; /* Inner padding so both panels sit INSIDE the same frame */
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(350px, 44%) 1px minmax(380px, 1fr);
+  align-items: stretch;
+  gap: 16px;
 }
 
-/* --- Left Brand Panel (Dark Arch) --- */
+@supports (backdrop-filter: blur(16px)) or (-webkit-backdrop-filter: blur(16px)) {
+  .login-shell {
+    background: linear-gradient(135deg, rgba(27, 23, 19, 0.88) 0%, rgba(58, 47, 34, 0.82) 42%, rgba(234, 223, 201, 0.82) 85%, rgba(247, 240, 225, 0.86) 100%);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+}
+
+/* Scale up gracefully on large displays */
+@media (min-width: 1920px) {
+  .login-shell {
+    width: min(1180px, 94vw);
+  }
+}
+
+/* --- Section 2: Shared Connective Elements --- */
+
+/* Soft Warm Light Glow Spilling Over Divider Behind Logo */
+.shell-logo-glow {
+  position: absolute;
+  top: 8%;
+  left: 16%;
+  width: 480px;
+  height: 480px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(201, 162, 75, 0.16) 0%, rgba(201, 162, 75, 0.05) 50%, transparent 70%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Subtle Shared Botanical Fern Layer (6-8% Opacity) Across Bottom of Shell */
+.shell-botanical-shared {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 140px;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.07; /* Exactly 7% opacity */
+}
+
+/* Thin Vertical Gold Divider Hinge */
+.shell-divider {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 1px;
+  height: 100%;
+  z-index: 2;
+}
+
+.shell-divider .divider-line {
+  flex: 1;
+  width: 1px;
+  background: linear-gradient(180deg, transparent 0%, rgba(201, 162, 75, 0.20) 15%, rgba(201, 162, 75, 0.70) 100%);
+}
+
+.shell-divider .divider-line:last-child {
+  background: linear-gradient(180deg, rgba(201, 162, 75, 0.70) 0%, rgba(201, 162, 75, 0.20) 85%, transparent 100%);
+}
+
+.shell-divider .divider-hinge {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(30, 24, 18, 0.90);
+  border: 1px solid rgba(201, 162, 75, 0.60);
+  box-shadow: 0 0 14px rgba(201, 162, 75, 0.40);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 6px 0;
+  z-index: 3;
+}
+
+/* --- Section 1 & 2: Left Panel (Translucent Dark Arch) --- */
 .slr-arch-panel {
-  flex: 0 0 44%;
-  width: 44%;
   background: linear-gradient(180deg, var(--slr-dark-arch-start) 0%, var(--slr-dark-arch-end) 100%);
-  border-radius: 240px 240px 28px 28px;
-  border: 1px solid rgba(212, 178, 94, 0.28);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(212, 178, 94, 0.12);
+  border-radius: 200px 200px 28px 28px; /* Arch top, 28px bottom corners */
+  border: 1px solid rgba(201, 162, 75, 0.32);
+  box-shadow: 
+    inset 0 0 24px rgba(201, 162, 75, 0.08),
+    0 8px 24px rgba(0, 0, 0, 0.30);
   position: relative;
   overflow: hidden;
-  padding: 42px 32px 30px;
+  padding: 40px; /* Equal 40px inner padding */
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
   text-align: center;
+  z-index: 2;
 }
 
-/* Arch Botanical Fern Decoration (Lower corners) */
+/* Botanical Fern in Arch Corners */
 .slr-arch-botanical {
   position: absolute;
-  bottom: -5px;
+  bottom: -4px;
   width: 100%;
   left: 0;
-  height: 180px;
+  height: 160px;
   pointer-events: none;
   z-index: 1;
-  opacity: 0.10;
+  opacity: 0.12;
 }
 
 .slr-arch-content {
   position: relative;
   z-index: 2;
   width: 100%;
+  margin: auto 0; /* Vertically centered on shared centerline */
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
-/* Logo Presentation: Double Ring & Halo Glow */
+/* Logo: Double Ring & Halo Glow with Transparent Silhouette */
 .slr-logo-wrap {
-  width: 114px;
-  height: 114px;
+  width: 112px;
+  height: 112px;
   border-radius: 50%;
   background: #ffffff;
-  padding: 4px;
+  padding: 3px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 3px solid #ffffff;
-  outline: 2px solid var(--slr-gold);
+  border: 3px solid #ffffff; /* Inner white ring */
+  outline: 2px solid var(--slr-gold); /* Outer gold ring */
   outline-offset: 3px;
   box-shadow: 
     0 0 0 4px rgba(20, 18, 15, 0.8),
-    0 0 26px var(--slr-gold-glow),
+    0 0 28px var(--slr-gold-glow),
+    0 0 44px rgba(201, 162, 75, 0.20), /* Larger faint outer halo */
     0 10px 25px rgba(0, 0, 0, 0.4);
   margin-bottom: 14px;
-  transition: transform 0.3s ease;
+  overflow: hidden;
+  transition: transform 0.25s ease;
 }
 
 .slr-logo-wrap:hover {
@@ -243,10 +368,10 @@ body.auth-slr-redesign {
   border-radius: 50%;
 }
 
-/* Arch Typography */
+/* Arch Typography: Cormorant Garamond Pairing */
 .slr-arch-title {
   font-family: 'Cormorant Garamond', Georgia, serif;
-  font-size: 27px;
+  font-size: 26px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.14em;
@@ -265,7 +390,7 @@ body.auth-slr-redesign {
   margin: 0 0 14px;
 }
 
-/* Cross Divider */
+/* Cross Divider on Left */
 .slr-arch-divider {
   display: flex;
   align-items: center;
@@ -288,14 +413,14 @@ body.auth-slr-redesign {
   line-height: 1;
 }
 
-/* Headline */
+/* Headline in Cormorant Garamond */
 .slr-arch-headline {
   font-family: 'Cormorant Garamond', Georgia, serif;
-  font-size: 29px;
-  font-weight: 500;
-  line-height: 1.22;
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.25;
   color: var(--slr-cream-text);
-  margin: 0 0 14px;
+  margin: 0 0 12px;
   max-width: 380px;
 }
 
@@ -304,23 +429,23 @@ body.auth-slr-redesign {
   font-weight: 700;
 }
 
-/* Supporting Text */
+/* Supporting Description */
 .slr-arch-description {
   font-family: 'Inter', sans-serif;
   font-size: 13.5px;
   line-height: 1.55;
-  color: rgba(245, 236, 215, 0.85);
+  color: rgba(247, 240, 225, 0.88);
   margin: 0 0 16px;
-  max-width: 360px;
+  max-width: 350px;
 }
 
-/* Thin Gold Gradient Divider */
+/* Thin Gold Gradient Line */
 .slr-arch-gold-line {
-  width: 150px;
+  width: 140px;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(212, 178, 94, 0.7), transparent);
+  background: linear-gradient(90deg, transparent, rgba(201, 162, 75, 0.7), transparent);
   position: relative;
-  margin: 0 auto 18px;
+  margin: 0 auto;
 }
 
 .slr-arch-gold-line::after {
@@ -329,10 +454,21 @@ body.auth-slr-redesign {
   top: -1px;
   left: 50%;
   transform: translateX(-50%);
-  width: 24px;
+  width: 22px;
   height: 3px;
   background: var(--slr-gold-bright);
   border-radius: 2px;
+}
+
+/* Arch Footer: Baseline Aligned with Right Shield */
+.slr-arch-footer {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  z-index: 2;
+  margin-top: 14px;
 }
 
 /* Bottom Pill Badge */
@@ -342,15 +478,12 @@ body.auth-slr-redesign {
   gap: 8px;
   padding: 8px 18px;
   border-radius: 999px;
-  background: rgba(25, 22, 19, 0.80);
-  border: 1px solid rgba(212, 178, 94, 0.38);
+  background: rgba(25, 22, 19, 0.85);
+  border: 1px solid rgba(201, 162, 75, 0.38);
   color: var(--slr-cream-text);
   font-size: 12px;
   font-weight: 500;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-  margin-top: 10px;
-  position: relative;
-  z-index: 2;
 }
 
 .slr-arch-badge i {
@@ -358,31 +491,36 @@ body.auth-slr-redesign {
   font-size: 11px;
 }
 
-/* --- Right Card (Frosted Cream Glass) --- */
+/* Mirrored Left Shield Emblem */
+.slr-arch-mirror-shield {
+  opacity: 0.55; /* Exactly mirrored at 50-60% opacity */
+  pointer-events: none;
+}
+
+/* --- Section 1 & 2: Right Card (Frosted Warm Cream Glass) --- */
 .slr-glass-card {
-  flex: 0 0 56%;
-  width: 56%;
   background: var(--slr-card-fallback);
-  border-radius: 40px;
+  border-radius: 28px; /* Consistent 28px radius */
   border: 1px solid var(--slr-card-border);
-  box-shadow: var(--slr-card-shadow);
+  box-shadow: 0 14px 36px rgba(25, 18, 10, 0.14);
   position: relative;
   overflow: hidden;
-  padding: 40px 48px;
+  padding: 40px; /* Equal 40px inner padding */
   display: flex;
   flex-direction: column;
   justify-content: center;
+  z-index: 2;
 }
 
-@supports (backdrop-filter: blur(18px)) or (-webkit-backdrop-filter: blur(18px)) {
+@supports (backdrop-filter: blur(14px)) or (-webkit-backdrop-filter: blur(14px)) {
   .slr-glass-card {
     background: var(--slr-card-glass);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
   }
 }
 
-/* Top Cross Flourish Ornament */
+/* Top Cross Flourish Ornament (Matching Left Line Weight & Gold Tone) */
 .slr-card-ornament {
   display: flex;
   align-items: center;
@@ -394,17 +532,17 @@ body.auth-slr-redesign {
   display: block;
 }
 
-/* Heading & Subtitle */
+/* Card Header (Cormorant Garamond Title) */
 .slr-card-header {
-  margin-bottom: 20px;
+  margin-bottom: 18px;
 }
 
 .slr-card-title {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Cormorant Garamond', Georgia, serif;
   font-size: 38px;
   font-weight: 700;
   color: var(--slr-heading);
-  margin: 0 0 6px;
+  margin: 0 0 4px;
   line-height: 1.15;
   letter-spacing: -0.01em;
 }
@@ -417,7 +555,7 @@ body.auth-slr-redesign {
   line-height: 1.45;
 }
 
-/* Alerts / Notices inside Card */
+/* Server Alert Banners */
 .slr-alert {
   display: flex;
   align-items: flex-start;
@@ -464,14 +602,14 @@ body.auth-slr-redesign {
   opacity: 1;
 }
 
-/* --- Form Fields --- */
+/* --- Section 4: Polished Inputs & Form Elements --- */
 .slr-form {
   position: relative;
   z-index: 2;
 }
 
 .slr-field {
-  margin-bottom: 16px;
+  margin-bottom: 15px;
 }
 
 .slr-label {
@@ -489,7 +627,7 @@ body.auth-slr-redesign {
   width: 100%;
 }
 
-/* Left Icon Chip */
+/* Left Icon Chip with Soft Gold Tint */
 .slr-icon-chip {
   position: absolute;
   left: 8px;
@@ -497,7 +635,7 @@ body.auth-slr-redesign {
   height: 34px;
   border-radius: 8px;
   background: var(--slr-gold-chip);
-  color: #8c6a21;
+  color: var(--slr-gold-dark);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -506,14 +644,14 @@ body.auth-slr-redesign {
   z-index: 3;
 }
 
-/* Inputs */
+/* 48px Height, 12px Radius, Never Runs Under Icons */
 .slr-input {
   width: 100%;
   height: 48px;
   border-radius: 12px;
   background: var(--slr-input-bg);
   border: 1px solid var(--slr-input-border);
-  padding: 0 16px 0 54px;
+  padding: 0 16px 0 54px; /* Text never runs under the 34px icon chip */
   font-family: 'Inter', sans-serif;
   font-size: 14.5px;
   color: var(--slr-heading);
@@ -528,7 +666,7 @@ body.auth-slr-redesign {
 
 .slr-input:focus {
   border-color: var(--slr-gold);
-  box-shadow: 0 0 0 3px rgba(201, 162, 75, 0.22);
+  box-shadow: 0 0 0 3px rgba(201, 162, 75, 0.28);
 }
 
 .slr-input.is-invalid {
@@ -540,7 +678,7 @@ body.auth-slr-redesign {
   padding-right: 48px;
 }
 
-/* Eye Toggle Button */
+/* Password Eye Button */
 .slr-eye-btn {
   position: absolute;
   right: 8px;
@@ -560,7 +698,7 @@ body.auth-slr-redesign {
 
 .slr-eye-btn:hover {
   color: var(--slr-heading);
-  background-color: rgba(0, 0, 0, 0.04);
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
 .slr-eye-btn:focus-visible {
@@ -584,7 +722,7 @@ body.auth-slr-redesign {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 14px 0 20px;
+  margin: 14px 0 18px;
   font-size: 13.5px;
 }
 
@@ -612,9 +750,10 @@ body.auth-slr-redesign {
   outline-offset: 2px;
 }
 
+/* Link Hierarchy with Consistent Darkened Gold (WCAG AA > 5:1 contrast) */
 .slr-forgot-link {
   color: var(--slr-gold-dark);
-  font-weight: 500;
+  font-weight: 600;
   text-decoration: none;
   transition: color 0.15s ease;
 }
@@ -630,13 +769,13 @@ body.auth-slr-redesign {
   outline-offset: 2px;
 }
 
-/* Primary Button */
+/* Primary Button with Top Highlight & Soft Shadow */
 .slr-btn-submit {
   width: 100%;
   height: 52px;
   border-radius: 12px;
   border: none;
-  background: linear-gradient(135deg, #c2953b 0%, #91681c 100%);
+  background: linear-gradient(135deg, #c9a24b 0%, #9e7523 100%);
   color: #ffffff;
   font-family: 'Inter', sans-serif;
   font-size: 15.5px;
@@ -645,7 +784,9 @@ body.auth-slr-redesign {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  box-shadow: 0 8px 20px rgba(145, 104, 28, 0.28);
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.35), /* Subtle top highlight */
+    0 8px 22px rgba(158, 117, 35, 0.32); /* Soft gold shadow */
   cursor: pointer;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
   transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
@@ -654,17 +795,21 @@ body.auth-slr-redesign {
 
 .slr-btn-submit:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 12px 26px rgba(145, 104, 28, 0.36);
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.40),
+    0 12px 28px rgba(158, 117, 35, 0.40);
   filter: brightness(1.04);
 }
 
 .slr-btn-submit:active:not(:disabled) {
   transform: translateY(1px);
-  box-shadow: 0 4px 10px rgba(145, 104, 28, 0.2);
+  box-shadow: 
+    inset 0 1px 0 rgba(0, 0, 0, 0.15),
+    0 4px 10px rgba(158, 117, 35, 0.22);
 }
 
 .slr-btn-submit:focus-visible {
-  outline: 3px solid rgba(201, 162, 75, 0.6);
+  outline: 3px solid rgba(201, 162, 75, 0.65);
   outline-offset: 2px;
 }
 
@@ -672,7 +817,7 @@ body.auth-slr-redesign {
   opacity: 0.82;
   cursor: not-allowed;
   transform: none;
-  filter: grayscale(15%);
+  filter: grayscale(12%);
 }
 
 .slr-btn-submit .spinner-icon {
@@ -684,7 +829,7 @@ body.auth-slr-redesign {
   100% { transform: rotate(360deg); }
 }
 
-/* Links & Navigation Below Button */
+/* Nav Links Section Below Button */
 .slr-nav-section {
   margin-top: 18px;
   display: flex;
@@ -786,27 +931,27 @@ body.auth-slr-redesign {
   font-size: 11px;
 }
 
-/* Check Status Form Dropdown */
+/* Collapsible Check Status Box */
 .slr-status-box {
   width: 100%;
-  margin-top: 14px;
+  margin-top: 12px;
   padding: 16px;
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.75);
   border: 1px solid #ded8cb;
   border-radius: 12px;
 }
 
-/* Corner Shield Emblem */
+/* Security Shield Emblem: 55% Opacity, Aligned to Bottom Right Padding */
 .slr-corner-shield {
   position: absolute;
   right: 28px;
   bottom: 24px;
-  opacity: 0.50;
+  opacity: 0.55;
   pointer-events: none;
   z-index: 1;
 }
 
-/* --- Autofill Overrides --- */
+/* --- Browser Autofill Overrides --- */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
@@ -816,81 +961,99 @@ input:-webkit-autofill:active {
   transition: background-color 5000s ease-in-out 0s;
 }
 
-/* --- Responsive Breakpoints --- */
+/* --- Section 5: Responsive Breakpoints --- */
 
-/* Laptops 1366x768 and smaller desktops */
-@media (max-height: 820px) {
-  .slr-split-container {
-    min-height: 590px;
+/* Laptops (1366x768 and smaller viewports) — No Scrolling */
+@media (max-height: 820px) and (min-width: 769px) {
+  .login-shell {
     margin: 12px auto;
+    padding: 14px;
+    gap: 12px;
   }
   .slr-arch-panel {
-    padding: 34px 26px 24px;
+    padding: 28px 24px 20px;
   }
   .slr-logo-wrap {
-    width: 100px;
-    height: 100px;
+    width: 96px;
+    height: 96px;
     margin-bottom: 10px;
   }
   .slr-arch-title {
-    font-size: 24px;
+    font-size: 23px;
   }
   .slr-arch-headline {
-    font-size: 25px;
-    margin: 0 0 10px;
+    font-size: 24px;
+    margin-bottom: 8px;
   }
   .slr-arch-description {
     font-size: 13px;
     margin-bottom: 12px;
   }
+  .slr-arch-footer {
+    margin-top: 10px;
+  }
   .slr-glass-card {
-    padding: 32px 40px;
+    padding: 28px 36px;
   }
   .slr-card-title {
     font-size: 34px;
   }
   .slr-field {
-    margin-bottom: 14px;
+    margin-bottom: 12px;
   }
   .slr-options-row {
-    margin: 10px 0 16px;
+    margin: 10px 0 14px;
+  }
+  .slr-btn-submit {
+    height: 48px;
   }
   .slr-nav-section {
-    margin-top: 14px;
+    margin-top: 12px;
     gap: 4px;
   }
 }
 
-/* Tablet (below 1024px) */
-@media (max-width: 1024px) {
-  .slr-split-container {
-    width: 95vw;
+/* Tablet (768px to 1023px) — 2 Columns Retained */
+@media (max-width: 1023px) and (min-width: 768px) {
+  .login-shell {
+    width: 96vw;
+    padding: 12px;
     gap: 12px;
+    grid-template-columns: minmax(300px, 42%) 1px minmax(340px, 1fr);
   }
   .slr-arch-panel {
-    flex: 0 0 40%;
-    width: 40%;
-    padding: 32px 20px 24px;
+    padding: 28px 20px 20px;
+    border-radius: 160px 160px 24px 24px;
   }
-  .slr-glass-card {
-    flex: 0 0 60%;
-    width: 60%;
-    padding: 32px 30px;
-    border-radius: 32px;
+  .slr-logo-wrap {
+    width: 90px;
+    height: 90px;
+    margin-bottom: 10px;
   }
   .slr-arch-title {
-    font-size: 22px;
+    font-size: 21px;
+  }
+  .slr-arch-subtitle {
+    font-size: 9.5px;
   }
   .slr-arch-headline {
-    font-size: 24px;
+    font-size: 22px;
+  }
+  .slr-arch-badge {
+    padding: 6px 12px;
+    font-size: 11px;
+  }
+  .slr-glass-card {
+    padding: 28px 26px;
+    border-radius: 24px;
   }
   .slr-card-title {
     font-size: 32px;
   }
 }
 
-/* Mobile (below 768px) */
-@media (max-width: 768px) {
+/* Mobile (Below 768px) — Stacked Single Unified Container */
+@media (max-width: 767px) {
   body.auth-slr-redesign {
     padding: 16px 12px;
     display: block;
@@ -905,22 +1068,23 @@ input:-webkit-autofill:active {
     background-image: url('../img/login-church-bg-mobile.jpg');
   }
 
-  .slr-split-container {
+  .login-shell {
+    display: flex;
     flex-direction: column;
     width: 100%;
     max-width: 480px;
-    min-height: auto;
     margin: 0 auto;
+    padding: 12px;
+    border-radius: 32px;
     gap: 0;
   }
 
-  /* Compact Brand Header on Mobile */
+  /* Compact Brand Header on Top */
   .slr-arch-panel {
-    flex: 0 0 auto;
-    width: 100%;
-    border-radius: 28px 28px 0 0;
-    padding: 24px 20px 20px;
+    border-radius: 24px 24px 0 0;
+    padding: 24px 20px 18px;
     border-bottom: none;
+    box-shadow: none;
   }
 
   .slr-logo-wrap {
@@ -938,28 +1102,50 @@ input:-webkit-autofill:active {
     margin-bottom: 8px;
   }
 
-  /* Hide large headline, description, fern art, and badge on mobile */
+  /* Hide headline paragraph, fern art, description, and bottom badge on mobile */
   .slr-arch-headline,
   .slr-arch-botanical,
+  .slr-arch-description,
   .slr-arch-gold-line,
-  .slr-arch-badge {
+  .slr-arch-footer {
     display: none;
   }
 
-  .slr-arch-description {
-    font-size: 12.5px;
-    margin: 4px 0 0;
-    display: block;
-    opacity: 0.9;
+  /* Thin Horizontal Gold Divider on Mobile */
+  .shell-divider {
+    width: 100%;
+    height: 1px;
+    flex-direction: row;
+    margin: 0;
   }
 
-  /* Login Card on Mobile */
+  .shell-divider .divider-line {
+    width: auto;
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, rgba(201, 162, 75, 0.65) 100%);
+  }
+
+  .shell-divider .divider-line:last-child {
+    background: linear-gradient(90deg, rgba(201, 162, 75, 0.65) 0%, transparent 100%);
+  }
+
+  .shell-divider .divider-hinge {
+    margin: 0 6px;
+    width: 22px;
+    height: 22px;
+  }
+
+  .shell-divider .divider-hinge svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  /* Login Card Below Header */
   .slr-glass-card {
-    flex: 0 0 auto;
-    width: 100%;
-    border-radius: 0 0 28px 28px;
-    padding: 24px 20px;
+    border-radius: 0 0 24px 24px;
+    padding: 24px 18px;
     border-top: none;
+    box-shadow: none;
   }
 
   .slr-card-title {
@@ -976,16 +1162,37 @@ input:-webkit-autofill:active {
   }
 
   .slr-corner-shield {
-    display: none; /* Hide decorative shield on mobile to keep layout clean */
+    display: none;
+  }
+
+  .shell-botanical-shared {
+    display: none;
   }
 }
 
-/* High Contrast & Reduced Motion */
+/* --- Section 6: Accessibility (Reduced Motion & Reduced Transparency) --- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+    animation: none !important;
+    transition: none !important;
+  }
+  .slr-bg-glow {
+    animation: none !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .login-shell {
+    background: #EFE4D0 !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  .slr-arch-panel {
+    background: #1B1713 !important;
+  }
+  .slr-glass-card {
+    background: #FBF6EA !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
 }

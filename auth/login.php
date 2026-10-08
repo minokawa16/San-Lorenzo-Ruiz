@@ -121,48 +121,68 @@ $bg_version = file_exists(__DIR__ . '/../assets/img/login-church-bg.webp') ? fil
 </head>
 <body class="auth-slr-redesign">
 
-    <!-- Fallback Bokeh Background & Pre-blurred Church Photo -->
+    <!-- Layered Background: Warm Bokeh + Blurred Church Photo + Vignette + Ambient Glow -->
     <div class="slr-bg-backdrop" aria-hidden="true"></div>
     <div class="slr-bg-image" aria-hidden="true"></div>
-    <div class="slr-bg-overlay" aria-hidden="true"></div>
+    <div class="slr-bg-vignette" aria-hidden="true"></div>
+    <div class="slr-bg-glow" aria-hidden="true"></div>
 
-    <!-- Centered Split Container -->
-    <main class="slr-split-container">
+    <!-- Centered Unified Shell Container -->
+    <main class="login-shell" id="loginShell">
         
-        <!-- Left Panel: Dark Arch Brand Panel -->
+        <!-- Soft Warm Light Glow Spilling Behind Logo and Across Divider -->
+        <div class="shell-logo-glow" aria-hidden="true"></div>
+
+        <!-- Subtle Shared Decorative Botanical Layer (6-8% Opacity) Passing Behind Both Panels -->
+        <svg class="shell-botanical-shared" viewBox="0 0 1100 160" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" preserveAspectRatio="none">
+            <path d="M-20 160 C120 130 240 100 380 60 C520 20 620 40 760 80 C900 120 980 140 1120 160" stroke="#C9A24B" stroke-width="1.4" stroke-linecap="round"/>
+            <path d="M60 148 C110 140 135 125 122 118 C108 122 88 135 60 148 Z" stroke="#C9A24B" stroke-width="0.9"/>
+            <path d="M160 132 C215 120 235 102 222 96 C206 100 182 118 160 132 Z" stroke="#C9A24B" stroke-width="0.9"/>
+            <path d="M260 114 C318 98 340 78 325 72 C308 78 282 98 260 114 Z" stroke="#C9A24B" stroke-width="0.9"/>
+            <path d="M360 92 C420 72 442 50 425 45 C408 52 382 74 360 92 Z" stroke="#C9A24B" stroke-width="0.9"/>
+            <path d="M470 68 C520 54 550 42 538 38 C524 42 500 58 470 68 Z" stroke="#C9A24B" stroke-width="0.9"/>
+            <path d="M530 52 C580 48 610 50 602 56 C588 58 560 62 530 52 Z" stroke="#C9A24B" stroke-width="0.9"/>
+            <path d="M620 65 C680 78 710 95 695 100 C678 96 650 80 620 65 Z" stroke="#C9A24B" stroke-width="0.9"/>
+            <path d="M720 84 C780 102 810 120 795 126 C778 122 750 102 720 84 Z" stroke="#C9A24B" stroke-width="0.9"/>
+            <path d="M820 106 C880 126 910 142 895 148 C878 144 850 124 820 106 Z" stroke="#C9A24B" stroke-width="0.9"/>
+            <path d="M920 128 C980 148 1010 158 995 162 C978 158 950 142 920 128 Z" stroke="#C9A24B" stroke-width="0.9"/>
+            <path d="M0 160 C200 150 400 120 550 95 C700 70 900 110 1100 160" stroke="#C9A24B" stroke-width="1.1" stroke-linecap="round" stroke-dasharray="4 3"/>
+        </svg>
+
+        <!-- Left Panel: Dark Translucent Arch Brand Panel -->
         <aside class="slr-arch-panel" aria-label="San Lorenzo Ruiz Mission Station">
             
             <!-- Botanical Fern Line-Art Pattern (Lower Corners) -->
             <svg class="slr-arch-botanical" viewBox="0 0 400 180" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" preserveAspectRatio="none">
                 <!-- Left corner fern fronds -->
-                <path d="M-10 180 C30 140 60 100 80 50" stroke="#D4B25E" stroke-width="1.4" stroke-linecap="round"/>
-                <path d="M15 155 C35 150 45 140 40 135 C30 135 20 145 15 155 Z" stroke="#D4B25E" stroke-width="0.9"/>
-                <path d="M30 135 C52 130 62 118 55 114 C44 115 35 125 30 135 Z" stroke="#D4B25E" stroke-width="0.9"/>
-                <path d="M45 115 C70 108 78 95 70 92 C60 93 50 104 45 115 Z" stroke="#D4B25E" stroke-width="0.9"/>
-                <path d="M60 92 C85 82 92 68 83 66 C73 68 64 80 60 92 Z" stroke="#D4B25E" stroke-width="0.9"/>
-                <path d="M72 70 C92 58 96 46 88 44 C80 46 73 58 72 70 Z" stroke="#D4B25E" stroke-width="0.9"/>
+                <path d="M-10 180 C30 140 60 100 80 50" stroke="#C9A24B" stroke-width="1.4" stroke-linecap="round"/>
+                <path d="M15 155 C35 150 45 140 40 135 C30 135 20 145 15 155 Z" stroke="#C9A24B" stroke-width="0.9"/>
+                <path d="M30 135 C52 130 62 118 55 114 C44 115 35 125 30 135 Z" stroke="#C9A24B" stroke-width="0.9"/>
+                <path d="M45 115 C70 108 78 95 70 92 C60 93 50 104 45 115 Z" stroke="#C9A24B" stroke-width="0.9"/>
+                <path d="M60 92 C85 82 92 68 83 66 C73 68 64 80 60 92 Z" stroke="#C9A24B" stroke-width="0.9"/>
+                <path d="M72 70 C92 58 96 46 88 44 C80 46 73 58 72 70 Z" stroke="#C9A24B" stroke-width="0.9"/>
                 
-                <path d="M20 180 C60 160 110 145 150 125" stroke="#D4B25E" stroke-width="1.2" stroke-linecap="round"/>
-                <path d="M50 168 C75 162 90 152 82 148 C72 150 58 160 50 168 Z" stroke="#D4B25E" stroke-width="0.8"/>
-                <path d="M80 155 C108 148 120 136 112 132 C102 135 88 145 80 155 Z" stroke="#D4B25E" stroke-width="0.8"/>
-                <path d="M110 142 C135 132 145 120 137 117 C128 120 118 132 110 142 Z" stroke="#D4B25E" stroke-width="0.8"/>
+                <path d="M20 180 C60 160 110 145 150 125" stroke="#C9A24B" stroke-width="1.2" stroke-linecap="round"/>
+                <path d="M50 168 C75 162 90 152 82 148 C72 150 58 160 50 168 Z" stroke="#C9A24B" stroke-width="0.8"/>
+                <path d="M80 155 C108 148 120 136 112 132 C102 135 88 145 80 155 Z" stroke="#C9A24B" stroke-width="0.8"/>
+                <path d="M110 142 C135 132 145 120 137 117 C128 120 118 132 110 142 Z" stroke="#C9A24B" stroke-width="0.8"/>
 
                 <!-- Right corner fern fronds -->
-                <path d="M410 180 C370 140 340 100 320 50" stroke="#D4B25E" stroke-width="1.4" stroke-linecap="round"/>
-                <path d="M385 155 C365 150 355 140 360 135 C370 135 380 145 385 155 Z" stroke="#D4B25E" stroke-width="0.9"/>
-                <path d="M370 135 C348 130 338 118 345 114 C356 115 365 125 370 135 Z" stroke="#D4B25E" stroke-width="0.9"/>
-                <path d="M355 115 C330 108 322 95 330 92 C340 93 350 104 355 115 Z" stroke="#D4B25E" stroke-width="0.9"/>
-                <path d="M340 92 C315 82 308 68 317 66 C327 68 336 80 340 92 Z" stroke="#D4B25E" stroke-width="0.9"/>
-                <path d="M328 70 C308 58 304 46 312 44 C320 46 327 58 328 70 Z" stroke="#D4B25E" stroke-width="0.9"/>
+                <path d="M410 180 C370 140 340 100 320 50" stroke="#C9A24B" stroke-width="1.4" stroke-linecap="round"/>
+                <path d="M385 155 C365 150 355 140 360 135 C370 135 380 145 385 155 Z" stroke="#C9A24B" stroke-width="0.9"/>
+                <path d="M370 135 C348 130 338 118 345 114 C356 115 365 125 370 135 Z" stroke="#C9A24B" stroke-width="0.9"/>
+                <path d="M355 115 C330 108 322 95 330 92 C340 93 350 104 355 115 Z" stroke="#C9A24B" stroke-width="0.9"/>
+                <path d="M340 92 C315 82 308 68 317 66 C327 68 336 80 340 92 Z" stroke="#C9A24B" stroke-width="0.9"/>
+                <path d="M328 70 C308 58 304 46 312 44 C320 46 327 58 328 70 Z" stroke="#C9A24B" stroke-width="0.9"/>
 
-                <path d="M380 180 C340 160 290 145 250 125" stroke="#D4B25E" stroke-width="1.2" stroke-linecap="round"/>
-                <path d="M350 168 C325 162 310 152 318 148 C328 150 342 160 350 168 Z" stroke="#D4B25E" stroke-width="0.8"/>
-                <path d="M320 155 C292 148 280 136 288 132 C298 135 312 145 320 155 Z" stroke="#D4B25E" stroke-width="0.8"/>
-                <path d="M290 142 C265 132 255 120 263 117 C272 120 282 132 290 142 Z" stroke="#D4B25E" stroke-width="0.8"/>
+                <path d="M380 180 C340 160 290 145 250 125" stroke="#C9A24B" stroke-width="1.2" stroke-linecap="round"/>
+                <path d="M350 168 C325 162 310 152 318 148 C328 150 342 160 350 168 Z" stroke="#C9A24B" stroke-width="0.8"/>
+                <path d="M320 155 C292 148 280 136 288 132 C298 135 312 145 320 155 Z" stroke="#C9A24B" stroke-width="0.8"/>
+                <path d="M290 142 C265 132 255 120 263 117 C272 120 282 132 290 142 Z" stroke="#C9A24B" stroke-width="0.8"/>
             </svg>
 
             <div class="slr-arch-content">
-                <!-- Double Ring Glowing Logo -->
+                <!-- Double Ring Glowing Logo with Outer Halo -->
                 <div class="slr-logo-wrap">
                     <picture>
                         <source srcset="../assets/img/slr_logo.webp?v=<?php echo $logo_version; ?>" type="image/webp">
@@ -181,7 +201,7 @@ $bg_version = file_exists(__DIR__ . '/../assets/img/login-church-bg.webp') ? fil
                     <span class="divider-line"></span>
                 </div>
 
-                <!-- Headline with Gold Accents -->
+                <!-- Headline with Gold Accents (Cormorant Garamond) -->
                 <div class="slr-arch-headline">
                     Serving the <span class="gold-text">Parish</span> through <span class="gold-text">Faith, Community,</span> and <span class="gold-text">Technology.</span>
                 </div>
@@ -195,17 +215,40 @@ $bg_version = file_exists(__DIR__ . '/../assets/img/login-church-bg.webp') ? fil
                 <div class="slr-arch-gold-line" aria-hidden="true"></div>
             </div>
 
-            <!-- Bottom Pill Badge -->
-            <div class="slr-arch-badge">
-                <i class="fas fa-church" aria-hidden="true"></i>
-                <span>Faithfully serving our parish community.</span>
-            </div>
+            <!-- Bottom Footer: Baseline Aligned with Right Shield -->
+            <footer class="slr-arch-footer">
+                <div class="slr-arch-badge">
+                    <i class="fas fa-church" aria-hidden="true"></i>
+                    <span>Faithfully serving our parish community.</span>
+                </div>
+                <!-- Mirrored Left Parish Emblem for Symmetrical Balance -->
+                <svg class="slr-arch-mirror-shield" width="56" height="66" viewBox="0 0 56 66" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M28 2 C16 8 4 7 2 12 C2 36 13 54 28 64 C43 54 54 36 54 12 C52 7 40 8 28 2 Z" stroke="#C9A24B" stroke-width="1.5" fill="none"/>
+                    <path d="M28 6 C18 11 8 10 7 14 C7 34 16 49 28 58 C40 49 49 34 49 14 C48 10 38 11 28 6 Z" stroke="#C9A24B" stroke-width="0.8" stroke-dasharray="2.5 2" fill="none" opacity="0.65"/>
+                    <path d="M28 16 L28 46" stroke="#C9A24B" stroke-width="1.8" stroke-linecap="round"/>
+                    <path d="M21 24 L35 24" stroke="#C9A24B" stroke-width="1.8" stroke-linecap="round"/>
+                    <circle cx="28" cy="24" r="2" fill="#C9A24B"/>
+                </svg>
+            </footer>
         </aside>
 
-        <!-- Right Card: Frosted Cream Glass -->
+        <!-- Vertical Gold Divider Hinge -->
+        <div class="shell-divider" aria-hidden="true">
+            <div class="divider-line"></div>
+            <div class="divider-hinge">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M9 1L9 17" stroke="#C9A24B" stroke-width="1.6" stroke-linecap="round"/>
+                    <path d="M4 6L14 6" stroke="#C9A24B" stroke-width="1.6" stroke-linecap="round"/>
+                    <circle cx="9" cy="6" r="1.5" fill="#C9A24B"/>
+                </svg>
+            </div>
+            <div class="divider-line"></div>
+        </div>
+
+        <!-- Right Card: Frosted Warm-Glass Card -->
         <section class="slr-glass-card" aria-label="Login form">
             
-            <!-- Top Cross Flourish Ornament -->
+            <!-- Top Cross Flourish Ornament (Matching Left Line Weight & Gold Tone) -->
             <div class="slr-card-ornament" aria-hidden="true">
                 <svg width="130" height="26" viewBox="0 0 130 26" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M12 13 C 24 13, 30 8, 40 13 C 48 17, 54 13, 58 13" stroke="#C9A24B" stroke-width="1.2" stroke-linecap="round"/>
@@ -221,7 +264,7 @@ $bg_version = file_exists(__DIR__ . '/../assets/img/login-church-bg.webp') ? fil
                 </svg>
             </div>
 
-            <!-- Card Header -->
+            <!-- Card Header (Cormorant Garamond Title) -->
             <header class="slr-card-header">
                 <h1 class="slr-card-title">Welcome Back</h1>
                 <p class="slr-card-subtitle">Sign in to access your Parish Management System account.</p>
@@ -376,24 +419,19 @@ $bg_version = file_exists(__DIR__ . '/../assets/img/login-church-bg.webp') ? fil
                 </div>
             </div>
 
-            <!-- Corner Shield Emblem (Bottom Right) -->
+            <!-- Corner Shield Emblem (Bottom Right, 55% Opacity) -->
             <svg class="slr-corner-shield" width="56" height="66" viewBox="0 0 56 66" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <!-- Outer Shield Crest -->
                 <path d="M28 2 C40 8 52 7 54 12 C54 36 43 54 28 64 C13 54 2 36 2 12 C4 7 16 8 28 2 Z" stroke="#C9A24B" stroke-width="1.5" fill="none"/>
-                <!-- Inner Shield Dashed Accent -->
                 <path d="M28 6 C38 11 48 10 49 14 C49 34 40 49 28 58 C16 49 7 34 7 14 C8 10 18 11 28 6 Z" stroke="#C9A24B" stroke-width="0.8" stroke-dasharray="2.5 2" fill="none" opacity="0.65"/>
-                <!-- Lock Shackle -->
                 <path d="M23 31 V26 C23 23.2 25.2 21 28 21 C30.8 21 33 23.2 33 26 V31" stroke="#C9A24B" stroke-width="1.6" stroke-linecap="round"/>
-                <!-- Lock Body -->
                 <rect x="20" y="31" width="16" height="13" rx="3" stroke="#C9A24B" stroke-width="1.5" fill="rgba(201, 162, 75, 0.18)"/>
-                <!-- Keyhole -->
                 <circle cx="28" cy="36" r="1.8" fill="#C9A24B"/>
                 <path d="M28 37.5 V40.5" stroke="#C9A24B" stroke-width="1.3" stroke-linecap="round"/>
             </svg>
         </section>
     </main>
 
-    <!-- Client-side Interactive Logic -->
+    <!-- Client-side Interactive Logic (Preserved 100%) -->
     <script>
         window.parishInitialNotifications = <?php echo json_encode($action_notifications, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
 
