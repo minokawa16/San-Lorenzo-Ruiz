@@ -13,7 +13,7 @@ function canonicalSchemaTables(): array
     static $tables = [
         'account_status_history', 'ai_feedback', 'ai_responses',
         'announcement_attachments', 'announcement_audiences', 'announcement_recipients', 'announcements',
-        'audit_log', 'baptism_records', 'certificate_events', 'certificate_file_templates',
+        'audit_log', 'backup_records', 'baptism_records', 'certificate_events', 'certificate_file_templates',
         'certificate_issuances', 'certificate_layouts', 'certificate_number_sequences', 'certificate_templates',
         'chatbot_inquiries', 'chatbot_knowledge', 'chatbot_knowledge_meta', 'confirmation_records',
         'email_verifications', 'first_communion_records', 'funeral_records', 'login_attempts',

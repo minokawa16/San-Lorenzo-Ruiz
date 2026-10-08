@@ -15,7 +15,7 @@ $isRecordsActive = in_array($currentPage, ['manage-records.php', 'baptism-record
 $isCertificatesActive = in_array($currentPage, ['certificate-generator.php', 'manual-certificate-generator.php', 'certificate-workflow.php', 'certificate-templates.php', 'certificate-layout-editor.php'], true);
 $isCommunicationActive = in_array($currentPage, ['manage-announcements.php', 'post-announcement.php'], true);
 $isReportsActive = in_array($currentPage, ['reports.php', 'audit-logs.php'], true);
-$isSystemActive = in_array($currentPage, ['settings.php', 'help.php'], true);
+$isSystemActive = in_array($currentPage, ['settings.php', 'backup.php', 'help.php'], true);
 
 // Get pending requests count for badge
 $sidebarPendingCount = 0;
@@ -536,6 +536,10 @@ html body .admin-sidebar.collapsed .nav-section-submenu {
         <a href="<?php echo BASE_URL; ?>admin/settings.php" class="nav-link <?php echo ($currentPage == 'settings.php') ? 'active' : ''; ?>" aria-label="<?php echo e(t('nav.settings', 'Settings')); ?>" data-tooltip="<?php echo e(t('nav.settings', 'Settings')); ?>">
           <i class="fas fa-cog" aria-hidden="true"></i>
           <span><?php echo e(t('nav.settings', 'Settings')); ?></span>
+        </a>
+        <a href="<?php echo BASE_URL; ?>admin/backup.php" class="nav-link <?php echo ($currentPage == 'backup.php') ? 'active' : ''; ?>" aria-label="Backup Records" data-tooltip="Backup Records">
+          <i class="fas fa-database" aria-hidden="true"></i>
+          <span>Backup Records</span>
         </a>
         <?php endif; ?>
         <a href="<?php echo BASE_URL; ?>admin/help.php" class="nav-link <?php echo ($currentPage == 'help.php') ? 'active' : ''; ?>" aria-label="Admin Manual" data-tooltip="Admin Manual">

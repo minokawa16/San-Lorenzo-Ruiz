@@ -4157,6 +4157,33 @@ function getPriestInChargeTitle($conn = null) {
     return 'Priest-in-Charge';
 }
 
+if (!function_exists('writeSetting')) {
+    function writeSetting($conn, $key, $value) {
+        $stmt = $conn->prepare("INSERT INTO system_settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
+        if ($stmt) {
+            $stmt->bind_param('ss', $key, $value);
+            $stmt->execute();
+            $stmt->close();
+        }
+    }
+}
+
+if (!function_exists('readSetting')) {
+    function readSetting($conn, $key, $default = '') {
+        $stmt = $conn->prepare("SELECT setting_value FROM system_settings WHERE setting_key = ? LIMIT 1");
+        if ($stmt) {
+            $stmt->bind_param('s', $key);
+            $stmt->execute();
+            $row = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            if ($row) {
+                return $row['setting_value'];
+            }
+        }
+        return $default;
+    }
+}
+
 /**
  * Returns configuration for certificate categories (Original Certificate & Certification).
  * Centralized config for titles, descriptions, and helper lines across staff and parishioner portals.

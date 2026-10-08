@@ -103,19 +103,34 @@ assertCondition(strpos($api_code, 'ZipArchive') !== false, "API uses ZipArchive 
 assertCondition(strpos($api_code, 'application/zip') !== false, "API returns application/zip Content-Type");
 assertCondition(strpos($api_code, '\xEF\xBB\xBF') !== false, "API adds UTF-8 BOM for Excel/LibreOffice");
 
-echo "\n=== 3. Testing admin/settings.php Integration ===\n";
+$backup_page = __DIR__ . '/../admin/backup.php';
+$settings_file = __DIR__ . '/../admin/settings.php';
+
+echo "\n=== 3. Testing admin/backup.php Integration ===\n";
+assertCondition(file_exists($backup_page), "admin/backup.php exists");
+$backup_content = file_get_contents($backup_page);
+
+assertCondition(strpos($backup_content, 'Backup Parish Records') !== false, "admin/backup.php contains 'Backup Parish Records'");
+assertCondition(strpos($backup_content, 'sacramental_records') !== false, "admin/backup.php contains sacramental_records key");
+assertCondition(strpos($backup_content, 'parishioners') !== false, "admin/backup.php contains parishioners key");
+assertCondition(strpos($backup_content, 'requests') !== false, "admin/backup.php contains requests key");
+assertCondition(strpos($backup_content, 'btn-download-backup') !== false, "admin/backup.php contains download button");
+assertCondition(strpos($backup_content, 'Backup History') !== false, "admin/backup.php contains Backup History table");
+assertCondition(strpos($backup_content, 'Restore / Import') !== false, "admin/backup.php contains Restore / Import feature");
+assertCondition(strpos($backup_content, 'Parish Settings & Certificate Signatory') === false, "admin/backup.php has removed the Signatory card");
+
+preg_match_all('/class="record-row(?:\s+[^"]*)?"/', $backup_content, $backup_matches);
+assertCondition(count($backup_matches[0]) === 3, "admin/backup.php contains exactly 3 record-type rows (found: " . count($backup_matches[0]) . ")");
+
+echo "\n=== 4. Testing admin/settings.php Certificate Signatory Integration ===\n";
 assertCondition(file_exists($settings_file), "admin/settings.php exists");
 $settings_content = file_get_contents($settings_file);
 
-assertCondition(strpos($settings_content, 'Backup Parish Records') !== false, "admin/settings.php contains 'Backup Parish Records'");
-assertCondition(strpos($settings_content, 'sacramental_records') !== false, "admin/settings.php contains sacramental_records key");
-assertCondition(strpos($settings_content, 'parishioners') !== false, "admin/settings.php contains parishioners key");
-assertCondition(strpos($settings_content, 'requests') !== false, "admin/settings.php contains requests key");
-assertCondition(strpos($settings_content, 'exportParishRecords') !== false, "admin/settings.php contains exportParishRecords handler");
-assertCondition(strpos($settings_content, 'btn-download-backup') !== false, "admin/settings.php contains download button");
-
-preg_match_all('/class="record-row(?:\s+[^"]*)?"/', $settings_content, $settings_matches);
-assertCondition(count($settings_matches[0]) === 3, "admin/settings.php contains exactly 3 record-type rows (found: " . count($settings_matches[0]) . ")");
+assertCondition(strpos($settings_content, 'Certificate Signatory') !== false, "admin/settings.php contains 'Certificate Signatory' section");
+assertCondition(strpos($settings_content, 'priest_in_charge') !== false, "admin/settings.php contains priest_in_charge field");
+assertCondition(strpos($settings_content, 'priest_in_charge_title') !== false, "admin/settings.php contains priest_in_charge_title field");
+assertCondition(strpos($settings_content, 'Save Clergy Settings') !== false, "admin/settings.php contains 'Save Clergy Settings' button");
+assertCondition(strpos($settings_content, 'backup.php') !== false, "admin/settings.php links to backup.php");
 
 
 echo "\n===================================\n";
