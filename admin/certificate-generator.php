@@ -533,6 +533,87 @@ include __DIR__ . '/../templates/header.php';
         color: #0284c7;
     }
 
+    /* Searchable Select / Combobox Styling for Certificate Generator */
+    .record-combobox-wrapper {
+        position: relative;
+    }
+    .record-combobox-wrapper .input-group {
+        border-radius: 8px;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+    .record-combobox-wrapper .input-group:focus-within {
+        border-color: #8c6225;
+        box-shadow: 0 0 0 0.25rem rgba(140, 98, 37, 0.25);
+    }
+    .record-combobox-wrapper .form-control:focus {
+        border-color: #8c6225;
+        box-shadow: none;
+    }
+    .record-combobox-wrapper .input-group:focus-within .input-group-text,
+    .record-combobox-wrapper .input-group:focus-within .btn {
+        border-color: #8c6225;
+    }
+    .record-combobox-dropdown {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        right: 0;
+        z-index: 1070;
+        max-height: 240px;
+        overflow-y: auto;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: #ffffff;
+        padding: 4px 0;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        display: none;
+    }
+    .record-combobox-dropdown.show {
+        display: block;
+    }
+    .record-combobox-item {
+        padding: 9px 14px;
+        font-size: 0.85rem;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: #1e293b;
+        transition: background-color 0.12s ease;
+        border-bottom: 1px solid #f8fafc;
+        user-select: none;
+    }
+    .record-combobox-item:last-child {
+        border-bottom: none;
+    }
+    .record-combobox-item:hover,
+    .record-combobox-item.active {
+        background-color: #fdf8f0;
+        color: #78350f;
+    }
+    .record-combobox-item.selected {
+        background-color: #fef3c7;
+        color: #78350f;
+        font-weight: 600;
+    }
+    .record-combobox-item strong {
+        color: #8c6225;
+        font-weight: 700;
+    }
+    .record-combobox-empty {
+        padding: 14px;
+        text-align: center;
+        color: #64748b;
+        font-size: 0.84rem;
+    }
+    .record-combobox-item .record-meta-date {
+        font-size: 0.74rem;
+        color: #94a3b8;
+        margin-left: 8px;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
     .pds-cert-section-header {
         margin-bottom: 16px;
     }
@@ -852,10 +933,46 @@ include __DIR__ . '/../templates/header.php';
                     <?php endif; ?>
 
                     <div class="mb-3">
-                        <label for="record_id" class="form-label fw-bold text-dark">Select Record <span class="text-danger">*</span></label>
-                        <select class="form-select" id="record_id" name="record_id" required>
-                            <option value="">-- Loading records --</option>
-                        </select>
+                        <label for="record_search_input" class="form-label fw-bold text-dark">
+                            Select Record <span class="text-danger">*</span>
+                        </label>
+                        <div class="record-combobox-wrapper" id="recordComboboxWrapper">
+                            <div class="input-group">
+                                <span class="input-group-text bg-white text-muted border-end-0">
+                                    <i class="fas fa-search" id="recordSearchIcon"></i>
+                                </span>
+                                <input type="text" 
+                                       class="form-control border-start-0 ps-0" 
+                                       id="record_search_input" 
+                                       placeholder="Search or select a record..." 
+                                       autocomplete="off" 
+                                       spellcheck="false" 
+                                       required>
+                                <button type="button" 
+                                        class="btn btn-outline-secondary d-none" 
+                                        id="btnRecordClear" 
+                                        title="Clear selection" 
+                                        tabindex="-1">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-outline-secondary" 
+                                        id="btnRecordDropdownToggle" 
+                                        title="Show records" 
+                                        tabindex="-1">
+                                    <i class="fas fa-chevron-down" style="font-size: 0.72rem;"></i>
+                                </button>
+                            </div>
+                            <input type="hidden" name="record_id" id="record_id" value="" required>
+                            <div class="invalid-feedback d-none" id="recordInvalidFeedback">
+                                Please select a valid record from the list.
+                            </div>
+                            <div class="record-combobox-dropdown" id="recordComboboxDropdown" role="listbox">
+                                <div class="record-combobox-empty">
+                                    <i class="fas fa-spinner fa-spin me-1"></i> Loading records...
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Baptism Standard Record Fields & Overrides -->
@@ -1163,12 +1280,349 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const modalEl = document.getElementById('generateModal');
     const bsModal = new bootstrap.Modal(modalEl);
-    const select = document.getElementById('record_id');
+    const recordIdInput = document.getElementById('record_id');
+    const recordSearchInput = document.getElementById('record_search_input');
+    const recordDropdown = document.getElementById('recordComboboxDropdown');
+    const btnRecordClear = document.getElementById('btnRecordClear');
+    const btnRecordToggle = document.getElementById('btnRecordDropdownToggle');
+    const recordFeedback = document.getElementById('recordInvalidFeedback');
+    const select = recordIdInput;
     const certTypeInput = document.getElementById('cert_type');
     const baptismFields = document.getElementById('baptismFieldsContainer');
     const sponsorsList = document.getElementById('modalSponsorsList');
     const addSponsorBtn = document.getElementById('addModalSponsorBtn');
     const form = document.getElementById('generatorRecordForm');
+
+    let currentRecords = [];
+    let selectedRecord = null;
+    let activeDropdownIndex = -1;
+    let serverSearchTimeout = null;
+
+    function getApiType(certType) {
+        return (certType === 'baptism' || certType === 'baptism_certification') ? 'baptism'
+            : (certType === 'first_communion_certification' || certType === 'communion') ? 'communion'
+            : (certType === 'confirmation_certification' || certType === 'confirmation') ? 'confirmation'
+            : (certType === 'marriage_certification' || certType === 'marriage') ? 'marriage'
+            : (certType === 'funeral_certification' || certType === 'funeral') ? 'funeral'
+            : (certType || 'baptism');
+    }
+
+    function normalizeSearchText(str) {
+        if (!str) return '';
+        return String(str)
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    function levenshteinDistance(a, b) {
+        if (a.length === 0) return b.length;
+        if (b.length === 0) return a.length;
+        const matrix = [];
+        for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+        for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+        for (let i = 1; i <= b.length; i++) {
+            for (let j = 1; j <= a.length; j++) {
+                if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                    matrix[i][j] = matrix[i - 1][j - 1];
+                } else {
+                    matrix[i][j] = Math.min(
+                        matrix[i - 1][j - 1] + 1,
+                        matrix[i][j - 1] + 1,
+                        matrix[i - 1][j] + 1
+                    );
+                }
+            }
+        }
+        return matrix[b.length][a.length];
+    }
+
+    function recordMatchesQuery(recordName, query) {
+        const qNorm = normalizeSearchText(query);
+        if (!qNorm) return true;
+        const nameNorm = normalizeSearchText(recordName);
+        if (!nameNorm) return false;
+
+        // 1. Direct substring match on accent-normalized text
+        if (nameNorm.includes(qNorm)) return true;
+
+        // 2. Token / word matching with tolerance for small typos/transpositions
+        const qTokens = qNorm.split(' ').filter(Boolean);
+        const nameTokens = nameNorm.split(' ').filter(Boolean);
+
+        return qTokens.every(qTok => {
+            return nameTokens.some(nTok => {
+                if (nTok.includes(qTok)) return true;
+                const maxLen = Math.max(qTok.length, nTok.length);
+                const maxAllowedDist = maxLen >= 6 ? 2 : (maxLen >= 4 ? 1 : 0);
+                if (maxAllowedDist > 0 && Math.abs(qTok.length - nTok.length) <= maxAllowedDist) {
+                    if (levenshteinDistance(qTok, nTok) <= maxAllowedDist) {
+                        return true;
+                    }
+                }
+                return false;
+            });
+        });
+    }
+
+    function highlightRecordMatch(text, query) {
+        if (!query || !query.trim()) return escapeHtml(text);
+        const qNorm = normalizeSearchText(query);
+        if (!qNorm) return escapeHtml(text);
+
+        const escapedQuery = query.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp('(' + escapedQuery + ')', 'gi');
+        if (regex.test(text)) {
+            return escapeHtml(text).replace(regex, '<strong>$1</strong>');
+        }
+
+        const textNorm = normalizeSearchText(text);
+        const idx = textNorm.indexOf(qNorm);
+        if (idx !== -1) {
+            return escapeHtml(text.slice(0, idx)) + '<strong>' + escapeHtml(text.slice(idx, idx + query.trim().length)) + '</strong>' + escapeHtml(text.slice(idx + query.trim().length));
+        }
+        return escapeHtml(text);
+    }
+
+    function renderRecordDropdown(items, query) {
+        recordDropdown.innerHTML = '';
+        activeDropdownIndex = -1;
+
+        if (!items || items.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'record-combobox-empty text-muted';
+            empty.textContent = 'No records found';
+            recordDropdown.appendChild(empty);
+            recordDropdown.classList.add('show');
+            return;
+        }
+
+        items.forEach((rec, idx) => {
+            const itemEl = document.createElement('div');
+            const isSelected = selectedRecord && String(selectedRecord.id) === String(rec.id);
+            itemEl.className = 'record-combobox-item' + (isSelected ? ' selected' : '');
+            itemEl.setAttribute('data-id', rec.id);
+            itemEl.setAttribute('role', 'option');
+            itemEl.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+
+            let dateMeta = '';
+            const recDate = rec.baptism_date || rec.communion_date || rec.confirmation_date || rec.wedding_date || rec.date_of_burial;
+            if (recDate) {
+                dateMeta = `<span class="record-meta-date"><i class="fas fa-calendar-alt me-1"></i>${escapeHtml(recDate)}</span>`;
+            }
+
+            itemEl.innerHTML = `
+                <div class="text-truncate flex-grow-1">
+                    <i class="fas fa-user text-secondary me-2" style="font-size: 0.78rem;"></i>${highlightRecordMatch(rec.name, query)}
+                </div>
+                ${dateMeta}
+            `;
+
+            itemEl.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                selectRecord(rec);
+            });
+
+            recordDropdown.appendChild(itemEl);
+        });
+
+        recordDropdown.classList.add('show');
+    }
+
+    function selectRecord(record) {
+        if (!record) return;
+        selectedRecord = record;
+        recordIdInput.value = record.id;
+        recordSearchInput.value = record.name;
+        recordSearchInput.classList.remove('is-invalid');
+        recordFeedback.classList.add('d-none');
+        btnRecordClear.classList.remove('d-none');
+        recordDropdown.classList.remove('show');
+        activeDropdownIndex = -1;
+
+        recordIdInput.dispatchEvent(new Event('change'));
+    }
+
+    function clearRecordSelection() {
+        selectedRecord = null;
+        recordIdInput.value = '';
+        btnRecordClear.classList.add('d-none');
+    }
+
+    function selectRecordById(id) {
+        if (!id) return;
+        const existing = currentRecords.find(r => String(r.id) === String(id));
+        if (existing) {
+            selectRecord(existing);
+        } else {
+            const certType = certTypeInput.value || 'baptism';
+            const apiType = getApiType(certType);
+            fetch('../api/get_records.php?type=' + apiType + '&id=' + id)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && data.records && data.records.length > 0) {
+                        const rec = data.records[0];
+                        if (!currentRecords.some(r => String(r.id) === String(rec.id))) {
+                            currentRecords.unshift(rec);
+                        }
+                        selectRecord(rec);
+                    }
+                })
+                .catch(err => console.error('Error fetching record by id:', err));
+        }
+    }
+
+    function debounceServerSearch(query) {
+        clearTimeout(serverSearchTimeout);
+        const cleanQ = (query || '').trim();
+        if (cleanQ.length < 2) return;
+
+        serverSearchTimeout = setTimeout(() => {
+            const certType = certTypeInput.value || 'baptism';
+            const apiType = getApiType(certType);
+            fetch('../api/get_records.php?type=' + apiType + '&q=' + encodeURIComponent(cleanQ))
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && Array.isArray(data.records)) {
+                        let addedAny = false;
+                        data.records.forEach(newRec => {
+                            if (!currentRecords.some(r => String(r.id) === String(newRec.id))) {
+                                currentRecords.push(newRec);
+                                addedAny = true;
+                            }
+                        });
+                        if (addedAny && recordSearchInput.value.trim() === cleanQ && recordDropdown.classList.contains('show')) {
+                            const filtered = currentRecords.filter(r => recordMatchesQuery(r.name, cleanQ));
+                            renderRecordDropdown(filtered, cleanQ);
+                        }
+                    }
+                })
+                .catch(err => console.error('Server search error:', err));
+        }, 250);
+    }
+
+    recordSearchInput.addEventListener('input', function() {
+        if (selectedRecord && this.value !== selectedRecord.name) {
+            clearRecordSelection();
+        } else if (!this.value.trim()) {
+            clearRecordSelection();
+        }
+
+        recordSearchInput.classList.remove('is-invalid');
+        recordFeedback.classList.add('d-none');
+        btnRecordClear.classList.toggle('d-none', !this.value.trim());
+
+        const query = this.value;
+        const filtered = currentRecords.filter(r => recordMatchesQuery(r.name, query));
+        renderRecordDropdown(filtered, query);
+        debounceServerSearch(query);
+    });
+
+    recordSearchInput.addEventListener('focus', function() {
+        const query = selectedRecord ? '' : this.value;
+        const filtered = query ? currentRecords.filter(r => recordMatchesQuery(r.name, query)) : currentRecords;
+        renderRecordDropdown(filtered, query);
+    });
+
+    recordSearchInput.addEventListener('blur', function() {
+        setTimeout(() => {
+            recordDropdown.classList.remove('show');
+            activeDropdownIndex = -1;
+
+            const typedText = recordSearchInput.value.trim();
+            if (typedText && !recordIdInput.value) {
+                const exactMatch = currentRecords.find(r => normalizeSearchText(r.name) === normalizeSearchText(typedText));
+                if (exactMatch) {
+                    selectRecord(exactMatch);
+                } else {
+                    recordSearchInput.classList.add('is-invalid');
+                    recordFeedback.classList.remove('d-none');
+                }
+            }
+        }, 200);
+    });
+
+    recordSearchInput.addEventListener('keydown', function(e) {
+        const items = recordDropdown.querySelectorAll('.record-combobox-item');
+        const isDropdownOpen = recordDropdown.classList.contains('show');
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (!isDropdownOpen) {
+                const query = selectedRecord ? '' : this.value;
+                const filtered = query ? currentRecords.filter(r => recordMatchesQuery(r.name, query)) : currentRecords;
+                renderRecordDropdown(filtered, query);
+                return;
+            }
+            if (items.length > 0) {
+                activeDropdownIndex = (activeDropdownIndex + 1) % items.length;
+                items.forEach((it, i) => it.classList.toggle('active', i === activeDropdownIndex));
+                if (items[activeDropdownIndex]) {
+                    items[activeDropdownIndex].scrollIntoView({ block: 'nearest' });
+                }
+            }
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (!isDropdownOpen) return;
+            if (items.length > 0) {
+                activeDropdownIndex = (activeDropdownIndex - 1 + items.length) % items.length;
+                items.forEach((it, i) => it.classList.toggle('active', i === activeDropdownIndex));
+                if (items[activeDropdownIndex]) {
+                    items[activeDropdownIndex].scrollIntoView({ block: 'nearest' });
+                }
+            }
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (isDropdownOpen && items.length > 0) {
+                let targetItem = null;
+                if (activeDropdownIndex >= 0 && items[activeDropdownIndex]) {
+                    targetItem = items[activeDropdownIndex];
+                } else if (items.length === 1) {
+                    targetItem = items[0];
+                }
+                if (targetItem) {
+                    const targetId = targetItem.getAttribute('data-id');
+                    const targetRecord = currentRecords.find(r => String(r.id) === String(targetId));
+                    if (targetRecord) {
+                        selectRecord(targetRecord);
+                    }
+                }
+            }
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            recordDropdown.classList.remove('show');
+            activeDropdownIndex = -1;
+        }
+    });
+
+    btnRecordToggle.addEventListener('click', function(e) {
+        e.preventDefault();
+        if (recordDropdown.classList.contains('show')) {
+            recordDropdown.classList.remove('show');
+        } else {
+            recordSearchInput.focus();
+            const query = selectedRecord ? '' : recordSearchInput.value;
+            const filtered = query ? currentRecords.filter(r => recordMatchesQuery(r.name, query)) : currentRecords;
+            renderRecordDropdown(filtered, query);
+        }
+    });
+
+    btnRecordClear.addEventListener('click', function(e) {
+        e.preventDefault();
+        clearRecordSelection();
+        recordSearchInput.value = '';
+        recordSearchInput.focus();
+        renderRecordDropdown(currentRecords, '');
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('#recordComboboxWrapper')) {
+            recordDropdown.classList.remove('show');
+            activeDropdownIndex = -1;
+        }
+    });
 
     function escapeHtml(str) {
         if (!str) return '';
@@ -1562,36 +2016,32 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        select.innerHTML = '<option>Loading...</option>';
-        const apiRecordType = (recordType === 'baptism_certification') ? 'baptism'
-            : (recordType === 'first_communion_certification' || recordType === 'communion') ? 'communion'
-            : (recordType === 'confirmation_certification') ? 'confirmation'
-            : (recordType === 'marriage_certification') ? 'marriage'
-            : (recordType === 'funeral_certification') ? 'funeral'
-            : recordType;
+        clearRecordSelection();
+        recordSearchInput.value = '';
+        recordSearchInput.classList.remove('is-invalid');
+        recordFeedback.classList.add('d-none');
+        recordDropdown.innerHTML = '<div class="record-combobox-empty"><i class="fas fa-spinner fa-spin me-1"></i> Loading records...</div>';
+
+        const apiRecordType = getApiType(recordType);
         fetch('../api/get_records.php?type=' + apiRecordType)
             .then(response => response.json())
             .then(data => {
-                select.innerHTML = '<option value="">-- Select a record --</option>';
-                if (data.success && data.records.length > 0) {
-                    data.records.forEach(record => {
-                        const option = document.createElement('option');
-                        option.value = record.id;
-                        option.textContent = record.name;
-                        select.appendChild(option);
-                    });
+                if (data.success && data.records && data.records.length > 0) {
+                    currentRecords = data.records;
                     if (modalEl.dataset.pendingRecordId) {
-                        select.value = modalEl.dataset.pendingRecordId;
+                        const pendId = modalEl.dataset.pendingRecordId;
                         delete modalEl.dataset.pendingRecordId;
-                        select.dispatchEvent(new Event('change'));
+                        selectRecordById(pendId);
                     }
                 } else {
-                    select.innerHTML = '<option value="">No records available</option>';
+                    currentRecords = [];
+                    recordDropdown.innerHTML = '<div class="record-combobox-empty">No records available</div>';
                 }
             })
             .catch(err => {
                 console.error('Error loading records:', err);
-                select.innerHTML = '<option value="">Error loading records</option>';
+                currentRecords = [];
+                recordDropdown.innerHTML = '<div class="record-combobox-empty text-danger">Error loading records</div>';
             });
     });
 
@@ -1681,8 +2131,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
     form.addEventListener('submit', function(e) {
         const certType = certTypeInput.value;
-        const recId = select.value;
-        if (!recId) { e.preventDefault(); alert('Please select a record first.'); return false; }
+        const recId = recordIdInput.value;
+        if (!recId || recId === '0') {
+            e.preventDefault();
+            recordSearchInput.classList.add('is-invalid');
+            recordFeedback.classList.remove('d-none');
+            recordSearchInput.focus();
+            alert('Please select a record first.');
+            return false;
+        }
 
         const isBaptism      = (certType === 'baptism' || certType === 'baptism_certification');
         const isCommunion    = (certType === 'communion' || certType === 'first_communion_certification');
@@ -1791,6 +2248,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     modalEl.addEventListener('hidden.bs.modal', function() {
         setActiveContainer(null);
+        clearRecordSelection();
+        recordSearchInput.value = '';
+        recordSearchInput.classList.remove('is-invalid');
+        recordFeedback.classList.add('d-none');
+        recordDropdown.classList.remove('show');
         const submitBtn = document.getElementById('btnSubmitGenerate');
         if (submitBtn) {
             submitBtn.disabled = false;
@@ -1806,9 +2268,8 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.addEventListener('click', function(e) {
             e.preventDefault();
             const candId = this.getAttribute('data-record-id');
-            if (candId && select) {
-                select.value = candId;
-                select.dispatchEvent(new Event('change'));
+            if (candId) {
+                selectRecordById(candId);
             }
         });
     });
