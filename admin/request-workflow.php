@@ -2227,60 +2227,6 @@ $breadcrumbs = [
             </div>
         </div>
 
-        <!-- ========================================================= -->
-        <!-- ALWAYS VISIBLE: "UPDATE REQUEST STATUS" CARD              -->
-        <!-- ========================================================= -->
-        <div class="rw-card mb-4" id="updateRequestStatusCard">
-            <div class="rw-section-header">
-                <h6 class="rw-section-title">
-                    <i class="fas fa-arrows-rotate" style="color: #8c6225; font-size: 13px;"></i>
-                    UPDATE REQUEST STATUS
-                </h6>
-                <span class="badge" id="cardStatusBadge" style="<?php echo $current_pill_style; ?> font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 12px;">
-                    Current: <?php echo e($status_display_label); ?>
-                </span>
-            </div>
-            <div class="rw-section-body">
-                <form id="workflowStatusUpdateForm" method="POST" onsubmit="event.preventDefault(); handleWorkflowStatusSubmit(event); return false;">
-                    <?php echo csrfInput(); ?>
-                    <input type="hidden" name="action" value="update_status">
-                    <input type="hidden" name="request_id" value="<?php echo intval($request_id); ?>">
-
-                    <div class="row g-3 align-items-end">
-                        <div class="col-md-3">
-                            <label for="new_status_select" class="micro-label">Request Status <span class="text-danger">*</span></label>
-                            <select class="form-select form-select-sm" id="new_status_select" name="status" required style="height: 36px; font-size: 12px; font-weight: 600;">
-                                <?php
-                                $status_options = [
-                                    'pending'    => 'Pending',
-                                    'processing' => 'Processing',
-                                    'completed'  => 'Completed',
-                                    'rejected'   => 'Rejected'
-                                ];
-                                $active_status_val = strtolower($request['status'] ?? 'pending');
-                                if ($active_status_val === 'ready_for_pickup' || $active_status_val === 'ready') $active_status_val = 'processing';
-                                foreach ($status_options as $val => $lbl):
-                                ?>
-                                    <option value="<?php echo $val; ?>" <?php echo ($active_status_val === $val) ? 'selected' : ''; ?>>
-                                        <?php echo $lbl; ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="admin_remarks_input" class="micro-label">Admin Remarks (Optional)</label>
-                            <input type="text" class="form-control form-control-sm" id="admin_remarks_input" name="admin_response" value="<?php echo e($request['admin_response'] ?? ''); ?>" placeholder="Add remarks, instructions, or pickup notes for parishioner..." style="height: 36px; font-size: 12px;">
-                        </div>
-                        <div class="col-md-3">
-                            <button type="button" id="btnSubmitStatusUpdate" onclick="handleWorkflowStatusSubmit(event)" class="btn btn-sm btn-parish-gold w-100 d-inline-flex align-items-center justify-content-center gap-1.5" style="height: 36px;">
-                                <i class="fas fa-check-circle" id="btnStatusUpdateIcon"></i>
-                                <span id="btnStatusUpdateText">Update Status</span>
-                            </button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
 
         <?php if ($is_certificate && isRequestOnlineRelease($request)): ?>
         <!-- ========================================================= -->
@@ -2978,81 +2924,6 @@ function showStatusToast(message, type) {
 }
 window.showStatusToast = showStatusToast;
 
-async function handleWorkflowStatusSubmit(e) {
-    if (e) {
-        if (typeof e.preventDefault === 'function') e.preventDefault();
-        if (typeof e.stopPropagation === 'function') e.stopPropagation();
-    }
-    const statusForm = document.getElementById('workflowStatusUpdateForm');
-    if (!statusForm) return false;
-
-    const btnSubmitStatus = document.getElementById('btnSubmitStatusUpdate');
-    const btnIcon = document.getElementById('btnStatusUpdateIcon');
-    const btnText = document.getElementById('btnStatusUpdateText');
-    const headerBadge = document.getElementById('headerStatusBadge');
-    const cardBadge = document.getElementById('cardStatusBadge');
-
-    const submitBtn = btnSubmitStatus || statusForm.querySelector('button[type="submit"]') || statusForm.querySelector('button');
-    const originalIconClass = btnIcon ? btnIcon.className : '';
-    const originalText = btnText ? btnText.textContent : 'Update Status';
-
-    if (submitBtn) submitBtn.disabled = true;
-    if (btnIcon) btnIcon.className = 'fas fa-spinner fa-spin';
-    if (btnText) btnText.textContent = 'Updating...';
-
-    const formData = new FormData(statusForm);
-    formData.append('ajax', '1');
-
-    try {
-        const response = await fetch(window.location.href, {
-            method: 'POST',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/json'
-            },
-            body: formData
-        });
-
-        const data = await response.json().catch(function() { return null; });
-        if (!response.ok || !data || !data.success) {
-            const errorMsg = (data && data.message) ? data.message : 'Failed to update request status. Please try again.';
-            throw new Error(errorMsg);
-        }
-
-        if (submitBtn) submitBtn.disabled = false;
-        if (btnIcon) btnIcon.className = originalIconClass || 'fas fa-check-circle';
-        if (btnText) btnText.textContent = originalText;
-
-        showStatusToast(data.message || 'Request status updated successfully!', 'success');
-
-        const rawNewStatus = (data.status || '').toLowerCase();
-        const newLabel = data.status_label || (rawNewStatus.charAt(0).toUpperCase() + rawNewStatus.slice(1));
-        const newStyle = window.workflowStatusBadgeStyles[rawNewStatus] || window.workflowStatusBadgeStyles['pending'];
-
-        if (headerBadge) {
-            headerBadge.textContent = newLabel;
-            headerBadge.setAttribute('style', newStyle);
-            headerBadge.setAttribute('aria-label', 'Request Status: ' + newLabel);
-        }
-        if (cardBadge) {
-            cardBadge.textContent = 'Current: ' + newLabel;
-            cardBadge.setAttribute('style', newStyle + ' font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 12px;');
-        }
-
-        if (rawNewStatus === 'completed') {
-            setTimeout(function() {
-                window.location.reload();
-            }, 1200);
-        }
-    } catch (err) {
-        if (submitBtn) submitBtn.disabled = false;
-        if (btnIcon) btnIcon.className = originalIconClass || 'fas fa-check-circle';
-        if (btnText) btnText.textContent = originalText;
-        showStatusToast(err.message, 'error');
-    }
-    return false;
-}
-window.handleWorkflowStatusSubmit = handleWorkflowStatusSubmit;
 
 document.addEventListener('DOMContentLoaded', function () {
 
@@ -3410,8 +3281,7 @@ async function handleUploadCertificateSubmit(e) {
         // If status changed to completed, update top badges & select
         if (data.status === 'completed') {
             const headerBadge = document.getElementById('headerStatusBadge');
-            const cardBadge = document.getElementById('cardStatusBadge');
-            const statusSelect = document.getElementById('new_status_select');
+            const reviewStatusSelect = document.getElementById('status');
             const completedStyle = (window.workflowStatusBadgeStyles && window.workflowStatusBadgeStyles['completed']) || 'background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;';
 
             if (headerBadge) {
@@ -3419,12 +3289,8 @@ async function handleUploadCertificateSubmit(e) {
                 headerBadge.setAttribute('style', completedStyle);
                 headerBadge.setAttribute('aria-label', 'Request Status: Completed');
             }
-            if (cardBadge) {
-                cardBadge.textContent = 'Current: Completed';
-                cardBadge.setAttribute('style', completedStyle + ' font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 12px;');
-            }
-            if (statusSelect) {
-                statusSelect.value = 'completed';
+            if (reviewStatusSelect) {
+                reviewStatusSelect.value = 'completed';
             }
         }
 
