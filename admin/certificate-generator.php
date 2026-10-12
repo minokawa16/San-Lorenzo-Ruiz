@@ -534,84 +534,267 @@ include __DIR__ . '/../templates/header.php';
     }
 
     /* Searchable Select / Combobox Styling for Certificate Generator */
+    .record-field-group {
+        margin-bottom: 1.25rem;
+    }
+    .record-combobox-label {
+        display: block;
+        font-size: 0.88rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 7px;
+        line-height: 1.3;
+    }
     .record-combobox-wrapper {
         position: relative;
+        width: 100%;
     }
-    .record-combobox-wrapper .input-group {
-        border-radius: 8px;
-        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    .record-combobox-field {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        min-height: 48px;
+        height: 48px;
+        background: #ffffff;
+        border: 1px solid #E3D9C6;
+        border-radius: 12px;
+        padding: 0 14px;
+        position: relative;
+        box-sizing: border-box;
+        transition: border-color 180ms ease, box-shadow 180ms ease;
+        cursor: text;
     }
-    .record-combobox-wrapper .input-group:focus-within {
+    .record-combobox-field:hover {
+        border-color: #C7B299;
+    }
+    .record-combobox-wrapper.is-focused .record-combobox-field,
+    .record-combobox-wrapper.is-open .record-combobox-field,
+    .record-combobox-field:focus-within {
         border-color: #8c6225;
-        box-shadow: 0 0 0 0.25rem rgba(140, 98, 37, 0.25);
+        box-shadow: 0 0 0 3px rgba(139, 107, 46, 0.15);
     }
-    .record-combobox-wrapper .form-control:focus {
-        border-color: #8c6225;
+    .record-combobox-wrapper.has-error .record-combobox-field,
+    .record-combobox-field.is-invalid {
+        border-color: #dc2626;
+        box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+    }
+    .record-combobox-search-icon {
+        font-size: 16px;
+        color: #9ca3af;
+        margin-right: 12px;
+        flex-shrink: 0;
+        pointer-events: none;
+        transition: color 180ms ease;
+    }
+    .record-combobox-wrapper.is-focused .record-combobox-search-icon,
+    .record-combobox-wrapper.is-open .record-combobox-search-icon {
+        color: #8c6225;
+    }
+    .record-combobox-input {
+        flex: 1 1 auto;
+        min-width: 0;
+        height: 100%;
+        border: none;
+        outline: none;
+        background: transparent;
+        padding: 0;
+        margin: 0;
+        font-size: 14.5px;
+        font-family: inherit;
+        color: #1e293b;
         box-shadow: none;
     }
-    .record-combobox-wrapper .input-group:focus-within .input-group-text,
-    .record-combobox-wrapper .input-group:focus-within .btn {
-        border-color: #8c6225;
+    .record-combobox-input::placeholder {
+        color: #9ca3af;
+        opacity: 1;
+        font-weight: 400;
     }
+    .record-combobox-input.has-selection {
+        color: #111827;
+        font-weight: 500;
+    }
+    .record-combobox-actions {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        flex-shrink: 0;
+        margin-left: 8px;
+    }
+    .record-combobox-clear-btn {
+        background: transparent;
+        border: none;
+        outline: none;
+        padding: 4px;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        color: #9ca3af;
+        font-size: 13px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: color 150ms ease, background-color 150ms ease, transform 150ms ease;
+    }
+    .record-combobox-clear-btn:hover {
+        color: #374151;
+        background-color: #f3f4f6;
+    }
+    .record-combobox-chevron-btn {
+        background: transparent;
+        border: none;
+        outline: none;
+        padding: 4px;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        color: #9ca3af;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: color 150ms ease;
+    }
+    .record-combobox-chevron-btn:hover {
+        color: #4b5563;
+    }
+    .record-combobox-chevron {
+        font-size: 13px;
+        transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), color 180ms ease;
+        display: inline-block;
+    }
+    .record-combobox-wrapper.is-open .record-combobox-chevron {
+        transform: rotate(180deg);
+        color: #8c6225;
+    }
+
+    /* Dropdown container */
     .record-combobox-dropdown {
         position: absolute;
-        top: calc(100% + 4px);
+        top: calc(100% + 6px);
         left: 0;
         right: 0;
         z-index: 1070;
-        max-height: 240px;
-        overflow-y: auto;
-        border: 1px solid #cbd5e1;
-        border-radius: 8px;
         background: #ffffff;
-        padding: 4px 0;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        border: 1px solid #EFE9DF;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+        max-height: 260px;
+        overflow-y: auto;
+        padding: 6px 0;
         display: none;
+        opacity: 0;
+        transform: translateY(-6px);
+        transition: opacity 150ms cubic-bezier(0.16, 1, 0.3, 1), transform 150ms cubic-bezier(0.16, 1, 0.3, 1);
     }
     .record-combobox-dropdown.show {
         display: block;
+        opacity: 1;
+        transform: translateY(0);
+        animation: recordDropdownSlideDown 150ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
+    @keyframes recordDropdownSlideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-6px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Subtle custom scrollbar */
+    .record-combobox-dropdown::-webkit-scrollbar {
+        width: 6px;
+    }
+    .record-combobox-dropdown::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .record-combobox-dropdown::-webkit-scrollbar-thumb {
+        background: #E3D9C6;
+        border-radius: 4px;
+    }
+    .record-combobox-dropdown::-webkit-scrollbar-thumb:hover {
+        background: #C7B299;
+    }
+
+    /* Dropdown item */
     .record-combobox-item {
-        padding: 9px 14px;
-        font-size: 0.85rem;
-        cursor: pointer;
+        padding: 10px 14px 10px 11px;
+        min-height: 44px;
         display: flex;
-        justify-content: space-between;
         align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        font-size: 0.88rem;
         color: #1e293b;
-        transition: background-color 0.12s ease;
-        border-bottom: 1px solid #f8fafc;
+        cursor: pointer;
+        text-align: left;
+        border-left: 3px solid transparent;
+        transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
         user-select: none;
+        border-bottom: 1px solid #f8fafc;
     }
     .record-combobox-item:last-child {
         border-bottom: none;
     }
     .record-combobox-item:hover,
     .record-combobox-item.active {
-        background-color: #fdf8f0;
-        color: #78350f;
+        background-color: #F7F1E5;
+        color: #3d2c18;
+        border-left-color: #8c6225;
     }
     .record-combobox-item.selected {
-        background-color: #fef3c7;
-        color: #78350f;
+        background-color: #FAF6EE;
+        color: #2b1f11;
         font-weight: 600;
     }
-    .record-combobox-item strong {
+    .record-combobox-item .record-item-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        flex: 1 1 auto;
+        text-align: left;
+    }
+    .record-combobox-item .record-item-check {
+        color: #8c6225;
+        font-size: 0.82rem;
+        flex-shrink: 0;
+        margin-left: 8px;
+    }
+    .record-match-highlight {
         color: #8c6225;
         font-weight: 700;
     }
-    .record-combobox-empty {
-        padding: 14px;
-        text-align: center;
-        color: #64748b;
-        font-size: 0.84rem;
-    }
-    .record-combobox-item .record-meta-date {
-        font-size: 0.74rem;
-        color: #94a3b8;
-        margin-left: 8px;
+    .record-meta-date {
+        font-size: 0.76rem;
+        color: #8c827a;
+        margin-left: auto;
         white-space: nowrap;
         flex-shrink: 0;
+        padding-left: 8px;
+    }
+    .record-combobox-empty {
+        padding: 22px 14px;
+        text-align: center;
+        color: #8c827a;
+        font-size: 0.86rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+    }
+    .record-combobox-empty .record-empty-icon {
+        font-size: 1.35rem;
+        color: #b8af9f;
+    }
+    .record-invalid-feedback {
+        font-size: 0.82rem;
+        color: #dc2626;
+        margin-top: 6px;
+        padding-left: 2px;
     }
 
     .pds-cert-section-header {
@@ -932,42 +1115,48 @@ include __DIR__ . '/../templates/header.php';
                         </div>
                     <?php endif; ?>
 
-                    <div class="mb-3">
-                        <label for="record_search_input" class="form-label fw-bold text-dark">
+                    <div class="mb-3 record-field-group">
+                        <label for="record_search_input" class="record-combobox-label">
                             Select Record <span class="text-danger">*</span>
                         </label>
                         <div class="record-combobox-wrapper" id="recordComboboxWrapper">
-                            <div class="input-group">
-                                <span class="input-group-text bg-white text-muted border-end-0">
-                                    <i class="fas fa-search" id="recordSearchIcon"></i>
-                                </span>
+                            <div class="record-combobox-field" id="recordComboboxField">
+                                <i class="fas fa-search record-combobox-search-icon" aria-hidden="true"></i>
                                 <input type="text" 
-                                       class="form-control border-start-0 ps-0" 
+                                       class="record-combobox-input" 
                                        id="record_search_input" 
                                        placeholder="Search or select a record..." 
                                        autocomplete="off" 
                                        spellcheck="false" 
-                                       required>
-                                <button type="button" 
-                                        class="btn btn-outline-secondary d-none" 
-                                        id="btnRecordClear" 
-                                        title="Clear selection" 
-                                        tabindex="-1">
-                                    <i class="fas fa-times"></i>
-                                </button>
-                                <button type="button" 
-                                        class="btn btn-outline-secondary" 
-                                        id="btnRecordDropdownToggle" 
-                                        title="Show records" 
-                                        tabindex="-1">
-                                    <i class="fas fa-chevron-down" style="font-size: 0.72rem;"></i>
-                                </button>
+                                       role="combobox"
+                                       aria-autocomplete="list"
+                                       aria-expanded="false"
+                                       aria-controls="recordComboboxDropdown"
+                                       aria-required="true">
+                                <div class="record-combobox-actions">
+                                    <button type="button" 
+                                            class="record-combobox-clear-btn d-none" 
+                                            id="btnRecordClear" 
+                                            title="Clear selection" 
+                                            aria-label="Clear selection" 
+                                            tabindex="-1">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                    <button type="button" 
+                                            class="record-combobox-chevron-btn" 
+                                            id="btnRecordDropdownToggle" 
+                                            title="Show records" 
+                                            aria-label="Toggle record dropdown" 
+                                            tabindex="-1">
+                                        <i class="fas fa-chevron-down record-combobox-chevron" id="recordChevronIcon"></i>
+                                    </button>
+                                </div>
                             </div>
                             <input type="hidden" name="record_id" id="record_id" value="" required>
-                            <div class="invalid-feedback d-none" id="recordInvalidFeedback">
+                            <div class="record-invalid-feedback d-none" id="recordInvalidFeedback">
                                 Please select a valid record from the list.
                             </div>
-                            <div class="record-combobox-dropdown" id="recordComboboxDropdown" role="listbox">
+                            <div class="record-combobox-dropdown" id="recordComboboxDropdown" role="listbox" aria-label="Records list">
                                 <div class="record-combobox-empty">
                                     <i class="fas fa-spinner fa-spin me-1"></i> Loading records...
                                 </div>
@@ -1286,6 +1475,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const btnRecordClear = document.getElementById('btnRecordClear');
     const btnRecordToggle = document.getElementById('btnRecordDropdownToggle');
     const recordFeedback = document.getElementById('recordInvalidFeedback');
+    const recordComboboxWrapper = document.getElementById('recordComboboxWrapper');
+    const recordComboboxField = document.getElementById('recordComboboxField');
     const select = recordIdInput;
     const certTypeInput = document.getElementById('cert_type');
     const baptismFields = document.getElementById('baptismFieldsContainer');
@@ -1381,9 +1572,23 @@ document.addEventListener('DOMContentLoaded', function() {
         const textNorm = normalizeSearchText(text);
         const idx = textNorm.indexOf(qNorm);
         if (idx !== -1) {
-            return escapeHtml(text.slice(0, idx)) + '<strong>' + escapeHtml(text.slice(idx, idx + query.trim().length)) + '</strong>' + escapeHtml(text.slice(idx + query.trim().length));
+            const matchLen = query.trim().length;
+            return escapeHtml(text.slice(0, idx)) + '<strong class="record-match-highlight">' + escapeHtml(text.slice(idx, idx + matchLen)) + '</strong>' + escapeHtml(text.slice(idx + matchLen));
         }
         return escapeHtml(text);
+    }
+
+    function openRecordDropdown() {
+        recordDropdown.classList.add('show');
+        if (recordComboboxWrapper) recordComboboxWrapper.classList.add('is-open');
+        recordSearchInput.setAttribute('aria-expanded', 'true');
+    }
+
+    function closeRecordDropdown() {
+        recordDropdown.classList.remove('show');
+        if (recordComboboxWrapper) recordComboboxWrapper.classList.remove('is-open');
+        recordSearchInput.setAttribute('aria-expanded', 'false');
+        activeDropdownIndex = -1;
     }
 
     function renderRecordDropdown(items, query) {
@@ -1393,9 +1598,12 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!items || items.length === 0) {
             const empty = document.createElement('div');
             empty.className = 'record-combobox-empty text-muted';
-            empty.textContent = 'No records found';
+            empty.innerHTML = `
+                <i class="fas fa-search-minus record-empty-icon" aria-hidden="true"></i>
+                <span>No records found</span>
+            `;
             recordDropdown.appendChild(empty);
-            recordDropdown.classList.add('show');
+            openRecordDropdown();
             return;
         }
 
@@ -1410,14 +1618,17 @@ document.addEventListener('DOMContentLoaded', function() {
             let dateMeta = '';
             const recDate = rec.baptism_date || rec.communion_date || rec.confirmation_date || rec.wedding_date || rec.date_of_burial;
             if (recDate) {
-                dateMeta = `<span class="record-meta-date"><i class="fas fa-calendar-alt me-1"></i>${escapeHtml(recDate)}</span>`;
+                dateMeta = `<span class="record-meta-date"><i class="fas fa-calendar-alt me-1" aria-hidden="true"></i>${escapeHtml(recDate)}</span>`;
             }
 
+            const checkIcon = isSelected ? '<i class="fas fa-check record-item-check" aria-hidden="true"></i>' : '';
+
             itemEl.innerHTML = `
-                <div class="text-truncate flex-grow-1">
-                    <i class="fas fa-user text-secondary me-2" style="font-size: 0.78rem;"></i>${highlightRecordMatch(rec.name, query)}
+                <div class="record-item-name">
+                    <i class="fas fa-user text-secondary me-2" style="font-size: 0.78rem;" aria-hidden="true"></i>${highlightRecordMatch(rec.name, query)}
                 </div>
                 ${dateMeta}
+                ${checkIcon}
             `;
 
             itemEl.addEventListener('mousedown', function(e) {
@@ -1428,7 +1639,7 @@ document.addEventListener('DOMContentLoaded', function() {
             recordDropdown.appendChild(itemEl);
         });
 
-        recordDropdown.classList.add('show');
+        openRecordDropdown();
     }
 
     function selectRecord(record) {
@@ -1436,11 +1647,12 @@ document.addEventListener('DOMContentLoaded', function() {
         selectedRecord = record;
         recordIdInput.value = record.id;
         recordSearchInput.value = record.name;
+        recordSearchInput.classList.add('has-selection');
         recordSearchInput.classList.remove('is-invalid');
+        if (recordComboboxWrapper) recordComboboxWrapper.classList.remove('has-error');
         recordFeedback.classList.add('d-none');
         btnRecordClear.classList.remove('d-none');
-        recordDropdown.classList.remove('show');
-        activeDropdownIndex = -1;
+        closeRecordDropdown();
 
         recordIdInput.dispatchEvent(new Event('change'));
     }
@@ -1448,6 +1660,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function clearRecordSelection() {
         selectedRecord = null;
         recordIdInput.value = '';
+        recordSearchInput.classList.remove('has-selection');
         btnRecordClear.classList.add('d-none');
     }
 
@@ -1503,6 +1716,16 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 250);
     }
 
+    // Direct click anywhere on the unified field container focuses the search input
+    if (recordComboboxField) {
+        recordComboboxField.addEventListener('click', function(e) {
+            if (e.target.closest('#btnRecordClear') || e.target.closest('#btnRecordDropdownToggle')) {
+                return;
+            }
+            recordSearchInput.focus();
+        });
+    }
+
     recordSearchInput.addEventListener('input', function() {
         if (selectedRecord && this.value !== selectedRecord.name) {
             clearRecordSelection();
@@ -1511,6 +1734,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         recordSearchInput.classList.remove('is-invalid');
+        if (recordComboboxWrapper) recordComboboxWrapper.classList.remove('has-error');
         recordFeedback.classList.add('d-none');
         btnRecordClear.classList.toggle('d-none', !this.value.trim());
 
@@ -1521,15 +1745,16 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     recordSearchInput.addEventListener('focus', function() {
+        if (recordComboboxWrapper) recordComboboxWrapper.classList.add('is-focused');
         const query = selectedRecord ? '' : this.value;
         const filtered = query ? currentRecords.filter(r => recordMatchesQuery(r.name, query)) : currentRecords;
         renderRecordDropdown(filtered, query);
     });
 
     recordSearchInput.addEventListener('blur', function() {
+        if (recordComboboxWrapper) recordComboboxWrapper.classList.remove('is-focused');
         setTimeout(() => {
-            recordDropdown.classList.remove('show');
-            activeDropdownIndex = -1;
+            closeRecordDropdown();
 
             const typedText = recordSearchInput.value.trim();
             if (typedText && !recordIdInput.value) {
@@ -1538,6 +1763,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     selectRecord(exactMatch);
                 } else {
                     recordSearchInput.classList.add('is-invalid');
+                    if (recordComboboxWrapper) recordComboboxWrapper.classList.add('has-error');
                     recordFeedback.classList.remove('d-none');
                 }
             }
@@ -1592,15 +1818,15 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } else if (e.key === 'Escape') {
             e.preventDefault();
-            recordDropdown.classList.remove('show');
-            activeDropdownIndex = -1;
+            closeRecordDropdown();
         }
     });
 
     btnRecordToggle.addEventListener('click', function(e) {
         e.preventDefault();
+        e.stopPropagation();
         if (recordDropdown.classList.contains('show')) {
-            recordDropdown.classList.remove('show');
+            closeRecordDropdown();
         } else {
             recordSearchInput.focus();
             const query = selectedRecord ? '' : recordSearchInput.value;
@@ -1611,6 +1837,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     btnRecordClear.addEventListener('click', function(e) {
         e.preventDefault();
+        e.stopPropagation();
         clearRecordSelection();
         recordSearchInput.value = '';
         recordSearchInput.focus();
@@ -1619,8 +1846,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.addEventListener('click', function(e) {
         if (!e.target.closest('#recordComboboxWrapper')) {
-            recordDropdown.classList.remove('show');
-            activeDropdownIndex = -1;
+            closeRecordDropdown();
         }
     });
 
@@ -2018,7 +2244,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         clearRecordSelection();
         recordSearchInput.value = '';
-        recordSearchInput.classList.remove('is-invalid');
+        recordSearchInput.classList.remove('is-invalid', 'has-selection');
+        if (recordComboboxWrapper) recordComboboxWrapper.classList.remove('has-error', 'is-open', 'is-focused');
         recordFeedback.classList.add('d-none');
         recordDropdown.innerHTML = '<div class="record-combobox-empty"><i class="fas fa-spinner fa-spin me-1"></i> Loading records...</div>';
 
@@ -2135,6 +2362,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!recId || recId === '0') {
             e.preventDefault();
             recordSearchInput.classList.add('is-invalid');
+            if (recordComboboxWrapper) recordComboboxWrapper.classList.add('has-error');
             recordFeedback.classList.remove('d-none');
             recordSearchInput.focus();
             alert('Please select a record first.');
@@ -2250,9 +2478,10 @@ document.addEventListener('DOMContentLoaded', function() {
         setActiveContainer(null);
         clearRecordSelection();
         recordSearchInput.value = '';
-        recordSearchInput.classList.remove('is-invalid');
+        recordSearchInput.classList.remove('is-invalid', 'has-selection');
+        if (recordComboboxWrapper) recordComboboxWrapper.classList.remove('has-error', 'is-open', 'is-focused');
         recordFeedback.classList.add('d-none');
-        recordDropdown.classList.remove('show');
+        closeRecordDropdown();
         const submitBtn = document.getElementById('btnSubmitGenerate');
         if (submitBtn) {
             submitBtn.disabled = false;
