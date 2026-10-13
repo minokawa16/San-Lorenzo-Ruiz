@@ -60,6 +60,22 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             ]);
 
             $success = 'Automated backup settings updated successfully.';
+        } elseif ($action === 'save_notification_settings') {
+            $notify_admin = isset($_POST['notify_admin_on_requests']) ? '1' : '0';
+            $notify_sec = isset($_POST['notify_secretary_on_requests']) ? '1' : '0';
+            $notify_sms = isset($_POST['notify_urgent_sms_enabled']) ? '1' : '0';
+
+            writeSetting($conn, 'notify_admin_on_requests', $notify_admin);
+            writeSetting($conn, 'notify_secretary_on_requests', $notify_sec);
+            writeSetting($conn, 'notify_urgent_sms_enabled', $notify_sms);
+
+            createAuditLog($conn, $_SESSION['user_id'] ?? 0, 'UPDATE_NOTIFICATION_SETTINGS', 'system_settings', 0, null, [
+                'notify_admin_on_requests' => $notify_admin,
+                'notify_secretary_on_requests' => $notify_sec,
+                'notify_urgent_sms_enabled' => $notify_sms
+            ]);
+
+            $success = 'Automatic admin notification preferences updated successfully.';
         }
     } catch (Exception $e) {
         $error = $e->getMessage();
@@ -72,6 +88,9 @@ $cur_priest_title = readSetting($conn, 'parish.priest_in_charge_title', 'Priest-
 $cur_auto_freq = readSetting($conn, 'backup.auto_frequency', 'weekly');
 $cur_retention = intval(readSetting($conn, 'backup.retention_count', '10'));
 $last_backup_time = readSetting($conn, 'last_parish_backup_time', '');
+$cur_notify_admin = (readSetting($conn, 'notify_admin_on_requests', '1') !== '0');
+$cur_notify_secretary = (readSetting($conn, 'notify_secretary_on_requests', '1') !== '0');
+$cur_notify_sms = (readSetting($conn, 'notify_urgent_sms_enabled', '1') !== '0');
 
 $breadcrumbs = [
     'Dashboard' => 'dashboard.php',
@@ -300,6 +319,66 @@ $breadcrumbs = [
                 <div class="d-flex justify-content-end">
                     <button type="submit" class="btn btn-sm btn-outline-secondary px-3">
                         <i class="fas fa-clock me-1"></i> Update Schedule
+                    </button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <!-- 3. Automatic Admin & Staff Notifications Settings -->
+    <section class="settings-card" role="region" aria-label="Automatic Admin Notifications">
+        <header class="settings-card-header">
+            <div class="settings-header-left">
+                <div class="settings-badge-icon" style="background-color: #0F5132;" aria-hidden="true">
+                    <i class="fas fa-bell" style="font-size: 1.25rem;"></i>
+                </div>
+                <div class="settings-title-group">
+                    <h2>Automatic Admin Notifications</h2>
+                    <p>Configure automated dispatch channels and staff routing when parishioners submit any request.</p>
+                </div>
+            </div>
+        </header>
+
+        <div class="settings-card-body">
+            <form method="POST">
+                <?php echo csrfInput(); ?>
+                <input type="hidden" name="action" value="save_notification_settings">
+
+                <div class="mb-3 p-3 rounded" style="background: #F8FAFC; border: 1px solid #E2E8F0;">
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" role="switch" id="notifyAdminToggle" name="notify_admin_on_requests" <?php echo $cur_notify_admin ? 'checked' : ''; ?>>
+                        <label class="form-check-label fw-semibold text-dark" for="notifyAdminToggle">
+                            Email Notifications to Administrators
+                        </label>
+                        <div class="small text-muted">
+                            Automatically sends institutional email alerts to all active administrators when a request is submitted.
+                        </div>
+                    </div>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" role="switch" id="notifySecretaryToggle" name="notify_secretary_on_requests" <?php echo $cur_notify_secretary ? 'checked' : ''; ?>>
+                        <label class="form-check-label fw-semibold text-dark" for="notifySecretaryToggle">
+                            Copy Notifications to Parish Secretary
+                        </label>
+                        <div class="small text-muted">
+                            Allow the Parish Secretary to also be alerted immediately via in-app notification and email for all incoming requests.
+                        </div>
+                    </div>
+
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" role="switch" id="notifySmsToggle" name="notify_urgent_sms_enabled" <?php echo $cur_notify_sms ? 'checked' : ''; ?>>
+                        <label class="form-check-label fw-semibold text-dark" for="notifySmsToggle">
+                            Priority SMS Alerts for Urgent Requests
+                        </label>
+                        <div class="small text-muted">
+                            Sends direct SMS notifications to parish staff on critical requests (such as Anointing of the Sick or emergency funeral masses).
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end">
+                    <button type="submit" class="btn btn-sm btn-success px-4 fw-semibold" style="border-radius: 8px;">
+                        <i class="fas fa-check me-1"></i> Save Notification Preferences
                     </button>
                 </div>
             </form>

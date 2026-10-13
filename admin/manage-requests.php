@@ -294,10 +294,15 @@ $request_where = [
 ];
 $reservation_where = ["1=1"];
 
-if (!empty($status_filter) && in_array($status_filter, ['pending', 'processing', 'completed', 'rejected'], true)) {
+if (!empty($status_filter) && in_array($status_filter, ['pending', 'processing', 'approved', 'completed', 'rejected'], true)) {
     $status_safe = $conn->real_escape_string($status_filter);
-    $request_where[] = "r.status = '$status_safe'";
-    $reservation_where[] = "r.status = '$status_safe'";
+    if ($status_filter === 'pending') {
+        $request_where[] = "r.status IN ('pending', 'submitted', 'requirements_review')";
+        $reservation_where[] = "r.status IN ('pending', 'submitted')";
+    } else {
+        $request_where[] = "r.status = '$status_safe'";
+        $reservation_where[] = "r.status = '$status_safe'";
+    }
 }
 
 if (!empty($type_filter)) {
@@ -575,12 +580,17 @@ include '../templates/header.php';
                 <a href="<?php echo e(adminRequestsUrl(['status' => 'pending', 'page' => '1'])); ?>" 
                    data-status="pending" 
                    class="pds-filter-tab <?php echo $status_filter === 'pending' ? 'active' : ''; ?>">
-                    Pending
+                    New
                 </a>
                 <a href="<?php echo e(adminRequestsUrl(['status' => 'processing', 'page' => '1'])); ?>" 
                    data-status="processing" 
                    class="pds-filter-tab <?php echo $status_filter === 'processing' ? 'active' : ''; ?>">
-                    Processing
+                    In Progress
+                </a>
+                <a href="<?php echo e(adminRequestsUrl(['status' => 'approved', 'page' => '1'])); ?>" 
+                   data-status="approved" 
+                   class="pds-filter-tab <?php echo $status_filter === 'approved' ? 'active' : ''; ?>">
+                    Approved
                 </a>
                 <a href="<?php echo e(adminRequestsUrl(['status' => 'completed', 'page' => '1'])); ?>" 
                    data-status="completed" 
@@ -590,7 +600,7 @@ include '../templates/header.php';
                 <a href="<?php echo e(adminRequestsUrl(['status' => 'rejected', 'page' => '1'])); ?>" 
                    data-status="rejected" 
                    class="pds-filter-tab <?php echo $status_filter === 'rejected' ? 'active' : ''; ?>">
-                    Rejected
+                    Declined
                 </a>
             </div>
 
@@ -844,9 +854,17 @@ include '../templates/header.php';
                                     <td>
                                         <?php 
                                             $disp_status = strtolower($request['status']) === 'submitted' ? 'pending' : $request['status'];
+                                            $status_label = match (strtolower((string)$disp_status)) {
+                                                'pending', 'submitted', 'requirements_review' => 'New',
+                                                'processing' => 'In Progress',
+                                                'approved' => 'Approved',
+                                                'completed' => 'Completed',
+                                                'rejected', 'declined', 'cancelled', 'canceled' => 'Declined',
+                                                default => ucfirst(str_replace('_', ' ', $disp_status))
+                                            };
                                         ?>
                                         <span class="<?php echo e(pdsStatusClass($disp_status)); ?>">
-                                            <?php echo ucfirst(str_replace('_', ' ', $disp_status)); ?>
+                                            <?php echo e($status_label); ?>
                                         </span>
                                     </td>
                                     <td><?php echo formatDate($request['submitted_at']); ?></td>

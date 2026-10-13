@@ -2744,7 +2744,7 @@ function getRecentNotifications($conn, $user_id, $limit = 5) {
     }
 
     $limit = max(1, intval($limit));
-    $stmt = $conn->prepare("SELECT notification_id, title, message, is_read, created_at FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT ?");
+    $stmt = $conn->prepare("SELECT notification_id, notification_type, title, message, entity_type, entity_id, action_key, state, is_read, created_at FROM notifications WHERE user_id = ? AND state <> 'deleted' ORDER BY created_at DESC LIMIT ?");
     if (!$stmt) {
         return $notifications;
     }
@@ -2757,6 +2757,19 @@ function getRecentNotifications($conn, $user_id, $limit = 5) {
     }
     $stmt->close();
     return $notifications;
+}
+
+if (!function_exists('notificationShortMessage')) {
+    function notificationShortMessage($message, $limit = 220) {
+        $plain = trim(preg_replace('/\s+/', ' ', strip_tags((string) $message)));
+        if (function_exists('mb_strlen') && mb_strlen($plain) > $limit) {
+            return mb_substr($plain, 0, $limit - 1) . '...';
+        }
+        if (!function_exists('mb_strlen') && strlen($plain) > $limit) {
+            return substr($plain, 0, $limit - 1) . '...';
+        }
+        return $plain;
+    }
 }
 
 // Log audit trail for user and system actions

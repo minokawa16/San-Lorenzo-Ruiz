@@ -6,6 +6,7 @@ include '../includes/session.php';
 include '../config/security.php';
 include '../database/config.php';
 include '../includes/helpers.php';
+require_once dirname(__DIR__) . '/services/AdminNotificationService.php';
 
 requireLogin();
 if (!hasPermission('requests.create')) {
@@ -207,6 +208,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             } else {
                 createAuditLog($conn, $user_id, 'CREATE_REQUEST', 'requests', $request_id);
                 createNotification($conn, $user_id, 'Blessing Request Created', 'Your blessing request has been submitted with reference: ' . $reference_number . ' (' . $doc_count . ' ' . $file_text . ' attached)', true, 'requests', 'request', $request_id, 'request.view');
+                try {
+                    AdminNotificationService::notifyOnNewRequest($conn, $request_id);
+                } catch (Throwable $notifEx) {
+                    error_log('AdminNotificationService error on Blessing request: ' . $notifEx->getMessage());
+                }
                 $success_msg = 'Blessing request submitted successfully! Reference: ' . $reference_number . ' (' . $doc_count . ' file' . ($doc_count === 1 ? '' : 's') . ' attached)';
                 $respond(true, $success_msg, [
                     'reference_number' => $reference_number,

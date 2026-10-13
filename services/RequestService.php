@@ -62,6 +62,16 @@ final class RequestService {
                 }
             }
 
+            // Immediately notify admin and staff on new request submission
+            if (!empty($response['request_id']) && empty($response['replayed'])) {
+                require_once __DIR__ . '/AdminNotificationService.php';
+                try {
+                    AdminNotificationService::notifyOnNewRequest($this->db, (int)$response['request_id']);
+                } catch (Throwable $notifEx) {
+                    error_log('AdminNotificationService error on RequestService::create: ' . $notifEx->getMessage());
+                }
+            }
+
             return $response;
         } catch (Throwable $e) { $this->db->rollback(); throw $e; }
     }

@@ -37,8 +37,15 @@ final class ReservationService {
             $reason='Reservation submitted';$changeType='initial_schedule';$history=$this->db->prepare('INSERT INTO reservation_schedule_history (reservation_id,new_start_at,new_end_at,changed_by,change_reason,change_type) VALUES (?,?,?,?,?,?)');$history->bind_param('ississ',$reservationId,$startAt,$endAt,$userId,$reason,$changeType);$history->execute();$history->close();
             $response=['request_id'=>$requestId,'reservation_id'=>$reservationId,'reference_number'=>$request['reference_number'],'status'=>$status];$json=json_encode($response);$operation='create_reservation';$update=$this->db->prepare('UPDATE request_idempotency_keys SET response_json=? WHERE user_id=? AND operation=? AND idempotency_key=?');$update->bind_param('siss',$json,$userId,$operation,$idempotencyKey);$update->execute();$update->close();
             if(!writeAuditLog($this->db,$userId,'CREATE_RESERVATION','reservations',$reservationId,null,json_encode($response)))throw new RuntimeException('Unable to record the reservation audit event.');
-            $this->notify($userId,'reservation_created',[],'reservation',$reservationId,'reservation.view');
             $this->db->commit();
+
+            require_once __DIR__ . '/AdminNotificationService.php';
+            try {
+                AdminNotificationService::notifyOnNewRequest($this->db, $requestId);
+            } catch (Throwable $notifEx) {
+                error_log('AdminNotificationService error on ReservationService::create: ' . $notifEx->getMessage());
+            }
+
             return $response + ['replayed'=>false];
         } catch(Throwable $e){$this->db->rollback();if($e instanceof DomainException)$this->recordConflict($userId,null,$resourceIds,$startAt,$endAt,$e->getMessage());throw $e;}
     }

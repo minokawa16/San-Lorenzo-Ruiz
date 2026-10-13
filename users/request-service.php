@@ -10,6 +10,7 @@ include '../includes/session.php';
 include '../config/security.php';
 include '../database/config.php';
 include '../includes/helpers.php';
+require_once dirname(__DIR__) . '/services/AdminNotificationService.php';
 
 requireLogin();
 if (!hasPermission('requests.create')) {
@@ -598,6 +599,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
             createAuditLog($conn, $user_id, 'CREATE_REQUEST', 'requests', $request_id);
             createNotification($conn, $user_id, 'First Communion Request Created', 'Your First Communion request has been submitted with reference: ' . $reference_number . '.', true, 'requests', 'request', $request_id, 'request.view');
+            try {
+                AdminNotificationService::notifyOnNewRequest($conn, $request_id);
+            } catch (Throwable $notifEx) {
+                error_log('AdminNotificationService error on First Communion request: ' . $notifEx->getMessage());
+            }
             $success_msg = 'First Communion request submitted successfully! Reference: ' . $reference_number . '.';
             $respond(true, $success_msg, [
                 'reference_number' => $reference_number,
@@ -725,6 +731,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
             createAuditLog($conn, $user_id, 'CREATE_REQUEST', 'requests', $request_id);
             createNotification($conn, $user_id, 'Confirmation Request Created', 'Your Confirmation request has been submitted with reference: ' . $reference_number . '.', true, 'requests', 'request', $request_id, 'request.view');
+            try {
+                AdminNotificationService::notifyOnNewRequest($conn, $request_id);
+            } catch (Throwable $notifEx) {
+                error_log('AdminNotificationService error on Confirmation request: ' . $notifEx->getMessage());
+            }
             $success_msg = 'Confirmation request submitted successfully! Reference: ' . $reference_number . '.';
             $respond(true, $success_msg, [
                 'reference_number' => $reference_number,
@@ -929,6 +940,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             } else {
                 createAuditLog($conn, $user_id, 'CREATE_REQUEST', 'requests', $request_id);
                 createNotification($conn, $user_id, 'Sacramental Service Request Created', 'Your service request has been submitted with reference: ' . $reference_number . ' (' . $doc_count . ' ' . $file_text . ' attached)', true, 'requests', 'request', $request_id, 'request.view');
+                try {
+                    AdminNotificationService::notifyOnNewRequest($conn, $request_id);
+                } catch (Throwable $notifEx) {
+                    error_log('AdminNotificationService error on Sacramental service request: ' . $notifEx->getMessage());
+                }
                 $success_msg = 'Sacramental service request submitted successfully! Reference: ' . $reference_number . ' (' . $doc_count . ' file' . ($doc_count === 1 ? '' : 's') . ' attached)';
                 $respond(true, $success_msg, [
                     'reference_number' => $reference_number,

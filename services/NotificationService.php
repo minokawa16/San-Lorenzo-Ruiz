@@ -10,6 +10,8 @@ final class NotificationService
 
     private const ACTIONS = [
         'request.view' => 'my-requests.php',
+        'admin.request.view' => 'admin/request-workflow.php',
+        'admin.requests.list' => 'admin/manage-requests.php',
         'reservation.view' => 'view-schedule.php',
         'announcement.view' => 'announcements.php',
         'certificate.view' => 'my-requests.php',
@@ -105,6 +107,10 @@ final class NotificationService
 
         // 1. Explicit entity type and entity ID
         if ($entityIdInt > 0) {
+            if ($actionKey === 'admin.request.view' || $notifType === 'new_request_admin') {
+                $base = defined('BASE_URL') ? rtrim(BASE_URL, '/') . '/' : '/';
+                return $base . 'admin/request-workflow.php?id=' . $entityIdInt;
+            }
             if ($entityType === 'request' || $entityType === 'certificate') {
                 return 'view-request.php?id=' . $entityIdInt;
             }

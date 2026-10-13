@@ -329,32 +329,111 @@ if (isLoggedIn()) {
                     </div>
                 </div>
 
-                <!-- Right Admin Profile Widget -->
+                <!-- Right Admin Profile & Notification Widget -->
                 <div class="dashboard-header-profile-wrap parish-nav-right admin-global-actions">
-                    <div class="dropdown">
-                        <button class="profile-chip-btn admin-profile-btn parish-profile-pill-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <span class="profile-chip-avatar profile-avatar parish-profile-avatar" style="overflow: hidden; padding: 0;">
-                                <?php if (!empty($header_avatar_url)): ?>
-                                    <img src="<?php echo e($header_avatar_url); ?>" alt="Avatar" class="parish-avatar-img" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
-                                    <span style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center;"><?php echo $header_avatar_initial; ?></span>
-                                <?php else: ?>
-                                    <?php echo $header_avatar_initial; ?>
-                                <?php endif; ?>
-                            </span>
-                            <span class="profile-chip-meta profile-meta parish-profile-meta">
-                                <span class="profile-chip-name profile-name parish-profile-name"><?php echo $header_user_name; ?></span>
-                                <?php if (!empty($header_user_role)): ?>
-                                    <span class="profile-chip-role profile-role parish-profile-role"><?php echo e($header_user_role); ?></span>
-                                <?php endif; ?>
-                            </span>
-                            <i class="fas fa-chevron-down ms-1" style="font-size: 10px; color: #9a9890;"></i>
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-                            <li><a class="dropdown-item" href="../auth/profile.php"><i class="fas fa-user me-2 text-muted"></i> My Profile</a></li>
-                            <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>admin/settings.php"><i class="fas fa-gear me-2 text-muted"></i> Settings</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item text-danger" href="../auth/logout.php"><i class="fas fa-arrow-right-from-bracket me-2"></i> <?php echo e(t('nav.logout', 'Logout')); ?></a></li>
-                        </ul>
+                    <div class="d-flex align-items-center gap-2">
+                        <!-- Admin Notification Bell Dropdown -->
+                        <div class="dropdown" id="adminNotifDropdownContainer">
+                            <button class="btn pds-btn-notif-bell position-relative d-inline-flex align-items-center justify-content-center" 
+                                    type="button" 
+                                    data-bs-toggle="dropdown" 
+                                    data-bs-auto-close="true"
+                                    aria-expanded="false" 
+                                    id="adminNotifDropdownBtn"
+                                    title="Admin Notifications"
+                                    style="width: 42px; height: 42px; border-radius: 50%; background: #FFFFFF; border: 1px solid #E2E8F0; color: #475569; box-shadow: 0 1px 3px rgba(0,0,0,0.06); transition: all 0.2s ease;">
+                                <i class="fas fa-bell" style="font-size: 16px;"></i>
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger admin-unread-badge-counter" 
+                                      id="adminUnreadBadge"
+                                      style="<?php echo $unread_notification_count > 0 ? '' : 'display: none !important;'; ?> font-size: 10px; padding: 3px 6px; border: 2px solid #FFFFFF;">
+                                    <?php echo $unread_notification_count > 99 ? '99+' : $unread_notification_count; ?>
+                                    <span class="visually-hidden">unread notifications</span>
+                                </span>
+                            </button>
+                            <div class="dropdown-menu dropdown-menu-end shadow-lg p-0" 
+                                 aria-labelledby="adminNotifDropdownBtn"
+                                 style="width: 360px; max-width: 92vw; border-radius: 12px; border: 1px solid #E2E8F0; overflow: hidden;">
+                                <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom" style="background: #F8FAFC;">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <strong style="font-size: 13px; color: #0F172A; font-weight: 700;">Admin Alerts</strong>
+                                        <?php if ($unread_notification_count > 0): ?>
+                                            <span class="badge bg-danger rounded-pill" id="adminUnreadHeaderCount" style="font-size: 10px;"><?php echo $unread_notification_count; ?> unread</span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <a href="<?php echo BASE_URL; ?>admin/manage-requests.php" class="text-decoration-none" style="font-size: 11px; font-weight: 600; color: #0F5132;">All Requests &rarr;</a>
+                                </div>
+                                <div class="admin-notif-dropdown-list" style="max-height: 360px; overflow-y: auto;">
+                                    <?php if (!empty($recent_header_notifications)): ?>
+                                        <?php foreach ($recent_header_notifications as $hNotif): 
+                                            $isUnread = empty($hNotif['is_read']) && ($hNotif['state'] ?? '') !== 'read';
+                                            $actionTarget = NotificationService::actionUrl($hNotif['action_key'] ?? '', $hNotif['entity_type'] ?? null, $hNotif['entity_id'] ?? null, $hNotif, $conn);
+                                            $actionTarget = $actionTarget ?: (BASE_URL . 'admin/manage-requests.php');
+                                            $isUrgentAlert = stripos($hNotif['title'] ?? '', 'urgent') !== false;
+                                        ?>
+                                            <a href="<?php echo e($actionTarget); ?>" class="d-block text-decoration-none px-3 py-2 border-bottom notif-dropdown-row <?php echo $isUnread ? 'bg-light' : ''; ?>" style="transition: background 0.15s ease;">
+                                                <div class="d-flex align-items-start gap-2">
+                                                    <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 mt-1" 
+                                                         style="width: 30px; height: 30px; background: <?php echo $isUrgentAlert ? '#FEE2E2' : '#FEF3C7'; ?>; color: <?php echo $isUrgentAlert ? '#DC2626' : '#D97706'; ?>; font-size: 12px;">
+                                                        <i class="fas <?php echo $isUrgentAlert ? 'fa-triangle-exclamation' : 'fa-bell'; ?>"></i>
+                                                    </div>
+                                                    <div class="flex-grow-1 overflow-hidden">
+                                                        <div class="d-flex align-items-center justify-content-between">
+                                                            <strong class="text-truncate d-block" style="font-size: 12.5px; color: #1E293B; max-width: 220px;"><?php echo e($hNotif['title']); ?></strong>
+                                                            <?php if ($isUnread): ?>
+                                                                <span class="rounded-circle" style="width: 7px; height: 7px; background: #DC2626; display: inline-block;"></span>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                        <p class="mb-1 text-muted text-truncate" style="font-size: 11.5px; line-height: 1.35; margin-top: 2px;">
+                                                            <?php echo e(notificationShortMessage($hNotif['message'] ?? '', 85)); ?>
+                                                        </p>
+                                                        <small class="text-muted" style="font-size: 10.5px;">
+                                                            <i class="far fa-clock me-1"></i><?php echo formatDateTime($hNotif['created_at']); ?>
+                                                        </small>
+                                                    </div>
+                                                </div>
+                                            </a>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <div class="text-center py-4 px-3 text-muted">
+                                            <i class="far fa-bell-slash mb-2" style="font-size: 22px; color: #94A3B8;"></i>
+                                            <p class="mb-0 small">No recent requests or notifications</p>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="p-2 border-top text-center" style="background: #F8FAFC;">
+                                    <a href="<?php echo BASE_URL; ?>admin/manage-requests.php" class="btn btn-sm btn-outline-success w-100" style="font-size: 12px; font-weight: 600;">
+                                        <i class="fas fa-list-check me-1"></i> Open Requests Dashboard
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Admin Profile Dropdown -->
+                        <div class="dropdown">
+                            <button class="profile-chip-btn admin-profile-btn parish-profile-pill-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <span class="profile-chip-avatar profile-avatar parish-profile-avatar" style="overflow: hidden; padding: 0;">
+                                    <?php if (!empty($header_avatar_url)): ?>
+                                        <img src="<?php echo e($header_avatar_url); ?>" alt="Avatar" class="parish-avatar-img" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
+                                        <span style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center;"><?php echo $header_avatar_initial; ?></span>
+                                    <?php else: ?>
+                                        <?php echo $header_avatar_initial; ?>
+                                    <?php endif; ?>
+                                </span>
+                                <span class="profile-chip-meta profile-meta parish-profile-meta">
+                                    <span class="profile-chip-name profile-name parish-profile-name"><?php echo $header_user_name; ?></span>
+                                    <?php if (!empty($header_user_role)): ?>
+                                        <span class="profile-chip-role profile-role parish-profile-role"><?php echo e($header_user_role); ?></span>
+                                    <?php endif; ?>
+                                </span>
+                                <i class="fas fa-chevron-down ms-1" style="font-size: 10px; color: #9a9890;"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                <li><a class="dropdown-item" href="../auth/profile.php"><i class="fas fa-user me-2 text-muted"></i> My Profile</a></li>
+                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>admin/settings.php"><i class="fas fa-gear me-2 text-muted"></i> Settings</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item text-danger" href="../auth/logout.php"><i class="fas fa-arrow-right-from-bracket me-2"></i> <?php echo e(t('nav.logout', 'Logout')); ?></a></li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
             </header>

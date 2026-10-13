@@ -44,6 +44,14 @@ if (!$request) {
     redirect('manage-requests.php');
 }
 
+// Automatically mark notifications for this request as read when opened by staff
+require_once dirname(__DIR__) . '/services/AdminNotificationService.php';
+try {
+    AdminNotificationService::markAsReadForRequest($conn, $request_id, (int)$_SESSION['user_id']);
+} catch (Throwable $e) {
+    // Non-blocking
+}
+
 // Category Classification
 $raw_type = strtolower(trim((string)($request['request_type'] ?? '')));
 $request_category = 'other';

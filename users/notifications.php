@@ -72,15 +72,17 @@ function notificationActionUrl($notification, $conn = null) {
     );
 }
 
-function notificationShortMessage($message, $limit = 220) {
-    $plain = trim(preg_replace('/\s+/', ' ', strip_tags((string) $message)));
-    if (function_exists('mb_strlen') && mb_strlen($plain) > $limit) {
-        return mb_substr($plain, 0, $limit - 1) . '...';
+if (!function_exists('notificationShortMessage')) {
+    function notificationShortMessage($message, $limit = 220) {
+        $plain = trim(preg_replace('/\s+/', ' ', strip_tags((string) $message)));
+        if (function_exists('mb_strlen') && mb_strlen($plain) > $limit) {
+            return mb_substr($plain, 0, $limit - 1) . '...';
+        }
+        if (!function_exists('mb_strlen') && strlen($plain) > $limit) {
+            return substr($plain, 0, $limit - 1) . '...';
+        }
+        return $plain;
     }
-    if (!function_exists('mb_strlen') && strlen($plain) > $limit) {
-        return substr($plain, 0, $limit - 1) . '...';
-    }
-    return $plain;
 }
 
 function notificationReferenceNumber($notification) {

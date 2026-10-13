@@ -3346,6 +3346,45 @@
             });
         })();
     </script>
+    <script>
+        (function() {
+            const badge = document.getElementById('adminUnreadBadge');
+            const headerCount = document.getElementById('adminUnreadHeaderCount');
+            if (!badge && !headerCount) {
+                return;
+            }
+
+            function pollUnreadNotifications() {
+                const url = '<?php echo BASE_URL; ?>api/notifications.php?action=count';
+                fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+                    .then(function(res) { return res.json(); })
+                    .then(function(data) {
+                        if (data && data.success && typeof data.unread_count !== 'undefined') {
+                            const count = parseInt(data.unread_count, 10) || 0;
+                            if (badge) {
+                                if (count > 0) {
+                                    badge.innerText = count > 99 ? '99+' : count;
+                                    badge.style.display = 'inline-block';
+                                } else {
+                                    badge.style.display = 'none';
+                                }
+                            }
+                            if (headerCount) {
+                                if (count > 0) {
+                                    headerCount.innerText = count + ' unread';
+                                    headerCount.style.display = 'inline-block';
+                                } else {
+                                    headerCount.style.display = 'none';
+                                }
+                            }
+                        }
+                    })
+                    .catch(function() {});
+            }
+
+            setInterval(pollUnreadNotifications, 25000);
+        })();
+    </script>
     <!-- Re-apply after page/footer inline themes so WCAG contrast rules win deterministically. -->
     <link rel="stylesheet" href="../assets/css/accessibility.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/accessibility.css'); ?>">
     <script src="../assets/js/accessibility.js?v=<?php echo filemtime(__DIR__ . '/../assets/js/accessibility.js'); ?>"></script>
