@@ -221,6 +221,9 @@ final class ReportPdfGenerator
 <head>
 <meta charset="UTF-8">
 <title><?php echo htmlspecialchars($title, ENT_QUOTES, 'UTF-8'); ?></title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 <style>
     @page {
         size: portrait;
@@ -400,6 +403,189 @@ final class ReportPdfGenerator
         letter-spacing: 0.3px;
         font-weight: 700;
         margin-top: 2px;
+    }
+
+    /* ── Operational Summary Section (Compact, Institutional Aesthetic) ── */
+    .pdf-op-section {
+        margin-top: 4px;
+        margin-bottom: 7px;
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+    .pdf-op-header {
+        margin-bottom: 4px;
+        text-align: left;
+    }
+    .pdf-op-title {
+        font-family: 'Playfair Display', 'Times New Roman', 'Georgia', serif;
+        font-size: 10.5pt;
+        font-weight: 700;
+        color: #1d3a2a;
+        line-height: 1.15;
+        margin-bottom: 1px;
+    }
+    .pdf-op-subtitle {
+        font-family: 'Figtree', 'Helvetica', 'Arial', sans-serif;
+        font-size: 7.2pt;
+        color: #6f7d74;
+        line-height: 1.2;
+        margin-bottom: 2px;
+    }
+    .pdf-op-meta-line {
+        font-family: 'Figtree', 'Helvetica', 'Arial', sans-serif;
+        font-size: 6.6pt;
+        color: #b98a2e;
+        font-weight: 600;
+        line-height: 1.2;
+    }
+
+    /* Three Summary Cards (One Row) */
+    .pdf-op-summary-kpis {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 3px;
+        margin-bottom: 5px;
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+    .pdf-op-kpi-card {
+        background: #ffffff;
+        border: 1px solid #e4decd;
+        border-top: 3px solid #b98a2e;
+        border-radius: 8px;
+        padding: 5px 7px;
+        text-align: left;
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+    .pdf-op-kpi-num {
+        font-family: 'Playfair Display', 'Georgia', serif;
+        font-size: 13.5pt;
+        font-weight: 700;
+        color: #1d3a2a;
+        line-height: 1.1;
+        margin-bottom: 1px;
+    }
+    .pdf-op-kpi-lbl {
+        font-family: 'Figtree', 'Helvetica', 'Arial', sans-serif;
+        font-size: 6.6pt;
+        font-weight: 700;
+        color: #2a5139;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        margin-bottom: 2px;
+        line-height: 1.15;
+    }
+    .pdf-op-kpi-note {
+        font-family: 'Figtree', 'Helvetica', 'Arial', sans-serif;
+        font-size: 6.1pt;
+        color: #6f7d74;
+        line-height: 1.2;
+    }
+
+    /* Breakdown Cards & Progress Rows */
+    .pdf-op-breakdowns-row {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 5px;
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+    .pdf-op-breakdown-card {
+        background: #ffffff;
+        border: 1px solid #e4decd;
+        border-radius: 8px;
+        padding: 5px 7px;
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+    .pdf-op-card-head-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 4px;
+        border-bottom: 1px solid #f1ece1;
+    }
+    .pdf-op-card-title {
+        font-family: 'Playfair Display', 'Times New Roman', 'Georgia', serif;
+        font-size: 7.8pt;
+        font-weight: 700;
+        color: #1d3a2a;
+    }
+    .pdf-op-card-badge {
+        display: inline-block;
+        background: #f4efe6;
+        color: #2a5139;
+        font-family: 'Figtree', 'Helvetica', 'Arial', sans-serif;
+        font-size: 6.2pt;
+        font-weight: 700;
+        padding: 1.5px 5px;
+        border-radius: 8px;
+        border: 1px solid #e4decd;
+        line-height: 1.1;
+    }
+    .pdf-op-bar-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 3.5px;
+    }
+    .pdf-op-bar-name-cell {
+        font-family: 'Figtree', 'Helvetica', 'Arial', sans-serif;
+        font-size: 6.7pt;
+        font-weight: 500;
+        color: #1e293b;
+        text-align: left;
+        padding-bottom: 1.5px;
+    }
+    .pdf-op-bar-count-cell {
+        font-family: 'Figtree', 'Helvetica', 'Arial', sans-serif;
+        font-size: 6.7pt;
+        font-weight: 700;
+        color: #1d3a2a;
+        text-align: right;
+        padding-bottom: 1.5px;
+    }
+    .pdf-op-bar-track-cell {
+        padding: 0;
+    }
+    .pdf-op-bar-track {
+        width: 100%;
+        height: 4.5px;
+        background-color: #f1ede4;
+        border-radius: 3px;
+        overflow: hidden;
+    }
+    .pdf-op-bar-fill-gradient {
+        height: 4.5px;
+        background-color: #2a5139;
+        background: -webkit-linear-gradient(left, #1d3a2a 0%, #b98a2e 100%);
+        background: linear-gradient(90deg, #1d3a2a 0%, #b98a2e 100%);
+        border-radius: 3px;
+    }
+    .pdf-op-bar-fill-solid {
+        height: 4.5px;
+        border-radius: 3px;
+    }
+    .pdf-op-pct-pill {
+        font-size: 6.1pt;
+        font-weight: 600;
+        color: #6f7d74;
+        margin-left: 2px;
+    }
+    .pdf-op-status-dot {
+        display: inline-block;
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        vertical-align: middle;
+        margin-right: 3px;
+    }
+    .pdf-op-no-data {
+        font-family: 'Figtree', 'Helvetica', 'Arial', sans-serif;
+        font-size: 6.8pt;
+        font-style: italic;
+        color: #6f7d74;
+        padding: 6px 4px;
+        text-align: center;
     }
 
     /* ── Dynamic Analytics Charts (Fluid, No Forced Heights) ──────── */
@@ -616,6 +802,189 @@ final class ReportPdfGenerator
             </td>
         </tr>
     </table>
+    <?php endif; ?>
+
+    <?php if (!empty($meta['operational_summary'])): 
+        $op = $meta['operational_summary'];
+    ?>
+    <!-- Operational Summary Section -->
+    <div class="pdf-op-section">
+        <!-- 1 & 2: Header & Subtitle & Metadata Line -->
+        <div class="pdf-op-header">
+            <div class="pdf-op-title">Operational Summary</div>
+            <div class="pdf-op-subtitle">Overview of certificates, blessings, and sacramental service totals</div>
+            <div class="pdf-op-meta-line">
+                Last updated: <?php echo htmlspecialchars((string)($op['updated_at'] ?? date('M d, Y h:i A')), ENT_QUOTES, 'UTF-8'); ?> &middot; Range: <?php echo htmlspecialchars((string)($op['range_label'] ?? 'All Time'), ENT_QUOTES, 'UTF-8'); ?>
+            </div>
+        </div>
+
+        <!-- 3: Three Summary Cards in One Row -->
+        <table class="pdf-op-summary-kpis" cellpadding="0" cellspacing="0">
+            <tr>
+                <td style="width: 33.333%; padding-right: 4px; vertical-align: top;">
+                    <div class="pdf-op-kpi-card">
+                        <div class="pdf-op-kpi-num"><?php echo number_format((int)($op['total_certificates'] ?? 0)); ?></div>
+                        <div class="pdf-op-kpi-lbl">Total Certificates Created</div>
+                        <div class="pdf-op-kpi-note">Official certificates drafted &amp; issued in registry</div>
+                    </div>
+                </td>
+                <td style="width: 33.333%; padding-left: 2px; padding-right: 2px; vertical-align: top;">
+                    <div class="pdf-op-kpi-card">
+                        <div class="pdf-op-kpi-num"><?php echo number_format((int)($op['blessings_completed'] ?? 0)); ?></div>
+                        <div class="pdf-op-kpi-lbl">Blessings Completed</div>
+                        <div class="pdf-op-kpi-note"><?php $blTotal = (int)($op['blessings_total'] ?? 0); echo number_format($blTotal); ?> total blessing request<?php echo $blTotal === 1 ? '' : 's'; ?></div>
+                    </div>
+                </td>
+                <td style="width: 33.333%; padding-left: 4px; vertical-align: top;">
+                    <div class="pdf-op-kpi-card">
+                        <div class="pdf-op-kpi-num"><?php echo number_format((int)($op['services_total'] ?? 0)); ?></div>
+                        <div class="pdf-op-kpi-lbl">Sacramental Services</div>
+                        <div class="pdf-op-kpi-note">Baptism, Confirmation, Communion, Marriage, Funeral</div>
+                    </div>
+                </td>
+            </tr>
+        </table>
+
+        <!-- 4: Two Cards Side by Side (Certificates Breakdown & Blessings Breakdown) -->
+        <table class="pdf-op-breakdowns-row" cellpadding="0" cellspacing="0">
+            <tr>
+                <!-- Certificates Breakdown -->
+                <td style="width: 50%; padding-right: 4px; vertical-align: top;">
+                    <div class="pdf-op-breakdown-card">
+                        <table class="pdf-op-card-head-table" cellpadding="0" cellspacing="0">
+                            <tr>
+                                <td style="text-align: left; vertical-align: middle; padding-bottom: 2px;">
+                                    <span class="pdf-op-card-title">Certificates Breakdown</span>
+                                </td>
+                                <td style="text-align: right; vertical-align: middle; padding-bottom: 2px;">
+                                    <span class="pdf-op-card-badge"><?php echo number_format((int)($op['total_certificates'] ?? 0)); ?> Total</span>
+                                </td>
+                            </tr>
+                        </table>
+                        <?php if (empty($op['certs_breakdown'])): ?>
+                            <div class="pdf-op-no-data">No data for this range</div>
+                        <?php else: ?>
+                            <?php
+                                $maxCert = max(1, max($op['certs_breakdown']));
+                                foreach ($op['certs_breakdown'] as $cType => $cCount):
+                                    $cPct = round(((int)$cCount / $maxCert) * 100);
+                                    $cTypeName = ucwords(str_replace(['_', '-'], ' ', (string)$cType));
+                            ?>
+                            <table class="pdf-op-bar-table" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td class="pdf-op-bar-name-cell"><?php echo htmlspecialchars($cTypeName, ENT_QUOTES, 'UTF-8'); ?></td>
+                                    <td class="pdf-op-bar-count-cell"><?php echo number_format((int)$cCount); ?></td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2" class="pdf-op-bar-track-cell">
+                                        <div class="pdf-op-bar-track">
+                                            <div class="pdf-op-bar-fill-gradient" style="width: <?php echo max(6, $cPct); ?>%;"></div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                </td>
+
+                <!-- Blessings Breakdown -->
+                <td style="width: 50%; padding-left: 4px; vertical-align: top;">
+                    <div class="pdf-op-breakdown-card">
+                        <table class="pdf-op-card-head-table" cellpadding="0" cellspacing="0">
+                            <tr>
+                                <td style="text-align: left; vertical-align: middle; padding-bottom: 2px;">
+                                    <span class="pdf-op-card-title">Blessings Breakdown</span>
+                                </td>
+                                <td style="text-align: right; vertical-align: middle; padding-bottom: 2px;">
+                                    <span class="pdf-op-card-badge"><?php echo number_format((int)($op['blessings_total'] ?? 0)); ?> Total</span>
+                                </td>
+                            </tr>
+                        </table>
+                        <?php if (empty($op['blessings_total'])): ?>
+                            <div class="pdf-op-no-data">No data for this range</div>
+                        <?php else: ?>
+                            <?php
+                                $bTot = max(1, (int)$op['blessings_total']);
+                                $bStatuses = [
+                                    ['label' => 'Completed', 'count' => (int)($op['blessings_completed'] ?? 0), 'color' => '#2f8a57'],
+                                    ['label' => 'Pending', 'count' => (int)($op['blessings_pending'] ?? 0), 'color' => '#d9a21b'],
+                                    ['label' => 'Approved / Processing', 'count' => (int)($op['blessings_approved'] ?? 0), 'color' => '#3b82a6'],
+                                    ['label' => 'Cancelled', 'count' => (int)($op['blessings_cancelled'] ?? 0), 'color' => '#b4533f'],
+                                ];
+                                foreach ($bStatuses as $st):
+                                    $stPct = round(($st['count'] / $bTot) * 100);
+                            ?>
+                            <table class="pdf-op-bar-table" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td class="pdf-op-bar-name-cell" style="color: <?php echo $st['color']; ?>; font-weight: 600;">
+                                        <span class="pdf-op-status-dot" style="background-color: <?php echo $st['color']; ?>;"></span>
+                                        <?php echo htmlspecialchars($st['label'], ENT_QUOTES, 'UTF-8'); ?>
+                                    </td>
+                                    <td class="pdf-op-bar-count-cell"><?php echo number_format($st['count']); ?></td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2" class="pdf-op-bar-track-cell">
+                                        <div class="pdf-op-bar-track">
+                                            <div class="pdf-op-bar-fill-solid" style="background-color: <?php echo $st['color']; ?>; width: <?php echo $st['count'] > 0 ? max(5, $stPct) : 0; ?>%;"></div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                </td>
+            </tr>
+        </table>
+
+        <!-- 5: One Card: Requests by Blessing Type -->
+        <div class="pdf-op-breakdown-card" style="margin-bottom: 7px;">
+            <table class="pdf-op-card-head-table" cellpadding="0" cellspacing="0">
+                <tr>
+                    <td style="text-align: left; vertical-align: middle; padding-bottom: 2px;">
+                        <span class="pdf-op-card-title">Requests by Blessing Type</span>
+                    </td>
+                    <td style="text-align: right; vertical-align: middle; padding-bottom: 2px;">
+                        <span class="pdf-op-card-badge"><?php echo count($op['blessings_by_type'] ?? []); ?> Categories</span>
+                    </td>
+                </tr>
+            </table>
+            <?php if (empty($op['blessings_by_type'])): ?>
+                <div class="pdf-op-no-data">No data for this range</div>
+            <?php else: ?>
+                <?php
+                    $bTot = max(1, (int)($op['blessings_total'] ?? 0));
+                    $maxBType = 1;
+                    foreach ($op['blessings_by_type'] as $b) {
+                        if (($b['total'] ?? 0) > $maxBType) $maxBType = (int)$b['total'];
+                    }
+                    foreach ($op['blessings_by_type'] as $bType => $bStats):
+                        $bCount = (int)($bStats['total'] ?? 0);
+                        $bPctOfTotal = round(($bCount / $bTot) * 100);
+                        $bWidthPct = round(($bCount / $maxBType) * 100);
+                        $bTypeName = ucwords(str_replace(['_', '-'], ' ', (string)$bType));
+                ?>
+                <table class="pdf-op-bar-table" cellpadding="0" cellspacing="0">
+                    <tr>
+                        <td class="pdf-op-bar-name-cell"><?php echo htmlspecialchars($bTypeName, ENT_QUOTES, 'UTF-8'); ?></td>
+                        <td class="pdf-op-bar-count-cell">
+                            <strong><?php echo number_format($bCount); ?></strong>
+                            <span class="pdf-op-pct-pill">(<?php echo $bPctOfTotal; ?>%)</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" class="pdf-op-bar-track-cell">
+                            <div class="pdf-op-bar-track">
+                                <div class="pdf-op-bar-fill-gradient" style="width: <?php echo max(6, $bWidthPct); ?>%;"></div>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </div>
+    </div>
     <?php endif; ?>
 
     <?php if (!empty($charts['sacraments']) || !empty($charts['request_status']) || !empty($charts['top_services']) || !empty($charts['parish_growth'])): ?>

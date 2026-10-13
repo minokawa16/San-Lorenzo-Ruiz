@@ -75,9 +75,27 @@ if ($ev && $row4 = $ev->fetch_assoc()) $kpi_events_month = (int)($row4['c'] ?? 0
 
 // --- Summary Section Metrics & Filter --------------------------------------
 $cleanSummaryRange = static fn($v) => in_array($v, ['all', 'month', 'year', 'custom'], true) ? (string)$v : 'all';
-$summary_range = $cleanSummaryRange($_GET['summary_range'] ?? 'all');
-$summary_from  = $cleanDate($_GET['summary_from'] ?? '');
-$summary_to    = $cleanDate($_GET['summary_to'] ?? '');
+$summary_range = $cleanSummaryRange($_POST['summary_range'] ?? ($_GET['summary_range'] ?? 'all'));
+$summary_from  = $cleanDate($_POST['summary_from'] ?? ($_GET['summary_from'] ?? ''));
+$summary_to    = $cleanDate($_POST['summary_to'] ?? ($_GET['summary_to'] ?? ''));
+
+if ($summary_range === 'month') {
+    $summary_range_label = 'This Month';
+} elseif ($summary_range === 'year') {
+    $summary_range_label = 'This Year';
+} elseif ($summary_range === 'custom') {
+    if (!empty($summary_from) && !empty($summary_to)) {
+        $summary_range_label = date('M d, Y', strtotime($summary_from)) . ' – ' . date('M d, Y', strtotime($summary_to));
+    } elseif (!empty($summary_from)) {
+        $summary_range_label = 'From ' . date('M d, Y', strtotime($summary_from));
+    } elseif (!empty($summary_to)) {
+        $summary_range_label = 'Until ' . date('M d, Y', strtotime($summary_to));
+    } else {
+        $summary_range_label = 'Custom Range';
+    }
+} else {
+    $summary_range_label = 'All Time';
+}
 
 $whereIssuance = ["status != 'revoked'"];
 $whereRequests = ["deleted_at IS NULL"];
@@ -313,6 +331,23 @@ if (in_array($export, ['csv', 'pdf', 'preview'], true)) {
         'requests_pending'      => $kpi_requests_pending,
         'parishioners_verified' => $kpi_parishioners_verified,
         'parishioners_pending'  => $kpi_parishioners_pending,
+        'operational_summary'   => [
+            'range'               => $summary_range,
+            'range_label'         => $summary_range_label,
+            'from'                => $summary_from,
+            'to'                  => $summary_to,
+            'updated_at'          => date('M d, Y h:i A'),
+            'total_certificates'  => $summary_total_certificates,
+            'certs_breakdown'     => $summary_certs_breakdown,
+            'blessings_completed' => $summary_blessings_completed,
+            'blessings_total'     => $summary_blessings_total,
+            'blessings_pending'   => $summary_blessings_pending,
+            'blessings_approved'  => $summary_blessings_approved,
+            'blessings_cancelled' => $summary_blessings_cancelled,
+            'blessings_by_type'   => $summary_blessings_by_type,
+            'services_total'      => $summary_services_total,
+            'services_breakdown'  => $summary_services_breakdown,
+        ],
     ];
 
     $generatedBy = !empty($_SESSION['fullname']) ? (string)$_SESSION['fullname'] : 'Parish Administrator';
@@ -1878,7 +1913,12 @@ include '../templates/header.php';
       <button type="button" class="ar-btn ar-btn-primary btn-open-print-preview" id="btnOpenPrintPreview" title="Print preview report">
         <i class="fas fa-print"></i> Print Preview
       </button>
-      <a class="ar-btn ar-btn-gold" href="?<?php echo e(http_build_query(array_merge($queryBase, ['export' => 'pdf']))); ?>">
+      <a class="ar-btn ar-btn-gold" href="?<?php echo e(http_build_query(array_merge($queryBase, [
+          'export' => 'pdf',
+          'summary_range' => $summary_range,
+          'summary_from' => $summary_from,
+          'summary_to' => $summary_to,
+      ]))); ?>">
         <i class="fas fa-file-pdf"></i> Export PDF
       </a>
       <a class="ar-btn ar-btn-outline" href="?<?php echo e(http_build_query(array_merge($queryBase, ['export' => 'csv']))); ?>">
@@ -2981,6 +3021,9 @@ include '../templates/header.php';
         'to': <?php echo json_encode($filters['to']); ?>,
         'status': <?php echo json_encode($filters['status']); ?>,
         'type': <?php echo json_encode($filters['type']); ?>,
+        'summary_range': <?php echo json_encode($summary_range); ?>,
+        'summary_from': <?php echo json_encode($summary_from); ?>,
+        'summary_to': <?php echo json_encode($summary_to); ?>,
         'chart_sacraments': sacramentsImg,
         'chart_request_status': requestStatusImg,
         'chart_top_services': topServicesImg,
@@ -3014,7 +3057,7 @@ include '../templates/header.php';
         btn.disabled = false;
         btn.innerHTML = origHtml;
       }
-      window.location.href = '?export=pdf&report=<?php echo urlencode($report); ?>';
+      window.location.href = '?export=pdf&report=<?php echo urlencode($report); ?>&summary_range=<?php echo urlencode($summary_range); ?>&summary_from=<?php echo urlencode($summary_from); ?>&summary_to=<?php echo urlencode($summary_to); ?>';
     }
   }
 
@@ -3085,6 +3128,9 @@ include '../templates/header.php';
       formData.append('to', live.to);
       formData.append('status', live.status);
       formData.append('type', live.type);
+      formData.append('summary_range', <?php echo json_encode($summary_range); ?>);
+      formData.append('summary_from', <?php echo json_encode($summary_from); ?>);
+      formData.append('summary_to', <?php echo json_encode($summary_to); ?>);
       formData.append('chart_sacraments', sacramentsImg);
       formData.append('chart_request_status', requestStatusImg);
       formData.append('chart_top_services', topServicesImg);

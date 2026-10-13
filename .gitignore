@@ -46,4 +46,6 @@ backups/certificate_category_refactor_*
 TUGON-AI-PRODUCTION-BACKUP/
 scratch/
 vendor/dompdf/dompdf/lib/fonts/*.json
+vendor/dompdf/dompdf/lib/fonts/*.ttf
+vendor/dompdf/dompdf/lib/fonts/*.ufm
 
