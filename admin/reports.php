@@ -953,65 +953,76 @@ include '../templates/header.php';
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
 /* --------------------------------------------------------------------------
-   OPERATIONAL SUMMARY SECTION — Premium Theme
+   OPERATIONAL SUMMARY SECTION — Aesthetic Parish Modern Theme
    -------------------------------------------------------------------------- */
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&display=swap');
 
 .ar-summary-section {
-  background: #fdfbf7;
-  border: 1px solid #ebdcc5;
+  background: #ffffff;
+  border: 1px solid #eadbce;
   border-radius: var(--radius-lg);
-  padding: 24px;
+  padding: 24px 28px;
   margin-bottom: 26px;
-  box-shadow: 0 4px 20px rgba(140, 98, 37, 0.05), 0 1px 3px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 2px 12px rgba(140, 98, 37, 0.05), 0 1px 3px rgba(0, 0, 0, 0.03);
   position: relative;
+  overflow: hidden;
+}
+.ar-summary-section::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #c89b3c 0%, #2e5e3b 50%, #8c6225 100%);
 }
 
+/* Header */
 .ar-summary-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 16px;
-  margin-bottom: 18px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #ede1cf;
+  margin-bottom: 20px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #f1e4d3;
 }
 
 .ar-summary-title-wrap {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
 .ar-summary-title-icon {
-  width: 44px;
-  height: 44px;
+  width: 46px;
+  height: 46px;
   border-radius: 12px;
-  background: rgba(140, 98, 37, 0.10);
-  border: 1px solid rgba(140, 98, 37, 0.22);
+  background: rgba(200, 155, 60, 0.12);
+  border: 1px solid rgba(200, 155, 60, 0.28);
   color: #8c6225;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.15rem;
+  font-size: 1.2rem;
   flex-shrink: 0;
 }
 
 .ar-summary-title {
   font-family: 'Playfair Display', Georgia, serif;
-  font-size: 1.38rem;
+  font-size: 1.35rem;
   font-weight: 700;
-  color: #3b2a1a;
+  color: var(--green-dark, #2e3a2d);
   margin: 0;
   letter-spacing: -0.2px;
 }
 
 .ar-summary-subtitle {
   font-size: 0.8rem;
-  color: #7d6b56;
-  margin: 2px 0 0;
+  color: var(--slate-400, #94a3b8);
+  margin: 3px 0 0;
 }
 
 .ar-summary-meta-actions {
@@ -1024,10 +1035,10 @@ include '../templates/header.php';
 .ar-summary-updated {
   font-size: 0.77rem;
   color: #8c7355;
-  background: #f7f1e5;
-  padding: 6px 12px;
+  background: #fbf7f0;
+  padding: 6px 14px;
   border-radius: 20px;
-  border: 1px solid #e7d8c0;
+  border: 1px solid #ebdcc5;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1036,7 +1047,7 @@ include '../templates/header.php';
 
 .ar-summary-export-btn {
   font-size: 0.8rem;
-  padding: 7px 14px;
+  padding: 8px 16px;
   background: #ffffff;
   border: 1.5px solid #d5c4aa;
   color: #6a491d;
@@ -1045,14 +1056,15 @@ include '../templates/header.php';
   text-decoration: none;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  transition: all 0.15s ease;
+  gap: 7px;
+  transition: all 0.18s ease;
 }
 .ar-summary-export-btn:hover {
   background: #8c6225;
   border-color: #8c6225;
-  color: #fff;
+  color: #ffffff;
   transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(140, 98, 37, 0.25);
 }
 
 /* Date Filter Toolbar */
@@ -1062,12 +1074,11 @@ include '../templates/header.php';
   justify-content: space-between;
   gap: 14px;
   flex-wrap: wrap;
-  background: #ffffff;
+  background: #faf8f5;
   border: 1px solid #ebdcc5;
   border-radius: 12px;
-  padding: 10px 16px;
-  margin-bottom: 22px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+  padding: 12px 18px;
+  margin-bottom: 24px;
 }
 
 .ar-summary-filter-pills {
@@ -1078,21 +1089,21 @@ include '../templates/header.php';
 }
 
 .ar-summary-filter-lbl {
-  font-size: 0.76rem;
+  font-size: 0.74rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   color: #8c7355;
-  margin-right: 2px;
+  margin-right: 4px;
 }
 
 .ar-summary-pill {
-  padding: 6px 14px;
+  padding: 6px 15px;
   border-radius: 20px;
-  font-size: 0.79rem;
+  font-size: 0.78rem;
   font-weight: 600;
   border: 1.5px solid #ebdcc5;
-  background: #fbf9f4;
+  background: #ffffff;
   color: #5c4732;
   cursor: pointer;
   text-decoration: none;
@@ -1100,7 +1111,7 @@ include '../templates/header.php';
   display: inline-block;
 }
 .ar-summary-pill:hover {
-  background: #f0e6d6;
+  background: #f4ecdf;
   color: #3b2a1a;
   border-color: #d8c4a6;
 }
@@ -1120,24 +1131,26 @@ include '../templates/header.php';
 }
 
 .ar-summary-range-lbl {
-  font-size: 0.77rem;
-  font-weight: 600;
+  font-size: 0.76rem;
+  font-weight: 700;
   color: #7d6b56;
   margin: 0;
 }
 
 .ar-summary-date-input {
-  border: 1px solid #d5c4aa;
+  border: 1.5px solid #d5c4aa;
   border-radius: 8px;
-  padding: 5px 10px;
-  font-size: 0.78rem;
+  padding: 6px 11px;
+  font-size: 0.8rem;
   background: #ffffff;
   color: #3b2a1a;
   outline: none;
-  transition: border-color 0.15s;
+  font-family: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 .ar-summary-date-input:focus {
   border-color: #8c6225;
+  box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.15);
 }
 
 .ar-summary-range-sep {
@@ -1146,48 +1159,50 @@ include '../templates/header.php';
 }
 
 .ar-summary-btn-apply {
-  background: #8c6225;
+  background: var(--green-dark, #2e3a2d);
   color: #ffffff;
   border: none;
   border-radius: 8px;
-  padding: 6px 14px;
-  font-size: 0.78rem;
+  padding: 7px 15px;
+  font-size: 0.8rem;
   font-weight: 700;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+.ar-summary-btn-apply:hover {
+  background: var(--green-mid, #3d5c3a);
+  transform: translateY(-1px);
+}
+
+.ar-summary-btn-reset {
+  background: #ffffff;
+  color: #8c6225;
+  border: 1.5px solid #decbb2;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-decoration: none;
   display: inline-flex;
   align-items: center;
   gap: 5px;
   transition: all 0.15s ease;
 }
-.ar-summary-btn-apply:hover {
-  background: #734f1c;
-  transform: translateY(-1px);
-}
-
-.ar-summary-btn-reset {
-  background: #f3ece0;
-  color: #8c6225;
-  border: 1px solid #decbb2;
-  border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 0.78rem;
-  cursor: pointer;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  transition: all 0.15s ease;
-}
 .ar-summary-btn-reset:hover {
-  background: #ebdcc5;
+  background: #f4ecdf;
   color: #5c3d1e;
 }
 
-/* 1. TOP SUMMARY CARDS (Top row: 3 cards) */
+/* 1. TOP SUMMARY KPI CARDS (3 columns) */
 .ar-sum-cards-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  margin-bottom: 24px;
+  gap: 18px;
+  margin-bottom: 22px;
 }
 @media (max-width: 900px) {
   .ar-sum-cards-grid {
@@ -1199,7 +1214,7 @@ include '../templates/header.php';
   background: #ffffff;
   border: 1px solid #ebdcc5;
   border-radius: 14px;
-  padding: 20px 22px;
+  padding: 22px 24px;
   position: relative;
   overflow: hidden;
   box-shadow: 0 2px 8px rgba(140, 98, 37, 0.04);
@@ -1210,79 +1225,103 @@ include '../templates/header.php';
 }
 .ar-sum-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 22px rgba(140, 98, 37, 0.09);
+  box-shadow: 0 8px 24px rgba(140, 98, 37, 0.08);
 }
 .ar-sum-card::before {
   content: '';
   position: absolute;
   top: 0; left: 0; bottom: 0;
   width: 4px;
-  background: linear-gradient(180deg, #8c6225 0%, #c89b3c 100%);
   border-radius: 14px 0 0 14px;
+}
+.ar-sum-card-cert::before {
+  background: linear-gradient(180deg, #c89b3c 0%, #8c6225 100%);
+}
+.ar-sum-card-blessing::before {
+  background: linear-gradient(180deg, #10b981 0%, #059669 100%);
+}
+.ar-sum-card-services::before {
+  background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
 }
 
 .ar-sum-card-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .ar-sum-card-icon {
-  width: 48px;
-  height: 48px;
+  width: 46px;
+  height: 46px;
   border-radius: 12px;
-  background: rgba(140, 98, 37, 0.08);
-  border: 1px solid rgba(140, 98, 37, 0.18);
-  color: #8c6225;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.25rem;
+}
+.ar-sum-card-cert .ar-sum-card-icon {
+  background: rgba(200, 155, 60, 0.12);
+  border: 1px solid rgba(200, 155, 60, 0.26);
+  color: #8c6225;
+}
+.ar-sum-card-blessing .ar-sum-card-icon {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.26);
+  color: #059669;
+}
+.ar-sum-card-services .ar-sum-card-icon {
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.26);
+  color: #1d4ed8;
 }
 
 .ar-sum-card-badge {
   font-size: 0.72rem;
   font-weight: 700;
   padding: 4px 10px;
-  border-radius: 12px;
+  border-radius: 20px;
   background: #f7f1e5;
   color: #7a5214;
   border: 1px solid #ebdcc5;
 }
 .ar-sum-card-badge.status-completed {
-  background: #e8f5e9;
-  color: #1e6b37;
-  border-color: #c8e6c9;
+  background: #d1fae5;
+  color: #065f46;
+  border-color: #a7f3d0;
 }
 
 .ar-sum-card-num {
   font-size: 2.35rem;
-  font-weight: 800;
-  color: #2b1f14;
+  font-weight: 850;
+  color: #1e293b;
   line-height: 1.1;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.6px;
+  font-variant-numeric: tabular-nums;
   margin-bottom: 4px;
 }
 
 .ar-sum-card-label {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #8c7355;
+  color: #64748b;
 }
 
 .ar-sum-card-hint {
   font-size: 0.74rem;
-  color: #a3907a;
+  color: #94a3b8;
   margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
 
 /* 2, 3, 4. BREAKDOWN CARDS GRID */
 .ar-sum-breakdowns-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: 1fr 1fr;
   gap: 18px;
 }
 @media (max-width: 1024px) {
@@ -1295,50 +1334,69 @@ include '../templates/header.php';
   background: #ffffff;
   border: 1px solid #ebdcc5;
   border-radius: 14px;
-  padding: 20px;
+  padding: 22px 24px;
   box-shadow: 0 2px 8px rgba(140, 98, 37, 0.04);
   display: flex;
   flex-direction: column;
+  transition: box-shadow 0.2s ease;
+}
+.ar-sum-breakdown-card:hover {
+  box-shadow: 0 6px 18px rgba(140, 98, 37, 0.07);
+}
+
+.ar-sum-breakdown-full {
+  grid-column: 1 / -1;
 }
 
 .ar-sum-breakdown-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
-  padding-bottom: 10px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
   border-bottom: 1px solid #f2e9dc;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.ar-sum-breakdown-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .ar-sum-breakdown-title {
   font-family: 'Playfair Display', Georgia, serif;
-  font-size: 1.1rem;
+  font-size: 1.15rem;
   font-weight: 700;
-  color: #3b2a1a;
+  color: #2e3a2d;
   margin: 0;
   display: flex;
   align-items: center;
   gap: 8px;
 }
-.ar-sum-breakdown-title i {
-  color: #8c6225;
-  font-size: 0.95rem;
+
+.ar-sum-breakdown-sub {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin: 0;
 }
 
 .ar-sum-count-pill {
   font-size: 0.72rem;
   font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 12px;
-  background: #f7f1e5;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: #fbf7f0;
   color: #8c6225;
   border: 1px solid #ebdcc5;
+  white-space: nowrap;
 }
 
 /* Empty State */
 .ar-sum-empty-state {
   text-align: center;
-  padding: 32px 16px;
+  padding: 34px 16px;
   color: #a8947f;
   font-size: 0.85rem;
   background: #faf8f5;
@@ -1363,50 +1421,51 @@ include '../templates/header.php';
 .ar-sum-bars-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
   margin-top: 4px;
 }
 
 .ar-sum-bar-item {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
 }
 
 .ar-sum-bar-labels {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 0.8rem;
+  font-size: 0.81rem;
 }
 
 .ar-sum-bar-name {
   font-weight: 600;
-  color: #4a3826;
+  color: #334155;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
 }
 
 .ar-sum-bullet {
-  font-size: 0.7rem;
-  color: #8c6225;
+  font-size: 0.72rem;
+  color: #c89b3c;
 }
 
 .ar-sum-bar-val {
   font-weight: 700;
-  color: #2b1f14;
-  background: #f7f1e5;
-  padding: 2px 8px;
-  border-radius: 10px;
+  color: #1e293b;
+  background: #fbf7f0;
+  padding: 2px 9px;
+  border-radius: 12px;
   font-size: 0.75rem;
   border: 1px solid #ebdcc5;
+  font-variant-numeric: tabular-nums;
 }
 
 .ar-sum-bar-track {
   width: 100%;
-  height: 7px;
-  background: #f2ebe0;
+  height: 8px;
+  background: #f1f5f9;
   border-radius: 6px;
   overflow: hidden;
 }
@@ -1420,15 +1479,15 @@ include '../templates/header.php';
 
 /* Blessings Breakdown Elements */
 .ar-blessing-hero-highlight {
-  background: linear-gradient(135deg, #fdf8ee 0%, #f7eee0 100%);
-  border: 1.5px solid #e5d2b7;
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border: 1.5px solid #bbf7d0;
   border-radius: 12px;
-  padding: 14px 16px;
+  padding: 14px 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 14px;
-  box-shadow: 0 2px 6px rgba(140, 98, 37, 0.05);
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.08);
 }
 
 .ar-blessing-hero-meta {
@@ -1441,24 +1500,25 @@ include '../templates/header.php';
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #1e6b37;
+  color: #15803d;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   margin-bottom: 2px;
 }
 
 .ar-blessing-hero-num {
-  font-size: 2.1rem;
-  font-weight: 800;
-  color: #2b1f14;
-  line-height: 1;
+  font-size: 2.15rem;
+  font-weight: 850;
+  color: #14532d;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
 }
 
 .ar-blessing-hero-lbl {
   font-size: 0.78rem;
   font-weight: 700;
-  color: #7a5214;
+  color: #166534;
   margin-top: 3px;
 }
 
@@ -1467,174 +1527,338 @@ include '../templates/header.php';
   height: 44px;
   border-radius: 50%;
   background: #ffffff;
-  border: 1.5px solid #d8c4a6;
-  color: #1e6b37;
+  border: 1.5px solid #86efac;
+  color: #15803d;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.15rem;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 }
 
 .ar-blessing-status-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin-bottom: 14px;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+@media (max-width: 580px) {
+  .ar-blessing-status-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
+/* Status Chips - Accessible soft chips */
+.ar-status-chip,
 .ar-blessing-status-box {
   border-radius: 10px;
-  padding: 8px 10px;
+  padding: 10px 12px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  border: 1px solid #ebdcc5;
-  background: #faf7f2;
+  gap: 4px;
+  border: 1px solid transparent;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
-.ar-blessing-status-box.status-pending {
-  background: #fefce8;
-  border-color: #fef08a;
-  color: #854d0e;
-}
-.ar-blessing-status-box.status-approved {
-  background: #f0f9ff;
-  border-color: #bae6fd;
-  color: #0369a1;
-}
-.ar-blessing-status-box.status-cancelled {
-  background: #fff1f2;
-  border-color: #fecdd3;
-  color: #9f1239;
+.ar-status-chip:hover,
+.ar-blessing-status-box:hover {
+  transform: translateY(-1px);
 }
 
+.ar-status-chip.chip-pending,
+.ar-blessing-status-box.status-pending {
+  background: #fef3c7;
+  border-color: #fde68a;
+  color: #92400e;
+}
+.ar-status-chip.chip-approved,
+.ar-blessing-status-box.status-approved {
+  background: #dbeafe;
+  border-color: #bfdbfe;
+  color: #1e40af;
+}
+.ar-status-chip.chip-completed,
+.ar-blessing-status-box.status-completed {
+  background: #d1fae5;
+  border-color: #a7f3d0;
+  color: #065f46;
+}
+.ar-status-chip.chip-cancelled,
+.ar-blessing-status-box.status-cancelled {
+  background: #fee2e2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+.ar-status-chip-label,
 .ar-blessing-box-label {
-  font-size: 0.68rem;
+  font-size: 0.70rem;
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
 }
 
+.ar-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.ar-status-dot.dot-amber { background: #d97706; }
+.ar-status-dot.dot-blue  { background: #2563eb; }
+.ar-status-dot.dot-green { background: #059669; }
+.ar-status-dot.dot-red   { background: #dc2626; }
+
+.ar-status-chip-count,
 .ar-blessing-box-count {
-  font-size: 1.15rem;
+  font-size: 1.35rem;
   font-weight: 800;
   line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
+/* Blessing Types Sub-list with Progress Tracks */
 .ar-blessing-types-list {
-  background: #faf8f4;
+  background: #faf8f5;
   border: 1px solid #ebdcc5;
-  border-radius: 10px;
-  padding: 10px 12px;
+  border-radius: 12px;
+  padding: 12px 14px;
 }
 
 .ar-blessing-types-head {
-  font-size: 0.71rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   color: #8c7355;
-  margin-bottom: 6px;
-  padding-bottom: 4px;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
   border-bottom: 1px dashed #ebdcc5;
+}
+
+.ar-blessing-types-sub {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #a8947f;
 }
 
 .ar-blessing-type-row {
   display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 5px 0;
+}
+.ar-blessing-type-row:not(:last-child) {
+  border-bottom: 1px solid #f3ece2;
+}
+
+.ar-blessing-type-info {
+  display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 0.77rem;
-  padding: 3px 0;
-  color: #5c4732;
+  font-size: 0.79rem;
 }
 
 .ar-blessing-type-name {
   font-weight: 600;
+  color: #334155;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ar-blessing-type-bullet {
+  font-size: 0.72rem;
+  color: #8c6225;
 }
 
 .ar-blessing-type-count {
   font-weight: 700;
   background: #ffffff;
-  padding: 1px 7px;
-  border-radius: 8px;
+  padding: 2px 8px;
+  border-radius: 10px;
   border: 1px solid #ebdcc5;
-  color: #3b2a1a;
-  font-size: 0.73rem;
+  color: #2b1f14;
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ar-blessing-progress-track {
+  width: 100%;
+  height: 6px;
+  background: #ede3d6;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.ar-blessing-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #2e5e3b 0%, #c89b3c 100%);
+  border-radius: 999px;
+  transition: width 0.3s ease;
 }
 
 /* Sacramental Services Table Breakdown */
 .ar-sum-services-table-wrap {
   overflow-x: auto;
-  border-radius: 10px;
-  border: 1px solid #ebdcc5;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
   background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
 .ar-sum-services-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.78rem;
+  font-size: 0.82rem;
 }
 
 .ar-sum-services-table thead th {
-  background: #fbf8f3;
-  color: #7a6348;
-  font-size: 0.7rem;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 8px 10px;
-  border-bottom: 1.5px solid #ebdcc5;
+  letter-spacing: 0.05em;
+  padding: 11px 14px;
+  border-bottom: 1.5px solid #e2e8f0;
   white-space: nowrap;
 }
 
-.ar-sum-services-table tbody td {
-  padding: 8px 10px;
-  border-bottom: 1px solid #f3ede2;
-  color: #4a3826;
+.th-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 4px;
   vertical-align: middle;
 }
 
-.ar-sum-services-table tbody tr:last-child td {
-  border-bottom: none;
+.ar-sum-services-table tbody td {
+  padding: 10px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+  vertical-align: middle;
 }
 
+.ar-sum-services-table tbody tr {
+  transition: background 0.12s ease;
+}
 .ar-sum-services-table tbody tr:hover {
-  background: #fdfcf9;
+  background: #faf8f5;
 }
 
+.td-service {
+  font-weight: 600;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 180px;
+}
+
+.s-service-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: rgba(200, 155, 60, 0.10);
+  border: 1px solid rgba(200, 155, 60, 0.22);
+  color: #8c6225;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.78rem;
+  flex-shrink: 0;
+}
+
+.s-service-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+/* Accessible status mini-pills */
 .s-mini-pill {
-  display: inline-block;
-  padding: 2px 6px;
-  border-radius: 6px;
-  font-size: 0.7rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 9px;
+  border-radius: 12px;
+  font-size: 0.74rem;
   font-weight: 700;
-  min-width: 20px;
-  text-align: center;
+  min-width: 28px;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid transparent;
 }
 .s-mini-pill.s-pill-yellow {
-  background: #fef9c3;
-  color: #854d0e;
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fde68a;
 }
 .s-mini-pill.s-pill-blue {
-  background: #e0f2fe;
-  color: #0369a1;
+  background: #dbeafe;
+  color: #1e40af;
+  border-color: #bfdbfe;
 }
 .s-mini-pill.s-pill-green {
-  background: #dcfce7;
-  color: #166534;
+  background: #d1fae5;
+  color: #065f46;
+  border-color: #a7f3d0;
 }
 .s-mini-pill.s-pill-red {
-  background: #ffe4e6;
-  color: #9f1239;
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fecaca;
 }
 .s-mini-pill.s-pill-muted {
-  background: #f3f4f6;
-  color: #9ca3af;
+  background: #f8fafc;
+  color: #94a3b8;
+  border-color: #e2e8f0;
+}
+
+.td-total {
+  font-weight: 700;
+  color: #1e293b;
+  min-width: 80px;
+}
+
+.s-total-badge {
+  display: inline-block;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #1e293b;
+  font-variant-numeric: tabular-nums;
+  background: #f8fafc;
+  padding: 3px 10px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.s-total-badge.s-grand-total {
+  background: #2e3a2d;
+  color: #ffffff;
+  border-color: #2e3a2d;
+}
+
+.ar-sum-tfoot-row td {
+  background: #f8fafc;
+  padding: 12px 14px;
+  border-top: 2px solid #e2e8f0;
+  border-bottom: none;
+  font-size: 0.82rem;
+  color: #1e293b;
 }
 
 .ar-sum-row-total {
-  color: #2b1f14;
+  color: #1e293b;
 }
 </style>
 
@@ -1782,15 +2006,19 @@ include '../templates/header.php';
 
     </div>
 
-    <!-- 2, 3, 4. BREAKDOWN CARDS (Row of 3 cards) -->
+    <!-- 2, 3, 4. BREAKDOWN CARDS -->
     <div class="ar-sum-breakdowns-grid">
       
       <!-- BREAKDOWN 1: CERTIFICATES BREAKDOWN -->
       <div class="ar-sum-breakdown-card">
         <div class="ar-sum-breakdown-head">
-          <h3 class="ar-sum-breakdown-title">
-            <i class="fas fa-file-invoice"></i> Certificates Breakdown
-          </h3>
+          <div class="ar-sum-breakdown-title-wrap">
+            <h3 class="ar-sum-breakdown-title">
+              <span class="ar-chart-title-dot" style="background:var(--gold);"></span>
+              Certificates Breakdown
+            </h3>
+            <p class="ar-sum-breakdown-sub">Volume distribution across official registry certificate types</p>
+          </div>
           <span class="ar-sum-count-pill"><?php echo number_format($summary_total_certificates); ?> Total</span>
         </div>
         
@@ -1806,7 +2034,7 @@ include '../templates/header.php';
               $maxCertCnt = max(1, max($summary_certs_breakdown));
               foreach ($summary_certs_breakdown as $certType => $cCount): 
                 $pct = round(($cCount / $maxCertCnt) * 100);
-                $certTypeName = ucwords(str_replace('_', ' ', $certType));
+                $certTypeName = ucwords(str_replace(['_', '-'], ' ', $certType));
             ?>
               <div class="ar-sum-bar-item">
                 <div class="ar-sum-bar-labels">
@@ -1827,9 +2055,13 @@ include '../templates/header.php';
       <!-- BREAKDOWN 2: BLESSINGS BREAKDOWN -->
       <div class="ar-sum-breakdown-card">
         <div class="ar-sum-breakdown-head">
-          <h3 class="ar-sum-breakdown-title">
-            <i class="fas fa-pray"></i> Blessings Breakdown
-          </h3>
+          <div class="ar-sum-breakdown-title-wrap">
+            <h3 class="ar-sum-breakdown-title">
+              <span class="ar-chart-title-dot" style="background:#10b981;"></span>
+              Blessings Breakdown
+            </h3>
+            <p class="ar-sum-breakdown-sub">Status fulfillment &amp; request counts by blessing type</p>
+          </div>
           <span class="ar-sum-count-pill"><?php echo number_format($summary_blessings_total); ?> Total</span>
         </div>
         
@@ -1850,30 +2082,54 @@ include '../templates/header.php';
             <div class="ar-blessing-hero-icon"><i class="fas fa-check-double"></i></div>
           </div>
 
-          <!-- Other Status Counts -->
+          <!-- Other Status Counts as Soft Chips -->
           <div class="ar-blessing-status-grid">
-            <div class="ar-blessing-status-box status-pending">
-              <span class="ar-blessing-box-label"><i class="fas fa-clock"></i> Pending</span>
-              <span class="ar-blessing-box-count"><?php echo number_format($summary_blessings_pending); ?></span>
+            <div class="ar-status-chip chip-pending">
+              <span class="ar-status-chip-label">
+                <span class="ar-status-dot dot-amber"></span> Pending
+              </span>
+              <span class="ar-status-chip-count"><?php echo number_format($summary_blessings_pending); ?></span>
             </div>
-            <div class="ar-blessing-status-box status-approved">
-              <span class="ar-blessing-box-label"><i class="fas fa-spinner"></i> Approved / Processing</span>
-              <span class="ar-blessing-box-count"><?php echo number_format($summary_blessings_approved); ?></span>
+            <div class="ar-status-chip chip-approved">
+              <span class="ar-status-chip-label">
+                <span class="ar-status-dot dot-blue"></span> Approved / Processing
+              </span>
+              <span class="ar-status-chip-count"><?php echo number_format($summary_blessings_approved); ?></span>
             </div>
-            <div class="ar-blessing-status-box status-cancelled">
-              <span class="ar-blessing-box-label"><i class="fas fa-times-circle"></i> Cancelled</span>
-              <span class="ar-blessing-box-count"><?php echo number_format($summary_blessings_cancelled); ?></span>
+            <div class="ar-status-chip chip-cancelled">
+              <span class="ar-status-chip-label">
+                <span class="ar-status-dot dot-red"></span> Cancelled
+              </span>
+              <span class="ar-status-chip-count"><?php echo number_format($summary_blessings_cancelled); ?></span>
             </div>
           </div>
 
-          <!-- Blessing Types Sub-list if available -->
+          <!-- Requests by Blessing Type with Progress Tracks -->
           <?php if (!empty($summary_blessings_by_type)): ?>
           <div class="ar-blessing-types-list">
-            <div class="ar-blessing-types-head">Requests by Blessing Type</div>
-            <?php foreach ($summary_blessings_by_type as $bType => $bStats): ?>
+            <div class="ar-blessing-types-head">
+              <span>Requests by Blessing Type</span>
+              <span class="ar-blessing-types-sub"><?php echo count($summary_blessings_by_type); ?> Category<?php echo count($summary_blessings_by_type) === 1 ? '' : 'ies'; ?></span>
+            </div>
+            <?php 
+              $maxBlessCnt = 1;
+              foreach ($summary_blessings_by_type as $bStats) {
+                if ($bStats['total'] > $maxBlessCnt) $maxBlessCnt = $bStats['total'];
+              }
+              foreach ($summary_blessings_by_type as $bType => $bStats): 
+                $bPct = round(($bStats['total'] / $maxBlessCnt) * 100);
+            ?>
               <div class="ar-blessing-type-row">
-                <span class="ar-blessing-type-name"><?php echo e(ucwords(str_replace('_', ' ', $bType))); ?></span>
-                <span class="ar-blessing-type-count"><?php echo number_format($bStats['total']); ?></span>
+                <div class="ar-blessing-type-info">
+                  <span class="ar-blessing-type-name">
+                    <i class="fas fa-pray ar-blessing-type-bullet"></i>
+                    <?php echo e(ucwords(str_replace(['_', '-'], ' ', $bType))); ?>
+                  </span>
+                  <span class="ar-blessing-type-count"><?php echo number_format($bStats['total']); ?></span>
+                </div>
+                <div class="ar-blessing-progress-track">
+                  <div class="ar-blessing-progress-fill" style="width: <?php echo max(8, $bPct); ?>%;"></div>
+                </div>
               </div>
             <?php endforeach; ?>
           </div>
@@ -1881,13 +2137,17 @@ include '../templates/header.php';
         <?php endif; ?>
       </div>
 
-      <!-- BREAKDOWN 3: SACRAMENTAL SERVICES BREAKDOWN -->
-      <div class="ar-sum-breakdown-card">
+      <!-- BREAKDOWN 3: SACRAMENTAL SERVICES BREAKDOWN (Full width card) -->
+      <div class="ar-sum-breakdown-card ar-sum-breakdown-full">
         <div class="ar-sum-breakdown-head">
-          <h3 class="ar-sum-breakdown-title">
-            <i class="fas fa-cross"></i> Sacramental Services Breakdown
-          </h3>
-          <span class="ar-sum-count-pill"><?php echo number_format($summary_services_total); ?> Total</span>
+          <div class="ar-sum-breakdown-title-wrap">
+            <h3 class="ar-sum-breakdown-title">
+              <span class="ar-chart-title-dot" style="background:#3b82f6;"></span>
+              Sacramental Services Breakdown
+            </h3>
+            <p class="ar-sum-breakdown-sub">Comprehensive status distribution across all sacramental service categories</p>
+          </div>
+          <span class="ar-sum-count-pill"><?php echo number_format($summary_services_total); ?> Total Requests</span>
         </div>
         
         <?php if ($summary_services_total === 0 || empty($summary_services_breakdown)): ?>
@@ -1901,46 +2161,105 @@ include '../templates/header.php';
             <table class="ar-sum-services-table">
               <thead>
                 <tr>
-                  <th>Service Type</th>
-                  <th class="text-center" title="Pending">Pend</th>
-                  <th class="text-center" title="Approved / Processing">Appr</th>
-                  <th class="text-center" title="Completed">Comp</th>
-                  <th class="text-center" title="Cancelled">Canc</th>
-                  <th class="text-end">Total</th>
+                  <th class="col-service">Service Type</th>
+                  <th class="col-stat text-center" title="Pending Requests">
+                    <span class="th-dot dot-amber"></span> Pending
+                  </th>
+                  <th class="col-stat text-center" title="Approved / Processing Requests">
+                    <span class="th-dot dot-blue"></span> Approved / Processing
+                  </th>
+                  <th class="col-stat text-center" title="Completed Requests">
+                    <span class="th-dot dot-green"></span> Completed
+                  </th>
+                  <th class="col-stat text-center" title="Cancelled Requests">
+                    <span class="th-dot dot-red"></span> Cancelled
+                  </th>
+                  <th class="col-total text-end">Total Requests</th>
                 </tr>
               </thead>
               <tbody>
-                <?php foreach ($summary_services_breakdown as $sType => $sStats): ?>
+                <?php 
+                  $servTotPending = 0;
+                  $servTotApproved = 0;
+                  $servTotCompleted = 0;
+                  $servTotCancelled = 0;
+                  $servTotGrand = 0;
+                  foreach ($summary_services_breakdown as $sType => $sStats): 
+                    $servTotPending += $sStats['pending'];
+                    $servTotApproved += $sStats['approved'];
+                    $servTotCompleted += $sStats['completed'];
+                    $servTotCancelled += $sStats['cancelled'];
+                    $servTotGrand += $sStats['total'];
+                    $sTypeName = ucwords(str_replace(['_', '-'], ' ', $sType));
+                    $sIcon = match(true) {
+                      stripos($sType, 'baptism') !== false => 'fa-water',
+                      stripos($sType, 'confirmation') !== false => 'fa-dove',
+                      stripos($sType, 'communion') !== false => 'fa-bread-slice',
+                      stripos($sType, 'marriage') !== false || stripos($sType, 'wedding') !== false => 'fa-ring',
+                      stripos($sType, 'funeral') !== false => 'fa-cross',
+                      stripos($sType, 'mass') !== false => 'fa-church',
+                      default => 'fa-hands-praying'
+                    };
+                ?>
                   <tr>
-                    <td class="fw-semibold">
-                      <?php echo e(ucwords(str_replace('_', ' ', $sType))); ?>
+                    <td class="td-service">
+                      <span class="s-service-icon"><i class="fas <?php echo $sIcon; ?>"></i></span>
+                      <span class="s-service-name"><?php echo e($sTypeName); ?></span>
                     </td>
                     <td class="text-center">
                       <span class="s-mini-pill <?php echo $sStats['pending'] > 0 ? 's-pill-yellow' : 's-pill-muted'; ?>">
-                        <?php echo $sStats['pending']; ?>
+                        <?php echo $sStats['pending'] > 0 ? $sStats['pending'] : '0'; ?>
                       </span>
                     </td>
                     <td class="text-center">
                       <span class="s-mini-pill <?php echo $sStats['approved'] > 0 ? 's-pill-blue' : 's-pill-muted'; ?>">
-                        <?php echo $sStats['approved']; ?>
+                        <?php echo $sStats['approved'] > 0 ? $sStats['approved'] : '0'; ?>
                       </span>
                     </td>
                     <td class="text-center">
                       <span class="s-mini-pill <?php echo $sStats['completed'] > 0 ? 's-pill-green' : 's-pill-muted'; ?>">
-                        <?php echo $sStats['completed']; ?>
+                        <?php echo $sStats['completed'] > 0 ? $sStats['completed'] : '0'; ?>
                       </span>
                     </td>
                     <td class="text-center">
                       <span class="s-mini-pill <?php echo $sStats['cancelled'] > 0 ? 's-pill-red' : 's-pill-muted'; ?>">
-                        <?php echo $sStats['cancelled']; ?>
+                        <?php echo $sStats['cancelled'] > 0 ? $sStats['cancelled'] : '0'; ?>
                       </span>
                     </td>
-                    <td class="text-end fw-bold ar-sum-row-total">
-                      <?php echo number_format($sStats['total']); ?>
+                    <td class="text-end td-total">
+                      <span class="s-total-badge"><?php echo number_format($sStats['total']); ?></span>
                     </td>
                   </tr>
                 <?php endforeach; ?>
               </tbody>
+              <tfoot>
+                <tr class="ar-sum-tfoot-row">
+                  <td class="fw-bold">Total Sacramental Services</td>
+                  <td class="text-center">
+                    <span class="s-mini-pill <?php echo $servTotPending > 0 ? 's-pill-yellow' : 's-pill-muted'; ?>">
+                      <?php echo $servTotPending; ?>
+                    </span>
+                  </td>
+                  <td class="text-center">
+                    <span class="s-mini-pill <?php echo $servTotApproved > 0 ? 's-pill-blue' : 's-pill-muted'; ?>">
+                      <?php echo $servTotApproved; ?>
+                    </span>
+                  </td>
+                  <td class="text-center">
+                    <span class="s-mini-pill <?php echo $servTotCompleted > 0 ? 's-pill-green' : 's-pill-muted'; ?>">
+                      <?php echo $servTotCompleted; ?>
+                    </span>
+                  </td>
+                  <td class="text-center">
+                    <span class="s-mini-pill <?php echo $servTotCancelled > 0 ? 's-pill-red' : 's-pill-muted'; ?>">
+                      <?php echo $servTotCancelled; ?>
+                    </span>
+                  </td>
+                  <td class="text-end fw-bold td-total">
+                    <span class="s-total-badge s-grand-total"><?php echo number_format($servTotGrand); ?></span>
+                  </td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         <?php endif; ?>
