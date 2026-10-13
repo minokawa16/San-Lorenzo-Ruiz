@@ -1,0 +1,152 @@
+{
+  "certificates": {
+    "fee": "₱100.00 per copy",
+    "payment_methods": "GCash (to Agnes Calapaan at 0997 742 8176) or Cash upon pickup",
+    "turnaround_time": "1 to 3 working days",
+    "delivery_methods": "Online Download (PDF in My Requests) or In-person Pickup at Parish Office",
+    "types": [
+      {
+        "type": "Baptismal Certificate",
+        "description": "Official proof of Baptism administered at San Lorenzo Ruiz Parish.",
+        "requirements": [
+          "Valid Government-issued ID of requester or authorized family member",
+          "PSA Birth Certificate of the child/person on the record",
+          "Complete Full Name, Birthday, Father's Name, Mother's Maiden Name",
+          "Year or Date of Baptism (if known)"
+        ]
+      },
+      {
+        "type": "Confirmation Certificate",
+        "description": "Official proof of the Sacrament of Confirmation (Kumpil).",
+        "requirements": [
+          "Valid Government ID",
+          "PSA Birth Certificate or copy of Baptismal Certificate",
+          "Confirmand's Full Name, Date/Year of Confirmation",
+          "Parents and Sponsor names"
+        ]
+      },
+      {
+        "type": "First Holy Communion Certificate",
+        "description": "Proof of First Holy Communion reception.",
+        "requirements": [
+          "Valid ID or School ID",
+          "Baptismal Certificate",
+          "Communicant's Full Name and Date/Year of First Communion"
+        ]
+      },
+      {
+        "type": "Marriage Certificate",
+        "description": "Official church certificate of Holy Matrimony solemnized at the parish.",
+        "requirements": [
+          "Valid Government ID of either spouse",
+          "PSA Marriage Certificate or Marriage Contract (if available)",
+          "Husband's Full Name and Wife's Maiden Name",
+          "Date of Marriage"
+        ]
+      },
+      {
+        "type": "Funeral / Death Certificate",
+        "description": "Parish record of funeral Mass and burial blessing.",
+        "requirements": [
+          "Valid ID of the immediate relative / requester",
+          "PSA Death Certificate or Local Civil Registrar Death Certificate",
+          "Cemetery Burial Permit",
+          "Name of deceased and burial date"
+        ]
+      }
+    ]
+  },
+  "blessings": {
+    "fee": "No mandatory fixed fee; voluntary love offering for the officiating priest is welcome.",
+    "lead_time": "Request at least 3 to 5 days in advance for priest availability.",
+    "types": [
+      {
+        "type": "House Blessing",
+        "description": "Blessing of a newly built, renovated, or occupied family home.",
+        "requirements": [
+          "Requester Full Name and contact phone number",
+          "Complete house address and landmarks / directions",
+          "Preferred ceremony date and time",
+          "Presence of family members during the blessing"
+        ]
+      },
+      {
+        "type": "Vehicle Blessing",
+        "description": "Blessing of a car, motorcycle, van, or commercial vehicle.",
+        "requirements": [
+          "Owner Full Name and contact number",
+          "Vehicle Type, Make/Model, Plate / Conduction Number",
+          "Preferred date and time (usually done at church premises or owner residence)"
+        ]
+      },
+      {
+        "type": "Business Blessing",
+        "description": "Blessing of a store, office, clinic, or business establishment.",
+        "requirements": [
+          "Owner / Manager Full Name and business name",
+          "Exact commercial address and contact details",
+          "Preferred ceremony date and time"
+        ]
+      }
+    ]
+  },
+  "sacramental_services": {
+    "services": [
+      {
+        "service": "Baptism Service",
+        "schedule": "Sundays after Mass or scheduled Saturday community baptisms",
+        "requirements": [
+          "PSA Birth Certificate of the child",
+          "Parents' Catholic Marriage Certificate (if married in Catholic Church)",
+          "At least two Catholic Godparents / Sponsors (Ninong & Ninang) who are confirmed Catholics",
+          "Pre-Baptismal Seminar attendance for parents and godparents",
+          "Valid IDs of parents"
+        ]
+      },
+      {
+        "service": "Confirmation Service",
+        "schedule": "Annual Parish Confirmation Rite or Archdiocesan scheduled visitation",
+        "requirements": [
+          "Baptismal Certificate with annotation 'For Confirmation Purposes'",
+          "PSA Birth Certificate",
+          "Must have received First Holy Communion",
+          "Confirmation Catechesis seminar completion",
+          "One Catholic sponsor (Ninong or Ninang)"
+        ]
+      },
+      {
+        "service": "Marriage / Wedding Service",
+        "schedule": "Scheduled with Parish Office at least 1 to 3 months prior to wedding date",
+        "requirements": [
+          "PSA Birth Certificate (Bride & Groom)",
+          "PSA CENOMAR (Certificate of No Marriage Record - valid within 6 months)",
+          "Baptismal Certificate with annotation 'FOR MARRIAGE PURPOSES' (valid within 6 months)",
+          "Confirmation Certificate with annotation 'FOR MARRIAGE PURPOSES'",
+          "Pre-Cana / Marriage Preparation Seminar Certificate",
+          "Canonical Interview with the Parish Priest",
+          "Marriage License from Local Civil Registrar (or PSA Marriage Contract if civilly married)",
+          "Parish Banns publication (3 consecutive Sundays)"
+        ]
+      },
+      {
+        "service": "Funeral Mass",
+        "schedule": "Coordinated with parish office; emergency calls accepted 24/7",
+        "requirements": [
+          "PSA Death Certificate or Civil Registrar Death Certificate",
+          "Burial Permit from the Municipal Cemetery / Memorial Park",
+          "Deceased person's full name, date of death, date of burial",
+          "Immediate relative contact information"
+        ]
+      },
+      {
+        "service": "Anointing of the Sick (Last Rites)",
+        "schedule": "Anytime / 24-Hour Emergency Dispatch via hotline: 0997 742 8176",
+        "requirements": [
+          "Call Parish Emergency Hotline: 0997 742 8176 immediately",
+          "Patient name, hospital / home address, contact person on site",
+          "No advance paperwork required; priest dispatched directly for visitation"
+        ]
+      }
+    ]
+  }
+}

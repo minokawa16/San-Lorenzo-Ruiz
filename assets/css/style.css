@@ -1230,6 +1230,54 @@ body.user-sidebar-collapsed .user-main {
     color: rgba(22, 19, 20, 0.64);
 }
 
+.ai-feedback {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    padding: 3px 10px;
+    background: rgba(201, 166, 70, 0.08);
+    border: 1px solid rgba(201, 166, 70, 0.25);
+    border-radius: 999px;
+    font-size: 0.78rem;
+    color: var(--ai-muted, #777);
+}
+
+.ai-feedback-label {
+    font-weight: 600;
+}
+
+.ai-feedback-btn {
+    background: transparent;
+    border: 1px solid rgba(201, 166, 70, 0.35);
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--ai-primary, #344536);
+    font-size: 0.72rem;
+    transition: all 0.15s ease;
+}
+
+.ai-feedback-btn:hover {
+    background: var(--ai-gold, #C9A646);
+    color: #FFFFFF;
+    border-color: var(--ai-gold, #C9A646);
+    transform: scale(1.1);
+}
+
+.ai-feedback-thanks {
+    color: #2e7d32;
+    font-weight: 600;
+    font-size: 0.78rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
 .ai-assistant-empty-state {
     margin: auto;
     display: grid;

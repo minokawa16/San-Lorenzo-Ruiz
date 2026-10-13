@@ -351,6 +351,54 @@ $body_extra_class = 'user-ai-chat-page';
         background: var(--ai-gold-soft);
     }
 
+    .ai-feedback {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 8px;
+        padding: 3px 10px;
+        background: rgba(201, 166, 70, 0.08);
+        border: 1px solid rgba(201, 166, 70, 0.25);
+        border-radius: 999px;
+        font-size: 0.78rem;
+        color: var(--ai-muted);
+    }
+
+    .ai-feedback-label {
+        font-weight: 600;
+    }
+
+    .ai-feedback-btn {
+        background: transparent;
+        border: 1px solid rgba(201, 166, 70, 0.35);
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: var(--ai-primary);
+        font-size: 0.72rem;
+        transition: all 0.15s ease;
+    }
+
+    .ai-feedback-btn:hover {
+        background: var(--ai-gold);
+        color: #FFFFFF;
+        border-color: var(--ai-gold);
+        transform: scale(1.1);
+    }
+
+    .ai-feedback-thanks {
+        color: #2e7d32;
+        font-weight: 600;
+        font-size: 0.78rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+
     .ai-suggestions {
         display: flex;
         flex-wrap: wrap;
@@ -827,12 +875,21 @@ document.addEventListener('DOMContentLoaded', function() {
             }).join('') + '</div>'
             : '';
 
+        const feedbackHtml = (type === 'assistant' && !isLoading && options.responseReference)
+            ? '<div class="ai-feedback" data-response-reference="' + escapeHtml(options.responseReference) + '">' +
+                '<span class="ai-feedback-label">Was this helpful?</span> ' +
+                '<button type="button" class="ai-feedback-btn" data-ai-rating="correct" title="Yes, helpful" aria-label="Helpful"><i class="fas fa-thumbs-up"></i></button> ' +
+                '<button type="button" class="ai-feedback-btn" data-ai-rating="incorrect" title="No, needs review" aria-label="Not helpful"><i class="fas fa-thumbs-down"></i></button>' +
+              '</div>'
+            : '';
+
         item.innerHTML =
             '<div class="ai-message-avatar"><i class="fas ' + icon + '"></i></div>' +
             '<div class="ai-bubble">' +
                 '<strong>' + escapeHtml(title) + '</strong>' +
                 bodyHtml +
                 suggestionHtml +
+                feedbackHtml +
                 '<div class="ai-meta"><span>' + currentTime() + '</span><button type="button" class="ai-copy-btn">Copy</button></div>' +
             '</div>';
         log.appendChild(item);
@@ -994,6 +1051,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     body: answer,
                     steps: data.guidance && data.guidance.steps ? data.guidance.steps : [],
                     suggestions: suggestionSet(message),
+                    responseReference: data.response_reference || '',
                     stream: true
                 });
                 conversationHistory.push({role: 'assistant', content: answer});
@@ -1060,6 +1118,32 @@ document.addEventListener('DOMContentLoaded', function() {
         const chip = event.target.closest('[data-ai-prompt]');
         if (chip) {
             askAssistant(chip.getAttribute('data-ai-prompt'), 'chat');
+            return;
+        }
+
+        const ratingBtn = event.target.closest('[data-ai-rating]');
+        if (ratingBtn) {
+            const group = ratingBtn.closest('[data-response-reference]');
+            if (!group) return;
+            const ref = group.getAttribute('data-response-reference');
+            const rating = ratingBtn.getAttribute('data-ai-rating');
+            const comments = rating === 'correct' ? '' : (window.prompt('Optional: What could be improved or added to the parish knowledge base?') || '');
+            group.innerHTML = '<span class="ai-feedback-thanks"><i class="fas fa-check"></i> Thank you for your feedback!</span>';
+            fetch('../api/ai-assistant.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-Token': assistantCsrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    action: 'feedback',
+                    response_reference: ref,
+                    rating: rating,
+                    comments: comments
+                })
+            }).catch(function(err) { console.error('Feedback submit error:', err); });
             return;
         }
 

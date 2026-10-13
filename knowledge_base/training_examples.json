@@ -1,0 +1,282 @@
+[
+  {
+    "id": 1,
+    "user_query": "how to reqest baptizm certifcate",
+    "language": "en",
+    "category": "certificates",
+    "intent": "request_certificate",
+    "ideal_answer": "Here are the steps to request a baptism certificate:\n\n1. Log in to your TUGON account.\n2. In the sidebar menu, click **Requests** and select **New Request** (or go to **Request Certificate**).\n3. Under Certificate Type, select **Baptismal Certificate**.\n4. Enter the child's full name, date of birth, and parents' names.\n5. Upload a clear copy of your Valid Government ID and PSA Birth Certificate.\n6. Choose your payment method (GCash or Cash upon pickup).\n7. Click **Submit Request** and take note of your Reference Number (`REQ-2026-XXXX`)."
+  },
+  {
+    "id": 2,
+    "user_query": "pano mag generate ng sertipiko",
+    "language": "fil",
+    "category": "admin_certificates",
+    "intent": "admin_generate_certificate",
+    "ideal_answer": "Narito ang mga hakbang para sa admin o staff sa pag-generate ng sertipiko:\n\n1. Mag-log in bilang Admin o Staff at pumunta sa **Certificates** sa sidebar menu.\n2. I-click ang button na **Generate Certificate**.\n3. Piliin ang uri ng sertipiko (Baptism, Confirmation, Marriage, o First Communion).\n4. Sa **Select Record**, gamitin ang searchable field upang i-type ang pangalan ng deboto at piliin ang tugmang talaan.\n5. Suriin ang preview ng sertipiko, tiyaking tama ang Certificate Signatory (Parish Priest) at petsa.\n6. I-click ang **Issue Certificate** o **Save & Download**."
+  },
+  {
+    "id": 3,
+    "user_query": "unsa pag book og blessing",
+    "language": "ceb",
+    "category": "blessings",
+    "intent": "book_blessing",
+    "ideal_answer": "Mao kini ang mga lakang sa pag-book og blessing:\n\n1. Mag-log in sa imong TUGON account.\n2. Sa kilid nga menu, i-click ang **Requests** dayon pilia ang **Request Blessing** (o **New Request** -> **Blessing**).\n3. Pilia ang klase sa blessing (House Blessing, Business Blessing, o Vehicle Blessing).\n4. Isulod ang petsa, oras, ug kompleto nga address o detalye sa sakyanan.\n5. I-click ang **Submit Request** ug i-save ang imong Reference Number (`REQ-2026-XXXX`).\n6. Paabuta ang kumpirmasyon gikan sa opisina sa parokya."
+  },
+  {
+    "id": 4,
+    "user_query": "status of my reqeust",
+    "language": "en",
+    "category": "request_status",
+    "intent": "check_request_status",
+    "ideal_answer": "You can check your request status in two ways:\n\n1. **Logged-in users**: Go to **My Requests** from your dashboard to view the real-time status of all your requests.\n2. **Using Reference Number**: On the login page, click **Check Request Status**, type your Reference Number (e.g. `REQ-2026-XXXX`), and view the current status immediately."
+  },
+  {
+    "id": 5,
+    "user_query": "how to change the priest on the certificates",
+    "language": "en",
+    "category": "admin_certificates",
+    "intent": "admin_change_priest",
+    "ideal_answer": "To update the priest signatory on certificates (Admin):\n\n1. Log in to your Admin account.\n2. Navigate to **Certificates** or **System Settings** in the sidebar.\n3. Look for the **Certificate Signatory** or **Signatory Settings** section.\n4. Enter or select the new Parish Priest / Minister's full name and ecclesiastical title.\n5. Click **Save Changes** (or **Update Signatory**). All newly generated certificates will carry the updated name."
+  },
+  {
+    "id": 6,
+    "user_query": "unsaon pag ilis sa pari sa sertipiko",
+    "language": "ceb",
+    "category": "admin_certificates",
+    "intent": "admin_change_priest",
+    "ideal_answer": "Aron usbon ang pari nga nagpirma sa mga sertipiko (Admin):\n\n1. Mag-log in isip Admin.\n2. Adto sa **Certificates** o **System Settings** sa sidebar menu.\n3. Pangitaa ang seksyon nga **Certificate Signatory**.\n4. I-type o pilia ang bag-ong ngalan ug titulo sa Kura Paroko (Parish Priest).\n5. I-click ang **Save Changes** o **Update Signatory** aron ma-apply kini sa mga bag-ong i-generate nga sertipiko."
+  },
+  {
+    "id": 7,
+    "user_query": "paano magpalit ng pari sa certificate",
+    "language": "fil",
+    "category": "admin_certificates",
+    "intent": "admin_change_priest",
+    "ideal_answer": "Para palitan ang pari sa mga sertipiko (Admin):\n\n1. Mag-log in sa Admin account.\n2. Pumunta sa **Certificates** o **System Settings** sa sidebar.\n3. Hanapin ang bahagi ng **Certificate Signatory**.\n4. I-update ang pangalan at titulo ng Kura Paroko (Parish Priest).\n5. I-click ang **Save Changes** o **Update Signatory**. Ang lahat ng bagong sertipiko ay magtataglay na ng bagong pangalan."
+  },
+  {
+    "id": 8,
+    "user_query": "How do I update a request status?",
+    "language": "en",
+    "category": "admin_requests",
+    "intent": "admin_update_request_status",
+    "ideal_answer": "To update a request status as Admin or Staff:\n\n1. Go to **Requests** in the admin sidebar menu.\n2. Click on the specific request row or click **View Details**.\n3. Scroll down to the **REVIEW STATUS & UPDATES** section.\n4. Select the new status in the **Current Status** dropdown (e.g. Processing, Ready for Pickup, Completed, or Rejected).\n5. If needed, enter Admin Remarks or schedule details (Ceremony Date, Time, Minister).\n6. Click the brown **Update Request** button to save."
+  },
+  {
+    "id": 9,
+    "user_query": "paano mag update ng status ng request",
+    "language": "fil",
+    "category": "admin_requests",
+    "intent": "admin_update_request_status",
+    "ideal_answer": "Para mag-update ng status ng request bilang Admin o Staff:\n\n1. Pumunta sa **Requests** sa admin sidebar menu.\n2. I-click ang partikular na request o piliin ang **View Details**.\n3. Bumaba sa seksyon ng **REVIEW STATUS & UPDATES**.\n4. Piliin ang bagong status sa dropdown (hal. Processing, Completed, o Rejected).\n5. Maglagay ng Admin Remarks kung kinakailangan o iskedyul ng seremonya.\n6. I-click ang brown na button na **Update Request** upang mai-save."
+  },
+  {
+    "id": 10,
+    "user_query": "unsaon pag update sa request status",
+    "language": "ceb",
+    "category": "admin_requests",
+    "intent": "admin_update_request_status",
+    "ideal_answer": "Aron i-update ang status sa request (Admin/Staff):\n\n1. Adto sa **Requests** sa admin sidebar menu.\n2. I-click ang maong request o pindota ang **View Details**.\n3. I-scroll paubos sa seksyon nga **REVIEW STATUS & UPDATES**.\n4. Pilia ang bag-ong status sa dropdown (sama sa Processing, Completed, o Rejected).\n5. Isulat ang Admin Remarks o iskedyul kung gikinahanglan.\n6. I-click ang brown nga button nga **Update Request** aron ma-save."
+  },
+  {
+    "id": 11,
+    "user_query": "how to book wedding",
+    "language": "en",
+    "category": "sacraments",
+    "intent": "book_wedding",
+    "ideal_answer": "To book a church wedding in the parish system:\n\n1. Log in to your TUGON account.\n2. Go to **Requests** -> **New Request** -> **Sacramental Service** (or open **Request Service**).\n3. Select **Marriage / Wedding Service**.\n4. Enter the groom and bride details, and choose your preferred ceremony date and time.\n5. Note: File your request at least 2 to 3 months before your planned wedding date.\n6. Prepare required documents (PSA Birth Certificates, Baptismal & Confirmation Certificates with 'For Marriage Purposes', Pre-Cana Seminar, Marriage License).\n7. Click **Submit Request** and coordinate with the parish office."
+  },
+  {
+    "id": 12,
+    "user_query": "unsaon pag book og kasal",
+    "language": "ceb",
+    "category": "sacraments",
+    "intent": "book_wedding",
+    "ideal_answer": "Aron mag-book og kasal sa simbahan:\n\n1. Mag-log in sa imong TUGON account.\n2. Adto sa **Requests** ug pilia ang **Sacramental Service** (o **Request Service**).\n3. Pilia ang **Marriage / Wedding Service**.\n4. Isulod ang mga detalye sa pamanhonon ug pangasaw-onon, ug pilia ang target nga petsa ug oras.\n5. Hinumdumi: I-file ang request labing menos 2 hangtod 3 ka bulan sa dili pa ang kasal.\n6. Ihanda ang mga dokumento (PSA Birth Cert, Baptismal ug Confirmation Cert nga 'For Marriage', Pre-Cana Seminar, Marriage License).\n7. I-click ang **Submit Request** ug adto sa opisina sa parokya para sa interview."
+  },
+  {
+    "id": 13,
+    "user_query": "ano kailangan sa binyag",
+    "language": "fil",
+    "category": "sacraments",
+    "intent": "baptism_requirements",
+    "ideal_answer": "Narito ang mga kailangan para sa Binyag (Baptism Service):\n\n1. PSA o Local Civil Registrar Birth Certificate ng bata.\n2. Marriage Certificate ng mga magulang (kung kasal sa Simbahan o Sibil).\n3. Katibayan ng Kumpil (Confirmation Certificate) ng mga ninong at ninang.\n4. Pagdalo ng mga magulang at ninong/ninang sa Pre-Baptismal Seminar.\n5. Magsumite ng request nang hindi bababa sa 1 hanggang 2 linggo bago ang nais na petsa sa **Request Service**."
+  },
+  {
+    "id": 14,
+    "user_query": "unsa kinahanglan sa bunyag",
+    "language": "ceb",
+    "category": "sacraments",
+    "intent": "baptism_requirements",
+    "ideal_answer": "Mao kini ang mga gikinahanglan para sa Bunyag:\n\n1. PSA o Local Civil Registrar Birth Certificate sa bata.\n2. Marriage Certificate sa ginikanan (kung kasal).\n3. Confirmation Certificate sa mga ninong ug ninang (mga Katoliko nga nakakumpil).\n4. Pagtambong sa Pre-Baptismal Seminar sa mga ginikanan ug ninong/ninang.\n5. Isumite ang request 1 hangtod 2 ka semana sa dili pa ang petsa sa **Request Service**."
+  },
+  {
+    "id": 15,
+    "user_query": "what reqs for confirmation",
+    "language": "en",
+    "category": "sacraments",
+    "intent": "confirmation_requirements",
+    "ideal_answer": "Here are the requirements for Confirmation (Kumpil):\n\n1. Baptismal Certificate with church annotation.\n2. First Holy Communion Certificate.\n3. PSA Birth Certificate.\n4. Confirmation Sponsor's (Ninong/Ninang) Catholic Confirmation Certificate.\n5. Completion of Confirmation Catechetical instruction and recollection seminar.\n\nYou can reserve a slot under **Requests** -> **Sacramental Service**."
+  },
+  {
+    "id": 16,
+    "user_query": "unsa mga requirements sa kumpil",
+    "language": "ceb",
+    "category": "sacraments",
+    "intent": "confirmation_requirements",
+    "ideal_answer": "Mao kini ang mga rekisitos alang sa Kumpil:\n\n1. Baptismal Certificate gikan sa simbahan.\n2. First Holy Communion Certificate.\n3. PSA Birth Certificate.\n4. Confirmation Certificate sa Ninong o Ninang.\n5. Pagtapos sa Catechism seminar ug recollection.\n\nMaka-request ka pinaagi sa pag-adto sa **Requests** -> **Sacramental Service** sa imong portal."
+  },
+  {
+    "id": 17,
+    "user_query": "tagpila ang certificate",
+    "language": "ceb",
+    "category": "certificates",
+    "intent": "certificate_fee",
+    "ideal_answer": "Ang bayad sa opisyal nga sertipiko sa parokya kay **₱100.00 kada kopya**.\n\n• **Proseso**: Molungtad og 1 hangtod 3 ka adlaw sa trabaho (working days).\n• **Pagbayad**:\n  - GCash: Ipadala kang Agnes Calapaan (Parish Secretary) sa 0997 742 8176.\n  - Cash: Direkta sa opisina sa parokya inig kuha."
+  },
+  {
+    "id": 18,
+    "user_query": "how much is a certificate and how long does it take",
+    "language": "en",
+    "category": "certificates",
+    "intent": "certificate_fee",
+    "ideal_answer": "The official certificate fee is **₱100.00 per copy**.\n\n• **Processing Time**: Typically **1 to 3 working days** after verification of documents and payment.\n• **Payment Methods**:\n  - **GCash**: Send to Agnes Calapaan (Parish Secretary) at 0997 742 8176 and upload receipt.\n  - **Cash**: Pay in person at the parish office upon pickup."
+  },
+  {
+    "id": 19,
+    "user_query": "magkano ang sertipiko at gaano katagal bago makuha",
+    "language": "fil",
+    "category": "certificates",
+    "intent": "certificate_fee",
+    "ideal_answer": "Ang bayad para sa opisyal na sertipiko ay **₱100.00 bawat kopya**.\n\n• **Tagal ng Pagproseso**: Karaniwang **1 hanggang 3 araw ng trabaho** (working days) mula sa beripikasyon.\n• **Paraan ng Pagbabayad**:\n  - **GCash**: Ipadala kay Agnes Calapaan (0997 742 8176) at i-upload ang resibo sa form.\n  - **Cash**: Magbayad sa tanggapan ng parokya kapag kukunin na ang sertipiko."
+  },
+  {
+    "id": 20,
+    "user_query": "how to download certificate",
+    "language": "en",
+    "category": "certificates",
+    "intent": "download_certificate",
+    "ideal_answer": "To download your approved digital certificate:\n\n1. Log in to your TUGON account.\n2. Go to **My Requests** from your dashboard.\n3. Locate the certificate request with status **Completed**.\n4. Click the green **Download Certificate** button.\n5. The official PDF containing the QR verification code and digital seal will open for download."
+  },
+  {
+    "id": 21,
+    "user_query": "unsaon pag download sa certificate",
+    "language": "ceb",
+    "category": "certificates",
+    "intent": "download_certificate",
+    "ideal_answer": "Aron i-download ang imong opisyal nga sertipiko:\n\n1. Mag-log in sa imong TUGON account.\n2. Adto sa **My Requests** sa imong dashboard.\n3. Pangitaa ang request nga may status nga **Completed**.\n4. Pindota ang berdeng button nga **Download Certificate**.\n5. Maablihan dayon ang PDF nga may QR code verification aron ma-save sa imong cellphone o computer."
+  },
+  {
+    "id": 22,
+    "user_query": "ano gagawin pag rejected ang request",
+    "language": "fil",
+    "category": "request_status",
+    "intent": "rejected_guidance",
+    "ideal_answer": "Kung na-reject ang inyong request:\n\n1. Buksan ang **My Requests** sa inyong dashboard.\n2. I-click ang inyong request at basahin ang **Admin Remarks** upang malaman ang dahilan (hal. malabong ID, hindi tugmang petsa, o kailangang dagdag na dokumento).\n3. Itama ang tinukoy na isyu.\n4. Magsumite ng bagong request sa **New Request** kalakip ang tamang dokumento."
+  },
+  {
+    "id": 23,
+    "user_query": "unsa buhaton kung rejected akong request",
+    "language": "ceb",
+    "category": "request_status",
+    "intent": "rejected_guidance",
+    "ideal_answer": "Kung na-reject ang imong request:\n\n1. Ablihi ang **My Requests** sa imong dashboard.\n2. I-click ang maong request ug basaha ang **Admin Remarks** aron mahibal-an ang rason (pananglitan hanap nga ID o kuwang nga dokumento).\n3. Ayoha o ihanda ang saktong dokumento.\n4. Pagsumite og bag-ong request sa **New Request** uban ang saktong detalye."
+  },
+  {
+    "id": 24,
+    "user_query": "how to request funeral mass",
+    "language": "en",
+    "category": "sacraments",
+    "intent": "funeral_mass",
+    "ideal_answer": "To request a Funeral Mass:\n\n1. Log in to your TUGON account and open **Requests** -> **Sacramental Service** -> **Funeral Mass**.\n2. Enter the deceased person's full name, date of passing, and desired Mass schedule.\n3. Upload a copy of the Death Certificate and Cemetery Burial Permit.\n4. Submit the request.\n5. For urgent wake blessings or funeral schedules, you may also call the parish emergency hotline directly at **0997 742 8176**."
+  },
+  {
+    "id": 25,
+    "user_query": "unsaon pag pamisa sa patay",
+    "language": "ceb",
+    "category": "sacraments",
+    "intent": "funeral_mass",
+    "ideal_answer": "Aron mag-request og Funeral Mass (Misa sa Patay):\n\n1. Mag-log in sa TUGON ug adto sa **Requests** -> **Sacramental Service** -> **Funeral Mass**.\n2. Isulod ang ngalan sa mitaliwan, petsa sa pagkamatay, ug gusto nga iskedyul sa misa.\n3. I-upload ang Death Certificate ug Burial Permit.\n4. I-click ang **Submit Request**.\n5. Kung dinalian ang pagbasbas sa haya, tawag dayon sa opisina sa parokya sa **0997 742 8176**."
+  },
+  {
+    "id": 26,
+    "user_query": "how to reserve parish hall",
+    "language": "en",
+    "category": "reservations",
+    "intent": "reserve_facility",
+    "ideal_answer": "To reserve a parish facility or hall:\n\n1. Log in to your TUGON account.\n2. In the sidebar, select **Reservations** and click **New Reservation**.\n3. Choose the facility (Parish Hall / Function Room) and specify the purpose of the event.\n4. Select your preferred date and start/end time.\n5. Submit your reservation for parish administration review and approval."
+  },
+  {
+    "id": 27,
+    "user_query": "bukas ba opisina ng lunes",
+    "language": "fil",
+    "category": "parish_office",
+    "intent": "office_hours",
+    "ideal_answer": "Hindi po. **SARADO po ang opisina ng parokya tuwing Lunes** (araw ng pahinga).\n\nNarito ang oras ng opisina:\n• **Martes hanggang Sabado**: 8:00 AM – 5:00 PM (Tanghalian: 12:00 PM – 1:00 PM)\n• **Linggo**: 7:00 AM – 12:00 PM (Kalahating araw)\n• **Lunes**: SARADO"
+  },
+  {
+    "id": 28,
+    "user_query": "abli ba ang opisina lunes",
+    "language": "ceb",
+    "category": "parish_office",
+    "intent": "office_hours",
+    "ideal_answer": "Dili po. **SIRADO ang opisina sa parokya matag Lunes** (adlaw sa pahuway).\n\nOras sa opisina:\n• **Martes hangtod Sabado**: 8:00 AM – 5:00 PM (Paniudto: 12:00 PM – 1:00 PM)\n• **Domingo**: 7:00 AM – 12:00 PM (Katunga sa adlaw)\n• **Lunes**: SIRADO"
+  },
+  {
+    "id": 29,
+    "user_query": "is office open monday",
+    "language": "en",
+    "category": "parish_office",
+    "intent": "office_hours",
+    "ideal_answer": "No. The parish office is **CLOSED on Mondays** (rest day).\n\nOffice hours are:\n• **Tuesday to Saturday**: 8:00 AM to 5:00 PM (Lunch break: 12:00 PM to 1:00 PM)\n• **Sunday**: 7:00 AM to 12:00 PM (Half-day)\n• **Monday**: CLOSED"
+  },
+  {
+    "id": 30,
+    "user_query": "what is parish contact number and address",
+    "language": "en",
+    "category": "parish_office",
+    "intent": "contact_info",
+    "ideal_answer": "Here are the parish contact details:\n\n• **Location**: San Lorenzo Ruiz Parish, San Mateo, Aleosan, Cotabato (Archdiocese of Cotabato)\n• **Contact Number / Hotline**: 0997 742 8176\n• **Email**: sanlorenzoruiz.midsayap@gmail.com\n• **Parish Secretary**: Agnes Calapaan\n• **Portal**: https://tugon-parish-system.vercel.app"
+  },
+  {
+    "id": 31,
+    "user_query": "unsa contact number sa parokya",
+    "language": "ceb",
+    "category": "parish_office",
+    "intent": "contact_info",
+    "ideal_answer": "Mao kini ang mga detalye sa parokya:\n\n• **Lokasyon**: San Lorenzo Ruiz Parish, San Mateo, Aleosan, Cotabato\n• **Telepono / Hotline**: 0997 742 8176\n• **Email**: sanlorenzoruiz.midsayap@gmail.com\n• **Parish Secretary**: Agnes Calapaan"
+  },
+  {
+    "id": 32,
+    "user_query": "pwede ba 9:30 am ang booking",
+    "language": "fil",
+    "category": "schedule_availability",
+    "intent": "slot_availability",
+    "ideal_answer": "Hindi po pwede kung may nakatakda nang 9:00 AM. Ang bawat booking sa sistema ay sumasakop ng **1 buong oras** (9:00 AM hanggang 10:00 AM).\n\nAng pinakamalapit na susunod na bakanteng oras ay **10:00 AM**, o maaari ring pumili ng mas maaga tulad ng **8:00 AM**."
+  },
+  {
+    "id": 33,
+    "user_query": "pwede ba 9:30 am mag book",
+    "language": "ceb",
+    "category": "schedule_availability",
+    "intent": "slot_availability",
+    "ideal_answer": "Dili po pwede kung naay nag-book og 9:00 AM. Ang matag booking sa sistema molungtad og **1 ka tibuok oras** (9:00 AM hangtod 10:00 AM).\n\nAng sunod nga available nga oras kay **10:00 AM**, o mas sayo sama sa **8:00 AM**."
+  },
+  {
+    "id": 34,
+    "user_query": "how to request a mass intention",
+    "language": "en",
+    "category": "sacraments",
+    "intent": "mass_intention",
+    "ideal_answer": "To request a Mass Intention (Pamisa):\n\n1. Log in to your TUGON account.\n2. In the menu, go to **Requests** -> **New Request** and select **Mass Intention** (or **Request Service**).\n3. Choose your intention type (Thanksgiving, Repose of the Soul / Dead, or Special Intentions / Healing).\n4. Enter the intention names and select your preferred Mass schedule.\n5. Submit your request for inclusion in the official parish Mass list."
+  },
+  {
+    "id": 35,
+    "user_query": "unsaon pag pamisa",
+    "language": "ceb",
+    "category": "sacraments",
+    "intent": "mass_intention",
+    "ideal_answer": "Aron mag-pamisa (Mass Intention):\n\n1. Mag-log in sa imong TUGON account.\n2. Adto sa **Requests** -> **New Request** dayon pilia ang **Mass Intention**.\n3. Pilia ang klase sa intension (Pasalamat/Thanksgiving, Kalag/Repose of the Soul, o Special Intentions/Kaayohan).\n4. Isulat ang mga ngalan ug pilia ang petsa ug oras sa Misa.\n5. I-submit ang request aron maapil sa opisyal nga listahan sa misa."
+  }
+]

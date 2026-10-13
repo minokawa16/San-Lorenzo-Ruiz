@@ -1,0 +1,71 @@
+{
+  "system": "San Lorenzo Ruiz Parish Management System (TUGON)",
+  "statuses": [
+    {
+      "status": "Pending",
+      "code": "pending",
+      "meaning_en": "Your request has been received by the system and is currently queued for review by the parish staff.",
+      "meaning_fil": "Natanggap na ang inyong kahilingan sa sistema at kasalukuyang nakapila para suriin ng parish staff.",
+      "parishioner_action_en": "Wait for staff verification. You can check your request status anytime under 'My Requests' using your Reference Number.",
+      "parishioner_action_fil": "Hintayin ang pagsusuri ng staff. Maaari ninyong tingnan ang status anumang oras sa 'My Requests' gamit ang inyong Reference Number.",
+      "staff_action_en": "Verify submitted requirements (PSA, IDs, payment slip). In 'Requests' -> 'Review Status & Updates', update status to 'Processing' or 'Rejected' if documents are incomplete.",
+      "staff_action_fil": "Suriin ang mga isinumiteng dokumento (PSA, valid ID, resibo). Sa 'Requests' -> 'REVIEW STATUS & UPDATES', palitan ang status sa 'Processing' o 'Rejected' kung kulang ang dokumento.",
+      "badge_color": "yellow/warning"
+    },
+    {
+      "status": "Processing",
+      "code": "processing",
+      "meaning_en": "Your documents and payment have been verified. The parish office is searching church registry books, preparing your certificate, or confirming the priest's schedule for your blessing or service.",
+      "meaning_fil": "Na-verify na ang inyong mga dokumento at bayad. Hinahanap na ng parish office ang talaan sa libro ng parokya, inihahanda ang sertipiko, o kinukumpirma ang iskedyul ng pari para sa basbas o serbisyo.",
+      "parishioner_action_en": "Preparation typically takes 1 to 3 working days. No action needed unless contacted by staff.",
+      "parishioner_action_fil": "Karaniwang tumatagal ng 1 hanggang 3 araw ng trabaho ang paghahanda. Walang kailangang gawin maliban kung kontakin ng kawani.",
+      "staff_action_en": "Match sacramental registry record, generate digital certificate via 'Generate Certificate' or assign minister/date in 'REVIEW STATUS & UPDATES'.",
+      "staff_action_fil": "Itugma sa rekord ng parokya, gumawa ng sertipiko sa 'Generate Certificate' o magtalaga ng pari at petsa sa 'REVIEW STATUS & UPDATES'.",
+      "badge_color": "blue/info"
+    },
+    {
+      "status": "Ready / Ready for Pickup",
+      "code": "ready_for_pickup",
+      "meaning_en": "Your certificate has been prepared and signed, and is now ready for in-person collection at the parish office, or your event schedule is locked in.",
+      "meaning_fil": "Naihanda at nalagdaan na ang inyong sertipiko at handa nang kunin sa tanggapan ng parokya, o kumpirmado na ang iskedyul ng inyong aktibidad.",
+      "parishioner_action_en": "Visit the parish office during office hours with your Reference Number and 1 Valid ID.",
+      "parishioner_action_fil": "Pumunta sa tanggapan ng parokya sa oras ng opisina dala ang inyong Reference Number at 1 Valid ID.",
+      "staff_action_en": "Store signed and sealed certificate in the pickup tray; hand over upon presenting valid ID.",
+      "staff_action_fil": "Ihanda ang napirmahan at naselyuhang sertipiko sa pickup tray; ibigay kapag nagpakita ng valid ID.",
+      "badge_color": "purple/primary"
+    },
+    {
+      "status": "Completed",
+      "code": "completed",
+      "meaning_en": "The request has been fully fulfilled. For online certificate requests, the official PDF is available for download. For blessings or sacramental services, the ceremony has been concluded.",
+      "meaning_fil": "Ganap nang natapos ang kahilingan. Para sa online na sertipiko, maaari nang i-download ang opisyal na PDF. Para sa basbas o sakramento, natapos na ang seremonya.",
+      "parishioner_action_en": "Go to 'My Requests' and click the green 'Download Certificate' button to get your verified PDF copy, or check completed ceremony records.",
+      "parishioner_action_fil": "Pumunta sa 'My Requests' at i-click ang berdeng 'Download Certificate' button upang makuha ang inyong opisyal na PDF, o tingnan ang tala ng natapos na seremonya.",
+      "staff_action_en": "Certificate marked released or ceremony recorded in church books. Record is archived.",
+      "staff_action_fil": "Nai-release na ang sertipiko o naitala na sa aklat ng parokya ang seremonya.",
+      "badge_color": "green/success"
+    },
+    {
+      "status": "Rejected",
+      "code": "rejected",
+      "meaning_en": "The request could not be processed due to incomplete/blurry documents, an unavailable date/time slot, or no matching church registry record.",
+      "meaning_fil": "Hindi maiproseso ang kahilingan dahil sa kulang o malabong dokumento, may conflict sa iskedyul, o walang nahanap na tala sa aklat ng simbahan.",
+      "parishioner_action_en": "Open your request in 'My Requests' to read the 'Admin Remarks'. Correct the indicated issue (upload clearer photo or pick a new available slot) and submit a new request.",
+      "parishioner_action_fil": "Buksan ang inyong request sa 'My Requests' upang basahin ang 'Admin Remarks'. Itama ang tinukoy na dahilan (mag-upload ng mas malinaw na ID o pumili ng bakanteng oras) at magsumite muli.",
+      "staff_action_en": "Always provide clear, specific admin remarks explaining why the request was rejected so the parishioner knows what to fix.",
+      "staff_action_fil": "Palaging maglagay ng malinaw na paliwanag sa Admin Remarks upang malaman ng deboto ang dapat itama.",
+      "badge_color": "red/danger"
+    },
+    {
+      "status": "Cancelled",
+      "code": "cancelled",
+      "meaning_en": "The request was cancelled by the requesting parishioner before staff processing, or voided by administration.",
+      "meaning_fil": "Ang kahilingan ay kinansela ng humiling bago iproseso ng kawani, o pinawalang-bisa ng pamunuan.",
+      "parishioner_action_en": "If you still need the service, please submit a new request.",
+      "parishioner_action_fil": "Kung kailangan pa rin ang serbisyo, mangyaring magsumite ng bagong request.",
+      "staff_action_en": "No further action needed. Associated schedule slots are released.",
+      "staff_action_fil": "Wala nang aksyon. Ang kaugnay na slot sa iskedyul ay magiging available muli.",
+      "badge_color": "gray/secondary"
+    }
+  ]
+}

@@ -73,6 +73,191 @@ $kpi_events_month = 0;
 $ev = $conn->query("SELECT COUNT(*) AS c FROM schedule_events WHERE YEAR(event_date)=YEAR(CURDATE()) AND MONTH(event_date)=MONTH(CURDATE())");
 if ($ev && $row4 = $ev->fetch_assoc()) $kpi_events_month = (int)($row4['c'] ?? 0);
 
+// --- Summary Section Metrics & Filter --------------------------------------
+$cleanSummaryRange = static fn($v) => in_array($v, ['all', 'month', 'year', 'custom'], true) ? (string)$v : 'all';
+$summary_range = $cleanSummaryRange($_GET['summary_range'] ?? 'all');
+$summary_from  = $cleanDate($_GET['summary_from'] ?? '');
+$summary_to    = $cleanDate($_GET['summary_to'] ?? '');
+
+$whereIssuance = ["status != 'revoked'"];
+$whereRequests = ["deleted_at IS NULL"];
+$typesIss = '';
+$valsIss = [];
+$typesReq = '';
+$valsReq = [];
+
+if ($summary_range === 'month') {
+    $whereIssuance[] = "DATE_FORMAT(COALESCE(issued_at, drafted_at, updated_at), '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')";
+    $whereRequests[] = "DATE_FORMAT(date_requested, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')";
+} elseif ($summary_range === 'year') {
+    $whereIssuance[] = "YEAR(COALESCE(issued_at, drafted_at, updated_at)) = YEAR(CURDATE())";
+    $whereRequests[] = "YEAR(date_requested) = YEAR(CURDATE())";
+} elseif ($summary_range === 'custom') {
+    if ($summary_from !== '') {
+        $whereIssuance[] = "COALESCE(issued_at, drafted_at, updated_at) >= ?";
+        $typesIss .= 's';
+        $valsIss[] = $summary_from . ' 00:00:00';
+
+        $whereRequests[] = "date_requested >= ?";
+        $typesReq .= 's';
+        $valsReq[] = $summary_from . ' 00:00:00';
+    }
+    if ($summary_to !== '') {
+        $whereIssuance[] = "COALESCE(issued_at, drafted_at, updated_at) <= ?";
+        $typesIss .= 's';
+        $valsIss[] = $summary_to . ' 23:59:59';
+
+        $whereRequests[] = "date_requested <= ?";
+        $typesReq .= 's';
+        $valsReq[] = $summary_to . ' 23:59:59';
+    }
+}
+$whereIssSql = implode(' AND ', $whereIssuance);
+$whereReqSql = implode(' AND ', $whereRequests);
+
+// 1. Top Card: Total Certificates Created
+$stmtCertTot = $conn->prepare("SELECT COUNT(*) AS total FROM certificate_issuances WHERE $whereIssSql");
+if ($typesIss !== '') $stmtCertTot->bind_param($typesIss, ...$valsIss);
+$stmtCertTot->execute();
+$summary_total_certificates = (int)($stmtCertTot->get_result()->fetch_assoc()['total'] ?? 0);
+$stmtCertTot->close();
+
+// Certificates Breakdown by type
+$stmtCertTypes = $conn->prepare("SELECT certificate_type, COUNT(*) AS cnt FROM certificate_issuances WHERE $whereIssSql GROUP BY certificate_type ORDER BY cnt DESC, certificate_type ASC");
+if ($typesIss !== '') $stmtCertTypes->bind_param($typesIss, ...$valsIss);
+$stmtCertTypes->execute();
+$summary_certs_breakdown = [];
+$resCert = $stmtCertTypes->get_result();
+while ($r = $resCert->fetch_assoc()) {
+    $summary_certs_breakdown[$r['certificate_type']] = (int)$r['cnt'];
+}
+$stmtCertTypes->close();
+
+// 2. Blessings: Completed, Total, and Status Breakdown
+$blessingWhere = $whereReqSql . " AND request_type LIKE '%blessing%'";
+$stmtBless = $conn->prepare("SELECT 
+    COUNT(*) AS total,
+    SUM(status IN ('completed', 'released')) AS completed,
+    SUM(status IN ('pending', 'submitted', 'requirements_review')) AS pending,
+    SUM(status IN ('approved', 'processing', 'in_processing', 'ready_for_pickup', 'ready')) AS approved,
+    SUM(status IN ('rejected', 'cancelled', 'declined')) AS cancelled
+    FROM requests WHERE $blessingWhere");
+if ($typesReq !== '') $stmtBless->bind_param($typesReq, ...$valsReq);
+$stmtBless->execute();
+$bRow = $stmtBless->get_result()->fetch_assoc() ?: [];
+$stmtBless->close();
+
+$summary_blessings_total     = (int)($bRow['total'] ?? 0);
+$summary_blessings_completed = (int)($bRow['completed'] ?? 0);
+$summary_blessings_pending   = (int)($bRow['pending'] ?? 0);
+$summary_blessings_approved  = (int)($bRow['approved'] ?? 0);
+$summary_blessings_cancelled = (int)($bRow['cancelled'] ?? 0);
+
+$stmtBlessTypes = $conn->prepare("SELECT request_type, COUNT(*) AS cnt,
+    SUM(status IN ('completed', 'released')) AS completed,
+    SUM(status IN ('pending', 'submitted', 'requirements_review')) AS pending,
+    SUM(status IN ('approved', 'processing', 'in_processing', 'ready_for_pickup', 'ready')) AS approved,
+    SUM(status IN ('rejected', 'cancelled', 'declined')) AS cancelled
+    FROM requests WHERE $blessingWhere GROUP BY request_type ORDER BY cnt DESC");
+if ($typesReq !== '') $stmtBlessTypes->bind_param($typesReq, ...$valsReq);
+$stmtBlessTypes->execute();
+$summary_blessings_by_type = [];
+$resBTypes = $stmtBlessTypes->get_result();
+while ($r = $resBTypes->fetch_assoc()) {
+    $summary_blessings_by_type[$r['request_type']] = [
+        'total'     => (int)$r['cnt'],
+        'completed' => (int)$r['completed'],
+        'pending'   => (int)$r['pending'],
+        'approved'  => (int)$r['approved'],
+        'cancelled' => (int)$r['cancelled'],
+    ];
+}
+$stmtBlessTypes->close();
+
+// 3. Sacramental Services: Total and Breakdown per service type & status
+$servicesWhere = $whereReqSql . " AND (request_type LIKE '%service%' OR request_type LIKE '%mass%' OR request_type IN ('baptism_service','confirmation_service','first_communion_service','marriage_wedding_service','funeral_mass')) AND request_type NOT LIKE '%certif%'";
+$stmtServTot = $conn->prepare("SELECT COUNT(*) AS total FROM requests WHERE $servicesWhere");
+if ($typesReq !== '') $stmtServTot->bind_param($typesReq, ...$valsReq);
+$stmtServTot->execute();
+$summary_services_total = (int)($stmtServTot->get_result()->fetch_assoc()['total'] ?? 0);
+$stmtServTot->close();
+
+$stmtServTypes = $conn->prepare("SELECT request_type, COUNT(*) AS total,
+    SUM(status IN ('pending', 'submitted', 'requirements_review')) AS pending,
+    SUM(status IN ('approved', 'processing', 'in_processing', 'ready_for_pickup', 'ready')) AS approved,
+    SUM(status IN ('completed', 'released')) AS completed,
+    SUM(status IN ('rejected', 'cancelled', 'declined')) AS cancelled
+    FROM requests WHERE $servicesWhere GROUP BY request_type ORDER BY total DESC");
+if ($typesReq !== '') $stmtServTypes->bind_param($typesReq, ...$valsReq);
+$stmtServTypes->execute();
+$summary_services_breakdown = [];
+$resServTypes = $stmtServTypes->get_result();
+while ($r = $resServTypes->fetch_assoc()) {
+    $summary_services_breakdown[$r['request_type']] = [
+        'total'     => (int)$r['total'],
+        'pending'   => (int)$r['pending'],
+        'approved'  => (int)$r['approved'],
+        'completed' => (int)$r['completed'],
+        'cancelled' => (int)$r['cancelled'],
+    ];
+}
+$stmtServTypes->close();
+
+// Summary CSV Export handler
+if (($_GET['summary_export'] ?? '') === 'csv') {
+    requirePermission('reports.export');
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="parish-summary-' . date('Ymd-His') . '.csv"');
+    $out = fopen('php://output', 'w');
+    fwrite($out, "\xEF\xBB\xBF");
+    fputcsv($out, ['SAN LORENZO RUIZ PARISH - OPERATIONAL SUMMARY REPORT']);
+    fputcsv($out, ['Generated On', date('Y-m-d H:i:s')]);
+    fputcsv($out, ['Date Filter', strtoupper($summary_range) . ($summary_range === 'custom' ? " ($summary_from to $summary_to)" : '')]);
+    fputcsv($out, []);
+    fputcsv($out, ['--- KEY SUMMARY TOTALS ---']);
+    fputcsv($out, ['Metric', 'Total Count']);
+    fputcsv($out, ['Total Certificates Created', $summary_total_certificates]);
+    fputcsv($out, ['Blessings Completed', $summary_blessings_completed]);
+    fputcsv($out, ['Sacramental Services Total', $summary_services_total]);
+    fputcsv($out, []);
+    fputcsv($out, ['--- CERTIFICATES BREAKDOWN ---']);
+    fputcsv($out, ['Certificate Type', 'Count']);
+    if (empty($summary_certs_breakdown)) {
+        fputcsv($out, ['No data available', 0]);
+    } else {
+        foreach ($summary_certs_breakdown as $t => $c) {
+            fputcsv($out, [ucwords(str_replace('_', ' ', $t)), $c]);
+        }
+    }
+    fputcsv($out, []);
+    fputcsv($out, ['--- BLESSINGS BREAKDOWN ---']);
+    fputcsv($out, ['Status', 'Count']);
+    fputcsv($out, ['Completed', $summary_blessings_completed]);
+    fputcsv($out, ['Pending', $summary_blessings_pending]);
+    fputcsv($out, ['Approved / Processing', $summary_blessings_approved]);
+    fputcsv($out, ['Cancelled / Rejected', $summary_blessings_cancelled]);
+    fputcsv($out, ['Total Blessings', $summary_blessings_total]);
+    fputcsv($out, []);
+    fputcsv($out, ['--- SACRAMENTAL SERVICES BREAKDOWN ---']);
+    fputcsv($out, ['Service Type', 'Total', 'Pending', 'Approved', 'Completed', 'Cancelled']);
+    if (empty($summary_services_breakdown)) {
+        fputcsv($out, ['No data available', 0, 0, 0, 0, 0]);
+    } else {
+        foreach ($summary_services_breakdown as $t => $stats) {
+            fputcsv($out, [
+                ucwords(str_replace('_', ' ', $t)),
+                $stats['total'],
+                $stats['pending'],
+                $stats['approved'],
+                $stats['completed'],
+                $stats['cancelled'],
+            ]);
+        }
+    }
+    fclose($out);
+    exit;
+}
+
 // --- Export Logic (PDF & CSV) ---------------------------------------------
 require_once '../vendor/autoload.php';
 require_once '../services/ReportPdfGenerator.php';
@@ -602,7 +787,688 @@ include '../templates/header.php';
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 1rem;
+/* --------------------------------------------------------------------------
+   OPERATIONAL SUMMARY SECTION — Premium Theme
+   -------------------------------------------------------------------------- */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&display=swap');
+
+.ar-summary-section {
+  background: #fdfbf7;
+  border: 1px solid #ebdcc5;
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  margin-bottom: 26px;
+  box-shadow: 0 4px 20px rgba(140, 98, 37, 0.05), 0 1px 3px rgba(0, 0, 0, 0.03);
+  position: relative;
+}
+
+.ar-summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #ede1cf;
+}
+
+.ar-summary-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ar-summary-title-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(140, 98, 37, 0.10);
+  border: 1px solid rgba(140, 98, 37, 0.22);
+  color: #8c6225;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+
+.ar-summary-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.38rem;
+  font-weight: 700;
+  color: #3b2a1a;
+  margin: 0;
+  letter-spacing: -0.2px;
+}
+
+.ar-summary-subtitle {
+  font-size: 0.8rem;
+  color: #7d6b56;
+  margin: 2px 0 0;
+}
+
+.ar-summary-meta-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ar-summary-updated {
+  font-size: 0.77rem;
+  color: #8c7355;
+  background: #f7f1e5;
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1px solid #e7d8c0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.ar-summary-export-btn {
+  font-size: 0.8rem;
+  padding: 7px 14px;
+  background: #ffffff;
+  border: 1.5px solid #d5c4aa;
+  color: #6a491d;
+  border-radius: 8px;
+  font-weight: 700;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+.ar-summary-export-btn:hover {
+  background: #8c6225;
+  border-color: #8c6225;
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+/* Date Filter Toolbar */
+.ar-summary-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  background: #ffffff;
+  border: 1px solid #ebdcc5;
+  border-radius: 12px;
+  padding: 10px 16px;
+  margin-bottom: 22px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+}
+
+.ar-summary-filter-pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.ar-summary-filter-lbl {
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #8c7355;
+  margin-right: 2px;
+}
+
+.ar-summary-pill {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.79rem;
+  font-weight: 600;
+  border: 1.5px solid #ebdcc5;
+  background: #fbf9f4;
+  color: #5c4732;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s ease;
+  display: inline-block;
+}
+.ar-summary-pill:hover {
+  background: #f0e6d6;
+  color: #3b2a1a;
+  border-color: #d8c4a6;
+}
+.ar-summary-pill.active {
+  background: #8c6225;
+  color: #ffffff;
+  border-color: #8c6225;
+  box-shadow: 0 2px 6px rgba(140, 98, 37, 0.28);
+}
+
+.ar-summary-custom-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 0;
+}
+
+.ar-summary-range-lbl {
+  font-size: 0.77rem;
+  font-weight: 600;
+  color: #7d6b56;
+  margin: 0;
+}
+
+.ar-summary-date-input {
+  border: 1px solid #d5c4aa;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 0.78rem;
+  background: #ffffff;
+  color: #3b2a1a;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.ar-summary-date-input:focus {
+  border-color: #8c6225;
+}
+
+.ar-summary-range-sep {
+  color: #9e8d77;
+  font-weight: bold;
+}
+
+.ar-summary-btn-apply {
+  background: #8c6225;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+}
+.ar-summary-btn-apply:hover {
+  background: #734f1c;
+  transform: translateY(-1px);
+}
+
+.ar-summary-btn-reset {
+  background: #f3ece0;
+  color: #8c6225;
+  border: 1px solid #decbb2;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  transition: all 0.15s ease;
+}
+.ar-summary-btn-reset:hover {
+  background: #ebdcc5;
+  color: #5c3d1e;
+}
+
+/* 1. TOP SUMMARY CARDS (Top row: 3 cards) */
+.ar-sum-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+@media (max-width: 900px) {
+  .ar-sum-cards-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ar-sum-card {
+  background: #ffffff;
+  border: 1px solid #ebdcc5;
+  border-radius: 14px;
+  padding: 20px 22px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(140, 98, 37, 0.04);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.ar-sum-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(140, 98, 37, 0.09);
+}
+.ar-sum-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, #8c6225 0%, #c89b3c 100%);
+  border-radius: 14px 0 0 14px;
+}
+
+.ar-sum-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.ar-sum-card-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(140, 98, 37, 0.08);
+  border: 1px solid rgba(140, 98, 37, 0.18);
+  color: #8c6225;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+}
+
+.ar-sum-card-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: #f7f1e5;
+  color: #7a5214;
+  border: 1px solid #ebdcc5;
+}
+.ar-sum-card-badge.status-completed {
+  background: #e8f5e9;
+  color: #1e6b37;
+  border-color: #c8e6c9;
+}
+
+.ar-sum-card-num {
+  font-size: 2.35rem;
+  font-weight: 800;
+  color: #2b1f14;
+  line-height: 1.1;
+  letter-spacing: -0.5px;
+  margin-bottom: 4px;
+}
+
+.ar-sum-card-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #8c7355;
+}
+
+.ar-sum-card-hint {
+  font-size: 0.74rem;
+  color: #a3907a;
+  margin-top: 6px;
+}
+
+/* 2, 3, 4. BREAKDOWN CARDS GRID */
+.ar-sum-breakdowns-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+@media (max-width: 1024px) {
+  .ar-sum-breakdowns-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ar-sum-breakdown-card {
+  background: #ffffff;
+  border: 1px solid #ebdcc5;
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(140, 98, 37, 0.04);
+  display: flex;
+  flex-direction: column;
+}
+
+.ar-sum-breakdown-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #f2e9dc;
+}
+
+.ar-sum-breakdown-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #3b2a1a;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ar-sum-breakdown-title i {
+  color: #8c6225;
+  font-size: 0.95rem;
+}
+
+.ar-sum-count-pill {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 12px;
+  background: #f7f1e5;
+  color: #8c6225;
+  border: 1px solid #ebdcc5;
+}
+
+/* Empty State */
+.ar-sum-empty-state {
+  text-align: center;
+  padding: 32px 16px;
+  color: #a8947f;
+  font-size: 0.85rem;
+  background: #faf8f5;
+  border-radius: 10px;
+  border: 1px dashed #e3d6c3;
+  margin: auto 0;
+}
+.ar-sum-empty-state i {
+  font-size: 1.8rem;
+  opacity: 0.45;
+  display: block;
+  margin-bottom: 8px;
+  color: #8c6225;
+}
+.ar-sum-empty-state div {
+  font-weight: 700;
+  color: #7d6b56;
+  margin-bottom: 2px;
+}
+
+/* Horizontal Bars List (Certificates Breakdown) */
+.ar-sum-bars-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.ar-sum-bar-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ar-sum-bar-labels {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8rem;
+}
+
+.ar-sum-bar-name {
+  font-weight: 600;
+  color: #4a3826;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ar-sum-bullet {
+  font-size: 0.7rem;
+  color: #8c6225;
+}
+
+.ar-sum-bar-val {
+  font-weight: 700;
+  color: #2b1f14;
+  background: #f7f1e5;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  border: 1px solid #ebdcc5;
+}
+
+.ar-sum-bar-track {
+  width: 100%;
+  height: 7px;
+  background: #f2ebe0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.ar-sum-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #c89b3c 0%, #8c6225 100%);
+  border-radius: 6px;
+  transition: width 0.3s ease;
+}
+
+/* Blessings Breakdown Elements */
+.ar-blessing-hero-highlight {
+  background: linear-gradient(135deg, #fdf8ee 0%, #f7eee0 100%);
+  border: 1.5px solid #e5d2b7;
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  box-shadow: 0 2px 6px rgba(140, 98, 37, 0.05);
+}
+
+.ar-blessing-hero-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.ar-blessing-hero-tag {
+  font-size: 0.69rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #1e6b37;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 2px;
+}
+
+.ar-blessing-hero-num {
+  font-size: 2.1rem;
+  font-weight: 800;
+  color: #2b1f14;
+  line-height: 1;
+}
+
+.ar-blessing-hero-lbl {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #7a5214;
+  margin-top: 3px;
+}
+
+.ar-blessing-hero-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1.5px solid #d8c4a6;
+  color: #1e6b37;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+}
+
+.ar-blessing-status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.ar-blessing-status-box {
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  border: 1px solid #ebdcc5;
+  background: #faf7f2;
+}
+.ar-blessing-status-box.status-pending {
+  background: #fefce8;
+  border-color: #fef08a;
+  color: #854d0e;
+}
+.ar-blessing-status-box.status-approved {
+  background: #f0f9ff;
+  border-color: #bae6fd;
+  color: #0369a1;
+}
+.ar-blessing-status-box.status-cancelled {
+  background: #fff1f2;
+  border-color: #fecdd3;
+  color: #9f1239;
+}
+
+.ar-blessing-box-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ar-blessing-box-count {
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.ar-blessing-types-list {
+  background: #faf8f4;
+  border: 1px solid #ebdcc5;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.ar-blessing-types-head {
+  font-size: 0.71rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #8c7355;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px dashed #ebdcc5;
+}
+
+.ar-blessing-type-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.77rem;
+  padding: 3px 0;
+  color: #5c4732;
+}
+
+.ar-blessing-type-name {
+  font-weight: 600;
+}
+
+.ar-blessing-type-count {
+  font-weight: 700;
+  background: #ffffff;
+  padding: 1px 7px;
+  border-radius: 8px;
+  border: 1px solid #ebdcc5;
+  color: #3b2a1a;
+  font-size: 0.73rem;
+}
+
+/* Sacramental Services Table Breakdown */
+.ar-sum-services-table-wrap {
+  overflow-x: auto;
+  border-radius: 10px;
+  border: 1px solid #ebdcc5;
+  background: #ffffff;
+}
+
+.ar-sum-services-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.ar-sum-services-table thead th {
+  background: #fbf8f3;
+  color: #7a6348;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 8px 10px;
+  border-bottom: 1.5px solid #ebdcc5;
+  white-space: nowrap;
+}
+
+.ar-sum-services-table tbody td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #f3ede2;
+  color: #4a3826;
+  vertical-align: middle;
+}
+
+.ar-sum-services-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.ar-sum-services-table tbody tr:hover {
+  background: #fdfcf9;
+}
+
+.s-mini-pill {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  min-width: 20px;
+  text-align: center;
+}
+.s-mini-pill.s-pill-yellow {
+  background: #fef9c3;
+  color: #854d0e;
+}
+.s-mini-pill.s-pill-blue {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+.s-mini-pill.s-pill-green {
+  background: #dcfce7;
+  color: #166534;
+}
+.s-mini-pill.s-pill-red {
+  background: #ffe4e6;
+  color: #9f1239;
+}
+.s-mini-pill.s-pill-muted {
+  background: #f3f4f6;
+  color: #9ca3af;
+}
+
+.ar-sum-row-total {
+  color: #2b1f14;
 }
 </style>
 
@@ -631,6 +1497,292 @@ include '../templates/header.php';
     </div>
     <?php endif; ?>
   </div>
+
+  <!-- === OPERATIONAL SUMMARY SECTION === -->
+  <section class="ar-summary-section" id="arSummarySection" aria-label="Operational Summary">
+    
+    <!-- Summary Header & Action Bar -->
+    <div class="ar-summary-header">
+      <div class="ar-summary-title-wrap">
+        <div class="ar-summary-title-icon">
+          <i class="fas fa-layer-group"></i>
+        </div>
+        <div>
+          <h2 class="ar-summary-title">Operational Summary</h2>
+          <p class="ar-summary-subtitle">Overview of certificates, blessings, and sacramental service totals</p>
+        </div>
+      </div>
+      
+      <div class="ar-summary-meta-actions">
+        <span class="ar-summary-updated" title="Data queried live from database">
+          <i class="far fa-clock"></i> Last updated: <?php echo date('M d, Y h:i A'); ?>
+        </span>
+        <?php if (hasPermission('reports.export')): ?>
+        <a class="ar-summary-export-btn" href="?<?php echo e(http_build_query(array_merge($_GET, ['summary_export' => 'csv']))); ?>" title="Export this operational summary as a CSV spreadsheet">
+          <i class="fas fa-download"></i> Export Summary (CSV)
+        </a>
+        <?php endif; ?>
+      </div>
+    </div>
+
+    <!-- Date Filter Toolbar (All Time, This Month, This Year, Custom Range) -->
+    <div class="ar-summary-filter-bar">
+      <div class="ar-summary-filter-pills" role="navigation" aria-label="Summary Date Presets">
+        <span class="ar-summary-filter-lbl"><i class="fas fa-calendar-alt"></i> Range:</span>
+        <?php
+          $summaryBaseParams = $_GET;
+          unset($summaryBaseParams['summary_export']);
+        ?>
+        <a href="?<?php echo e(http_build_query(array_merge($summaryBaseParams, ['summary_range' => 'all', 'summary_from' => '', 'summary_to' => '']))); ?>"
+           class="ar-summary-pill <?php echo $summary_range === 'all' ? 'active' : ''; ?>">
+          All Time
+        </a>
+        <a href="?<?php echo e(http_build_query(array_merge($summaryBaseParams, ['summary_range' => 'month', 'summary_from' => '', 'summary_to' => '']))); ?>"
+           class="ar-summary-pill <?php echo $summary_range === 'month' ? 'active' : ''; ?>">
+          This Month
+        </a>
+        <a href="?<?php echo e(http_build_query(array_merge($summaryBaseParams, ['summary_range' => 'year', 'summary_from' => '', 'summary_to' => '']))); ?>"
+           class="ar-summary-pill <?php echo $summary_range === 'year' ? 'active' : ''; ?>">
+          This Year
+        </a>
+      </div>
+
+      <!-- Custom Range Form -->
+      <form method="get" class="ar-summary-custom-range" id="summaryFilterForm">
+        <?php foreach ($_GET as $gk => $gv): ?>
+          <?php if (!in_array($gk, ['summary_range', 'summary_from', 'summary_to', 'summary_export'], true) && is_string($gv)): ?>
+            <input type="hidden" name="<?php echo e($gk); ?>" value="<?php echo e($gv); ?>">
+          <?php endif; ?>
+        <?php endforeach; ?>
+        <input type="hidden" name="summary_range" value="custom">
+        <label for="summaryFrom" class="ar-summary-range-lbl">Custom Range:</label>
+        <input type="date" id="summaryFrom" name="summary_from" class="ar-summary-date-input" value="<?php echo e($summary_from); ?>" placeholder="Start Date" required>
+        <span class="ar-summary-range-sep">&ndash;</span>
+        <input type="date" id="summaryTo" name="summary_to" class="ar-summary-date-input" value="<?php echo e($summary_to); ?>" placeholder="End Date" required>
+        <button type="submit" class="ar-summary-btn-apply" title="Apply date filter">
+          <i class="fas fa-filter"></i> Apply
+        </button>
+        <?php if ($summary_range === 'custom'): ?>
+        <a href="?<?php echo e(http_build_query(array_merge($summaryBaseParams, ['summary_range' => 'all', 'summary_from' => '', 'summary_to' => '']))); ?>" class="ar-summary-btn-reset" title="Reset filter to All Time">
+          <i class="fas fa-times"></i> Reset
+        </a>
+        <?php endif; ?>
+      </form>
+    </div>
+
+    <!-- 1. SUMMARY CARDS (Top row: 3 cards) -->
+    <div class="ar-sum-cards-grid">
+      
+      <!-- Card 1: Total Certificates Created -->
+      <div class="ar-sum-card ar-sum-card-cert">
+        <div class="ar-sum-card-top">
+          <div class="ar-sum-card-icon"><i class="fas fa-certificate"></i></div>
+          <span class="ar-sum-card-badge">Generated</span>
+        </div>
+        <div>
+          <div class="ar-sum-card-num"><?php echo number_format($summary_total_certificates); ?></div>
+          <div class="ar-sum-card-label">Total Certificates Created</div>
+          <div class="ar-sum-card-hint">Official certificates drafted &amp; issued in registry</div>
+        </div>
+      </div>
+
+      <!-- Card 2: Blessings Completed -->
+      <div class="ar-sum-card ar-sum-card-blessing">
+        <div class="ar-sum-card-top">
+          <div class="ar-sum-card-icon"><i class="fas fa-hands-praying"></i></div>
+          <span class="ar-sum-card-badge status-completed">Completed</span>
+        </div>
+        <div>
+          <div class="ar-sum-card-num"><?php echo number_format($summary_blessings_completed); ?></div>
+          <div class="ar-sum-card-label">Blessings Completed</div>
+          <div class="ar-sum-card-hint">
+            <?php echo number_format($summary_blessings_total); ?> total blessing request<?php echo $summary_blessings_total === 1 ? '' : 's'; ?>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3: Sacramental Services -->
+      <div class="ar-sum-card ar-sum-card-services">
+        <div class="ar-sum-card-top">
+          <div class="ar-sum-card-icon"><i class="fas fa-church"></i></div>
+          <span class="ar-sum-card-badge">Services</span>
+        </div>
+        <div>
+          <div class="ar-sum-card-num"><?php echo number_format($summary_services_total); ?></div>
+          <div class="ar-sum-card-label">Sacramental Services</div>
+          <div class="ar-sum-card-hint">Baptism, Confirmation, Communion, Marriage, Funeral</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 2, 3, 4. BREAKDOWN CARDS (Row of 3 cards) -->
+    <div class="ar-sum-breakdowns-grid">
+      
+      <!-- BREAKDOWN 1: CERTIFICATES BREAKDOWN -->
+      <div class="ar-sum-breakdown-card">
+        <div class="ar-sum-breakdown-head">
+          <h3 class="ar-sum-breakdown-title">
+            <i class="fas fa-file-invoice"></i> Certificates Breakdown
+          </h3>
+          <span class="ar-sum-count-pill"><?php echo number_format($summary_total_certificates); ?> Total</span>
+        </div>
+        
+        <?php if ($summary_total_certificates === 0 || empty($summary_certs_breakdown)): ?>
+          <div class="ar-sum-empty-state">
+            <i class="far fa-folder-open"></i>
+            <div>No data available</div>
+            <small>No certificates recorded for the selected range.</small>
+          </div>
+        <?php else: ?>
+          <div class="ar-sum-bars-list">
+            <?php 
+              $maxCertCnt = max(1, max($summary_certs_breakdown));
+              foreach ($summary_certs_breakdown as $certType => $cCount): 
+                $pct = round(($cCount / $maxCertCnt) * 100);
+                $certTypeName = ucwords(str_replace('_', ' ', $certType));
+            ?>
+              <div class="ar-sum-bar-item">
+                <div class="ar-sum-bar-labels">
+                  <span class="ar-sum-bar-name" title="<?php echo e($certType); ?>">
+                    <i class="fas fa-award ar-sum-bullet"></i> <?php echo e($certTypeName); ?>
+                  </span>
+                  <span class="ar-sum-bar-val"><?php echo number_format($cCount); ?></span>
+                </div>
+                <div class="ar-sum-bar-track">
+                  <div class="ar-sum-bar-fill" style="width: <?php echo max(6, $pct); ?>%;"></div>
+                </div>
+              </div>
+            <?php endforeach; ?>
+          </div>
+        <?php endif; ?>
+      </div>
+
+      <!-- BREAKDOWN 2: BLESSINGS BREAKDOWN -->
+      <div class="ar-sum-breakdown-card">
+        <div class="ar-sum-breakdown-head">
+          <h3 class="ar-sum-breakdown-title">
+            <i class="fas fa-pray"></i> Blessings Breakdown
+          </h3>
+          <span class="ar-sum-count-pill"><?php echo number_format($summary_blessings_total); ?> Total</span>
+        </div>
+        
+        <?php if ($summary_blessings_total === 0): ?>
+          <div class="ar-sum-empty-state">
+            <i class="far fa-calendar-times"></i>
+            <div>No data available</div>
+            <small>No blessing requests in the selected range.</small>
+          </div>
+        <?php else: ?>
+          <!-- Highlight "Completed" as main figure -->
+          <div class="ar-blessing-hero-highlight">
+            <div class="ar-blessing-hero-meta">
+              <span class="ar-blessing-hero-tag"><i class="fas fa-check-circle"></i> Main Status</span>
+              <div class="ar-blessing-hero-num"><?php echo number_format($summary_blessings_completed); ?></div>
+              <div class="ar-blessing-hero-lbl">Completed Blessings</div>
+            </div>
+            <div class="ar-blessing-hero-icon"><i class="fas fa-check-double"></i></div>
+          </div>
+
+          <!-- Other Status Counts -->
+          <div class="ar-blessing-status-grid">
+            <div class="ar-blessing-status-box status-pending">
+              <span class="ar-blessing-box-label"><i class="fas fa-clock"></i> Pending</span>
+              <span class="ar-blessing-box-count"><?php echo number_format($summary_blessings_pending); ?></span>
+            </div>
+            <div class="ar-blessing-status-box status-approved">
+              <span class="ar-blessing-box-label"><i class="fas fa-spinner"></i> Approved / Processing</span>
+              <span class="ar-blessing-box-count"><?php echo number_format($summary_blessings_approved); ?></span>
+            </div>
+            <div class="ar-blessing-status-box status-cancelled">
+              <span class="ar-blessing-box-label"><i class="fas fa-times-circle"></i> Cancelled</span>
+              <span class="ar-blessing-box-count"><?php echo number_format($summary_blessings_cancelled); ?></span>
+            </div>
+          </div>
+
+          <!-- Blessing Types Sub-list if available -->
+          <?php if (!empty($summary_blessings_by_type)): ?>
+          <div class="ar-blessing-types-list">
+            <div class="ar-blessing-types-head">Requests by Blessing Type</div>
+            <?php foreach ($summary_blessings_by_type as $bType => $bStats): ?>
+              <div class="ar-blessing-type-row">
+                <span class="ar-blessing-type-name"><?php echo e(ucwords(str_replace('_', ' ', $bType))); ?></span>
+                <span class="ar-blessing-type-count"><?php echo number_format($bStats['total']); ?></span>
+              </div>
+            <?php endforeach; ?>
+          </div>
+          <?php endif; ?>
+        <?php endif; ?>
+      </div>
+
+      <!-- BREAKDOWN 3: SACRAMENTAL SERVICES BREAKDOWN -->
+      <div class="ar-sum-breakdown-card">
+        <div class="ar-sum-breakdown-head">
+          <h3 class="ar-sum-breakdown-title">
+            <i class="fas fa-cross"></i> Sacramental Services Breakdown
+          </h3>
+          <span class="ar-sum-count-pill"><?php echo number_format($summary_services_total); ?> Total</span>
+        </div>
+        
+        <?php if ($summary_services_total === 0 || empty($summary_services_breakdown)): ?>
+          <div class="ar-sum-empty-state">
+            <i class="far fa-folder"></i>
+            <div>No data available</div>
+            <small>No sacramental service requests in this range.</small>
+          </div>
+        <?php else: ?>
+          <div class="ar-sum-services-table-wrap">
+            <table class="ar-sum-services-table">
+              <thead>
+                <tr>
+                  <th>Service Type</th>
+                  <th class="text-center" title="Pending">Pend</th>
+                  <th class="text-center" title="Approved / Processing">Appr</th>
+                  <th class="text-center" title="Completed">Comp</th>
+                  <th class="text-center" title="Cancelled">Canc</th>
+                  <th class="text-end">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                <?php foreach ($summary_services_breakdown as $sType => $sStats): ?>
+                  <tr>
+                    <td class="fw-semibold">
+                      <?php echo e(ucwords(str_replace('_', ' ', $sType))); ?>
+                    </td>
+                    <td class="text-center">
+                      <span class="s-mini-pill <?php echo $sStats['pending'] > 0 ? 's-pill-yellow' : 's-pill-muted'; ?>">
+                        <?php echo $sStats['pending']; ?>
+                      </span>
+                    </td>
+                    <td class="text-center">
+                      <span class="s-mini-pill <?php echo $sStats['approved'] > 0 ? 's-pill-blue' : 's-pill-muted'; ?>">
+                        <?php echo $sStats['approved']; ?>
+                      </span>
+                    </td>
+                    <td class="text-center">
+                      <span class="s-mini-pill <?php echo $sStats['completed'] > 0 ? 's-pill-green' : 's-pill-muted'; ?>">
+                        <?php echo $sStats['completed']; ?>
+                      </span>
+                    </td>
+                    <td class="text-center">
+                      <span class="s-mini-pill <?php echo $sStats['cancelled'] > 0 ? 's-pill-red' : 's-pill-muted'; ?>">
+                        <?php echo $sStats['cancelled']; ?>
+                      </span>
+                    </td>
+                    <td class="text-end fw-bold ar-sum-row-total">
+                      <?php echo number_format($sStats['total']); ?>
+                    </td>
+                  </tr>
+                <?php endforeach; ?>
+              </tbody>
+            </table>
+          </div>
+        <?php endif; ?>
+      </div>
+
+    </div>
+
+  </section>
 
   <!-- === CHARTS === -->
   <div class="ar-chart-grid">

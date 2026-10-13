@@ -2392,7 +2392,7 @@
                 return result.join('');
             }
 
-            function appendChatMessage(type, title, message, sourcePrompt, stream, steps, prompts) {
+            function appendChatMessage(type, title, message, sourcePrompt, stream, steps, prompts, responseReference) {
                 if (!liveAnswer) {
                     return null;
                 }
@@ -2404,6 +2404,9 @@
                     ? '<ol class="ai-assistant-numbered-list">' + steps.map(function(step) { return '<li>' + escapeHtml(step) + '</li>'; }).join('') + '</ol>'
                     : '';
                 const copyButton = type === 'assistant' ? '<button type="button" class="ai-assistant-copy" aria-label="Copy response text" title="Copy response"><i class="fas fa-copy"></i> <span>Copy</span></button>' : '';
+                const feedbackHtml = (type === 'assistant' && responseReference)
+                    ? '<div class="ai-feedback" data-response-reference="' + escapeHtml(responseReference) + '"><span class="ai-feedback-label">Was this helpful?</span> <button type="button" class="ai-feedback-btn" data-ai-rating="correct" title="Helpful" aria-label="Helpful"><i class="fas fa-thumbs-up"></i></button> <button type="button" class="ai-feedback-btn" data-ai-rating="incorrect" title="Not helpful" aria-label="Not helpful"><i class="fas fa-thumbs-down"></i></button></div>'
+                    : '';
 
                 function getPromptIcon(text) {
                     const p = String(text || '').toLowerCase();
@@ -2432,7 +2435,7 @@
                     item.innerHTML = '<div class="ai-msg-bubble user-bubble"><p>' + escapeHtml(message) + '</p></div><div class="ai-assistant-message-meta"><span>' + currentTime() + '</span></div>';
                 } else {
                     const formatted = formatAssistantMarkdown(message);
-                    item.innerHTML = '<div class="ai-msg-header"><span class="ai-avatar-badge" aria-hidden="true"><i class="fas fa-church"></i></span><strong>' + escapeHtml(title) + '</strong></div><div class="ai-msg-bubble assistant-bubble">' + formatted + '</div>' + stepList + '<div class="ai-assistant-message-meta"><span>' + currentTime() + '</span>' + copyButton + '</div>' + promptChips;
+                    item.innerHTML = '<div class="ai-msg-header"><span class="ai-avatar-badge" aria-hidden="true"><i class="fas fa-church"></i></span><strong>' + escapeHtml(title) + '</strong></div><div class="ai-msg-bubble assistant-bubble">' + formatted + '</div>' + stepList + feedbackHtml + '<div class="ai-assistant-message-meta"><span>' + currentTime() + '</span>' + copyButton + '</div>' + promptChips;
                 }
 
                 liveAnswer.appendChild(item);
@@ -2592,7 +2595,7 @@
                         if (liveSubmit) {
                             liveSubmit.disabled = false;
                         }
-                        appendChatMessage('assistant', title, answer, message, true, data.success && data.guidance && data.guidance.steps ? data.guidance.steps : [], prompts);
+                        appendChatMessage('assistant', title, answer, message, true, data.success && data.guidance && data.guidance.steps ? data.guidance.steps : [], prompts, data.response_reference || '');
                         conversationHistory.push({role: 'assistant', content: answer});
                         if (!data.success && data.status) {
                             setHealthStatus(data.status);
@@ -2757,6 +2760,32 @@
                         checkAssistantHealth(false);
                         askLiveAssistant(prompt);
                     }
+                    return;
+                }
+
+                const ratingBtn = event.target.closest('[data-ai-rating]');
+                if (ratingBtn && widget && widget.contains(ratingBtn)) {
+                    const group = ratingBtn.closest('[data-response-reference]');
+                    if (!group) return;
+                    const ref = group.getAttribute('data-response-reference');
+                    const rating = ratingBtn.getAttribute('data-ai-rating');
+                    const comments = rating === 'correct' ? '' : (window.prompt('Optional: What could be improved or added to the parish knowledge base?') || '');
+                    group.innerHTML = '<span class="ai-feedback-thanks"><i class="fas fa-check"></i> Thank you for your feedback!</span>';
+                    fetch('<?php echo BASE_URL; ?>api/ai-assistant.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-Token': assistantCsrfToken,
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: JSON.stringify({
+                            action: 'feedback',
+                            response_reference: ref,
+                            rating: rating,
+                            comments: comments
+                        })
+                    }).catch(function(err) { console.error('Feedback submit error:', err); });
                     return;
                 }
 

@@ -1,0 +1,254 @@
+{
+  "system_info": {
+    "parish_name": "San Lorenzo Ruiz Mission Station",
+    "system_name": "TUGON Parish Management Information System",
+    "location": "Poblacion, Aleosan, Cotabato (Archdiocese of Cotabato)",
+    "office_hours": "Tuesday to Saturday: 8:00 AM - 5:00 PM; Sunday: 7:00 AM - 12:00 PM; Monday: Closed",
+    "contact_number": "0997 742 8176",
+    "emergency_hotline": "0997 742 8176 (24/7 for Anointing of the Sick / Last Rites)",
+    "gcash_payment": {
+      "recipient": "Agnes Calapaan",
+      "position": "Parish Secretary",
+      "number": "0997 742 8176"
+    },
+    "certificate_fee": "₱100.00 per copy",
+    "blessing_fee": "No mandatory fixed fee; voluntary love offering for the officiating priest is welcome.",
+    "mass_schedule": [
+      {"day": "Sunday", "time": "8:30 AM", "type": "Parish Community Mass"},
+      {"day": "Wednesday", "time": "5:00 PM", "type": "Novena & Mass"}
+    ]
+  },
+  "modules": [
+    {
+      "id": "request_baptism_certificate",
+      "title": "How to Request a Baptism Certificate",
+      "audience": ["parishioner", "staff", "admin"],
+      "page_url": "users/request-certificate.php",
+      "keywords": [
+        "baptism certificate", "baptismal certificate", "binyag certificate", "sertipiko ng binyag",
+        "how to request baptism certificate", "how to get baptismal cert", "kumuha ng binyag cert",
+        "unsaon pagkuha ug baptismal certificate", "reqest baptizm certifcate"
+      ],
+      "summary": "Steps for a parishioner to request an official baptismal certificate online.",
+      "steps": [
+        "Log in to your TUGON account. (If you don't have an account yet, click 'Register' on the login page).",
+        "In the sidebar navigation, click 'Requests' and select 'New Request', or directly open 'Request Certificate' (users/request-certificate.php).",
+        "Under Certificate Type, select 'Baptismal Certificate'.",
+        "Enter the record holder's complete name, date of birth, place of birth, father's full name, and mother's maiden name.",
+        "Upload a clear photo or scan of a Valid Government ID and the PSA Birth Certificate.",
+        "Choose your Payment Method: 'GCash' (send ₱100.00 to Agnes Calapaan at 0997 742 8176 and upload receipt screenshot) or 'Cash on Pickup' at the parish office.",
+        "Select your delivery/release preference: 'Online Release' (PDF download in system) or 'In-Person Pickup'.",
+        "Click the brown 'Submit Request' button and copy your Tracking Reference Number (e.g. REQ-2026-XXXX).",
+        "Track the progress anytime under 'My Requests'."
+      ]
+    },
+    {
+      "id": "request_confirmation_certificate",
+      "title": "How to Request a Confirmation Certificate",
+      "audience": ["parishioner", "staff", "admin"],
+      "page_url": "users/request-certificate.php",
+      "keywords": [
+        "confirmation certificate", "kumpil certificate", "sertipiko ng kumpil", "certificate of confirmation",
+        "how to request confirmation certificate", "unsaon pagkuha ug confirmation cert"
+      ],
+      "summary": "Steps to request an official confirmation certificate.",
+      "steps": [
+        "Log in to your TUGON account and open 'Requests' -> 'Request Certificate' (users/request-certificate.php).",
+        "Under Certificate Type, choose 'Confirmation Certificate'.",
+        "Fill in the confirmand's full name, approximate year or date of confirmation, and names of parents/sponsors if known.",
+        "Upload a Valid Government ID and the PSA Birth Certificate or Baptismal Certificate as supporting record.",
+        "Choose your Payment Method: GCash (₱100.00 to 0997 742 8176) or Cash upon pickup.",
+        "Click 'Submit Request' and record your Reference Number for tracking in 'My Requests'."
+      ]
+    },
+    {
+      "id": "request_marriage_certificate",
+      "title": "How to Request a Marriage Certificate",
+      "audience": ["parishioner", "staff", "admin"],
+      "page_url": "users/request-certificate.php",
+      "keywords": [
+        "marriage certificate", "kasal certificate", "sertipiko ng kasal", "wedding certificate",
+        "how to request marriage certificate", "pagsulat ug marriage cert"
+      ],
+      "summary": "Steps to request a parish church marriage certificate.",
+      "steps": [
+        "Log in to your account and go to 'Requests' -> 'Request Certificate'.",
+        "Under Certificate Type, select 'Marriage Certificate'.",
+        "Enter the husband's full name, wife's full maiden name, and wedding date.",
+        "Upload a Valid Government ID of the spouse or authorized representative, plus PSA Marriage Certificate if available.",
+        "Select Payment Method (GCash ₱100.00 or Cash on pickup) and Release preference.",
+        "Click 'Submit Request' and track status in 'My Requests'."
+      ]
+    },
+    {
+      "id": "request_first_communion_certificate",
+      "title": "How to Request a First Holy Communion Certificate",
+      "audience": ["parishioner", "staff", "admin"],
+      "page_url": "users/request-certificate.php",
+      "keywords": [
+        "first communion certificate", "communion cert", "sertipiko ng unang komunyon", "komunyon certificate"
+      ],
+      "summary": "Steps to request a first holy communion certificate.",
+      "steps": [
+        "Log in to your account and navigate to 'Requests' -> 'Request Certificate'.",
+        "Under Certificate Type, select 'First Communion Certificate'.",
+        "Enter the communicant's full name, birthdate, school/parish where communion occurred, and parents' names.",
+        "Upload a Valid Government ID or student ID and Baptismal Certificate.",
+        "Submit the form and track your Reference Number in 'My Requests'."
+      ]
+    },
+    {
+      "id": "book_a_blessing",
+      "title": "How to Book a Blessing (House, Vehicle, Business)",
+      "audience": ["parishioner", "staff", "admin"],
+      "page_url": "users/request-blessing.php",
+      "keywords": [
+        "book blessing", "request blessing", "house blessing", "vehicle blessing", "business blessing",
+        "pabasbas", "pagpa-bless", "unsa pag book og blessing", "pano magpa blessing", "how to book a blessing",
+        "blessing ng bahay", "blessing ng sasakyan"
+      ],
+      "summary": "Steps to schedule a blessing for a house, commercial business, or motor vehicle.",
+      "steps": [
+        "Log in to your TUGON account.",
+        "From the sidebar menu, click 'Requests' and select 'Request Blessing' (users/request-blessing.php).",
+        "Select the Blessing Type: 'House Blessing', 'Vehicle Blessing', or 'Business Blessing'.",
+        "Pick your preferred Ceremony Date and Time.",
+        "Provide your contact details, complete address or location for house/business, or plate/model details for vehicle.",
+        "Add any special notes or directions for the priest and parish staff in the remarks box.",
+        "Click the brown 'Submit Blessing Request' button.",
+        "Wait for parish office confirmation. The staff will verify the priest's calendar availability and update the status in 'My Requests'. (Note: Blessings have no mandatory fee; voluntary love offering is accepted)."
+      ]
+    },
+    {
+      "id": "check_request_status",
+      "title": "How to Check Request Status",
+      "audience": ["parishioner", "staff", "admin"],
+      "page_url": "users/my-requests.php",
+      "keywords": [
+        "check request status", "track request", "status of my request", "status of my reqeust",
+        "alamin ang status", "kumusta ang request", "asa makita akong request", "check status", "tracking"
+      ],
+      "summary": "How to see whether your request is Pending, Processing, Completed, or Rejected.",
+      "steps": [
+        "Method 1 (Logged-in): Click 'My Requests' in the sidebar menu (users/my-requests.php). You will see a list of all your submitted requests with live status badges (Pending, Processing, Completed, Rejected).",
+        "Method 2 (Not Logged-in): On the main login page (auth/login.php), click 'Check Request Status'. Enter your Tracking Reference Number (e.g., REQ-2026-0001) to view real-time status without logging in.",
+        "If your request is 'Completed' and you requested an online release, click the 'Download Certificate' button on your request card to download the official PDF.",
+        "If your request is 'Rejected', click on it to read the Admin Remarks explaining what requirement was blurry or missing, then update and resubmit."
+      ]
+    },
+    {
+      "id": "book_sacramental_service",
+      "title": "How to Request a Sacramental Service (Baptism, Confirmation, Wedding, Funeral)",
+      "audience": ["parishioner", "staff", "admin"],
+      "page_url": "users/sacraments.php",
+      "keywords": [
+        "sacramental service", "baptism service", "wedding service", "confirmation service", "funeral mass",
+        "magpa-binyag", "magpakasal", "iskedyul ng kasal", "libing", "funeral request"
+      ],
+      "summary": "Steps to book a sacramental ceremony or mass service.",
+      "steps": [
+        "Log in and navigate to 'Sacramental Services' in the sidebar (users/sacraments.php).",
+        "Choose the sacrament: 'Baptism Service', 'Confirmation Service', 'Marriage / Wedding Service', or 'Funeral Mass'.",
+        "Select your preferred Ceremony Date and Time.",
+        "Fill out the candidate/couple/deceased personal details and parents/sponsors.",
+        "Upload required supporting documents (e.g. PSA Birth Certificate for Baptism, Pre-Cana certificate and CENOMAR for Wedding, PSA Death Certificate and Burial Permit for Funeral).",
+        "Submit the booking. Parish staff will review requirements and schedule the officiating priest."
+      ]
+    },
+    {
+      "id": "make_reservation",
+      "title": "How to Reserve Parish Facilities / Church Venue",
+      "audience": ["parishioner", "staff", "admin"],
+      "page_url": "users/make-reservation.php",
+      "keywords": [
+        "reservation", "reserve hall", "church venue", "facility reservation", "book church", "rent hall"
+      ],
+      "summary": "Steps to reserve parish hall, meeting rooms, or church grounds.",
+      "steps": [
+        "Log in and open 'Reservations' -> 'Make Reservation' (users/make-reservation.php).",
+        "Select the facility or resource needed (e.g. Parish Hall, Church Sanctuary).",
+        "Select the desired date, start time, and end time.",
+        "Enter event purpose, estimated attendees, and contact person.",
+        "Submit the reservation for admin conflict check and approval."
+      ]
+    },
+    {
+      "id": "admin_generate_certificate",
+      "title": "How to Generate a Certificate (Admin / Staff Workflow)",
+      "audience": ["admin", "staff"],
+      "page_url": "admin/certificate-generator.php",
+      "keywords": [
+        "generate certificate", "how to generate a certificate", "pano mag generate ng sertipiko",
+        "create certificate", "issue certificate", "admin generate cert", "mag-print ng sertipiko"
+      ],
+      "summary": "Step-by-step instructions for parish administrators to generate official sacramental certificates.",
+      "steps": [
+        "Log in as Admin or Staff and open 'Certificate Generator' from the sidebar (admin/certificate-generator.php).",
+        "Select the Certificate Type: 'Baptism', 'Confirmation', 'First Communion', 'Marriage', or 'Funeral'.",
+        "In the unified 'Select Record' field, type the person's name into the searchable combobox (e.g. type 'Rey Mark' or 'Juan'). The list filters in real-time. Click to select the matching record.",
+        "Verify or adjust the pre-filled record details: Full Name, Birthday, Birthplace, Residence, Father's Name, Mother's Name, Date of Sacrament, and Sponsors.",
+        "Select the 'Officiating Priest' and 'Priest in Charge (Parish Priest)'.",
+        "Ensure all required fields (including at least 2 sponsors) are filled.",
+        "Click the gold 'Generate Certificate' button. The system redirects to 'view-certificate.php' where you can inspect the certificate layout.",
+        "From the view screen, you can print, download the tamper-proof SHA-256 PDF, or approve for official issuance in 'admin/certificate-workflow.php'."
+      ]
+    },
+    {
+      "id": "admin_change_priest_signatory",
+      "title": "How to Change the Priest on Certificates (Admin Workflow)",
+      "audience": ["admin", "staff"],
+      "page_url": "admin/certificate-generator.php",
+      "keywords": [
+        "change priest", "change priest on certificate", "certificate signatory", "palitan ang pari",
+        "how do i change the priest on the certificates", "priest in charge", "officiating priest"
+      ],
+      "summary": "How an administrator changes the priest or signatory names on certificates.",
+      "steps": [
+        "Open 'Certificate Generator' (admin/certificate-generator.php).",
+        "In the certificate form, locate the 'Priest in Charge (Parish Priest)' and 'Officiating Priest' dropdowns/inputs.",
+        "Select or type the desired priest's name (e.g., 'REV. FR. HERIBERTO C. VILLAS, O.M.I.').",
+        "For system-wide default template signatories: Navigate to 'Certificate Settings' (admin/certificate-templates.php) or 'Certificate Layout Editor' (admin/certificate-layout-editor.php).",
+        "Update the default 'priest_name' and 'priest_position' under layout static text settings and click 'Save Layout'."
+      ]
+    },
+    {
+      "id": "admin_update_request_status",
+      "title": "How to Update a Request Status (Admin / Staff Workflow)",
+      "audience": ["admin", "staff"],
+      "page_url": "admin/requests.php",
+      "keywords": [
+        "update request status", "change request status", "how do i update a request status",
+        "paano i-update ang status", "approve request", "complete request", "reject request"
+      ],
+      "summary": "How an administrator reviews a request and updates its status.",
+      "steps": [
+        "Log in as Admin/Staff and navigate to 'Requests' (admin/requests.php).",
+        "Find the target request from the table and click 'View' or open directly: 'admin/request-details.php?id=[REQUEST_ID]'.",
+        "Review submitted requester documents, PSA attachments, and applicant details.",
+        "Scroll down to the 'REVIEW STATUS & UPDATES' section.",
+        "Select the new status from the 'Current Status' dropdown: 'Pending', 'Processing', 'Completed', or 'Rejected'.",
+        "Enter any remarks or instructions in the 'Admin Response / Remarks' textarea (especially if rejected, explain what was missing).",
+        "If it is a service/blessing, enter Ceremony Date, Ceremony Time, and assigned Minister.",
+        "Click the brown 'Update Request' button to save and notify the parishioner via SMS/Email."
+      ]
+    },
+    {
+      "id": "admin_view_reports_analytics",
+      "title": "How to View Analytics & Reports (Admin Workflow)",
+      "audience": ["admin", "staff"],
+      "page_url": "admin/reports.php",
+      "keywords": [
+        "analytics and reports", "view reports", "summary cards", "export pdf", "export csv",
+        "certificates breakdown", "blessings breakdown", "sacramental services breakdown"
+      ],
+      "summary": "How administrators access operational metrics and summary statistics.",
+      "steps": [
+        "Open 'Analytics & Reports' (admin/reports.php) from the admin sidebar.",
+        "At the top, examine the 'Operational Summary' section showing: Total Certificates Created, Blessings Completed, and Sacramental Services Total.",
+        "Use the Date Range filter pills ('All Time', 'This Month', 'This Year', or 'Custom Range') to filter the metrics.",
+        "Review the three breakdown cards: Certificates Breakdown (horizontal bars by sacrament), Blessings Breakdown (status chips and completed hero count), and Sacramental Services Breakdown (status table).",
+        "Click 'Export Summary (CSV)' to download a spreadsheet, or use the header export buttons for PDF / CSV / Print Preview."
+      ]
+    }
+  ]
+}
