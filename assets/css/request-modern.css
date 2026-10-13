@@ -1455,3 +1455,371 @@
     }
 }
 
+/* ==========================================================================
+   Parish Calendar Trigger Button & Schedule Picker Modal
+   Matches Cathedral Green, Gold, and Cream Aesthetic
+   ========================================================================== */
+
+.date-input-with-calendar {
+    display: flex !important;
+    gap: 8px !important;
+    align-items: stretch !important;
+    width: 100% !important;
+}
+
+.date-input-with-calendar .request-form-control,
+.date-input-with-calendar input[type="date"] {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    border-radius: 8px !important;
+}
+
+/* Dark Green Button with Gold Bottom Edge */
+.btn-parish-calendar-trigger {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 7px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    padding: 0 16px !important;
+    background: linear-gradient(180deg, #2D3A2C 0%, #202B20 100%) !important;
+    color: #FFFDF8 !important;
+    border: 1px solid rgba(200, 155, 60, 0.45) !important;
+    border-bottom: 3.5px solid #C89B3C !important;
+    border-radius: 8px !important;
+    font-size: 0.88rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.2px !important;
+    cursor: pointer !important;
+    box-shadow: 0 2px 6px rgba(32, 43, 32, 0.16) !important;
+    transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.16s ease, background 0.16s ease, border-color 0.16s ease !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    text-decoration: none !important;
+}
+
+.btn-parish-calendar-trigger i {
+    color: #F7DC8A !important;
+    font-size: 0.95rem !important;
+    transition: transform 0.16s ease !important;
+}
+
+/* Lifts slightly on hover */
+.btn-parish-calendar-trigger:hover {
+    background: linear-gradient(180deg, #374636 0%, #253325 100%) !important;
+    color: #FFFFFF !important;
+    transform: translateY(-2px) !important;
+    border-color: #C89B3C !important;
+    border-bottom-color: #DEB042 !important;
+    box-shadow: 0 6px 14px rgba(32, 43, 32, 0.25), 0 3px 0 #DEB042 !important;
+}
+
+.btn-parish-calendar-trigger:hover i {
+    transform: scale(1.1) !important;
+}
+
+/* Presses down on click */
+.btn-parish-calendar-trigger:active {
+    transform: translateY(1px) !important;
+    box-shadow: 0 1px 3px rgba(32, 43, 32, 0.2), 0 1px 0 #C89B3C !important;
+    border-bottom-width: 2px !important;
+}
+
+.btn-parish-calendar-trigger:focus-visible {
+    outline: none !important;
+    box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.35), 0 2px 6px rgba(32, 43, 32, 0.2) !important;
+}
+
+/* Secondary "View parish calendar" link */
+.view-calendar-link {
+    display: inline-flex !important;
+    align-items: center !important;
+    color: #6B7280 !important;
+    font-size: 0.8rem !important;
+    font-weight: 500 !important;
+    text-decoration: none !important;
+    transition: color 0.15s ease !important;
+    margin-top: 3px !important;
+}
+
+.view-calendar-link i {
+    color: #C89B3C !important;
+}
+
+.view-calendar-link:hover {
+    color: #2E3A2D !important;
+    text-decoration: underline !important;
+}
+
+/* Parish Calendar Modal Custom Styles */
+.parish-calendar-modal-content {
+    border-radius: 14px !important;
+    overflow: hidden !important;
+    border: 1px solid #E5DFD3 !important;
+    box-shadow: 0 20px 50px rgba(34, 45, 36, 0.25) !important;
+    background: #FAF7F0 !important;
+}
+
+.parish-calendar-modal-header {
+    background: linear-gradient(135deg, #2E3A2D 0%, #3B4B3A 50%, #263225 100%) !important;
+    color: #FFFDF8 !important;
+    border-bottom: 2px solid #C89B3C !important;
+    padding: 14px 20px !important;
+}
+
+.parish-calendar-modal-emblem {
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 50% !important;
+    background: radial-gradient(circle at 35% 35%, #F7DC8A 0%, #DEB042 55%, #B8861B 100%) !important;
+    border: 1.5px solid #ECC868 !important;
+    color: #1F2920 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1rem !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+    flex-shrink: 0 !important;
+}
+
+.parish-calendar-modal-sub {
+    color: #E2DDD2 !important;
+    font-size: 0.78rem !important;
+}
+
+.parish-calendar-modal-body {
+    background: #FAF7F0 !important;
+}
+
+.parish-calendar-nav-bar {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    margin-bottom: 14px !important;
+    background: #FFFFFF !important;
+    padding: 8px 14px !important;
+    border-radius: 10px !important;
+    border: 1px solid #E5DFD3 !important;
+}
+
+.parish-cal-month-title {
+    font-family: "Playfair Display", Georgia, serif !important;
+    font-size: 1.15rem !important;
+    color: #2E3A2D !important;
+    min-width: 170px !important;
+    text-align: center !important;
+}
+
+.parish-cal-nav-btn {
+    width: 32px !important;
+    height: 32px !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 6px !important;
+    border: 1px solid #E5DFD3 !important;
+    background: #F8F5ED !important;
+    color: #2E3A2D !important;
+    transition: all 0.15s ease !important;
+}
+
+.parish-cal-nav-btn:hover {
+    background: #2E3A2D !important;
+    color: #FFFFFF !important;
+    border-color: #2E3A2D !important;
+}
+
+.parish-cal-today-btn {
+    background: #F8F5ED !important;
+    border: 1px solid #C89B3C !important;
+    color: #80611B !important;
+    font-weight: 600 !important;
+    font-size: 0.78rem !important;
+    border-radius: 6px !important;
+    padding: 4px 10px !important;
+    transition: all 0.15s ease !important;
+}
+
+.parish-cal-today-btn:hover {
+    background: #C89B3C !important;
+    color: #FFFFFF !important;
+}
+
+.parish-calendar-legend {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 14px !important;
+    font-size: 0.74rem !important;
+    color: #6B7280 !important;
+    margin-bottom: 12px !important;
+    padding: 4px 2px !important;
+}
+
+.legend-item {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+}
+
+.legend-dot {
+    width: 9px !important;
+    height: 9px !important;
+    border-radius: 50% !important;
+    display: inline-block !important;
+}
+
+.legend-dot.is-available { background: #22C55E !important; }
+.legend-dot.is-event { background: #EAB308 !important; }
+.legend-dot.is-today { background: #3B82F6 !important; }
+.legend-dot.is-past { background: #D1D5DB !important; }
+
+.parish-calendar-weekdays {
+    display: grid !important;
+    grid-template-columns: repeat(7, 1fr) !important;
+    gap: 6px !important;
+    text-align: center !important;
+    font-size: 0.75rem !important;
+    font-weight: 700 !important;
+    color: #80611B !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    margin-bottom: 6px !important;
+}
+
+.parish-calendar-grid {
+    display: grid !important;
+    grid-template-columns: repeat(7, 1fr) !important;
+    gap: 6px !important;
+}
+
+.parish-cal-day {
+    aspect-ratio: 1 / 1 !important;
+    min-height: 42px !important;
+    border: 1px solid #E5DFD3 !important;
+    border-radius: 8px !important;
+    background: #FFFFFF !important;
+    color: #2E3A2D !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 4px !important;
+    font-size: 0.86rem !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    position: relative !important;
+    transition: all 0.16s ease !important;
+}
+
+.parish-cal-day.is-outside {
+    background: transparent !important;
+    border-color: transparent !important;
+    color: #C5BFB3 !important;
+    cursor: default !important;
+}
+
+.parish-cal-day.is-disabled {
+    background: #F3EFE6 !important;
+    color: #B5AFA4 !important;
+    border-color: #EAE5DB !important;
+    cursor: not-allowed !important;
+    opacity: 0.65 !important;
+}
+
+.parish-cal-day.is-today {
+    border: 2px solid #C89B3C !important;
+    font-weight: 700 !important;
+    box-shadow: 0 0 0 1px rgba(200, 155, 60, 0.3) !important;
+}
+
+.parish-cal-day.is-available:hover:not(:disabled) {
+    background: #F4EFE3 !important;
+    border-color: #C89B3C !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 8px rgba(200, 155, 60, 0.18) !important;
+}
+
+.parish-cal-day.is-selected {
+    background: linear-gradient(135deg, #2E3A2D 0%, #202B20 100%) !important;
+    color: #FFFFFF !important;
+    border: 2px solid #C89B3C !important;
+    box-shadow: 0 4px 10px rgba(34, 45, 36, 0.28) !important;
+}
+
+.parish-cal-day.is-selected .day-num {
+    color: #FFFFFF !important;
+}
+
+.parish-cal-day .event-dot {
+    width: 5px !important;
+    height: 5px !important;
+    border-radius: 50% !important;
+    background: #C89B3C !important;
+    margin-top: 2px !important;
+}
+
+.parish-cal-selection-card {
+    background: #FFFFFF !important;
+    border: 1px solid #E5DFD3 !important;
+    border-left: 4px solid #C89B3C !important;
+    border-radius: 8px !important;
+    padding: 10px 14px !important;
+}
+
+.parish-cal-sel-icon {
+    color: #C89B3C !important;
+    font-size: 1.15rem !important;
+    margin-top: 2px !important;
+}
+
+.parish-calendar-modal-footer {
+    background: #FAF7F0 !important;
+    border-top: 1px solid #E5DFD3 !important;
+    padding: 12px 20px !important;
+}
+
+.btn-parish-apply-date {
+    background: linear-gradient(180deg, #2D3A2C 0%, #202B20 100%) !important;
+    color: #FFFDF8 !important;
+    border: 1px solid rgba(200, 155, 60, 0.5) !important;
+    border-bottom: 2.5px solid #C89B3C !important;
+    font-weight: 700 !important;
+    border-radius: 6px !important;
+    transition: all 0.16s ease !important;
+}
+
+.btn-parish-apply-date:hover:not(:disabled) {
+    background: #2E3A2D !important;
+    color: #FFFFFF !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 10px rgba(34, 45, 36, 0.25) !important;
+}
+
+.btn-parish-apply-date:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+}
+
+@media (max-width: 576px) {
+    .btn-parish-calendar-trigger {
+        padding: 0 11px !important;
+        font-size: 0.82rem !important;
+        gap: 5px !important;
+    }
+    .parish-cal-day {
+        min-height: 36px !important;
+        font-size: 0.8rem !important;
+    }
+    .parish-cal-month-title {
+        font-size: 1rem !important;
+        min-width: 140px !important;
+    }
+}
+
+

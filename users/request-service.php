@@ -1362,7 +1362,18 @@ if ($stmt) {
                             <h4 class="investigation-subcard-title" style="color: #854d0e; border-bottom-color: #fef08a;"><i class="fas fa-calendar-check"></i> 4. Proposed Baptism Schedule</h4>
                             <div class="investigation-grid-full">
                                 <label for="baptism_date">Date of Baptism <span class="text-danger">*</span> <small class="text-muted fw-normal">(Serves as your scheduled service date)</small></label>
-                                <input type="date" min="<?php echo date('Y-m-d'); ?>" max="<?php echo date('Y-m-d', strtotime('+2 years')); ?>" class="form-control request-form-control" id="baptism_date" name="baptism_sheet[baptism_date]" data-baptism-sheet required>
+                                <div class="date-input-with-calendar">
+                                    <input type="date" min="<?php echo date('Y-m-d'); ?>" max="<?php echo date('Y-m-d', strtotime('+2 years')); ?>" class="form-control request-form-control" id="baptism_date" name="baptism_sheet[baptism_date]" data-baptism-sheet required>
+                                    <button type="button" class="btn-parish-calendar-trigger" data-calendar-target="#baptism_date" aria-label="Open parish calendar">
+                                        <i class="far fa-calendar-alt"></i>
+                                        <span>Calendar</span>
+                                    </button>
+                                </div>
+                                <div class="form-text mt-1">
+                                    <a href="javascript:void(0)" class="view-calendar-link" data-calendar-target="#baptism_date">
+                                        <i class="far fa-calendar-check me-1"></i>View parish calendar
+                                    </a>
+                                </div>
                             </div>
                         </div>
 
@@ -1549,7 +1560,18 @@ if ($stmt) {
                             <h4 class="investigation-subcard-title" style="color: #86198f; border-bottom-color: #f5d0fe;"><i class="fas fa-calendar-heart"></i> 4. Wedding Ceremony Schedule</h4>
                             <div class="investigation-grid-full">
                                 <label for="marriage_wedding_date">Date of Marriage <span class="text-danger">*</span> <small class="text-muted fw-normal">(Serves as your scheduled wedding ceremony date)</small></label>
-                                <input type="date" min="<?php echo date('Y-m-d', strtotime('+1 month')); ?>" max="<?php echo date('Y-m-d', strtotime('+3 years')); ?>" class="form-control request-form-control" id="marriage_wedding_date" name="marriage_sheet[wedding_date]" data-marriage-sheet required>
+                                <div class="date-input-with-calendar">
+                                    <input type="date" min="<?php echo date('Y-m-d', strtotime('+1 month')); ?>" max="<?php echo date('Y-m-d', strtotime('+3 years')); ?>" class="form-control request-form-control" id="marriage_wedding_date" name="marriage_sheet[wedding_date]" data-marriage-sheet required>
+                                    <button type="button" class="btn-parish-calendar-trigger" data-calendar-target="#marriage_wedding_date" aria-label="Open parish calendar">
+                                        <i class="far fa-calendar-alt"></i>
+                                        <span>Calendar</span>
+                                    </button>
+                                </div>
+                                <div class="form-text mt-1">
+                                    <a href="javascript:void(0)" class="view-calendar-link" data-calendar-target="#marriage_wedding_date">
+                                        <i class="far fa-calendar-check me-1"></i>View parish calendar
+                                    </a>
+                                </div>
                             </div>
                         </div>
 
@@ -1868,11 +1890,33 @@ if ($stmt) {
                 <div class="row g-3">
                     <div class="col-md-6" id="patronalDateGroup" style="display:none;">
                         <label for="patronal_fiesta_date" class="form-label">Date of Patronal Fiesta <span class="text-danger">*</span></label>
-                        <input type="date" class="form-control request-form-control" id="patronal_fiesta_date" name="patronal_fiesta_date" min="<?php echo date('Y-m-d'); ?>">
+                        <div class="date-input-with-calendar">
+                            <input type="date" class="form-control request-form-control" id="patronal_fiesta_date" name="patronal_fiesta_date" min="<?php echo date('Y-m-d'); ?>">
+                            <button type="button" class="btn-parish-calendar-trigger" data-calendar-target="#patronal_fiesta_date" aria-label="Open parish calendar">
+                                <i class="far fa-calendar-alt"></i>
+                                <span>Calendar</span>
+                            </button>
+                        </div>
+                        <div class="form-text mt-1">
+                            <a href="javascript:void(0)" class="view-calendar-link" data-calendar-target="#patronal_fiesta_date">
+                                <i class="far fa-calendar-check me-1"></i>View parish calendar
+                            </a>
+                        </div>
                     </div>
                     <div class="col-md-6" id="generalServiceDateGroup" style="display:none;">
                         <label for="general_service_date" class="form-label">Requested Service Date <span class="text-danger">*</span></label>
-                        <input type="date" class="form-control request-form-control" id="general_service_date" name="service_date" min="<?php echo date('Y-m-d'); ?>">
+                        <div class="date-input-with-calendar">
+                            <input type="date" class="form-control request-form-control" id="general_service_date" name="service_date" min="<?php echo date('Y-m-d'); ?>">
+                            <button type="button" class="btn-parish-calendar-trigger" data-calendar-target="#general_service_date" aria-label="Open parish calendar">
+                                <i class="far fa-calendar-alt"></i>
+                                <span>Calendar</span>
+                            </button>
+                        </div>
+                        <div class="form-text mt-1">
+                            <a href="javascript:void(0)" class="view-calendar-link" data-calendar-target="#general_service_date">
+                                <i class="far fa-calendar-check me-1"></i>View parish calendar
+                            </a>
+                        </div>
                     </div>
                     <div class="col-12" id="scheduleSyncCard">
                         <div class="schedule-sync-card">
@@ -4111,4 +4155,5 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <script src="../assets/js/request-modern.js?v=<?php echo filemtime(__DIR__ . '/../assets/js/request-modern.js'); ?>"></script>
+<?php include '../templates/parish-calendar-modal.php'; ?>
 <?php include '../templates/footer.php'; ?>

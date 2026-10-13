@@ -409,7 +409,18 @@ if ($stmt) {
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label for="preferred_date" class="form-label">Preferred Date</label>
-                        <input type="date" class="form-control request-form-control" id="preferred_date" name="preferred_date" min="<?php echo (new DateTime('now', new DateTimeZone('Asia/Manila')))->format('Y-m-d'); ?>" required>
+                        <div class="date-input-with-calendar">
+                            <input type="date" class="form-control request-form-control" id="preferred_date" name="preferred_date" min="<?php echo (new DateTime('now', new DateTimeZone('Asia/Manila')))->format('Y-m-d'); ?>" required>
+                            <button type="button" class="btn-parish-calendar-trigger" id="openCalendarModalBtn" data-calendar-target="#preferred_date" aria-label="Open parish calendar">
+                                <i class="far fa-calendar-alt"></i>
+                                <span>Calendar</span>
+                            </button>
+                        </div>
+                        <div class="form-text mt-1">
+                            <a href="javascript:void(0)" class="view-calendar-link" id="viewCalendarLink" data-calendar-target="#preferred_date">
+                                <i class="far fa-calendar-check me-1"></i>View parish calendar
+                            </a>
+                        </div>
                     </div>
                     <div class="col-md-6">
                         <label for="preferred_time" class="form-label">Preferred Time (1-Hour Slot)</label>
@@ -426,6 +437,9 @@ if ($stmt) {
                             <option value="16:00">04:00 PM</option>
                             <option value="17:00">05:00 PM</option>
                         </select>
+                        <div class="form-text mt-1 text-muted" id="preferredTimeHint">
+                            Choose a date first to see open hours.
+                        </div>
                     </div>
                     <div class="col-12">
                         <label for="location" class="form-label">Location</label>
@@ -626,4 +640,5 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
+<?php include '../templates/parish-calendar-modal.php'; ?>
 <?php include '../templates/footer.php'; ?>
