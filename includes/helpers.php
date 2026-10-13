@@ -5,6 +5,11 @@
  * Provides utility functions for authentication, validation, and security
  */
 
+if (defined('TUGON_HELPERS_LOADED')) {
+    return;
+}
+define('TUGON_HELPERS_LOADED', true);
+
 require_once __DIR__ . '/../config/app.php';
 
 require_once __DIR__ . '/session.php';
@@ -23,6 +28,14 @@ require_once __DIR__ . '/password-security.php';
 if (!function_exists('t')) {
     include_once __DIR__ . '/i18n.php';
 }
+
+// Global Services Autoloader - Automatically resolves classes residing in /services/
+spl_autoload_register(function ($class) {
+    $serviceFile = dirname(__DIR__) . '/services/' . str_replace('\\', '/', $class) . '.php';
+    if (is_file($serviceFile)) {
+        require_once $serviceFile;
+    }
+});
 
 // Core Utilities - Provides common formatting, escaping, validation, and password helpers.
 // Generate unique reference numbers for requests

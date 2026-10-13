@@ -18,6 +18,9 @@ if (!function_exists('isLoggedIn')) {
 if (!function_exists('pdsButton')) {
     include __DIR__ . '/../includes/ui-components.php';
 }
+if (!class_exists('NotificationService')) {
+    include_once __DIR__ . '/../services/NotificationService.php';
+}
 
 $current_page = basename($_SERVER['PHP_SELF']);
 $style_version = file_exists(__DIR__ . '/../assets/css/style.css')
@@ -365,10 +368,13 @@ if (isLoggedIn()) {
                                 <div class="admin-notif-dropdown-list" style="max-height: 360px; overflow-y: auto;">
                                     <?php if (!empty($recent_header_notifications)): ?>
                                         <?php foreach ($recent_header_notifications as $hNotif): 
-                                            $isUnread = empty($hNotif['is_read']) && ($hNotif['state'] ?? '') !== 'read';
-                                            $actionTarget = NotificationService::actionUrl($hNotif['action_key'] ?? '', $hNotif['entity_type'] ?? null, $hNotif['entity_id'] ?? null, $hNotif, $conn);
-                                            $actionTarget = $actionTarget ?: (BASE_URL . 'admin/manage-requests.php');
-                                            $isUrgentAlert = stripos($hNotif['title'] ?? '', 'urgent') !== false;
+                                            try {
+                                                $isUnread = empty($hNotif['is_read']) && ($hNotif['state'] ?? '') !== 'read';
+                                                $actionTarget = class_exists('NotificationService')
+                                                    ? NotificationService::actionUrl($hNotif['action_key'] ?? '', $hNotif['entity_type'] ?? null, $hNotif['entity_id'] ?? null, $hNotif, $conn)
+                                                    : (BASE_URL . 'admin/manage-requests.php');
+                                                $actionTarget = $actionTarget ?: (BASE_URL . 'admin/manage-requests.php');
+                                                $isUrgentAlert = stripos($hNotif['title'] ?? '', 'urgent') !== false;
                                         ?>
                                             <a href="<?php echo e($actionTarget); ?>" class="d-block text-decoration-none px-3 py-2 border-bottom notif-dropdown-row <?php echo $isUnread ? 'bg-light' : ''; ?>" style="transition: background 0.15s ease;">
                                                 <div class="d-flex align-items-start gap-2">
@@ -392,7 +398,11 @@ if (isLoggedIn()) {
                                                     </div>
                                                 </div>
                                             </a>
-                                        <?php endforeach; ?>
+                                        <?php 
+                                            } catch (Throwable $e) {
+                                                error_log('Error rendering header notification: ' . $e->getMessage());
+                                            }
+                                        endforeach; ?>
                                     <?php else: ?>
                                         <div class="text-center py-4 px-3 text-muted">
                                             <i class="far fa-bell-slash mb-2" style="font-size: 22px; color: #94A3B8;"></i>

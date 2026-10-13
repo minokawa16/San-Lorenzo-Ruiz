@@ -111,6 +111,7 @@ if (in_array($export, ['csv', 'pdf'], true)) {
         'type' => $filters['category'] ?: ($filters['component'] ?: ''),
         'q' => $filters['q']
     ];
+    require_once '../services/ReportPdfGenerator.php';
     ReportPdfGenerator::stream(
         'audit_log',
         'Audit Log Report',
