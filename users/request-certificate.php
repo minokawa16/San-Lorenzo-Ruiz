@@ -3112,7 +3112,7 @@ if ($stmt) {
                     <span class="step-number" id="stepUploadNumber"><?php echo ($is_original_post) ? '3' : '4'; ?></span>
                     <div>
                         <h3>Upload All Requirements</h3>
-                        <p>Upload all required documents for your certificate request (e.g. PSA / Birth Certificate, Valid ID, or supporting records).</p>
+                        <p>Upload all required documents for your certificate request (e.g. PSA / Birth Certificate, Valid ID).</p>
                     </div>
                 </div>
 
