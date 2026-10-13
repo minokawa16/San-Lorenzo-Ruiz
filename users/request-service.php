@@ -1369,11 +1369,6 @@ if ($stmt) {
                                         <span>Calendar</span>
                                     </button>
                                 </div>
-                                <div class="form-text mt-1">
-                                    <a href="javascript:void(0)" class="view-calendar-link" data-calendar-target="#baptism_date">
-                                        <i class="far fa-calendar-check me-1"></i>View parish calendar
-                                    </a>
-                                </div>
                             </div>
                         </div>
 
@@ -1566,11 +1561,6 @@ if ($stmt) {
                                         <i class="far fa-calendar-alt"></i>
                                         <span>Calendar</span>
                                     </button>
-                                </div>
-                                <div class="form-text mt-1">
-                                    <a href="javascript:void(0)" class="view-calendar-link" data-calendar-target="#marriage_wedding_date">
-                                        <i class="far fa-calendar-check me-1"></i>View parish calendar
-                                    </a>
                                 </div>
                             </div>
                         </div>
@@ -1897,11 +1887,6 @@ if ($stmt) {
                                 <span>Calendar</span>
                             </button>
                         </div>
-                        <div class="form-text mt-1">
-                            <a href="javascript:void(0)" class="view-calendar-link" data-calendar-target="#patronal_fiesta_date">
-                                <i class="far fa-calendar-check me-1"></i>View parish calendar
-                            </a>
-                        </div>
                     </div>
                     <div class="col-md-6" id="generalServiceDateGroup" style="display:none;">
                         <label for="general_service_date" class="form-label">Requested Service Date <span class="text-danger">*</span></label>
@@ -1911,11 +1896,6 @@ if ($stmt) {
                                 <i class="far fa-calendar-alt"></i>
                                 <span>Calendar</span>
                             </button>
-                        </div>
-                        <div class="form-text mt-1">
-                            <a href="javascript:void(0)" class="view-calendar-link" data-calendar-target="#general_service_date">
-                                <i class="far fa-calendar-check me-1"></i>View parish calendar
-                            </a>
                         </div>
                     </div>
                     <div class="col-12" id="scheduleSyncCard">

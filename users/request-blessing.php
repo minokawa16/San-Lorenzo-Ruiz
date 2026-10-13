@@ -416,11 +416,6 @@ if ($stmt) {
                                 <span>Calendar</span>
                             </button>
                         </div>
-                        <div class="form-text mt-1">
-                            <a href="javascript:void(0)" class="view-calendar-link" id="viewCalendarLink" data-calendar-target="#preferred_date">
-                                <i class="far fa-calendar-check me-1"></i>View parish calendar
-                            </a>
-                        </div>
                     </div>
                     <div class="col-md-6">
                         <label for="preferred_time" class="form-label">Preferred Time (1-Hour Slot)</label>
