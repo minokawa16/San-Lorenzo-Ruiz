@@ -2503,7 +2503,7 @@ include '../templates/header.php';
             <i class="fas fa-file-pdf text-danger me-1"></i> Download as PDF
           </button>
           <button type="button" class="btn btn-primary" id="btnModalPrintDoc" style="background: #1e3a5f; border-color: #1e3a5f;">
-            <i class="fas fa-print me-1"></i> Print
+            <i class="fas fa-print me-1"></i> Print / Save as PDF
           </button>
         </div>
       </div>
@@ -2907,8 +2907,12 @@ include '../templates/header.php';
   // PDF Export
   const btnPdf = document.getElementById('btnLogPdf');
   if (btnPdf) {
-    btnPdf.addEventListener('click', function() {
-      window.print();
+    btnPdf.addEventListener('click', function(e) {
+      if (typeof openPrintPreview === 'function') {
+        openPrintPreview(e);
+      } else {
+        window.print();
+      }
     });
   }
 

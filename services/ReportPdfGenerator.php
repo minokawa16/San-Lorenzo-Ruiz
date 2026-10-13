@@ -45,7 +45,7 @@ final class ReportPdfGenerator
      * @param array       $filters     e.g. ['from' => '2026-08-01', 'to' => '...', 'status' => '...', 'type' => '...']
      * @param array       $data        e.g. ['columns' => [...], 'rows' => [...], 'total' => 12, 'truncated' => false]
      * @param string      $generatedBy Name of admin/staff generating report
-     * @param string      $orientation 'landscape' or 'portrait' (default 'landscape')
+     * @param string      $orientation 'landscape' or 'portrait' (default 'portrait')
      * @param string|null $subtitle    e.g. 'Request Turnaround'
      */
     public static function stream(
@@ -59,7 +59,7 @@ final class ReportPdfGenerator
         array $charts = [],
         array $meta = []
     ): void {
-        $html = self::buildHtml($reportKey, $title, $filters, $data, $generatedBy, $subtitle, $charts, $meta);
+        $html = self::buildHtml($reportKey, $title, $filters, $data, $generatedBy, $subtitle, $charts, $meta, true);
 
         $options = new Options();
         $options->set('isRemoteEnabled', true);
@@ -75,7 +75,7 @@ final class ReportPdfGenerator
         $canvas = $dompdf->getCanvas();
         $fontMetrics = $dompdf->getFontMetrics();
         $font = $fontMetrics->getFont('Helvetica', 'normal');
-        $size = 8;
+        $size = 7.5;
         $color = [0.45, 0.45, 0.45]; // Muted gray
 
         $width = $canvas->get_width();
@@ -84,7 +84,7 @@ final class ReportPdfGenerator
         // Footer left: Confidentiality note
         $canvas->page_text(
             35,
-            $height - 25,
+            $height - 22,
             "CONFIDENTIAL  —  San Lorenzo Ruiz Mission Station Official Document",
             $font,
             $size,
@@ -94,7 +94,7 @@ final class ReportPdfGenerator
         // Footer right: Page X of Y
         $canvas->page_text(
             $width - 95,
-            $height - 25,
+            $height - 22,
             "Page {PAGE_NUM} of {PAGE_COUNT}",
             $font,
             $size,
@@ -108,15 +108,6 @@ final class ReportPdfGenerator
 
     /**
      * Reusable component to render the canonical Parish Report Header HTML.
-     *
-     * Produces:
-     *                 ARCHDIOCESE OF COTABATO
-     *              SAN LORENZO RUIZ MISSION STATION
-     *                    Aleosan, North Cotabato
-     * --------------------------------------------------
-     *                     [REPORT TITLE]
-     *                   [REPORT SUBTITLE]
-     *                     Filters: [...]
      */
     public static function generateParishReportHeader(
         string $reportTitle,
@@ -185,12 +176,25 @@ final class ReportPdfGenerator
                 <td class="divider-line"></td>
             </tr>
         </table>
+
+        <div class="report-header-section">
+            <div class="report-title"><?php echo htmlspecialchars($reportTitle, ENT_QUOTES, 'UTF-8'); ?></div>
+            <?php if (!empty($subtitle)): ?>
+                <div class="report-subtitle"><?php echo htmlspecialchars($subtitle, ENT_QUOTES, 'UTF-8'); ?></div>
+            <?php endif; ?>
+            <div class="report-meta-line">
+                <span class="report-timestamp">Generated on <?php echo htmlspecialchars($timestamp, ENT_QUOTES, 'UTF-8'); ?></span>
+                <?php if (!empty($filtersFormatted) && $filtersFormatted !== '[]'): ?>
+                    <span class="report-filters">&nbsp;|&nbsp; Filters: <?php echo htmlspecialchars($filtersFormatted, ENT_QUOTES, 'UTF-8'); ?></span>
+                <?php endif; ?>
+            </div>
+        </div>
         <?php
         return (string) ob_get_clean();
     }
 
     /**
-     * Build the complete standalone HTML string for Dompdf.
+     * Build the complete standalone HTML string for continuous-flow PDF and Print.
      */
     public static function buildHtml(
         string $reportKey,
@@ -200,7 +204,8 @@ final class ReportPdfGenerator
         string $generatedBy = 'Administrator',
         ?string $subtitle = null,
         array $charts = [],
-        array $meta = []
+        array $meta = [],
+        bool $isDompdf = false
     ): string {
         $columns = $data['columns'] ?? [];
         $rows = $data['rows'] ?? [];
@@ -219,39 +224,42 @@ final class ReportPdfGenerator
 <style>
     @page {
         size: portrait;
-        margin: 12mm 15mm;
+        margin: 10mm 12mm 12mm 12mm;
     }
     *, *::before, *::after {
         box-sizing: border-box;
     }
     body {
         font-family: 'Helvetica', 'Arial', sans-serif;
-        font-size: 8.5pt;
-        line-height: 1.35;
+        font-size: 8pt;
+        line-height: 1.3;
         color: #1e293b;
         background: #ffffff;
         margin: 0;
         padding: 0;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
     }
     @media screen {
         body {
-            padding: 24px;
+            padding: 20px 24px;
             max-width: 820px;
             margin: 0 auto;
+            background: #ffffff;
         }
     }
     @media print {
         body {
-            padding: 0;
-            margin: 0;
-            max-width: none;
+            padding: 0 !important;
+            margin: 0 !important;
+            max-width: none !important;
         }
-        .chart-box, .kpi-summary-table, .chart-two-col, table.data-table tr, .report-signoff-block {
-            break-inside: avoid !important;
-            page-break-inside: avoid !important;
-        }
+    }
+
+    /* Prevent awkward cuts inside individual blocks without forcing blank page breaks */
+    .chart-box, .kpi-summary-table, .chart-two-col, table.data-table tr {
+        page-break-inside: avoid;
+        break-inside: avoid;
     }
 
     /* ── Formal Parish Letterhead ────────────────────────────────── */
@@ -265,61 +273,61 @@ final class ReportPdfGenerator
         padding: 0;
     }
     .letterhead-logo-cell {
-        width: 85px;
+        width: 75px;
         text-align: left;
     }
     .parish-logo-img {
-        height: 72px;
+        height: 60px;
         width: auto;
         display: block;
     }
     .parish-logo-placeholder {
-        width: 68px;
-        height: 68px;
+        width: 58px;
+        height: 58px;
         border-radius: 50%;
         background: #1e2d24;
         display: block;
     }
     .letterhead-text-cell {
         text-align: center;
-        padding: 0 10px;
+        padding: 0 8px;
     }
     .letterhead-balance-cell {
-        width: 85px; /* Symmetrical balance matching logo width */
+        width: 75px;
     }
     .diocese-name {
         font-family: 'Times New Roman', 'Georgia', serif;
-        font-size: 11pt;
+        font-size: 10pt;
         font-weight: bold;
         text-transform: uppercase;
-        letter-spacing: 0.8px;
+        letter-spacing: 0.6px;
         color: #1e293b;
-        margin-bottom: 3px;
-        line-height: 1.2;
+        margin-bottom: 2px;
+        line-height: 1.15;
     }
     .parish-name {
         font-family: 'Times New Roman', 'Georgia', serif;
-        font-size: 16pt;
+        font-size: 14pt;
         font-weight: bold;
         text-transform: uppercase;
-        letter-spacing: 0.4px;
+        letter-spacing: 0.3px;
         color: #0f172a;
-        margin-bottom: 3px;
-        line-height: 1.2;
+        margin-bottom: 2px;
+        line-height: 1.15;
     }
     .parish-location {
         font-family: 'Times New Roman', 'Georgia', serif;
-        font-size: 10pt;
-        color: #334155;
-        line-height: 1.2;
+        font-size: 9pt;
+        color: #475569;
+        line-height: 1.15;
     }
 
     /* ── Gold Divider with Centered Latin Cross ───────────────────── */
     .gold-cross-divider {
         width: 100%;
         border-collapse: collapse;
-        margin-top: 6px;
-        margin-bottom: 12px;
+        margin-top: 4px;
+        margin-bottom: 8px;
     }
     .gold-cross-divider td {
         padding: 0;
@@ -333,7 +341,7 @@ final class ReportPdfGenerator
         width: 4%;
         text-align: center;
         color: #c89b3c;
-        font-size: 14pt;
+        font-size: 13pt;
         font-weight: bold;
         line-height: 1;
         padding: 0 4px;
@@ -342,113 +350,117 @@ final class ReportPdfGenerator
 
     /* ── Report Title & Filters ──────────────────────────────────── */
     .report-header-section {
-        margin-bottom: 12px;
+        margin-bottom: 8px;
+        text-align: left;
     }
     .report-title {
         font-family: 'Times New Roman', 'Georgia', serif;
-        font-size: 15pt;
+        font-size: 13pt;
         font-weight: bold;
         color: #0f172a;
         margin-bottom: 2px;
         line-height: 1.2;
     }
     .report-subtitle {
-        font-size: 10pt;
+        font-size: 8.8pt;
         color: #475569;
         font-weight: 500;
-        margin-bottom: 3px;
+        margin-bottom: 2px;
     }
-    .report-timestamp {
-        font-size: 8pt;
+    .report-meta-line {
+        font-size: 7.5pt;
         color: #64748b;
-        margin-top: 2px;
-        margin-bottom: 2px;
-    }
-    .report-filters {
-        font-size: 8.5pt;
-        color: #334155;
-        margin-top: 2px;
-        margin-bottom: 2px;
+        line-height: 1.3;
     }
 
-    /* ── KPI Overview Summary ────────────────────────────────────── */
+    /* ── KPI Overview Summary (Compact single-line flow) ────────── */
     .kpi-summary-table {
         width: 100%;
         border-collapse: collapse;
-        margin-top: 8px;
-        margin-bottom: 14px;
-        page-break-inside: avoid;
-        break-inside: avoid;
+        margin-top: 4px;
+        margin-bottom: 8px;
     }
     .kpi-box {
         background: #f8fafc;
         border: 1px solid #e2e8f0;
         border-radius: 6px;
-        padding: 8px 10px;
+        padding: 6px 8px;
         text-align: center;
     }
     .kpi-num {
-        font-size: 13pt;
+        font-size: 12.5pt;
         font-weight: bold;
         color: #1e3a5f;
-        line-height: 1.2;
+        line-height: 1.15;
     }
     .kpi-lbl {
-        font-size: 6.5pt;
+        font-size: 6.2pt;
         color: #64748b;
         text-transform: uppercase;
         letter-spacing: 0.3px;
-        font-weight: 600;
+        font-weight: 700;
         margin-top: 2px;
     }
 
-    /* ── Dynamic Chart Grid & Page-Break Safeguards ──────────────── */
+    /* ── Dynamic Analytics Charts (Fluid, No Forced Heights) ──────── */
     .pdf-analytics-charts {
-        margin-top: 6px;
-        margin-bottom: 14px;
+        margin-top: 2px;
+        margin-bottom: 8px;
     }
     .chart-box {
         background: #ffffff;
         border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        padding: 10px 12px;
-        page-break-inside: avoid;
-        break-inside: avoid;
-        margin-bottom: 12px;
+        border-radius: 6px;
+        padding: 7px 10px;
+        margin-bottom: 8px;
     }
     .chart-title-bar {
-        font-family: 'Helvetica', 'Arial', sans-serif;
-        font-size: 9.5pt;
+        font-size: 8.5pt;
         font-weight: bold;
         color: #0f172a;
-        margin-bottom: 2px;
+        margin-bottom: 1px;
         line-height: 1.2;
     }
     .chart-sub-bar {
-        font-size: 7.5pt;
+        font-size: 7pt;
         color: #64748b;
-        margin-bottom: 6px;
+        margin-bottom: 4px;
         line-height: 1.2;
     }
     .chart-two-col {
         width: 100%;
         border-collapse: collapse;
-        margin-bottom: 12px;
-        page-break-inside: avoid;
-        break-inside: avoid;
+        margin-bottom: 8px;
     }
     .chart-two-col td {
         vertical-align: top;
-        page-break-inside: avoid;
-        break-inside: avoid;
     }
 
-    /* ── Data Table with Multi-Page Header Repeating ─────────────── */
+    /* ── Table Section Heading & Data Table ──────────────────────── */
+    .table-section-heading {
+        margin-top: 8px;
+        margin-bottom: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-family: 'Helvetica', 'Arial', sans-serif;
+    }
+    .table-section-title {
+        font-size: 9pt;
+        font-weight: bold;
+        color: #0f172a;
+    }
+    .table-section-count {
+        font-size: 7.2pt;
+        color: #64748b;
+        font-weight: 600;
+    }
+
     table.data-table {
         width: 100%;
         border-collapse: collapse;
-        font-size: 8pt;
-        margin-top: 6px;
+        font-size: 7.5pt;
+        margin-top: 3px;
         page-break-inside: auto;
     }
     table.data-table thead {
@@ -462,14 +474,16 @@ final class ReportPdfGenerator
         page-break-after: auto;
     }
     table.data-table thead th {
-        background-color: #ffffff;
-        color: #0f172a;
-        font-weight: bold;
-        font-size: 8pt;
-        letter-spacing: 0.2px;
-        padding: 6px 8px;
-        text-align: center;
-        border: 1px solid #94a3b8;
+        background-color: #f8fafc;
+        color: #334155;
+        font-weight: 700;
+        font-size: 7.2pt;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding: 5px 8px;
+        text-align: left;
+        border: 1px solid #cbd5e1;
+        border-bottom: 1.5px solid #94a3b8;
         vertical-align: middle;
     }
     table.data-table tbody tr:nth-child(even) {
@@ -479,62 +493,91 @@ final class ReportPdfGenerator
         background-color: #ffffff;
     }
     table.data-table tbody td {
-        padding: 5.5px 8px;
-        border: 1px solid #cbd5e1;
+        padding: 4.5px 8px;
+        border: 1px solid #e2e8f0;
         vertical-align: middle;
         color: #1e293b;
         text-align: left;
     }
 
-    /* ── Value & Badge Styling ───────────────────────────────────── */
+    /* ── Status Pills & Badges ───────────────────────────────────── */
     .badge {
         display: inline-block;
-        padding: 1.5px 5px;
-        border-radius: 3px;
-        font-size: 7pt;
-        font-weight: bold;
-        text-transform: uppercase;
-        letter-spacing: 0.3px;
+        padding: 2px 7px;
+        border-radius: 10px;
+        font-size: 6.8pt;
+        font-weight: 700;
+        text-transform: capitalize;
+        letter-spacing: 0.02em;
         line-height: 1.2;
+        white-space: nowrap;
     }
     .badge-success {
-        background-color: #dcfce7;
-        color: #166534;
-        border: 1px solid #86efac;
+        background-color: #d1fae5;
+        color: #065f46;
+        border: 1px solid #a7f3d0;
+    }
+    .badge-info {
+        background-color: #dbeafe;
+        color: #1e40af;
+        border: 1px solid #bfdbfe;
     }
     .badge-warning {
         background-color: #fef3c7;
         color: #92400e;
-        border: 1px solid #fcd34d;
+        border: 1px solid #fde68a;
     }
     .badge-danger {
         background-color: #fee2e2;
         color: #991b1b;
-        border: 1px solid #fca5a5;
+        border: 1px solid #fecaca;
     }
     .badge-neutral {
         background-color: #f1f5f9;
         color: #475569;
         border: 1px solid #cbd5e1;
     }
+
     .empty-cell {
         color: #94a3b8;
         font-style: italic;
     }
     .truncated-warning {
-        margin-top: 8px;
-        padding: 6px 10px;
+        margin-top: 6px;
+        padding: 5px 8px;
         background: #fffbeb;
         border: 1px solid #fde68a;
         color: #92400e;
-        font-size: 7.5pt;
-        border-radius: 3px;
+        font-size: 7.2pt;
+        border-radius: 4px;
     }
     .no-records {
         text-align: center;
-        padding: 24px 10px;
+        padding: 20px 10px;
         color: #64748b;
         font-style: italic;
+    }
+
+    /* ── Running Footer (Unified for screen & print preview) ─────── */
+    .print-running-footer {
+        margin-top: 18px;
+        padding-top: 6px;
+        border-top: 1px solid #e2e8f0;
+        font-size: 7pt;
+        color: #64748b;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    @media print {
+        .print-running-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 16px;
+            margin-top: 0;
+        }
     }
 </style>
 </head>
@@ -547,28 +590,28 @@ final class ReportPdfGenerator
     <!-- KPI Summary Overview -->
     <table class="kpi-summary-table" cellpadding="0" cellspacing="0">
         <tr>
-            <td style="width: 25%; padding: 3px;">
+            <td style="width: 25%; padding: 2px;">
                 <div class="kpi-box">
                     <div class="kpi-num"><?php echo number_format((int)($meta['parishioners_total'] ?? 0)); ?></div>
                     <div class="kpi-lbl">Total Parishioners</div>
                 </div>
             </td>
-            <td style="width: 25%; padding: 3px;">
+            <td style="width: 25%; padding: 2px;">
                 <div class="kpi-box">
                     <div class="kpi-num"><?php echo number_format((int)($meta['sacraments_total'] ?? 0)); ?></div>
                     <div class="kpi-lbl">Sacramental Records</div>
                 </div>
             </td>
-            <td style="width: 25%; padding: 3px;">
+            <td style="width: 25%; padding: 2px;">
                 <div class="kpi-box">
                     <div class="kpi-num"><?php echo number_format((int)($meta['total_requests'] ?? 0)); ?></div>
                     <div class="kpi-lbl">Service Requests</div>
                 </div>
             </td>
-            <td style="width: 25%; padding: 3px;">
+            <td style="width: 25%; padding: 2px;">
                 <div class="kpi-box">
-                    <div class="kpi-num"><?php echo number_format((int)($meta['events_month'] ?? 0)); ?></div>
-                    <div class="kpi-lbl">Calendar Events (Month)</div>
+                    <div class="kpi-num"><?php echo number_format((int)(!empty($meta['events_month']) ? $meta['events_month'] : ($meta['requests_pending'] ?? 0))); ?></div>
+                    <div class="kpi-lbl"><?php echo !empty($meta['events_month']) ? 'Calendar Events' : 'Pending Requests'; ?></div>
                 </div>
             </td>
         </tr>
@@ -581,11 +624,11 @@ final class ReportPdfGenerator
 
         <!-- Top: Sacramental Records Administered (Full-width bar chart) -->
         <?php if (!empty($charts['sacraments'])): ?>
-        <div class="chart-box" style="page-break-inside: avoid;">
+        <div class="chart-box">
             <div class="chart-title-bar">Sacramental Records Administered</div>
             <div class="chart-sub-bar">Monthly volume by sacrament type &#8211; last 12 months</div>
-            <div style="text-align: center; margin-top: 4px;">
-                <img src="<?php echo $charts['sacraments']; ?>" style="width: 100%; max-height: 230px; object-fit: contain;">
+            <div style="text-align: center; margin-top: 2px;">
+                <img src="<?php echo $charts['sacraments']; ?>" style="width: 100%; max-height: 145px; object-fit: contain;">
             </div>
         </div>
         <?php endif; ?>
@@ -595,15 +638,15 @@ final class ReportPdfGenerator
         <table class="chart-two-col" cellpadding="0" cellspacing="0">
             <tr>
                 <!-- Left: Request Status Breakdown (Donut chart) -->
-                <td style="width: 48%; padding-right: 6px;">
-                    <div class="chart-box" style="page-break-inside: avoid; height: 100%;">
+                <td style="width: 48%; padding-right: 5px;">
+                    <div class="chart-box">
                         <div class="chart-title-bar">Request Status Breakdown</div>
                         <div class="chart-sub-bar">Distribution of all service requests by status</div>
                         <?php if (!empty($charts['request_status'])): ?>
-                        <div style="text-align: center; padding: 6px 0;">
-                            <img src="<?php echo $charts['request_status']; ?>" style="max-height: 185px; max-width: 95%; object-fit: contain;">
+                        <div style="text-align: center; padding: 2px 0;">
+                            <img src="<?php echo $charts['request_status']; ?>" style="max-height: 125px; max-width: 95%; object-fit: contain;">
                             <?php if (!empty($meta['total_requests'])): ?>
-                            <div style="font-size: 8pt; font-weight: bold; color: #1e3a5f; margin-top: 4px;">
+                            <div style="font-size: 7.5pt; font-weight: bold; color: #1e3a5f; margin-top: 2px;">
                                 Total Requests: <?php echo number_format((int)$meta['total_requests']); ?>
                             </div>
                             <?php endif; ?>
@@ -613,13 +656,13 @@ final class ReportPdfGenerator
                 </td>
 
                 <!-- Right: Most Requested Services (Horizontal bar chart) -->
-                <td style="width: 52%; padding-left: 6px;">
-                    <div class="chart-box" style="page-break-inside: avoid; height: 100%;">
+                <td style="width: 52%; padding-left: 5px;">
+                    <div class="chart-box">
                         <div class="chart-title-bar">Most Requested Services</div>
-                        <div class="chart-sub-bar">Top service &amp; certificate types by volume</div>
+                        <div class="chart-sub-bar">Top service &amp; certificate types by total volume</div>
                         <?php if (!empty($charts['top_services'])): ?>
-                        <div style="text-align: center; padding: 6px 0;">
-                            <img src="<?php echo $charts['top_services']; ?>" style="width: 100%; max-height: 185px; object-fit: contain;">
+                        <div style="text-align: center; padding: 2px 0;">
+                            <img src="<?php echo $charts['top_services']; ?>" style="width: 100%; max-height: 125px; object-fit: contain;">
                         </div>
                         <?php endif; ?>
                     </div>
@@ -630,11 +673,11 @@ final class ReportPdfGenerator
 
         <!-- Bottom: Parishioner Registration Growth line chart (Full-width) -->
         <?php if (!empty($charts['parish_growth'])): ?>
-        <div class="chart-box" style="page-break-inside: avoid;">
+        <div class="chart-box">
             <div class="chart-title-bar">Parishioner Registration Growth</div>
             <div class="chart-sub-bar">Newly registered parishioners per month &#8211; last 12 months</div>
-            <div style="text-align: center; margin-top: 4px;">
-                <img src="<?php echo $charts['parish_growth']; ?>" style="width: 100%; max-height: 210px; object-fit: contain;">
+            <div style="text-align: center; margin-top: 2px;">
+                <img src="<?php echo $charts['parish_growth']; ?>" style="width: 100%; max-height: 125px; object-fit: contain;">
             </div>
         </div>
         <?php endif; ?>
@@ -643,10 +686,11 @@ final class ReportPdfGenerator
     <?php endif; ?>
 
     <?php if (!empty($columns)): ?>
-    <div style="font-family: 'Times New Roman', serif; font-size: 11pt; font-weight: bold; color: #0f172a; margin-top: 14px; margin-bottom: 4px; page-break-after: avoid;">
-        Parish Records &amp; Activity Log
+    <div class="table-section-heading">
+        <span class="table-section-title">Parish Records &amp; Activity Log</span>
+        <span class="table-section-count"><?php echo number_format(count($rows)); ?> record<?php echo count($rows) === 1 ? '' : 's'; ?></span>
     </div>
-    <!-- Data Table -->
+    <!-- Data Table with Repeating Header -->
     <table class="data-table">
         <thead>
             <tr>
@@ -681,6 +725,14 @@ final class ReportPdfGenerator
     <?php endif; ?>
     <?php endif; ?>
 
+    <?php if (!$isDompdf): ?>
+    <!-- Continuous Document Footer (for screen and browser print) -->
+    <div class="print-running-footer">
+        <span class="footer-left">CONFIDENTIAL &mdash; San Lorenzo Ruiz Mission Station Official Document</span>
+        <span class="footer-right">Generated on <?php echo date('M d, Y h:i A'); ?></span>
+    </div>
+    <?php endif; ?>
+
 </body>
 </html>
 <?php
@@ -711,17 +763,17 @@ final class ReportPdfGenerator
         ) {
             // Full timestamp: 2026-08-25 00:15:12
             if (preg_match('/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}(?::\d{2})?$/', $str)) {
-                return htmlspecialchars($str, ENT_QUOTES, 'UTF-8');
+                return htmlspecialchars(date('M d, Y g:i A', strtotime($str)), ENT_QUOTES, 'UTF-8');
             }
             // Date only: 2026-08-25
             if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $str)) {
-                return htmlspecialchars($str, ENT_QUOTES, 'UTF-8');
+                return htmlspecialchars(date('M d, Y', strtotime($str)), ENT_QUOTES, 'UTF-8');
             }
         }
 
         // 3. Request type / Certificate type / Notification type / Channel
         if (in_array($key, ['request_type', 'certificate_type', 'notification_type', 'reservation_type', 'channel'], true)) {
-            return htmlspecialchars($str, ENT_QUOTES, 'UTF-8');
+            return htmlspecialchars(self::humanize($str), ENT_QUOTES, 'UTF-8');
         }
 
         return htmlspecialchars($str, ENT_QUOTES, 'UTF-8');
@@ -735,15 +787,17 @@ final class ReportPdfGenerator
         $normalized = strtolower(trim($val));
 
         $badgeClass = 'badge-neutral';
-        if (in_array($normalized, ['approved', 'completed', 'issued', 'released', 'sent'], true)) {
+        if (in_array($normalized, ['approved', 'processing', 'in_processing', 'ready_for_pickup', 'ready'], true)) {
+            $badgeClass = 'badge-info';
+        } elseif (in_array($normalized, ['completed', 'released', 'issued', 'sent'], true)) {
             $badgeClass = 'badge-success';
-        } elseif (in_array($normalized, ['pending', 'due soon', 'review', 'requirements_review', 'processing', 'draft'], true)) {
+        } elseif (in_array($normalized, ['pending', 'submitted', 'due soon', 'review', 'requirements_review', 'draft'], true)) {
             $badgeClass = 'badge-warning';
-        } elseif (in_array($normalized, ['overdue', 'rejected', 'cancelled', 'revoked', 'failed', 'urgent', 'high'], true)) {
+        } elseif (in_array($normalized, ['overdue', 'rejected', 'cancelled', 'revoked', 'failed', 'urgent', 'high', 'declined'], true)) {
             $badgeClass = 'badge-danger';
         }
 
-        return htmlspecialchars($val, ENT_QUOTES, 'UTF-8');
+        return '<span class="badge ' . $badgeClass . '">' . htmlspecialchars(self::humanize($val), ENT_QUOTES, 'UTF-8') . '</span>';
     }
 
     /**
@@ -802,3 +856,4 @@ final class ReportPdfGenerator
         return 'data:' . $mime . ';base64,' . base64_encode($content);
     }
 }
+
