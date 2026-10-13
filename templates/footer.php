@@ -1716,6 +1716,8 @@
         }
         html body .ai-assistant-input-box {
             display: flex !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
             align-items: center !important;
             gap: 8px !important;
             background: #FFFDF8 !important;
@@ -1730,20 +1732,38 @@
             border-color: #C89B3C !important;
             box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.22), 0 3px 12px rgba(52, 69, 54, 0.08) !important;
         }
-        html body .ai-assistant-input-box textarea {
+        html body .ai-assistant-input-box textarea,
+        html body #aiAssistantPanel .ai-assistant-input-box textarea,
+        html body textarea#aiAssistantLiveInput,
+        body.user-area textarea#aiAssistantLiveInput {
+            all: unset !important;
+            box-sizing: border-box !important;
+            display: block !important;
             flex: 1 1 auto !important;
-            border: none !important;
+            width: 100% !important;
+            min-width: 0 !important;
+            max-width: none !important;
+            margin: 0 !important;
+            padding: 7px 0 !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+            outline: 0 !important;
+            box-shadow: none !important;
             background: transparent !important;
-            outline: none !important;
-            font-size: 0.88rem !important;
             color: #30342F !important;
-            line-height: 1.4 !important;
-            padding: 6px 0 !important;
+            font: inherit !important;
+            font-size: 0.88rem !important;
+            line-height: 1.45 !important;
+            max-height: 110px !important;
+            overflow-y: auto !important;
+            white-space: pre-wrap !important;
+            overflow-wrap: anywhere !important;
+            cursor: text !important;
             resize: none !important;
-            max-height: 80px !important;
-            font-family: inherit !important;
         }
-        html body .ai-assistant-input-box textarea::placeholder {
+        html body .ai-assistant-input-box textarea::placeholder,
+        html body textarea#aiAssistantLiveInput::placeholder,
+        body.user-area textarea#aiAssistantLiveInput::placeholder {
             color: #9C9F98 !important;
         }
 
@@ -1941,8 +1961,12 @@
             border-color: #C89B3C !important;
             box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.25), 0 4px 12px rgba(0, 0, 0, 0.3) !important;
         }
-        html body[data-theme="dark"] .ai-assistant-input-box textarea {
+        html body[data-theme="dark"] .ai-assistant-input-box textarea,
+        html body[data-theme="dark"] textarea#aiAssistantLiveInput {
             color: #F5F2EB !important;
+            background: transparent !important;
+            border: 0 !important;
+            box-shadow: none !important;
         }
         html body[data-theme="dark"] .ai-assistant-footer-note {
             color: #8C9488 !important;
