@@ -1982,10 +1982,10 @@
             }
             html body .ai-assistant-trigger,
             html body.user-area .ai-assistant-trigger {
-                width: 48px !important;
-                height: 48px !important;
-                min-width: 48px !important;
-                min-height: 48px !important;
+                width: 44px !important;
+                height: 44px !important;
+                min-width: 44px !important;
+                min-height: 44px !important;
                 font-size: 1.15rem !important;
                 box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16) !important;
             }
