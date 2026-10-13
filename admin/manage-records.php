@@ -4,9 +4,9 @@
  * Central dashboard for accessing Baptism, First Communion, Confirmation, Marriage, and Funeral registries.
  */
 
-include '../includes/session.php';
-include '../database/config.php';
-include '../includes/helpers.php';
+require_once __DIR__ . '/../includes/session.php';
+require_once __DIR__ . '/../database/config.php';
+require_once __DIR__ . '/../includes/helpers.php';
 
 requireAdmin();
 requirePermission('records.view');
@@ -74,33 +74,6 @@ include '../templates/header.php';
 ?>
 
 <style>
-    .sacramental-banner {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        flex-wrap: wrap;
-        gap: 12px;
-        padding: 14px 18px;
-        background: #ffffff;
-        border: 1px solid rgba(28, 27, 24, 0.08);
-        border-left: 4px solid #C59B27;
-        border-radius: 10px;
-        margin-bottom: 20px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
-    }
-    .sacramental-banner-text {
-        font-size: 0.84rem;
-        color: #374151;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-    .sacramental-banner-actions {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        flex-wrap: wrap;
-    }
     .registry-hub-card {
         display: flex;
         flex-direction: column;
@@ -178,22 +151,6 @@ include '../templates/header.php';
     $back_button_url = BASE_URL . 'admin/dashboard.php';
     include '../includes/page_header.php';
     ?>
-
-    <!-- Info & Actions Banner -->
-    <div class="sacramental-banner">
-        <div class="sacramental-banner-text">
-            <i class="fas fa-circle-info" style="color: #C59B27; font-size: 1.1rem;"></i>
-            <span><strong>Records and certificates are separate.</strong> Add or update parish registry books here. To generate or release official certificates, use Certificates.</span>
-        </div>
-        <div class="sacramental-banner-actions">
-            <a class="btn btn-sm pds-btn pds-btn-ghost-outline" href="sacramental-import.php">
-                <i class="fas fa-file-csv"></i> CSV Import
-            </a>
-            <a class="btn btn-sm pds-btn pds-btn-primary-gold" href="certificate-generator.php">
-                <i class="fas fa-certificate"></i> Certificates
-            </a>
-        </div>
-    </div>
 
     <!-- Registry Cards Grid -->
     <div class="row g-3">

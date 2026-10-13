@@ -5,11 +5,6 @@
  * Provides utility functions for authentication, validation, and security
  */
 
-if (defined('TUGON_HELPERS_LOADED')) {
-    return;
-}
-define('TUGON_HELPERS_LOADED', true);
-
 require_once __DIR__ . '/../config/app.php';
 
 require_once __DIR__ . '/session.php';
