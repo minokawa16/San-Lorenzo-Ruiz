@@ -1039,16 +1039,18 @@
     <style id="tugon-ai-floating-head-styles">
         /* ══════════════════════════════════════════════════════════════════
            TUGON PARISH GUIDE AI CHATBOT — SACRED CATHOLIC CHURCH REDESIGN
-           Palette: Cathedral Green (#344536), Warm Gold (#C9A646),
-           Warm Ivory (#F8F5ED), Soft White Surface (#FFFDF8), Charcoal (#30342F)
+           Palette: Green (#2E3A2D, #344536), Gold (#C89B3C, #DEB042),
+           Cream (#F8F5ED, #FAF7F0), Soft White Surface (#FFFDF8), Charcoal (#30342F)
            ══════════════════════════════════════════════════════════════════ */
         :root {
-            --tg-primary: #344536;
+            --tg-primary: #2E3A2D;
+            --tg-primary-mid: #344536;
             --tg-primary-dark: #243326;
             --tg-primary-deep: #1B261D;
-            --tg-gold: #C9A646;
-            --tg-gold-hover: #B89332;
-            --tg-gold-soft: rgba(201, 166, 70, 0.12);
+            --tg-gold: #C89B3C;
+            --tg-gold-light: #F7DC8A;
+            --tg-gold-hover: #DEB042;
+            --tg-gold-soft: rgba(200, 155, 60, 0.12);
             --tg-gold-border: #E7DFC9;
             --tg-bg-cream: #F8F5ED;
             --tg-bg-warm: #FAF7F0;
@@ -1078,19 +1080,19 @@
             touch-action: none;
         }
 
-        /* ── Floating Launcher Trigger (Closed State) ───────────────── */
+        /* ── Floating Launcher Trigger (Gold-Ringed Cross Button) ────── */
         html body .ai-assistant-trigger,
         html body.user-area .ai-assistant-trigger {
             position: relative !important;
-            width: 58px !important;
-            height: 58px !important;
-            min-width: 58px !important;
-            min-height: 58px !important;
+            width: 60px !important;
+            height: 60px !important;
+            min-width: 60px !important;
+            min-height: 60px !important;
             border-radius: 50% !important;
-            background: radial-gradient(circle at center, #F7DC8A 0%, #DEB042 55%, #B8861B 100%) !important;
-            color: #1C261D !important;
-            border: 2px solid #C49226 !important;
-            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16), 0 2px 6px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(184, 134, 27, 0.22) !important;
+            background: radial-gradient(circle at 35% 35%, #F7DC8A 0%, #DEB042 52%, #B8861B 100%) !important;
+            color: #1F2920 !important;
+            border: 2.5px solid #C49226 !important;
+            box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.28), 0 8px 24px rgba(34, 45, 36, 0.28), 0 2px 6px rgba(0, 0, 0, 0.12) !important;
             display: inline-flex !important;
             align-items: center !important;
             justify-content: center !important;
@@ -1107,23 +1109,23 @@
         }
         html body .ai-assistant-trigger:hover,
         html body.user-area .ai-assistant-trigger:hover {
-            transform: scale(1.06) translateY(-2px) !important;
-            background: radial-gradient(circle at center, #FAEC9E 0%, #E5BD52 55%, #C29124 100%) !important;
-            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.20), 0 4px 8px rgba(0, 0, 0, 0.10), 0 0 0 1px rgba(184, 134, 27, 0.32) !important;
+            transform: scale(1.08) translateY(-2px) !important;
+            background: radial-gradient(circle at 35% 35%, #FAEC9E 0%, #E5BD52 50%, #C29124 100%) !important;
+            box-shadow: 0 0 0 4px rgba(200, 155, 60, 0.4), 0 12px 28px rgba(34, 45, 36, 0.35), 0 4px 8px rgba(0, 0, 0, 0.15) !important;
             border-color: #DDAE3B !important;
-            color: #1C261D !important;
+            color: #1F2920 !important;
         }
         html body .ai-assistant-widget.is-dragging .ai-assistant-trigger {
             cursor: grabbing !important;
             transform: scale(1.08) !important;
-            box-shadow: 0 14px 30px rgba(0, 0, 0, 0.24), 0 6px 12px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(184, 134, 27, 0.4) !important;
+            box-shadow: 0 14px 30px rgba(0, 0, 0, 0.24), 0 6px 12px rgba(0, 0, 0, 0.12), 0 0 0 4px rgba(184, 134, 27, 0.4) !important;
             transition: none !important;
         }
         html body .ai-assistant-icon {
             display: inline-flex !important;
             align-items: center !important;
             justify-content: center !important;
-            color: #1C261D !important;
+            color: #1F2920 !important;
             position: relative !important;
             transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s ease !important;
         }
@@ -1131,33 +1133,33 @@
             display: none !important;
             align-items: center !important;
             justify-content: center !important;
-            color: #1C261D !important;
+            color: #1F2920 !important;
             position: relative !important;
             font-size: 1.35rem !important;
             transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s ease !important;
         }
         html body .ai-assistant-icon i {
-            font-size: 1.45rem !important;
-            color: #1C261D !important;
-            filter: drop-shadow(0 1px 1px rgba(255, 255, 255, 0.25));
+            font-size: 1.35rem !important;
+            color: #1F2920 !important;
+            filter: drop-shadow(0 1px 1px rgba(255, 255, 255, 0.3));
         }
         html body .ai-assistant-close-icon i {
             font-size: 1.35rem !important;
-            color: #1C261D !important;
-            filter: drop-shadow(0 1px 1px rgba(255, 255, 255, 0.25));
+            color: #1F2920 !important;
+            filter: drop-shadow(0 1px 1px rgba(255, 255, 255, 0.3));
         }
 
-        /* ── Open State for Floating Launcher (Stays visible & morphs to active Close button) ── */
+        /* ── Open State for Launcher ─────────────────────────────────── */
         html body .ai-assistant-widget.is-open .ai-assistant-trigger {
             display: inline-flex !important;
-            background: radial-gradient(circle at center, #F7DC8A 0%, #DEB042 55%, #B8861B 100%) !important;
+            background: radial-gradient(circle at 35% 35%, #F7DC8A 0%, #DEB042 52%, #B8861B 100%) !important;
             border-color: #C49226 !important;
-            box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(184, 134, 27, 0.25) !important;
+            box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.08), 0 0 0 2px rgba(184, 134, 27, 0.25) !important;
             transform: scale(1) !important;
         }
         html body .ai-assistant-widget.is-open .ai-assistant-trigger:hover {
             transform: scale(1.08) !important;
-            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.20), 0 4px 8px rgba(0, 0, 0, 0.10), 0 0 0 1px rgba(184, 134, 27, 0.32) !important;
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.20), 0 4px 8px rgba(0, 0, 0, 0.10), 0 0 0 3px rgba(184, 134, 27, 0.35) !important;
             border-color: #DDAE3B !important;
         }
         html body .ai-assistant-widget.is-open .ai-assistant-trigger .ai-assistant-icon {
@@ -1172,25 +1174,24 @@
             to { transform: rotate(0deg) scale(1); opacity: 1; }
         }
 
-        /* ── Main Chat Panel Window (Warm Catholic Sanctuary Aesthetic) ──── */
+        /* ── Main Chat Panel Window ─────────────────────────────────── */
         html body #aiAssistantPanel,
         html body .ai-assistant-panel,
         html body.user-area .ai-assistant-panel {
             position: fixed !important;
-            bottom: 92px !important;
+            bottom: 96px !important;
             right: 24px !important;
             width: 400px !important;
             max-width: calc(100vw - 32px) !important;
-            height: 560px !important;
-            max-height: calc(100vh - 110px) !important;
+            height: 570px !important;
+            max-height: calc(100vh - 116px) !important;
             border-radius: 20px !important;
             background: #FAF7F0 !important;
             background-image:
-                radial-gradient(circle at 100% 0%, rgba(201, 166, 70, 0.07) 0%, transparent 45%),
-                radial-gradient(circle at 0% 100%, rgba(52, 69, 54, 0.05) 0%, transparent 45%),
-                url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 6 C24 18 16 28 16 48 L44 48 C44 28 36 18 30 6 Z' fill='none' stroke='%23C9A646' stroke-width='0.75' stroke-opacity='0.035'/%3E%3Cpath d='M30 16 L30 38 M22 25 L38 25' stroke='%23344536' stroke-width='0.65' stroke-opacity='0.028'/%3E%3C/svg%3E") !important;
+                radial-gradient(circle at 100% 0%, rgba(200, 155, 60, 0.08) 0%, transparent 45%),
+                radial-gradient(circle at 0% 100%, rgba(46, 58, 45, 0.05) 0%, transparent 45%) !important;
             border: 1.5px solid #E7DFC9 !important;
-            box-shadow: 0 18px 48px rgba(34, 45, 36, 0.28), 0 4px 16px rgba(201, 166, 70, 0.15) !important;
+            box-shadow: 0 18px 48px rgba(34, 45, 36, 0.26), 0 4px 16px rgba(200, 155, 60, 0.14) !important;
             display: none !important;
             flex-direction: column !important;
             overflow: hidden !important;
@@ -1211,17 +1212,17 @@
             transform: translateY(0) scale(1) !important;
         }
 
-        /* ── Header ─────────────────────────────────────────────────── */
+        /* ── Header: Soft Green Gradient with Gold Underline ───────── */
         html body .ai-assistant-panel-header,
         html body.user-area .ai-assistant-panel-header {
-            background: linear-gradient(135deg, #344536 0%, #263628 100%) !important;
+            background: linear-gradient(135deg, #2E3A2D 0%, #3B4B3A 50%, #263225 100%) !important;
             color: #FFFDF8 !important;
-            border-bottom: 1.5px solid #C9A646 !important;
+            border-bottom: 1.5px solid #C89B3C !important;
             padding: 12px 16px !important;
             display: flex !important;
             align-items: center !important;
             gap: 10px !important;
-            box-shadow: 0 2px 8px rgba(34, 45, 36, 0.25) !important;
+            box-shadow: 0 2px 8px rgba(34, 45, 36, 0.2) !important;
             user-select: none !important;
             cursor: grab !important;
         }
@@ -1239,75 +1240,114 @@
             transition: color 0.15s ease !important;
         }
         html body .ai-assistant-mobile-back:hover {
-            color: #C9A646 !important;
+            color: #C89B3C !important;
         }
-        html body .ai-assistant-panel-mark,
-        html body.user-area .ai-assistant-panel-mark {
-            width: 36px !important;
-            height: 36px !important;
-            border-radius: 50% !important;
-            background: radial-gradient(circle at center, #F7DC8A 0%, #DEB042 55%, #B8861B 100%) !important;
-            border: 1.5px solid #C49226 !important;
-            color: #1C261D !important;
+
+        /* Round emblem with cross next to TUGON name */
+        html body .ai-assistant-panel-brand {
             display: flex !important;
             align-items: center !important;
-            justify-content: center !important;
-            font-size: 1.05rem !important;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16) !important;
-            flex-shrink: 0 !important;
-        }
-        html body .ai-assistant-panel-mark i,
-        html body.user-area .ai-assistant-panel-mark i {
-            color: #1C261D !important;
-            font-size: 1.05rem !important;
-            line-height: 1 !important;
-        }
-        html body .ai-assistant-panel-identity,
-        html body.user-area .ai-assistant-panel-identity {
-            display: flex !important;
-            align-items: center !important;
+            gap: 10px !important;
             flex: 1 1 auto !important;
             min-width: 0 !important;
         }
-        html body .ai-assistant-panel-identity strong,
-        html body.user-area .ai-assistant-panel-identity strong {
+        html body .ai-assistant-panel-emblem {
+            width: 32px !important;
+            height: 32px !important;
+            border-radius: 50% !important;
+            background: radial-gradient(circle at 35% 35%, #F7DC8A 0%, #DEB042 55%, #B8861B 100%) !important;
+            border: 1.5px solid #ECC868 !important;
+            color: #1F2920 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-size: 0.9rem !important;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18) !important;
+            flex-shrink: 0 !important;
+        }
+        html body .ai-assistant-panel-emblem i {
+            color: #1F2920 !important;
+            font-size: 0.88rem !important;
+            line-height: 1 !important;
+        }
+        html body .ai-assistant-panel-titles {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 1px !important;
+        }
+        html body .ai-assistant-title-row {
+            display: flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+        }
+        html body .ai-assistant-title-row strong {
             font-family: "Playfair Display", "Cinzel", Georgia, serif !important;
-            font-size: 1.2rem !important;
+            font-size: 1.15rem !important;
             color: #FFFDF8 !important;
             font-weight: 700 !important;
             line-height: 1 !important;
             letter-spacing: 0.5px !important;
             margin: 0 !important;
         }
+        html body .ai-assistant-status-pill {
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 5px !important;
+            background: rgba(255, 255, 255, 0.12) !important;
+            border: 1px solid rgba(200, 155, 60, 0.4) !important;
+            border-radius: 999px !important;
+            padding: 1px 7px !important;
+            font-size: 0.68rem !important;
+            font-weight: 600 !important;
+            color: #E8E5DC !important;
+            line-height: 1.3 !important;
+            letter-spacing: 0.2px !important;
+        }
+        html body .ai-assistant-status-dot {
+            width: 6px !important;
+            height: 6px !important;
+            border-radius: 50% !important;
+            background: #22C55E !important;
+            box-shadow: 0 0 6px #22C55E !important;
+            display: inline-block !important;
+        }
+
+        /* Cleaner icon buttons: Start Over & Close (Minimize removed) */
+        html body .ai-assistant-header-actions {
+            display: flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            margin-left: auto !important;
+        }
         html body .ai-assistant-tool,
         html body .ai-assistant-close {
             background: rgba(255, 255, 255, 0.08) !important;
-            border: 1px solid rgba(201, 166, 70, 0.35) !important;
+            border: 1px solid rgba(200, 155, 60, 0.35) !important;
             color: #E8DFC8 !important;
-            width: 28px !important;
-            height: 28px !important;
-            border-radius: 7px !important;
+            width: 30px !important;
+            height: 30px !important;
+            border-radius: 8px !important;
             display: inline-flex !important;
             align-items: center !important;
             justify-content: center !important;
             cursor: pointer !important;
-            font-size: 0.8rem !important;
+            font-size: 0.82rem !important;
             transition: all 0.16s ease !important;
         }
         html body .ai-assistant-tool:hover,
         html body .ai-assistant-close:hover {
             color: #FFFFFF !important;
-            background: rgba(201, 166, 70, 0.28) !important;
-            border-color: #C9A646 !important;
+            background: rgba(200, 155, 60, 0.28) !important;
+            border-color: #C89B3C !important;
             transform: scale(1.06) !important;
         }
 
-        /* ── Panel Body & Scrollable Area ───────────────────────────── */
+        /* ── Panel Body & Scroll Area ───────────────────────────────── */
         html body .ai-assistant-panel-body {
             display: flex !important;
             flex-direction: column !important;
             flex: 1 1 auto !important;
-            height: calc(100% - 62px) !important;
+            height: calc(100% - 58px) !important;
             overflow: hidden !important;
             background: transparent !important;
         }
@@ -1321,24 +1361,21 @@
             flex-direction: column !important;
             gap: 12px !important;
             scrollbar-width: thin;
-            scrollbar-color: rgba(201, 166, 70, 0.35) transparent;
+            scrollbar-color: rgba(200, 155, 60, 0.35) transparent;
             background: transparent !important;
         }
         html body .ai-assistant-live-answer::-webkit-scrollbar {
             width: 5px !important;
         }
-        html body .ai-assistant-live-answer::-webkit-scrollbar-track {
-            background: transparent !important;
-        }
         html body .ai-assistant-live-answer::-webkit-scrollbar-thumb {
-            background: rgba(201, 166, 70, 0.35) !important;
+            background: rgba(200, 155, 60, 0.35) !important;
             border-radius: 10px !important;
         }
         html body .ai-assistant-live-answer::-webkit-scrollbar-thumb:hover {
-            background: rgba(201, 166, 70, 0.65) !important;
+            background: rgba(200, 155, 60, 0.65) !important;
         }
 
-        /* ── Empty State / Sacred Welcome Card ─────────────────────── */
+        /* ── Greeting: Single Unified Card (No floating cross logo) ── */
         html body .ai-assistant-empty-state {
             display: flex !important;
             flex-direction: column !important;
@@ -1346,87 +1383,172 @@
             margin-top: 4px !important;
             animation: aiFadeInUp 0.25s ease both !important;
         }
-        html body .ai-assistant-welcome-icon {
-            width: 44px !important;
-            height: 44px !important;
-            margin: 2px auto 4px !important;
-            border-radius: 12px !important;
-            background: linear-gradient(135deg, #344536 0%, #263628 100%) !important;
-            border: 1.5px solid #C9A646 !important;
-            color: #E8D8B5 !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            font-size: 1.35rem !important;
-            box-shadow: 0 4px 14px rgba(52, 69, 54, 0.15) !important;
-        }
         html body .ai-assistant-greeting-bubble {
             background: #FFFDF8 !important;
             border: 1px solid #E7DFC9 !important;
-            border-left: 3.5px solid #C9A646 !important;
+            border-left: 4px solid #C89B3C !important;
             border-radius: 14px !important;
-            padding: 14px 16px !important;
+            padding: 16px 18px !important;
             box-shadow: 0 3px 12px rgba(52, 69, 54, 0.05) !important;
             display: flex !important;
             flex-direction: column !important;
-            gap: 6px !important;
+            gap: 8px !important;
         }
         html body .ai-assistant-greeting-bubble strong {
             font-family: "Playfair Display", Georgia, serif !important;
-            font-size: 0.96rem !important;
+            font-size: 1.02rem !important;
             font-weight: 700 !important;
-            color: #344536 !important;
+            color: #2E3A2D !important;
             letter-spacing: 0.2px !important;
         }
         html body .ai-assistant-greeting-bubble span {
-            font-size: 0.84rem !important;
+            font-size: 0.86rem !important;
             color: #4A4E48 !important;
             line-height: 1.55 !important;
         }
-        html body .ai-assistant-quick-prompts {
+
+        /* ── Quick Options: Full-Width Rows with Line Icons & Small Arrow ── */
+        html body .ai-assistant-quick-rows {
             display: flex !important;
-            flex-wrap: wrap !important;
-            gap: 6px !important;
-            margin-top: 2px !important;
+            flex-direction: column !important;
+            gap: 7px !important;
+            margin-top: 4px !important;
             width: 100% !important;
-            max-width: 100% !important;
             box-sizing: border-box !important;
         }
-        html body .ai-quick-chip {
+        html body .ai-quick-row {
+            width: 100% !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 12px !important;
             background: #FFFDF8 !important;
             border: 1px solid #E7DFC9 !important;
-            border-radius: 999px !important;
-            padding: 6px 12px !important;
-            font-size: 0.78rem !important;
+            border-radius: 12px !important;
+            padding: 10px 14px !important;
+            font-size: 0.84rem !important;
             font-weight: 600 !important;
-            color: #344536 !important;
-            cursor: pointer !important;
-            transition: all 0.16s ease !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            gap: 5px !important;
-            box-shadow: 0 1px 4px rgba(52, 69, 54, 0.04) !important;
-            max-width: 100% !important;
-            white-space: normal !important;
-            word-break: break-word !important;
-            line-height: 1.35 !important;
+            color: #30342F !important;
             text-align: left !important;
+            cursor: pointer !important;
+            box-shadow: 0 1px 4px rgba(52, 69, 54, 0.04) !important;
+            transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease !important;
             box-sizing: border-box !important;
         }
-        html body .ai-quick-chip:hover {
-            background: #344536 !important;
-            border-color: #344536 !important;
+        html body .ai-quick-row:hover {
+            transform: translateX(4px) !important;
+            border-color: #C89B3C !important;
+            background: #FFFFFF !important;
+            box-shadow: 0 4px 14px rgba(200, 155, 60, 0.16), 0 2px 6px rgba(52, 69, 54, 0.06) !important;
+        }
+        html body .ai-quick-row-icon {
+            width: 28px !important;
+            height: 28px !important;
+            border-radius: 8px !important;
+            background: rgba(200, 155, 60, 0.14) !important;
+            color: #B8861B !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-size: 0.85rem !important;
+            flex-shrink: 0 !important;
+            transition: background 0.2s ease, color 0.2s ease !important;
+        }
+        html body .ai-quick-row:hover .ai-quick-row-icon {
+            background: #C89B3C !important;
             color: #FFFFFF !important;
-            transform: translateY(-1px) !important;
-            box-shadow: 0 3px 8px rgba(52, 69, 54, 0.18) !important;
+        }
+        html body .ai-quick-row-label {
+            flex: 1 1 auto !important;
+            line-height: 1.35 !important;
+        }
+        html body .ai-quick-row-arrow {
+            color: #B5B0A4 !important;
+            font-size: 0.72rem !important;
+            transition: transform 0.2s ease, color 0.2s ease !important;
+            flex-shrink: 0 !important;
+        }
+        html body .ai-quick-row:hover .ai-quick-row-arrow {
+            color: #C89B3C !important;
+            transform: translateX(2px) !important;
         }
         html body .ai-reply-quick-prompts {
-            margin-top: 8px !important;
+            margin-top: 10px !important;
             margin-bottom: 4px !important;
-            width: 100% !important;
         }
 
-        /* ── Chat Messages (AI vs User) ─────────────────────────────── */
+        /* ── Analyze First, Then Answer (Quiet Steps Animation) ─────── */
+        html body .ai-assistant-thinking-block {
+            background: #FFFDF8 !important;
+            border: 1px solid #E7DFC9 !important;
+            border-left: 3.5px solid #C89B3C !important;
+            border-radius: 12px !important;
+            padding: 12px 14px !important;
+            margin: 4px 0 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 8px !important;
+            max-width: 90% !important;
+            align-self: flex-start !important;
+            box-shadow: 0 2px 8px rgba(52, 69, 54, 0.04) !important;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            transform-origin: top !important;
+            animation: aiFadeInUp 0.22s ease both !important;
+        }
+        html body .ai-assistant-thinking-block.is-folding {
+            opacity: 0 !important;
+            transform: scale(0.96) translateY(-8px) !important;
+            max-height: 0 !important;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+            margin: 0 !important;
+            overflow: hidden !important;
+        }
+        html body .ai-thinking-step-row {
+            display: flex !important;
+            align-items: center !important;
+            gap: 10px !important;
+            font-size: 0.82rem !important;
+            color: #7D8078 !important;
+            transition: color 0.2s ease !important;
+        }
+        html body .ai-thinking-step-row.is-active {
+            color: #2E3A2D !important;
+            font-weight: 600 !important;
+        }
+        html body .ai-thinking-step-row.is-done {
+            color: #4B5548 !important;
+        }
+        html body .ai-thinking-step-row .ai-step-indicator {
+            width: 16px !important;
+            height: 16px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-size: 0.72rem !important;
+            color: #B5B0A4 !important;
+            flex-shrink: 0 !important;
+        }
+        html body .ai-thinking-step-row.is-active .ai-step-indicator {
+            color: #C89B3C !important;
+        }
+        html body .ai-thinking-step-row.is-done .ai-step-indicator {
+            color: #22C55E !important;
+        }
+
+        /* ── Typewriter Text & Blinking Cursor ───────────────────────── */
+        html body .ai-typewriter-cursor {
+            display: inline-block !important;
+            font-weight: 700 !important;
+            color: #C89B3C !important;
+            margin-left: 2px !important;
+            animation: aiCursorBlink 0.7s infinite alternate !important;
+        }
+        @keyframes aiCursorBlink {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+
+        /* ── Chat Messages (User vs Assistant) ──────────────────────── */
         html body .ai-assistant-chat-message {
             display: flex !important;
             flex-direction: column !important;
@@ -1452,8 +1574,8 @@
             width: 20px !important;
             height: 20px !important;
             border-radius: 6px !important;
-            background: #344536 !important;
-            border: 1px solid #C9A646 !important;
+            background: #2E3A2D !important;
+            border: 1px solid #C89B3C !important;
             color: #E8D8B5 !important;
             display: flex !important;
             align-items: center !important;
@@ -1464,7 +1586,7 @@
             font-family: "Playfair Display", Georgia, serif !important;
             font-size: 0.78rem !important;
             font-weight: 700 !important;
-            color: #344536 !important;
+            color: #2E3A2D !important;
             letter-spacing: 0.2px !important;
         }
         html body .ai-msg-bubble {
@@ -1474,11 +1596,11 @@
             word-break: break-word !important;
         }
         html body .ai-msg-bubble.user-bubble {
-            background: linear-gradient(135deg, #344536 0%, #263628 100%) !important;
+            background: linear-gradient(135deg, #2E3A2D 0%, #243025 100%) !important;
             color: #FFFFFF !important;
-            border: 1px solid rgba(201, 166, 70, 0.3) !important;
+            border: 1px solid rgba(200, 155, 60, 0.35) !important;
             border-radius: 16px 16px 4px 16px !important;
-            box-shadow: 0 2px 8px rgba(52, 69, 54, 0.15) !important;
+            box-shadow: 0 2px 8px rgba(46, 58, 45, 0.16) !important;
         }
         html body .ai-msg-bubble.user-bubble p {
             margin: 0 !important;
@@ -1491,7 +1613,7 @@
             background: #FFFDF8 !important;
             color: #30342F !important;
             border: 1px solid #E7DFC9 !important;
-            border-left: 3px solid #C9A646 !important;
+            border-left: 3.5px solid #C89B3C !important;
             border-radius: 4px 16px 16px 16px !important;
             box-shadow: 0 2px 10px rgba(52, 69, 54, 0.05) !important;
         }
@@ -1505,7 +1627,7 @@
             margin-bottom: 0 !important;
         }
         html body .ai-msg-bubble.assistant-bubble strong {
-            color: #222621 !important;
+            color: #1F2920 !important;
             font-weight: 700 !important;
         }
         html body .ai-assistant-bullet-list,
@@ -1528,9 +1650,9 @@
             gap: 5px !important;
             padding: 5px 11px !important;
             background: #F8F5ED !important;
-            border: 1px solid #C9A646 !important;
+            border: 1px solid #C89B3C !important;
             border-radius: 6px !important;
-            color: #344536 !important;
+            color: #2E3A2D !important;
             font-weight: 600 !important;
             font-size: 11.5px !important;
             text-decoration: none !important;
@@ -1538,9 +1660,9 @@
             transition: all 0.15s ease !important;
         }
         html body .ai-action-btn:hover {
-            background: #344536 !important;
+            background: #2E3A2D !important;
             color: #FFFFFF !important;
-            border-color: #344536 !important;
+            border-color: #2E3A2D !important;
             transform: translateY(-1px) !important;
         }
         html body .ai-assistant-message-meta {
@@ -1569,76 +1691,51 @@
             font-weight: 500 !important;
         }
         html body .ai-assistant-copy:hover {
-            color: #C9A646 !important;
-            background: rgba(201, 166, 70, 0.12) !important;
+            color: #C89B3C !important;
+            background: rgba(200, 155, 60, 0.12) !important;
         }
         html body .ai-assistant-copy.is-copied {
             color: #22C55E !important;
         }
 
-        /* ── Typing Indicator Dots ──────────────────────────────────── */
-        html body .ai-typing-bubble {
-            padding: 11px 15px !important;
-            display: inline-flex !important;
-            align-items: center !important;
-        }
-        html body .ai-typing-dots {
-            display: flex !important;
-            align-items: center !important;
-            gap: 5px !important;
-        }
-        html body .ai-typing-dots span {
-            width: 7px !important;
-            height: 7px !important;
-            border-radius: 50% !important;
-            background: #C9A646 !important;
-            animation: aiTypingBounce 1.3s infinite ease-in-out both !important;
-        }
-        html body .ai-typing-dots span:nth-child(1) { animation-delay: -0.32s !important; }
-        html body .ai-typing-dots span:nth-child(2) { animation-delay: -0.16s !important; }
-        @keyframes aiTypingBounce {
-            0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
-            40% { transform: scale(1.1); opacity: 1; }
-        }
-
-        /* ── Input Form (Seamless Cathedral Pill) ────────────────────── */
-        html body .ai-assistant-live-form,
-        html body.user-area .ai-assistant-live-form {
-            display: flex !important;
-            align-items: center !important;
-            gap: 8px !important;
-            padding: 12px 14px !important;
-            background: #FFFDF8 !important;
-            border-top: 1px solid #E7DFC9 !important;
-        }
-        html body .ai-assistant-search,
-        html body.user-area .ai-assistant-search {
-            flex: 1 1 auto !important;
-            display: flex !important;
-            align-items: center !important;
-            gap: 8px !important;
+        /* ── Input Box: Single Clean Field that Glows Gold + Footer Note ── */
+        html body .ai-assistant-bottom-area,
+        html body .ai-assistant-bottom-container {
+            padding: 10px 14px 10px !important;
             background: #FAF7F0 !important;
-            border: 1.5px solid #E7DFC9 !important;
-            border-radius: 22px !important;
-            padding: 4px 12px !important;
-            transition: all 0.18s ease !important;
+            border-top: 1px solid #E7DFC9 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 7px !important;
         }
-        html body .ai-assistant-search:focus-within,
-        html body.user-area .ai-assistant-search:focus-within {
-            background: #FFFFFF !important;
-            border-color: #C9A646 !important;
-            box-shadow: 0 0 0 3px rgba(201, 166, 70, 0.2) !important;
-        }
-        html body .ai-assistant-search i {
-            color: #8C9086 !important;
-            font-size: 13px !important;
-        }
-        html body .ai-assistant-search textarea {
+        html body .ai-assistant-live-form {
+            display: block !important;
             width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        html body .ai-assistant-input-box {
+            display: flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+            background: #FFFDF8 !important;
+            border: 1.5px solid #E7DFC9 !important;
+            border-radius: 24px !important;
+            padding: 4px 6px 4px 14px !important;
+            box-shadow: 0 1px 4px rgba(52, 69, 54, 0.04) !important;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease !important;
+        }
+        html body .ai-assistant-input-box:focus-within {
+            background: #FFFFFF !important;
+            border-color: #C89B3C !important;
+            box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.22), 0 3px 12px rgba(52, 69, 54, 0.08) !important;
+        }
+        html body .ai-assistant-input-box textarea {
+            flex: 1 1 auto !important;
             border: none !important;
             background: transparent !important;
             outline: none !important;
-            font-size: 0.86rem !important;
+            font-size: 0.88rem !important;
             color: #30342F !important;
             line-height: 1.4 !important;
             padding: 6px 0 !important;
@@ -1646,42 +1743,58 @@
             max-height: 80px !important;
             font-family: inherit !important;
         }
-        html body .ai-assistant-search textarea::placeholder {
+        html body .ai-assistant-input-box textarea::placeholder {
             color: #9C9F98 !important;
         }
-        html body .ai-assistant-live-form button[type="submit"],
-        html body.user-area .ai-assistant-live-form button[type="submit"] {
-            width: 38px !important;
-            height: 38px !important;
-            min-width: 38px !important;
+
+        /* Gold arrow send button */
+        html body .ai-assistant-input-box button[type="submit"],
+        html body.user-area .ai-assistant-input-box button[type="submit"] {
+            width: 34px !important;
+            height: 34px !important;
+            min-width: 34px !important;
             border-radius: 50% !important;
-            border: 1px solid #C9A646 !important;
-            background: linear-gradient(135deg, #344536 0%, #253527 100%) !important;
-            color: #F8F5ED !important;
+            border: none !important;
+            background: linear-gradient(135deg, #DEB042 0%, #C89B3C 100%) !important;
+            color: #1F2920 !important;
             display: inline-flex !important;
             align-items: center !important;
             justify-content: center !important;
             cursor: pointer !important;
-            box-shadow: 0 3px 10px rgba(52, 69, 54, 0.25) !important;
+            font-size: 0.85rem !important;
             transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease, background 0.18s ease !important;
-            font-size: 13px !important;
+            box-shadow: 0 2px 8px rgba(200, 155, 60, 0.3) !important;
         }
-        html body .ai-assistant-live-form button[type="submit"]:hover:not(:disabled),
-        html body.user-area .ai-assistant-live-form button[type="submit"]:hover:not(:disabled) {
+        html body .ai-assistant-input-box button[type="submit"]:hover:not(:disabled) {
             transform: scale(1.08) !important;
-            box-shadow: 0 4px 14px rgba(52, 69, 54, 0.35) !important;
-            background: linear-gradient(135deg, #C9A646 0%, #B89332 100%) !important;
-            color: #FFFFFF !important;
+            box-shadow: 0 4px 14px rgba(200, 155, 60, 0.45) !important;
+            background: linear-gradient(135deg, #ECC868 0%, #DEB042 100%) !important;
+            color: #1F2920 !important;
         }
-        html body .ai-assistant-live-form button[type="submit"]:disabled,
-        html body.user-area .ai-assistant-live-form button[type="submit"]:disabled {
-            opacity: 0.45 !important;
+        html body .ai-assistant-input-box button[type="submit"]:disabled {
+            opacity: 0.32 !important;
             cursor: not-allowed !important;
             transform: none !important;
-            background: #7D8078 !important;
-            border-color: #7D8078 !important;
-            color: #E8DFC8 !important;
+            background: #B5B0A4 !important;
+            color: #FFFFFF !important;
             box-shadow: none !important;
+        }
+
+        /* Footer Note */
+        html body .ai-assistant-footer-note {
+            font-size: 0.73rem !important;
+            color: #7D8078 !important;
+            text-align: center !important;
+            line-height: 1.35 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 5px !important;
+            padding: 0 4px !important;
+        }
+        html body .ai-assistant-footer-note i {
+            color: #C89B3C !important;
+            font-size: 0.72rem !important;
         }
 
         /* ── Animations ─────────────────────────────────────────────── */
@@ -1690,16 +1803,176 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* ── Minimized & Responsive ─────────────────────────────────── */
-        html body .ai-assistant-panel.is-minimized {
-            height: 56px !important;
-            max-height: 56px !important;
-            overflow: hidden !important;
-        }
-        html body .ai-assistant-panel.is-minimized .ai-assistant-panel-body {
-            display: none !important;
+        /* ── Dark Mode (Follows visitor's device setting & theme) ────── */
+        @media (prefers-color-scheme: dark) {
+            html:not([data-theme="light"]) body #aiAssistantPanel,
+            html:not([data-theme="light"]) body .ai-assistant-panel {
+                background: #171F18 !important;
+                background-image:
+                    radial-gradient(circle at 100% 0%, rgba(200, 155, 60, 0.1) 0%, transparent 45%),
+                    radial-gradient(circle at 0% 100%, rgba(30, 42, 31, 0.6) 0%, transparent 45%) !important;
+                border-color: #384639 !important;
+                box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55), 0 4px 16px rgba(200, 155, 60, 0.12) !important;
+            }
+            html:not([data-theme="light"]) body .ai-assistant-panel-header {
+                background: linear-gradient(135deg, #1D271E 0%, #263327 50%, #19221A 100%) !important;
+                border-bottom-color: #C89B3C !important;
+            }
+            html:not([data-theme="light"]) body .ai-assistant-greeting-bubble {
+                background: #1F2A20 !important;
+                border-color: #384639 !important;
+                border-left-color: #C89B3C !important;
+                box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25) !important;
+            }
+            html:not([data-theme="light"]) body .ai-assistant-greeting-bubble strong {
+                color: #F5F2EB !important;
+            }
+            html:not([data-theme="light"]) body .ai-assistant-greeting-bubble span {
+                color: #B2B8AE !important;
+            }
+            html:not([data-theme="light"]) body .ai-quick-row {
+                background: #1F2A20 !important;
+                border-color: #384639 !important;
+                color: #E8E5DC !important;
+            }
+            html:not([data-theme="light"]) body .ai-quick-row:hover {
+                background: #253326 !important;
+                border-color: #C89B3C !important;
+                color: #FFFFFF !important;
+                box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35) !important;
+            }
+            html:not([data-theme="light"]) body .ai-quick-row-arrow {
+                color: #6D7569 !important;
+            }
+            html:not([data-theme="light"]) body .ai-assistant-bottom-area,
+            html:not([data-theme="light"]) body .ai-assistant-bottom-container {
+                background: #171F18 !important;
+                border-top-color: #384639 !important;
+            }
+            html:not([data-theme="light"]) body .ai-assistant-input-box {
+                background: #1F2A20 !important;
+                border-color: #384639 !important;
+            }
+            html:not([data-theme="light"]) body .ai-assistant-input-box:focus-within {
+                border-color: #C89B3C !important;
+                box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.25), 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+            }
+            html:not([data-theme="light"]) body .ai-assistant-input-box textarea {
+                color: #F5F2EB !important;
+            }
+            html:not([data-theme="light"]) body .ai-assistant-footer-note {
+                color: #8C9488 !important;
+            }
+            html:not([data-theme="light"]) body .ai-assistant-thinking-block {
+                background: #1F2A20 !important;
+                border-color: #384639 !important;
+            }
+            html:not([data-theme="light"]) body .ai-thinking-step-row.is-active {
+                color: #F5F2EB !important;
+            }
+            html:not([data-theme="light"]) body .ai-msg-bubble.assistant-bubble {
+                background: #1F2A20 !important;
+                border-color: #384639 !important;
+                border-left-color: #C89B3C !important;
+                color: #F5F2EB !important;
+            }
+            html:not([data-theme="light"]) body .ai-msg-bubble.assistant-bubble p {
+                color: #F5F2EB !important;
+            }
+            html:not([data-theme="light"]) body .ai-msg-bubble.assistant-bubble strong {
+                color: #FFFFFF !important;
+            }
+            html:not([data-theme="light"]) body .ai-assistant-bullet-list li,
+            html:not([data-theme="light"]) body .ai-assistant-ordered-list li,
+            html:not([data-theme="light"]) body .ai-assistant-numbered-list li {
+                color: #D4D8CF !important;
+            }
         }
 
+        html body[data-theme="dark"] #aiAssistantPanel,
+        html body[data-theme="dark"] .ai-assistant-panel {
+            background: #171F18 !important;
+            background-image:
+                radial-gradient(circle at 100% 0%, rgba(200, 155, 60, 0.1) 0%, transparent 45%),
+                radial-gradient(circle at 0% 100%, rgba(30, 42, 31, 0.6) 0%, transparent 45%) !important;
+            border-color: #384639 !important;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55), 0 4px 16px rgba(200, 155, 60, 0.12) !important;
+        }
+        html body[data-theme="dark"] .ai-assistant-panel-header {
+            background: linear-gradient(135deg, #1D271E 0%, #263327 50%, #19221A 100%) !important;
+            border-bottom-color: #C89B3C !important;
+        }
+        html body[data-theme="dark"] .ai-assistant-greeting-bubble {
+            background: #1F2A20 !important;
+            border-color: #384639 !important;
+            border-left-color: #C89B3C !important;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25) !important;
+        }
+        html body[data-theme="dark"] .ai-assistant-greeting-bubble strong {
+            color: #F5F2EB !important;
+        }
+        html body[data-theme="dark"] .ai-assistant-greeting-bubble span {
+            color: #B2B8AE !important;
+        }
+        html body[data-theme="dark"] .ai-quick-row {
+            background: #1F2A20 !important;
+            border-color: #384639 !important;
+            color: #E8E5DC !important;
+        }
+        html body[data-theme="dark"] .ai-quick-row:hover {
+            background: #253326 !important;
+            border-color: #C89B3C !important;
+            color: #FFFFFF !important;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35) !important;
+        }
+        html body[data-theme="dark"] .ai-quick-row-arrow {
+            color: #6D7569 !important;
+        }
+        html body[data-theme="dark"] .ai-assistant-bottom-area,
+        html body[data-theme="dark"] .ai-assistant-bottom-container {
+            background: #171F18 !important;
+            border-top-color: #384639 !important;
+        }
+        html body[data-theme="dark"] .ai-assistant-input-box {
+            background: #1F2A20 !important;
+            border-color: #384639 !important;
+        }
+        html body[data-theme="dark"] .ai-assistant-input-box:focus-within {
+            border-color: #C89B3C !important;
+            box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.25), 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+        }
+        html body[data-theme="dark"] .ai-assistant-input-box textarea {
+            color: #F5F2EB !important;
+        }
+        html body[data-theme="dark"] .ai-assistant-footer-note {
+            color: #8C9488 !important;
+        }
+        html body[data-theme="dark"] .ai-assistant-thinking-block {
+            background: #1F2A20 !important;
+            border-color: #384639 !important;
+        }
+        html body[data-theme="dark"] .ai-thinking-step-row.is-active {
+            color: #F5F2EB !important;
+        }
+        html body[data-theme="dark"] .ai-msg-bubble.assistant-bubble {
+            background: #1F2A20 !important;
+            border-color: #384639 !important;
+            border-left-color: #C89B3C !important;
+            color: #F5F2EB !important;
+        }
+        html body[data-theme="dark"] .ai-msg-bubble.assistant-bubble p {
+            color: #F5F2EB !important;
+        }
+        html body[data-theme="dark"] .ai-msg-bubble.assistant-bubble strong {
+            color: #FFFFFF !important;
+        }
+        html body[data-theme="dark"] .ai-assistant-bullet-list li,
+        html body[data-theme="dark"] .ai-assistant-ordered-list li,
+        html body[data-theme="dark"] .ai-assistant-numbered-list li {
+            color: #D4D8CF !important;
+        }
+
+        /* ── Mobile Responsiveness ──────────────────────────────────── */
         @media (max-width: 767px) {
             html body .ai-assistant-widget,
             html body.user-area .ai-assistant-widget {
@@ -1709,10 +1982,10 @@
             }
             html body .ai-assistant-trigger,
             html body.user-area .ai-assistant-trigger {
-                width: 44px !important;
-                height: 44px !important;
-                min-width: 44px !important;
-                min-height: 44px !important;
+                width: 48px !important;
+                height: 48px !important;
+                min-width: 48px !important;
+                min-height: 48px !important;
                 font-size: 1.15rem !important;
                 box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16) !important;
             }
@@ -1720,7 +1993,6 @@
             html body .ai-assistant-close-icon i {
                 font-size: 1.15rem !important;
             }
-            /* Add bottom clearance on mobile so floating chat button never covers content */
             body.user-area .user-content,
             body.user-area .page-content,
             body.user-area .client-dashboard {
@@ -1753,10 +2025,6 @@
                 max-width: 98% !important;
                 width: 100% !important;
             }
-            html body .ai-quick-chip {
-                font-size: 0.76rem !important;
-                padding: 6px 10px !important;
-            }
         }
     </style>
 
@@ -1764,7 +2032,7 @@
     <div class="ai-assistant-widget" id="aiAssistantWidget">
         <button class="ai-assistant-trigger" type="button" id="aiAssistantTrigger" aria-label="Open TUGON" aria-expanded="false" title="Chat with TUGON">
             <span class="ai-assistant-icon" aria-hidden="true">
-                <i class="fas fa-comment-dots"></i>
+                <i class="fas fa-cross"></i>
             </span>
             <span class="ai-assistant-close-icon" aria-hidden="true">
                 <i class="fas fa-xmark"></i>
@@ -1777,47 +2045,73 @@
             <button class="ai-assistant-mobile-back" type="button" id="aiAssistantMobileBack" aria-label="Back to previous screen">
                 <i class="fas fa-chevron-left" aria-hidden="true"></i>
             </button>
-            <div class="ai-assistant-panel-mark" aria-hidden="true">
-                <i class="fas fa-comment-dots"></i>
+            <div class="ai-assistant-panel-brand">
+                <span class="ai-assistant-panel-emblem" aria-hidden="true">
+                    <i class="fas fa-cross"></i>
+                </span>
+                <div class="ai-assistant-panel-titles">
+                    <div class="ai-assistant-title-row">
+                        <strong>TUGON</strong>
+                        <span class="ai-assistant-status-pill">
+                            <span class="ai-assistant-status-dot"></span>
+                            <span class="ai-assistant-status-text">Online</span>
+                        </span>
+                    </div>
+                </div>
             </div>
-            <div class="ai-assistant-panel-identity">
-                <strong>TUGON</strong>
+            <div class="ai-assistant-header-actions">
+                <button class="ai-assistant-tool" type="button" id="aiAssistantClear" aria-label="Start over" title="Start over">
+                    <i class="fas fa-rotate-left"></i>
+                </button>
+                <button class="ai-assistant-close" type="button" id="aiAssistantClose" aria-label="<?php echo e(t('chatbot.close_label', 'Close AI assistant')); ?>" title="Close chat">
+                    <i class="fas fa-xmark"></i>
+                </button>
             </div>
-            <button class="ai-assistant-tool" type="button" id="aiAssistantClear" aria-label="Clear conversation" title="Clear conversation">
-                <i class="fas fa-rotate-left"></i>
-            </button>
-            <button class="ai-assistant-tool" type="button" id="aiAssistantMinimize" aria-label="Minimize chat" title="Minimize chat">
-                <i class="fas fa-minus"></i>
-            </button>
-            <button class="ai-assistant-close" type="button" id="aiAssistantClose" aria-label="<?php echo e(t('chatbot.close_label', 'Close AI assistant')); ?>" title="Close chat">
-                <i class="fas fa-xmark"></i>
-            </button>
         </div>
         <div class="ai-assistant-panel-body">
             <div class="ai-assistant-live-answer" id="aiAssistantLiveAnswer">
                 <div class="ai-assistant-empty-state" id="aiAssistantEmptyState">
-                    <div class="ai-assistant-welcome-icon" aria-hidden="true">
-                        <i class="fas fa-cross"></i>
-                    </div>
                     <div class="ai-assistant-greeting-bubble">
                         <strong id="aiAssistantWelcomeHeading">Good day, and peace be with you!</strong>
                         <span id="aiAssistantWelcomeSub">I am your TUGON Parish Guide. Feel free to ask about certificate requirements, Mass schedules, sacramental guidelines, or request tracking.</span>
                     </div>
-                    <div class="ai-assistant-quick-prompts" id="aiAssistantQuickPrompts">
-                        <button type="button" class="ai-quick-chip" data-ai-prompt="Requirements for Certificates">📜 Requirements for Certificates</button>
-                        <button type="button" class="ai-quick-chip" data-ai-prompt="How to request a Blessing">🙏 How to request a Blessing</button>
-                        <button type="button" class="ai-quick-chip" data-ai-prompt="Confirmation requirements">🕊️ Confirmation requirements</button>
-                        <button type="button" class="ai-quick-chip" data-ai-prompt="Wedding requirements">💍 Wedding requirements</button>
+                    <div class="ai-assistant-quick-rows" id="aiAssistantQuickPrompts">
+                        <button type="button" class="ai-quick-row" data-ai-prompt="Requirements for Certificates">
+                            <span class="ai-quick-row-icon"><i class="fas fa-scroll"></i></span>
+                            <span class="ai-quick-row-label">Requirements for Certificates</span>
+                            <span class="ai-quick-row-arrow"><i class="fas fa-chevron-right"></i></span>
+                        </button>
+                        <button type="button" class="ai-quick-row" data-ai-prompt="How to request a Blessing">
+                            <span class="ai-quick-row-icon"><i class="fas fa-hands-praying"></i></span>
+                            <span class="ai-quick-row-label">How to request a Blessing</span>
+                            <span class="ai-quick-row-arrow"><i class="fas fa-chevron-right"></i></span>
+                        </button>
+                        <button type="button" class="ai-quick-row" data-ai-prompt="Confirmation requirements">
+                            <span class="ai-quick-row-icon"><i class="fas fa-dove"></i></span>
+                            <span class="ai-quick-row-label">Confirmation requirements</span>
+                            <span class="ai-quick-row-arrow"><i class="fas fa-chevron-right"></i></span>
+                        </button>
+                        <button type="button" class="ai-quick-row" data-ai-prompt="Wedding requirements">
+                            <span class="ai-quick-row-icon"><i class="fas fa-ring"></i></span>
+                            <span class="ai-quick-row-label">Wedding requirements</span>
+                            <span class="ai-quick-row-arrow"><i class="fas fa-chevron-right"></i></span>
+                        </button>
                     </div>
                 </div>
             </div>
-            <form class="ai-assistant-live-form" id="aiAssistantLiveForm">
-                <label class="ai-assistant-search" for="aiAssistantLiveInput">
-                    <i class="fas fa-comment-dots" aria-hidden="true"></i>
-                    <textarea id="aiAssistantLiveInput" rows="1" maxlength="2000" data-no-autocomplete="true" placeholder="Ask about certificates, mass schedules, requests..."></textarea>
-                </label>
-                <button type="submit" id="aiAssistantSendBtn" aria-label="<?php echo e(t('chatbot.send', 'Send')); ?>" title="Send message" disabled><i class="fas fa-paper-plane" aria-hidden="true"></i></button>
-            </form>
+            <div class="ai-assistant-bottom-area">
+                <form class="ai-assistant-live-form" id="aiAssistantLiveForm">
+                    <div class="ai-assistant-input-box">
+                        <textarea id="aiAssistantLiveInput" rows="1" maxlength="2000" data-no-autocomplete="true" placeholder="Ask about certificates, mass schedules, requests..."></textarea>
+                        <button type="submit" id="aiAssistantSendBtn" aria-label="<?php echo e(t('chatbot.send', 'Send')); ?>" title="Send message" disabled>
+                            <i class="fas fa-arrow-up" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                </form>
+                <div class="ai-assistant-footer-note">
+                    <i class="fas fa-info-circle"></i> Please confirm official requests with the parish office.
+                </div>
+            </div>
         </div>
     </section>
     <?php endif; ?>
@@ -1849,7 +2143,6 @@
             const close = document.getElementById('aiAssistantClose');
             const mobileBack = document.getElementById('aiAssistantMobileBack');
             const clear = document.getElementById('aiAssistantClear');
-            const minimize = document.getElementById('aiAssistantMinimize');
             const liveForm = document.getElementById('aiAssistantLiveForm');
             const liveInput = document.getElementById('aiAssistantLiveInput');
             const liveAnswer = document.getElementById('aiAssistantLiveAnswer');
@@ -2320,11 +2613,24 @@
             }
 
             function setTyping(isTyping) {
-                // Header status subtitle line removed per UI spec
+                // Status handled by quiet thinking steps
             }
 
             function setHealthStatus(state) {
-                // Header status subtitle line removed per UI spec
+                const isOnline = state !== 'offline';
+                const statusPill = panel ? panel.querySelector('.ai-assistant-status-pill') : null;
+                const statusText = panel ? panel.querySelector('.ai-assistant-status-text') : null;
+                const statusDot = panel ? panel.querySelector('.ai-assistant-status-dot') : null;
+                if (statusText) {
+                    statusText.textContent = isOnline ? 'Online' : 'Offline';
+                }
+                if (statusDot) {
+                    statusDot.style.background = isOnline ? '#22C55E' : '#9CA3AF';
+                    statusDot.style.boxShadow = isOnline ? '0 0 6px #22C55E' : 'none';
+                }
+                if (statusPill) {
+                    statusPill.title = isOnline ? 'TUGON AI is online and ready' : 'TUGON AI is offline';
+                }
             }
 
             function checkAssistantHealth(force) {
@@ -2392,6 +2698,45 @@
                 return result.join('');
             }
 
+            function createThinkingBlock() {
+                const block = document.createElement('div');
+                block.className = 'ai-assistant-thinking-block';
+                block.id = 'aiAssistantThinkingBlock';
+                block.innerHTML =
+                    '<div class="ai-thinking-step-row is-active" data-step="1">' +
+                        '<span class="ai-step-indicator"><i class="fas fa-circle-notch fa-spin"></i></span>' +
+                        '<span class="ai-step-text">Reading your question</span>' +
+                    '</div>' +
+                    '<div class="ai-thinking-step-row is-pending" data-step="2">' +
+                        '<span class="ai-step-indicator"><i class="far fa-circle"></i></span>' +
+                        '<span class="ai-step-text">Checking parish guidelines</span>' +
+                    '</div>' +
+                    '<div class="ai-thinking-step-row is-pending" data-step="3">' +
+                        '<span class="ai-step-indicator"><i class="far fa-circle"></i></span>' +
+                        '<span class="ai-step-text">Preparing your answer</span>' +
+                    '</div>';
+                return block;
+            }
+
+            function advanceThinkingStep(block, stepNumber) {
+                if (!block) return;
+                const rows = block.querySelectorAll('.ai-thinking-step-row');
+                rows.forEach(function(row) {
+                    const s = parseInt(row.getAttribute('data-step') || '0', 10);
+                    const indicator = row.querySelector('.ai-step-indicator');
+                    if (s < stepNumber) {
+                        row.className = 'ai-thinking-step-row is-done';
+                        if (indicator) indicator.innerHTML = '<i class="fas fa-check"></i>';
+                    } else if (s === stepNumber) {
+                        row.className = 'ai-thinking-step-row is-active';
+                        if (indicator) indicator.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
+                    } else {
+                        row.className = 'ai-thinking-step-row is-pending';
+                        if (indicator) indicator.innerHTML = '<i class="far fa-circle"></i>';
+                    }
+                });
+            }
+
             function appendChatMessage(type, title, message, sourcePrompt, stream, steps, prompts, responseReference) {
                 if (!liveAnswer) {
                     return null;
@@ -2410,24 +2755,25 @@
 
                 function getPromptIcon(text) {
                     const p = String(text || '').toLowerCase();
-                    if (p.includes('certificate') || p.includes('sertipiko')) return '📜 ';
-                    if (p.includes('blessing') || p.includes('basbas')) return '🙏 ';
-                    if (p.includes('confirmation') || p.includes('kumpil')) return '🕊️ ';
-                    if (p.includes('wedding') || p.includes('marriage') || p.includes('kasal')) return '💍 ';
-                    if (p.includes('baptism') || p.includes('binyag')) return '💧 ';
-                    if (p.includes('status') || p.includes('track') || p.includes('subaybayan')) return '🔍 ';
-                    if (p.includes('pay') || p.includes('fee') || p.includes('magkano') || p.includes('cost') || p.includes('gcash')) return '💳 ';
-                    if (p.includes('schedule') || p.includes('mass') || p.includes('misa')) return '⛪ ';
-                    if (p.includes('hours') || p.includes('office') || p.includes('oras') || p.includes('contact')) return '🕒 ';
-                    return '💬 ';
+                    if (p.includes('certificate') || p.includes('sertipiko')) return '<i class="fas fa-scroll"></i>';
+                    if (p.includes('blessing') || p.includes('basbas')) return '<i class="fas fa-hands-praying"></i>';
+                    if (p.includes('confirmation') || p.includes('kumpil')) return '<i class="fas fa-dove"></i>';
+                    if (p.includes('wedding') || p.includes('marriage') || p.includes('kasal')) return '<i class="fas fa-ring"></i>';
+                    if (p.includes('baptism') || p.includes('binyag')) return '<i class="fas fa-water"></i>';
+                    if (p.includes('schedule') || p.includes('mass') || p.includes('misa')) return '<i class="fas fa-church"></i>';
+                    return '<i class="fas fa-comment-dots"></i>';
                 }
 
-                const promptChips = (type === 'assistant' && Array.isArray(prompts) && prompts.length)
-                    ? '<div class="ai-assistant-quick-prompts ai-reply-quick-prompts">' + prompts.map(function(p) {
+                const promptRows = (type === 'assistant' && Array.isArray(prompts) && prompts.length)
+                    ? '<div class="ai-assistant-quick-rows ai-reply-quick-prompts">' + prompts.map(function(p) {
                         const cleanPrompt = String(p || '').trim();
                         if (!cleanPrompt) return '';
                         const icon = getPromptIcon(cleanPrompt);
-                        return '<button type="button" class="ai-quick-chip" data-ai-prompt="' + escapeHtml(cleanPrompt) + '">' + icon + escapeHtml(cleanPrompt) + '</button>';
+                        return '<button type="button" class="ai-quick-row" data-ai-prompt="' + escapeHtml(cleanPrompt) + '">' +
+                            '<span class="ai-quick-row-icon">' + icon + '</span>' +
+                            '<span class="ai-quick-row-label">' + escapeHtml(cleanPrompt) + '</span>' +
+                            '<span class="ai-quick-row-arrow"><i class="fas fa-chevron-right"></i></span>' +
+                        '</button>';
                     }).join('') + '</div>'
                     : '';
 
@@ -2435,7 +2781,7 @@
                     item.innerHTML = '<div class="ai-msg-bubble user-bubble"><p>' + escapeHtml(message) + '</p></div><div class="ai-assistant-message-meta"><span>' + currentTime() + '</span></div>';
                 } else {
                     const formatted = formatAssistantMarkdown(message);
-                    item.innerHTML = '<div class="ai-msg-header"><span class="ai-avatar-badge" aria-hidden="true"><i class="fas fa-church"></i></span><strong>' + escapeHtml(title) + '</strong></div><div class="ai-msg-bubble assistant-bubble">' + formatted + '</div>' + stepList + feedbackHtml + '<div class="ai-assistant-message-meta"><span>' + currentTime() + '</span>' + copyButton + '</div>' + promptChips;
+                    item.innerHTML = '<div class="ai-msg-header"><span class="ai-avatar-badge" aria-hidden="true"><i class="fas fa-cross"></i></span><strong>' + escapeHtml(title) + '</strong></div><div class="ai-msg-bubble assistant-bubble">' + formatted + '</div>' + stepList + feedbackHtml + '<div class="ai-assistant-message-meta"><span>' + currentTime() + '</span>' + copyButton + '</div>' + promptRows;
                 }
 
                 liveAnswer.appendChild(item);
@@ -2446,17 +2792,121 @@
                 return item;
             }
 
-            function appendTypingBubble() {
+            function appendTypewriterAssistantMessage(title, answerText, sourcePrompt, steps, prompts, responseReference) {
                 if (!liveAnswer) {
                     return null;
                 }
                 liveAnswer.hidden = false;
                 removeEmptyState();
+
                 const item = document.createElement('div');
-                item.className = 'ai-assistant-chat-message assistant loading';
-                item.innerHTML = '<div class="ai-msg-header"><span class="ai-avatar-badge" aria-hidden="true"><i class="fas fa-church"></i></span><strong>' + escapeHtml(chatLabels.title) + '</strong></div><div class="ai-msg-bubble assistant-bubble ai-typing-bubble"><div class="ai-typing-dots" aria-label="' + escapeHtml(chatLabels.typing) + '"><span></span><span></span><span></span></div></div>';
+                item.className = 'ai-assistant-chat-message assistant';
+
+                const stepList = Array.isArray(steps) && steps.length
+                    ? '<ol class="ai-assistant-numbered-list">' + steps.map(function(step) { return '<li>' + escapeHtml(step) + '</li>'; }).join('') + '</ol>'
+                    : '';
+                const copyButton = '<button type="button" class="ai-assistant-copy" aria-label="Copy response text" title="Copy response"><i class="fas fa-copy"></i> <span>Copy</span></button>';
+                const feedbackHtml = (responseReference)
+                    ? '<div class="ai-feedback" data-response-reference="' + escapeHtml(responseReference) + '"><span class="ai-feedback-label">Was this helpful?</span> <button type="button" class="ai-feedback-btn" data-ai-rating="correct" title="Helpful" aria-label="Helpful"><i class="fas fa-thumbs-up"></i></button> <button type="button" class="ai-feedback-btn" data-ai-rating="incorrect" title="Not helpful" aria-label="Not helpful"><i class="fas fa-thumbs-down"></i></button></div>'
+                    : '';
+
+                function getPromptIcon(text) {
+                    const p = String(text || '').toLowerCase();
+                    if (p.includes('certificate') || p.includes('sertipiko')) return '<i class="fas fa-scroll"></i>';
+                    if (p.includes('blessing') || p.includes('basbas')) return '<i class="fas fa-hands-praying"></i>';
+                    if (p.includes('confirmation') || p.includes('kumpil')) return '<i class="fas fa-dove"></i>';
+                    if (p.includes('wedding') || p.includes('marriage') || p.includes('kasal')) return '<i class="fas fa-ring"></i>';
+                    if (p.includes('baptism') || p.includes('binyag')) return '<i class="fas fa-water"></i>';
+                    if (p.includes('schedule') || p.includes('mass') || p.includes('misa')) return '<i class="fas fa-church"></i>';
+                    return '<i class="fas fa-comment-dots"></i>';
+                }
+
+                const promptRows = (Array.isArray(prompts) && prompts.length)
+                    ? '<div class="ai-assistant-quick-rows ai-reply-quick-prompts">' + prompts.map(function(p) {
+                        const cleanPrompt = String(p || '').trim();
+                        if (!cleanPrompt) return '';
+                        const icon = getPromptIcon(cleanPrompt);
+                        return '<button type="button" class="ai-quick-row" data-ai-prompt="' + escapeHtml(cleanPrompt) + '">' +
+                            '<span class="ai-quick-row-icon">' + icon + '</span>' +
+                            '<span class="ai-quick-row-label">' + escapeHtml(cleanPrompt) + '</span>' +
+                            '<span class="ai-quick-row-arrow"><i class="fas fa-chevron-right"></i></span>' +
+                        '</button>';
+                    }).join('') + '</div>'
+                    : '';
+
+                item.innerHTML = 
+                    '<div class="ai-msg-header">' +
+                        '<span class="ai-avatar-badge" aria-hidden="true"><i class="fas fa-cross"></i></span>' +
+                        '<strong>' + escapeHtml(title) + '</strong>' +
+                    '</div>' +
+                    '<div class="ai-msg-bubble assistant-bubble">' +
+                        '<span class="ai-typewriter-text"></span><span class="ai-typewriter-cursor">|</span>' +
+                    '</div>' +
+                    '<div class="ai-msg-extra" style="display: none; opacity: 0; transition: opacity 0.3s ease;">' +
+                        stepList +
+                        feedbackHtml +
+                        '<div class="ai-assistant-message-meta"><span>' + currentTime() + '</span>' + copyButton + '</div>' +
+                        promptRows +
+                    '</div>';
+
                 liveAnswer.appendChild(item);
                 liveAnswer.scrollTop = liveAnswer.scrollHeight;
+
+                const typewriterEl = item.querySelector('.ai-typewriter-text');
+                const cursorEl = item.querySelector('.ai-typewriter-cursor');
+                const extraEl = item.querySelector('.ai-msg-extra');
+                const bubbleEl = item.querySelector('.ai-msg-bubble.assistant-bubble');
+
+                const cleanRaw = String(answerText || '');
+                const chunks = cleanRaw.length < 150 
+                    ? cleanRaw.split('') 
+                    : (cleanRaw.match(/(\S+\s*|\s+)/g) || [cleanRaw]);
+
+                let idx = 0;
+                let accumulated = '';
+                let completed = false;
+
+                function finishTypewriter() {
+                    if (completed) return;
+                    completed = true;
+                    if (cursorEl) cursorEl.remove();
+                    if (bubbleEl) {
+                        bubbleEl.innerHTML = formatAssistantMarkdown(cleanRaw);
+                    }
+                    if (extraEl) {
+                        extraEl.style.display = 'block';
+                        requestAnimationFrame(function() {
+                            extraEl.style.opacity = '1';
+                            liveAnswer.scrollTop = liveAnswer.scrollHeight;
+                        });
+                    }
+                    if (liveInput) {
+                        liveInput.focus();
+                    }
+                }
+
+                const speed = cleanRaw.length < 150 ? 16 : 22;
+                const typingInterval = setInterval(function() {
+                    if (idx < chunks.length) {
+                        accumulated += chunks[idx];
+                        if (typewriterEl) {
+                            typewriterEl.textContent = accumulated;
+                        }
+                        idx++;
+                        if (liveAnswer.scrollHeight - liveAnswer.scrollTop < liveAnswer.clientHeight + 120) {
+                            liveAnswer.scrollTop = liveAnswer.scrollHeight;
+                        }
+                    } else {
+                        clearInterval(typingInterval);
+                        finishTypewriter();
+                    }
+                }, speed);
+
+                item.addEventListener('click', function() {
+                    clearInterval(typingInterval);
+                    finishTypewriter();
+                }, { once: true });
+
                 return item;
             }
 
@@ -2571,12 +3021,26 @@
                 }
                 appendChatMessage('user', chatLabels.you, message);
                 conversationHistory.push({role: 'user', content: message});
-                const loading = appendTypingBubble();
-                setTyping(true);
+                removeEmptyState();
+
+                // 1. Analyze first: show 3 quiet steps
+                const thinkingBlock = createThinkingBlock();
+                liveAnswer.appendChild(thinkingBlock);
+                liveAnswer.scrollTop = liveAnswer.scrollHeight;
+
                 if (liveSubmit) {
                     liveSubmit.disabled = true;
                 }
                 const startedAt = Date.now();
+
+                // Progressive step sequence
+                const timerStep2 = setTimeout(function() {
+                    advanceThinkingStep(thinkingBlock, 2);
+                }, 420);
+
+                const timerStep3 = setTimeout(function() {
+                    advanceThinkingStep(thinkingBlock, 3);
+                }, 880);
 
                 postAssistantMessage(message, false)
                 .then(function(data) {
@@ -2586,37 +3050,49 @@
                     const title = data.success && data.guidance && data.guidance.title ? data.guidance.title : chatLabels.title;
                     const defaultPrompts = ['Requirements for Certificates', 'How to request a Blessing', 'Confirmation requirements', 'Wedding requirements'];
                     const prompts = (data.suggested_prompts && data.suggested_prompts.length) ? data.suggested_prompts : defaultPrompts;
-                    const remainingThinking = Math.max(0, thinkingDelayFor(answer) - (Date.now() - startedAt));
-                    window.setTimeout(function() {
-                        if (loading) {
-                            loading.remove();
-                        }
-                        setTyping(false);
-                        if (liveSubmit) {
-                            liveSubmit.disabled = false;
-                        }
-                        appendChatMessage('assistant', title, answer, message, true, data.success && data.guidance && data.guidance.steps ? data.guidance.steps : [], prompts, data.response_reference || '');
-                        conversationHistory.push({role: 'assistant', content: answer});
-                        if (!data.success && data.status) {
-                            setHealthStatus(data.status);
-                        }
-                    }, remainingThinking);
+
+                    // Ensure minimum calm reading time for the 3 steps
+                    const elapsed = Date.now() - startedAt;
+                    const remainingDelay = Math.max(0, 1250 - elapsed);
+
+                    setTimeout(function() {
+                        clearTimeout(timerStep2);
+                        clearTimeout(timerStep3);
+                        advanceThinkingStep(thinkingBlock, 4); // All done
+
+                        // Fold away smoothly
+                        thinkingBlock.classList.add('is-folding');
+                        setTimeout(function() {
+                            thinkingBlock.remove();
+                            if (liveSubmit) {
+                                liveSubmit.disabled = false;
+                            }
+                            appendTypewriterAssistantMessage(title, answer, message, data.success && data.guidance && data.guidance.steps ? data.guidance.steps : [], prompts, data.response_reference || '');
+                            conversationHistory.push({role: 'assistant', content: answer});
+                            if (!data.success && data.status) {
+                                setHealthStatus(data.status);
+                            }
+                        }, 280);
+                    }, remainingDelay);
                 })
                 .catch(function(err) {
                     console.error('[TUGON AI] UI fallback error:', err);
-                    const remainingThinking = Math.max(0, thinkingDelayFor(chatLabels.endpointError) - (Date.now() - startedAt));
-                    window.setTimeout(function() {
-                        if (loading) {
-                            loading.remove();
-                        }
-                        setTyping(false);
-                        setHealthStatus('offline');
-                        if (liveSubmit) {
-                            liveSubmit.disabled = false;
-                        }
-                        const defaultPrompts = ['Requirements for Certificates', 'How to request a Blessing', 'Confirmation requirements', 'Wedding requirements'];
-                        appendChatMessage('assistant', chatLabels.title, chatLabels.endpointError, message, true, [], defaultPrompts);
-                    }, remainingThinking);
+                    const elapsed = Date.now() - startedAt;
+                    const remainingDelay = Math.max(0, 1200 - elapsed);
+                    setTimeout(function() {
+                        clearTimeout(timerStep2);
+                        clearTimeout(timerStep3);
+                        thinkingBlock.classList.add('is-folding');
+                        setTimeout(function() {
+                            thinkingBlock.remove();
+                            setHealthStatus('offline');
+                            if (liveSubmit) {
+                                liveSubmit.disabled = false;
+                            }
+                            const defaultPrompts = ['Requirements for Certificates', 'How to request a Blessing', 'Confirmation requirements', 'Wedding requirements'];
+                            appendTypewriterAssistantMessage(chatLabels.title, chatLabels.endpointError, message, [], defaultPrompts);
+                        }, 280);
+                    }, remainingDelay);
                 });
             }
 
@@ -2642,16 +3118,31 @@
                     const g = getParishGreeting();
                     liveAnswer.hidden = false;
                     liveAnswer.innerHTML = '<div class="ai-assistant-empty-state" id="aiAssistantEmptyState">' +
-                        '<div class="ai-assistant-welcome-icon" aria-hidden="true"><i class="fas fa-cross"></i></div>' +
                         '<div class="ai-assistant-greeting-bubble">' +
                             '<strong id="aiAssistantWelcomeHeading">' + escapeHtml(g.heading) + '</strong>' +
                             '<span id="aiAssistantWelcomeSub">' + escapeHtml(g.sub) + '</span>' +
                         '</div>' +
-                        '<div class="ai-assistant-quick-prompts" id="aiAssistantQuickPrompts">' +
-                            '<button type="button" class="ai-quick-chip" data-ai-prompt="Requirements for Certificates">📜 Requirements for Certificates</button>' +
-                            '<button type="button" class="ai-quick-chip" data-ai-prompt="How to request a Blessing">🙏 How to request a Blessing</button>' +
-                            '<button type="button" class="ai-quick-chip" data-ai-prompt="Confirmation requirements">🕊️ Confirmation requirements</button>' +
-                            '<button type="button" class="ai-quick-chip" data-ai-prompt="Wedding requirements">💍 Wedding requirements</button>' +
+                        '<div class="ai-assistant-quick-rows" id="aiAssistantQuickPrompts">' +
+                            '<button type="button" class="ai-quick-row" data-ai-prompt="Requirements for Certificates">' +
+                                '<span class="ai-quick-row-icon"><i class="fas fa-scroll"></i></span>' +
+                                '<span class="ai-quick-row-label">Requirements for Certificates</span>' +
+                                '<span class="ai-quick-row-arrow"><i class="fas fa-chevron-right"></i></span>' +
+                            '</button>' +
+                            '<button type="button" class="ai-quick-row" data-ai-prompt="How to request a Blessing">' +
+                                '<span class="ai-quick-row-icon"><i class="fas fa-hands-praying"></i></span>' +
+                                '<span class="ai-quick-row-label">How to request a Blessing</span>' +
+                                '<span class="ai-quick-row-arrow"><i class="fas fa-chevron-right"></i></span>' +
+                            '</button>' +
+                            '<button type="button" class="ai-quick-row" data-ai-prompt="Confirmation requirements">' +
+                                '<span class="ai-quick-row-icon"><i class="fas fa-dove"></i></span>' +
+                                '<span class="ai-quick-row-label">Confirmation requirements</span>' +
+                                '<span class="ai-quick-row-arrow"><i class="fas fa-chevron-right"></i></span>' +
+                            '</button>' +
+                            '<button type="button" class="ai-quick-row" data-ai-prompt="Wedding requirements">' +
+                                '<span class="ai-quick-row-icon"><i class="fas fa-ring"></i></span>' +
+                                '<span class="ai-quick-row-label">Wedding requirements</span>' +
+                                '<span class="ai-quick-row-arrow"><i class="fas fa-chevron-right"></i></span>' +
+                            '</button>' +
                         '</div>' +
                     '</div>';
                     conversationHistory.length = 0;
@@ -2661,13 +3152,6 @@
                     if (liveSubmit) {
                         liveSubmit.disabled = true;
                     }
-                });
-            }
-
-            if (minimize) {
-                minimize.addEventListener('click', function() {
-                    panel.classList.toggle('is-minimized');
-                    minimize.innerHTML = panel.classList.contains('is-minimized') ? '<i class="fas fa-up-right-and-down-left-from-center"></i>' : '<i class="fas fa-minus"></i>';
                 });
             }
 
