@@ -166,6 +166,19 @@ final class AuditLogService
         return $rows;
     }
 
+    public function countRows(array $filters): int
+    {
+        [$where, $types, $values] = $this->where($filters);
+        $count = $this->db->prepare("SELECT COUNT(*) c FROM audit_log l LEFT JOIN users u ON u.id = l.user_id $where");
+        if ($types !== '') {
+            $count->bind_param($types, ...$values);
+        }
+        $count->execute();
+        $total = (int)($count->get_result()->fetch_assoc()['c'] ?? 0);
+        $count->close();
+        return $total;
+    }
+
     private function where(array $f): array
     {
         $clauses = [];

@@ -23,67 +23,37 @@ $filters = [
 $service = new AuditLogService($conn);
 $metrics = $service->getSummaryMetrics();
 
-$export = $_GET['export'] ?? '';
-if (in_array($export, ['csv', 'pdf'], true)) {
-    requirePermission('audit.export');
-    $rows = $service->exportRows($filters);
-    writeAuditLog(
-        $conn,
-        $_SESSION['user_id'],
-        'EXPORT_AUDIT_LOG',
-        'audit_log',
-        null,
-        null,
-        ['filters' => $filters, 'rows' => count($rows), 'format' => $export],
-        'audit',
-        'audit.export',
-        null,
-        'Exported ' . count($rows) . ' audit records in ' . strtoupper($export) . ' format.',
-        'SYSTEM',
-        'INFO'
-    );
+$export = $_GET['export'] ?? ($_POST['export'] ?? '');
+if (in_array($export, ['pdf', 'preview'], true)) {
+    if ($export !== 'preview') {
+        requirePermission('audit.export');
+    }
+    @ini_set('memory_limit', '512M');
+    @set_time_limit(120);
 
-    if ($export === 'csv') {
-        header('Content-Type: text/csv; charset=utf-8');
-        header('Content-Disposition: attachment; filename="tugon-audit-' . date('Ymd-His') . '.csv"');
-        $out = fopen('php://output', 'w');
-        fwrite($out, "\xEF\xBB\xBF");
-        fputcsv($out, [
-            'Time',
-            'Actor Name',
-            'Actor Role',
-            'Severity',
-            'Category',
-            'Action',
-            'Target Type',
-            'Target ID',
-            'Summary Description',
-            'Client IP',
-            'Device / Browser',
-            'Correlation ID'
-        ]);
-        foreach ($rows as $r) {
-            $uaParsed = parseUserAgentSummary($r['user_agent'] ?? '');
-            fputcsv($out, [
-                $r['created_at'],
-                $r['actor'],
-                $r['actor_role'],
-                $r['severity'],
-                $r['event_category'],
-                $r['action'],
-                $r['target_type'],
-                $r['target_id'] ?: '',
-                $r['description'],
-                $r['ip_address'],
-                $uaParsed['browser'] . ' / ' . $uaParsed['device'],
-                $r['correlation_id']
-            ]);
-        }
-        fclose($out);
-        exit;
+    // Limit PDF rendering to 200 rows for fast compiling (< 4s). Preview can show up to 300 rows.
+    $pdfLimit = ($export === 'preview') ? 300 : 200;
+    $rows = $service->exportRows($filters, $pdfLimit);
+    $totalCount = $service->countRows($filters);
+
+    if ($export !== 'preview') {
+        writeAuditLog(
+            $conn,
+            $_SESSION['user_id'],
+            'EXPORT_AUDIT_LOG',
+            'audit_log',
+            null,
+            null,
+            ['filters' => $filters, 'rows' => count($rows), 'total' => $totalCount, 'format' => $export],
+            'audit',
+            'audit.export',
+            null,
+            'Exported ' . count($rows) . ' audit records in PDF format.',
+            'SYSTEM',
+            'INFO'
+        );
     }
 
-    // PDF export
     require_once '../vendor/autoload.php';
     require_once '../services/ReportPdfGenerator.php';
     $pdfColumns = [
@@ -100,8 +70,8 @@ if (in_array($export, ['csv', 'pdf'], true)) {
     $pdfData = [
         'columns' => $pdfColumns,
         'rows' => $pdfRows,
-        'total' => count($pdfRows),
-        'truncated' => count($pdfRows) >= 10000
+        'total' => $totalCount,
+        'truncated' => $totalCount > count($pdfRows)
     ];
     $generatedBy = !empty($_SESSION['fullname']) ? (string)$_SESSION['fullname'] : 'Parish Administrator';
     $pdfFilters = [
@@ -111,7 +81,23 @@ if (in_array($export, ['csv', 'pdf'], true)) {
         'type' => $filters['category'] ?: ($filters['component'] ?: ''),
         'q' => $filters['q']
     ];
-    require_once '../services/ReportPdfGenerator.php';
+
+    if ($export === 'preview') {
+        header('Content-Type: text/html; charset=utf-8');
+        echo ReportPdfGenerator::buildHtml(
+            'audit_log',
+            'Audit Log Report',
+            $pdfFilters,
+            $pdfData,
+            $generatedBy,
+            'Security, Transactions & System Activity Logs',
+            [],
+            [],
+            false
+        );
+        exit;
+    }
+
     ReportPdfGenerator::stream(
         'audit_log',
         'Audit Log Report',
@@ -295,6 +281,65 @@ include '../templates/header.php';
     font-weight: 600;
     word-break: break-word;
   }
+
+  /* --- Print Preview Modal Styling --- */
+  .print-preview-modal-dialog {
+    max-width: 1160px;
+    margin: 1.5rem auto;
+  }
+  .print-preview-modal-content {
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .print-preview-modal-body {
+    background: #525659;
+    min-height: 560px;
+    max-height: calc(85vh - 130px);
+    overflow-y: auto;
+    position: relative;
+  }
+  .print-preview-container {
+    display: flex;
+    justify-content: center;
+    padding: 24px 16px;
+    min-height: 100%;
+  }
+  .print-paper-sheet {
+    background: #ffffff;
+    width: 100%;
+    max-width: 1080px;
+    min-height: 800px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.38);
+    border-radius: 4px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .print-preview-iframe {
+    width: 100%;
+    min-height: 750px;
+    height: 100%;
+    border: none;
+    background: #ffffff;
+    display: block;
+  }
+  .print-preview-loading {
+    background: #f8fafc;
+    min-height: 520px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .print-preview-header-icon {
+    width: 34px;
+    height: 34px;
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
 </style>
 
 <div class="container-fluid px-0 audit-page">
@@ -427,10 +472,10 @@ include '../templates/header.php';
     </div>
     <?php if(hasPermission('audit.export')): ?>
       <div class="d-flex gap-2">
-        <a class="btn btn-sm btn-outline-success fw-semibold" href="?<?php echo e(http_build_query(array_merge($base, ['export' => 'csv']))); ?>">
-          <i class="fas fa-file-csv me-1" aria-hidden="true"></i> Export CSV
-        </a>
-        <a class="btn btn-sm btn-outline-danger fw-semibold" href="?<?php echo e(http_build_query(array_merge($base, ['export' => 'pdf']))); ?>">
+        <button type="button" class="btn btn-sm btn-dark fw-semibold" id="btnOpenPrintPreview" style="background:#1e3a24;border-color:#1e3a24;">
+          <i class="fas fa-print me-1" aria-hidden="true"></i> Print Preview
+        </button>
+        <a class="btn btn-sm btn-outline-danger fw-semibold" id="btnExportPdf" href="?<?php echo e(http_build_query(array_merge($base, ['export' => 'pdf']))); ?>">
           <i class="fas fa-file-pdf me-1" aria-hidden="true"></i> Export PDF
         </a>
       </div>
@@ -931,7 +976,180 @@ document.addEventListener('DOMContentLoaded', function() {
       bsModal.show();
     });
   });
+
+  // --- Print Preview Handlers ---
+  var printPreviewModalEl = document.getElementById('printPreviewModal');
+  var printPreviewModal = printPreviewModalEl ? new bootstrap.Modal(printPreviewModalEl) : null;
+
+  function openPrintPreview() {
+    if (!printPreviewModal) return;
+    printPreviewModal.show();
+
+    var loadingEl = document.getElementById('printPreviewLoading');
+    var errorEl = document.getElementById('printPreviewError');
+    var containerEl = document.getElementById('printPreviewContainer');
+    var iframe = document.getElementById('printPreviewIframe');
+    var filterSummaryEl = document.getElementById('printPreviewFilterSummary');
+
+    if (loadingEl) loadingEl.classList.remove('d-none');
+    if (errorEl) errorEl.classList.add('d-none');
+    if (containerEl) containerEl.classList.add('d-none');
+
+    // Build URL with current filters and export=preview
+    var params = new URLSearchParams(window.location.search);
+    params.set('export', 'preview');
+
+    if (filterSummaryEl) {
+      var parts = [];
+      if (params.get('from') || params.get('to')) {
+        parts.push('Date: ' + (params.get('from') || 'Beginning') + ' to ' + (params.get('to') || 'Present'));
+      }
+      if (params.get('category')) {
+        parts.push('Category: ' + params.get('category'));
+      }
+      if (params.get('severity')) {
+        parts.push('Severity: ' + params.get('severity'));
+      }
+      if (params.get('q')) {
+        parts.push('Search: "' + params.get('q') + '"');
+      }
+      filterSummaryEl.textContent = parts.length ? parts.join(' | ') : 'All active records (no filters)';
+    }
+
+    fetch('audit-logs.php?' + params.toString())
+      .then(function(res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status + ' while building preview.');
+        return res.text();
+      })
+      .then(function(html) {
+        if (loadingEl) loadingEl.classList.add('d-none');
+        if (containerEl) containerEl.classList.remove('d-none');
+        if (iframe) {
+          iframe.onload = function() {
+            try {
+              var doc = iframe.contentDocument || iframe.contentWindow.document;
+              var h = Math.max(
+                doc.body.scrollHeight,
+                doc.body.offsetHeight,
+                doc.documentElement.clientHeight,
+                doc.documentElement.scrollHeight,
+                doc.documentElement.offsetHeight
+              );
+              iframe.style.height = (h + 40) + 'px';
+            } catch (e) {
+              iframe.style.height = '1100px';
+            }
+          };
+          iframe.srcdoc = html;
+        }
+      })
+      .catch(function(err) {
+        if (loadingEl) loadingEl.classList.add('d-none');
+        if (errorEl) errorEl.classList.remove('d-none');
+        var msgEl = document.getElementById('printPreviewErrorMsg');
+        if (msgEl) msgEl.textContent = err.message || 'An unexpected error occurred while loading preview.';
+      });
+  }
+
+  function executePreviewPrint() {
+    var iframe = document.getElementById('printPreviewIframe');
+    if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+    } else {
+      window.print();
+    }
+  }
+
+  var btnOpenPrintPreview = document.getElementById('btnOpenPrintPreview');
+  if (btnOpenPrintPreview) {
+    btnOpenPrintPreview.addEventListener('click', openPrintPreview);
+  }
+
+  var btnRetryPrintPreview = document.getElementById('btnRetryPrintPreview');
+  if (btnRetryPrintPreview) {
+    btnRetryPrintPreview.addEventListener('click', openPrintPreview);
+  }
+
+  var btnModalPrintDoc = document.getElementById('btnModalPrintDoc');
+  if (btnModalPrintDoc) {
+    btnModalPrintDoc.addEventListener('click', executePreviewPrint);
+  }
 });
 </script>
+
+<!-- Print Preview Modal -->
+<div class="modal fade" id="printPreviewModal" tabindex="-1" aria-labelledby="printPreviewModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable print-preview-modal-dialog">
+    <div class="modal-content border-0 shadow-lg print-preview-modal-content">
+      
+      <!-- Fixed Modal Header -->
+      <div class="modal-header bg-dark text-white px-4 py-3 align-items-center">
+        <div class="d-flex align-items-center gap-2">
+          <span class="print-preview-header-icon"><i class="fas fa-print text-warning"></i></span>
+          <div>
+            <h5 class="modal-title mb-0 fw-bold fs-6" id="printPreviewModalLabel">Print Preview &mdash; Audit Log Report</h5>
+            <small class="text-white-50" id="printPreviewFilterSummary">Active filters &amp; live compliance logs</small>
+          </div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+      </div>
+
+      <!-- Scrollable Modal Body -->
+      <div class="modal-body p-0 print-preview-modal-body">
+        
+        <!-- Loading State -->
+        <div id="printPreviewLoading" class="print-preview-loading py-5 text-center">
+          <div class="spinner-border text-warning mb-3" style="width: 3rem; height: 3rem;" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <h6 class="fw-bold text-dark mb-1">Generating Print Preview...</h6>
+          <p class="text-muted small mb-0">Rendering document layout and formatting audit records</p>
+        </div>
+
+        <!-- Error State -->
+        <div id="printPreviewError" class="print-preview-error p-4 text-center d-none">
+          <div class="alert alert-danger mx-auto my-4" style="max-width: 600px;">
+            <i class="fas fa-circle-exclamation fs-4 mb-2 d-block"></i>
+            <h6 class="fw-bold mb-1">Unable to compile print preview</h6>
+            <p class="small mb-3" id="printPreviewErrorMsg">An unexpected error occurred while generating the document.</p>
+            <button type="button" class="btn btn-sm btn-outline-danger" id="btnRetryPrintPreview">
+              <i class="fas fa-rotate-right me-1"></i> Retry Preview
+            </button>
+          </div>
+        </div>
+
+        <!-- Document Viewer Container -->
+        <div id="printPreviewContainer" class="print-preview-container d-none">
+          <div class="print-paper-sheet">
+            <iframe id="printPreviewIframe" title="Print Preview Document" class="print-preview-iframe"></iframe>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Fixed Modal Footer -->
+      <div class="modal-footer bg-light px-4 py-2 d-flex justify-content-between align-items-center">
+        <div class="text-muted small d-none d-sm-block">
+          <i class="fas fa-circle-info text-primary me-1"></i> Preview renders exact printable layout with letterhead and audit table.
+        </div>
+        <div class="d-flex gap-2 ms-auto">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-1"></i> Close
+          </button>
+          <a class="btn btn-outline-dark" id="btnModalDownloadPdf" href="?<?php echo e(http_build_query(array_merge($base, ['export' => 'pdf']))); ?>">
+            <i class="fas fa-file-pdf text-danger me-1"></i> Download as PDF
+          </a>
+          <button type="button" class="btn btn-primary" id="btnModalPrintDoc" style="background: #1e3a24; border-color: #1e3a24;">
+            <i class="fas fa-print me-1"></i> Print / Save as PDF
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
 
 <?php include '../templates/footer.php'; ?>

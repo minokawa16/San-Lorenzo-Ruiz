@@ -1921,9 +1921,6 @@ include '../templates/header.php';
       ]))); ?>">
         <i class="fas fa-file-pdf"></i> Export PDF
       </a>
-      <a class="ar-btn ar-btn-outline" href="?<?php echo e(http_build_query(array_merge($queryBase, ['export' => 'csv']))); ?>">
-        <i class="fas fa-file-csv"></i> Export CSV
-      </a>
     </div>
     <?php endif; ?>
   </div>
@@ -1947,11 +1944,6 @@ include '../templates/header.php';
         <span class="ar-summary-updated" title="Data queried live from database">
           <i class="far fa-clock"></i> Last updated: <?php echo date('M d, Y h:i A'); ?>
         </span>
-        <?php if (hasPermission('reports.export')): ?>
-        <a class="ar-summary-export-btn" href="?<?php echo e(http_build_query(array_merge($_GET, ['summary_export' => 'csv']))); ?>" title="Export this operational summary as a CSV spreadsheet">
-          <i class="fas fa-download"></i> Export Summary (CSV)
-        </a>
-        <?php endif; ?>
       </div>
     </div>
 
@@ -2394,9 +2386,6 @@ include '../templates/header.php';
         </button>
         <button type="button" class="ar-btn ar-btn-outline" id="btnLogPdf" title="Save activity log as PDF">
           <i class="fas fa-file-pdf"></i> PDF
-        </button>
-        <button type="button" class="ar-btn ar-btn-outline" id="btnLogCsv" title="Download visible rows as CSV spreadsheet">
-          <i class="fas fa-file-csv"></i> CSV
         </button>
       </div>
     </div>

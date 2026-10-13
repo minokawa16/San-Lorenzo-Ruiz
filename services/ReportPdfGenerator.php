@@ -62,7 +62,7 @@ final class ReportPdfGenerator
         $html = self::buildHtml($reportKey, $title, $filters, $data, $generatedBy, $subtitle, $charts, $meta, true);
 
         $options = new Options();
-        $options->set('isRemoteEnabled', true);
+        $options->set('isRemoteEnabled', false);
         $options->set('isHtml5ParserEnabled', true);
         $options->set('defaultFont', 'Helvetica');
 
@@ -221,13 +221,15 @@ final class ReportPdfGenerator
 <head>
 <meta charset="UTF-8">
 <title><?php echo htmlspecialchars($title, ENT_QUOTES, 'UTF-8'); ?></title>
+<?php if (!$isDompdf): ?>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+<?php endif; ?>
 <style>
     @page {
-        size: portrait;
-        margin: 10mm 12mm 12mm 12mm;
+        size: <?php echo ($reportKey === 'audit_log') ? 'landscape' : 'portrait'; ?>;
+        margin: <?php echo ($reportKey === 'audit_log') ? '8mm 10mm 10mm 10mm' : '10mm 12mm 12mm 12mm'; ?>;
     }
     *, *::before, *::after {
         box-sizing: border-box;
@@ -246,7 +248,7 @@ final class ReportPdfGenerator
     @media screen {
         body {
             padding: 20px 24px;
-            max-width: 820px;
+            max-width: <?php echo ($reportKey === 'audit_log') ? '1120px' : '820px'; ?>;
             margin: 0 auto;
             background: #ffffff;
         }
@@ -1119,8 +1121,8 @@ final class ReportPdfGenerator
 
         $str = trim((string) $rawVal);
 
-        // 1. Status & Timing badges
-        if (in_array($key, ['status', 'timing', 'priority'], true)) {
+        // 1. Status, Timing, Priority & Severity badges
+        if (in_array($key, ['status', 'timing', 'priority', 'severity'], true)) {
             return self::renderBadge($key, $str);
         }
 
@@ -1156,13 +1158,13 @@ final class ReportPdfGenerator
         $normalized = strtolower(trim($val));
 
         $badgeClass = 'badge-neutral';
-        if (in_array($normalized, ['approved', 'processing', 'in_processing', 'ready_for_pickup', 'ready'], true)) {
+        if (in_array($normalized, ['approved', 'processing', 'in_processing', 'ready_for_pickup', 'ready', 'info'], true)) {
             $badgeClass = 'badge-info';
         } elseif (in_array($normalized, ['completed', 'released', 'issued', 'sent'], true)) {
             $badgeClass = 'badge-success';
-        } elseif (in_array($normalized, ['pending', 'submitted', 'due soon', 'review', 'requirements_review', 'draft'], true)) {
+        } elseif (in_array($normalized, ['pending', 'submitted', 'due soon', 'review', 'requirements_review', 'draft', 'warning'], true)) {
             $badgeClass = 'badge-warning';
-        } elseif (in_array($normalized, ['overdue', 'rejected', 'cancelled', 'revoked', 'failed', 'urgent', 'high', 'declined'], true)) {
+        } elseif (in_array($normalized, ['overdue', 'rejected', 'cancelled', 'revoked', 'failed', 'urgent', 'high', 'declined', 'critical'], true)) {
             $badgeClass = 'badge-danger';
         }
 
