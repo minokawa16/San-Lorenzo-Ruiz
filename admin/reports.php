@@ -1895,6 +1895,928 @@ include '../templates/header.php';
 .ar-sum-row-total {
   color: #1e293b;
 }
+
+/* === OPERATIONAL SUMMARY DRILL-DOWN POPUP & BUTTON STYLES === */
+button.ar-drilldown-trigger {
+  font-family: inherit;
+  border: none;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.18s ease;
+  position: relative;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* 1. Summary Cards Buttons */
+button.ar-sum-card-btn {
+  width: 100%;
+  border: 1px solid #ebdcc5;
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  text-align: left;
+}
+button.ar-sum-card-btn:not(:disabled):hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(140, 98, 37, 0.12), 0 2px 6px rgba(46, 58, 45, 0.06);
+  border-color: #c89b3c;
+}
+button.ar-sum-card-btn:not(:disabled):focus-visible {
+  outline: 2px solid #c89b3c;
+  outline-offset: 2px;
+}
+button.ar-sum-card-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+  box-shadow: none;
+  transform: none;
+}
+.ar-sum-card-action {
+  margin-left: auto;
+  font-size: 0.72rem;
+  color: #c89b3c;
+  opacity: 0.8;
+  transition: transform 0.15s ease;
+}
+button.ar-sum-card-btn:not(:disabled):hover .ar-sum-card-action {
+  transform: translateX(3px);
+  opacity: 1;
+}
+
+/* 2. Certificates Breakdown row button */
+button.ar-sum-bar-btn {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+button.ar-sum-bar-btn:not(:disabled):hover {
+  background: #fbf8f2;
+  border-color: #e8d7c0;
+  transform: translateX(2px);
+}
+button.ar-sum-bar-btn:not(:disabled):focus-visible {
+  outline: 2px solid #c89b3c;
+  outline-offset: 1px;
+}
+button.ar-sum-bar-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* 3. Blessings Hero Tile button */
+button.ar-blessing-hero-btn {
+  width: 100%;
+  text-align: left;
+  border: 1.5px solid #bbf7d0;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+button.ar-blessing-hero-btn:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.16);
+  border-color: #10b981;
+}
+button.ar-blessing-hero-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+/* 4. Status Chip Buttons */
+button.ar-status-chip-btn {
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+button.ar-status-chip-btn:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+button.ar-status-chip-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  box-shadow: none;
+  transform: none;
+}
+
+/* 5. Blessing Type Row Button */
+button.ar-blessing-type-btn {
+  width: 100%;
+  padding: 7px 8px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+button.ar-blessing-type-btn:not(:disabled):hover {
+  background: #f4ecdf;
+  border-color: #ebdcc5;
+  transform: translateX(2px);
+}
+button.ar-blessing-type-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* 6. Sacramental Table Mini-Pill Buttons */
+button.s-mini-pill-btn {
+  cursor: pointer;
+  outline: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+button.s-mini-pill-btn:not(:disabled):hover {
+  transform: scale(1.1);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+  filter: brightness(0.96);
+}
+button.s-mini-pill-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* 7. Sacramental Table Total Buttons */
+button.s-total-badge-btn {
+  cursor: pointer;
+  outline: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+button.s-total-badge-btn:not(:disabled):hover {
+  transform: scale(1.06);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+  background: #eae2d5;
+}
+button.s-total-badge-btn.s-grand-total:not(:disabled):hover {
+  background: #1e261e;
+  box-shadow: 0 3px 10px rgba(46, 58, 45, 0.35);
+}
+button.s-total-badge-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* === DRILL-DOWN POPUP MODAL === */
+.ar-dd-backdrop {
+  position: fixed;
+  top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(18, 26, 19, 0.70);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 1060;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.22s ease, visibility 0.22s ease;
+}
+.ar-dd-backdrop.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.ar-dd-dialog {
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1.5px solid #ebdcc5;
+  width: 100%;
+  max-width: 760px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 60px rgba(28, 38, 28, 0.28), 0 4px 16px rgba(200, 155, 60, 0.12);
+  transform: scale(0.96) translateY(12px);
+  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+  position: relative;
+}
+.ar-dd-backdrop.active .ar-dd-dialog {
+  transform: scale(1) translateY(0);
+}
+
+.ar-dd-dialog::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #c89b3c 0%, #2e5e3b 50%, #deb042 100%);
+  z-index: 10;
+}
+
+.ar-dd-header {
+  padding: 18px 24px;
+  background: #fbf9f5;
+  border-bottom: 1.5px solid #ebdcc5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  position: relative;
+}
+.ar-dd-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+}
+
+.ar-dd-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border: 1.5px solid #d8c5ab;
+  color: #2e3a2d;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 6px 13px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+.ar-dd-back-btn:hover {
+  background: #2e3a2d;
+  border-color: #2e3a2d;
+  color: #ffffff;
+}
+
+.ar-dd-title-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(200, 155, 60, 0.14);
+  border: 1px solid rgba(200, 155, 60, 0.3);
+  color: #8c6225;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+
+.ar-dd-title-wrap {
+  min-width: 0;
+}
+
+.ar-dd-title {
+  margin: 0;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #2e3a2d;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ar-dd-meta-pills {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.ar-dd-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #f1e4d0;
+  color: #6a491d;
+  border: 1px solid #dec8a7;
+}
+.ar-dd-badge-green {
+  background: #d1fae5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+
+.ar-dd-close-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1.5px solid #dec8a7;
+  color: #7d6b56;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+.ar-dd-close-btn:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #b91c1c;
+  transform: rotate(90deg);
+}
+
+.ar-dd-body {
+  padding: 20px 24px;
+  overflow-y: auto;
+  flex: 1;
+  background: #ffffff;
+  position: relative;
+  min-height: 240px;
+}
+
+.ar-dd-loading {
+  text-align: center;
+  padding: 50px 20px;
+  color: #8c7355;
+}
+.ar-dd-loading i {
+  font-size: 2.2rem;
+  color: #c89b3c;
+  margin-bottom: 12px;
+}
+.ar-dd-loading div {
+  font-weight: 700;
+  color: #2e3a2d;
+  font-size: 0.95rem;
+}
+
+.ar-dd-empty {
+  text-align: center;
+  padding: 44px 20px;
+  background: #faf8f5;
+  border: 1.5px dashed #ebdcc5;
+  border-radius: 14px;
+  margin: 10px 0;
+}
+.ar-dd-empty i {
+  font-size: 2.4rem;
+  color: #c89b3c;
+  opacity: 0.6;
+  margin-bottom: 10px;
+  display: block;
+}
+.ar-dd-empty h4 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #2e3a2d;
+  margin: 0 0 4px;
+}
+.ar-dd-empty p {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  margin: 0;
+}
+
+.ar-dd-requesters-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ar-dd-requester-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: #ffffff;
+  border: 1.5px solid #ebdcc5;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  text-align: left;
+  width: 100%;
+}
+.ar-dd-requester-card:hover {
+  background: #fdfaf6;
+  border-color: #c89b3c;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(140, 98, 37, 0.10);
+}
+
+.ar-dd-req-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.ar-dd-req-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #2e3a2d;
+  color: #deb042;
+  border: 2px solid #deb042;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+
+.ar-dd-req-info {
+  min-width: 0;
+}
+
+.ar-dd-req-name {
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: #1e293b;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ar-dd-req-latest {
+  font-size: 0.74rem;
+  color: #8c7355;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ar-dd-req-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.ar-dd-req-count-badge {
+  background: #fbf7f0;
+  border: 1.5px solid #dec8a7;
+  color: #8c6225;
+  font-weight: 800;
+  font-size: 0.8rem;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ar-dd-req-chevron {
+  color: #c89b3c;
+  font-size: 0.85rem;
+  transition: transform 0.15s ease;
+}
+.ar-dd-requester-card:hover .ar-dd-req-chevron {
+  transform: translateX(3px);
+}
+
+.ar-dd-detail-view {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.ar-dd-detail-profile {
+  background: linear-gradient(135deg, #fbf7f0 0%, #f4ecdf 100%);
+  border: 1.5px solid #ebdcc5;
+  border-radius: 14px;
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.ar-dd-dp-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.ar-dd-dp-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #2e3a2d;
+  color: #deb042;
+  border: 2px solid #deb042;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.25rem;
+  box-shadow: 0 4px 10px rgba(46, 58, 45, 0.18);
+}
+
+.ar-dd-dp-name {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #2e3a2d;
+  margin: 0;
+}
+
+.ar-dd-dp-sub {
+  font-size: 0.77rem;
+  color: #8c7355;
+  margin: 2px 0 0;
+}
+
+.ar-dd-dp-counters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ar-dd-stat-pill {
+  background: #ffffff;
+  border: 1px solid #ebdcc5;
+  border-radius: 10px;
+  padding: 6px 12px;
+  font-size: 0.73rem;
+  font-weight: 700;
+  color: #4b3826;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ar-dd-stat-pill strong {
+  font-size: 0.86rem;
+  color: #2e3a2d;
+}
+
+.ar-dd-requests-heading {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #8c7355;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.ar-dd-requests-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ar-dd-item-card {
+  background: #ffffff;
+  border: 1.5px solid #ebdcc5;
+  border-radius: 12px;
+  padding: 13px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  transition: all 0.15s ease;
+  position: relative;
+}
+.ar-dd-item-card.is-match {
+  background: #fffdf9;
+  border: 2px solid #c89b3c;
+  box-shadow: 0 4px 14px rgba(200, 155, 60, 0.12);
+}
+
+.ar-dd-item-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ar-dd-item-ref-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ar-dd-item-ref {
+  font-family: monospace, monospace;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #2e3a2d;
+  background: #fbf7f0;
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid #ebdcc5;
+}
+
+.ar-dd-item-type {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.ar-dd-item-date {
+  font-size: 0.73rem;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ar-dd-item-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.ar-dd-match-tag {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  border-radius: 12px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 3px 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ar-dd-status-pill {
+  padding: 4px 11px;
+  border-radius: 14px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+.ar-dd-status-pill.status-completed {
+  background: #d1fae5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+.ar-dd-status-pill.status-pending {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fde68a;
+}
+.ar-dd-status-pill.status-approved {
+  background: #dbeafe;
+  color: #1e40af;
+  border-color: #bfdbfe;
+}
+.ar-dd-status-pill.status-cancelled {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+.ar-dd-status-pill.status-neutral {
+  background: #f1f5f9;
+  color: #475569;
+  border-color: #e2e8f0;
+}
+
+.ar-dd-footer {
+  padding: 12px 24px;
+  background: #faf8f5;
+  border-top: 1px solid #ebdcc5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.ar-dd-footer-note {
+  font-size: 0.73rem;
+  color: #8c7355;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.ar-dd-footer-close-btn {
+  background: #ffffff;
+  border: 1.5px solid #dec8a7;
+  color: #6a491d;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.ar-dd-footer-close-btn:hover {
+  background: #8c6225;
+  border-color: #8c6225;
+  color: #ffffff;
+}
+
+/* Dark mode and theme overrides */
+@media (prefers-color-scheme: dark) {
+  body:not(.light-theme) .ar-dd-dialog {
+    background: #182019;
+    border-color: #38493a;
+    color: #e2e8f0;
+  }
+  body:not(.light-theme) .ar-dd-header,
+  body:not(.light-theme) .ar-dd-footer {
+    background: #1f2a20;
+    border-color: #38493a;
+  }
+  body:not(.light-theme) .ar-dd-title {
+    color: #f1f5f9;
+  }
+  body:not(.light-theme) .ar-dd-body {
+    background: #141b14;
+  }
+  body:not(.light-theme) .ar-dd-requester-card {
+    background: #1c251d;
+    border-color: #334234;
+  }
+  body:not(.light-theme) .ar-dd-requester-card:hover {
+    background: #233024;
+    border-color: #c89b3c;
+  }
+  body:not(.light-theme) .ar-dd-req-name {
+    color: #f8fafc;
+  }
+  body:not(.light-theme) .ar-dd-detail-profile {
+    background: #1f2a20;
+    border-color: #38493a;
+  }
+  body:not(.light-theme) .ar-dd-dp-name {
+    color: #f8fafc;
+  }
+  body:not(.light-theme) .ar-dd-stat-pill {
+    background: #182019;
+    border-color: #38493a;
+    color: #cbd5e1;
+  }
+  body:not(.light-theme) .ar-dd-stat-pill strong {
+    color: #f1f5f9;
+  }
+  body:not(.light-theme) .ar-dd-item-card {
+    background: #1c251d;
+    border-color: #334234;
+  }
+  body:not(.light-theme) .ar-dd-item-card.is-match {
+    background: #252b1e;
+    border-color: #deb042;
+  }
+  body:not(.light-theme) .ar-dd-item-type {
+    color: #f1f5f9;
+  }
+  body:not(.light-theme) .ar-dd-item-ref {
+    background: #141b14;
+    border-color: #38493a;
+    color: #e2e8f0;
+  }
+  body:not(.light-theme) .ar-dd-back-btn,
+  body:not(.light-theme) .ar-dd-close-btn,
+  body:not(.light-theme) .ar-dd-footer-close-btn {
+    background: #1f2a20;
+    border-color: #38493a;
+    color: #cbd5e1;
+  }
+  body:not(.light-theme) .ar-dd-empty {
+    background: #182019;
+    border-color: #38493a;
+  }
+  body:not(.light-theme) .ar-dd-empty h4 {
+    color: #f1f5f9;
+  }
+}
+
+[data-theme="dark"] .ar-dd-dialog,
+body.dark-mode .ar-dd-dialog,
+.dark-mode .ar-dd-dialog {
+  background: #182019;
+  border-color: #38493a;
+  color: #e2e8f0;
+}
+[data-theme="dark"] .ar-dd-header,
+[data-theme="dark"] .ar-dd-footer,
+body.dark-mode .ar-dd-header,
+body.dark-mode .ar-dd-footer,
+.dark-mode .ar-dd-header,
+.dark-mode .ar-dd-footer {
+  background: #1f2a20;
+  border-color: #38493a;
+}
+[data-theme="dark"] .ar-dd-title,
+body.dark-mode .ar-dd-title,
+.dark-mode .ar-dd-title {
+  color: #f1f5f9;
+}
+[data-theme="dark"] .ar-dd-body,
+body.dark-mode .ar-dd-body,
+.dark-mode .ar-dd-body {
+  background: #141b14;
+}
+[data-theme="dark"] .ar-dd-requester-card,
+body.dark-mode .ar-dd-requester-card,
+.dark-mode .ar-dd-requester-card {
+  background: #1c251d;
+  border-color: #334234;
+}
+[data-theme="dark"] .ar-dd-requester-card:hover,
+body.dark-mode .ar-dd-requester-card:hover,
+.dark-mode .ar-dd-requester-card:hover {
+  background: #233024;
+  border-color: #c89b3c;
+}
+[data-theme="dark"] .ar-dd-req-name,
+body.dark-mode .ar-dd-req-name,
+.dark-mode .ar-dd-req-name {
+  color: #f8fafc;
+}
+[data-theme="dark"] .ar-dd-detail-profile,
+body.dark-mode .ar-dd-detail-profile,
+.dark-mode .ar-dd-detail-profile {
+  background: #1f2a20;
+  border-color: #38493a;
+}
+[data-theme="dark"] .ar-dd-dp-name,
+body.dark-mode .ar-dd-dp-name,
+.dark-mode .ar-dd-dp-name {
+  color: #f8fafc;
+}
+[data-theme="dark"] .ar-dd-stat-pill,
+body.dark-mode .ar-dd-stat-pill,
+.dark-mode .ar-dd-stat-pill {
+  background: #182019;
+  border-color: #38493a;
+  color: #cbd5e1;
+}
+[data-theme="dark"] .ar-dd-stat-pill strong,
+body.dark-mode .ar-dd-stat-pill strong,
+.dark-mode .ar-dd-stat-pill strong {
+  color: #f1f5f9;
+}
+[data-theme="dark"] .ar-dd-item-card,
+body.dark-mode .ar-dd-item-card,
+.dark-mode .ar-dd-item-card {
+  background: #1c251d;
+  border-color: #334234;
+}
+[data-theme="dark"] .ar-dd-item-card.is-match,
+body.dark-mode .ar-dd-item-card.is-match,
+.dark-mode .ar-dd-item-card.is-match {
+  background: #252b1e;
+  border-color: #deb042;
+}
+[data-theme="dark"] .ar-dd-item-type,
+body.dark-mode .ar-dd-item-type,
+.dark-mode .ar-dd-item-type {
+  color: #f1f5f9;
+}
+[data-theme="dark"] .ar-dd-item-ref,
+body.dark-mode .ar-dd-item-ref,
+.dark-mode .ar-dd-item-ref {
+  background: #141b14;
+  border-color: #38493a;
+  color: #e2e8f0;
+}
+[data-theme="dark"] .ar-dd-back-btn,
+[data-theme="dark"] .ar-dd-close-btn,
+[data-theme="dark"] .ar-dd-footer-close-btn,
+body.dark-mode .ar-dd-back-btn,
+body.dark-mode .ar-dd-close-btn,
+body.dark-mode .ar-dd-footer-close-btn,
+.dark-mode .ar-dd-back-btn,
+.dark-mode .ar-dd-close-btn,
+.dark-mode .ar-dd-footer-close-btn {
+  background: #1f2a20;
+  border-color: #38493a;
+  color: #cbd5e1;
+}
+[data-theme="dark"] .ar-dd-empty,
+body.dark-mode .ar-dd-empty,
+.dark-mode .ar-dd-empty {
+  background: #182019;
+  border-color: #38493a;
+}
+[data-theme="dark"] .ar-dd-empty h4,
+body.dark-mode .ar-dd-empty h4,
+.dark-mode .ar-dd-empty h4 {
+  color: #f1f5f9;
+}
 </style>
 
 <div class="ar-page container-fluid px-0">
@@ -1996,7 +2918,12 @@ include '../templates/header.php';
     <div class="ar-sum-cards-grid">
       
       <!-- Card 1: Total Certificates Created -->
-      <div class="ar-sum-card ar-sum-card-cert">
+      <button type="button" class="ar-sum-card ar-sum-card-btn ar-sum-card-cert ar-drilldown-trigger"
+              data-cat="certificates" data-type="" data-status=""
+              data-title="Total Certificates Created"
+              data-count="<?php echo $summary_total_certificates; ?>"
+              <?php echo $summary_total_certificates === 0 ? 'disabled' : ''; ?>
+              aria-label="View requesters for total certificates created (<?php echo $summary_total_certificates; ?>)">
         <div class="ar-sum-card-top">
           <div class="ar-sum-card-icon"><i class="fas fa-certificate"></i></div>
           <span class="ar-sum-card-badge">Generated</span>
@@ -2004,12 +2931,22 @@ include '../templates/header.php';
         <div>
           <div class="ar-sum-card-num"><?php echo number_format($summary_total_certificates); ?></div>
           <div class="ar-sum-card-label">Total Certificates Created</div>
-          <div class="ar-sum-card-hint">Official certificates drafted &amp; issued in registry</div>
+          <div class="ar-sum-card-hint">
+            Official certificates drafted &amp; issued in registry
+            <?php if ($summary_total_certificates > 0): ?>
+            <span class="ar-sum-card-action"><i class="fas fa-chevron-right"></i></span>
+            <?php endif; ?>
+          </div>
         </div>
-      </div>
+      </button>
 
       <!-- Card 2: Blessings Completed -->
-      <div class="ar-sum-card ar-sum-card-blessing">
+      <button type="button" class="ar-sum-card ar-sum-card-btn ar-sum-card-blessing ar-drilldown-trigger"
+              data-cat="blessings" data-type="" data-status="completed"
+              data-title="Blessings Completed"
+              data-count="<?php echo $summary_blessings_completed; ?>"
+              <?php echo $summary_blessings_completed === 0 ? 'disabled' : ''; ?>
+              aria-label="View requesters for completed blessings (<?php echo $summary_blessings_completed; ?>)">
         <div class="ar-sum-card-top">
           <div class="ar-sum-card-icon"><i class="fas fa-hands-praying"></i></div>
           <span class="ar-sum-card-badge status-completed">Completed</span>
@@ -2019,12 +2956,20 @@ include '../templates/header.php';
           <div class="ar-sum-card-label">Blessings Completed</div>
           <div class="ar-sum-card-hint">
             <?php echo number_format($summary_blessings_total); ?> total blessing request<?php echo $summary_blessings_total === 1 ? '' : 's'; ?>
+            <?php if ($summary_blessings_completed > 0): ?>
+            <span class="ar-sum-card-action"><i class="fas fa-chevron-right"></i></span>
+            <?php endif; ?>
           </div>
         </div>
-      </div>
+      </button>
 
       <!-- Card 3: Sacramental Services -->
-      <div class="ar-sum-card ar-sum-card-services">
+      <button type="button" class="ar-sum-card ar-sum-card-btn ar-sum-card-services ar-drilldown-trigger"
+              data-cat="services" data-type="" data-status=""
+              data-title="Sacramental Services"
+              data-count="<?php echo $summary_services_total; ?>"
+              <?php echo $summary_services_total === 0 ? 'disabled' : ''; ?>
+              aria-label="View requesters for sacramental services (<?php echo $summary_services_total; ?>)">
         <div class="ar-sum-card-top">
           <div class="ar-sum-card-icon"><i class="fas fa-church"></i></div>
           <span class="ar-sum-card-badge">Services</span>
@@ -2032,9 +2977,14 @@ include '../templates/header.php';
         <div>
           <div class="ar-sum-card-num"><?php echo number_format($summary_services_total); ?></div>
           <div class="ar-sum-card-label">Sacramental Services</div>
-          <div class="ar-sum-card-hint">Baptism, Confirmation, Communion, Marriage, Funeral</div>
+          <div class="ar-sum-card-hint">
+            Baptism, Confirmation, Communion, Marriage, Funeral
+            <?php if ($summary_services_total > 0): ?>
+            <span class="ar-sum-card-action"><i class="fas fa-chevron-right"></i></span>
+            <?php endif; ?>
+          </div>
         </div>
-      </div>
+      </button>
 
     </div>
 
@@ -2068,7 +3018,12 @@ include '../templates/header.php';
                 $pct = round(($cCount / $maxCertCnt) * 100);
                 $certTypeName = ucwords(str_replace(['_', '-'], ' ', $certType));
             ?>
-              <div class="ar-sum-bar-item">
+              <button type="button" class="ar-sum-bar-item ar-sum-bar-btn ar-drilldown-trigger"
+                      data-cat="certificates" data-type="<?php echo e($certType); ?>" data-status=""
+                      data-title="<?php echo e($certTypeName . ' Certificates'); ?>"
+                      data-count="<?php echo $cCount; ?>"
+                      <?php echo $cCount === 0 ? 'disabled' : ''; ?>
+                      aria-label="View requesters for <?php echo e($certTypeName); ?> (<?php echo $cCount; ?>)">
                 <div class="ar-sum-bar-labels">
                   <span class="ar-sum-bar-name" title="<?php echo e($certType); ?>">
                     <i class="fas fa-award ar-sum-bullet"></i> <?php echo e($certTypeName); ?>
@@ -2078,7 +3033,7 @@ include '../templates/header.php';
                 <div class="ar-sum-bar-track">
                   <div class="ar-sum-bar-fill" style="width: <?php echo max(6, $pct); ?>%;"></div>
                 </div>
-              </div>
+              </button>
             <?php endforeach; ?>
           </div>
         <?php endif; ?>
@@ -2105,35 +3060,55 @@ include '../templates/header.php';
           </div>
         <?php else: ?>
           <!-- Highlight "Completed" as main figure -->
-          <div class="ar-blessing-hero-highlight">
+          <button type="button" class="ar-blessing-hero-highlight ar-blessing-hero-btn ar-drilldown-trigger"
+                  data-cat="blessings" data-type="" data-status="completed"
+                  data-title="Blessings · Completed"
+                  data-count="<?php echo $summary_blessings_completed; ?>"
+                  <?php echo $summary_blessings_completed === 0 ? 'disabled' : ''; ?>
+                  aria-label="View requesters for completed blessings (<?php echo $summary_blessings_completed; ?>)">
             <div class="ar-blessing-hero-meta">
               <span class="ar-blessing-hero-tag"><i class="fas fa-check-circle"></i> Main Status</span>
               <div class="ar-blessing-hero-num"><?php echo number_format($summary_blessings_completed); ?></div>
               <div class="ar-blessing-hero-lbl">Completed Blessings</div>
             </div>
             <div class="ar-blessing-hero-icon"><i class="fas fa-check-double"></i></div>
-          </div>
+          </button>
 
           <!-- Other Status Counts as Soft Chips -->
           <div class="ar-blessing-status-grid">
-            <div class="ar-status-chip chip-pending">
+            <button type="button" class="ar-status-chip ar-status-chip-btn chip-pending ar-drilldown-trigger"
+                    data-cat="blessings" data-type="" data-status="pending"
+                    data-title="Blessings · Pending"
+                    data-count="<?php echo $summary_blessings_pending; ?>"
+                    <?php echo $summary_blessings_pending === 0 ? 'disabled' : ''; ?>
+                    aria-label="View requesters for pending blessings (<?php echo $summary_blessings_pending; ?>)">
               <span class="ar-status-chip-label">
                 <span class="ar-status-dot dot-amber"></span> Pending
               </span>
               <span class="ar-status-chip-count"><?php echo number_format($summary_blessings_pending); ?></span>
-            </div>
-            <div class="ar-status-chip chip-approved">
+            </button>
+            <button type="button" class="ar-status-chip ar-status-chip-btn chip-approved ar-drilldown-trigger"
+                    data-cat="blessings" data-type="" data-status="approved"
+                    data-title="Blessings · Approved / Processing"
+                    data-count="<?php echo $summary_blessings_approved; ?>"
+                    <?php echo $summary_blessings_approved === 0 ? 'disabled' : ''; ?>
+                    aria-label="View requesters for approved blessings (<?php echo $summary_blessings_approved; ?>)">
               <span class="ar-status-chip-label">
                 <span class="ar-status-dot dot-blue"></span> Approved / Processing
               </span>
               <span class="ar-status-chip-count"><?php echo number_format($summary_blessings_approved); ?></span>
-            </div>
-            <div class="ar-status-chip chip-cancelled">
+            </button>
+            <button type="button" class="ar-status-chip ar-status-chip-btn chip-cancelled ar-drilldown-trigger"
+                    data-cat="blessings" data-type="" data-status="cancelled"
+                    data-title="Blessings · Cancelled"
+                    data-count="<?php echo $summary_blessings_cancelled; ?>"
+                    <?php echo $summary_blessings_cancelled === 0 ? 'disabled' : ''; ?>
+                    aria-label="View requesters for cancelled blessings (<?php echo $summary_blessings_cancelled; ?>)">
               <span class="ar-status-chip-label">
                 <span class="ar-status-dot dot-red"></span> Cancelled
               </span>
               <span class="ar-status-chip-count"><?php echo number_format($summary_blessings_cancelled); ?></span>
-            </div>
+            </button>
           </div>
 
           <!-- Requests by Blessing Type with Progress Tracks -->
@@ -2151,7 +3126,12 @@ include '../templates/header.php';
               foreach ($summary_blessings_by_type as $bType => $bStats): 
                 $bPct = round(($bStats['total'] / $maxBlessCnt) * 100);
             ?>
-              <div class="ar-blessing-type-row">
+              <button type="button" class="ar-blessing-type-row ar-blessing-type-btn ar-drilldown-trigger"
+                      data-cat="blessings" data-type="<?php echo e($bType); ?>" data-status=""
+                      data-title="<?php echo e(ucwords(str_replace(['_', '-'], ' ', $bType))); ?>"
+                      data-count="<?php echo $bStats['total']; ?>"
+                      <?php echo $bStats['total'] === 0 ? 'disabled' : ''; ?>
+                      aria-label="View requesters for <?php echo e(ucwords(str_replace(['_', '-'], ' ', $bType))); ?> (<?php echo $bStats['total']; ?>)">
                 <div class="ar-blessing-type-info">
                   <span class="ar-blessing-type-name">
                     <i class="fas fa-pray ar-blessing-type-bullet"></i>
@@ -2162,7 +3142,7 @@ include '../templates/header.php';
                 <div class="ar-blessing-progress-track">
                   <div class="ar-blessing-progress-fill" style="width: <?php echo max(8, $bPct); ?>%;"></div>
                 </div>
-              </div>
+              </button>
             <?php endforeach; ?>
           </div>
           <?php endif; ?>
@@ -2239,27 +3219,54 @@ include '../templates/header.php';
                       <span class="s-service-name"><?php echo e($sTypeName); ?></span>
                     </td>
                     <td class="text-center">
-                      <span class="s-mini-pill <?php echo $sStats['pending'] > 0 ? 's-pill-yellow' : 's-pill-muted'; ?>">
+                      <button type="button" class="s-mini-pill s-mini-pill-btn <?php echo $sStats['pending'] > 0 ? 's-pill-yellow' : 's-pill-muted'; ?> ar-drilldown-trigger"
+                              data-cat="services" data-type="<?php echo e($sType); ?>" data-status="pending"
+                              data-title="<?php echo e($sTypeName . ' · Pending'); ?>"
+                              data-count="<?php echo $sStats['pending']; ?>"
+                              <?php echo $sStats['pending'] === 0 ? 'disabled' : ''; ?>
+                              aria-label="<?php echo e($sTypeName); ?> pending: <?php echo $sStats['pending']; ?>">
                         <?php echo $sStats['pending'] > 0 ? $sStats['pending'] : '0'; ?>
-                      </span>
+                      </button>
                     </td>
                     <td class="text-center">
-                      <span class="s-mini-pill <?php echo $sStats['approved'] > 0 ? 's-pill-blue' : 's-pill-muted'; ?>">
+                      <button type="button" class="s-mini-pill s-mini-pill-btn <?php echo $sStats['approved'] > 0 ? 's-pill-blue' : 's-pill-muted'; ?> ar-drilldown-trigger"
+                              data-cat="services" data-type="<?php echo e($sType); ?>" data-status="approved"
+                              data-title="<?php echo e($sTypeName . ' · Approved / Processing'); ?>"
+                              data-count="<?php echo $sStats['approved']; ?>"
+                              <?php echo $sStats['approved'] === 0 ? 'disabled' : ''; ?>
+                              aria-label="<?php echo e($sTypeName); ?> approved: <?php echo $sStats['approved']; ?>">
                         <?php echo $sStats['approved'] > 0 ? $sStats['approved'] : '0'; ?>
-                      </span>
+                      </button>
                     </td>
                     <td class="text-center">
-                      <span class="s-mini-pill <?php echo $sStats['completed'] > 0 ? 's-pill-green' : 's-pill-muted'; ?>">
+                      <button type="button" class="s-mini-pill s-mini-pill-btn <?php echo $sStats['completed'] > 0 ? 's-pill-green' : 's-pill-muted'; ?> ar-drilldown-trigger"
+                              data-cat="services" data-type="<?php echo e($sType); ?>" data-status="completed"
+                              data-title="<?php echo e($sTypeName . ' · Completed'); ?>"
+                              data-count="<?php echo $sStats['completed']; ?>"
+                              <?php echo $sStats['completed'] === 0 ? 'disabled' : ''; ?>
+                              aria-label="<?php echo e($sTypeName); ?> completed: <?php echo $sStats['completed']; ?>">
                         <?php echo $sStats['completed'] > 0 ? $sStats['completed'] : '0'; ?>
-                      </span>
+                      </button>
                     </td>
                     <td class="text-center">
-                      <span class="s-mini-pill <?php echo $sStats['cancelled'] > 0 ? 's-pill-red' : 's-pill-muted'; ?>">
+                      <button type="button" class="s-mini-pill s-mini-pill-btn <?php echo $sStats['cancelled'] > 0 ? 's-pill-red' : 's-pill-muted'; ?> ar-drilldown-trigger"
+                              data-cat="services" data-type="<?php echo e($sType); ?>" data-status="cancelled"
+                              data-title="<?php echo e($sTypeName . ' · Cancelled'); ?>"
+                              data-count="<?php echo $sStats['cancelled']; ?>"
+                              <?php echo $sStats['cancelled'] === 0 ? 'disabled' : ''; ?>
+                              aria-label="<?php echo e($sTypeName); ?> cancelled: <?php echo $sStats['cancelled']; ?>">
                         <?php echo $sStats['cancelled'] > 0 ? $sStats['cancelled'] : '0'; ?>
-                      </span>
+                      </button>
                     </td>
                     <td class="text-end td-total">
-                      <span class="s-total-badge"><?php echo number_format($sStats['total']); ?></span>
+                      <button type="button" class="s-total-badge s-total-badge-btn ar-drilldown-trigger"
+                              data-cat="services" data-type="<?php echo e($sType); ?>" data-status=""
+                              data-title="<?php echo e($sTypeName . ' · Total'); ?>"
+                              data-count="<?php echo $sStats['total']; ?>"
+                              <?php echo $sStats['total'] === 0 ? 'disabled' : ''; ?>
+                              aria-label="<?php echo e($sTypeName); ?> total: <?php echo $sStats['total']; ?>">
+                        <?php echo number_format($sStats['total']); ?>
+                      </button>
                     </td>
                   </tr>
                 <?php endforeach; ?>
@@ -2268,27 +3275,54 @@ include '../templates/header.php';
                 <tr class="ar-sum-tfoot-row">
                   <td class="fw-bold">Total Sacramental Services</td>
                   <td class="text-center">
-                    <span class="s-mini-pill <?php echo $servTotPending > 0 ? 's-pill-yellow' : 's-pill-muted'; ?>">
+                    <button type="button" class="s-mini-pill s-mini-pill-btn <?php echo $servTotPending > 0 ? 's-pill-yellow' : 's-pill-muted'; ?> ar-drilldown-trigger"
+                            data-cat="services" data-type="" data-status="pending"
+                            data-title="Sacramental Services · Pending"
+                            data-count="<?php echo $servTotPending; ?>"
+                            <?php echo $servTotPending === 0 ? 'disabled' : ''; ?>
+                            aria-label="All sacramental services pending: <?php echo $servTotPending; ?>">
                       <?php echo $servTotPending; ?>
-                    </span>
+                    </button>
                   </td>
                   <td class="text-center">
-                    <span class="s-mini-pill <?php echo $servTotApproved > 0 ? 's-pill-blue' : 's-pill-muted'; ?>">
+                    <button type="button" class="s-mini-pill s-mini-pill-btn <?php echo $servTotApproved > 0 ? 's-pill-blue' : 's-pill-muted'; ?> ar-drilldown-trigger"
+                            data-cat="services" data-type="" data-status="approved"
+                            data-title="Sacramental Services · Approved / Processing"
+                            data-count="<?php echo $servTotApproved; ?>"
+                            <?php echo $servTotApproved === 0 ? 'disabled' : ''; ?>
+                            aria-label="All sacramental services approved: <?php echo $servTotApproved; ?>">
                       <?php echo $servTotApproved; ?>
-                    </span>
+                    </button>
                   </td>
                   <td class="text-center">
-                    <span class="s-mini-pill <?php echo $servTotCompleted > 0 ? 's-pill-green' : 's-pill-muted'; ?>">
+                    <button type="button" class="s-mini-pill s-mini-pill-btn <?php echo $servTotCompleted > 0 ? 's-pill-green' : 's-pill-muted'; ?> ar-drilldown-trigger"
+                            data-cat="services" data-type="" data-status="completed"
+                            data-title="Sacramental Services · Completed"
+                            data-count="<?php echo $servTotCompleted; ?>"
+                            <?php echo $servTotCompleted === 0 ? 'disabled' : ''; ?>
+                            aria-label="All sacramental services completed: <?php echo $servTotCompleted; ?>">
                       <?php echo $servTotCompleted; ?>
-                    </span>
+                    </button>
                   </td>
                   <td class="text-center">
-                    <span class="s-mini-pill <?php echo $servTotCancelled > 0 ? 's-pill-red' : 's-pill-muted'; ?>">
+                    <button type="button" class="s-mini-pill s-mini-pill-btn <?php echo $servTotCancelled > 0 ? 's-pill-red' : 's-pill-muted'; ?> ar-drilldown-trigger"
+                            data-cat="services" data-type="" data-status="cancelled"
+                            data-title="Sacramental Services · Cancelled"
+                            data-count="<?php echo $servTotCancelled; ?>"
+                            <?php echo $servTotCancelled === 0 ? 'disabled' : ''; ?>
+                            aria-label="All sacramental services cancelled: <?php echo $servTotCancelled; ?>">
                       <?php echo $servTotCancelled; ?>
-                    </span>
+                    </button>
                   </td>
                   <td class="text-end fw-bold td-total">
-                    <span class="s-total-badge s-grand-total"><?php echo number_format($servTotGrand); ?></span>
+                    <button type="button" class="s-total-badge s-grand-total s-total-badge-btn ar-drilldown-trigger"
+                            data-cat="services" data-type="" data-status=""
+                            data-title="Sacramental Services · Total"
+                            data-count="<?php echo $servTotGrand; ?>"
+                            <?php echo $servTotGrand === 0 ? 'disabled' : ''; ?>
+                            aria-label="All sacramental services grand total: <?php echo $servTotGrand; ?>">
+                      <?php echo number_format($servTotGrand); ?>
+                    </button>
                   </td>
                 </tr>
               </tfoot>
@@ -2300,6 +3334,84 @@ include '../templates/header.php';
     </div>
 
   </section>
+
+  <!-- === OPERATIONAL SUMMARY DRILL-DOWN POPUP MODAL === -->
+  <div class="ar-dd-backdrop" id="arDrilldownModal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="arDdTitle">
+    <div class="ar-dd-dialog" role="document">
+      
+      <!-- Modal Header -->
+      <div class="ar-dd-header">
+        <div class="ar-dd-header-left">
+          <button type="button" id="arDdBackBtn" class="ar-dd-back-btn" style="display:none;" aria-label="Back to Requesters List">
+            <i class="fas fa-arrow-left"></i> <span>Back</span>
+          </button>
+          <div class="ar-dd-title-icon"><i class="fas fa-layer-group"></i></div>
+          <div class="ar-dd-title-wrap">
+            <h3 class="ar-dd-title" id="arDdTitle">Operational Drill-Down</h3>
+            <div class="ar-dd-meta-pills">
+              <span class="ar-dd-badge" id="arDdCountBadge"><i class="fas fa-file-alt"></i> 0 requests</span>
+              <span class="ar-dd-badge ar-dd-badge-green" id="arDdPeopleBadge"><i class="fas fa-users"></i> 0 people</span>
+            </div>
+          </div>
+        </div>
+        <button type="button" class="ar-dd-close-btn" id="arDdCloseBtn" aria-label="Close popup window">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="ar-dd-body">
+        
+        <!-- Loading State -->
+        <div class="ar-dd-loading" id="arDdLoading">
+          <i class="fas fa-circle-notch fa-spin"></i>
+          <div>Loading Requesters...</div>
+          <small class="text-muted">Fetching operational records and parishioner details</small>
+        </div>
+
+        <!-- Error State -->
+        <div class="ar-dd-empty text-danger" id="arDdError" style="display:none;">
+          <i class="fas fa-exclamation-triangle"></i>
+          <h4>Unable to Load Data</h4>
+          <p id="arDdErrorMsg">An error occurred while loading requests.</p>
+        </div>
+
+        <!-- Empty State -->
+        <div class="ar-dd-empty" id="arDdEmpty" style="display:none;">
+          <i class="far fa-folder-open"></i>
+          <h4>No requests found</h4>
+          <p>There are no active parishioner requests recorded for this selection.</p>
+        </div>
+
+        <!-- View 1: Requesters List -->
+        <div id="arDdRequestersView" style="display:none;">
+          <div class="ar-dd-requesters-list" id="arDdRequestersList">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <!-- View 2: Requester Details -->
+        <div id="arDdDetailView" style="display:none;">
+          <div class="ar-dd-detail-view" id="arDdDetailContainer">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="ar-dd-footer">
+        <div class="ar-dd-footer-note">
+          <i class="fas fa-info-circle text-primary"></i>
+          <span>Click any parishioner to view their full request history and category breakdown.</span>
+        </div>
+        <button type="button" class="ar-dd-footer-close-btn" id="arDdFooterClose">
+          Close
+        </button>
+      </div>
+
+    </div>
+  </div>
 
   <!-- === CHARTS === -->
   <div class="ar-chart-grid">
@@ -3208,6 +4320,274 @@ include '../templates/header.php';
   if (modalDownloadPdfBtn) {
     modalDownloadPdfBtn.addEventListener('click', triggerPdfExportWithCharts);
   }
+
+  /* ==========================================================================
+     OPERATIONAL SUMMARY DRILL-DOWN POPUP LOGIC
+     ========================================================================== */
+  const modalBackdrop  = document.getElementById('arDrilldownModal');
+  const ddBackBtn      = document.getElementById('arDdBackBtn');
+  const ddCloseBtn     = document.getElementById('arDdCloseBtn');
+  const ddFooterClose  = document.getElementById('arDdFooterClose');
+  const ddTitleEl      = document.getElementById('arDdTitle');
+  const ddCountBadge   = document.getElementById('arDdCountBadge');
+  const ddPeopleBadge  = document.getElementById('arDdPeopleBadge');
+  const ddLoadingEl    = document.getElementById('arDdLoading');
+  const ddEmptyEl      = document.getElementById('arDdEmpty');
+  const ddErrorEl      = document.getElementById('arDdError');
+  const ddErrorMsg     = document.getElementById('arDdErrorMsg');
+  const ddRequestersView = document.getElementById('arDdRequestersView');
+  const ddDetailView   = document.getElementById('arDdDetailView');
+  const ddRequestersList = document.getElementById('arDdRequestersList');
+  const ddDetailContainer = document.getElementById('arDdDetailContainer');
+
+  function closeDrilldownModal() {
+    if (!modalBackdrop) return;
+    modalBackdrop.classList.remove('active');
+    modalBackdrop.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  }
+
+  function openDrilldownModal() {
+    if (!modalBackdrop) return;
+    modalBackdrop.classList.add('active');
+    modalBackdrop.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  }
+
+  if (ddCloseBtn)    ddCloseBtn.addEventListener('click', closeDrilldownModal);
+  if (ddFooterClose) ddFooterClose.addEventListener('click', closeDrilldownModal);
+
+  if (modalBackdrop) {
+    modalBackdrop.addEventListener('click', function (e) {
+      if (e.target === modalBackdrop) closeDrilldownModal();
+    });
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && modalBackdrop && modalBackdrop.classList.contains('active')) {
+      closeDrilldownModal();
+    }
+  });
+
+  if (ddBackBtn) {
+    ddBackBtn.addEventListener('click', function () {
+      if (ddBackBtn) ddBackBtn.style.display = 'none';
+      if (ddDetailView) ddDetailView.style.display = 'none';
+      if (ddRequestersView) ddRequestersView.style.display = 'block';
+    });
+  }
+
+  function getRequesterInitials(name) {
+    if (!name) return 'P';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  }
+
+  function safeEscape(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function renderRequestersList(requesters) {
+    if (!ddRequestersList) return;
+    ddRequestersList.innerHTML = '';
+
+    requesters.forEach(function (req) {
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'ar-dd-requester-card';
+      card.setAttribute('aria-label', 'View request details for ' + req.name);
+
+      const initials = getRequesterInitials(req.name);
+      card.innerHTML = `
+        <div class="ar-dd-req-left">
+          <div class="ar-dd-req-avatar">${safeEscape(initials)}</div>
+          <div class="ar-dd-req-info">
+            <div class="ar-dd-req-name">${safeEscape(req.name)}</div>
+            <div class="ar-dd-req-latest">
+              <i class="far fa-clock"></i> Latest request: ${safeEscape(req.latest_date_formatted)}
+            </div>
+          </div>
+        </div>
+        <div class="ar-dd-req-right">
+          <span class="ar-dd-req-count-badge" title="Requests matching this selection">
+            <i class="fas fa-file-alt"></i> ${req.selection_count} request${req.selection_count === 1 ? '' : 's'}
+          </span>
+          <i class="fas fa-chevron-right ar-dd-req-chevron"></i>
+        </div>
+      `;
+
+      card.addEventListener('click', function () {
+        renderRequesterDetail(req);
+        if (ddBackBtn) ddBackBtn.style.display = 'inline-flex';
+        if (ddRequestersView) ddRequestersView.style.display = 'none';
+        if (ddDetailView) ddDetailView.style.display = 'block';
+      });
+
+      ddRequestersList.appendChild(card);
+    });
+  }
+
+  function renderRequesterDetail(req) {
+    if (!ddDetailContainer) return;
+    const initials = getRequesterInitials(req.name);
+
+    let requestsHtml = '';
+    (req.requests || []).forEach(function (item) {
+      const matchBadge = item.is_match
+        ? `<span class="ar-dd-match-tag"><i class="fas fa-check-circle"></i> Matches Clicked</span>`
+        : '';
+
+      requestsHtml += `
+        <div class="ar-dd-item-card ${item.is_match ? 'is-match' : ''}">
+          <div class="ar-dd-item-left">
+            <div class="ar-dd-item-ref-row">
+              <span class="ar-dd-item-ref">${safeEscape(item.reference_number)}</span>
+              <span class="ar-dd-item-type">${safeEscape(item.type_label)}</span>
+              ${matchBadge}
+            </div>
+            <div class="ar-dd-item-date">
+              <i class="far fa-calendar-alt"></i> Submitted: ${safeEscape(item.date_formatted)} at ${safeEscape(item.time_formatted)}
+            </div>
+          </div>
+          <div class="ar-dd-item-right">
+            <span class="ar-dd-status-pill ${safeEscape(item.status_class)}">
+              ${safeEscape(item.status_label)}
+            </span>
+          </div>
+        </div>
+      `;
+    });
+
+    const certCnt = (req.counts && req.counts.certificates) ? req.counts.certificates : 0;
+    const blessCnt = (req.counts && req.counts.blessings) ? req.counts.blessings : 0;
+    const servCnt = (req.counts && req.counts.services) ? req.counts.services : 0;
+
+    ddDetailContainer.innerHTML = `
+      <div class="ar-dd-detail-profile">
+        <div class="ar-dd-dp-left">
+          <div class="ar-dd-dp-avatar">${safeEscape(initials)}</div>
+          <div>
+            <h4 class="ar-dd-dp-name">${safeEscape(req.name)}</h4>
+            <p class="ar-dd-dp-sub">Parishioner Request History</p>
+          </div>
+        </div>
+        <div class="ar-dd-dp-counters">
+          <div class="ar-dd-stat-pill" title="Total Requests Submitted">
+            <i class="fas fa-folder-open text-primary"></i>
+            <span>Total: <strong>${req.total_requests || 0}</strong></span>
+          </div>
+          <div class="ar-dd-stat-pill" title="Certificates">
+            <i class="fas fa-certificate text-warning"></i>
+            <span>Certs: <strong>${certCnt}</strong></span>
+          </div>
+          <div class="ar-dd-stat-pill" title="Blessings">
+            <i class="fas fa-hands-praying text-success"></i>
+            <span>Blessings: <strong>${blessCnt}</strong></span>
+          </div>
+          <div class="ar-dd-stat-pill" title="Sacramental Services">
+            <i class="fas fa-church text-info"></i>
+            <span>Services: <strong>${servCnt}</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="ar-dd-requests-heading">
+          <span><i class="fas fa-list-ul"></i> Request History (${(req.requests || []).length})</span>
+          <small class="text-muted">Gold border indicates selection match</small>
+        </div>
+        <div class="ar-dd-requests-list">
+          ${requestsHtml || '<div class="text-muted small py-4 text-center">No individual request entries found.</div>'}
+        </div>
+      </div>
+    `;
+  }
+
+  // Attach click listeners to all drilldown triggers
+  document.querySelectorAll('.ar-drilldown-trigger').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      if (btn.disabled) return;
+      const count = parseInt(btn.getAttribute('data-count') || '0', 10);
+      if (count <= 0) return;
+
+      const cat    = btn.getAttribute('data-cat') || '';
+      const type   = btn.getAttribute('data-type') || '';
+      const status = btn.getAttribute('data-status') || '';
+      const title  = btn.getAttribute('data-title') || 'Requests';
+
+      // Current summary date filters
+      const urlParams    = new URLSearchParams(window.location.search);
+      const summaryRange = urlParams.get('summary_range') || 'all';
+      const fromInput    = document.getElementById('summaryFrom');
+      const toInput      = document.getElementById('summaryTo');
+      const summaryFrom  = (fromInput && fromInput.value) ? fromInput.value.trim() : (urlParams.get('summary_from') || '');
+      const summaryTo    = (toInput && toInput.value)     ? toInput.value.trim()   : (urlParams.get('summary_to') || '');
+
+      // Reset modal views to loading state
+      if (ddTitleEl)     ddTitleEl.textContent = title;
+      if (ddCountBadge)  ddCountBadge.innerHTML = `<i class="fas fa-file-alt"></i> ${count} request${count === 1 ? '' : 's'}`;
+      if (ddPeopleBadge) ddPeopleBadge.innerHTML = `<i class="fas fa-users"></i> Loading...`;
+      if (ddLoadingEl)   ddLoadingEl.style.display = 'block';
+      if (ddEmptyEl)     ddEmptyEl.style.display = 'none';
+      if (ddErrorEl)     ddErrorEl.style.display = 'none';
+      if (ddRequestersView) ddRequestersView.style.display = 'none';
+      if (ddDetailView)  ddDetailView.style.display = 'none';
+      if (ddBackBtn)     ddBackBtn.style.display = 'none';
+
+      openDrilldownModal();
+
+      const fetchUrl = `analytics-requesters.php?cat=${encodeURIComponent(cat)}&type=${encodeURIComponent(type)}&status=${encodeURIComponent(status)}&range=${encodeURIComponent(summaryRange)}&from=${encodeURIComponent(summaryFrom)}&to=${encodeURIComponent(summaryTo)}&title=${encodeURIComponent(title)}`;
+
+      fetch(fetchUrl, {
+        headers: { 'Accept': 'application/json' }
+      })
+      .then(res => {
+        if (!res.ok) {
+          throw new Error('HTTP error ' + res.status);
+        }
+        return res.json();
+      })
+      .then(data => {
+        if (!data || !data.success) {
+          throw new Error(data && data.error ? data.error : 'Failed to fetch requester information.');
+        }
+
+        if (ddLoadingEl) ddLoadingEl.style.display = 'none';
+
+        if (ddTitleEl && data.title) ddTitleEl.textContent = data.title;
+        if (ddCountBadge) {
+          ddCountBadge.innerHTML = `<i class="fas fa-file-alt"></i> ${data.total_requests} request${data.total_requests === 1 ? '' : 's'}`;
+        }
+        if (ddPeopleBadge) {
+          ddPeopleBadge.innerHTML = `<i class="fas fa-users"></i> ${data.total_people} ${data.total_people === 1 ? 'person' : 'people'}`;
+        }
+
+        if (!data.requesters || data.requesters.length === 0) {
+          if (ddEmptyEl) ddEmptyEl.style.display = 'block';
+        } else {
+          renderRequestersList(data.requesters);
+          if (ddRequestersView) ddRequestersView.style.display = 'block';
+        }
+      })
+      .catch(err => {
+        console.error('Error fetching requesters drill-down:', err);
+        if (ddLoadingEl) ddLoadingEl.style.display = 'none';
+        if (ddErrorEl) {
+          if (ddErrorMsg) ddErrorMsg.textContent = err.message || 'An error occurred while loading requests.';
+          ddErrorEl.style.display = 'block';
+        }
+      });
+    });
+  });
 
 })();
 </script>
