@@ -681,7 +681,6 @@ $body_extra_class = 'user-ai-chat-page';
                     </div>
                 </div>
                 <div class="tugon-ai-status">
-                    <span class="ai-status-pill"><span class="ai-status-dot"></span> Online</span>
                     <span class="ai-status-pill" id="aiHeaderStatus">Ready to help with parish services</span>
                     <button type="button" class="ai-icon-btn" id="aiDarkToggle" title="Toggle dark mode" aria-label="Toggle dark mode">
                         <i class="fas fa-moon"></i>
@@ -875,13 +874,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }).join('') + '</div>'
             : '';
 
-        const feedbackHtml = (type === 'assistant' && !isLoading && options.responseReference)
-            ? '<div class="ai-feedback" data-response-reference="' + escapeHtml(options.responseReference) + '">' +
-                '<span class="ai-feedback-label">Was this helpful?</span> ' +
-                '<button type="button" class="ai-feedback-btn" data-ai-rating="correct" title="Yes, helpful" aria-label="Helpful"><i class="fas fa-thumbs-up"></i></button> ' +
-                '<button type="button" class="ai-feedback-btn" data-ai-rating="incorrect" title="No, needs review" aria-label="Not helpful"><i class="fas fa-thumbs-down"></i></button>' +
-              '</div>'
-            : '';
+        const feedbackHtml = '';
 
         item.innerHTML =
             '<div class="ai-message-avatar"><i class="fas ' + icon + '"></i></div>' +

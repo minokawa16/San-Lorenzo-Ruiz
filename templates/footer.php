@@ -2076,10 +2076,6 @@
                 <div class="ai-assistant-panel-titles">
                     <div class="ai-assistant-title-row">
                         <strong>TUGON</strong>
-                        <span class="ai-assistant-status-pill">
-                            <span class="ai-assistant-status-dot"></span>
-                            <span class="ai-assistant-status-text">Online</span>
-                        </span>
                     </div>
                 </div>
             </div>
@@ -2773,9 +2769,7 @@
                     ? '<ol class="ai-assistant-numbered-list">' + steps.map(function(step) { return '<li>' + escapeHtml(step) + '</li>'; }).join('') + '</ol>'
                     : '';
                 const copyButton = type === 'assistant' ? '<button type="button" class="ai-assistant-copy" aria-label="Copy response text" title="Copy response"><i class="fas fa-copy"></i> <span>Copy</span></button>' : '';
-                const feedbackHtml = (type === 'assistant' && responseReference)
-                    ? '<div class="ai-feedback" data-response-reference="' + escapeHtml(responseReference) + '"><span class="ai-feedback-label">Was this helpful?</span> <button type="button" class="ai-feedback-btn" data-ai-rating="correct" title="Helpful" aria-label="Helpful"><i class="fas fa-thumbs-up"></i></button> <button type="button" class="ai-feedback-btn" data-ai-rating="incorrect" title="Not helpful" aria-label="Not helpful"><i class="fas fa-thumbs-down"></i></button></div>'
-                    : '';
+                const feedbackHtml = '';
 
                 function getPromptIcon(text) {
                     const p = String(text || '').toLowerCase();
@@ -2830,9 +2824,7 @@
                     ? '<ol class="ai-assistant-numbered-list">' + steps.map(function(step) { return '<li>' + escapeHtml(step) + '</li>'; }).join('') + '</ol>'
                     : '';
                 const copyButton = '<button type="button" class="ai-assistant-copy" aria-label="Copy response text" title="Copy response"><i class="fas fa-copy"></i> <span>Copy</span></button>';
-                const feedbackHtml = (responseReference)
-                    ? '<div class="ai-feedback" data-response-reference="' + escapeHtml(responseReference) + '"><span class="ai-feedback-label">Was this helpful?</span> <button type="button" class="ai-feedback-btn" data-ai-rating="correct" title="Helpful" aria-label="Helpful"><i class="fas fa-thumbs-up"></i></button> <button type="button" class="ai-feedback-btn" data-ai-rating="incorrect" title="Not helpful" aria-label="Not helpful"><i class="fas fa-thumbs-down"></i></button></div>'
-                    : '';
+                const feedbackHtml = '';
 
                 function getPromptIcon(text) {
                     const p = String(text || '').toLowerCase();

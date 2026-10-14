@@ -17,8 +17,8 @@ $request_id = intval($_GET['request_id'] ?? ($_GET['id'] ?? 0));
 $is_inline_view = isset($_GET['view']) || isset($_GET['preview']) || (isset($_GET['action']) && $_GET['action'] === 'view');
 
 if ($request_id <= 0) {
-    $_SESSION['error'] = 'Invalid request ID specified.';
-    redirect('my-requests.php');
+    http_response_code(403);
+    exit('Access denied. Invalid request ID specified.');
 }
 
 $stmt = $conn->prepare("SELECT * FROM requests WHERE request_id = ? AND deleted_at IS NULL LIMIT 1");
@@ -32,9 +32,8 @@ $request = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 
 if (!$request) {
-    http_response_code(404);
-    $_SESSION['error'] = 'Request record could not be found.';
-    redirect('my-requests.php');
+    http_response_code(403);
+    exit('Access denied. Request record could not be found.');
 }
 
 $can_manage_all = hasPermission('requests.manage') 
@@ -45,14 +44,21 @@ $can_manage_all = hasPermission('requests.manage')
 $owns_request = ($user_id > 0 && intval($request['user_id']) === $user_id);
 if (!$can_manage_all && !$owns_request) {
     http_response_code(403);
-    $_SESSION['error'] = 'Access denied. You do not have permission to access this certificate.';
-    redirect('my-requests.php');
+    exit('Access denied. You do not have permission to access this certificate.');
 }
 
+// Verify that the request type ends with "_certificate"
+$req_type = strtolower(trim((string)($request['request_type'] ?? '')));
+if (!str_ends_with($req_type, '_certificate')) {
+    http_response_code(403);
+    exit('Access denied. Only certificate requests have downloadable certificates.');
+}
+
+// Verify that the status is completed
 $req_status = strtolower(trim((string)($request['status'] ?? '')));
-if ($req_status !== 'completed' && !$can_manage_all) {
-    $_SESSION['error'] = 'Certificate is only available once your request is Completed by the parish office.';
-    redirect('view-request.php?id=' . $request_id);
+if ($req_status !== 'completed') {
+    http_response_code(403);
+    exit('Access denied. Certificate is only available once your request is completed.');
 }
 
 // Locate newest admin-uploaded certificate file
@@ -83,14 +89,14 @@ if ($cert_file_path === '') {
 }
 
 if ($cert_file_path === '') {
-    $_SESSION['error'] = 'No certificate file has been uploaded yet by the parish office. Please wait for parish staff to upload your certificate.';
-    redirect('view-request.php?id=' . $request_id);
+    http_response_code(403);
+    exit('Access denied. No certificate file has been uploaded yet by the parish office.');
 }
 
 $real_file = resolveSecureFilePath($cert_file_path);
 if (!$real_file || !is_file($real_file)) {
-    $_SESSION['error'] = 'The certificate file is currently unavailable on the server. Please contact the parish office.';
-    redirect('view-request.php?id=' . $request_id);
+    http_response_code(403);
+    exit('Access denied. The certificate file is currently unavailable on the server.');
 }
 
 // Determine original filename

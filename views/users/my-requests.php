@@ -133,25 +133,26 @@
                                     <td class="py-3 px-4 text-end" data-label="Action">
                                         <div class="d-inline-flex gap-1 align-items-center flex-wrap justify-content-end">
                                             <?php
-                                            $disp_status_lower = strtolower($request['status'] ?? '');
+                                            $disp_status_lower = strtolower(trim((string)($request['status'] ?? '')));
                                             $is_completed = ($disp_status_lower === 'completed');
-                                            $req_type_str = strtolower((string)($request['certificate_type'] ?? ($request['request_type'] ?? '')));
-                                            $is_certificate_req = str_contains($req_type_str, 'certif') || str_contains($req_type_str, 'baptism') || str_contains($req_type_str, 'confirmation') || str_contains($req_type_str, 'communion') || str_contains($req_type_str, 'marriage') || str_contains($req_type_str, 'funeral');
+                                            $req_type_raw = strtolower(trim((string)($request['request_type'] ?? '')));
+                                            $is_certificate_req = str_ends_with($req_type_raw, '_certificate');
                                             $has_cert_file = !empty($request['certificate_file_path']);
 
-                                            if ($is_completed && $has_cert_file):
+                                            if ($is_certificate_req):
+                                                if ($is_completed && $has_cert_file):
                                             ?>
-                                                <a href="download-certificate.php?request_id=<?php echo (int) $request['request_id']; ?>&view=1" target="_blank" class="btn btn-sm btn-outline-secondary px-2.5 py-1 fw-semibold d-inline-flex align-items-center gap-1" style="border-radius: 8px;" title="View Certificate Preview">
-                                                    <i class="fas fa-eye"></i> View
-                                                </a>
-                                                <a href="download-certificate.php?request_id=<?php echo (int) $request['request_id']; ?>&download=1" class="btn btn-sm btn-success px-2.5 py-1 fw-semibold d-inline-flex align-items-center gap-1" style="border-radius: 8px;" title="Download Certificate">
-                                                    <i class="fas fa-download"></i> Download Certificate
-                                                </a>
-                                            <?php elseif ($is_completed && $is_certificate_req && !$has_cert_file): ?>
-                                                <button type="button" class="btn btn-sm btn-outline-secondary px-2.5 py-1 fw-semibold d-inline-flex align-items-center gap-1" style="border-radius: 8px; opacity: 0.65; cursor: not-allowed;" disabled title="Certificate not ready yet">
-                                                    <i class="fas fa-clock"></i> Certificate not ready yet
-                                                </button>
-                                            <?php endif; ?>
+                                                    <a href="download-certificate.php?request_id=<?php echo (int) $request['request_id']; ?>&download=1" class="btn btn-sm text-white px-2.5 py-1 fw-semibold d-inline-flex align-items-center gap-1" style="background: #C89B3C; border-color: #A97F24; border-radius: 8px;" title="Download Certificate">
+                                                        <i class="fas fa-download"></i> Download Certificate
+                                                    </a>
+                                                <?php else: ?>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary px-2.5 py-1 fw-semibold d-inline-flex align-items-center gap-1" style="border-radius: 8px; opacity: 0.65; cursor: not-allowed;" disabled title="Certificate not ready yet">
+                                                        <i class="fas fa-clock"></i> Certificate not ready yet
+                                                    </button>
+                                                <?php
+                                                endif;
+                                            endif;
+                                            ?>
                                             <a href="view-request.php?id=<?php echo (int) $request['request_id']; ?>" class="btn btn-sm btn-outline-secondary px-3 py-1 fw-semibold" style="border-color: #E8E1D5; border-radius: 8px;">
                                                 <i class="fas fa-eye me-1" style="color: #C89B3C;"></i> View Details
                                             </a>
