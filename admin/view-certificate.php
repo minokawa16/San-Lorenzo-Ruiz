@@ -772,6 +772,8 @@ function certificateAssetUrl($relative_path, $fallback = '') {
     }
     return $fallback;
 }
+}
+
 $meta = certificateRecordMeta($cert_type);
 $recordsPageMap = [
     'baptism' => 'baptism-records.php',
