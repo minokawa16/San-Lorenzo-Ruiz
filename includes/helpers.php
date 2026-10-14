@@ -4467,3 +4467,64 @@ function getParishOfficeInfo($conn = null): array {
         ]
     ];
 }
+
+/**
+ * Reusable helper: Parse father and mother names from composite parents string.
+ */
+function parseSacramentalParents(string $parents): array {
+    $father = '';
+    $mother = '';
+    $parents = trim($parents);
+    if ($parents === '') {
+        return ['father' => '', 'mother' => ''];
+    }
+    if (preg_match('/father\s*[:\-]\s*(.+?)(?:\s*(?:mother|and)\s*[:\-]\s*|\s+\/\s+)(.+)$/i', $parents, $m)) {
+        $father = trim($m[1]);
+        $mother = trim(preg_replace('/^mother\s*[:\-]\s*/i', '', trim($m[2])));
+    } else {
+        $parts = preg_split('/\s+(?:and|&)\s+|\s*\/\s*|\s*,\s*/i', $parents);
+        $parts = array_values(array_filter(array_map('trim', $parts)));
+        if (count($parts) >= 2) {
+            $father = preg_replace('/^father\s*[:\-]\s*/i', '', $parts[0]);
+            $mother = preg_replace('/^mother\s*[:\-]\s*/i', '', $parts[1]);
+        } elseif (count($parts) === 1) {
+            $father = preg_replace('/^father\s*[:\-]\s*/i', '', $parts[0]);
+        }
+    }
+    return ['father' => trim($father), 'mother' => trim($mother)];
+}
+
+/**
+ * Reusable helper: Parse parent birthplaces from registry remarks if available.
+ */
+function parseParentBirthplacesFromRemarks(string $remarks): array {
+    $father_bp = '';
+    $mother_bp = '';
+    $remarks = trim($remarks);
+    if ($remarks !== '') {
+        if (preg_match('/father(?:\'s)?\s*birthplace\s*[:\-]\s*([^\|\n\r;]+)/i', $remarks, $m)) {
+            $father_bp = trim($m[1]);
+        }
+        if (preg_match('/mother(?:\'s)?\s*birthplace\s*[:\-]\s*([^\|\n\r;]+)/i', $remarks, $m)) {
+            $mother_bp = trim($m[1]);
+        }
+    }
+    return ['father_birth_place' => $father_bp, 'mother_birth_place' => $mother_bp];
+}
+
+/**
+ * Reusable helper: Parse and deduplicate godparents / sponsors list.
+ */
+function parseSacramentalSponsors($rawSponsors): array {
+    if (!is_array($rawSponsors)) {
+        $rawSponsors = preg_split('/,\s*|\s+and\s+|\s*;\s*|\s*\/\s*|[\r\n]+/i', (string)$rawSponsors);
+    }
+    $valid = [];
+    foreach ($rawSponsors as $s) {
+        $s = trim((string)$s);
+        if ($s !== '' && !in_array($s, $valid, true)) {
+            $valid[] = $s;
+        }
+    }
+    return $valid;
+}

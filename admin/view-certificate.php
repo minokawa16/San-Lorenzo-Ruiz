@@ -117,7 +117,7 @@ if (!isset($_SESSION['certificate_data']) || !isset($_SESSION['cert_type'])) {
             $_SESSION['certificate_data'] = $fb;
             $_SESSION['cert_type'] = 'baptism';
         } else {
-            header('Location: certificate-generator.php');
+            header('Location: manage-records.php');
             exit;
         }
     }
@@ -772,9 +772,22 @@ function certificateAssetUrl($relative_path, $fallback = '') {
     }
     return $fallback;
 }
-}
-
 $meta = certificateRecordMeta($cert_type);
+$recordsPageMap = [
+    'baptism' => 'baptism-records.php',
+    'baptism_certification' => 'baptism-records.php',
+    'communion' => 'communion-records.php',
+    'first_communion' => 'communion-records.php',
+    'first_communion_certificate' => 'communion-records.php',
+    'first_communion_certification' => 'communion-records.php',
+    'confirmation' => 'confirmation-records.php',
+    'confirmation_certification' => 'confirmation-records.php',
+    'marriage' => 'marriage-records.php',
+    'marriage_certification' => 'marriage-records.php',
+    'funeral' => 'funeral-records.php',
+    'funeral_certification' => 'funeral-records.php',
+];
+$back_to_records_url = $recordsPageMap[$cert_type] ?? 'manage-records.php';
 if ($is_manual_certificate) {
     $manual_number = trim((string) ($data['certificate_number'] ?? ''));
     $issue = [
@@ -2795,7 +2808,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
             <?php if ($is_manual_certificate): ?>
                 <a href="manual-certificate-generator.php?new=1" class="btn btn-outline-success"><i class="fas fa-plus"></i> Generate Another</a>
             <?php endif; ?>
-            <a href="certificate-generator.php" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back</a>
+            <a href="<?php echo e($back_to_records_url); ?>" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back to Records</a>
         </div>
     </div>
 
@@ -2804,7 +2817,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_pdf' && ($cert_type 
             <i class="fas fa-triangle-exclamation text-danger fa-3x mb-3"></i>
             <h4 class="fw-bold text-danger">Certificate Record Error</h4>
             <p class="text-secondary mb-3"><?php echo e($record_load_error); ?></p>
-            <a href="certificate-generator.php" class="btn btn-secondary px-4"><i class="fas fa-arrow-left me-1"></i> Return to Certificate Generator</a>
+            <a href="<?php echo e($back_to_records_url); ?>" class="btn btn-secondary px-4"><i class="fas fa-arrow-left me-1"></i> Return to Records</a>
         </div>
     <?php endif; ?>
 

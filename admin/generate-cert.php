@@ -1,96 +1,35 @@
 <?php
 /**
- * Generate Certificate Page
- * Admin interface for generating sacramental certificates
+ * Generate Certificate Compatibility Proxy
+ * Forwards legacy calls to canonical generate-certificate.php endpoint.
  */
 
-// Include centralized session management
-include '../includes/session.php';
-include '../database/config.php';
-include '../includes/helpers.php';
+require_once __DIR__ . '/../includes/session.php';
 
-// Require admin access
-requireAdmin();
-requirePermission('certificates.manage');
+$type = $_GET['type'] ?? ($_POST['type'] ?? '');
+$id = intval($_GET['id'] ?? ($_POST['id'] ?? ($_GET['record_id'] ?? ($_POST['record_id'] ?? 0))));
 
-$cert_type = $_GET['type'] ?? '';
-$record_id = intval($_GET['id'] ?? 0);
+$registry = 'baptism';
+$docType = 'original';
 
-if ($record_id === 0 || empty($cert_type)) {
-    $_SESSION['error'] = 'Invalid certificate request';
-    header('Location: manage-certificates.php');
-    exit;
+if (strpos($type, 'certification') !== false) {
+    $docType = 'certification';
 }
 
-// Fetch the record based on type
-$record = null;
-
-switch($cert_type) {
-    case 'baptism':
-    case 'baptism_certification':
-        $sql = "SELECT * FROM baptism_records WHERE baptism_id = $record_id AND status = 'active'";
-        break;
-    case 'communion':
-    case 'first_communion':
-    case 'first_communion_certificate':
-    case 'first_communion_certification':
-        $sql = "SELECT * FROM first_communion_records WHERE communion_id = $record_id AND status = 'active'";
-        break;
-    case 'confirmation':
-    case 'confirmation_certification':
-        $sql = "SELECT * FROM confirmation_records WHERE confirmation_id = $record_id AND status = 'active'";
-        break;
-    case 'marriage':
-    case 'marriage_certification':
-        $sql = "SELECT * FROM marriage_records WHERE marriage_id = $record_id AND status = 'active'";
-        break;
-    case 'funeral':
-    case 'funeral_certification':
-        $sql = "SELECT * FROM funeral_records WHERE funeral_id = $record_id AND status = 'active'";
-        break;
-    default:
-        $_SESSION['error'] = 'Invalid record type';
-        header('Location: certificate-generator.php');
-        exit;
+if (strpos($type, 'communion') !== false) {
+    $registry = 'communion';
+} elseif (strpos($type, 'confirmation') !== false) {
+    $registry = 'confirmation';
+} elseif (strpos($type, 'marriage') !== false) {
+    $registry = 'marriage';
+    $docType = 'certification';
+} elseif (strpos($type, 'funeral') !== false || strpos($type, 'burial') !== false) {
+    $registry = 'funeral';
+    $docType = 'certification';
+} elseif (strpos($type, 'baptism') !== false) {
+    $registry = 'baptism';
 }
 
-$result = $conn->query($sql);
-
-if ($result && $result->num_rows > 0) {
-    $record = $result->fetch_assoc();
-    unset($_SESSION['manual_certificate']);
-
-    if (in_array($cert_type, ['communion', 'first_communion', 'first_communion_certificate', 'first_communion_certification'], true)) {
-        $signers = getFirstCommunionSigners($conn, $record);
-        if (empty($record['catechist_coordinator'])) {
-            $record['catechist_coordinator'] = $signers['catechist_coordinator'];
-        }
-        if (empty($record['parish_priest'])) {
-            $record['parish_priest'] = $signers['parish_priest'];
-        }
-        if (empty($record['principal'])) {
-            $record['principal'] = $signers['principal'];
-        }
-    }
-
-    $_SESSION['certificate_data'] = $record;
-    $_SESSION['cert_type'] = $cert_type;
-    
-    // Log this action with complete audit context
-    $prettyType = ucwords(str_replace('_', ' ', $cert_type));
-    $recipientName = trim((string)($record['fullname'] ?? $record['deceased_name'] ?? trim(($record['husband_name'] ?? '') . ' and ' . ($record['wife_name'] ?? ''))));
-    $desc = "Generated {$prettyType} preview for record #{$record_id}" . ($recipientName !== '' ? " ({$recipientName})" : "") . ".";
-    createAuditLog(
-        $conn, (int)$_SESSION['user_id'], 'GENERATE_CERTIFICATE',
-        $cert_type, $record_id, null,
-        ['cert_type' => $cert_type, 'recipient' => $recipientName],
-        $desc, 'CERTIFICATES', 'INFO'
-    );
-    
-    header('Location: view-certificate.php?id=' . $record_id . '&type=' . urlencode($cert_type));
-    exit;
-} else {
-    $_SESSION['error'] = 'Record not found or inactive';
-    header('Location: certificate-generator.php');
-    exit;
-}
+$forwardUrl = 'generate-certificate.php?registry=' . urlencode($registry) . '&record_id=' . $id . '&type=' . urlencode($docType);
+header('Location: ' . $forwardUrl, true, 302);
+exit;

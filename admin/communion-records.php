@@ -776,9 +776,18 @@ include '../templates/header.php';
                                                         </button>
                                                     </form>
                                                 <?php else: ?>
-                                                    <a href="generate-cert.php?type=communion&id=<?php echo (int)$record['communion_id']; ?>" class="action-btn" style="background:#1e3a8a;color:#fff;text-decoration:none;" title="Generate First Communion Certificate">
+                                                    <button type="button" 
+                                                            class="action-btn btn-open-cert-modal" 
+                                                            data-registry="communion" 
+                                                            data-id="<?php echo (int)$record['communion_id']; ?>" 
+                                                            data-name="<?php echo htmlspecialchars($record['fullname'], ENT_QUOTES); ?>" 
+                                                            data-ref="<?php echo htmlspecialchars($record['registry_no'] ?: ('#' . $record['communion_id']), ENT_QUOTES); ?>" 
+                                                            data-date="<?php echo htmlspecialchars(format_record_date($record['communion_date'], 'M d, Y'), ENT_QUOTES); ?>"
+                                                            data-date-label="Communion Date"
+                                                            style="background:#1e3a8a;color:#fff;border:none;cursor:pointer;" 
+                                                            title="Generate First Communion Certificate">
                                                         <i class="fas fa-certificate"></i> Cert
-                                                    </a>
+                                                    </button>
                                                     <button class="action-btn btn-delete" onclick="confirmArchive(<?php echo $record['communion_id']; ?>)">
                                                         <i class="fas fa-archive"></i> Archive
                                                     </button>
@@ -1037,4 +1046,5 @@ include '../templates/header.php';
         });
     </script>
 </div>
+<?php include __DIR__ . '/../includes/components/certificate-generation-modal.php'; ?>
 <?php include '../templates/footer.php'; ?>

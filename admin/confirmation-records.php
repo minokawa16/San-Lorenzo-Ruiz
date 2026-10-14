@@ -720,9 +720,6 @@ include '../templates/header.php';
                     <button onclick="openAddModal()" class="btn btn-primary-gold">
                         <i class="fas fa-plus"></i> Add Record
                     </button>
-                    <a href="certificate-generator.php?cert_type=confirmation" class="btn btn-primary-gold" style="background: #1F5A7A; color: #ffffff;" title="Generate Confirmation Certificate">
-                        <i class="fas fa-certificate"></i> Generate Certificate
-                    </a>
                 </div>
             </div>
 
@@ -789,9 +786,18 @@ include '../templates/header.php';
                                                         </button>
                                                     </form>
                                                 <?php else: ?>
-                                                    <a href="view-certificate.php?id=<?php echo (int)$record['confirmation_id']; ?>&type=confirmation" class="action-btn" style="color: #1e40af; border: 1px solid #bfdbfe; background: #eff6ff;" title="View / Print Certificate">
-                                                        <i class="fas fa-certificate"></i> Certificate
-                                                    </a>
+                                                    <button type="button" 
+                                                            class="action-btn btn-open-cert-modal" 
+                                                            data-registry="confirmation" 
+                                                            data-id="<?php echo (int)$record['confirmation_id']; ?>" 
+                                                            data-name="<?php echo htmlspecialchars($record['fullname'], ENT_QUOTES); ?>" 
+                                                            data-ref="<?php echo htmlspecialchars($record['registry_no'] ?: ('#' . $record['confirmation_id']), ENT_QUOTES); ?>" 
+                                                            data-date="<?php echo htmlspecialchars(format_record_date($record['confirmation_date'], 'M d, Y'), ENT_QUOTES); ?>"
+                                                            data-date-label="Confirmation Date"
+                                                            style="color: #1e40af; border: 1px solid #bfdbfe; background: #eff6ff; cursor: pointer;" 
+                                                            title="Generate Confirmation Certificate">
+                                                        <i class="fas fa-certificate"></i> Cert
+                                                    </button>
                                                     <button class="action-btn btn-delete" onclick="confirmArchive(<?php echo $record['confirmation_id']; ?>)">
                                                         <i class="fas fa-archive"></i> Archive
                                                     </button>
@@ -1059,4 +1065,5 @@ include '../templates/header.php';
         });
     </script>
 </div>
+<?php include __DIR__ . '/../includes/components/certificate-generation-modal.php'; ?>
 <?php include '../templates/footer.php'; ?>

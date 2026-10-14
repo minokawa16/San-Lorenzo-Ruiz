@@ -1461,9 +1461,18 @@ include '../templates/header.php';
                                     <td style="text-align: center; width: 175px; min-width: 175px; white-space: nowrap;">
                                         <div class="record-actions-wrap justify-content-center">
                                             <?php if (!$is_archived): ?>
-                                                <a href="generate-cert.php?id=<?php echo (int)$record['baptism_id']; ?>&type=baptism" class="btn-reg-action" style="color: #92400e; border-color: #fde68a; background: #fffbeb;" title="Generate Official Certificate of Baptism">
+                                                <button type="button" 
+                                                        class="btn-reg-action btn-open-cert-modal" 
+                                                        data-registry="baptism" 
+                                                        data-id="<?php echo (int)$record['baptism_id']; ?>" 
+                                                        data-name="<?php echo htmlspecialchars($record['fullname'], ENT_QUOTES); ?>" 
+                                                        data-ref="<?php echo htmlspecialchars($record['registry_no'] ?: ('#' . $record['baptism_id']), ENT_QUOTES); ?>" 
+                                                        data-date="<?php echo htmlspecialchars(format_baptism_record_date($record['baptism_date'], 'M d, Y'), ENT_QUOTES); ?>"
+                                                        data-date-label="Date Baptized"
+                                                        style="color: #92400e; border-color: #fde68a; background: #fffbeb; cursor: pointer;" 
+                                                        title="Generate Certificate">
                                                     <i class="fas fa-certificate"></i> Cert
-                                                </a>
+                                                </button>
                                             <?php endif; ?>
                                             <?php if ($is_archived): ?>
                                                 <form method="POST" class="d-inline" onsubmit="return confirm('Restore this baptism record to active?');">
@@ -1749,7 +1758,7 @@ include '../templates/header.php';
 
                 <div class="modal-footer">
                     <button type="button" class="btn-modal-cancel" onclick="closeModal()">Cancel</button>
-                    <a id="modalGenCertBtn" href="#" class="btn btn-warning text-dark fw-bold me-auto" style="display: none; padding: 9px 18px; border-radius: 7px; text-decoration: none; align-items: center; gap: 6px;"><i class="fas fa-certificate"></i> Generate Certificate</a>
+                    <button type="button" id="modalGenCertBtn" class="btn btn-warning text-dark fw-bold me-auto btn-open-cert-modal" style="display: none; padding: 9px 18px; border-radius: 7px; border: 1px solid #d97706; align-items: center; gap: 6px;"><i class="fas fa-certificate"></i> Generate Certificate</button>
                     <button type="submit" class="btn-modal-save">
                         <i class="fas fa-floppy-disk"></i> Save Record
                     </button>
@@ -1874,7 +1883,12 @@ include '../templates/header.php';
             document.getElementById('motherBirthPlace').value = record.mother_birth_place || '';
             const genCertBtn = document.getElementById('modalGenCertBtn');
             if (genCertBtn) {
-                genCertBtn.href = 'generate-cert.php?id=' + (record.id || '') + '&type=baptism';
+                genCertBtn.setAttribute('data-registry', 'baptism');
+                genCertBtn.setAttribute('data-id', record.id || '');
+                genCertBtn.setAttribute('data-name', record.fullname || '');
+                genCertBtn.setAttribute('data-ref', record.registry_no || ('#' + (record.id || '')));
+                genCertBtn.setAttribute('data-date', record.baptism_date || '');
+                genCertBtn.setAttribute('data-date-label', 'Date Baptized');
                 genCertBtn.style.display = 'inline-flex';
             }
             document.getElementById('parentAddress').value = record.parent_address || '';
@@ -2082,4 +2096,5 @@ include '../templates/header.php';
         });
     </script>
 </div>
+<?php include __DIR__ . '/../includes/components/certificate-generation-modal.php'; ?>
 <?php include '../templates/footer.php'; ?>

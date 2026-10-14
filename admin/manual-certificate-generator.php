@@ -246,7 +246,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 $breadcrumbs = [
     'Dashboard' => 'dashboard.php',
-    'Certificate Generator' => 'certificate-generator.php',
+    'Records' => 'manage-records.php',
     'Manual Generator' => null
 ];
 
@@ -282,7 +282,7 @@ include '../templates/header.php';
     $page_header_subtitle = 'Create official certificate previews and documents from temporary manual entry without modifying registry books.';
     $page_header_icon = 'fa-pen-to-square';
     $show_back_button = true;
-    $back_button_url = 'certificate-generator.php';
+    $back_button_url = 'manage-records.php';
     include '../includes/page_header.php';
     ?>
 

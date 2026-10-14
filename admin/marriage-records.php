@@ -877,6 +877,18 @@ include '../templates/header.php';
                                                         </button>
                                                     </form>
                                                 <?php else: ?>
+                                                    <button type="button" 
+                                                            class="action-btn btn-open-cert-modal" 
+                                                            data-registry="marriage" 
+                                                            data-id="<?php echo (int)$record['marriage_id']; ?>" 
+                                                            data-name="<?php echo htmlspecialchars(trim(($record['husband_name'] ?? '') . ' and ' . ($record['wife_name'] ?? '')), ENT_QUOTES); ?>" 
+                                                            data-ref="<?php echo htmlspecialchars($record['registry_no'] ?: ('#' . $record['marriage_id']), ENT_QUOTES); ?>" 
+                                                            data-date="<?php echo htmlspecialchars(format_marriage_record_date($record['wedding_date'], 'M d, Y'), ENT_QUOTES); ?>"
+                                                            data-date-label="Wedding Date"
+                                                            style="color: #92400e; border: 1px solid #fde68a; background: #fffbeb; cursor: pointer;" 
+                                                            title="Generate Marriage Certification">
+                                                        <i class="fas fa-certificate"></i> Cert
+                                                    </button>
                                                     <button class="action-btn btn-delete" onclick="confirmArchive(<?php echo $record['marriage_id']; ?>)">
                                                         <i class="fas fa-archive"></i> Archive
                                                     </button>
@@ -1204,4 +1216,5 @@ include '../templates/header.php';
         });
     </script>
 </div>
+<?php include __DIR__ . '/../includes/components/certificate-generation-modal.php'; ?>
 <?php include '../templates/footer.php'; ?>

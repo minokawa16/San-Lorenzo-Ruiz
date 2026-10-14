@@ -41,7 +41,7 @@ foreach ($types as $type => $label) {
 }
 $breadcrumbs = [
     'Dashboard' => 'dashboard.php',
-    'Certificate Generator' => 'certificate-generator.php',
+    'Records' => 'manage-records.php',
     'Certificate Layouts' => null
 ];
 ?>
@@ -54,7 +54,7 @@ $breadcrumbs = [
     $page_header_subtitle = 'Edit and manage official certificate layout templates, typography, and live issuance settings per sacrament.';
     $page_header_icon = 'fa-pen-ruler';
     $show_back_button = true;
-    $back_button_url = 'certificate-generator.php';
+    $back_button_url = 'manage-records.php';
     include '../includes/page_header.php';
     ?>
 

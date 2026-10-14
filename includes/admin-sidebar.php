@@ -12,10 +12,9 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 $isParishMgmtActive = in_array($currentPage, ['manage-users.php', 'manage-parishioners.php', 'organization.php', 'org-chart.php', 'verify-registrations.php'], true);
 $isRequestMgmtActive = in_array($currentPage, ['manage-requests.php', 'request-workflow.php', 'process-request.php', 'manage-reservations.php', 'manage-resources.php', 'manage-calendar.php'], true);
 $isRecordsActive = in_array($currentPage, ['manage-records.php', 'baptism-records.php', 'confirmation-records.php', 'communion-records.php', 'marriage-records.php', 'funeral-records.php', 'sacramental-import.php', 'record-corrections.php', 'archives.php'], true);
-$isCertificatesActive = in_array($currentPage, ['certificate-generator.php', 'manual-certificate-generator.php', 'certificate-workflow.php', 'certificate-templates.php', 'certificate-layout-editor.php'], true);
 $isCommunicationActive = in_array($currentPage, ['manage-announcements.php', 'post-announcement.php'], true);
 $isReportsActive = in_array($currentPage, ['reports.php', 'audit-logs.php'], true);
-$isSystemActive = in_array($currentPage, ['settings.php', 'backup.php', 'help.php'], true);
+$isSystemActive = in_array($currentPage, ['settings.php', 'backup.php', 'help.php', 'certificate-templates.php', 'certificate-layout-editor.php'], true);
 
 // Get pending requests count for badge
 $sidebarPendingCount = 0;
@@ -429,36 +428,7 @@ html body .admin-sidebar.collapsed .nav-section-submenu {
     </div>
     <?php endif; ?>
 
-    <!-- 5. CERTIFICATES (Accordion) -->
-    <?php if (hasPermission('certificates.manage')): ?>
-    <div class="nav-accordion-section <?php echo $isCertificatesActive ? 'open active-group' : ''; ?>" data-section="certificates" data-group-title="Certificates">
-      <button type="button" 
-              class="nav-section-accordion-header <?php echo $isCertificatesActive ? 'active' : ''; ?>" 
-              id="accordion-certificates" 
-              aria-expanded="<?php echo $isCertificatesActive ? 'true' : 'false'; ?>" 
-              aria-controls="submenu-certificates"
-              aria-label="Certificates"
-              data-tooltip="Certificates"
-              data-group="certificates"
-              tabindex="0">
-        <i class="group-icon fas fa-certificate" aria-hidden="true"></i>
-        <span class="nav-section-title">Certificates</span>
-        <i class="fas fa-chevron-down nav-accordion-arrow" aria-hidden="true"></i>
-      </button>
-      <div class="nav-section-submenu" id="submenu-certificates" role="region" aria-labelledby="accordion-certificates">
-        <a href="<?php echo BASE_URL; ?>admin/certificate-generator.php" class="nav-link <?php echo in_array($currentPage, ['certificate-generator.php', 'manual-certificate-generator.php', 'certificate-workflow.php'], true) ? 'active' : ''; ?>" aria-label="<?php echo e(t('nav.generate_certificates', 'Generate Certificates')); ?>" data-tooltip="<?php echo e(t('nav.generate_certificates', 'Generate Certificates')); ?>">
-          <i class="fas fa-certificate" aria-hidden="true"></i>
-          <span><?php echo e(t('nav.generate_certificates', 'Generate Certificates')); ?></span>
-        </a>
-        <a href="<?php echo BASE_URL; ?>admin/certificate-templates.php" class="nav-link <?php echo in_array($currentPage, ['certificate-templates.php', 'certificate-layout-editor.php'], true) ? 'active' : ''; ?>" aria-label="Certificate Layouts" data-tooltip="Certificate Layouts">
-          <i class="fas fa-layer-group" aria-hidden="true"></i>
-          <span>Certificate Layouts</span>
-        </a>
-      </div>
-    </div>
-    <?php endif; ?>
-
-    <!-- 6. COMMUNICATION (Accordion) -->
+    <!-- 5. COMMUNICATION (Accordion) -->
     <div class="nav-accordion-section <?php echo $isCommunicationActive ? 'open active-group' : ''; ?>" data-section="communication" data-group-title="<?php echo e(t('nav.communication', 'Communication')); ?>">
       <button type="button" 
               class="nav-section-accordion-header <?php echo $isCommunicationActive ? 'active' : ''; ?>" 
@@ -540,6 +510,10 @@ html body .admin-sidebar.collapsed .nav-section-submenu {
         <a href="<?php echo BASE_URL; ?>admin/backup.php" class="nav-link <?php echo ($currentPage == 'backup.php') ? 'active' : ''; ?>" aria-label="Backup Records" data-tooltip="Backup Records">
           <i class="fas fa-database" aria-hidden="true"></i>
           <span>Backup Records</span>
+        </a>
+        <a href="<?php echo BASE_URL; ?>admin/certificate-templates.php" class="nav-link <?php echo in_array($currentPage, ['certificate-templates.php', 'certificate-layout-editor.php'], true) ? 'active' : ''; ?>" aria-label="Certificate Layouts" data-tooltip="Certificate Layouts">
+          <i class="fas fa-layer-group" aria-hidden="true"></i>
+          <span>Certificate Layouts</span>
         </a>
         <?php endif; ?>
         <a href="<?php echo BASE_URL; ?>admin/help.php" class="nav-link <?php echo ($currentPage == 'help.php') ? 'active' : ''; ?>" aria-label="Admin Manual" data-tooltip="Admin Manual">
