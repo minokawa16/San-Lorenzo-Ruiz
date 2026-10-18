@@ -10,7 +10,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 
 // Detect which sections contain the active page to auto-expand them
 $isParishMgmtActive = in_array($currentPage, ['manage-users.php', 'manage-parishioners.php', 'organization.php', 'org-chart.php', 'verify-registrations.php'], true);
-$isRequestMgmtActive = in_array($currentPage, ['manage-requests.php', 'request-workflow.php', 'process-request.php', 'manage-reservations.php', 'manage-resources.php', 'manage-calendar.php'], true);
+$isRequestMgmtActive = in_array($currentPage, ['manage-requests.php', 'request-workflow.php', 'process-request.php', 'manage-reservations.php', 'manage-resources.php', 'manage-calendar.php', 'notification-settings.php'], true);
 $isRecordsActive = in_array($currentPage, ['manage-records.php', 'baptism-records.php', 'confirmation-records.php', 'communion-records.php', 'marriage-records.php', 'funeral-records.php', 'sacramental-import.php', 'record-corrections.php', 'archives.php'], true);
 $isCommunicationActive = in_array($currentPage, ['manage-announcements.php', 'post-announcement.php'], true);
 $isReportsActive = in_array($currentPage, ['reports.php', 'audit-logs.php'], true);
@@ -389,6 +389,12 @@ html body .admin-sidebar.collapsed .nav-section-submenu {
         <a href="<?php echo BASE_URL; ?>admin/manage-calendar.php" class="nav-link <?php echo ($currentPage == 'manage-calendar.php') ? 'active' : ''; ?>" aria-label="<?php echo e(t('nav.schedule_calendar', 'Parish Calendar')); ?>" data-tooltip="<?php echo e(t('nav.schedule_calendar', 'Parish Calendar')); ?>">
           <i class="fas fa-calendar-days" aria-hidden="true"></i>
           <span><?php echo e(t('nav.schedule_calendar', 'Parish Calendar')); ?></span>
+        </a>
+        <?php endif; ?>
+        <?php if (hasAnyPermission(['notifications.manage', 'admin.access']) || in_array('secretary', userRoleKeys())): ?>
+        <a href="<?php echo BASE_URL; ?>admin/notification-settings.php" class="nav-link <?php echo ($currentPage == 'notification-settings.php') ? 'active' : ''; ?>" aria-label="Reminders & Alerts" data-tooltip="Reminders & Alerts">
+          <i class="fas fa-bell" aria-hidden="true"></i>
+          <span>Reminders & Alerts</span>
         </a>
         <?php endif; ?>
       </div>

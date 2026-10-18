@@ -248,6 +248,14 @@ class SacramentalApprovalService {
             // Commit atomic transaction
             $this->conn->commit();
 
+            // Trigger automated schedule reminders immediately for secretary & staff
+            try {
+                require_once __DIR__ . '/ScheduleReminderService.php';
+                ScheduleReminderService::processReminders($this->conn);
+            } catch (Throwable $remEx) {
+                error_log("[SacramentalApprovalService] Reminder trigger notice: " . $remEx->getMessage());
+            }
+
             return [
                 'success' => true,
                 'message' => "Sacramental request marked as {$targetStatus}, official record registered, and calendar schedule locked.",

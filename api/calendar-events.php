@@ -762,6 +762,12 @@ if ($method === 'POST') {
     if ($visibility === 'public' && $approval_status === 'approved') {
         notifyCalendarUsers($conn, 'New Parish Schedule: ' . $title, $title . ' is scheduled on ' . formatDate($event_date) . ' at ' . formatTime($start_time) . ($location ? ' (' . $location . ')' : '') . '.', true, true);
     }
+    try {
+        require_once __DIR__ . '/../services/ScheduleReminderService.php';
+        ScheduleReminderService::processReminders($conn);
+    } catch (Throwable $remEx) {
+        error_log("[CalendarEvents] Reminder hook error: " . $remEx->getMessage());
+    }
 
     jsonResponse(['success' => true, 'message' => 'Schedule saved successfully.', 'id' => $schedule_id, 'schedule_id' => $schedule_id]);
 }
@@ -872,6 +878,16 @@ if (in_array($method, ['PUT', 'PATCH'], true)) {
     if ($visibility === 'public' && $approval_status === 'approved') {
         notifyCalendarUsers($conn, 'Schedule Update: ' . $title, $title . ' on ' . formatDate($event_date) . ' at ' . formatTime($start_time) . ($location ? ' (' . $location . ')' : '') . ' has been updated.', true, true);
     }
+    try {
+        require_once __DIR__ . '/../services/ScheduleReminderService.php';
+        $changeType = ($status === 'cancelled') ? 'cancelled' : 'rescheduled';
+        ScheduleReminderService::handleScheduleChanged($conn, $id, $changeType, [
+            'new_date' => $event_date,
+            'new_time' => $start_time
+        ]);
+    } catch (Throwable $remEx) {
+        error_log("[CalendarEvents] Reminder update error: " . $remEx->getMessage());
+    }
     jsonResponse(['success' => true, 'message' => 'Schedule updated successfully.']);
 }
 
@@ -896,6 +912,12 @@ if ($method === 'DELETE') {
 
     $stmt->close();
     createAuditLog($conn, $_SESSION['user_id'], 'DELETE_SCHEDULE_EVENT', 'schedule_events', $id);
+    try {
+        require_once __DIR__ . '/../services/ScheduleReminderService.php';
+        ScheduleReminderService::handleScheduleChanged($conn, $id, 'cancelled');
+    } catch (Throwable $remEx) {
+        error_log("[CalendarEvents] Reminder delete error: " . $remEx->getMessage());
+    }
     jsonResponse(['success' => true, 'message' => 'Schedule deleted successfully.']);
 }
 

@@ -42,15 +42,74 @@ $is_user_area = isLoggedIn() && !isAdmin() && (
     strpos($_SERVER['PHP_SELF'], '/users/') !== false ||
     in_array($current_page, ['profile.php', 'change-password.php'], true)
 );
-$is_admin_area = isLoggedIn() && isAdmin() && (
+$user_roles_list = (isLoggedIn() && function_exists('userRoleKeys')) ? userRoleKeys($_SESSION['user_id'] ?? 0, $conn) : [];
+$is_admin_area = isLoggedIn() && (isAdmin() || (function_exists('hasPermission') && hasPermission('admin.access')) || in_array('secretary', $user_roles_list, true)) && (
     strpos($_SERVER['PHP_SELF'], '/admin/') !== false ||
     in_array($current_page, ['profile.php', 'change-password.php'], true)
 );
 $unread_notification_count = 0;
 $recent_header_notifications = [];
+$recent_schedule_reminders = [];
+$recent_other_updates = [];
+$latest_header_notification_id = 0;
+
 if (isLoggedIn()) {
-    $unread_notification_count = getUnreadNotificationCount($conn, $_SESSION['user_id']);
-    $recent_header_notifications = getRecentNotifications($conn, $_SESSION['user_id'], 5);
+    $current_uid = (int)($_SESSION['user_id'] ?? 0);
+    $unread_notification_count = getUnreadNotificationCount($conn, $current_uid);
+    $recent_header_notifications = getRecentNotifications($conn, $current_uid, 5);
+
+    // Group 1: Schedule reminders for secretary / staff
+    $srStmt = $conn->prepare("
+        SELECT notification_id, notification_type, title, message, entity_type, entity_id, action_key, state, is_read, related_request_id, schedule_id, days_before, created_at
+        FROM notifications
+        WHERE user_id = ?
+          AND schedule_id IS NOT NULL
+          AND notification_type = 'schedule_reminder'
+          AND state <> 'deleted'
+          AND state <> 'archived'
+        ORDER BY CASE WHEN days_before IS NULL THEN 99 ELSE days_before END ASC, created_at DESC
+        LIMIT 6
+    ");
+    if ($srStmt) {
+        $srStmt->bind_param('i', $current_uid);
+        $srStmt->execute();
+        $srRes = $srStmt->get_result();
+        while ($srRow = $srRes->fetch_assoc()) {
+            $recent_schedule_reminders[] = $srRow;
+        }
+        $srStmt->close();
+    }
+
+    // Group 2: Other updates
+    $ouStmt = $conn->prepare("
+        SELECT notification_id, notification_type, title, message, entity_type, entity_id, action_key, state, is_read, related_request_id, schedule_id, created_at
+        FROM notifications
+        WHERE user_id = ?
+          AND (schedule_id IS NULL OR notification_type <> 'schedule_reminder')
+          AND state <> 'deleted'
+          AND state <> 'archived'
+        ORDER BY created_at DESC
+        LIMIT 6
+    ");
+    if ($ouStmt) {
+        $ouStmt->bind_param('i', $current_uid);
+        $ouStmt->execute();
+        $ouRes = $ouStmt->get_result();
+        while ($ouRow = $ouRes->fetch_assoc()) {
+            $recent_other_updates[] = $ouRow;
+        }
+        $ouStmt->close();
+    }
+
+    // Latest notification ID for real-time shake tracking
+    $maxStmt = $conn->prepare("SELECT MAX(notification_id) AS max_id FROM notifications WHERE user_id = ? AND state <> 'deleted'");
+    if ($maxStmt) {
+        $maxStmt->bind_param('i', $current_uid);
+        $maxStmt->execute();
+        $mRow = $maxStmt->get_result()->fetch_assoc();
+        $latest_header_notification_id = (int)($mRow['max_id'] ?? 0);
+        $maxStmt->close();
+    }
 }
 $current_language = function_exists('tugonCurrentLanguage') ? tugonCurrentLanguage() : 'en';
 $admin_page_titles = [
@@ -248,6 +307,40 @@ if (isLoggedIn()) {
             background: rgba(200, 155, 60, 0.15) !important;
             color: #FFFFFF !important;
         }
+        /* Secretary Notification Bell & Schedule Reminders */
+        @keyframes bellShake {
+            0% { transform: rotate(0); }
+            15% { transform: rotate(16deg); }
+            30% { transform: rotate(-16deg); }
+            45% { transform: rotate(12deg); }
+            60% { transform: rotate(-12deg); }
+            75% { transform: rotate(6deg); }
+            85% { transform: rotate(-6deg); }
+            100% { transform: rotate(0); }
+        }
+        .bell-shaking {
+            animation: bellShake 0.8s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+            transform-origin: top center;
+            color: #C89B3C !important;
+        }
+        .unread-gold-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #C89B3C;
+            border-radius: 50%;
+            display: inline-block;
+            flex-shrink: 0;
+            box-shadow: 0 0 6px rgba(200, 155, 60, 0.6);
+        }
+        .notif-dropdown-row:hover,
+        .notif-item-row:hover {
+            background-color: #F8FAFC !important;
+        }
+        .btn-mark-item-read:hover {
+            color: #0F5132 !important;
+            background-color: #E2E8F0 !important;
+            border-radius: 50%;
+        }
     </style>
     <?php if ($is_admin_area): ?>
     <script>
@@ -335,17 +428,18 @@ if (isLoggedIn()) {
                 <!-- Right Admin Profile & Notification Widget -->
                 <div class="dashboard-header-profile-wrap parish-nav-right admin-global-actions">
                     <div class="d-flex align-items-center gap-2">
-                        <!-- Admin Notification Bell Dropdown -->
+                        <!-- Admin & Secretary Notification Bell Dropdown -->
                         <div class="dropdown" id="adminNotifDropdownContainer">
+                            <input type="hidden" id="adminInitialLatestId" value="<?php echo (int)$latest_header_notification_id; ?>">
                             <button class="btn pds-btn-notif-bell position-relative d-inline-flex align-items-center justify-content-center" 
                                     type="button" 
                                     data-bs-toggle="dropdown" 
                                     data-bs-auto-close="true"
                                     aria-expanded="false" 
                                     id="adminNotifDropdownBtn"
-                                    title="Admin Notifications"
+                                    title="Parish Notifications"
                                     style="width: 42px; height: 42px; border-radius: 50%; background: #FFFFFF; border: 1px solid #E2E8F0; color: #475569; box-shadow: 0 1px 3px rgba(0,0,0,0.06); transition: all 0.2s ease;">
-                                <i class="fas fa-bell" style="font-size: 16px;"></i>
+                                <i class="fas fa-bell bell-icon" style="font-size: 16px;"></i>
                                 <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger admin-unread-badge-counter" 
                                       id="adminUnreadBadge"
                                       style="<?php echo $unread_notification_count > 0 ? '' : 'display: none !important;'; ?> font-size: 10px; padding: 3px 6px; border: 2px solid #FFFFFF;">
@@ -355,68 +449,172 @@ if (isLoggedIn()) {
                             </button>
                             <div class="dropdown-menu dropdown-menu-end shadow-lg p-0" 
                                  aria-labelledby="adminNotifDropdownBtn"
-                                 style="width: 360px; max-width: 92vw; border-radius: 12px; border: 1px solid #E2E8F0; overflow: hidden;">
-                                <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom" style="background: #F8FAFC;">
+                                 id="adminNotifDropdownMenu"
+                                 style="width: 380px; max-width: 94vw; border-radius: 12px; border: 1px solid #E2E8F0; overflow: hidden; font-family: 'Inter', system-ui, sans-serif;">
+                                <!-- Dropdown Header -->
+                                <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom" style="background: #1e2d24; color: #FFFFFF;">
                                     <div class="d-flex align-items-center gap-2">
-                                        <strong style="font-size: 13px; color: #0F172A; font-weight: 700;">Admin Alerts</strong>
-                                        <?php if ($unread_notification_count > 0): ?>
-                                            <span class="badge bg-danger rounded-pill" id="adminUnreadHeaderCount" style="font-size: 10px;"><?php echo $unread_notification_count; ?> unread</span>
+                                        <strong style="font-size: 13px; font-weight: 700; color: #FFFFFF;">Notifications</strong>
+                                        <span class="badge rounded-pill" id="adminUnreadHeaderCount" style="<?php echo $unread_notification_count > 0 ? '' : 'display: none !important;'; ?> background: #C89B3C; color: #1e2d24; font-size: 10px; font-weight: 700;">
+                                            <?php echo $unread_notification_count; ?> unread
+                                        </span>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <button type="button" id="btnMarkAllRead" class="btn btn-link p-0 text-decoration-none" style="font-size: 11px; font-weight: 600; color: #deb042;" title="Mark all notifications as read">
+                                            Mark all read
+                                        </button>
+                                        <a href="<?php echo BASE_URL; ?>admin/notification-settings.php" class="text-decoration-none" style="color: #E2E8F0; font-size: 12px;" title="Reminder Settings">
+                                            <i class="fas fa-gear"></i>
+                                        </a>
+                                    </div>
+                                </div>
+
+                                <!-- Scrollable Lists Container -->
+                                <div class="admin-notif-dropdown-list" style="max-height: 420px; overflow-y: auto;">
+                                    <!-- SECTION 1: Schedule Reminders · Next 3 Days -->
+                                    <div class="px-3 py-1 bg-light text-uppercase fw-bold text-muted d-flex align-items-center justify-content-between border-bottom" style="font-size: 10px; letter-spacing: 0.5px;">
+                                        <span><i class="fas fa-calendar-check text-warning me-1"></i> Schedule reminders · next 3 days</span>
+                                        <span class="badge bg-secondary-subtle text-secondary" style="font-size: 9px;" id="countScheduleReminders"><?php echo count($recent_schedule_reminders); ?></span>
+                                    </div>
+                                    <div id="scheduleRemindersList">
+                                        <?php if (!empty($recent_schedule_reminders)): ?>
+                                            <?php foreach ($recent_schedule_reminders as $sr): 
+                                                $isUnread = empty($sr['is_read']) && ($sr['state'] ?? '') !== 'read';
+                                                $days = $sr['days_before'] !== null ? (int)$sr['days_before'] : null;
+                                                $edgeColor = match ($days) {
+                                                    0 => '#DC2626', // solid red
+                                                    1 => '#EF4444', // red
+                                                    2 => '#F97316', // orange
+                                                    3 => '#C89B3C', // gold
+                                                    default => '#C89B3C'
+                                                };
+                                                $actionUrl = !empty($sr['related_request_id'])
+                                                    ? (BASE_URL . 'admin/request-workflow.php?id=' . (int)$sr['related_request_id'])
+                                                    : (!empty($sr['schedule_id']) 
+                                                        ? (BASE_URL . 'admin/manage-calendar.php?event=' . (int)$sr['schedule_id'])
+                                                        : (BASE_URL . 'admin/manage-requests.php'));
+                                            ?>
+                                                <div class="position-relative d-flex align-items-start gap-2 p-2 px-3 border-bottom notif-item-row" 
+                                                     id="notif_row_<?php echo $sr['notification_id']; ?>"
+                                                     style="<?php echo $isUnread ? 'background: #FAF8F2;' : 'background: #FFFFFF;'; ?> border-left: 4px solid <?php echo $edgeColor; ?> !important; transition: background 0.15s ease;">
+                                                    <a href="<?php echo e($actionUrl); ?>" class="text-decoration-none flex-grow-1 overflow-hidden" style="color: inherit;">
+                                                        <div class="d-flex align-items-center justify-content-between mb-1">
+                                                            <strong class="text-truncate d-block" style="font-size: 12.5px; color: #1E293B; max-width: 240px;">
+                                                                <?php echo e($sr['title']); ?>
+                                                            </strong>
+                                                            <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                                                                <?php if ($isUnread): ?>
+                                                                    <span class="unread-gold-dot" id="dot_<?php echo $sr['notification_id']; ?>" title="Unread"></span>
+                                                                <?php endif; ?>
+                                                            </div>
+                                                        </div>
+                                                        <p class="mb-1 text-muted text-truncate" style="font-size: 11.5px; line-height: 1.35;">
+                                                            <?php echo e(notificationShortMessage($sr['message'] ?? '', 95)); ?>
+                                                        </p>
+                                                        <small class="text-muted" style="font-size: 10px;">
+                                                            <i class="far fa-clock me-1"></i><?php echo formatDateTime($sr['created_at']); ?>
+                                                        </small>
+                                                    </a>
+                                                    <?php if ($isUnread): ?>
+                                                        <button type="button" class="btn btn-sm text-muted p-0 flex-shrink-0 btn-mark-item-read" 
+                                                                onclick="window.markParishNotificationRead(event, <?php echo $sr['notification_id']; ?>)"
+                                                                title="Mark as read" style="font-size: 12px; width: 22px; height: 22px; line-height: 22px; text-align: center;">
+                                                            <i class="fas fa-check"></i>
+                                                        </button>
+                                                    <?php endif; ?>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        <?php else: ?>
+                                            <div class="text-center py-3 px-2 text-muted" style="font-size: 11.5px;">
+                                                <i class="far fa-calendar-check me-1 text-secondary"></i> No schedule reminders in next 3 days
+                                            </div>
                                         <?php endif; ?>
                                     </div>
-                                    <a href="<?php echo BASE_URL; ?>admin/manage-requests.php" class="text-decoration-none" style="font-size: 11px; font-weight: 600; color: #0F5132;">All Requests &rarr;</a>
-                                </div>
-                                <div class="admin-notif-dropdown-list" style="max-height: 360px; overflow-y: auto;">
-                                    <?php if (!empty($recent_header_notifications)): ?>
-                                        <?php foreach ($recent_header_notifications as $hNotif): 
-                                            try {
-                                                $isUnread = empty($hNotif['is_read']) && ($hNotif['state'] ?? '') !== 'read';
-                                                $actionTarget = class_exists('NotificationService')
-                                                    ? NotificationService::actionUrl($hNotif['action_key'] ?? '', $hNotif['entity_type'] ?? null, $hNotif['entity_id'] ?? null, $hNotif, $conn)
-                                                    : (BASE_URL . 'admin/manage-requests.php');
-                                                $actionTarget = $actionTarget ?: (BASE_URL . 'admin/manage-requests.php');
-                                                $isUrgentAlert = stripos($hNotif['title'] ?? '', 'urgent') !== false;
-                                        ?>
-                                            <a href="<?php echo e($actionTarget); ?>" class="d-block text-decoration-none px-3 py-2 border-bottom notif-dropdown-row <?php echo $isUnread ? 'bg-light' : ''; ?>" style="transition: background 0.15s ease;">
-                                                <div class="d-flex align-items-start gap-2">
+
+                                    <!-- SECTION 2: Other Updates -->
+                                    <div class="px-3 py-1 bg-light text-uppercase fw-bold text-muted d-flex align-items-center justify-content-between border-top border-bottom" style="font-size: 10px; letter-spacing: 0.5px;">
+                                        <span><i class="fas fa-bell text-secondary me-1"></i> Other updates</span>
+                                        <span class="badge bg-secondary-subtle text-secondary" style="font-size: 9px;" id="countOtherUpdates"><?php echo count($recent_other_updates); ?></span>
+                                    </div>
+                                    <div id="otherUpdatesList">
+                                        <?php if (!empty($recent_other_updates)): ?>
+                                            <?php foreach ($recent_other_updates as $ou): 
+                                                $isUnread = empty($ou['is_read']) && ($ou['state'] ?? '') !== 'read';
+                                                $type = $ou['notification_type'];
+                                                $iconClass = match ($type) {
+                                                    'new_request_admin', 'new_request' => 'fa-file-circle-plus',
+                                                    'schedule_cancelled', 'request_cancelled' => 'fa-ban',
+                                                    'schedule_conflict' => 'fa-calendar-xmark',
+                                                    'stale_request' => 'fa-clock-rotate-left',
+                                                    default => 'fa-bell'
+                                                };
+                                                $iconColor = match ($type) {
+                                                    'new_request_admin', 'new_request' => '#0F5132',
+                                                    'schedule_cancelled', 'request_cancelled' => '#DC2626',
+                                                    'schedule_conflict' => '#B45309',
+                                                    'stale_request' => '#C89B3C',
+                                                    default => '#475569'
+                                                };
+                                                $actionUrl = !empty($ou['related_request_id'])
+                                                    ? (BASE_URL . 'admin/request-workflow.php?id=' . (int)$ou['related_request_id'])
+                                                    : ($ou['entity_type'] === 'request' && !empty($ou['entity_id'])
+                                                        ? (BASE_URL . 'admin/request-workflow.php?id=' . (int)$ou['entity_id'])
+                                                        : (BASE_URL . 'admin/manage-requests.php'));
+                                            ?>
+                                                <div class="position-relative d-flex align-items-start gap-2 p-2 px-3 border-bottom notif-item-row" 
+                                                     id="notif_row_<?php echo $ou['notification_id']; ?>"
+                                                     style="<?php echo $isUnread ? 'background: #FAF8F2;' : 'background: #FFFFFF;'; ?> transition: background 0.15s ease;">
                                                     <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 mt-1" 
-                                                         style="width: 30px; height: 30px; background: <?php echo $isUrgentAlert ? '#FEE2E2' : '#FEF3C7'; ?>; color: <?php echo $isUrgentAlert ? '#DC2626' : '#D97706'; ?>; font-size: 12px;">
-                                                        <i class="fas <?php echo $isUrgentAlert ? 'fa-triangle-exclamation' : 'fa-bell'; ?>"></i>
+                                                         style="width: 26px; height: 26px; background: #F1F5F9; color: <?php echo $iconColor; ?>; font-size: 11px;">
+                                                        <i class="fas <?php echo $iconClass; ?>"></i>
                                                     </div>
-                                                    <div class="flex-grow-1 overflow-hidden">
-                                                        <div class="d-flex align-items-center justify-content-between">
-                                                            <strong class="text-truncate d-block" style="font-size: 12.5px; color: #1E293B; max-width: 220px;"><?php echo e($hNotif['title']); ?></strong>
-                                                            <?php if ($isUnread): ?>
-                                                                <span class="rounded-circle" style="width: 7px; height: 7px; background: #DC2626; display: inline-block;"></span>
-                                                            <?php endif; ?>
+                                                    <a href="<?php echo e($actionUrl); ?>" class="text-decoration-none flex-grow-1 overflow-hidden" style="color: inherit;">
+                                                        <div class="d-flex align-items-center justify-content-between mb-1">
+                                                            <strong class="text-truncate d-block" style="font-size: 12px; color: #1E293B; max-width: 220px;">
+                                                                <?php echo e($ou['title']); ?>
+                                                            </strong>
+                                                            <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                                                                <?php if ($isUnread): ?>
+                                                                    <span class="unread-gold-dot" id="dot_<?php echo $ou['notification_id']; ?>" title="Unread"></span>
+                                                                <?php endif; ?>
+                                                            </div>
                                                         </div>
-                                                        <p class="mb-1 text-muted text-truncate" style="font-size: 11.5px; line-height: 1.35; margin-top: 2px;">
-                                                            <?php echo e(notificationShortMessage($hNotif['message'] ?? '', 85)); ?>
+                                                        <p class="mb-1 text-muted text-truncate" style="font-size: 11px; line-height: 1.35;">
+                                                            <?php echo e(notificationShortMessage($ou['message'] ?? '', 85)); ?>
                                                         </p>
-                                                        <small class="text-muted" style="font-size: 10.5px;">
-                                                            <i class="far fa-clock me-1"></i><?php echo formatDateTime($hNotif['created_at']); ?>
+                                                        <small class="text-muted" style="font-size: 10px;">
+                                                            <i class="far fa-clock me-1"></i><?php echo formatDateTime($ou['created_at']); ?>
                                                         </small>
-                                                    </div>
+                                                    </a>
+                                                    <?php if ($isUnread): ?>
+                                                        <button type="button" class="btn btn-sm text-muted p-0 flex-shrink-0 btn-mark-item-read" 
+                                                                onclick="window.markParishNotificationRead(event, <?php echo $ou['notification_id']; ?>)"
+                                                                title="Mark as read" style="font-size: 12px; width: 22px; height: 22px; line-height: 22px; text-align: center;">
+                                                            <i class="fas fa-check"></i>
+                                                        </button>
+                                                    <?php endif; ?>
                                                 </div>
-                                            </a>
-                                        <?php 
-                                            } catch (Throwable $e) {
-                                                error_log('Error rendering header notification: ' . $e->getMessage());
-                                            }
-                                        endforeach; ?>
-                                    <?php else: ?>
-                                        <div class="text-center py-4 px-3 text-muted">
-                                            <i class="far fa-bell-slash mb-2" style="font-size: 22px; color: #94A3B8;"></i>
-                                            <p class="mb-0 small">No recent requests or notifications</p>
-                                        </div>
-                                    <?php endif; ?>
+                                            <?php endforeach; ?>
+                                        <?php else: ?>
+                                            <div class="text-center py-3 px-2 text-muted" style="font-size: 11.5px;">
+                                                <i class="far fa-bell-slash me-1 text-secondary"></i> No other pending updates
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
                                 </div>
-                                <div class="p-2 border-top text-center" style="background: #F8FAFC;">
-                                    <a href="<?php echo BASE_URL; ?>admin/manage-requests.php" class="btn btn-sm btn-outline-success w-100" style="font-size: 12px; font-weight: 600;">
-                                        <i class="fas fa-list-check me-1"></i> Open Requests Dashboard
+
+                                <!-- Dropdown Footer -->
+                                <div class="p-2 border-top d-flex align-items-center justify-content-between" style="background: #F8FAFC;">
+                                    <a href="<?php echo BASE_URL; ?>admin/notification-settings.php" class="text-decoration-none text-muted" style="font-size: 11px; font-weight: 600;">
+                                        <i class="fas fa-sliders me-1"></i> Reminder Settings
+                                    </a>
+                                    <a href="<?php echo BASE_URL; ?>admin/manage-requests.php" class="text-decoration-none text-success" style="font-size: 11px; font-weight: 600;">
+                                        All Requests &rarr;
                                     </a>
                                 </div>
                             </div>
                         </div>
+                        <script src="<?php echo BASE_URL; ?>assets/js/notifications-bell.js?v=<?php echo file_exists(__DIR__ . '/../assets/js/notifications-bell.js') ? filemtime(__DIR__ . '/../assets/js/notifications-bell.js') : time(); ?>"></script>
 
                         <!-- Admin Profile Dropdown -->
                         <div class="dropdown">
