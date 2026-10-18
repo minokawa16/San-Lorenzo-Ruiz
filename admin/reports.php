@@ -276,7 +276,79 @@ if (($_GET['summary_export'] ?? '') === 'csv') {
     exit;
 }
 
-// --- Export Logic (PDF & CSV) ---------------------------------------------
+// --- Master All Parish Records & Activity Log (Full dataset for interactive table & export fallback) ---
+$allLogRecords = [];
+if ($conn) {
+    $rLog = $conn->query("SELECT r.request_id, r.reference_number, r.request_type, r.status, r.date_requested,
+        COALESCE(u.fullname, 'Parishioner') AS requester_name
+        FROM requests r
+        LEFT JOIN users u ON u.id = r.user_id
+        WHERE r.deleted_at IS NULL
+        ORDER BY r.date_requested DESC, r.request_id DESC");
+
+    if ($rLog && $rLog->num_rows > 0) {
+        while ($rw = $rLog->fetch_assoc()) {
+            $rawStatus = strtolower(trim((string)$rw['status']));
+            $groupStatus = match(true) {
+                in_array($rawStatus, ['pending', 'submitted', 'requirements_review'], true) => 'pending',
+                in_array($rawStatus, ['approved', 'processing', 'in_processing', 'ready_for_pickup', 'ready_for_release', 'ready', 'payment_review'], true) => 'approved',
+                in_array($rawStatus, ['completed', 'released'], true) => 'completed',
+                in_array($rawStatus, ['rejected', 'cancelled', 'declined'], true) => 'cancelled',
+                default => $rawStatus
+            };
+            $statusLabel = match($groupStatus) {
+                'pending' => 'Pending',
+                'approved' => (in_array($rawStatus, ['processing', 'in_processing'], true) ? 'Processing' : ($rawStatus === 'approved' ? 'Approved' : 'Approved / Processing')),
+                'completed' => 'Completed',
+                'cancelled' => 'Cancelled',
+                default => ucwords(str_replace('_', ' ', $rawStatus))
+            };
+            $rawType = (string)$rw['request_type'];
+            $typeName = ucwords(str_replace(['_', '-'], ' ', $rawType));
+            $dateReq = !empty($rw['date_requested']) ? (string)$rw['date_requested'] : date('Y-m-d H:i');
+            $allLogRecords[] = [
+                'id'           => (int)$rw['request_id'],
+                'reference'    => (string)($rw['reference_number'] ?: ('TUGON-2026-' . strtoupper(substr(md5((string)$rw['request_id']), 0, 8)))),
+                'type'         => $typeName,
+                'raw_type'     => $rawType,
+                'status'       => $groupStatus,
+                'raw_status'   => $rawStatus,
+                'status_label' => $statusLabel,
+                'requester'    => (string)$rw['requester_name'],
+                'submitted'    => date('Y-m-d H:i', strtotime($dateReq)),
+                'raw_date'     => date('Y-m-d', strtotime($dateReq)),
+            ];
+        }
+    }
+}
+if (empty($allLogRecords)) {
+    $sampleRows = [
+        ['TUGON-2026-B0259D60', 'First communion service', 'pending', 'Pending', 'REY MARK VICENTE CAVAÑAS', '2026-10-06 12:45'],
+        ['TUGON-2026-738366E7', 'House blessing', 'completed', 'Completed', 'REY MARK VICENTE CAVAÑAS', '2026-10-06 12:43'],
+        ['TUGON-2026-62A86F0D', 'Baptismal certificate', 'pending', 'Pending', 'REY MARK VICENTE CAVAÑAS', '2026-10-06 12:41'],
+        ['TUGON-2026-628D8A71', 'Farm blessing', 'pending', 'Pending', 'REY MARK VICENTE CAVAÑAS', '2026-10-06 12:38'],
+        ['TUGON-2026-1B907573', 'Other blessing', 'completed', 'Completed', 'REY MARK VICENTE CAVAÑAS', '2026-10-06 12:35'],
+        ['TUGON-2026-A19F8C34', 'Confirmation certificate', 'approved', 'Processing', 'REY MARK VICENTE CAVAÑAS', '2026-10-06 12:30'],
+        ['TUGON-2026-4C5D6E7F', 'Marriage service', 'pending', 'Pending', 'REY MARK VICENTE CAVAÑAS', '2026-10-06 12:25'],
+        ['TUGON-2026-9E8F7A6B', 'Funeral mass', 'cancelled', 'Cancelled', 'REY MARK VICENTE CAVAÑAS', '2026-10-06 12:20'],
+    ];
+    foreach ($sampleRows as $idx => $s) {
+        $allLogRecords[] = [
+            'id' => $idx + 1,
+            'reference' => $s[0],
+            'type' => $s[1],
+            'raw_type' => strtolower(str_replace(' ', '_', $s[1])),
+            'status' => $s[2],
+            'raw_status' => $s[2],
+            'status_label' => $s[3],
+            'requester' => $s[4],
+            'submitted' => $s[5],
+            'raw_date' => substr($s[5], 0, 10),
+        ];
+    }
+}
+
+// --- Export Logic (PDF, CSV & Print Preview) ------------------------------
 require_once '../vendor/autoload.php';
 require_once '../services/ReportPdfGenerator.php';
 $service = new ReportService($conn);
@@ -286,79 +358,101 @@ if (in_array($export, ['csv', 'pdf', 'preview'], true)) {
     if ($export !== 'preview') {
         requirePermission('reports.export');
     }
-    $exportLimit = ($export === 'preview') ? 500 : 10000;
-    $data = $service->export($report, $filters, $exportLimit);
+
+    // Check if client supplied the exact filtered records currently shown in the table
+    $postedRecords = [];
+    if (!empty($_POST['records_json'])) {
+        $decoded = json_decode((string)$_POST['records_json'], true);
+        if (is_array($decoded)) {
+            $postedRecords = $decoded;
+        }
+    }
+
+    if (!empty($postedRecords)) {
+        $data = [
+            'type'      => $report,
+            'columns'   => ['reference' => 'Reference', 'type' => 'Type', 'status' => 'Status', 'requester' => 'Requester', 'submitted' => 'Submitted'],
+            'rows'      => $postedRecords,
+            'total'     => count($postedRecords),
+            'truncated' => false,
+            'filters'   => $filters,
+        ];
+    } else {
+        $exportLimit = ($export === 'preview') ? 500 : 10000;
+        $data = $service->export($report, $filters, $exportLimit);
+
+        // If database query returned 0 rows (e.g. offline dev DB), filter $allLogRecords with the exact filters
+        if (empty($data['rows']) && !empty($allLogRecords)) {
+            $filteredSample = array_values(array_filter($allLogRecords, static function ($r) use ($filters): bool {
+                if (!empty($filters['from']) && substr((string)($r['raw_date'] ?? ''), 0, 10) < $filters['from']) return false;
+                if (!empty($filters['to']) && substr((string)($r['raw_date'] ?? ''), 0, 10) > $filters['to']) return false;
+                if (!empty($filters['status']) && $filters['status'] !== 'all') {
+                    $rawSt = strtolower((string)($r['raw_status'] ?? $r['status'] ?? ''));
+                    $fst = strtolower((string)$filters['status']);
+                    if ($fst === 'pending' && !in_array($rawSt, ['pending','submitted','requirements_review'], true)) return false;
+                    if ($fst === 'approved' && !in_array($rawSt, ['approved','processing','in_processing','ready_for_pickup','ready_for_release','ready','payment_review'], true)) return false;
+                    if ($fst === 'completed' && !in_array($rawSt, ['completed','released'], true)) return false;
+                    if ($fst === 'cancelled' && !in_array($rawSt, ['cancelled','rejected','declined'], true)) return false;
+                }
+                if (!empty($filters['type']) && $filters['type'] !== 'all') {
+                    $ft = strtolower((string)$filters['type']);
+                    $rawType = strtolower((string)($r['raw_type'] ?? ''));
+                    $typeName = strtolower((string)($r['type'] ?? ''));
+                    if (in_array($ft, ['blessings', 'blessing', 'all blessings'], true)) {
+                        if (!str_contains($rawType, 'blessing') && !str_contains($typeName, 'blessing')) return false;
+                    } elseif (in_array($ft, ['certificates', 'certificate', 'all certificates'], true)) {
+                        if (!str_contains($rawType, 'certif') && !str_contains($typeName, 'certif') && !str_contains($typeName, 'certification')) return false;
+                    } elseif (in_array($ft, ['sacramental_services', 'sacramental', 'sacramental services', 'services', 'all sacramental services'], true)) {
+                        if (str_contains($rawType, 'certif') || str_contains($typeName, 'certif')) return false;
+                        $isServ = str_contains($rawType, 'service') || str_contains($rawType, 'mass') || str_contains($typeName, 'service') || str_contains($typeName, 'mass') ||
+                                  preg_match('/(baptism|confirmation|communion|marriage|funeral|anointing)/', $rawType) ||
+                                  preg_match('/(baptism|confirmation|communion|marriage|funeral|anointing)/', $typeName);
+                        if (!$isServ) return false;
+                    } else {
+                        if ($typeName !== $ft && $rawType !== $ft && str_replace('_', ' ', $rawType) !== $ft) return false;
+                    }
+                }
+                return true;
+            }));
+            $data['rows'] = $filteredSample;
+            $data['total'] = count($filteredSample);
+        }
+    }
+
     if ($export !== 'preview') {
         writeAuditLog($conn, $_SESSION['user_id'], 'EXPORT_REPORT', 'reports', null, null,
             ['report' => $report, 'filters' => $filters, 'format' => $export, 'rows' => count($data['rows'])], 'reports', 'reports.export');
     }
-    $title    = 'Parish Analytics & Operational Report';
-    $subtitle = $labels[$report] ?? 'Parish Operational Statistics';
-    if ($export === 'csv') {
-        header('Content-Type: text/csv; charset=utf-8');
-        header('Content-Disposition: attachment; filename="tugon-' . $report . '-' . date('Ymd-His') . '.csv"');
-        $out = fopen('php://output', 'w');
-        fwrite($out, "\xEF\xBB\xBF");
-        fputcsv($out, [$title]);
-        fputcsv($out, ['Filters', json_encode(array_filter($filters))]);
-        fputcsv($out, array_values($data['columns']));
-        foreach ($data['rows'] as $row) fputcsv($out, array_map(static fn($k) => $row[$k] ?? '', array_keys($data['columns'])));
-        if ($data['truncated']) fputcsv($out, ['Showing first 10,000 records.']);
-        fclose($out); exit;
-    }
 
-    // Dynamic Chart Image extraction from POST (high-resolution Base64 PNGs)
-    $charts = [];
-    $rawSacraments    = $_POST['chart_sacraments'] ?? '';
-    $rawRequestStatus = $_POST['chart_request_status'] ?? '';
-    $rawTopServices   = $_POST['chart_top_services'] ?? '';
-    $rawParishGrowth  = $_POST['chart_parish_growth'] ?? '';
-
-    $isValidDataUri = static function ($str): bool {
-        return is_string($str) && preg_match('#^data:image/(png|jpeg|jpg|webp);base64,[A-Za-z0-9+/=]+$#', $str) === 1;
-    };
-
-    if ($isValidDataUri($rawSacraments))    $charts['sacraments']     = $rawSacraments;
-    if ($isValidDataUri($rawRequestStatus)) $charts['request_status'] = $rawRequestStatus;
-    if ($isValidDataUri($rawTopServices))   $charts['top_services']   = $rawTopServices;
-    if ($isValidDataUri($rawParishGrowth))  $charts['parish_growth']  = $rawParishGrowth;
-
-    $meta = [
-        'parishioners_total'    => $kpi_parishioners_total,
-        'sacraments_total'      => $kpi_sacraments_total,
-        'total_requests'        => $kpi_requests_total,
-        'events_month'          => $kpi_events_month,
-        'requests_pending'      => $kpi_requests_pending,
-        'parishioners_verified' => $kpi_parishioners_verified,
-        'parishioners_pending'  => $kpi_parishioners_pending,
-        'operational_summary'   => [
-            'range'               => $summary_range,
-            'range_label'         => $summary_range_label,
-            'from'                => $summary_from,
-            'to'                  => $summary_to,
-            'updated_at'          => date('M d, Y h:i A'),
-            'total_certificates'  => $summary_total_certificates,
-            'certs_breakdown'     => $summary_certs_breakdown,
-            'blessings_completed' => $summary_blessings_completed,
-            'blessings_total'     => $summary_blessings_total,
-            'blessings_pending'   => $summary_blessings_pending,
-            'blessings_approved'  => $summary_blessings_approved,
-            'blessings_cancelled' => $summary_blessings_cancelled,
-            'blessings_by_type'   => $summary_blessings_by_type,
-            'services_total'      => $summary_services_total,
-            'services_breakdown'  => $summary_services_breakdown,
-        ],
-    ];
-
+    $title = ReportPdfGenerator::deriveReportTitle($filters);
     $generatedBy = !empty($_SESSION['fullname']) ? (string)$_SESSION['fullname'] : 'Parish Administrator';
 
-    if ($export === 'preview') {
-        header('Content-Type: text/html; charset=utf-8');
-        echo ReportPdfGenerator::buildHtml($report, $title, $filters, $data, $generatedBy, $subtitle, $charts, $meta);
+    if ($export === 'csv') {
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="parish-' . preg_replace('/[^A-Za-z0-9_-]/', '-', strtolower($title)) . '-' . date('Ymd-His') . '.csv"');
+        $out = fopen('php://output', 'w');
+        fwrite($out, "\xEF\xBB\xBF");
+        fputcsv($out, ['Reference', 'Type', 'Status', 'Requester', 'Submitted']);
+        foreach ($data['rows'] as $row) {
+            $ref = $row['reference'] ?? ($row['reference_number'] ?? '');
+            $type = $row['type'] ?? ($row['request_type'] ?? '');
+            $st = $row['status_label'] ?? ($row['status'] ?? '');
+            $req = $row['requester'] ?? ($row['requester_name'] ?? '');
+            $sub = $row['submitted'] ?? ($row['report_date'] ?? '');
+            fputcsv($out, [$ref, $type, $st, $req, $sub]);
+        }
+        fclose($out);
         exit;
     }
 
-    ReportPdfGenerator::stream($report, $title, $filters, $data, $generatedBy, 'portrait', $subtitle, $charts, $meta);
+    if ($export === 'preview') {
+        header('Content-Type: text/html; charset=utf-8');
+        echo ReportPdfGenerator::buildHtml($report, $title, $filters, $data, $generatedBy);
+        exit;
+    }
+
+    ReportPdfGenerator::stream($report, $title, $filters, $data, $generatedBy, 'portrait');
+    exit;
 }
 
 // --- Chart A: Sacramental Records by Month (last 12 months) ----------------
@@ -449,76 +543,6 @@ if (!$hasRealReg) {
         $mNum = (int)date('m', strtotime($ym . '-01'));
         if ($mNum === 8) $chart_d_data[$idx] = 2;
         if ($mNum === 9) $chart_d_data[$idx] = 2;
-    }
-}
-
-// --- Master All Parish Records & Activity Log (Full dataset for interactive table) ---
-$allLogRecords = [];
-$rLog = $conn->query("SELECT r.request_id, r.reference_number, r.request_type, r.status, r.date_requested,
-    COALESCE(u.fullname, 'Parishioner') AS requester_name
-    FROM requests r
-    LEFT JOIN users u ON u.id = r.user_id
-    WHERE r.deleted_at IS NULL
-    ORDER BY r.date_requested DESC, r.request_id DESC");
-
-if ($rLog && $rLog->num_rows > 0) {
-    while ($rw = $rLog->fetch_assoc()) {
-        $rawStatus = strtolower(trim((string)$rw['status']));
-        $groupStatus = match(true) {
-            in_array($rawStatus, ['pending', 'submitted', 'requirements_review'], true) => 'pending',
-            in_array($rawStatus, ['approved', 'processing', 'in_processing', 'ready_for_pickup', 'ready_for_release', 'ready', 'payment_review'], true) => 'approved',
-            in_array($rawStatus, ['completed', 'released'], true) => 'completed',
-            in_array($rawStatus, ['rejected', 'cancelled', 'declined'], true) => 'cancelled',
-            default => $rawStatus
-        };
-        $statusLabel = match($groupStatus) {
-            'pending' => 'Pending',
-            'approved' => (in_array($rawStatus, ['processing', 'in_processing'], true) ? 'Processing' : ($rawStatus === 'approved' ? 'Approved' : 'Approved / Processing')),
-            'completed' => 'Completed',
-            'cancelled' => 'Cancelled',
-            default => ucwords(str_replace('_', ' ', $rawStatus))
-        };
-        $rawType = (string)$rw['request_type'];
-        $typeName = ucwords(str_replace(['_', '-'], ' ', $rawType));
-        $dateReq = !empty($rw['date_requested']) ? (string)$rw['date_requested'] : date('Y-m-d H:i');
-        $allLogRecords[] = [
-            'id'           => (int)$rw['request_id'],
-            'reference'    => (string)($rw['reference_number'] ?: ('TUGON-2026-' . strtoupper(substr(md5((string)$rw['request_id']), 0, 8)))),
-            'type'         => $typeName,
-            'raw_type'     => $rawType,
-            'status'       => $groupStatus,
-            'raw_status'   => $rawStatus,
-            'status_label' => $statusLabel,
-            'requester'    => (string)$rw['requester_name'],
-            'submitted'    => date('Y-m-d H:i', strtotime($dateReq)),
-            'raw_date'     => date('Y-m-d', strtotime($dateReq)),
-        ];
-    }
-}
-if (empty($allLogRecords)) {
-    $sampleRows = [
-        ['TUGON-2026-B0259D60', 'First communion service', 'pending', 'Pending', 'REY MARK VICENTE CAVAÑAS', '2026-10-06 12:45'],
-        ['TUGON-2026-738366E7', 'House blessing', 'completed', 'Completed', 'REY MARK VICENTE CAVAÑAS', '2026-10-06 12:43'],
-        ['TUGON-2026-62A86F0D', 'Baptismal certificate', 'pending', 'Pending', 'REY MARK VICENTE CAVAÑAS', '2026-10-06 12:41'],
-        ['TUGON-2026-628D8A71', 'Farm blessing', 'pending', 'Pending', 'REY MARK VICENTE CAVAÑAS', '2026-10-06 12:38'],
-        ['TUGON-2026-1B907573', 'Other blessing', 'completed', 'Completed', 'REY MARK VICENTE CAVAÑAS', '2026-10-06 12:35'],
-        ['TUGON-2026-A19F8C34', 'Confirmation certificate', 'approved', 'Processing', 'REY MARK VICENTE CAVAÑAS', '2026-10-06 12:30'],
-        ['TUGON-2026-4C5D6E7F', 'Marriage service', 'pending', 'Pending', 'REY MARK VICENTE CAVAÑAS', '2026-10-06 12:25'],
-        ['TUGON-2026-9E8F7A6B', 'Funeral mass', 'cancelled', 'Cancelled', 'REY MARK VICENTE CAVAÑAS', '2026-10-06 12:20'],
-    ];
-    foreach ($sampleRows as $idx => $s) {
-        $allLogRecords[] = [
-            'id' => $idx + 1,
-            'reference' => $s[0],
-            'type' => $s[1],
-            'raw_type' => strtolower(str_replace(' ', '_', $s[1])),
-            'status' => $s[2],
-            'raw_status' => $s[2],
-            'status_label' => $s[3],
-            'requester' => $s[4],
-            'submitted' => $s[5],
-            'raw_date' => substr($s[5], 0, 10),
-        ];
     }
 }
 
@@ -988,6 +1012,42 @@ include '../templates/header.php';
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+@media (max-width: 768px) {
+  .print-preview-modal-dialog {
+    margin: 0.5rem auto;
+    max-width: 96%;
+  }
+  .print-preview-modal-body {
+    min-height: 420px;
+    max-height: calc(88vh - 120px);
+  }
+  .print-preview-container {
+    padding: 8px 4px;
+  }
+  .print-paper-sheet {
+    min-height: 600px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
+  .print-preview-iframe {
+    min-height: 580px;
+  }
+  .print-preview-modal-content .modal-footer {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    padding: 10px 14px !important;
+  }
+  .print-preview-modal-content .modal-footer .d-flex {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: stretch;
+    gap: 6px !important;
+  }
+  .print-preview-modal-content .modal-footer .btn {
+    flex: 1 1 100%;
+    text-align: center;
+  }
 }
 
 /* --------------------------------------------------------------------------
@@ -2835,14 +2895,9 @@ body.dark-mode .ar-dd-empty h4,
       <button type="button" class="ar-btn ar-btn-primary btn-open-print-preview" id="btnOpenPrintPreview" title="Print preview report">
         <i class="fas fa-print"></i> Print Preview
       </button>
-      <a class="ar-btn ar-btn-gold" href="?<?php echo e(http_build_query(array_merge($queryBase, [
-          'export' => 'pdf',
-          'summary_range' => $summary_range,
-          'summary_from' => $summary_from,
-          'summary_to' => $summary_to,
-      ]))); ?>">
-        <i class="fas fa-file-pdf"></i> Export PDF
-      </a>
+      <button type="button" class="ar-btn ar-btn-gold" id="btnHeaderExportPdf" title="Export filtered report as PDF">
+        <i class="fas fa-file-pdf"></i> PDF
+      </button>
     </div>
     <?php endif; ?>
   </div>
@@ -3506,27 +3561,34 @@ body.dark-mode .ar-dd-empty h4,
     <div class="ar-filter-row" id="logFilterRow">
       <div class="ar-filter-group">
         <label for="logFilterFrom">From</label>
-        <input id="logFilterFrom" class="ar-filter-input" type="date">
+        <input id="logFilterFrom" class="ar-filter-input" type="date" value="<?php echo e($filters['from']); ?>">
       </div>
       <div class="ar-filter-group">
         <label for="logFilterTo">To</label>
-        <input id="logFilterTo" class="ar-filter-input" type="date">
+        <input id="logFilterTo" class="ar-filter-input" type="date" value="<?php echo e($filters['to']); ?>">
       </div>
       <div class="ar-filter-group">
         <label for="logFilterStatus">Status</label>
         <select id="logFilterStatus" class="ar-filter-input" style="min-width:160px;">
-          <option value="">All</option>
-          <option value="pending">Pending</option>
-          <option value="approved">Approved / Processing</option>
-          <option value="completed">Completed</option>
-          <option value="cancelled">Cancelled</option>
+          <option value="" <?php echo $filters['status'] === '' ? 'selected' : ''; ?>>All</option>
+          <option value="pending" <?php echo $filters['status'] === 'pending' ? 'selected' : ''; ?>>Pending</option>
+          <option value="approved" <?php echo in_array($filters['status'], ['approved', 'processing'], true) ? 'selected' : ''; ?>>Approved / Processing</option>
+          <option value="completed" <?php echo $filters['status'] === 'completed' ? 'selected' : ''; ?>>Completed</option>
+          <option value="cancelled" <?php echo in_array($filters['status'], ['cancelled', 'rejected'], true) ? 'selected' : ''; ?>>Cancelled</option>
         </select>
       </div>
       <div class="ar-filter-group">
         <label for="logFilterType">Type</label>
         <select id="logFilterType" class="ar-filter-input" style="min-width:200px;">
           <option value="">All</option>
-          <!-- Populated dynamically from LOG types -->
+          <optgroup label="Groups">
+            <option value="blessings" <?php echo in_array(strtolower($filters['type']), ['blessings', 'blessing', 'all blessings'], true) ? 'selected' : ''; ?>>All Blessings</option>
+            <option value="certificates" <?php echo in_array(strtolower($filters['type']), ['certificates', 'certificate', 'all certificates'], true) ? 'selected' : ''; ?>>All Certificates</option>
+            <option value="sacramental_services" <?php echo in_array(strtolower($filters['type']), ['sacramental_services', 'services', 'sacramental', 'all sacramental services'], true) ? 'selected' : ''; ?>>All Sacramental Services</option>
+          </optgroup>
+          <optgroup label="Specific Types" id="optgroupSpecificTypes">
+            <!-- Populated dynamically from LOG types in JS -->
+          </optgroup>
         </select>
       </div>
       <div style="display:flex;gap:8px;align-items:flex-end;">
@@ -3903,18 +3965,28 @@ body.dark-mode .ar-dd-empty h4,
   const logTbody = document.getElementById('logTableBody');
   const logBadge = document.getElementById('logTableBadge');
   const typeSelect = document.getElementById('logFilterType');
+  const optgroupSpecificTypes = document.getElementById('optgroupSpecificTypes');
   const statusSelect = document.getElementById('logFilterStatus');
   const fromInput = document.getElementById('logFilterFrom');
   const toInput = document.getElementById('logFilterTo');
 
-  // Build the Type filter options dynamically from whatever types are in LOG
+  // Build the Specific Type options dynamically into the optgroup
   if (typeSelect && Array.isArray(LOG)) {
     const types = [...new Set(LOG.map(r => r.type).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    const targetGroup = optgroupSpecificTypes || typeSelect;
+    const initialType = <?php echo json_encode($filters['type']); ?>;
     types.forEach(t => {
+      // Don't duplicate group keys if already in group optgroup
+      if (['blessings', 'certificates', 'sacramental_services', 'all blessings', 'all certificates', 'all sacramental services'].includes(t.toLowerCase())) {
+        return;
+      }
       const opt = document.createElement('option');
       opt.value = t;
       opt.textContent = t;
-      typeSelect.appendChild(opt);
+      if (initialType && initialType.toLowerCase() === t.toLowerCase()) {
+        opt.selected = true;
+      }
+      targetGroup.appendChild(opt);
     });
   }
 
@@ -3983,6 +4055,61 @@ body.dark-mode .ar-dd-empty h4,
     logTbody.innerHTML = html;
   }
 
+  function matchesDate(r, fromVal, toVal) {
+    const d = (r.raw_date || (r.submitted ? r.submitted.slice(0, 10) : '')).trim();
+    if (!d) return true;
+    if (fromVal && d < fromVal) return false;
+    if (toVal && d > toVal) return false;
+    return true;
+  }
+
+  function matchesStatus(r, filterVal) {
+    if (!filterVal || filterVal === 'all') return true;
+    const f = filterVal.toLowerCase().trim();
+    const rawSt = (r.raw_status || r.status || '').toLowerCase().trim();
+
+    if (f === 'pending') {
+      return ['pending', 'submitted', 'requirements_review'].includes(rawSt);
+    }
+    if (f === 'approved' || f === 'processing') {
+      return ['approved', 'processing', 'in_processing', 'ready_for_pickup', 'ready_for_release', 'ready', 'payment_review'].includes(rawSt);
+    }
+    if (f === 'completed') {
+      return ['completed', 'released'].includes(rawSt);
+    }
+    if (f === 'cancelled' || f === 'rejected') {
+      return ['cancelled', 'rejected', 'declined'].includes(rawSt);
+    }
+    return rawSt === f;
+  }
+
+  function matchesType(r, filterVal) {
+    if (!filterVal || filterVal === 'all') return true;
+    const f = filterVal.toLowerCase().trim();
+    const rawType = (r.raw_type || '').toLowerCase().trim();
+    const typeName = (r.type || '').toLowerCase().trim();
+
+    // Group: All Blessings
+    if (['blessings', 'blessing', 'all blessings'].includes(f)) {
+      return rawType.includes('blessing') || typeName.includes('blessing');
+    }
+    // Group: All Certificates
+    if (['certificates', 'certificate', 'all certificates'].includes(f)) {
+      return rawType.includes('certif') || typeName.includes('certif') || typeName.includes('certification');
+    }
+    // Group: All Sacramental Services
+    if (['sacramental_services', 'services', 'sacramental', 'all sacramental services'].includes(f)) {
+      if (rawType.includes('certif') || typeName.includes('certif')) return false;
+      return rawType.includes('service') || rawType.includes('mass') ||
+             typeName.includes('service') || typeName.includes('mass') ||
+             /(baptism|confirmation|communion|marriage|funeral|anointing)/i.test(rawType) ||
+             /(baptism|confirmation|communion|marriage|funeral|anointing)/i.test(typeName);
+    }
+
+    // Specific type
+    return typeName === f || rawType === f || rawType.replace(/_/g, ' ') === f;
+  }
+
   function applyLogFilters() {
     if (!Array.isArray(LOG)) return;
     const fromVal = fromInput ? fromInput.value.trim() : '';
@@ -3991,10 +4118,9 @@ body.dark-mode .ar-dd-empty h4,
     const typeVal = typeSelect ? typeSelect.value.trim() : '';
 
     const filtered = LOG.filter(r => {
-      if (fromVal && r.raw_date < fromVal) return false;
-      if (toVal && r.raw_date > toVal) return false;
-      if (statusVal && r.status !== statusVal) return false;
-      if (typeVal && r.type !== typeVal) return false;
+      if (!matchesDate(r, fromVal, toVal)) return false;
+      if (!matchesStatus(r, statusVal)) return false;
+      if (!matchesType(r, typeVal)) return false;
       return true;
     });
 
@@ -4009,11 +4135,19 @@ body.dark-mode .ar-dd-empty h4,
     renderLogRows(Array.isArray(LOG) ? [...LOG] : []);
   }
 
+  // Live filter event triggers on change
+  [fromInput, toInput, statusSelect, typeSelect].forEach(el => {
+    if (el) el.addEventListener('change', applyLogFilters);
+  });
+
   const btnApply = document.getElementById('btnLogApply');
   if (btnApply) btnApply.addEventListener('click', applyLogFilters);
 
   const btnReset = document.getElementById('btnLogReset');
   if (btnReset) btnReset.addEventListener('click', resetLogFilters);
+
+  // Apply filters on initial page load if any are preselected
+  applyLogFilters();
 
   // CSV Export: downloads ONLY the rows currently shown after filtering
   function downloadFilteredLogCsv() {
@@ -4045,56 +4179,51 @@ body.dark-mode .ar-dd-empty h4,
   const btnCsv = document.getElementById('btnLogCsv');
   if (btnCsv) btnCsv.addEventListener('click', downloadFilteredLogCsv);
 
-  // PDF Export
-  const btnPdf = document.getElementById('btnLogPdf');
-  if (btnPdf) {
-    btnPdf.addEventListener('click', function(e) {
-      if (typeof openPrintPreview === 'function') {
-        openPrintPreview(e);
-      } else {
-        window.print();
-      }
-    });
+  /* --- Live Active Filters Helper (Single Source of Truth) --- */
+  function getLiveFilters() {
+    const fromVal   = fromInput   ? fromInput.value.trim()   : '';
+    const toVal     = toInput     ? toInput.value.trim()     : '';
+    const statusVal = statusSelect ? statusSelect.value.trim() : '';
+    const typeVal   = typeSelect   ? typeSelect.value.trim()   : '';
+
+    return {
+      report: <?php echo json_encode($report); ?>,
+      from:   fromVal,
+      to:     toVal,
+      status: statusVal,
+      type:   typeVal
+    };
   }
 
-  // Print Preview
-  const btnPrintPrev = document.getElementById('btnLogPrintPreview');
-  if (btnPrintPrev) {
-    btnPrintPrev.addEventListener('click', function(e) {
-      if (typeof openPrintPreview === 'function') {
-        openPrintPreview(e);
-      } else {
-        window.print();
-      }
-    });
-  }
-
-  /* --- High-Resolution Chart Image Capture Helper --- */
-  function extractChartBase64(inst, canvasId) {
-    if (inst) {
-      try {
-        if (typeof inst.update === 'function') inst.update('none');
-        if (typeof inst.toBase64Image === 'function') {
-          const img = inst.toBase64Image('image/png', 1.0);
-          if (img && img.startsWith('data:image/')) return img;
-        }
-      } catch (e) {
-        console.warn('chartInstance.toBase64Image error:', e);
-      }
+  function deriveClientReportTitle(live) {
+    let typeLabel = '';
+    const rawType = (live.type || '').toLowerCase();
+    if (['blessings', 'blessing', 'all blessings'].includes(rawType)) {
+      typeLabel = 'Blessings';
+    } else if (['certificates', 'certificate', 'all certificates'].includes(rawType)) {
+      typeLabel = 'Certificates';
+    } else if (['sacramental_services', 'services', 'sacramental', 'all sacramental services'].includes(rawType)) {
+      typeLabel = 'Sacramental Services';
+    } else if (live.type) {
+      typeLabel = live.type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     }
-    const canvas = document.getElementById(canvasId);
-    if (canvas && typeof canvas.toDataURL === 'function') {
-      try {
-        return canvas.toDataURL('image/png', 1.0);
-      } catch (e) {
-        console.warn('canvas.toDataURL error:', e);
-      }
-    }
-    return '';
+
+    let statusLabel = '';
+    const rawStatus = (live.status || '').toLowerCase();
+    if (rawStatus === 'pending') statusLabel = 'Pending';
+    else if (['approved', 'processing'].includes(rawStatus)) statusLabel = 'Approved';
+    else if (rawStatus === 'completed') statusLabel = 'Completed';
+    else if (['cancelled', 'rejected'].includes(rawStatus)) statusLabel = 'Cancelled';
+    else if (live.status) statusLabel = live.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+
+    if (typeLabel && statusLabel) return `${statusLabel} ${typeLabel} Report`;
+    if (typeLabel) return `${typeLabel} Report`;
+    if (statusLabel) return `${statusLabel} Requests Report`;
+    return 'Parish Records & Activity Report';
   }
 
-  /* --- PDF Export with Chart Capture & Form POST --- */
-  function triggerPdfExportWithCharts(e) {
+  /* --- Filter-Driven PDF Download Helper --- */
+  function triggerFilteredPdfDownload(e) {
     if (e && typeof e.preventDefault === 'function') e.preventDefault();
     const btn = e ? e.currentTarget : null;
     let origHtml = '';
@@ -4105,11 +4234,7 @@ body.dark-mode .ar-dd-empty h4,
     }
 
     try {
-      const sacramentsImg    = extractChartBase64(window.parishCharts.sacraments, 'chartSacraments');
-      const requestStatusImg = extractChartBase64(window.parishCharts.requestStatus, 'chartRequestStatus');
-      const topServicesImg   = extractChartBase64(window.parishCharts.topServices, 'chartTopServices');
-      const parishGrowthImg  = extractChartBase64(window.parishCharts.parishGrowth, 'chartParishGrowth');
-
+      const live = getLiveFilters();
       const form = document.createElement('form');
       form.method = 'POST';
       form.action = 'reports.php';
@@ -4117,18 +4242,12 @@ body.dark-mode .ar-dd-empty h4,
 
       const postParams = {
         'export': 'pdf',
-        'report': <?php echo json_encode($report); ?>,
-        'from': <?php echo json_encode($filters['from']); ?>,
-        'to': <?php echo json_encode($filters['to']); ?>,
-        'status': <?php echo json_encode($filters['status']); ?>,
-        'type': <?php echo json_encode($filters['type']); ?>,
-        'summary_range': <?php echo json_encode($summary_range); ?>,
-        'summary_from': <?php echo json_encode($summary_from); ?>,
-        'summary_to': <?php echo json_encode($summary_to); ?>,
-        'chart_sacraments': sacramentsImg,
-        'chart_request_status': requestStatusImg,
-        'chart_top_services': topServicesImg,
-        'chart_parish_growth': parishGrowthImg,
+        'report': live.report,
+        'from': live.from,
+        'to': live.to,
+        'status': live.status,
+        'type': live.type,
+        'records_json': JSON.stringify(currentFilteredLog),
         <?php echo json_encode(csrfTokenName()); ?>: <?php echo json_encode(generateCsrfToken()); ?>
       };
 
@@ -4153,32 +4272,15 @@ body.dark-mode .ar-dd-empty h4,
         }
       }, 3500);
     } catch (err) {
-      console.error('PDF export with charts failed, falling back to direct stream:', err);
+      console.error('PDF export failed:', err);
       if (btn) {
         btn.disabled = false;
         btn.innerHTML = origHtml;
       }
-      window.location.href = '?export=pdf&report=<?php echo urlencode($report); ?>&summary_range=<?php echo urlencode($summary_range); ?>&summary_from=<?php echo urlencode($summary_from); ?>&summary_to=<?php echo urlencode($summary_to); ?>';
     }
   }
 
-  /* --- Live Active Filters Helper --- */
-  function getLiveFilters() {
-    const fromInput   = document.getElementById('filterFrom');
-    const toInput     = document.getElementById('filterTo');
-    const statusInput = document.getElementById('filterStatus');
-    const typeInput   = document.getElementById('filterType');
-
-    return {
-      report: <?php echo json_encode($report); ?>,
-      from:   fromInput   ? fromInput.value.trim()   : <?php echo json_encode($filters['from']); ?>,
-      to:     toInput     ? toInput.value.trim()     : <?php echo json_encode($filters['to']); ?>,
-      status: statusInput ? statusInput.value.trim() : <?php echo json_encode($filters['status']); ?>,
-      type:   typeInput   ? typeInput.value.trim()   : <?php echo json_encode($filters['type']); ?>
-    };
-  }
-
-  /* --- Print Preview Orchestrator --- */
+  /* --- Print Preview Orchestrator (Single Source of Truth) --- */
   function openPrintPreview(e) {
     if (e && typeof e.preventDefault === 'function') e.preventDefault();
     const modalEl = document.getElementById('printPreviewModal');
@@ -4193,6 +4295,7 @@ body.dark-mode .ar-dd-empty h4,
     const errorEl         = document.getElementById('printPreviewError');
     const containerEl     = document.getElementById('printPreviewContainer');
     const iframe          = document.getElementById('printPreviewIframe');
+    const modalTitleEl    = document.getElementById('printPreviewModalLabel');
     const filterSummaryEl = document.getElementById('printPreviewFilterSummary');
 
     if (loadingEl)   loadingEl.classList.remove('d-none');
@@ -4200,28 +4303,33 @@ body.dark-mode .ar-dd-empty h4,
     if (containerEl) containerEl.classList.add('d-none');
 
     const live = getLiveFilters();
+    const dynamicTitle = deriveClientReportTitle(live);
 
-    // Humanize filter summary in modal header
+    if (modalTitleEl) {
+      modalTitleEl.textContent = dynamicTitle + ' — Print Preview';
+    }
+
     if (filterSummaryEl) {
       const parts = [];
-      if (live.from || live.to) {
-        parts.push('Date: ' + (live.from || 'Beginning') + ' to ' + (live.to || 'Present'));
+      if (live.type) {
+        let tName = live.type;
+        if (live.type === 'blessings') tName = 'All Blessings';
+        else if (live.type === 'certificates') tName = 'All Certificates';
+        else if (live.type === 'sacramental_services') tName = 'All Sacramental Services';
+        else tName = live.type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        parts.push('Type: ' + tName);
       }
       if (live.status) {
         parts.push('Status: ' + live.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()));
       }
-      if (live.type) {
-        parts.push('Type: ' + live.type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()));
+      if (live.from || live.to) {
+        parts.push('Range: ' + (live.from || 'Beginning') + ' to ' + (live.to || 'Present'));
       }
-      filterSummaryEl.textContent = parts.length ? parts.join(' | ') : 'All active records (no filters)';
+      const countNote = `(${currentFilteredLog.length} record${currentFilteredLog.length === 1 ? '' : 's'})`;
+      filterSummaryEl.textContent = (parts.length ? parts.join(' | ') : 'All records') + ' ' + countNote;
     }
 
     try {
-      const sacramentsImg    = extractChartBase64(window.parishCharts.sacraments, 'chartSacraments');
-      const requestStatusImg = extractChartBase64(window.parishCharts.requestStatus, 'chartRequestStatus');
-      const topServicesImg   = extractChartBase64(window.parishCharts.topServices, 'chartTopServices');
-      const parishGrowthImg  = extractChartBase64(window.parishCharts.parishGrowth, 'chartParishGrowth');
-
       const formData = new FormData();
       formData.append('export', 'preview');
       formData.append('report', live.report);
@@ -4229,13 +4337,7 @@ body.dark-mode .ar-dd-empty h4,
       formData.append('to', live.to);
       formData.append('status', live.status);
       formData.append('type', live.type);
-      formData.append('summary_range', <?php echo json_encode($summary_range); ?>);
-      formData.append('summary_from', <?php echo json_encode($summary_from); ?>);
-      formData.append('summary_to', <?php echo json_encode($summary_to); ?>);
-      formData.append('chart_sacraments', sacramentsImg);
-      formData.append('chart_request_status', requestStatusImg);
-      formData.append('chart_top_services', topServicesImg);
-      formData.append('chart_parish_growth', parishGrowthImg);
+      formData.append('records_json', JSON.stringify(currentFilteredLog));
       formData.append(<?php echo json_encode(csrfTokenName()); ?>, <?php echo json_encode(generateCsrfToken()); ?>);
 
       fetch('reports.php', {
@@ -4296,30 +4398,33 @@ body.dark-mode .ar-dd-empty h4,
     }
   }
 
-  // Attach listener to PDF export buttons
+  // PDF Export listeners
+  const btnPdf = document.getElementById('btnLogPdf');
+  if (btnPdf) btnPdf.addEventListener('click', triggerFilteredPdfDownload);
+
+  const btnHeaderPdf = document.getElementById('btnHeaderExportPdf');
+  if (btnHeaderPdf) btnHeaderPdf.addEventListener('click', triggerFilteredPdfDownload);
+
+  const modalDownloadPdfBtn = document.getElementById('btnModalDownloadPdf');
+  if (modalDownloadPdfBtn) modalDownloadPdfBtn.addEventListener('click', triggerFilteredPdfDownload);
+
   document.querySelectorAll('.ar-export-pdf-btn, a[href*="export=pdf"]').forEach(el => {
-    el.addEventListener('click', triggerPdfExportWithCharts);
+    el.addEventListener('click', triggerFilteredPdfDownload);
   });
 
-  // Attach listener to Print Preview open buttons
+  // Print Preview listeners
+  const btnPrintPrev = document.getElementById('btnLogPrintPreview');
+  if (btnPrintPrev) btnPrintPrev.addEventListener('click', openPrintPreview);
+
   document.querySelectorAll('#btnOpenPrintPreview, .btn-open-print-preview').forEach(btn => {
     btn.addEventListener('click', openPrintPreview);
   });
 
   const retryBtn = document.getElementById('btnRetryPrintPreview');
-  if (retryBtn) {
-    retryBtn.addEventListener('click', openPrintPreview);
-  }
+  if (retryBtn) retryBtn.addEventListener('click', openPrintPreview);
 
   const modalPrintDocBtn = document.getElementById('btnModalPrintDoc');
-  if (modalPrintDocBtn) {
-    modalPrintDocBtn.addEventListener('click', executePreviewPrint);
-  }
-
-  const modalDownloadPdfBtn = document.getElementById('btnModalDownloadPdf');
-  if (modalDownloadPdfBtn) {
-    modalDownloadPdfBtn.addEventListener('click', triggerPdfExportWithCharts);
-  }
+  if (modalPrintDocBtn) modalPrintDocBtn.addEventListener('click', executePreviewPrint);
 
   /* ==========================================================================
      OPERATIONAL SUMMARY DRILL-DOWN POPUP LOGIC

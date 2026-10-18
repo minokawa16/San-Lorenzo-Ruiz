@@ -45,9 +45,9 @@ final class ReportService
             if($alias==='r'){
                 match($status){
                     'pending'=>$clauses[]="$alias.status IN ('pending','submitted','requirements_review')",
-                    'processing'=>$clauses[]="$alias.status IN ('processing','approved','in_processing','ready_for_pickup','ready_for_release','payment_review')",
+                    'approved','processing'=>$clauses[]="$alias.status IN ('approved','processing','in_processing','ready_for_pickup','ready_for_release','ready','payment_review')",
                     'completed'=>$clauses[]="$alias.status IN ('completed','released')",
-                    'rejected'=>$clauses[]="$alias.status IN ('rejected','cancelled','declined')",
+                    'rejected','cancelled'=>$clauses[]="$alias.status IN ('rejected','cancelled','declined')",
                     default=>($clauses[]="$alias.status=?")&&($types.='s')&&($values[]=$status)
                 };
             }else{
@@ -60,10 +60,10 @@ final class ReportService
             $col=match($type){'notifications'=>'n.notification_type',default=>'r.request_type'};
             if($alias==='r'){
                 match($reqType){
-                    'certificates','certificate'=>$clauses[]="($col LIKE '%certif%' OR $col IN ('baptismal_certificate','baptism_certification','confirmation_certificate','confirmation_certification','first_communion_certificate','first_communion_certification','marriage_certification','funeral_certification'))",
-                    'blessings','blessing'=>$clauses[]="$col LIKE '%blessing%'",
-                    'sacramental_services','sacramental','sacramental services'=>$clauses[]="(($col LIKE '%service%' OR $col LIKE '%mass%' OR $col LIKE '%reservation%' OR $col LIKE '%anointing%' OR $col LIKE '%fiesta%' OR $col IN ('baptism_service','marriage_wedding_service','funeral_mass','anointing_of_the_sick','patronal_fiesta','church_reservation','wedding_reservation','burial_reservation','wedding','baptism','confirmation','burial','church_venue')) AND $col NOT LIKE '%certif%')",
-                    default=>($clauses[]="$col=?")&&($types.='s')&&($values[]=$reqType)
+                    'certificates','certificate','all certificates'=>$clauses[]="($col LIKE '%certif%' OR $col IN ('baptismal_certificate','baptism_certification','confirmation_certificate','confirmation_certification','first_communion_certificate','first_communion_certification','marriage_certification','funeral_certification'))",
+                    'blessings','blessing','all blessings'=>$clauses[]="$col LIKE '%blessing%'",
+                    'sacramental_services','sacramental','sacramental services','services','all sacramental services'=>$clauses[]="(($col LIKE '%service%' OR $col LIKE '%mass%' OR $col LIKE '%reservation%' OR $col LIKE '%anointing%' OR $col LIKE '%fiesta%' OR $col IN ('baptism_service','marriage_wedding_service','funeral_mass','anointing_of_the_sick','patronal_fiesta','church_reservation','wedding_reservation','burial_reservation','wedding','baptism','confirmation','burial','church_venue')) AND $col NOT LIKE '%certif%')",
+                    default=>($clauses[]="($col=? OR LOWER(REPLACE($col, '_', ' ')) = ? OR LOWER(REPLACE($col, '-', ' ')) = ?)")&&($types.='sss')&&($values[]=$reqType)&&($values[]=$reqType)&&($values[]=$reqType)
                 };
             }else{
                 $clauses[]="$col=?";$types.='s';$values[]=$reqType;
@@ -75,13 +75,37 @@ final class ReportService
 
     private function summary(string $type,array $f):array
     {
-        $range='';$types='';$values=[];$column=match($type){'notifications'=>'COALESCE(nd.last_attempt_at,n.created_at)',default=>'r.date_requested'};
-        if($column&&($f['from']??'')!==''){$range.=" AND $column>=?";$types.='s';$values[]=$f['from'].' 00:00:00';}if($column&&($f['to']??'')!==''){$range.=" AND $column<=?";$types.='s';$values[]=$f['to'].' 23:59:59';}
-        if($type==='all'){$sql="SELECT COUNT(*) AS `total`, SUM(r.status IN('pending','submitted','requirements_review')) AS `pending`, SUM(r.status IN('approved','in_processing','processing','ready_for_pickup')) AS `in_progress`, SUM(r.status IN('completed','released')) AS `completed`, SUM(r.status IN('rejected','cancelled')) AS `rejected` FROM requests r WHERE r.deleted_at IS NULL$range";}
-        elseif($type==='turnaround'){$sql="SELECT COUNT(*) AS `total`, SUM(r.status IN('completed','released')) AS `completed`, SUM(r.status IN('pending','submitted','requirements_review')) AS `pending`, SUM(r.status IN('rejected','cancelled')) AS `rejected` FROM requests r WHERE r.deleted_at IS NULL$range";}
-        elseif($type==='pending_overdue'){$sql="SELECT COUNT(*) AS `total`, SUM(CASE WHEN r.due_date IS NOT NULL AND r.due_date < CURRENT_DATE THEN 1 ELSE 0 END) AS `overdue`, SUM(CASE WHEN r.due_date IS NOT NULL AND r.due_date >= CURRENT_DATE AND r.due_date <= DATE_ADD(CURRENT_DATE,INTERVAL 3 DAY) THEN 1 ELSE 0 END) AS `due_soon`, SUM(CASE WHEN r.priority IN ('urgent','high') THEN 1 ELSE 0 END) AS `urgent_priority` FROM requests r WHERE r.deleted_at IS NULL AND r.status NOT IN ('completed','rejected','cancelled')$range";}
-        elseif($type==='notifications'){$sql="SELECT SUM(nd.status='sent') AS `sent`, SUM(nd.status='failed') AS `failed`, SUM(nd.status='pending') AS `pending`, SUM(nd.attempt_count>1) AS `retried` FROM notification_deliveries nd JOIN notifications n ON n.notification_id=nd.notification_id WHERE 1=1$range";}
-        else return [];
+        [$select,$from,$base,$columns]=$this->definition($type);
+        [$where,$types,$values]=$this->filters($type,$f,$base);
+        if($type==='all'){
+            $sql="SELECT COUNT(*) AS `total`, 
+                         SUM(r.status IN('completed','released')) AS `completed`, 
+                         SUM(r.status IN('pending','submitted','requirements_review')) AS `pending`, 
+                         SUM(r.status IN('approved','in_processing','processing','ready_for_pickup','ready_for_release','ready','payment_review')) AS `approved`, 
+                         SUM(r.status IN('rejected','cancelled','declined')) AS `cancelled` 
+                  FROM requests r $where";
+        } elseif($type==='turnaround'){
+            $sql="SELECT COUNT(*) AS `total`, 
+                         SUM(r.status IN('completed','released')) AS `completed`, 
+                         SUM(r.status IN('pending','submitted','requirements_review')) AS `pending`, 
+                         SUM(r.status IN('rejected','cancelled','declined')) AS `cancelled` 
+                  FROM requests r $where";
+        } elseif($type==='pending_overdue'){
+            $sql="SELECT COUNT(*) AS `total`, 
+                         SUM(CASE WHEN r.due_date IS NOT NULL AND r.due_date < CURRENT_DATE THEN 1 ELSE 0 END) AS `overdue`, 
+                         SUM(CASE WHEN r.due_date IS NOT NULL AND r.due_date >= CURRENT_DATE AND r.due_date <= DATE_ADD(CURRENT_DATE,INTERVAL 3 DAY) THEN 1 ELSE 0 END) AS `due_soon`, 
+                         SUM(CASE WHEN r.priority IN ('urgent','high') THEN 1 ELSE 0 END) AS `urgent_priority` 
+                  FROM requests r $where";
+        } elseif($type==='notifications'){
+            $sql="SELECT SUM(nd.status='sent') AS `sent`, 
+                         SUM(nd.status='failed') AS `failed`, 
+                         SUM(nd.status='pending') AS `pending`, 
+                         SUM(nd.attempt_count>1) AS `retried` 
+                  $from $where";
+        } else {
+            return [];
+        }
+
         $stmt=$this->db->prepare($sql);
         if(!$stmt){ throw new Exception("SQL error in summary ({$type}): " . $this->db->error . " | SQL: " . $sql); }
         if($types!=='')$stmt->bind_param($types,...$values);$stmt->execute();$summary=$stmt->get_result()->fetch_assoc()?:[];$stmt->close();
