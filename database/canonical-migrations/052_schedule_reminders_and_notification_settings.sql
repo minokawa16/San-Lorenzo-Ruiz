@@ -5,13 +5,29 @@
 -- Grants secretary role appropriate staff and notification permissions
 
 -- 1. Extend notifications table if columns don't exist
-ALTER TABLE `notifications` 
-    ADD COLUMN IF NOT EXISTS `related_request_id` INT NULL AFTER `entity_id`,
-    ADD COLUMN IF NOT EXISTS `schedule_id` INT NULL AFTER `related_request_id`,
-    ADD COLUMN IF NOT EXISTS `days_before` INT NULL AFTER `schedule_id`,
-    ADD INDEX IF NOT EXISTS `idx_notif_related_request` (`related_request_id`),
-    ADD INDEX IF NOT EXISTS `idx_notif_schedule` (`schedule_id`),
-    ADD INDEX IF NOT EXISTS `idx_notif_days_before` (`days_before`);
+SET @col_exists_req = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'notifications' AND column_name = 'related_request_id');
+SET @sql_col_req = IF(@col_exists_req = 0, 'ALTER TABLE `notifications` ADD COLUMN `related_request_id` INT NULL AFTER `entity_id`', 'SELECT 1');
+PREPARE stmt_req FROM @sql_col_req; EXECUTE stmt_req; DEALLOCATE PREPARE stmt_req;
+
+SET @col_exists_sched = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'notifications' AND column_name = 'schedule_id');
+SET @sql_col_sched = IF(@col_exists_sched = 0, 'ALTER TABLE `notifications` ADD COLUMN `schedule_id` INT NULL AFTER `related_request_id`', 'SELECT 1');
+PREPARE stmt_sched FROM @sql_col_sched; EXECUTE stmt_sched; DEALLOCATE PREPARE stmt_sched;
+
+SET @col_exists_days = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'notifications' AND column_name = 'days_before');
+SET @sql_col_days = IF(@col_exists_days = 0, 'ALTER TABLE `notifications` ADD COLUMN `days_before` INT NULL AFTER `schedule_id`', 'SELECT 1');
+PREPARE stmt_days FROM @sql_col_days; EXECUTE stmt_days; DEALLOCATE PREPARE stmt_days;
+
+SET @idx_exists_req = (SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'notifications' AND index_name = 'idx_notif_related_request');
+SET @sql_idx_req = IF(@idx_exists_req = 0, 'ALTER TABLE `notifications` ADD INDEX `idx_notif_related_request` (`related_request_id`)', 'SELECT 1');
+PREPARE stmt_idx_req FROM @sql_idx_req; EXECUTE stmt_idx_req; DEALLOCATE PREPARE stmt_idx_req;
+
+SET @idx_exists_sched = (SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'notifications' AND index_name = 'idx_notif_schedule');
+SET @sql_idx_sched = IF(@idx_exists_sched = 0, 'ALTER TABLE `notifications` ADD INDEX `idx_notif_schedule` (`schedule_id`)', 'SELECT 1');
+PREPARE stmt_idx_sched FROM @sql_idx_sched; EXECUTE stmt_idx_sched; DEALLOCATE PREPARE stmt_idx_sched;
+
+SET @idx_exists_days = (SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'notifications' AND index_name = 'idx_notif_days_before');
+SET @sql_idx_days = IF(@idx_exists_days = 0, 'ALTER TABLE `notifications` ADD INDEX `idx_notif_days_before` (`days_before`)', 'SELECT 1');
+PREPARE stmt_idx_days FROM @sql_idx_days; EXECUTE stmt_idx_days; DEALLOCATE PREPARE stmt_idx_days;
 
 -- 2. Create reminder_log table
 CREATE TABLE IF NOT EXISTS `reminder_log` (
