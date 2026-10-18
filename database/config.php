@@ -53,6 +53,10 @@ $port_open = false;
 $fp = @fsockopen(DB_HOST, DB_PORT, $errno, $errstr, 1);
 if ($fp) { fclose($fp); $port_open = true; }
 if (!$port_open) {
+    if (defined('CLI_TEST_RUNNING')) {
+        $conn = null;
+        return;
+    }
     $msg = "Cannot connect to MySQL at " . DB_HOST . ":" . DB_PORT . ".";
     $msg .= " If you are local, start MySQL from XAMPP Control Panel. If you are on hosting, check your database host, username, password, and database name.";
     die("<div style='font-family:Arial,Helvetica,sans-serif;margin:20px;padding:12px;border:1px solid #e0e0e0;background:#fff7f7;color:#900;'>Database connection error: " . htmlspecialchars($msg) . "</div>");

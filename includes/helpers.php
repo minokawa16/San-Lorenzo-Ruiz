@@ -3527,8 +3527,8 @@ function syncApprovedRequestToCalendar($conn, $request_id, $admin_user_id) {
     $request = $stmt->get_result()->fetch_assoc();
     $stmt->close();
 
-    if (!$request || !in_array($request['status'], ['approved', 'completed'], true)) {
-        return ['success' => true, 'message' => 'Request is neither approved nor completed; calendar sync skipped.'];
+    if (!$request || !in_array($request['status'], ['approved', 'confirmed', 'completed'], true)) {
+        return ['success' => true, 'message' => 'Request is neither approved, confirmed, nor completed; calendar sync skipped.'];
     }
 
     if (!in_array($request['request_type'], $calendar_request_types, true)) {
@@ -3713,7 +3713,7 @@ function syncApprovedRequestCalendarBacklog($conn, $admin_user_id = 0, $limit = 
             ON se.source_type = 'request'
             AND se.source_id = r.request_id
             AND se.status != 'cancelled'
-        WHERE r.status = 'approved'
+        WHERE r.status IN ('approved', 'confirmed')
         AND r.request_type IN (
             'house_blessing',
             'car_blessing',

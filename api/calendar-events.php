@@ -41,7 +41,7 @@ if (!defined('CLI_TEST_RUNNING') && in_array($method, ['POST', 'PUT', 'PATCH', '
     }
 }
 
-if (!ensureScheduleEventsTable($conn)) {
+if (!defined('CLI_TEST_RUNNING') && !ensureScheduleEventsTable($conn)) {
     http_response_code(500);
     echo json_encode(actionResponse(false, 'Unable to prepare calendar table.'));
     exit;
@@ -255,6 +255,97 @@ if (!function_exists('hasScheduleConflict')) {
     }
 }
 
+// Service Type Normalization for Parish Calendar
+if (!function_exists('detectCalendarServiceType')) {
+    function detectCalendarServiceType($title, $category = '', $description = '') {
+        $text = strtolower(trim((string)$title) . ' ' . trim((string)$category) . ' ' . trim((string)$description));
+
+        if (strpos($text, 'funeral') !== false || strpos($text, 'burial') !== false || strpos($text, 'libing') !== false || strpos($text, 'requiem') !== false) {
+            return 'Funeral Mass';
+        }
+        if (strpos($text, 'wedding') !== false || strpos($text, 'marriage') !== false || strpos($text, 'kasal') !== false || strpos($text, 'matrimon') !== false) {
+            return 'Wedding';
+        }
+        if (strpos($text, 'baptism') !== false || strpos($text, 'binyag') !== false || strpos($text, 'christen') !== false) {
+            return 'Baptism';
+        }
+        if (strpos($text, 'confirm') !== false || strpos($text, 'kumpil') !== false) {
+            return 'Confirmation';
+        }
+        if (strpos($text, 'blessing') !== false || strpos($text, 'basbas') !== false) {
+            return 'Blessing';
+        }
+        if (strpos($text, 'mass') !== false || strpos($text, 'misa') !== false || strpos($text, 'eucharist') !== false || strpos($text, 'communion') !== false) {
+            return 'Mass';
+        }
+
+        $cat = strtolower(trim((string)$category));
+        if ($cat === 'mass' || $cat === 'monthly_mass') {
+            return 'Mass';
+        }
+        if ($cat === 'blessing') {
+            return 'Blessing';
+        }
+        if ($cat === 'patronal_fiesta') {
+            return 'Mass';
+        }
+
+        return 'Event';
+    }
+}
+
+// Privacy Protection: Strip requester's private name and personal details for public/parishioner views
+if (!function_exists('sanitizePublicServiceName')) {
+    function sanitizePublicServiceName($rawTitle, $serviceType) {
+        $clean = trim((string)$rawTitle);
+
+        // Split on dash, colon, or "for" (e.g. "Baptism Service - Juan Dela Cruz")
+        if (preg_match('/^(.*?)\s*[-–—:]\s*(.+)$/u', $clean, $matches)) {
+            $prefix = trim($matches[1]);
+            if (preg_match('/(baptism|mass|blessing|wedding|funeral|confirmation|fiesta|reservation|service)/i', $prefix)) {
+                $clean = $prefix;
+            }
+        }
+
+        if (preg_match('/house\s*blessing/i', $clean)) {
+            return 'House Blessing';
+        }
+        if (preg_match('/car\s*blessing|vehicle\s*blessing/i', $clean)) {
+            return 'Vehicle Blessing';
+        }
+        if (preg_match('/business\s*blessing|office\s*blessing/i', $clean)) {
+            return 'Business Blessing';
+        }
+        if (preg_match('/other\s*blessing|special\s*blessing/i', $clean)) {
+            return 'Special Blessing';
+        }
+        if (preg_match('/baptism/i', $clean)) {
+            return 'Baptism';
+        }
+        if (preg_match('/wedding|marriage/i', $clean)) {
+            return 'Wedding';
+        }
+        if (preg_match('/funeral|burial/i', $clean)) {
+            return 'Funeral Mass';
+        }
+        if (preg_match('/confirm/i', $clean)) {
+            return 'Confirmation';
+        }
+        if (preg_match('/(sunday\s*mass|anticipated\s*mass|daily\s*mass|holy\s*mass)/i', $clean, $m)) {
+            return ucwords(strtolower($m[1]));
+        }
+        if (preg_match('/mass/i', $clean)) {
+            return 'Mass';
+        }
+
+        if (strtolower($clean) === 'reserved' || strtolower($clean) === 'occupied' || strlen($clean) <= 2) {
+            return $serviceType;
+        }
+
+        return htmlspecialchars(substr($clean, 0, 60), ENT_QUOTES, 'UTF-8');
+    }
+}
+
 // Event Serialization - Converts database rows into FullCalendar-compatible event objects.
 function buildScheduleEvent($row, $instance_date = null, $editable = false) {
     $date = $instance_date ?: $row['event_date'];
@@ -263,15 +354,18 @@ function buildScheduleEvent($row, $instance_date = null, $editable = false) {
     $is_instance = $instance_date !== null && $instance_date !== $row['event_date'];
     $id = 'schedule-' . $row['schedule_id'] . ($is_instance ? '-' . $date : '');
 
-    $is_sacramental = strtolower((string)($row['category'] ?? '')) === 'sacramental';
+    $serviceType = detectCalendarServiceType($row['title'], $row['category'] ?? '', $row['description'] ?? '');
+    $publicServiceName = sanitizePublicServiceName($row['title'], $serviceType);
+    $time_formatted = !empty($row['start_time']) ? date('g:i A', strtotime($row['start_time'])) : '';
+    $end_time_formatted = !empty($row['end_time']) ? date('g:i A', strtotime($row['end_time'])) : '';
+
     $display_title = $row['title'];
     $display_desc = $row['description'];
 
-    // Public/Parish view: Displays as "Reserved" / "Occupied" (to block double-booking).
-    // Admin view: Full details with direct link to the sacramental record.
-    if (!$editable && $is_sacramental) {
-        $display_title = 'Reserved';
-        $display_desc = 'Reserved Sacramental Schedule';
+    // Parishioner / Public view: Clean service label without private requester names
+    if (!$editable) {
+        $display_title = $publicServiceName;
+        $display_desc = 'Scheduled ' . $serviceType;
     }
 
     $sourceType = $row['source_type'] ?? 'schedule';
@@ -289,6 +383,10 @@ function buildScheduleEvent($row, $instance_date = null, $editable = false) {
         'end' => $end_time ? $date . 'T' . $end_time : null,
         'color' => $row['color_label'] ?: '#1a73e8',
         'editable' => $editable && !$is_instance,
+        'service_type' => $serviceType,
+        'service_name' => $publicServiceName,
+        'time_formatted' => $time_formatted,
+        'end_time_formatted' => $end_time_formatted,
         'extendedProps' => [
             'schedule_id' => intval($row['schedule_id']),
             'description' => $display_desc,
@@ -299,7 +397,11 @@ function buildScheduleEvent($row, $instance_date = null, $editable = false) {
             'visibility' => $row['visibility'],
             'approval_status' => $row['approval_status'],
             'recurrence_rule' => $row['recurrence_rule'],
-            'assigned_personnel' => $row['assigned_personnel'],
+            'assigned_personnel' => $editable ? $row['assigned_personnel'] : '',
+            'service_type' => $serviceType,
+            'service_name' => $publicServiceName,
+            'time_formatted' => $time_formatted,
+            'end_time_formatted' => $end_time_formatted,
             'reminder_minutes' => intval($row['reminder_minutes']),
             'notify_email' => intval($row['notify_email']),
             'notify_sms' => intval($row['notify_sms']),
@@ -386,8 +488,8 @@ if (!defined('CLI_TEST_RUNNING') && $method === 'GET') {
 
     if (!$is_admin) {
         $where[] = "visibility = 'public'";
-        $where[] = "approval_status = 'approved'";
-        $where[] = "status != 'cancelled'";
+        $where[] = "(approval_status IN ('approved', 'confirmed') OR approval_status IS NULL OR approval_status = '')";
+        $where[] = "status NOT IN ('cancelled', 'rejected')";
     }
 
     if ($search !== '') {
@@ -425,7 +527,7 @@ if (!defined('CLI_TEST_RUNNING') && $method === 'GET') {
     $stmt->close();
 
     if ($category === 'all' || $category === '' || $category === 'reservation') {
-        $reservationWhere = ["status = 'approved'", "event_date BETWEEN ? AND ?"];
+        $reservationWhere = ["status IN ('approved', 'confirmed')", "event_date BETWEEN ? AND ?"];
         $reservationTypes = 'ss';
         $reservationParams = [$range_start, $range_end];
 
@@ -452,19 +554,28 @@ if (!defined('CLI_TEST_RUNNING') && $method === 'GET') {
             $stmt->execute();
             $result = $stmt->get_result();
             while ($result && $row = $result->fetch_assoc()) {
-                $title = ucfirst(str_replace('_', ' ', $row['reservation_type'])) . ' Reservation';
+                $serviceType = detectCalendarServiceType($row['reservation_type'], 'reservation');
+                $rawTitle = ucfirst(str_replace('_', ' ', $row['reservation_type'])) . ' Reservation';
+                $publicTitle = sanitizePublicServiceName($rawTitle, $serviceType);
                 $start_time = $row['event_time'] ? substr((string) $row['event_time'], 0, 5) : '08:00';
+                $time_formatted = date('g:i A', strtotime($start_time));
                 $events[] = [
                     'id' => 'reservation-' . $row['reservation_id'],
-                    'title' => $title,
+                    'title' => $publicTitle,
                     'start' => $row['event_date'] . 'T' . $start_time . ':00',
                     'color' => '#188038',
                     'editable' => false,
+                    'service_type' => $serviceType,
+                    'service_name' => $publicTitle,
+                    'time_formatted' => $time_formatted,
                     'extendedProps' => [
                         'category' => 'reservation',
                         'status' => 'upcoming',
                         'priority' => 'normal',
                         'source_type' => 'reservation',
+                        'service_type' => $serviceType,
+                        'service_name' => $publicTitle,
+                        'time_formatted' => $time_formatted,
                         'read_only' => true,
                         'description' => 'Approved parish reservation.',
                         'location' => 'Parish'
@@ -527,19 +638,29 @@ if (!defined('CLI_TEST_RUNNING') && $method === 'GET') {
                     $announcement_color = '#1a73e8';
                 }
 
+                $serviceType = detectCalendarServiceType($row['title'], $announcement_category, $row['content']);
+                $publicTitle = sanitizePublicServiceName($row['title'], $serviceType);
+                $time_formatted = '9:00 AM';
+
                 $events[] = [
                     'id' => 'announcement-' . $row['announcement_id'],
-                    'title' => $row['title'],
+                    'title' => $publicTitle,
                     'start' => date('Y-m-d\T09:00:00', strtotime($row['event_date'] ?: $row['published_date'])),
                     'color' => $announcement_color,
                     'editable' => false,
+                    'service_type' => $serviceType,
+                    'service_name' => $publicTitle,
+                    'time_formatted' => $time_formatted,
                     'extendedProps' => [
                         'category' => $announcement_category,
                         'status' => 'upcoming',
                         'priority' => 'normal',
                         'source_type' => 'announcement',
+                        'service_type' => $serviceType,
+                        'service_name' => $publicTitle,
+                        'time_formatted' => $time_formatted,
                         'read_only' => true,
-                        'description' => $row['content'],
+                        'description' => $is_admin ? $row['content'] : 'Parish announcement.',
                         'location' => 'Parish'
                     ]
                 ];
