@@ -312,6 +312,8 @@ final class ParishAssistantTools
             'phone_hotline' => '0997 742 8176',
             'email' => 'sanlorenzoruiz.midsayap@gmail.com',
             'parish_secretary' => 'Agnes Calapaan',
+            'parish_priest' => 'REV. FR. ALBERTO G. CAHILIG, OMI',
+            'assistant_priest' => 'REV. FR. ALVIN VICENTE C. BARRETTO, OMI',
             'office_hours' => [
                 'Tuesday to Saturday' => '8:00 AM – 5:00 PM (Lunch break: 12:00 PM – 1:00 PM)',
                 'Sunday' => '7:00 AM – 12:00 PM (Half-day)',

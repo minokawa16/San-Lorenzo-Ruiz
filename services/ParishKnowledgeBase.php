@@ -152,11 +152,8 @@ final class ParishKnowledgeBase
             '/\bkumunyon\b/iu' => 'communion',
 
             // Admin / Signatory / Priest
-            '/\bsignatory\b/iu' => 'signatory priest',
-            '/\bparish\s*priest\b/iu' => 'priest signatory',
             '/\bpari\b/iu' => 'priest',
-            '/\bilis\s*(?:sa\s*)?pari\b/iu' => 'change priest signatory',
-            '/\bpalitan\s*(?:ang\s*)?pari\b/iu' => 'change priest signatory',
+            '/\b(?:ilis|palitan|change|update)\s*(?:sa\s*|ang\s*)?(?:pari|priest|signatory)\b/iu' => 'change priest signatory',
 
             // Question words
             '/\bhw\s*many\b/iu' => 'how many',
@@ -233,7 +230,10 @@ final class ParishKnowledgeBase
         $norm = $this->normalizeQuery($query);
         $tokens = $norm['search_tokens'];
         $normStr = $norm['normalized'];
-        $isAdminQuery = (bool) preg_match('/\b(admin|staff|signatory|update request|generate certificate|review status|combobox|priest|signatory)\b/i', $normStr);
+        $isAdminQuery = (bool) preg_match('/\b(admin|staff|update request|generate certificate|review status|combobox|change priest signatory)\b/i', $normStr);
+        if (preg_match('/\b(who|sino|kinsa)\b/i', $normStr)) {
+            $isAdminQuery = false;
+        }
 
         $results = [];
 

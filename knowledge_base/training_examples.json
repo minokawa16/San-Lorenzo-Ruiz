@@ -278,5 +278,61 @@
     "category": "sacraments",
     "intent": "mass_intention",
     "ideal_answer": "Aron mag-pamisa (Mass Intention):\n\n1. Mag-log in sa imong TUGON account.\n2. Adto sa **Requests** -> **New Request** dayon pilia ang **Mass Intention**.\n3. Pilia ang klase sa intension (Pasalamat/Thanksgiving, Kalag/Repose of the Soul, o Special Intentions/Kaayohan).\n4. Isulat ang mga ngalan ug pilia ang petsa ug oras sa Misa.\n5. I-submit ang request aron maapil sa opisyal nga listahan sa misa."
+  },
+  {
+    "id": 36,
+    "user_query": "who is the parish priest",
+    "language": "en",
+    "category": "clergy",
+    "intent": "who_is_parish_priest",
+    "ideal_answer": "The Parish Priest is REV. FR. ALBERTO G. CAHILIG, OMI."
+  },
+  {
+    "id": 37,
+    "user_query": "kura paroko",
+    "language": "fil",
+    "category": "clergy",
+    "intent": "who_is_parish_priest",
+    "ideal_answer": "The Parish Priest is REV. FR. ALBERTO G. CAHILIG, OMI."
+  },
+  {
+    "id": 38,
+    "user_query": "pari priest",
+    "language": "fil",
+    "category": "clergy",
+    "intent": "who_is_parish_priest",
+    "ideal_answer": "The Parish Priest is REV. FR. ALBERTO G. CAHILIG, OMI."
+  },
+  {
+    "id": 39,
+    "user_query": "head priest",
+    "language": "en",
+    "category": "clergy",
+    "intent": "who_is_parish_priest",
+    "ideal_answer": "The Parish Priest is REV. FR. ALBERTO G. CAHILIG, OMI."
+  },
+  {
+    "id": 40,
+    "user_query": "who is the assistant priest",
+    "language": "en",
+    "category": "clergy",
+    "intent": "who_is_assistant_priest",
+    "ideal_answer": "The Assistant Priest is REV. FR. ALVIN VICENTE C. BARRETTO, OMI."
+  },
+  {
+    "id": 41,
+    "user_query": "assistant parish priest",
+    "language": "en",
+    "category": "clergy",
+    "intent": "who_is_assistant_priest",
+    "ideal_answer": "The Assistant Priest is REV. FR. ALVIN VICENTE C. BARRETTO, OMI."
+  },
+  {
+    "id": 42,
+    "user_query": "associate priest",
+    "language": "en",
+    "category": "clergy",
+    "intent": "who_is_assistant_priest",
+    "ideal_answer": "The Assistant Priest is REV. FR. ALVIN VICENTE C. BARRETTO, OMI."
   }
 ]

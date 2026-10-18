@@ -22,6 +22,8 @@ final class TugonConversationalIntent
     const WHAT_CAN_YOU_DO = 'WHAT_CAN_YOU_DO';
     const ABOUT_ASSISTANT = 'WHAT_CAN_YOU_DO';
     const HELP = 'HELP';
+    const WHO_IS_PARISH_PRIEST = 'WHO_IS_PARISH_PRIEST';
+    const WHO_IS_ASSISTANT_PRIEST = 'WHO_IS_ASSISTANT_PRIEST';
 
     // 12 Core Parish Intent Topics (Part A Step 1)
     const TOPIC_ACCOUNT_REGISTRATION = 'ACCOUNT_REGISTRATION';
@@ -164,6 +166,21 @@ final class TugonConversationalIntent
 
         if ($normalized === '') {
             return $result;
+        }
+
+        // Fixed Facts: Assistant Priest inquiry
+        if (preg_match('/\b(?:assistant\s*(?:parish\s*)?priest|associate\s*priest|parochial\s*vicar)\b/u', $normalized)
+            || (preg_match('/\b(?:who|sino|kinsa)\b/u', $normalized) && preg_match('/\b(?:assistant|associate)\b/u', $normalized) && preg_match('/\b(?:priest|pari)\b/u', $normalized))
+        ) {
+            return self::withResponse($result, self::WHO_IS_ASSISTANT_PRIEST, ["The Assistant Priest is REV. FR. ALVIN VICENTE C. BARRETTO, OMI."], true, ['Who is the Parish Priest?', 'Parish Office Hours']);
+        }
+
+        // Fixed Facts: Parish Priest inquiry
+        if (preg_match('/\b(?:who is (?:the )?(?:parish |head )?priest|who is our (?:parish |head )?priest|sino ang (?:kura paroko|pari|parish priest)|kinsa ang (?:kura paroko|pari|parish priest)|kura paroko|pari priest|head priest|parish priest)\b/u', $normalized)) {
+            // Exclude if asking to change/update signatory
+            if (!preg_match('/\b(?:change|update|palitan|ilis|how to change|paano palitan)\b/u', $normalized)) {
+                return self::withResponse($result, self::WHO_IS_PARISH_PRIEST, ["The Parish Priest is REV. FR. ALBERTO G. CAHILIG, OMI."], true, ['Who is the Assistant Priest?', 'Parish Office Hours']);
+            }
         }
 
         // 1. Who are you / Identity

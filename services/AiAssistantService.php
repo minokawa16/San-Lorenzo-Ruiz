@@ -14,7 +14,7 @@ final class AiAssistantService
     private ParishKnowledgeBase $kb;
     private ParishAssistantTools $tools;
 
-    public const SYSTEM_PROMPT = "You are the Parish Assistant for this parish management system. Help parishioners and staff understand how to use the system and answer questions about parish services. Use ONLY the provided knowledge base and live data tool results. Never invent steps, numbers, names, or dates. The user may have typos, short phrases, or mix English, Filipino, and Bisaya; infer their intent and answer anyway. Give simple numbered steps using the exact page and button names in the system. If the information is not available, say so and direct them to the parish office. Respect the user's role: never share another person's private records. Be warm, brief, and respectful.";
+    public const SYSTEM_PROMPT = "You are the Parish Assistant for this parish management system. Help parishioners and staff understand how to use the system and answer questions about parish services. Use ONLY the provided knowledge base and live data tool results. Never invent steps, numbers, names, or dates. The user may have typos, short phrases, or mix English, Filipino, and Bisaya; infer their intent and answer anyway. Give simple numbered steps using the exact page and button names in the system. If the information is not available, say so and direct them to the parish office. Respect the user's role: never share another person's private records. Be warm, brief, and respectful. FIXED FACTS (always use these exact answers): If asked who the parish priest is (or 'kura paroko', 'pari priest', 'head priest'), answer exactly: 'The Parish Priest is REV. FR. ALBERTO G. CAHILIG, OMI.' If asked who the assistant priest is (or 'assistant parish priest', 'associate priest'), answer exactly: 'The Assistant Priest is REV. FR. ALVIN VICENTE C. BARRETTO, OMI.' Only explain how to change the priest signatory on certificates if the user specifically asks about updating or changing the signatory in the Admin panel. Do not use that guide to answer 'who is' questions.";
 
     public function __construct(mysqli $db)
     {
@@ -116,6 +116,25 @@ final class AiAssistantService
         // Normalize input and detect language (English, Filipino, or Bisaya)
         $norm = $this->kb->normalizeQuery($contextualQuery);
         $language = $norm['language'];
+
+        // 4b. Fixed Facts: Parish Clergy Inquiries
+        $cleanLower = mb_strtolower(trim($contextualQuery));
+        $isWhoQuestion = (bool) preg_match('/\b(who|sino|kinsa)\b/iu', $cleanLower);
+        $isChangingSignatory = (bool) (preg_match('/\b(change|update|palitan|ilis)\b/iu', $cleanLower) && preg_match('/\b(signatory|priest on certificate|pari sa certificate|pari sa sertipiko)\b/iu', $cleanLower))
+            || (bool) preg_match('/\b(how (?:do|can|to)|paano|unsaon)\b.*\b(change|update|palitan|ilis)\b.*\b(priest|signatory|pari)\b/iu', $cleanLower);
+
+        if (!$isChangingSignatory) {
+            // Assistant Priest check
+            if (preg_match('/\b(assistant\s*(?:parish\s*)?priest|associate\s*priest|parochial\s*vicar)\b/iu', $cleanLower)
+                || ($isWhoQuestion && preg_match('/\b(assistant|associate)\b/iu', $cleanLower) && preg_match('/\b(priest|pari)\b/iu', $cleanLower))) {
+                return $this->persist($userId, $audience, $mode, $language, $message, "The Assistant Priest is REV. FR. ALVIN VICENTE C. BARRETTO, OMI.", [], [], null, $correlation, 'fixed-fact-clergy', ['Who is the Parish Priest?', 'Parish Office Hours'], TugonConversationalIntent::TOPIC_PARISH_OFFICE);
+            }
+            // Parish Priest check
+            if (preg_match('/\b(parish\s*priest|kura\s*paroko|pari\s*priest|head\s*priest)\b/iu', $cleanLower)
+                || ($isWhoQuestion && preg_match('/\b(priest|pari)\b/iu', $cleanLower))) {
+                return $this->persist($userId, $audience, $mode, $language, $message, "The Parish Priest is REV. FR. ALBERTO G. CAHILIG, OMI.", [], [], null, $correlation, 'fixed-fact-clergy', ['Who is the Assistant Priest?', 'Parish Office Hours'], TugonConversationalIntent::TOPIC_PARISH_OFFICE);
+            }
+        }
 
         // 5. Off-Topic Check
         if (!$this->isParishRelated($norm['normalized']) && $mode !== 'search') {
@@ -384,13 +403,31 @@ final class AiAssistantService
             };
         }
 
-        // 3. Admin: Change priest signatory
-        if (preg_match('/\b(change.*priest|priest.*certificate|signatory|ilis.*pari|palitan.*pari)\b/i', $normStr)) {
+        // 3. Admin: Change priest signatory (ONLY when specifically asking about updating or changing the signatory in Admin panel)
+        $isAskingToChangeSignatory = (preg_match('/\b(change|update|palitan|ilis)\b/i', $normStr) && preg_match('/\b(priest|signatory|pari)\b/i', $normStr))
+            || preg_match('/\b(how (?:do|can|to)|paano|unsaon)\b.*\b(change|update|palitan|ilis)\b/i', $normStr);
+        $isWhoQuestion = (bool) preg_match('/\b(who|sino|kinsa)\b/i', $normStr);
+
+        if ($isAskingToChangeSignatory && !$isWhoQuestion) {
             return match ($lang) {
                 'ceb' => "Aron usbon ang pari nga nagpirma sa mga sertipiko (Admin):\n\n1. Mag-log in isip Admin.\n2. Adto sa **Certificates** o **System Settings** sa sidebar menu.\n3. Pangitaa ang seksyon nga **Certificate Signatory**.\n4. I-type o pilia ang bag-ong ngalan ug titulo sa Kura Paroko (Parish Priest).\n5. I-click ang **Save Changes** o **Update Signatory** aron ma-apply kini sa tanang bag-ong sertipiko.",
                 'fil' => "Para palitan ang pari sa mga sertipiko (Admin):\n\n1. Mag-log in sa Admin account.\n2. Pumunta sa **Certificates** o **System Settings** sa sidebar.\n3. Hanapin ang bahagi ng **Certificate Signatory**.\n4. I-update ang pangalan at titulo ng Kura Paroko (Parish Priest).\n5. I-click ang **Save Changes** o **Update Signatory**. Ang lahat ng bagong sertipiko ay magtataglay na ng bagong pangalan.",
                 default => "To change or update the priest signatory on certificates (Admin):\n\n1. Log in to your Admin account.\n2. In the sidebar menu, open **Certificates** or **System Settings**.\n3. Locate the **Certificate Signatory** section.\n4. Enter or select the new Parish Priest / Minister's full name and ecclesiastical title.\n5. Click **Save Changes** (or **Update Signatory**). All newly generated certificates will automatically carry the updated name."
             };
+        }
+
+        // Fixed Facts: Assistant Priest
+        if (preg_match('/\b(assistant\s*(?:parish\s*)?priest|associate\s*priest|parochial\s*vicar)\b/i', $normStr)
+            || preg_match('/\b(assistant\s*(?:parish\s*)?priest|associate\s*priest|parochial\s*vicar)\b/i', $query)
+            || ($isWhoQuestion && preg_match('/\b(assistant|associate)\b/i', $normStr) && preg_match('/\b(priest|pari)\b/i', $normStr))) {
+            return "The Assistant Priest is REV. FR. ALVIN VICENTE C. BARRETTO, OMI.";
+        }
+
+        // Fixed Facts: Parish Priest
+        if (preg_match('/\b(parish\s*priest|kura\s*paroko|pari\s*priest|priest\s*priest|head\s*priest)\b/i', $normStr)
+            || preg_match('/\b(parish\s*priest|kura\s*paroko|pari\s*priest|head\s*priest)\b/i', $query)
+            || ($isWhoQuestion && preg_match('/\b(priest|pari)\b/i', $normStr))) {
+            return "The Parish Priest is REV. FR. ALBERTO G. CAHILIG, OMI.";
         }
 
         // 4. Admin: Generate certificate
@@ -566,6 +603,14 @@ final class AiAssistantService
         $fullSystemInstruction = <<<PROMPT
 === MANDATED SYSTEM PROMPT ===
 You are the Parish Assistant for this parish management system. Help parishioners and staff understand how to use the system and answer questions about parish services. Use ONLY the provided knowledge base and live data tool results. Never invent steps, numbers, names, or dates. The user may have typos, short phrases, or mix English, Filipino, and Bisaya; infer their intent and answer anyway. Give simple numbered steps using the exact page and button names in the system. If the information is not available, say so and direct them to the parish office. Respect the user's role: never share another person's private records. Be warm, brief, and respectful.
+
+=== FIXED FACTS (ALWAYS USE THESE EXACT ANSWERS) ===
+- If asked who the parish priest is (or "kura paroko", "pari priest", "head priest"), answer exactly:
+  "The Parish Priest is REV. FR. ALBERTO G. CAHILIG, OMI."
+- If asked who the assistant priest is (or "assistant parish priest", "associate priest"), answer exactly:
+  "The Assistant Priest is REV. FR. ALVIN VICENTE C. BARRETTO, OMI."
+
+Only explain how to change the priest signatory on certificates if the user specifically asks about updating or changing the signatory in the Admin panel. Do not use that guide to answer "who is" questions.
 
 === AUDIENCE & LANGUAGE ===
 {$roleContext}

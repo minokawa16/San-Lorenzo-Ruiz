@@ -194,13 +194,26 @@
       ]
     },
     {
+      "id": "parish_priests_and_clergy",
+      "title": "Parish Priests and Clergy",
+      "audience": ["all", "parishioner", "staff", "admin"],
+      "page_url": "about",
+      "keywords": [
+        "parish priest", "kura paroko", "pari priest", "head priest", "priest",
+        "assistant priest", "assistant parish priest", "associate priest", "parochial vicar",
+        "who is the parish priest", "who is the assistant priest", "clergy"
+      ],
+      "summary": "The Parish Priest is REV. FR. ALBERTO G. CAHILIG, OMI. The Assistant Priest is REV. FR. ALVIN VICENTE C. BARRETTO, OMI.",
+      "content": "The Parish Priest is REV. FR. ALBERTO G. CAHILIG, OMI. The Assistant Priest is REV. FR. ALVIN VICENTE C. BARRETTO, OMI."
+    },
+    {
       "id": "admin_change_priest_signatory",
       "title": "How to Change the Priest on Certificates (Admin Workflow)",
       "audience": ["admin", "staff"],
       "page_url": "admin/certificate-generator.php",
       "keywords": [
         "change priest", "change priest on certificate", "certificate signatory", "palitan ang pari",
-        "how do i change the priest on the certificates", "priest in charge", "officiating priest"
+        "how do i change the priest on the certificates", "update priest signatory", "signatory settings"
       ],
       "summary": "How an administrator changes the priest or signatory names on certificates.",
       "steps": [
