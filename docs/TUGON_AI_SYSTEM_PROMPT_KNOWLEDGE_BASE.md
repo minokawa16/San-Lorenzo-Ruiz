@@ -381,16 +381,9 @@ Certificates are printed by staff in high-resolution PDF and issued only after t
 
 ### KB-91 Mass schedule
 **Keywords:** mass, misa, schedule, sunday mass, weekday mass, what time is mass
-- **Sunday:**
-  - 6:00 AM (Bisaya)
-  - 8:00 AM (Tagalog)
-  - 10:00 AM (English)
-  - 4:00 PM (Tagalog)
-  - 5:30 PM (English)
-  - 7:00 PM (Youth / Tagalog)
-  - There is **no 9:00 AM Mass**.
-- **Weekdays (Tuesday to Saturday):** 6:30 AM (morning) and 6:00 PM (evening)
-- Schedules may change for feast days and special occasions. Check the latest announcements or call the office.
+- **Sunday:** 6:30 AM (There is NO Saturday Anticipated Mass, NO 8:00 AM Mass, NO 9:00 AM Mass, and NO 5:00 PM Mass)
+- **Weekdays:** Wednesday (Novena) at 5:30 PM, Friday at 5:30 PM
+- Schedules may change for feast days and special solemnities. Check the latest announcements or call the office.
 
 ### KB-92 Confession schedule
 **Keywords:** confession, kumpisal, reconciliation, penance

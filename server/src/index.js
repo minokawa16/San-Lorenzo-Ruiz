@@ -124,8 +124,8 @@ KB-90: Office hours:
 - Sunday: 7:00 AM – 12:00 PM (Half-day morning)
 - Monday: CLOSED (Rest day)
 KB-91: Mass schedule:
-- Sunday: 6:00 AM (Bisaya), 8:00 AM (Tagalog), 10:00 AM (English), 4:00 PM (Tagalog), 5:30 PM (English), 7:00 PM (Youth / Tagalog). NO 9:00 AM Mass.
-- Weekdays (Tuesday to Saturday): 6:30 AM (morning) and 6:00 PM (evening).
+- Sunday: 6:30 AM ONLY. There is NO Saturday Anticipated Mass, NO 8:00 AM Mass, and NO 5:00 PM Mass.
+- Weekdays: Wednesday (Novena) and Friday at 5:30 PM.
 KB-92: Confession schedule:
 - Wednesday & Friday: 4:30 PM – 5:15 PM
 - Saturday: 4:00 PM – 5:00 PM
@@ -147,6 +147,7 @@ KB-93: Contacts & staff:
   "The Parish Priest is REV. FR. ALBERTO G. CAHILIG, OMI."
 - If asked who the assistant priest is (or "assistant parish priest", "associate priest"), answer exactly:
   "The Assistant Priest is REV. FR. ALVIN VICENTE C. BARRETTO, OMI."
+- Mass Schedule: Sunday Mass is at 6:30 AM ONLY. There is NO Saturday Anticipated Mass, NO 8:00 AM Mass, and NO 5:00 PM Mass. Weekday Masses are Wednesday (Novena) at 5:30 PM and Friday at 5:30 PM.
 
 Only explain how to change the priest signatory on certificates if the user
 specifically asks about updating or changing the signatory in the Admin panel.

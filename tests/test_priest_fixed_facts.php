@@ -160,6 +160,41 @@ assertCondition(
     "Got: " . $answerParishPriest
 );
 
+// 3e. Test Mass Schedule: Sunday 6:30 AM only, no Saturday Mass, no 8 AM, no 5 PM
+$schedToolOutput = [
+    'tool' => 'get_schedule',
+    'data' => [
+        'events' => [],
+        'regular_mass_schedule' => [
+            'Sunday' => '6:30 AM',
+            'Wednesday (Novena)' => '5:30 PM',
+            'Friday' => '5:30 PM'
+        ]
+    ]
+];
+
+$massAnswerEn = $synthMethod->invoke($service, 'what is the mass schedule', [], $schedToolOutput, [], 'en', 'parishioner');
+assertCondition(
+    "Mass schedule contains 'Sunday: 6:30 AM'",
+    strpos($massAnswerEn, '• **Sunday**: 6:30 AM') !== false,
+    "Got: " . $massAnswerEn
+);
+assertCondition(
+    "Mass schedule does NOT contain Saturday Anticipated Mass",
+    strpos($massAnswerEn, 'Saturday') === false && strpos($massAnswerEn, 'Anticipated') === false,
+    "Got: " . $massAnswerEn
+);
+assertCondition(
+    "Mass schedule does NOT contain 8:00 AM or 5:00 PM",
+    strpos($massAnswerEn, '8:00 AM') === false && strpos($massAnswerEn, '5:00 PM') === false,
+    "Got: " . $massAnswerEn
+);
+assertCondition(
+    "Mass schedule contains Wednesday Novena and Friday 5:30 PM",
+    strpos($massAnswerEn, '• **Wednesday (Novena)**: 5:30 PM') !== false && strpos($massAnswerEn, '• **Friday**: 5:30 PM') !== false,
+    "Got: " . $massAnswerEn
+);
+
 echo "\n============================================\n";
 echo "Results: {$passCount} passed, {$failCount} failed\n";
 echo "============================================\n";

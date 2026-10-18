@@ -140,7 +140,7 @@ $services = [
                     <div class="landing-card premium-glass">
                         <h3>Mass Schedule</h3>
                         <div class="schedule-list">
-                            <div class="schedule-row"><span class="date-tile"><i class="fas fa-sun"></i></span><div><strong>Sunday Mass</strong><br><span>6:00 AM, 8:00 AM, 5:00 PM</span></div></div>
+                            <div class="schedule-row"><span class="date-tile"><i class="fas fa-sun"></i></span><div><strong>Sunday Mass</strong><br><span>6:30 AM</span></div></div>
                             <div class="schedule-row"><span class="date-tile"><i class="fas fa-cross"></i></span><div><strong>Weekday Mass</strong><br><span>Monday to Friday, 5:30 PM</span></div></div>
                             <?php foreach ($events as $event): ?>
                                 <div class="event-row"><span class="date-tile"><?php echo e($event['day']); ?></span><div><strong><?php echo e($event['title']); ?></strong><br><span><?php echo e($event['time']); ?></span></div></div>

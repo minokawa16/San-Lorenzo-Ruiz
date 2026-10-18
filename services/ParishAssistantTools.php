@@ -256,10 +256,9 @@ final class ParishAssistantTools
             'upcoming_events_count' => count($events),
             'events' => $events,
             'regular_mass_schedule' => [
-                'Sunday' => '6:00 AM, 8:00 AM, 5:00 PM',
+                'Sunday' => '6:30 AM',
                 'Wednesday (Novena)' => '5:30 PM',
-                'Friday' => '5:30 PM',
-                'Saturday (Anticipated)' => '5:30 PM'
+                'Friday' => '5:30 PM'
             ]
         ];
     }

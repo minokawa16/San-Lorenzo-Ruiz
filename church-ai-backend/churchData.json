@@ -33,18 +33,12 @@
   },
   "massSchedule": {
     "sunday": [
-      { "time": "6:00 AM", "language": "Bisaya", "type": "Dawn Community Mass" },
-      { "time": "8:00 AM", "language": "Tagalog", "type": "Morning Mass" },
-      { "time": "10:00 AM", "language": "English", "type": "High Mass" },
-      { "time": "4:00 PM", "language": "Tagalog", "type": "Afternoon Mass" },
-      { "time": "5:30 PM", "language": "English", "type": "Evening Mass" },
-      { "time": "7:00 PM", "language": "Youth / Tagalog", "type": "Youth & Workers Mass" }
+      { "time": "6:30 AM", "language": "Community Mass", "type": "Sunday Morning Mass" }
     ],
     "weekday": [
-      { "days": "Tuesday to Saturday", "time": "6:30 AM", "type": "Daily Morning Mass" },
-      { "days": "Tuesday to Saturday", "time": "6:00 PM", "type": "Daily Evening Mass" }
+      { "days": "Wednesday (Novena) & Friday", "time": "5:30 PM", "type": "Weekday Evening Mass" }
     ],
-    "notes": "There is NO 9:00 AM Sunday Mass. Nearest morning slots are 8:00 AM and 10:00 AM. Schedules are subject to liturgical feast updates."
+    "notes": "Sunday Mass is celebrated at 6:30 AM only. There is no Saturday Anticipated Mass, no 8:00 AM Mass, and no 5:00 PM Mass."
   },
   "confessionSchedule": {
     "wednesdayAndFriday": "4:30 PM - 5:15 PM (Before evening Mass)",
