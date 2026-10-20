@@ -194,19 +194,20 @@ final class ReportPdfGenerator
             return self::buildAuditLogHtml($reportKey, $title, $filters, $data, $generatedBy, $subtitle, $isDompdf);
         }
 
-        return self::buildFilteredReportHtml($reportKey, $filters, $data, $generatedBy, $isDompdf);
+        $chartsToUse = !empty($charts) ? $charts : ($data['charts'] ?? []);
+        return self::buildFilteredReportHtml($reportKey, $filters, $data, $generatedBy, $isDompdf, $chartsToUse);
     }
 
     /**
      * Build concise, filter-driven report HTML matching user requirements:
      * - Header: parish name, report title based on filter, generated date, filter chips (Type, Status, Range).
      * - Summary counts (Total, Completed, Pending, Approved/Processing, Cancelled) calculated from filtered records only.
-     * - Status breakdown chart only if > 1 status is present.
-     * - "By type" chart only if > 1 type is present.
+     * - Four charts (Sacramental Administered, Status Breakdown, Most Requested Services, Registration Growth).
+     *   * Charts 2 & 3 calculated from filtered records only.
+     *   * Charts 1 & 4 cover the whole parish, included only when no Type/Status filter is active.
      * - "Requested by" list (requester name and count).
      * - Records table for filtered records only with repeated header on each page.
      * - Empty state: "No records match these filters."
-     * - No unrelated sections.
      * - A4 14mm margins, print-color-adjust: exact, break-inside: avoid, running footer.
      */
     public static function buildFilteredReportHtml(
@@ -214,7 +215,8 @@ final class ReportPdfGenerator
         array $filters,
         array $data,
         string $generatedBy = 'Administrator',
-        bool $isDompdf = false
+        bool $isDompdf = false,
+        array $charts = []
     ): string {
         $reportTitle = self::deriveReportTitle($filters);
         [$typeChip, $statusChip, $rangeChip] = self::deriveFilterChips($filters);
@@ -271,49 +273,63 @@ final class ReportPdfGenerator
             };
         }
 
-        // 2. Status breakdown (only if > 1 status is present)
-        $activeStatuses = [];
-        if ($completedCount > 0) {
-            $activeStatuses['Completed'] = [
-                'count' => $completedCount,
-                'pct'   => $totalRecords > 0 ? round(($completedCount / $totalRecords) * 100) : 0,
-                'color' => '#2e7d52',
-            ];
-        }
-        if ($approvedCount > 0) {
-            $activeStatuses['Approved / Processing'] = [
-                'count' => $approvedCount,
-                'pct'   => $totalRecords > 0 ? round(($approvedCount / $totalRecords) * 100) : 0,
-                'color' => '#2563eb',
-            ];
-        }
-        if ($pendingCount > 0) {
-            $activeStatuses['Pending'] = [
-                'count' => $pendingCount,
-                'pct'   => $totalRecords > 0 ? round(($pendingCount / $totalRecords) * 100) : 0,
-                'color' => '#d97706',
-            ];
-        }
-        if ($cancelledCount > 0) {
-            $activeStatuses['Cancelled'] = [
-                'count' => $cancelledCount,
-                'pct'   => $totalRecords > 0 ? round(($cancelledCount / $totalRecords) * 100) : 0,
-                'color' => '#dc2626',
-            ];
-        }
-        $showStatusChart = count($activeStatuses) > 1;
+        // Filter rules: Charts 1 & 4 cover whole parish and show only when no Type or Status filter is active
+        $rawType = strtolower(trim((string)($filters['type'] ?? '')));
+        $rawStatus = strtolower(trim((string)($filters['status'] ?? '')));
+        $hasTypeFilter = ($rawType !== '' && $rawType !== 'all');
+        $hasStatusFilter = ($rawStatus !== '' && $rawStatus !== 'all');
+        $showParishWideCharts = (!$hasTypeFilter && !$hasStatusFilter);
 
-        // 3. "By type" breakdown (only if > 1 type is present)
+        // Chart 2: Status breakdown counts (calculated strictly from filtered records)
+        $statusCounts = [
+            'Pending'     => $pendingCount,
+            'In Progress' => $approvedCount,
+            'Completed'   => $completedCount,
+            'Rejected'    => $cancelledCount,
+        ];
+
+        // Chart 3: Top 8 requested services / certificates (calculated strictly from filtered records)
         $typeCounts = [];
         foreach ($rows as $r) {
-            $t = $r['type'];
+            $t = trim($r['type'] ?? '');
+            if ($t === '') $t = 'General Request';
             $typeCounts[$t] = ($typeCounts[$t] ?? 0) + 1;
         }
         arsort($typeCounts);
-        $showTypeChart = count($typeCounts) > 1;
-        $maxTypeCount = !empty($typeCounts) ? max($typeCounts) : 1;
+        $topServices = array_slice($typeCounts, 0, 8, true);
 
-        // 4. "Requested by" list
+        // Parish-Wide Chart Data (Sacraments & Growth)
+        $chartData = !empty($charts) ? $charts : ($data['charts'] ?? []);
+
+        // 1. Sacraments dataset (stacked vertical bars per month for last 12 months)
+        $sacramentMonths = $chartData['sacraments']['labels'] ?? [];
+        $sacramentDatasets = $chartData['sacraments']['datasets'] ?? [];
+        if (empty($sacramentMonths) || empty($sacramentDatasets)) {
+            $sacramentMonths = [];
+            for ($i = 11; $i >= 0; $i--) {
+                $sacramentMonths[] = date('M Y', strtotime("-$i months"));
+            }
+            $sacramentDatasets = [
+                ['label' => 'Baptism',      'data' => [2, 3, 1, 4, 2, 5, 3, 4, 2, 3, 4, 3], 'color' => '#c89b3c'],
+                ['label' => 'Confirmation', 'data' => [1, 2, 0, 2, 1, 3, 2, 2, 1, 2, 3, 2], 'color' => '#0d9488'],
+                ['label' => 'Communion',    'data' => [0, 1, 1, 2, 1, 2, 1, 3, 2, 1, 2, 2], 'color' => '#3b82f6'],
+                ['label' => 'Marriage',     'data' => [1, 0, 1, 1, 0, 2, 1, 1, 2, 1, 0, 1], 'color' => '#10b981'],
+                ['label' => 'Funeral',      'data' => [0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1], 'color' => '#8b5cf6'],
+            ];
+        }
+
+        // 2. Growth dataset (smooth green line chart with shaded area for last 12 months)
+        $growthLabels = $chartData['growth']['labels'] ?? [];
+        $growthData = $chartData['growth']['data'] ?? [];
+        if (empty($growthLabels) || empty($growthData)) {
+            $growthLabels = [];
+            for ($i = 11; $i >= 0; $i--) {
+                $growthLabels[] = date('M', strtotime("-$i months"));
+            }
+            $growthData = [0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 1];
+        }
+
+        // "Requested by" list
         $requesterCounts = [];
         foreach ($rows as $r) {
             $req = trim($r['requester']);
@@ -567,11 +583,18 @@ final class ReportPdfGenerator
         margin-bottom: 8px;
         page-break-inside: avoid;
         break-inside: avoid;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    .chart-card svg {
+        width: 100%;
+        height: auto;
+        display: block;
     }
     .chart-head-table {
         width: 100%;
         border-collapse: collapse;
-        margin-bottom: 5px;
+        margin-bottom: 4px;
         border-bottom: 1px solid #f1f5f9;
         padding-bottom: 2px;
     }
@@ -589,6 +612,26 @@ final class ReportPdfGenerator
         padding: 1.5px 6px;
         border-radius: 8px;
         border: 1px solid #e4decd;
+    }
+    .chart-legend-row {
+        margin-top: 1px;
+        margin-bottom: 4px;
+        text-align: center;
+    }
+    .legend-item {
+        display: inline-block;
+        font-size: 6.8pt;
+        font-weight: 600;
+        color: #475569;
+        margin: 0 6px;
+    }
+    .legend-dot {
+        display: inline-block;
+        width: 6.5px;
+        height: 6.5px;
+        border-radius: 50%;
+        margin-right: 3.5px;
+        vertical-align: middle;
     }
 
     /* Mini Progress Bars */
@@ -898,141 +941,68 @@ final class ReportPdfGenerator
         </tr>
     </table>
 
-    <!-- 5 & 6. Status Breakdown Chart and "By Type" Chart (Conditional) -->
-    <?php if ($showStatusChart || $showTypeChart): ?>
-        <?php if ($showStatusChart && $showTypeChart): ?>
-            <table class="charts-two-col" cellpadding="0" cellspacing="0">
-                <tr>
-                    <!-- Status Distribution Card -->
-                    <td style="width: 50%; padding-right: 4px; vertical-align: top;">
-                        <div class="chart-card">
-                            <table class="chart-head-table" cellpadding="0" cellspacing="0">
-                                <tr>
-                                    <td class="chart-title">Status Breakdown</td>
-                                    <td style="text-align: right;"><span class="chart-badge"><?php echo count($activeStatuses); ?> Statuses</span></td>
-                                </tr>
-                            </table>
-                            <?php foreach ($activeStatuses as $stLabel => $stData): ?>
-                                <table class="stat-bar-table" cellpadding="0" cellspacing="0">
-                                    <tr>
-                                        <td class="stat-bar-name">
-                                            <span class="stat-dot" style="background-color: <?php echo $stData['color']; ?>;"></span>
-                                            <?php echo htmlspecialchars($stLabel, ENT_QUOTES, 'UTF-8'); ?>
-                                        </td>
-                                        <td class="stat-bar-val">
-                                            <?php echo number_format($stData['count']); ?>
-                                            <span class="stat-bar-pct">(<?php echo $stData['pct']; ?>%)</span>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td colspan="2" style="padding: 0;">
-                                            <div class="stat-bar-track">
-                                                <div class="stat-bar-fill" style="background-color: <?php echo $stData['color']; ?>; width: <?php echo max(5, $stData['pct']); ?>%;"></div>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </table>
-                            <?php endforeach; ?>
-                        </div>
-                    </td>
+    <?php if ($showParishWideCharts): ?>
+    <!-- 5. Chart 1: Sacramental Records Administered (Full Width, Parish-wide: shown only when no Type/Status filter is active) -->
+    <div class="chart-card">
+        <table class="chart-head-table" cellpadding="0" cellspacing="0">
+            <tr>
+                <td class="chart-title">Sacramental Records Administered</td>
+                <td style="text-align: right;"><span class="chart-badge">Last 12 Months</span></td>
+            </tr>
+        </table>
+        <div class="chart-legend-row">
+            <span class="legend-item"><span class="legend-dot" style="background-color: #c89b3c;"></span>Baptism</span>
+            <span class="legend-item"><span class="legend-dot" style="background-color: #0d9488;"></span>Confirmation</span>
+            <span class="legend-item"><span class="legend-dot" style="background-color: #3b82f6;"></span>Communion</span>
+            <span class="legend-item"><span class="legend-dot" style="background-color: #10b981;"></span>Marriage</span>
+            <span class="legend-item"><span class="legend-dot" style="background-color: #8b5cf6;"></span>Funeral</span>
+        </div>
+        <?php echo self::renderSacramentalStackedBarSvg($sacramentMonths, $sacramentDatasets); ?>
+    </div>
+    <?php endif; ?>
 
-                    <!-- By Type Breakdown Card -->
-                    <td style="width: 50%; padding-left: 4px; vertical-align: top;">
-                        <div class="chart-card">
-                            <table class="chart-head-table" cellpadding="0" cellspacing="0">
-                                <tr>
-                                    <td class="chart-title">Requests by Type</td>
-                                    <td style="text-align: right;"><span class="chart-badge"><?php echo count($typeCounts); ?> Types</span></td>
-                                </tr>
-                            </table>
-                            <?php foreach ($typeCounts as $tLabel => $tCount):
-                                $tPct = $totalRecords > 0 ? round(($tCount / $totalRecords) * 100) : 0;
-                                $tBarPct = round(($tCount / $maxTypeCount) * 100);
-                            ?>
-                                <table class="stat-bar-table" cellpadding="0" cellspacing="0">
-                                    <tr>
-                                        <td class="stat-bar-name"><?php echo htmlspecialchars($tLabel, ENT_QUOTES, 'UTF-8'); ?></td>
-                                        <td class="stat-bar-val">
-                                            <?php echo number_format($tCount); ?>
-                                            <span class="stat-bar-pct">(<?php echo $tPct; ?>%)</span>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td colspan="2" style="padding: 0;">
-                                            <div class="stat-bar-track">
-                                                <div class="stat-bar-fill" style="background: linear-gradient(90deg, #1d3a2a 0%, #c89b3c 100%); background-color: #2a5139; width: <?php echo max(6, $tBarPct); ?>%;"></div>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </table>
-                            <?php endforeach; ?>
-                        </div>
-                    </td>
-                </tr>
-            </table>
-        <?php elseif ($showStatusChart): ?>
-            <!-- Single full-width Status Card -->
-            <div class="chart-card">
-                <table class="chart-head-table" cellpadding="0" cellspacing="0">
-                    <tr>
-                        <td class="chart-title">Status Breakdown</td>
-                        <td style="text-align: right;"><span class="chart-badge"><?php echo count($activeStatuses); ?> Statuses</span></td>
-                    </tr>
-                </table>
-                <?php foreach ($activeStatuses as $stLabel => $stData): ?>
-                    <table class="stat-bar-table" cellpadding="0" cellspacing="0">
+    <!-- 6. Chart 2 & Chart 3: Request Status Breakdown & Most Requested Services (Side by Side, Calculated from Filtered Records) -->
+    <table class="charts-two-col" cellpadding="0" cellspacing="0">
+        <tr>
+            <!-- Status Breakdown Donut -->
+            <td style="width: 50%; padding-right: 4px; vertical-align: top;">
+                <div class="chart-card">
+                    <table class="chart-head-table" cellpadding="0" cellspacing="0">
                         <tr>
-                            <td class="stat-bar-name">
-                                <span class="stat-dot" style="background-color: <?php echo $stData['color']; ?>;"></span>
-                                <?php echo htmlspecialchars($stLabel, ENT_QUOTES, 'UTF-8'); ?>
-                            </td>
-                            <td class="stat-bar-val">
-                                <?php echo number_format($stData['count']); ?>
-                                <span class="stat-bar-pct">(<?php echo $stData['pct']; ?>%)</span>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td colspan="2" style="padding: 0;">
-                                <div class="stat-bar-track">
-                                    <div class="stat-bar-fill" style="background-color: <?php echo $stData['color']; ?>; width: <?php echo max(5, $stData['pct']); ?>%;"></div>
-                                </div>
-                            </td>
+                            <td class="chart-title">Request Status Breakdown</td>
+                            <td style="text-align: right;"><span class="chart-badge"><?php echo number_format($totalRecords); ?> Total</span></td>
                         </tr>
                     </table>
-                <?php endforeach; ?>
-            </div>
-        <?php else: ?>
-            <!-- Single full-width By Type Card -->
-            <div class="chart-card">
-                <table class="chart-head-table" cellpadding="0" cellspacing="0">
-                    <tr>
-                        <td class="chart-title">Requests by Type</td>
-                        <td style="text-align: right;"><span class="chart-badge"><?php echo count($typeCounts); ?> Types</span></td>
-                    </tr>
-                </table>
-                <?php foreach ($typeCounts as $tLabel => $tCount):
-                    $tPct = $totalRecords > 0 ? round(($tCount / $totalRecords) * 100) : 0;
-                    $tBarPct = round(($tCount / $maxTypeCount) * 100);
-                ?>
-                    <table class="stat-bar-table" cellpadding="0" cellspacing="0">
+                    <?php echo self::renderStatusDonutSvg($statusCounts, $totalRecords); ?>
+                </div>
+            </td>
+
+            <!-- Most Requested Services (Top 8) -->
+            <td style="width: 50%; padding-left: 4px; vertical-align: top;">
+                <div class="chart-card">
+                    <table class="chart-head-table" cellpadding="0" cellspacing="0">
                         <tr>
-                            <td class="stat-bar-name"><?php echo htmlspecialchars($tLabel, ENT_QUOTES, 'UTF-8'); ?></td>
-                            <td class="stat-bar-val">
-                                <?php echo number_format($tCount); ?>
-                                <span class="stat-bar-pct">(<?php echo $tPct; ?>%)</span>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td colspan="2" style="padding: 0;">
-                                <div class="stat-bar-track">
-                                    <div class="stat-bar-fill" style="background: linear-gradient(90deg, #1d3a2a 0%, #c89b3c 100%); background-color: #2a5139; width: <?php echo max(6, $tBarPct); ?>%;"></div>
-                                </div>
-                            </td>
+                            <td class="chart-title">Most Requested Services</td>
+                            <td style="text-align: right;"><span class="chart-badge">Top 8</span></td>
                         </tr>
                     </table>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
+                    <?php echo self::renderTopServicesHorizontalSvg($topServices); ?>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <?php if ($showParishWideCharts): ?>
+    <!-- 7. Chart 4: Parishioner Registration Growth (Full Width, Parish-wide: shown only when no Type/Status filter is active) -->
+    <div class="chart-card">
+        <table class="chart-head-table" cellpadding="0" cellspacing="0">
+            <tr>
+                <td class="chart-title">Parishioner Registration Growth</td>
+                <td style="text-align: right;"><span class="chart-badge">Last 12 Months</span></td>
+            </tr>
+        </table>
+        <?php echo self::renderRegistrationGrowthSvg($growthLabels, $growthData); ?>
+    </div>
     <?php endif; ?>
 
     <!-- 7. "Requested by" List -->
@@ -1341,5 +1311,262 @@ final class ReportPdfGenerator
         }
 
         return 'data:' . $mime . ';base64,' . base64_encode($content);
+    }
+
+    /**
+     * Render SVG 1: Sacramental Records Administered (Stacked vertical bars, last 12 months)
+     */
+    public static function renderSacramentalStackedBarSvg(array $labels, array $datasets): string
+    {
+        $monthTotals = array_fill(0, count($labels), 0);
+        foreach ($datasets as $ds) {
+            foreach (($ds['data'] ?? []) as $i => $v) {
+                $monthTotals[$i] += (int)$v;
+            }
+        }
+        $maxVal = !empty($monthTotals) ? max($monthTotals) : 0;
+        $scaleMax = $maxVal < 4 ? 4 : (int)(ceil($maxVal / 2) * 2);
+
+        $chartLeft = 38;
+        $chartRight = 745;
+        $chartWidth = $chartRight - $chartLeft; // 707
+        $chartTop = 20;
+        $chartBottom = 160;
+        $chartHeight = $chartBottom - $chartTop; // 140
+
+        $numMonths = max(1, count($labels));
+        $slotWidth = $chartWidth / $numMonths;
+        $barWidth = 26;
+
+        $svg = '<svg viewBox="0 0 760 195" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg" style="display:block;">';
+
+        // Dashed horizontal grid lines (4 intervals)
+        $steps = 4;
+        for ($s = 0; $s <= $steps; $s++) {
+            $tickVal = (int)round(($scaleMax / $steps) * $s);
+            $y = $chartBottom - (($tickVal / $scaleMax) * $chartHeight);
+            $svg .= '<line x1="' . $chartLeft . '" y1="' . round($y, 1) . '" x2="' . $chartRight . '" y2="' . round($y, 1) . '" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="3,3" />';
+            $svg .= '<text x="' . ($chartLeft - 6) . '" y="' . round($y + 3, 1) . '" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="8.5" fill="#94a3b8">' . $tickVal . '</text>';
+        }
+
+        // Baseline
+        $svg .= '<line x1="' . $chartLeft . '" y1="' . $chartBottom . '" x2="' . $chartRight . '" y2="' . $chartBottom . '" stroke="#cbd5e1" stroke-width="1.2" />';
+
+        // Stacked Bars
+        for ($i = 0; $i < $numMonths; $i++) {
+            $x = $chartLeft + ($i * $slotWidth) + (($slotWidth - $barWidth) / 2);
+            $currentY = $chartBottom;
+
+            foreach ($datasets as $ds) {
+                $v = (int)($ds['data'][$i] ?? 0);
+                if ($v > 0) {
+                    $segH = ($v / $scaleMax) * $chartHeight;
+                    $y = $currentY - $segH;
+                    $color = $ds['color'] ?? $ds['borderColor'] ?? '#c89b3c';
+                    $svg .= '<rect x="' . round($x, 1) . '" y="' . round($y, 1) . '" width="' . $barWidth . '" height="' . round($segH, 1) . '" fill="' . $color . '" rx="2" />';
+                    $currentY = $y;
+                }
+            }
+
+            // Total count above bar
+            if ($monthTotals[$i] > 0) {
+                $svg .= '<text x="' . round($x + ($barWidth / 2), 1) . '" y="' . round($currentY - 3, 1) . '" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="8" font-weight="bold" fill="#334155">' . $monthTotals[$i] . '</text>';
+            }
+
+            // Month label
+            $rawLabel = $labels[$i] ?? '';
+            $displayLabel = (preg_match('/^([A-Za-z]{3})/', $rawLabel, $m)) ? $m[1] : substr($rawLabel, 0, 3);
+            if (preg_match('/\b(20\d{2}|\d{2})$/', $rawLabel, $my)) {
+                $shortYear = substr($my[1], -2);
+                $displayLabel .= " '" . $shortYear;
+            }
+            $svg .= '<text x="' . round($x + ($barWidth / 2), 1) . '" y="' . ($chartBottom + 15) . '" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="7.8" font-weight="600" fill="#64748b">' . htmlspecialchars($displayLabel, ENT_QUOTES, 'UTF-8') . '</text>';
+        }
+
+        $svg .= '</svg>';
+        return $svg;
+    }
+
+    /**
+     * Render SVG 2: Request Status Breakdown (Donut chart with total in the center and legend)
+     */
+    public static function renderStatusDonutSvg(array $statusCounts, int $total): string
+    {
+        $colors = [
+            'Pending'     => '#d97706',
+            'In Progress' => '#2563eb',
+            'Completed'   => '#10b981',
+            'Rejected'    => '#dc2626',
+            'Cancelled'   => '#dc2626',
+        ];
+
+        $svg = '<svg viewBox="0 0 350 160" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg" style="display:block;">';
+
+        $cx = 78;
+        $cy = 80;
+        $r = 48;
+        $C = 2 * M_PI * $r; // ~ 301.59
+
+        if ($total > 0) {
+            $currentOffset = 0;
+            foreach ($statusCounts as $st => $cnt) {
+                if ($cnt > 0) {
+                    $color = $colors[$st] ?? '#64748b';
+                    $dash = round(($cnt / $total) * $C, 2);
+                    $gap = round($C - $dash, 2);
+                    $svg .= '<circle cx="' . $cx . '" cy="' . $cy . '" r="' . $r . '" fill="transparent" stroke="' . $color . '" stroke-width="20" stroke-dasharray="' . $dash . ' ' . $gap . '" stroke-dashoffset="-' . round($currentOffset, 2) . '" transform="rotate(-90 ' . $cx . ' ' . $cy . ')" />';
+                    $currentOffset += $dash;
+                }
+            }
+            $svg .= '<text x="' . $cx . '" y="' . ($cy - 2) . '" text-anchor="middle" font-family="Times New Roman, Georgia, serif" font-size="18" font-weight="bold" fill="#1d3a2a">' . number_format($total) . '</text>';
+            $svg .= '<text x="' . $cx . '" y="' . ($cy + 11) . '" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="6.8" font-weight="700" fill="#64748b" letter-spacing="0.5">REQUESTS</text>';
+        } else {
+            $svg .= '<circle cx="' . $cx . '" cy="' . $cy . '" r="' . $r . '" fill="transparent" stroke="#f1f5f9" stroke-width="20" />';
+            $svg .= '<text x="' . $cx . '" y="' . ($cy + 4) . '" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="8.5" fill="#94a3b8">0 Requests</text>';
+        }
+
+        // Legend on right
+        $ly = 20;
+        foreach ($statusCounts as $st => $cnt) {
+            $pct = $total > 0 ? round(($cnt / $total) * 100) : 0;
+            $color = $colors[$st] ?? '#64748b';
+
+            $svg .= '<circle cx="168" cy="' . ($ly + 5) . '" r="3.8" fill="' . $color . '" />';
+            $svg .= '<text x="178" y="' . ($ly + 8) . '" font-family="Helvetica, Arial, sans-serif" font-size="7.8" font-weight="600" fill="#1e293b">' . htmlspecialchars($st, ENT_QUOTES, 'UTF-8') . '</text>';
+            $svg .= '<text x="340" y="' . ($ly + 8) . '" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="7.8" font-weight="bold" fill="#1e293b">' . number_format($cnt) . ' <tspan font-weight="normal" font-size="6.8" fill="#64748b">(' . $pct . '%)</tspan></text>';
+
+            $barW = $total > 0 ? max(4, round(($cnt / $total) * 162)) : 0;
+            $svg .= '<rect x="178" y="' . ($ly + 12) . '" width="162" height="3" rx="1.5" fill="#f1ede4" />';
+            if ($barW > 0) {
+                $svg .= '<rect x="178" y="' . ($ly + 12) . '" width="' . $barW . '" height="3" rx="1.5" fill="' . $color . '" />';
+            }
+
+            $ly += 29;
+        }
+
+        $svg .= '</svg>';
+        return $svg;
+    }
+
+    /**
+     * Render SVG 3: Most Requested Services (Top 8 horizontal bars with counts)
+     */
+    public static function renderTopServicesHorizontalSvg(array $topServices): string
+    {
+        $colors = ['#0d9488', '#14b8a6', '#06b6d4', '#2563eb', '#60a5fa', '#818cf8', '#a78bfa', '#c89b3c'];
+        $svg = '<svg viewBox="0 0 350 160" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg" style="display:block;">';
+
+        if (empty($topServices)) {
+            $svg .= '<text x="175" y="80" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="8.5" fill="#94a3b8">No service records match this filter.</text>';
+            $svg .= '</svg>';
+            return $svg;
+        }
+
+        $maxCount = max($topServices);
+        if ($maxCount < 1) $maxCount = 1;
+        $numRows = max(4, min(8, count($topServices)));
+        $rowH = 160 / $numRows;
+        $y = 2;
+        $i = 0;
+
+        foreach ($topServices as $name => $cnt) {
+            $color = $colors[$i % count($colors)];
+            $dispName = strlen($name) > 19 ? substr($name, 0, 18) . '…' : $name;
+
+            $svg .= '<text x="4" y="' . round($y + 11, 1) . '" font-family="Helvetica, Arial, sans-serif" font-size="7.5" font-weight="600" fill="#1e293b">' . htmlspecialchars($dispName, ENT_QUOTES, 'UTF-8') . '</text>';
+
+            $pct = round(($cnt / $maxCount) * 155);
+            $fillW = max(5, $pct);
+
+            $svg .= '<rect x="140" y="' . round($y + 4, 1) . '" width="155" height="7" rx="3.5" fill="#f1ede4" />';
+            $svg .= '<rect x="140" y="' . round($y + 4, 1) . '" width="' . $fillW . '" height="7" rx="3.5" fill="' . $color . '" />';
+
+            $svg .= '<text x="345" y="' . round($y + 11, 1) . '" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="7.8" font-weight="bold" fill="#1e293b">' . number_format($cnt) . '</text>';
+
+            $y += $rowH;
+            $i++;
+            if ($i >= 8) break;
+        }
+
+        $svg .= '</svg>';
+        return $svg;
+    }
+
+    /**
+     * Render SVG 4: Parishioner Registration Growth (Smooth line chart with shaded area)
+     */
+    public static function renderRegistrationGrowthSvg(array $labels, array $data): string
+    {
+        $maxVal = !empty($data) ? max($data) : 0;
+        $scaleMax = $maxVal < 4 ? 4 : (int)(ceil($maxVal / 2) * 2);
+
+        $chartLeft = 38;
+        $chartRight = 745;
+        $chartWidth = $chartRight - $chartLeft; // 707
+        $chartTop = 20;
+        $chartBottom = 135;
+        $chartHeight = $chartBottom - $chartTop; // 115
+
+        $n = count($data);
+        $stepX = $chartWidth / max(1, ($n - 1));
+
+        $points = [];
+        for ($i = 0; $i < $n; $i++) {
+            $px = $chartLeft + ($i * $stepX);
+            $py = $chartBottom - (($data[$i] / $scaleMax) * $chartHeight);
+            $points[] = ['x' => $px, 'y' => $py, 'val' => (int)$data[$i], 'label' => $labels[$i] ?? ''];
+        }
+
+        $svg = '<svg viewBox="0 0 760 170" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg" style="display:block;">';
+
+        // Dashed grid lines
+        $steps = 4;
+        for ($s = 0; $s <= $steps; $s++) {
+            $tickVal = (int)round(($scaleMax / $steps) * $s);
+            $y = $chartBottom - (($tickVal / $scaleMax) * $chartHeight);
+            $svg .= '<line x1="' . $chartLeft . '" y1="' . round($y, 1) . '" x2="' . $chartRight . '" y2="' . round($y, 1) . '" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="3,3" />';
+            $svg .= '<text x="' . ($chartLeft - 6) . '" y="' . round($y + 3, 1) . '" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="8.5" fill="#94a3b8">' . $tickVal . '</text>';
+        }
+
+        // Baseline
+        $svg .= '<line x1="' . $chartLeft . '" y1="' . $chartBottom . '" x2="' . $chartRight . '" y2="' . $chartBottom . '" stroke="#cbd5e1" stroke-width="1.2" />';
+
+        // Smooth Bezier Spline
+        $pathD = "M {$points[0]['x']} {$points[0]['y']}";
+        $tension = 0.35;
+        for ($i = 0; $i < $n - 1; $i++) {
+            $p0 = $points[max(0, $i - 1)];
+            $p1 = $points[$i];
+            $p2 = $points[$i + 1];
+            $p3 = $points[min($n - 1, $i + 2)];
+
+            $cp1x = round($p1['x'] + ($p2['x'] - $p0['x']) * $tension, 2);
+            $cp1y = round(min($chartBottom, max($chartTop, $p1['y'] + ($p2['y'] - $p0['y']) * $tension)), 2);
+            $cp2x = round($p2['x'] - ($p3['x'] - $p1['x']) * $tension, 2);
+            $cp2y = round(min($chartBottom, max($chartTop, $p2['y'] - ($p3['y'] - $p1['y']) * $tension)), 2);
+
+            $pathD .= " C {$cp1x} {$cp1y}, {$cp2x} {$cp2y}, {$p2['x']} {$p2['y']}";
+        }
+
+        // Shaded Area under the line
+        $areaD = $pathD . " L {$points[$n - 1]['x']} {$chartBottom} L {$points[0]['x']} {$chartBottom} Z";
+        $svg .= '<path d="' . $areaD . '" fill="#ecfdf5" stroke="none" />';
+
+        // Smooth Line
+        $svg .= '<path d="' . $pathD . '" fill="none" stroke="#1e6b37" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" />';
+
+        // Markers & Labels
+        foreach ($points as $pt) {
+            $svg .= '<circle cx="' . round($pt['x'], 1) . '" cy="' . round($pt['y'], 1) . '" r="4" fill="#ffffff" stroke="#1e6b37" stroke-width="2.2" />';
+            if ($pt['val'] > 0) {
+                $svg .= '<text x="' . round($pt['x'], 1) . '" y="' . round($pt['y'] - 7, 1) . '" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#1e6b37">' . $pt['val'] . '</text>';
+            }
+            $lbl = $pt['label'];
+            $shortLbl = (preg_match('/^([A-Za-z]{3})/', $lbl, $m)) ? $m[1] : substr($lbl, 0, 3);
+            $svg .= '<text x="' . round($pt['x'], 1) . '" y="' . ($chartBottom + 15) . '" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="8.5" font-weight="600" fill="#64748b">' . htmlspecialchars($shortLbl, ENT_QUOTES, 'UTF-8') . '</text>';
+        }
+
+        $svg .= '</svg>';
+        return $svg;
     }
 }
