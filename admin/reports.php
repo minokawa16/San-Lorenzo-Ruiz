@@ -556,7 +556,7 @@ include '../templates/header.php';
 /* --------------------------------------------------------------------------
    ANALYTICS & REPORTS — Premium SaaS Dashboard Theme
    -------------------------------------------------------------------------- */
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&family=Playfair+Display:ital,wght@0,500;0,600;0,700;0,800;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
 :root {
   /* Brand */
@@ -1053,15 +1053,15 @@ include '../templates/header.php';
 /* --------------------------------------------------------------------------
    OPERATIONAL SUMMARY SECTION — Aesthetic Parish Modern Theme
    -------------------------------------------------------------------------- */
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&display=swap');
-
 .ar-summary-section {
+  max-width: 1040px;
+  margin: 0 auto 26px auto;
+  font-family: 'Figtree', system-ui, -apple-system, sans-serif;
   background: #ffffff;
-  border: 1px solid #eadbce;
-  border-radius: var(--radius-lg);
+  border: 1px solid #e8e2d3;
+  border-radius: 20px;
   padding: 24px 28px;
-  margin-bottom: 26px;
-  box-shadow: 0 2px 12px rgba(140, 98, 37, 0.05), 0 1px 3px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 4px 20px rgba(29, 58, 42, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
   position: relative;
   overflow: hidden;
 }
@@ -1070,7 +1070,7 @@ include '../templates/header.php';
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 3px;
-  background: linear-gradient(90deg, #c89b3c 0%, #2e5e3b 50%, #8c6225 100%);
+  background: linear-gradient(90deg, #b98a2e 0%, #2a5139 50%, #e8c877 100%);
 }
 
 /* Header */
@@ -1082,7 +1082,7 @@ include '../templates/header.php';
   gap: 16px;
   margin-bottom: 20px;
   padding-bottom: 18px;
-  border-bottom: 1px solid #f1e4d3;
+  border-bottom: 1px solid #e8e2d3;
 }
 
 .ar-summary-title-wrap {
@@ -1092,16 +1092,16 @@ include '../templates/header.php';
 }
 
 .ar-summary-title-icon {
-  width: 46px;
-  height: 46px;
+  width: 44px;
+  height: 44px;
   border-radius: 12px;
-  background: rgba(200, 155, 60, 0.12);
-  border: 1px solid rgba(200, 155, 60, 0.28);
-  color: #8c6225;
+  background: rgba(185, 138, 46, 0.12);
+  border: 1px solid rgba(185, 138, 46, 0.25);
+  color: #b98a2e;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.2rem;
+  font-size: 1.15rem;
   flex-shrink: 0;
 }
 
@@ -1109,14 +1109,14 @@ include '../templates/header.php';
   font-family: 'Playfair Display', Georgia, serif;
   font-size: 1.35rem;
   font-weight: 700;
-  color: var(--green-dark, #2e3a2d);
+  color: #1d3a2a;
   margin: 0;
   letter-spacing: -0.2px;
 }
 
 .ar-summary-subtitle {
   font-size: 0.8rem;
-  color: var(--slate-400, #94a3b8);
+  color: #94a3b8;
   margin: 3px 0 0;
 }
 
@@ -1128,38 +1128,17 @@ include '../templates/header.php';
 }
 
 .ar-summary-updated {
-  font-size: 0.77rem;
+  font-size: 0.76rem;
   color: #8c7355;
-  background: #fbf7f0;
-  padding: 6px 14px;
+  background: #f5f2ea;
+  padding: 5px 13px;
   border-radius: 20px;
-  border: 1px solid #ebdcc5;
+  border: 1px solid #e8e2d3;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   font-weight: 600;
-}
-
-.ar-summary-export-btn {
-  font-size: 0.8rem;
-  padding: 8px 16px;
-  background: #ffffff;
-  border: 1.5px solid #d5c4aa;
-  color: #6a491d;
-  border-radius: 8px;
-  font-weight: 700;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  transition: all 0.18s ease;
-}
-.ar-summary-export-btn:hover {
-  background: #8c6225;
-  border-color: #8c6225;
-  color: #ffffff;
-  transform: translateY(-1px);
-  box-shadow: 0 3px 10px rgba(140, 98, 37, 0.25);
+  font-variant-numeric: tabular-nums;
 }
 
 /* Date Filter Toolbar */
@@ -1170,10 +1149,10 @@ include '../templates/header.php';
   gap: 14px;
   flex-wrap: wrap;
   background: #faf8f5;
-  border: 1px solid #ebdcc5;
-  border-radius: 12px;
+  border: 1px solid #e8e2d3;
+  border-radius: 14px;
   padding: 12px 18px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .ar-summary-filter-pills {
@@ -1184,7 +1163,7 @@ include '../templates/header.php';
 }
 
 .ar-summary-filter-lbl {
-  font-size: 0.74rem;
+  font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -1193,11 +1172,11 @@ include '../templates/header.php';
 }
 
 .ar-summary-pill {
-  padding: 6px 15px;
+  padding: 5px 14px;
   border-radius: 20px;
   font-size: 0.78rem;
   font-weight: 600;
-  border: 1.5px solid #ebdcc5;
+  border: 1.5px solid #e8e2d3;
   background: #ffffff;
   color: #5c4732;
   cursor: pointer;
@@ -1206,15 +1185,19 @@ include '../templates/header.php';
   display: inline-block;
 }
 .ar-summary-pill:hover {
-  background: #f4ecdf;
-  color: #3b2a1a;
-  border-color: #d8c4a6;
+  background: #f5f2ea;
+  color: #1d3a2a;
+  border-color: #d8cebe;
 }
 .ar-summary-pill.active {
-  background: #8c6225;
+  background: #2a5139;
   color: #ffffff;
-  border-color: #8c6225;
-  box-shadow: 0 2px 6px rgba(140, 98, 37, 0.28);
+  border-color: #2a5139;
+  box-shadow: 0 2px 6px rgba(42, 81, 57, 0.28);
+}
+.ar-summary-pill:focus-visible {
+  outline: 2px solid #b98a2e;
+  outline-offset: 2px;
 }
 
 .ar-summary-custom-range {
@@ -1226,26 +1209,27 @@ include '../templates/header.php';
 }
 
 .ar-summary-range-lbl {
-  font-size: 0.76rem;
+  font-size: 0.74rem;
   font-weight: 700;
   color: #7d6b56;
   margin: 0;
 }
 
 .ar-summary-date-input {
-  border: 1.5px solid #d5c4aa;
+  border: 1.5px solid #e8e2d3;
   border-radius: 8px;
-  padding: 6px 11px;
-  font-size: 0.8rem;
+  padding: 5px 10px;
+  font-size: 0.78rem;
   background: #ffffff;
-  color: #3b2a1a;
+  color: #1d3a2a;
   outline: none;
   font-family: inherit;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
-.ar-summary-date-input:focus {
-  border-color: #8c6225;
-  box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.15);
+.ar-summary-date-input:focus-visible {
+  border-color: #b98a2e;
+  box-shadow: 0 0 0 3px rgba(185, 138, 46, 0.18);
+  outline: none;
 }
 
 .ar-summary-range-sep {
@@ -1254,12 +1238,12 @@ include '../templates/header.php';
 }
 
 .ar-summary-btn-apply {
-  background: var(--green-dark, #2e3a2d);
+  background: #2a5139;
   color: #ffffff;
   border: none;
   border-radius: 8px;
-  padding: 7px 15px;
-  font-size: 0.8rem;
+  padding: 6px 14px;
+  font-size: 0.78rem;
   font-weight: 700;
   cursor: pointer;
   display: inline-flex;
@@ -1269,17 +1253,21 @@ include '../templates/header.php';
   font-family: inherit;
 }
 .ar-summary-btn-apply:hover {
-  background: var(--green-mid, #3d5c3a);
+  background: #1d3a2a;
   transform: translateY(-1px);
+}
+.ar-summary-btn-apply:focus-visible {
+  outline: 2px solid #b98a2e;
+  outline-offset: 2px;
 }
 
 .ar-summary-btn-reset {
   background: #ffffff;
-  color: #8c6225;
-  border: 1.5px solid #decbb2;
+  color: #8c7355;
+  border: 1.5px solid #e8e2d3;
   border-radius: 8px;
-  padding: 6px 12px;
-  font-size: 0.8rem;
+  padding: 5px 11px;
+  font-size: 0.78rem;
   cursor: pointer;
   text-decoration: none;
   display: inline-flex;
@@ -1288,15 +1276,38 @@ include '../templates/header.php';
   transition: all 0.15s ease;
 }
 .ar-summary-btn-reset:hover {
-  background: #f4ecdf;
-  color: #5c3d1e;
+  background: #f5f2ea;
+  color: #1d3a2a;
+}
+.ar-summary-btn-reset:focus-visible {
+  outline: 2px solid #b98a2e;
+  outline-offset: 2px;
 }
 
-/* 1. TOP SUMMARY KPI CARDS (3 columns) */
+/* SECTION LABELS & THIN DIVIDERS */
+.ar-section-divider-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 22px 0 14px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8c7355;
+}
+.ar-section-divider-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #e8e2d3;
+}
+
+/* 1. TOP SUMMARY KPI CARDS (3 columns, 16px gap) */
 .ar-sum-cards-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 18px;
+  gap: 16px;
   margin-bottom: 22px;
 }
 @media (max-width: 900px) {
@@ -1307,78 +1318,67 @@ include '../templates/header.php';
 
 .ar-sum-card {
   background: #ffffff;
-  border: 1px solid #ebdcc5;
-  border-radius: 14px;
+  border: 1px solid #e8e2d3;
+  border-radius: 20px;
   padding: 22px 24px;
   position: relative;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(140, 98, 37, 0.04);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 16px rgba(29, 58, 42, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  width: 100%;
 }
-.ar-sum-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(140, 98, 37, 0.08);
+.ar-sum-card-cert {
+  border-left: 4px solid #b98a2e;
 }
-.ar-sum-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; bottom: 0;
-  width: 4px;
-  border-radius: 14px 0 0 14px;
+.ar-sum-card-blessing {
+  border-left: 4px solid #2a5139;
 }
-.ar-sum-card-cert::before {
-  background: linear-gradient(180deg, #c89b3c 0%, #8c6225 100%);
-}
-.ar-sum-card-blessing::before {
-  background: linear-gradient(180deg, #10b981 0%, #059669 100%);
-}
-.ar-sum-card-services::before {
-  background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
+.ar-sum-card-services {
+  border-left: 4px solid #3b82a6;
 }
 
 .ar-sum-card-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .ar-sum-card-icon {
-  width: 46px;
-  height: 46px;
+  width: 44px;
+  height: 44px;
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.25rem;
+  font-size: 1.2rem;
 }
 .ar-sum-card-cert .ar-sum-card-icon {
-  background: rgba(200, 155, 60, 0.12);
-  border: 1px solid rgba(200, 155, 60, 0.26);
-  color: #8c6225;
+  background: rgba(185, 138, 46, 0.12);
+  border: 1px solid rgba(185, 138, 46, 0.25);
+  color: #b98a2e;
 }
 .ar-sum-card-blessing .ar-sum-card-icon {
-  background: rgba(16, 185, 129, 0.12);
-  border: 1px solid rgba(16, 185, 129, 0.26);
-  color: #059669;
+  background: rgba(42, 81, 57, 0.10);
+  border: 1px solid rgba(42, 81, 57, 0.22);
+  color: #2a5139;
 }
 .ar-sum-card-services .ar-sum-card-icon {
-  background: rgba(59, 130, 246, 0.12);
-  border: 1px solid rgba(59, 130, 246, 0.26);
-  color: #1d4ed8;
+  background: rgba(59, 130, 166, 0.12);
+  border: 1px solid rgba(59, 130, 166, 0.25);
+  color: #3b82a6;
 }
 
 .ar-sum-card-badge {
   font-size: 0.72rem;
   font-weight: 700;
-  padding: 4px 10px;
+  padding: 4px 11px;
   border-radius: 20px;
-  background: #f7f1e5;
-  color: #7a5214;
-  border: 1px solid #ebdcc5;
+  background: #f5f2ea;
+  color: #1d3a2a;
+  border: 1px solid #e8e2d3;
 }
 .ar-sum-card-badge.status-completed {
   background: #d1fae5;
@@ -1386,38 +1386,63 @@ include '../templates/header.php';
   border-color: #a7f3d0;
 }
 
+.ar-sum-card-middle {
+  margin-bottom: 6px;
+}
+
 .ar-sum-card-num {
-  font-size: 2.35rem;
-  font-weight: 850;
-  color: #1e293b;
-  line-height: 1.1;
-  letter-spacing: -0.6px;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 2.625rem; /* ~42px */
+  font-weight: 700;
+  color: #1d3a2a;
+  line-height: 1.08;
+  letter-spacing: -0.5px;
   font-variant-numeric: tabular-nums;
-  margin-bottom: 4px;
+  margin: 4px 0 2px;
 }
 
 .ar-sum-card-label {
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: #64748b;
 }
 
+.ar-sum-card-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  gap: 8px;
+}
+
 .ar-sum-card-hint {
   font-size: 0.74rem;
   color: #94a3b8;
-  margin-top: 6px;
   display: flex;
   align-items: center;
   gap: 5px;
+  line-height: 1.35;
 }
 
-/* 2, 3, 4. BREAKDOWN CARDS GRID */
+.ar-sum-card-action {
+  font-size: 0.74rem;
+  color: #8c7355;
+  margin-left: auto;
+  transition: transform 0.2s ease, color 0.2s ease;
+  flex-shrink: 0;
+}
+.ar-sum-card-action i {
+  transition: transform 0.2s ease;
+  display: inline-block;
+}
+
+/* 2, 3, 4. BREAKDOWN CARDS GRID (16px gap) */
 .ar-sum-breakdowns-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 18px;
+  gap: 16px;
 }
 @media (max-width: 1024px) {
   .ar-sum-breakdowns-grid {
@@ -1427,16 +1452,16 @@ include '../templates/header.php';
 
 .ar-sum-breakdown-card {
   background: #ffffff;
-  border: 1px solid #ebdcc5;
-  border-radius: 14px;
+  border: 1px solid #e8e2d3;
+  border-radius: 20px;
   padding: 22px 24px;
-  box-shadow: 0 2px 8px rgba(140, 98, 37, 0.04);
+  box-shadow: 0 4px 16px rgba(29, 58, 42, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
   display: flex;
   flex-direction: column;
   transition: box-shadow 0.2s ease;
 }
 .ar-sum-breakdown-card:hover {
-  box-shadow: 0 6px 18px rgba(140, 98, 37, 0.07);
+  box-shadow: 0 8px 24px rgba(29, 58, 42, 0.08);
 }
 
 .ar-sum-breakdown-full {
@@ -1448,8 +1473,8 @@ include '../templates/header.php';
   align-items: center;
   justify-content: space-between;
   margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #f2e9dc;
+  padding-bottom: 13px;
+  border-bottom: 1px solid #e8e2d3;
   flex-wrap: wrap;
   gap: 10px;
 }
@@ -1462,30 +1487,48 @@ include '../templates/header.php';
 
 .ar-sum-breakdown-title {
   font-family: 'Playfair Display', Georgia, serif;
-  font-size: 1.15rem;
+  font-size: 1.18rem;
   font-weight: 700;
-  color: #2e3a2d;
+  color: #1d3a2a;
   margin: 0;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
+.ar-breakdown-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.ar-breakdown-dot.dot-gold {
+  background: #b98a2e;
+}
+.ar-breakdown-dot.dot-green {
+  background: #2a5139;
+}
+.ar-breakdown-dot.dot-blue {
+  background: #3b82a6;
+}
+
 .ar-sum-breakdown-sub {
-  font-size: 0.75rem;
+  font-size: 0.76rem;
   color: #94a3b8;
-  margin: 0;
+  margin: 2px 0 0;
 }
 
 .ar-sum-count-pill {
-  font-size: 0.72rem;
+  font-size: 0.74rem;
   font-weight: 700;
-  padding: 4px 10px;
+  padding: 4px 11px;
   border-radius: 20px;
-  background: #fbf7f0;
-  color: #8c6225;
-  border: 1px solid #ebdcc5;
+  background: #f5f2ea;
+  color: #1d3a2a;
+  border: 1px solid #e8e2d3;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Empty State */
@@ -1495,8 +1538,8 @@ include '../templates/header.php';
   color: #a8947f;
   font-size: 0.85rem;
   background: #faf8f5;
-  border-radius: 10px;
-  border: 1px dashed #e3d6c3;
+  border-radius: 12px;
+  border: 1px dashed #e8e2d3;
   margin: auto 0;
 }
 .ar-sum-empty-state i {
@@ -1504,7 +1547,7 @@ include '../templates/header.php';
   opacity: 0.45;
   display: block;
   margin-bottom: 8px;
-  color: #8c6225;
+  color: #b98a2e;
 }
 .ar-sum-empty-state div {
   font-weight: 700;
@@ -1516,14 +1559,14 @@ include '../templates/header.php';
 .ar-sum-bars-list {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   margin-top: 4px;
 }
 
 .ar-sum-bar-item {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
 }
 
 .ar-sum-bar-labels {
@@ -1543,46 +1586,46 @@ include '../templates/header.php';
 
 .ar-sum-bullet {
   font-size: 0.72rem;
-  color: #c89b3c;
+  color: #b98a2e;
 }
 
 .ar-sum-bar-val {
   font-weight: 700;
-  color: #1e293b;
-  background: #fbf7f0;
+  color: #1d3a2a;
+  background: #f5f2ea;
   padding: 2px 9px;
   border-radius: 12px;
-  font-size: 0.75rem;
-  border: 1px solid #ebdcc5;
+  font-size: 0.74rem;
+  border: 1px solid #e8e2d3;
   font-variant-numeric: tabular-nums;
 }
 
 .ar-sum-bar-track {
   width: 100%;
   height: 8px;
-  background: #f1f5f9;
-  border-radius: 6px;
+  background: #f5f2ea;
+  border-radius: 999px;
   overflow: hidden;
 }
 
 .ar-sum-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #c89b3c 0%, #8c6225 100%);
-  border-radius: 6px;
+  background: linear-gradient(90deg, #2a5139 0%, #b98a2e 100%);
+  border-radius: 999px;
   transition: width 0.3s ease;
 }
 
 /* Blessings Breakdown Elements */
 .ar-blessing-hero-highlight {
-  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-  border: 1.5px solid #bbf7d0;
-  border-radius: 12px;
+  background: linear-gradient(135deg, #f0fdf4 0%, #e6f7ec 100%);
+  border: 1.5px solid #a7f3d0;
+  border-radius: 14px;
   padding: 14px 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 14px;
-  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.08);
+  box-shadow: 0 2px 8px rgba(47, 138, 87, 0.08);
 }
 
 .ar-blessing-hero-meta {
@@ -1595,7 +1638,7 @@ include '../templates/header.php';
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #15803d;
+  color: #2f8a57;
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -1603,8 +1646,9 @@ include '../templates/header.php';
 }
 
 .ar-blessing-hero-num {
+  font-family: 'Playfair Display', Georgia, serif;
   font-size: 2.15rem;
-  font-weight: 850;
+  font-weight: 700;
   color: #14532d;
   line-height: 1.05;
   font-variant-numeric: tabular-nums;
@@ -1623,12 +1667,12 @@ include '../templates/header.php';
   border-radius: 50%;
   background: #ffffff;
   border: 1.5px solid #86efac;
-  color: #15803d;
+  color: #2f8a57;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.15rem;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
 }
 
 .ar-blessing-status-grid {
@@ -1643,10 +1687,10 @@ include '../templates/header.php';
   }
 }
 
-/* Status Chips - Accessible soft chips */
+/* Status Chips - Accessible soft colored tiles */
 .ar-status-chip,
 .ar-blessing-status-box {
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 10px 12px;
   display: flex;
   flex-direction: column;
@@ -1656,7 +1700,7 @@ include '../templates/header.php';
 }
 .ar-status-chip:hover,
 .ar-blessing-status-box:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
 }
 
 .ar-status-chip.chip-pending,
@@ -1701,10 +1745,10 @@ include '../templates/header.php';
   border-radius: 50%;
   flex-shrink: 0;
 }
-.ar-status-dot.dot-amber { background: #d97706; }
-.ar-status-dot.dot-blue  { background: #2563eb; }
-.ar-status-dot.dot-green { background: #059669; }
-.ar-status-dot.dot-red   { background: #dc2626; }
+.ar-status-dot.dot-amber { background: #d9a21b; }
+.ar-status-dot.dot-blue  { background: #3b82a6; }
+.ar-status-dot.dot-green { background: #2f8a57; }
+.ar-status-dot.dot-red   { background: #b4533f; }
 
 .ar-status-chip-count,
 .ar-blessing-box-count {
@@ -1714,11 +1758,11 @@ include '../templates/header.php';
   font-variant-numeric: tabular-nums;
 }
 
-/* Blessing Types Sub-list with Progress Tracks */
+/* Blessing Types Sub-list with 8px Progress Tracks */
 .ar-blessing-types-list {
   background: #faf8f5;
-  border: 1px solid #ebdcc5;
-  border-radius: 12px;
+  border: 1px solid #e8e2d3;
+  border-radius: 14px;
   padding: 12px 14px;
 }
 
@@ -1733,7 +1777,7 @@ include '../templates/header.php';
   color: #8c7355;
   margin-bottom: 8px;
   padding-bottom: 6px;
-  border-bottom: 1px dashed #ebdcc5;
+  border-bottom: 1px dashed #e8e2d3;
 }
 
 .ar-blessing-types-sub {
@@ -1745,11 +1789,11 @@ include '../templates/header.php';
 .ar-blessing-type-row {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
   padding: 5px 0;
 }
 .ar-blessing-type-row:not(:last-child) {
-  border-bottom: 1px solid #f3ece2;
+  border-bottom: 1px solid #f5efe6;
 }
 
 .ar-blessing-type-info {
@@ -1769,7 +1813,7 @@ include '../templates/header.php';
 
 .ar-blessing-type-bullet {
   font-size: 0.72rem;
-  color: #8c6225;
+  color: #2a5139;
 }
 
 .ar-blessing-type-count {
@@ -1777,15 +1821,15 @@ include '../templates/header.php';
   background: #ffffff;
   padding: 2px 8px;
   border-radius: 10px;
-  border: 1px solid #ebdcc5;
-  color: #2b1f14;
+  border: 1px solid #e8e2d3;
+  color: #1d3a2a;
   font-size: 0.74rem;
   font-variant-numeric: tabular-nums;
 }
 
 .ar-blessing-progress-track {
   width: 100%;
-  height: 6px;
+  height: 8px;
   background: #ede3d6;
   border-radius: 999px;
   overflow: hidden;
@@ -1793,7 +1837,7 @@ include '../templates/header.php';
 
 .ar-blessing-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #2e5e3b 0%, #c89b3c 100%);
+  background: linear-gradient(90deg, #2a5139 0%, #b98a2e 100%);
   border-radius: 999px;
   transition: width 0.3s ease;
 }
@@ -1801,8 +1845,8 @@ include '../templates/header.php';
 /* Sacramental Services Table Breakdown */
 .ar-sum-services-table-wrap {
   overflow-x: auto;
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  border: 1px solid #e8e2d3;
   background: #ffffff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
@@ -1811,34 +1855,38 @@ include '../templates/header.php';
   width: 100%;
   border-collapse: collapse;
   font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .ar-sum-services-table thead th {
   position: sticky;
   top: 0;
   z-index: 2;
-  background: #f8fafc;
-  color: #64748b;
-  font-size: 0.72rem;
+  background: #f8f6f0;
+  color: #5c4732;
+  font-size: 0.74rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  padding: 11px 14px;
-  border-bottom: 1.5px solid #e2e8f0;
+  padding: 12px 14px;
+  border-bottom: 1.5px solid #e8e2d3;
   white-space: nowrap;
 }
 
 .th-dot {
   display: inline-block;
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   margin-right: 4px;
   vertical-align: middle;
 }
+.th-dot.dot-amber { background: #d9a21b; }
+.th-dot.dot-blue  { background: #3b82a6; }
+.th-dot.dot-green { background: #2f8a57; }
 
 .ar-sum-services-table tbody td {
-  padding: 10px 14px;
+  padding: 11px 14px;
   border-bottom: 1px solid #f1f5f9;
   color: #334155;
   vertical-align: middle;
@@ -1848,25 +1896,25 @@ include '../templates/header.php';
   transition: background 0.12s ease;
 }
 .ar-sum-services-table tbody tr:hover {
-  background: #faf8f5;
+  background: #faf7f0;
 }
 
 .td-service {
   font-weight: 600;
-  color: #1e293b;
+  color: #1d3a2a;
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   min-width: 180px;
 }
 
 .s-service-icon {
   width: 28px;
   height: 28px;
-  border-radius: 7px;
-  background: rgba(200, 155, 60, 0.10);
-  border: 1px solid rgba(200, 155, 60, 0.22);
-  color: #8c6225;
+  border-radius: 8px;
+  background: rgba(185, 138, 46, 0.12);
+  border: 1px solid rgba(185, 138, 46, 0.22);
+  color: #b98a2e;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1875,21 +1923,21 @@ include '../templates/header.php';
 }
 
 .s-service-name {
-  font-size: 0.82rem;
+  font-size: 0.83rem;
   font-weight: 600;
-  color: #1e293b;
+  color: #1d3a2a;
 }
 
-/* Accessible status mini-pills */
+/* Color-coded count pills */
 .s-mini-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 3px 9px;
+  padding: 3px 10px;
   border-radius: 12px;
   font-size: 0.74rem;
   font-weight: 700;
-  min-width: 28px;
+  min-width: 32px;
   font-variant-numeric: tabular-nums;
   border: 1px solid transparent;
 }
@@ -1908,20 +1956,19 @@ include '../templates/header.php';
   color: #065f46;
   border-color: #a7f3d0;
 }
-.s-mini-pill.s-pill-red {
-  background: #fee2e2;
-  color: #991b1b;
-  border-color: #fecaca;
-}
-.s-mini-pill.s-pill-muted {
-  background: #f8fafc;
-  color: #94a3b8;
-  border-color: #e2e8f0;
+.s-mini-pill.s-pill-muted,
+.s-mini-pill.s-pill-zero {
+  background: #f5f2ea;
+  color: #a8947f;
+  border-color: #e8e2d3;
+  opacity: 0.65;
+  cursor: default;
+  pointer-events: none;
 }
 
 .td-total {
   font-weight: 700;
-  color: #1e293b;
+  color: #1d3a2a;
   min-width: 80px;
 }
 
@@ -1929,34 +1976,36 @@ include '../templates/header.php';
   display: inline-block;
   font-size: 0.82rem;
   font-weight: 800;
-  color: #1e293b;
+  color: #1d3a2a;
   font-variant-numeric: tabular-nums;
-  background: #f8fafc;
+  background: #f5f2ea;
   padding: 3px 10px;
   border-radius: 8px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e8e2d3;
 }
 
 .s-total-badge.s-grand-total {
-  background: #2e3a2d;
+  background: #1d3a2a;
   color: #ffffff;
-  border-color: #2e3a2d;
+  border-color: #1d3a2a;
+  border-radius: 10px;
+  padding: 4px 12px;
 }
 
 .ar-sum-tfoot-row td {
-  background: #f8fafc;
+  background: #f5f2ea;
   padding: 12px 14px;
-  border-top: 2px solid #e2e8f0;
+  border-top: 2px solid #e8e2d3;
   border-bottom: none;
   font-size: 0.82rem;
-  color: #1e293b;
+  color: #1d3a2a;
 }
 
 .ar-sum-row-total {
-  color: #1e293b;
+  color: #1d3a2a;
 }
 
-/* === OPERATIONAL SUMMARY DRILL-DOWN POPUP & BUTTON STYLES === */
+/* === OPERATIONAL SUMMARY DRILL-DOWN BUTTON & INTERACTION STYLES === */
 button.ar-drilldown-trigger {
   font-family: inherit;
   border: none;
@@ -1970,12 +2019,16 @@ button.ar-drilldown-trigger {
   -webkit-appearance: none;
   appearance: none;
 }
+button.ar-drilldown-trigger:focus-visible {
+  outline: 2px solid #b98a2e;
+  outline-offset: 2px;
+}
 
 /* 1. Summary Cards Buttons */
 button.ar-sum-card-btn {
   width: 100%;
-  border: 1px solid #ebdcc5;
-  border-radius: 14px;
+  border: 1px solid #e8e2d3;
+  border-radius: 20px;
   background: #ffffff;
   padding: 22px 24px;
   display: flex;
@@ -1985,11 +2038,15 @@ button.ar-sum-card-btn {
 }
 button.ar-sum-card-btn:not(:disabled):hover {
   transform: translateY(-3px);
-  box-shadow: 0 10px 24px rgba(140, 98, 37, 0.12), 0 2px 6px rgba(46, 58, 45, 0.06);
-  border-color: #c89b3c;
+  box-shadow: 0 10px 24px rgba(29, 58, 42, 0.09), 0 2px 6px rgba(0, 0, 0, 0.04);
+  border-color: #d8cebe;
+}
+button.ar-sum-card-btn:not(:disabled):hover .ar-sum-card-action i {
+  transform: translateX(3px);
+  color: #1d3a2a;
 }
 button.ar-sum-card-btn:not(:disabled):focus-visible {
-  outline: 2px solid #c89b3c;
+  outline: 2px solid #b98a2e;
   outline-offset: 2px;
 }
 button.ar-sum-card-btn:disabled {
@@ -1997,17 +2054,6 @@ button.ar-sum-card-btn:disabled {
   opacity: 0.62;
   box-shadow: none;
   transform: none;
-}
-.ar-sum-card-action {
-  margin-left: auto;
-  font-size: 0.72rem;
-  color: #c89b3c;
-  opacity: 0.8;
-  transition: transform 0.15s ease;
-}
-button.ar-sum-card-btn:not(:disabled):hover .ar-sum-card-action {
-  transform: translateX(3px);
-  opacity: 1;
 }
 
 /* 2. Certificates Breakdown row button */
@@ -2017,17 +2063,17 @@ button.ar-sum-bar-btn {
   flex-direction: column;
   gap: 5px;
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: 10px;
   border: 1px solid transparent;
   transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 }
 button.ar-sum-bar-btn:not(:disabled):hover {
-  background: #fbf8f2;
-  border-color: #e8d7c0;
+  background: #faf8f3;
+  border-color: #e8e2d3;
   transform: translateX(2px);
 }
 button.ar-sum-bar-btn:not(:disabled):focus-visible {
-  outline: 2px solid #c89b3c;
+  outline: 2px solid #b98a2e;
   outline-offset: 1px;
 }
 button.ar-sum-bar-btn:disabled {
@@ -2039,14 +2085,14 @@ button.ar-sum-bar-btn:disabled {
 button.ar-blessing-hero-btn {
   width: 100%;
   text-align: left;
-  border: 1.5px solid #bbf7d0;
+  border: 1.5px solid #a7f3d0;
   cursor: pointer;
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
 button.ar-blessing-hero-btn:not(:disabled):hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.16);
-  border-color: #10b981;
+  box-shadow: 0 8px 20px rgba(47, 138, 87, 0.16);
+  border-color: #2f8a57;
 }
 button.ar-blessing-hero-btn:disabled {
   cursor: not-allowed;
@@ -2074,13 +2120,13 @@ button.ar-status-chip-btn:disabled {
 button.ar-blessing-type-btn {
   width: 100%;
   padding: 7px 8px;
-  border-radius: 6px;
+  border-radius: 8px;
   border: 1px solid transparent;
   transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 }
 button.ar-blessing-type-btn:not(:disabled):hover {
-  background: #f4ecdf;
-  border-color: #ebdcc5;
+  background: #f5efe6;
+  border-color: #e8e2d3;
   transform: translateX(2px);
 }
 button.ar-blessing-type-btn:disabled {
@@ -2114,11 +2160,12 @@ button.s-total-badge-btn {
 button.s-total-badge-btn:not(:disabled):hover {
   transform: scale(1.06);
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
-  background: #eae2d5;
+  background: #ede6d8;
 }
 button.s-total-badge-btn.s-grand-total:not(:disabled):hover {
-  background: #1e261e;
-  box-shadow: 0 3px 10px rgba(46, 58, 45, 0.35);
+  background: #2a5139;
+  border-color: #2a5139;
+  box-shadow: 0 3px 10px rgba(29, 58, 42, 0.35);
 }
 button.s-total-badge-btn:disabled {
   cursor: not-allowed;
@@ -2743,6 +2790,181 @@ button.s-total-badge-btn:disabled {
   body:not(.light-theme) .ar-dd-empty h4 {
     color: #f1f5f9;
   }
+
+  /* Operational Summary Dark Mode */
+  body:not(.light-theme) .ar-summary-section {
+    background: #182219;
+    border-color: #2c3d2e;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  }
+  body:not(.light-theme) .ar-summary-header {
+    border-color: #2c3d2e;
+  }
+  body:not(.light-theme) .ar-summary-title {
+    color: #f1f5f9;
+  }
+  body:not(.light-theme) .ar-summary-subtitle {
+    color: #94a3b8;
+  }
+  body:not(.light-theme) .ar-summary-updated {
+    background: #151e16;
+    border-color: #2c3d2e;
+    color: #e8c877;
+  }
+  body:not(.light-theme) .ar-summary-filter-bar {
+    background: #151e16;
+    border-color: #2c3d2e;
+  }
+  body:not(.light-theme) .ar-summary-filter-lbl {
+    color: #e8c877;
+  }
+  body:not(.light-theme) .ar-summary-pill {
+    background: #1c281e;
+    border-color: #2c3d2e;
+    color: #cbd5e1;
+  }
+  body:not(.light-theme) .ar-summary-pill:hover {
+    background: #243527;
+    color: #f1f5f9;
+  }
+  body:not(.light-theme) .ar-summary-pill.active {
+    background: #b98a2e;
+    color: #ffffff;
+    border-color: #b98a2e;
+  }
+  body:not(.light-theme) .ar-summary-range-lbl {
+    color: #cbd5e1;
+  }
+  body:not(.light-theme) .ar-summary-date-input {
+    background: #151e16;
+    border-color: #2c3d2e;
+    color: #f1f5f9;
+  }
+  body:not(.light-theme) .ar-summary-btn-reset {
+    background: #1c281e;
+    border-color: #2c3d2e;
+    color: #e8c877;
+  }
+  body:not(.light-theme) .ar-section-divider-label {
+    color: #e8c877;
+  }
+  body:not(.light-theme) .ar-section-divider-label::after {
+    background: #2c3d2e;
+  }
+  body:not(.light-theme) .ar-sum-card,
+  body:not(.light-theme) .ar-sum-breakdown-card {
+    background: #1a241b;
+    border-color: #2c3d2e;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  }
+  body:not(.light-theme) .ar-sum-card-num {
+    color: #f8fafc;
+  }
+  body:not(.light-theme) .ar-sum-card-label {
+    color: #94a3b8;
+  }
+  body:not(.light-theme) .ar-sum-card-badge {
+    background: #151e16;
+    border-color: #2c3d2e;
+    color: #cbd5e1;
+  }
+  body:not(.light-theme) .ar-sum-card-action {
+    color: #e8c877;
+  }
+  body:not(.light-theme) .ar-sum-breakdown-title {
+    color: #f8fafc;
+  }
+  body:not(.light-theme) .ar-sum-breakdown-head {
+    border-color: #2c3d2e;
+  }
+  body:not(.light-theme) .ar-sum-count-pill {
+    background: #151e16;
+    border-color: #2c3d2e;
+    color: #e8c877;
+  }
+  body:not(.light-theme) .ar-sum-bar-name,
+  body:not(.light-theme) .ar-blessing-type-name {
+    color: #e2e8f0;
+  }
+  body:not(.light-theme) .ar-sum-bar-val,
+  body:not(.light-theme) .ar-blessing-type-count {
+    background: #151e16;
+    border-color: #2c3d2e;
+    color: #e8c877;
+  }
+  body:not(.light-theme) .ar-sum-bar-track,
+  body:not(.light-theme) .ar-blessing-progress-track {
+    background: #151e16;
+  }
+  body:not(.light-theme) button.ar-sum-bar-btn:not(:disabled):hover,
+  body:not(.light-theme) button.ar-blessing-type-btn:not(:disabled):hover {
+    background: #202c21;
+    border-color: #2c3d2e;
+  }
+  body:not(.light-theme) .ar-blessing-hero-highlight {
+    background: linear-gradient(135deg, #162c1e 0%, #1c3826 100%);
+    border-color: #2f8a57;
+  }
+  body:not(.light-theme) .ar-blessing-hero-num,
+  body:not(.light-theme) .ar-blessing-hero-lbl,
+  body:not(.light-theme) .ar-blessing-hero-tag {
+    color: #86efac;
+  }
+  body:not(.light-theme) .ar-blessing-hero-icon {
+    background: #162c1e;
+    border-color: #2f8a57;
+    color: #86efac;
+  }
+  body:not(.light-theme) .ar-blessing-types-list {
+    background: #151e16;
+    border-color: #2c3d2e;
+  }
+  body:not(.light-theme) .ar-blessing-types-head {
+    border-color: #2c3d2e;
+    color: #e8c877;
+  }
+  body:not(.light-theme) .ar-blessing-type-row:not(:last-child) {
+    border-color: #223023;
+  }
+  body:not(.light-theme) .ar-sum-services-table-wrap {
+    background: #1a241b;
+    border-color: #2c3d2e;
+  }
+  body:not(.light-theme) .ar-sum-services-table thead th {
+    background: #151e16;
+    border-color: #2c3d2e;
+    color: #cbd5e1;
+  }
+  body:not(.light-theme) .ar-sum-services-table tbody td {
+    border-color: #223023;
+    color: #e2e8f0;
+  }
+  body:not(.light-theme) .ar-sum-services-table tbody tr:hover {
+    background: #202c21;
+  }
+  body:not(.light-theme) .td-service .s-service-name {
+    color: #f1f5f9;
+  }
+  body:not(.light-theme) .ar-sum-tfoot-row td {
+    background: #151e16;
+    border-color: #2c3d2e;
+    color: #f1f5f9;
+  }
+  body:not(.light-theme) .s-mini-pill.s-pill-muted,
+  body:not(.light-theme) .s-mini-pill.s-pill-zero {
+    background: #1f2b20;
+    border-color: #2c3d2e;
+    color: #64748b;
+  }
+  body:not(.light-theme) .s-total-badge {
+    background: #151e16;
+    border-color: #2c3d2e;
+    color: #f1f5f9;
+  }
+  body:not(.light-theme) .s-total-badge.s-grand-total {
+    background: #2a5139;
+    border-color: #3d5c3a;
+  }
 }
 
 [data-theme="dark"] .ar-dd-dialog,
@@ -2859,6 +3081,281 @@ body.dark-mode .ar-dd-empty h4,
 .dark-mode .ar-dd-empty h4 {
   color: #f1f5f9;
 }
+
+/* Explicit class-based dark mode for Operational Summary */
+[data-theme="dark"] .ar-summary-section,
+body.dark-mode .ar-summary-section,
+.dark-mode .ar-summary-section {
+  background: #182219;
+  border-color: #2c3d2e;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+[data-theme="dark"] .ar-summary-header,
+body.dark-mode .ar-summary-header,
+.dark-mode .ar-summary-header {
+  border-color: #2c3d2e;
+}
+[data-theme="dark"] .ar-summary-title,
+body.dark-mode .ar-summary-title,
+.dark-mode .ar-summary-title {
+  color: #f1f5f9;
+}
+[data-theme="dark"] .ar-summary-subtitle,
+body.dark-mode .ar-summary-subtitle,
+.dark-mode .ar-summary-subtitle {
+  color: #94a3b8;
+}
+[data-theme="dark"] .ar-summary-updated,
+body.dark-mode .ar-summary-updated,
+.dark-mode .ar-summary-updated {
+  background: #151e16;
+  border-color: #2c3d2e;
+  color: #e8c877;
+}
+[data-theme="dark"] .ar-summary-filter-bar,
+body.dark-mode .ar-summary-filter-bar,
+.dark-mode .ar-summary-filter-bar {
+  background: #151e16;
+  border-color: #2c3d2e;
+}
+[data-theme="dark"] .ar-summary-filter-lbl,
+body.dark-mode .ar-summary-filter-lbl,
+.dark-mode .ar-summary-filter-lbl {
+  color: #e8c877;
+}
+[data-theme="dark"] .ar-summary-pill,
+body.dark-mode .ar-summary-pill,
+.dark-mode .ar-summary-pill {
+  background: #1c281e;
+  border-color: #2c3d2e;
+  color: #cbd5e1;
+}
+[data-theme="dark"] .ar-summary-pill:hover,
+body.dark-mode .ar-summary-pill:hover,
+.dark-mode .ar-summary-pill:hover {
+  background: #243527;
+  color: #f1f5f9;
+}
+[data-theme="dark"] .ar-summary-pill.active,
+body.dark-mode .ar-summary-pill.active,
+.dark-mode .ar-summary-pill.active {
+  background: #b98a2e;
+  color: #ffffff;
+  border-color: #b98a2e;
+}
+[data-theme="dark"] .ar-summary-range-lbl,
+body.dark-mode .ar-summary-range-lbl,
+.dark-mode .ar-summary-range-lbl {
+  color: #cbd5e1;
+}
+[data-theme="dark"] .ar-summary-date-input,
+body.dark-mode .ar-summary-date-input,
+.dark-mode .ar-summary-date-input {
+  background: #151e16;
+  border-color: #2c3d2e;
+  color: #f1f5f9;
+}
+[data-theme="dark"] .ar-summary-btn-reset,
+body.dark-mode .ar-summary-btn-reset,
+.dark-mode .ar-summary-btn-reset {
+  background: #1c281e;
+  border-color: #2c3d2e;
+  color: #e8c877;
+}
+[data-theme="dark"] .ar-section-divider-label,
+body.dark-mode .ar-section-divider-label,
+.dark-mode .ar-section-divider-label {
+  color: #e8c877;
+}
+[data-theme="dark"] .ar-section-divider-label::after,
+body.dark-mode .ar-section-divider-label::after,
+.dark-mode .ar-section-divider-label::after {
+  background: #2c3d2e;
+}
+[data-theme="dark"] .ar-sum-card,
+[data-theme="dark"] .ar-sum-breakdown-card,
+body.dark-mode .ar-sum-card,
+body.dark-mode .ar-sum-breakdown-card,
+.dark-mode .ar-sum-card,
+.dark-mode .ar-sum-breakdown-card {
+  background: #1a241b;
+  border-color: #2c3d2e;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+[data-theme="dark"] .ar-sum-card-num,
+body.dark-mode .ar-sum-card-num,
+.dark-mode .ar-sum-card-num {
+  color: #f8fafc;
+}
+[data-theme="dark"] .ar-sum-card-label,
+body.dark-mode .ar-sum-card-label,
+.dark-mode .ar-sum-card-label {
+  color: #94a3b8;
+}
+[data-theme="dark"] .ar-sum-card-badge,
+body.dark-mode .ar-sum-card-badge,
+.dark-mode .ar-sum-card-badge {
+  background: #151e16;
+  border-color: #2c3d2e;
+  color: #cbd5e1;
+}
+[data-theme="dark"] .ar-sum-card-action,
+body.dark-mode .ar-sum-card-action,
+.dark-mode .ar-sum-card-action {
+  color: #e8c877;
+}
+[data-theme="dark"] .ar-sum-breakdown-title,
+body.dark-mode .ar-sum-breakdown-title,
+.dark-mode .ar-sum-breakdown-title {
+  color: #f8fafc;
+}
+[data-theme="dark"] .ar-sum-breakdown-head,
+body.dark-mode .ar-sum-breakdown-head,
+.dark-mode .ar-sum-breakdown-head {
+  border-color: #2c3d2e;
+}
+[data-theme="dark"] .ar-sum-count-pill,
+body.dark-mode .ar-sum-count-pill,
+.dark-mode .ar-sum-count-pill {
+  background: #151e16;
+  border-color: #2c3d2e;
+  color: #e8c877;
+}
+[data-theme="dark"] .ar-sum-bar-name,
+[data-theme="dark"] .ar-blessing-type-name,
+body.dark-mode .ar-sum-bar-name,
+body.dark-mode .ar-blessing-type-name,
+.dark-mode .ar-sum-bar-name,
+.dark-mode .ar-blessing-type-name {
+  color: #e2e8f0;
+}
+[data-theme="dark"] .ar-sum-bar-val,
+[data-theme="dark"] .ar-blessing-type-count,
+body.dark-mode .ar-sum-bar-val,
+body.dark-mode .ar-blessing-type-count,
+.dark-mode .ar-sum-bar-val,
+.dark-mode .ar-blessing-type-count {
+  background: #151e16;
+  border-color: #2c3d2e;
+  color: #e8c877;
+}
+[data-theme="dark"] .ar-sum-bar-track,
+[data-theme="dark"] .ar-blessing-progress-track,
+body.dark-mode .ar-sum-bar-track,
+body.dark-mode .ar-blessing-progress-track,
+.dark-mode .ar-sum-bar-track,
+.dark-mode .ar-blessing-progress-track {
+  background: #151e16;
+}
+[data-theme="dark"] button.ar-sum-bar-btn:not(:disabled):hover,
+[data-theme="dark"] button.ar-blessing-type-btn:not(:disabled):hover,
+body.dark-mode button.ar-sum-bar-btn:not(:disabled):hover,
+body.dark-mode button.ar-blessing-type-btn:not(:disabled):hover,
+.dark-mode button.ar-sum-bar-btn:not(:disabled):hover,
+.dark-mode button.ar-blessing-type-btn:not(:disabled):hover {
+  background: #202c21;
+  border-color: #2c3d2e;
+}
+[data-theme="dark"] .ar-blessing-hero-highlight,
+body.dark-mode .ar-blessing-hero-highlight,
+.dark-mode .ar-blessing-hero-highlight {
+  background: linear-gradient(135deg, #162c1e 0%, #1c3826 100%);
+  border-color: #2f8a57;
+}
+[data-theme="dark"] .ar-blessing-hero-num,
+[data-theme="dark"] .ar-blessing-hero-lbl,
+[data-theme="dark"] .ar-blessing-hero-tag,
+body.dark-mode .ar-blessing-hero-num,
+body.dark-mode .ar-blessing-hero-lbl,
+body.dark-mode .ar-blessing-hero-tag,
+.dark-mode .ar-blessing-hero-num,
+.dark-mode .ar-blessing-hero-lbl,
+.dark-mode .ar-blessing-hero-tag {
+  color: #86efac;
+}
+[data-theme="dark"] .ar-blessing-hero-icon,
+body.dark-mode .ar-blessing-hero-icon,
+.dark-mode .ar-blessing-hero-icon {
+  background: #162c1e;
+  border-color: #2f8a57;
+  color: #86efac;
+}
+[data-theme="dark"] .ar-blessing-types-list,
+body.dark-mode .ar-blessing-types-list,
+.dark-mode .ar-blessing-types-list {
+  background: #151e16;
+  border-color: #2c3d2e;
+}
+[data-theme="dark"] .ar-blessing-types-head,
+body.dark-mode .ar-blessing-types-head,
+.dark-mode .ar-blessing-types-head {
+  border-color: #2c3d2e;
+  color: #e8c877;
+}
+[data-theme="dark"] .ar-blessing-type-row:not(:last-child),
+body.dark-mode .ar-blessing-type-row:not(:last-child),
+.dark-mode .ar-blessing-type-row:not(:last-child) {
+  border-color: #223023;
+}
+[data-theme="dark"] .ar-sum-services-table-wrap,
+body.dark-mode .ar-sum-services-table-wrap,
+.dark-mode .ar-sum-services-table-wrap {
+  background: #1a241b;
+  border-color: #2c3d2e;
+}
+[data-theme="dark"] .ar-sum-services-table thead th,
+body.dark-mode .ar-sum-services-table thead th,
+.dark-mode .ar-sum-services-table thead th {
+  background: #151e16;
+  border-color: #2c3d2e;
+  color: #cbd5e1;
+}
+[data-theme="dark"] .ar-sum-services-table tbody td,
+body.dark-mode .ar-sum-services-table tbody td,
+.dark-mode .ar-sum-services-table tbody td {
+  border-color: #223023;
+  color: #e2e8f0;
+}
+[data-theme="dark"] .ar-sum-services-table tbody tr:hover,
+body.dark-mode .ar-sum-services-table tbody tr:hover,
+.dark-mode .ar-sum-services-table tbody tr:hover {
+  background: #202c21;
+}
+[data-theme="dark"] .td-service .s-service-name,
+body.dark-mode .td-service .s-service-name,
+.dark-mode .td-service .s-service-name {
+  color: #f1f5f9;
+}
+[data-theme="dark"] .ar-sum-tfoot-row td,
+body.dark-mode .ar-sum-tfoot-row td,
+.dark-mode .ar-sum-tfoot-row td {
+  background: #151e16;
+  border-color: #2c3d2e;
+  color: #f1f5f9;
+}
+[data-theme="dark"] .s-mini-pill.s-pill-muted,
+[data-theme="dark"] .s-mini-pill.s-pill-zero,
+body.dark-mode .s-mini-pill.s-pill-muted,
+body.dark-mode .s-mini-pill.s-pill-zero,
+.dark-mode .s-mini-pill.s-pill-muted,
+.dark-mode .s-mini-pill.s-pill-zero {
+  background: #1f2b20;
+  border-color: #2c3d2e;
+  color: #64748b;
+}
+[data-theme="dark"] .s-total-badge,
+body.dark-mode .s-total-badge,
+.dark-mode .s-total-badge {
+  background: #151e16;
+  border-color: #2c3d2e;
+  color: #f1f5f9;
+}
+[data-theme="dark"] .s-total-badge.s-grand-total,
+body.dark-mode .s-total-badge.s-grand-total,
+.dark-mode .s-total-badge.s-grand-total {
+  background: #2a5139;
+  border-color: #3d5c3a;
+}
 </style>
 
 <div class="ar-page container-fluid px-0">
@@ -2951,6 +3448,11 @@ body.dark-mode .ar-dd-empty h4,
       </form>
     </div>
 
+    <!-- SECTION LABEL: Operational summary -->
+    <div class="ar-section-divider-label">
+      <span>Operational summary</span>
+    </div>
+
     <!-- 1. SUMMARY CARDS (Top row: 3 cards) -->
     <div class="ar-sum-cards-grid">
       
@@ -2965,15 +3467,13 @@ body.dark-mode .ar-dd-empty h4,
           <div class="ar-sum-card-icon"><i class="fas fa-certificate"></i></div>
           <span class="ar-sum-card-badge">Generated</span>
         </div>
-        <div>
+        <div class="ar-sum-card-middle">
           <div class="ar-sum-card-num"><?php echo number_format($summary_total_certificates); ?></div>
           <div class="ar-sum-card-label">Total Certificates Created</div>
-          <div class="ar-sum-card-hint">
-            Official certificates drafted &amp; issued in registry
-            <?php if ($summary_total_certificates > 0): ?>
-            <span class="ar-sum-card-action"><i class="fas fa-chevron-right"></i></span>
-            <?php endif; ?>
-          </div>
+        </div>
+        <div class="ar-sum-card-bottom">
+          <span class="ar-sum-card-hint">Official certificates drafted &amp; issued</span>
+          <span class="ar-sum-card-action"><i class="fas fa-chevron-right"></i></span>
         </div>
       </button>
 
@@ -2988,15 +3488,13 @@ body.dark-mode .ar-dd-empty h4,
           <div class="ar-sum-card-icon"><i class="fas fa-hands-praying"></i></div>
           <span class="ar-sum-card-badge status-completed">Completed</span>
         </div>
-        <div>
+        <div class="ar-sum-card-middle">
           <div class="ar-sum-card-num"><?php echo number_format($summary_blessings_completed); ?></div>
           <div class="ar-sum-card-label">Blessings Completed</div>
-          <div class="ar-sum-card-hint">
-            <?php echo number_format($summary_blessings_total); ?> total blessing request<?php echo $summary_blessings_total === 1 ? '' : 's'; ?>
-            <?php if ($summary_blessings_completed > 0): ?>
-            <span class="ar-sum-card-action"><i class="fas fa-chevron-right"></i></span>
-            <?php endif; ?>
-          </div>
+        </div>
+        <div class="ar-sum-card-bottom">
+          <span class="ar-sum-card-hint"><?php echo number_format($summary_blessings_total); ?> total blessing request<?php echo $summary_blessings_total === 1 ? '' : 's'; ?></span>
+          <span class="ar-sum-card-action"><i class="fas fa-chevron-right"></i></span>
         </div>
       </button>
 
@@ -3011,18 +3509,21 @@ body.dark-mode .ar-dd-empty h4,
           <div class="ar-sum-card-icon"><i class="fas fa-church"></i></div>
           <span class="ar-sum-card-badge">Services</span>
         </div>
-        <div>
+        <div class="ar-sum-card-middle">
           <div class="ar-sum-card-num"><?php echo number_format($summary_services_total); ?></div>
           <div class="ar-sum-card-label">Sacramental Services</div>
-          <div class="ar-sum-card-hint">
-            Baptism, Confirmation, Communion, Marriage, Funeral
-            <?php if ($summary_services_total > 0): ?>
-            <span class="ar-sum-card-action"><i class="fas fa-chevron-right"></i></span>
-            <?php endif; ?>
-          </div>
+        </div>
+        <div class="ar-sum-card-bottom">
+          <span class="ar-sum-card-hint">Baptism, Communion, Confirmation, Funeral</span>
+          <span class="ar-sum-card-action"><i class="fas fa-chevron-right"></i></span>
         </div>
       </button>
 
+    </div>
+
+    <!-- SECTION LABEL: Breakdowns -->
+    <div class="ar-section-divider-label">
+      <span>Breakdowns</span>
     </div>
 
     <!-- 2, 3, 4. BREAKDOWN CARDS -->
@@ -3033,7 +3534,7 @@ body.dark-mode .ar-dd-empty h4,
         <div class="ar-sum-breakdown-head">
           <div class="ar-sum-breakdown-title-wrap">
             <h3 class="ar-sum-breakdown-title">
-              <span class="ar-chart-title-dot" style="background:var(--gold);"></span>
+              <span class="ar-breakdown-dot dot-gold"></span>
               Certificates Breakdown
             </h3>
             <p class="ar-sum-breakdown-sub">Volume distribution across official registry certificate types</p>
@@ -3081,7 +3582,7 @@ body.dark-mode .ar-dd-empty h4,
         <div class="ar-sum-breakdown-head">
           <div class="ar-sum-breakdown-title-wrap">
             <h3 class="ar-sum-breakdown-title">
-              <span class="ar-chart-title-dot" style="background:#10b981;"></span>
+              <span class="ar-breakdown-dot dot-green"></span>
               Blessings Breakdown
             </h3>
             <p class="ar-sum-breakdown-sub">Status fulfillment &amp; request counts by blessing type</p>
@@ -3104,11 +3605,11 @@ body.dark-mode .ar-dd-empty h4,
                   <?php echo $summary_blessings_completed === 0 ? 'disabled' : ''; ?>
                   aria-label="View requesters for completed blessings (<?php echo $summary_blessings_completed; ?>)">
             <div class="ar-blessing-hero-meta">
-              <span class="ar-blessing-hero-tag"><i class="fas fa-check-circle"></i> Main Status</span>
+              <span class="ar-blessing-hero-tag"><i class="fas fa-check"></i> Main status: Completed</span>
               <div class="ar-blessing-hero-num"><?php echo number_format($summary_blessings_completed); ?></div>
               <div class="ar-blessing-hero-lbl">Completed Blessings</div>
             </div>
-            <div class="ar-blessing-hero-icon"><i class="fas fa-check-double"></i></div>
+            <div class="ar-blessing-hero-icon"><i class="fas fa-check"></i></div>
           </button>
 
           <!-- Other Status Counts as Soft Chips -->
@@ -3126,12 +3627,12 @@ body.dark-mode .ar-dd-empty h4,
             </button>
             <button type="button" class="ar-status-chip ar-status-chip-btn chip-approved ar-drilldown-trigger"
                     data-cat="blessings" data-type="" data-status="approved"
-                    data-title="Blessings · Approved / Processing"
+                    data-title="Blessings · Processing"
                     data-count="<?php echo $summary_blessings_approved; ?>"
                     <?php echo $summary_blessings_approved === 0 ? 'disabled' : ''; ?>
                     aria-label="View requesters for approved blessings (<?php echo $summary_blessings_approved; ?>)">
               <span class="ar-status-chip-label">
-                <span class="ar-status-dot dot-blue"></span> Approved / Processing
+                <span class="ar-status-dot dot-blue"></span> Processing
               </span>
               <span class="ar-status-chip-count"><?php echo number_format($summary_blessings_approved); ?></span>
             </button>
@@ -3191,7 +3692,7 @@ body.dark-mode .ar-dd-empty h4,
         <div class="ar-sum-breakdown-head">
           <div class="ar-sum-breakdown-title-wrap">
             <h3 class="ar-sum-breakdown-title">
-              <span class="ar-chart-title-dot" style="background:#3b82f6;"></span>
+              <span class="ar-breakdown-dot dot-blue"></span>
               Sacramental Services Breakdown
             </h3>
             <p class="ar-sum-breakdown-sub">Comprehensive status distribution across all sacramental service categories</p>
@@ -3214,14 +3715,11 @@ body.dark-mode .ar-dd-empty h4,
                   <th class="col-stat text-center" title="Pending Requests">
                     <span class="th-dot dot-amber"></span> Pending
                   </th>
-                  <th class="col-stat text-center" title="Approved / Processing Requests">
-                    <span class="th-dot dot-blue"></span> Approved / Processing
+                  <th class="col-stat text-center" title="Processing Requests">
+                    <span class="th-dot dot-blue"></span> Processing
                   </th>
                   <th class="col-stat text-center" title="Completed Requests">
                     <span class="th-dot dot-green"></span> Completed
-                  </th>
-                  <th class="col-stat text-center" title="Cancelled Requests">
-                    <span class="th-dot dot-red"></span> Cancelled
                   </th>
                   <th class="col-total text-end">Total Requests</th>
                 </tr>
@@ -3231,13 +3729,11 @@ body.dark-mode .ar-dd-empty h4,
                   $servTotPending = 0;
                   $servTotApproved = 0;
                   $servTotCompleted = 0;
-                  $servTotCancelled = 0;
                   $servTotGrand = 0;
                   foreach ($summary_services_breakdown as $sType => $sStats): 
                     $servTotPending += $sStats['pending'];
                     $servTotApproved += $sStats['approved'];
                     $servTotCompleted += $sStats['completed'];
-                    $servTotCancelled += $sStats['cancelled'];
                     $servTotGrand += $sStats['total'];
                     $sTypeName = ucwords(str_replace(['_', '-'], ' ', $sType));
                     $sIcon = match(true) {
@@ -3256,54 +3752,56 @@ body.dark-mode .ar-dd-empty h4,
                       <span class="s-service-name"><?php echo e($sTypeName); ?></span>
                     </td>
                     <td class="text-center">
-                      <button type="button" class="s-mini-pill s-mini-pill-btn <?php echo $sStats['pending'] > 0 ? 's-pill-yellow' : 's-pill-muted'; ?> ar-drilldown-trigger"
-                              data-cat="services" data-type="<?php echo e($sType); ?>" data-status="pending"
-                              data-title="<?php echo e($sTypeName . ' · Pending'); ?>"
-                              data-count="<?php echo $sStats['pending']; ?>"
-                              <?php echo $sStats['pending'] === 0 ? 'disabled' : ''; ?>
-                              aria-label="<?php echo e($sTypeName); ?> pending: <?php echo $sStats['pending']; ?>">
-                        <?php echo $sStats['pending'] > 0 ? $sStats['pending'] : '0'; ?>
-                      </button>
+                      <?php if ($sStats['pending'] > 0): ?>
+                        <button type="button" class="s-mini-pill s-mini-pill-btn s-pill-yellow ar-drilldown-trigger"
+                                data-cat="services" data-type="<?php echo e($sType); ?>" data-status="pending"
+                                data-title="<?php echo e($sTypeName . ' · Pending'); ?>"
+                                data-count="<?php echo $sStats['pending']; ?>"
+                                aria-label="<?php echo e($sTypeName); ?> pending: <?php echo $sStats['pending']; ?>">
+                          <?php echo $sStats['pending']; ?>
+                        </button>
+                      <?php else: ?>
+                        <button type="button" class="s-mini-pill s-pill-muted s-pill-zero" disabled aria-hidden="true">&mdash;</button>
+                      <?php endif; ?>
                     </td>
                     <td class="text-center">
-                      <button type="button" class="s-mini-pill s-mini-pill-btn <?php echo $sStats['approved'] > 0 ? 's-pill-blue' : 's-pill-muted'; ?> ar-drilldown-trigger"
-                              data-cat="services" data-type="<?php echo e($sType); ?>" data-status="approved"
-                              data-title="<?php echo e($sTypeName . ' · Approved / Processing'); ?>"
-                              data-count="<?php echo $sStats['approved']; ?>"
-                              <?php echo $sStats['approved'] === 0 ? 'disabled' : ''; ?>
-                              aria-label="<?php echo e($sTypeName); ?> approved: <?php echo $sStats['approved']; ?>">
-                        <?php echo $sStats['approved'] > 0 ? $sStats['approved'] : '0'; ?>
-                      </button>
+                      <?php if ($sStats['approved'] > 0): ?>
+                        <button type="button" class="s-mini-pill s-mini-pill-btn s-pill-blue ar-drilldown-trigger"
+                                data-cat="services" data-type="<?php echo e($sType); ?>" data-status="approved"
+                                data-title="<?php echo e($sTypeName . ' · Processing'); ?>"
+                                data-count="<?php echo $sStats['approved']; ?>"
+                                aria-label="<?php echo e($sTypeName); ?> processing: <?php echo $sStats['approved']; ?>">
+                          <?php echo $sStats['approved']; ?>
+                        </button>
+                      <?php else: ?>
+                        <button type="button" class="s-mini-pill s-pill-muted s-pill-zero" disabled aria-hidden="true">&mdash;</button>
+                      <?php endif; ?>
                     </td>
                     <td class="text-center">
-                      <button type="button" class="s-mini-pill s-mini-pill-btn <?php echo $sStats['completed'] > 0 ? 's-pill-green' : 's-pill-muted'; ?> ar-drilldown-trigger"
-                              data-cat="services" data-type="<?php echo e($sType); ?>" data-status="completed"
-                              data-title="<?php echo e($sTypeName . ' · Completed'); ?>"
-                              data-count="<?php echo $sStats['completed']; ?>"
-                              <?php echo $sStats['completed'] === 0 ? 'disabled' : ''; ?>
-                              aria-label="<?php echo e($sTypeName); ?> completed: <?php echo $sStats['completed']; ?>">
-                        <?php echo $sStats['completed'] > 0 ? $sStats['completed'] : '0'; ?>
-                      </button>
-                    </td>
-                    <td class="text-center">
-                      <button type="button" class="s-mini-pill s-mini-pill-btn <?php echo $sStats['cancelled'] > 0 ? 's-pill-red' : 's-pill-muted'; ?> ar-drilldown-trigger"
-                              data-cat="services" data-type="<?php echo e($sType); ?>" data-status="cancelled"
-                              data-title="<?php echo e($sTypeName . ' · Cancelled'); ?>"
-                              data-count="<?php echo $sStats['cancelled']; ?>"
-                              <?php echo $sStats['cancelled'] === 0 ? 'disabled' : ''; ?>
-                              aria-label="<?php echo e($sTypeName); ?> cancelled: <?php echo $sStats['cancelled']; ?>">
-                        <?php echo $sStats['cancelled'] > 0 ? $sStats['cancelled'] : '0'; ?>
-                      </button>
+                      <?php if ($sStats['completed'] > 0): ?>
+                        <button type="button" class="s-mini-pill s-mini-pill-btn s-pill-green ar-drilldown-trigger"
+                                data-cat="services" data-type="<?php echo e($sType); ?>" data-status="completed"
+                                data-title="<?php echo e($sTypeName . ' · Completed'); ?>"
+                                data-count="<?php echo $sStats['completed']; ?>"
+                                aria-label="<?php echo e($sTypeName); ?> completed: <?php echo $sStats['completed']; ?>">
+                          <?php echo $sStats['completed']; ?>
+                        </button>
+                      <?php else: ?>
+                        <button type="button" class="s-mini-pill s-pill-muted s-pill-zero" disabled aria-hidden="true">&mdash;</button>
+                      <?php endif; ?>
                     </td>
                     <td class="text-end td-total">
-                      <button type="button" class="s-total-badge s-total-badge-btn ar-drilldown-trigger"
-                              data-cat="services" data-type="<?php echo e($sType); ?>" data-status=""
-                              data-title="<?php echo e($sTypeName . ' · Total'); ?>"
-                              data-count="<?php echo $sStats['total']; ?>"
-                              <?php echo $sStats['total'] === 0 ? 'disabled' : ''; ?>
-                              aria-label="<?php echo e($sTypeName); ?> total: <?php echo $sStats['total']; ?>">
-                        <?php echo number_format($sStats['total']); ?>
-                      </button>
+                      <?php if ($sStats['total'] > 0): ?>
+                        <button type="button" class="s-total-badge s-total-badge-btn ar-drilldown-trigger"
+                                data-cat="services" data-type="<?php echo e($sType); ?>" data-status=""
+                                data-title="<?php echo e($sTypeName . ' · Total'); ?>"
+                                data-count="<?php echo $sStats['total']; ?>"
+                                aria-label="<?php echo e($sTypeName); ?> total: <?php echo $sStats['total']; ?>">
+                          <?php echo number_format($sStats['total']); ?>
+                        </button>
+                      <?php else: ?>
+                        <button type="button" class="s-total-badge s-total-badge-btn s-pill-muted s-pill-zero" disabled aria-hidden="true">&mdash;</button>
+                      <?php endif; ?>
                     </td>
                   </tr>
                 <?php endforeach; ?>
@@ -3312,54 +3810,56 @@ body.dark-mode .ar-dd-empty h4,
                 <tr class="ar-sum-tfoot-row">
                   <td class="fw-bold">Total Sacramental Services</td>
                   <td class="text-center">
-                    <button type="button" class="s-mini-pill s-mini-pill-btn <?php echo $servTotPending > 0 ? 's-pill-yellow' : 's-pill-muted'; ?> ar-drilldown-trigger"
-                            data-cat="services" data-type="" data-status="pending"
-                            data-title="Sacramental Services · Pending"
-                            data-count="<?php echo $servTotPending; ?>"
-                            <?php echo $servTotPending === 0 ? 'disabled' : ''; ?>
-                            aria-label="All sacramental services pending: <?php echo $servTotPending; ?>">
-                      <?php echo $servTotPending; ?>
-                    </button>
+                    <?php if ($servTotPending > 0): ?>
+                      <button type="button" class="s-mini-pill s-mini-pill-btn s-pill-yellow ar-drilldown-trigger"
+                              data-cat="services" data-type="" data-status="pending"
+                              data-title="Sacramental Services · Pending"
+                              data-count="<?php echo $servTotPending; ?>"
+                              aria-label="All sacramental services pending: <?php echo $servTotPending; ?>">
+                        <?php echo $servTotPending; ?>
+                      </button>
+                    <?php else: ?>
+                      <button type="button" class="s-mini-pill s-pill-muted s-pill-zero" disabled aria-hidden="true">&mdash;</button>
+                    <?php endif; ?>
                   </td>
                   <td class="text-center">
-                    <button type="button" class="s-mini-pill s-mini-pill-btn <?php echo $servTotApproved > 0 ? 's-pill-blue' : 's-pill-muted'; ?> ar-drilldown-trigger"
-                            data-cat="services" data-type="" data-status="approved"
-                            data-title="Sacramental Services · Approved / Processing"
-                            data-count="<?php echo $servTotApproved; ?>"
-                            <?php echo $servTotApproved === 0 ? 'disabled' : ''; ?>
-                            aria-label="All sacramental services approved: <?php echo $servTotApproved; ?>">
-                      <?php echo $servTotApproved; ?>
-                    </button>
+                    <?php if ($servTotApproved > 0): ?>
+                      <button type="button" class="s-mini-pill s-mini-pill-btn s-pill-blue ar-drilldown-trigger"
+                              data-cat="services" data-type="" data-status="approved"
+                              data-title="Sacramental Services · Processing"
+                              data-count="<?php echo $servTotApproved; ?>"
+                              aria-label="All sacramental services processing: <?php echo $servTotApproved; ?>">
+                        <?php echo $servTotApproved; ?>
+                      </button>
+                    <?php else: ?>
+                      <button type="button" class="s-mini-pill s-pill-muted s-pill-zero" disabled aria-hidden="true">&mdash;</button>
+                    <?php endif; ?>
                   </td>
                   <td class="text-center">
-                    <button type="button" class="s-mini-pill s-mini-pill-btn <?php echo $servTotCompleted > 0 ? 's-pill-green' : 's-pill-muted'; ?> ar-drilldown-trigger"
-                            data-cat="services" data-type="" data-status="completed"
-                            data-title="Sacramental Services · Completed"
-                            data-count="<?php echo $servTotCompleted; ?>"
-                            <?php echo $servTotCompleted === 0 ? 'disabled' : ''; ?>
-                            aria-label="All sacramental services completed: <?php echo $servTotCompleted; ?>">
-                      <?php echo $servTotCompleted; ?>
-                    </button>
-                  </td>
-                  <td class="text-center">
-                    <button type="button" class="s-mini-pill s-mini-pill-btn <?php echo $servTotCancelled > 0 ? 's-pill-red' : 's-pill-muted'; ?> ar-drilldown-trigger"
-                            data-cat="services" data-type="" data-status="cancelled"
-                            data-title="Sacramental Services · Cancelled"
-                            data-count="<?php echo $servTotCancelled; ?>"
-                            <?php echo $servTotCancelled === 0 ? 'disabled' : ''; ?>
-                            aria-label="All sacramental services cancelled: <?php echo $servTotCancelled; ?>">
-                      <?php echo $servTotCancelled; ?>
-                    </button>
+                    <?php if ($servTotCompleted > 0): ?>
+                      <button type="button" class="s-mini-pill s-mini-pill-btn s-pill-green ar-drilldown-trigger"
+                              data-cat="services" data-type="" data-status="completed"
+                              data-title="Sacramental Services · Completed"
+                              data-count="<?php echo $servTotCompleted; ?>"
+                              aria-label="All sacramental services completed: <?php echo $servTotCompleted; ?>">
+                        <?php echo $servTotCompleted; ?>
+                      </button>
+                    <?php else: ?>
+                      <button type="button" class="s-mini-pill s-pill-muted s-pill-zero" disabled aria-hidden="true">&mdash;</button>
+                    <?php endif; ?>
                   </td>
                   <td class="text-end fw-bold td-total">
-                    <button type="button" class="s-total-badge s-grand-total s-total-badge-btn ar-drilldown-trigger"
-                            data-cat="services" data-type="" data-status=""
-                            data-title="Sacramental Services · Total"
-                            data-count="<?php echo $servTotGrand; ?>"
-                            <?php echo $servTotGrand === 0 ? 'disabled' : ''; ?>
-                            aria-label="All sacramental services grand total: <?php echo $servTotGrand; ?>">
-                      <?php echo number_format($servTotGrand); ?>
-                    </button>
+                    <?php if ($servTotGrand > 0): ?>
+                      <button type="button" class="s-total-badge s-grand-total s-total-badge-btn ar-drilldown-trigger"
+                              data-cat="services" data-type="" data-status=""
+                              data-title="Sacramental Services · Total"
+                              data-count="<?php echo $servTotGrand; ?>"
+                              aria-label="All sacramental services grand total: <?php echo $servTotGrand; ?>">
+                        <?php echo number_format($servTotGrand); ?>
+                      </button>
+                    <?php else: ?>
+                      <button type="button" class="s-total-badge s-grand-total s-total-badge-btn s-pill-muted s-pill-zero" disabled aria-hidden="true">&mdash;</button>
+                    <?php endif; ?>
                   </td>
                 </tr>
               </tfoot>
