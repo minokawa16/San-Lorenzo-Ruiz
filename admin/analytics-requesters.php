@@ -52,6 +52,8 @@ $range  = strtolower($cleanText($_GET['range'] ?? ($_GET['summary_range'] ?? ($_
 $from   = $cleanDate($_GET['from'] ?? ($_GET['summary_from'] ?? ($_POST['from'] ?? '')));
 $to     = $cleanDate($_GET['to'] ?? ($_GET['summary_to'] ?? ($_POST['to'] ?? '')));
 $title  = trim((string)($_GET['title'] ?? ($_POST['title'] ?? '')));
+$filterUserId = isset($_GET['user_id']) ? (int)$_GET['user_id'] : (isset($_POST['user_id']) ? (int)$_POST['user_id'] : 0);
+$filterRequesterName = trim((string)($_GET['requester_name'] ?? ($_POST['requester_name'] ?? '')));
 
 if (!in_array($range, ['all', 'month', 'year', 'custom'], true)) {
     $range = 'all';
@@ -98,6 +100,18 @@ if ($cat === 'certificates') {
         $whereIssuance[] = "ci.status = ?";
         $typesIss .= 's';
         $valsIss[] = $status;
+    }
+
+    if ($filterUserId > 0) {
+        $whereIssuance[] = "(r.user_id = ? OR ci.issued_by = ?)";
+        $typesIss .= 'ii';
+        $valsIss[] = $filterUserId;
+        $valsIss[] = $filterUserId;
+    } elseif ($filterRequesterName !== '') {
+        $whereIssuance[] = "(ci.issued_to = ? OR u.fullname = ?)";
+        $typesIss .= 'ss';
+        $valsIss[] = $filterRequesterName;
+        $valsIss[] = $filterRequesterName;
     }
 
     $whereSql = implode(' AND ', $whereIssuance);
@@ -177,6 +191,16 @@ if ($cat === 'certificates') {
             $typesReq .= 's';
             $valsReq[] = $status;
         }
+    }
+
+    if ($filterUserId > 0) {
+        $whereRequests[] = "r.user_id = ?";
+        $typesReq .= 'i';
+        $valsReq[] = $filterUserId;
+    } elseif ($filterRequesterName !== '') {
+        $whereRequests[] = "u.fullname = ?";
+        $typesReq .= 's';
+        $valsReq[] = $filterRequesterName;
     }
 
     $whereSql = implode(' AND ', $whereRequests);
@@ -259,132 +283,32 @@ foreach ($matchingRequests as $req) {
     $requestersMap[$key]['matching_items'][] = $req;
 }
 
-// 6. Fetch all requests and category counts for these requesters
-$userIds = array_values(array_filter(array_unique(array_column($matchingRequests, 'user_id'))));
-$userAllRequests = [];
-
-if (!empty($userIds)) {
-    $inClause = implode(',', array_map('intval', $userIds));
-    
-    // Fetch from requests table
-    $allReqSql = "SELECT 
-                    r.request_id AS id,
-                    r.user_id,
-                    COALESCE(r.reference_number, CONCAT('REQ-', r.request_id)) AS reference_number,
-                    r.request_type,
-                    r.status,
-                    r.date_requested AS date_submitted,
-                    CASE 
-                        WHEN r.request_type LIKE '%certif%' THEN 'certificates'
-                        WHEN r.request_type LIKE '%blessing%' THEN 'blessings'
-                        ELSE 'services'
-                    END AS category
-                  FROM requests r
-                  WHERE r.deleted_at IS NULL AND r.user_id IN ($inClause)
-                  ORDER BY r.date_requested DESC";
-    $allRes = $conn->query($allReqSql);
-    if ($allRes) {
-        while ($rRow = $allRes->fetch_assoc()) {
-            $userAllRequests[(int)$rRow['user_id']][] = $rRow;
-        }
-    }
-
-    // Fetch standalone certificate issuances for these users if not already linked
-    $allCertSql = "SELECT 
-                    ci.certificate_id AS id,
-                    COALESCE(r.user_id, ci.issued_by) AS user_id,
-                    COALESCE(ci.certificate_number, r.reference_number, CONCAT('CERT-', ci.certificate_id)) AS reference_number,
-                    ci.certificate_type AS request_type,
-                    ci.status,
-                    COALESCE(ci.issued_at, ci.drafted_at, ci.updated_at) AS date_submitted,
-                    'certificates' AS category,
-                    ci.request_id
-                   FROM certificate_issuances ci
-                   LEFT JOIN requests r ON r.request_id = ci.request_id
-                   WHERE ci.status != 'revoked' AND (ci.issued_by IN ($inClause) OR r.user_id IN ($inClause))
-                   ORDER BY date_submitted DESC";
-    $certRes = $conn->query($allCertSql);
-    if ($certRes) {
-        while ($cRow = $certRes->fetch_assoc()) {
-            $uid = (int)$cRow['user_id'];
-            if ($uid > 0) {
-                $alreadyHas = false;
-                if (!empty($cRow['request_id']) && !empty($userAllRequests[$uid])) {
-                    foreach ($userAllRequests[$uid] as $existing) {
-                        if ((int)$existing['id'] === (int)$cRow['request_id']) {
-                            $alreadyHas = true;
-                            break;
-                        }
-                    }
-                }
-                if (!$alreadyHas) {
-                    $userAllRequests[$uid][] = $cRow;
-                }
-            }
-        }
-    }
-}
-
-// 7. Assemble finalized requesters list
+// 6. Assemble finalized requesters list (only matching requests included)
 $requestersList = [];
 foreach ($requestersMap as $key => $data) {
     $uid = $data['user_id'];
-    $allList = [];
+    $matchingItems = $data['matching_items'];
 
-    if ($uid > 0 && isset($userAllRequests[$uid])) {
-        $allList = $userAllRequests[$uid];
-    } else {
-        $allList = $data['matching_items'];
-    }
-
-    // Sort all requests of requester by date DESC
-    usort($allList, function($a, $b) {
+    // Sort matching requests of requester by date DESC
+    usort($matchingItems, function($a, $b) {
         return strtotime($b['date_submitted']) <=> strtotime($a['date_submitted']);
     });
 
-    $counts = [
-        'total' => count($allList),
-        'certificates' => 0,
-        'blessings' => 0,
-        'services' => 0,
-    ];
-
     $formattedRequests = [];
-    foreach ($allList as $item) {
-        $itemCat = $item['category'];
-        if (isset($counts[$itemCat])) {
-            $counts[$itemCat]++;
-        }
-
-        $matchKey = $itemCat . '_' . $item['id'];
-        $isMatch = isset($matchingIds[$matchKey]);
-        
-        if (!$isMatch && $itemCat === $cat) {
-            $typeMatches = ($type === '' || $item['request_type'] === $type);
-            $statusMatches = true;
-            if ($status !== '') {
-                $normItem = $normalizeStatus($item['status'])['label'];
-                $statusMatches = ($normItem === $normalizeStatus($status)['label']);
-            }
-            if ($typeMatches && $statusMatches) {
-                $isMatch = true;
-            }
-        }
-
+    foreach ($matchingItems as $item) {
         $norm = $normalizeStatus($item['status']);
         $formattedRequests[] = [
             'id' => (int)$item['id'],
             'reference_number' => $item['reference_number'] ?: ('REQ-' . $item['id']),
             'type_raw' => $item['request_type'],
             'type_label' => $formatType($item['request_type']),
-            'category' => $itemCat,
+            'category' => $item['category'],
             'status_raw' => $item['status'],
             'status_label' => $norm['label'],
             'status_class' => $norm['class'],
             'date_submitted' => $item['date_submitted'],
             'date_formatted' => date('M d, Y', strtotime($item['date_submitted'])),
             'time_formatted' => date('h:i A', strtotime($item['date_submitted'])),
-            'is_match' => $isMatch,
         ];
     }
 
@@ -392,11 +316,9 @@ foreach ($requestersMap as $key => $data) {
         'key' => $key,
         'user_id' => $uid,
         'name' => $data['name'],
-        'selection_count' => $data['count'],
+        'selection_count' => count($formattedRequests),
         'latest_date' => $data['latest_date'],
         'latest_date_formatted' => date('M d, Y', strtotime($data['latest_date'])),
-        'total_requests' => $counts['total'],
-        'counts' => $counts,
         'requests' => $formattedRequests,
     ];
 }

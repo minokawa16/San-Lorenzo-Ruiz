@@ -2458,7 +2458,7 @@ button.s-total-badge-btn:disabled {
   padding: 18px 20px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 16px;
   flex-wrap: wrap;
 }
@@ -2551,11 +2551,6 @@ button.s-total-badge-btn:disabled {
   transition: all 0.15s ease;
   position: relative;
 }
-.ar-dd-item-card.is-match {
-  background: #fffdf9;
-  border: 2px solid #c89b3c;
-  box-shadow: 0 4px 14px rgba(200, 155, 60, 0.12);
-}
 
 .ar-dd-item-left {
   display: flex;
@@ -2605,20 +2600,7 @@ button.s-total-badge-btn:disabled {
   justify-content: flex-end;
 }
 
-.ar-dd-match-tag {
-  background: #fef3c7;
-  color: #92400e;
-  border: 1px solid #fde68a;
-  border-radius: 12px;
-  font-size: 0.68rem;
-  font-weight: 800;
-  padding: 3px 8px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
+
 
 .ar-dd-status-pill {
   padding: 4px 11px;
@@ -3458,7 +3440,7 @@ body.dark-mode .ar-dd-empty h4,
       <div class="ar-dd-footer">
         <div class="ar-dd-footer-note">
           <i class="fas fa-info-circle text-primary"></i>
-          <span>Click any parishioner to view their full request history and category breakdown.</span>
+          <span>Click a parishioner to see their matching requests.</span>
         </div>
         <button type="button" class="ar-dd-footer-close-btn" id="arDdFooterClose">
           Close
@@ -4444,6 +4426,7 @@ body.dark-mode .ar-dd-empty h4,
   const ddDetailView   = document.getElementById('arDdDetailView');
   const ddRequestersList = document.getElementById('arDdRequestersList');
   const ddDetailContainer = document.getElementById('arDdDetailContainer');
+  let currentSelectionTitle = 'Requests';
 
   function closeDrilldownModal() {
     if (!modalBackdrop) return;
@@ -4544,37 +4527,37 @@ body.dark-mode .ar-dd-empty h4,
   function renderRequesterDetail(req) {
     if (!ddDetailContainer) return;
     const initials = getRequesterInitials(req.name);
+    const requests = req.requests || [];
+    const count = requests.length;
 
     let requestsHtml = '';
-    (req.requests || []).forEach(function (item) {
-      const matchBadge = item.is_match
-        ? `<span class="ar-dd-match-tag"><i class="fas fa-check-circle"></i> Matches Clicked</span>`
-        : '';
-
-      requestsHtml += `
-        <div class="ar-dd-item-card ${item.is_match ? 'is-match' : ''}">
-          <div class="ar-dd-item-left">
-            <div class="ar-dd-item-ref-row">
-              <span class="ar-dd-item-ref">${safeEscape(item.reference_number)}</span>
-              <span class="ar-dd-item-type">${safeEscape(item.type_label)}</span>
-              ${matchBadge}
+    if (count === 0) {
+      requestsHtml = '<div class="text-muted small py-4 text-center">No matching requests.</div>';
+    } else {
+      requests.forEach(function (item) {
+        requestsHtml += `
+          <div class="ar-dd-item-card">
+            <div class="ar-dd-item-left">
+              <div class="ar-dd-item-ref-row">
+                <span class="ar-dd-item-ref">${safeEscape(item.reference_number)}</span>
+                <span class="ar-dd-item-type">${safeEscape(item.type_label)}</span>
+              </div>
+              <div class="ar-dd-item-date">
+                <i class="far fa-calendar-alt"></i> Submitted: ${safeEscape(item.date_formatted)} at ${safeEscape(item.time_formatted)}
+              </div>
             </div>
-            <div class="ar-dd-item-date">
-              <i class="far fa-calendar-alt"></i> Submitted: ${safeEscape(item.date_formatted)} at ${safeEscape(item.time_formatted)}
+            <div class="ar-dd-item-right">
+              <span class="ar-dd-status-pill ${safeEscape(item.status_class)}">
+                ${safeEscape(item.status_label)}
+              </span>
             </div>
           </div>
-          <div class="ar-dd-item-right">
-            <span class="ar-dd-status-pill ${safeEscape(item.status_class)}">
-              ${safeEscape(item.status_label)}
-            </span>
-          </div>
-        </div>
-      `;
-    });
+        `;
+      });
+    }
 
-    const certCnt = (req.counts && req.counts.certificates) ? req.counts.certificates : 0;
-    const blessCnt = (req.counts && req.counts.blessings) ? req.counts.blessings : 0;
-    const servCnt = (req.counts && req.counts.services) ? req.counts.services : 0;
+    const titleSuffix = currentSelectionTitle ? ` · ${safeEscape(currentSelectionTitle)}` : '';
+    const subtitle = `${count} request${count === 1 ? '' : 's'}${titleSuffix}`;
 
     ddDetailContainer.innerHTML = `
       <div class="ar-dd-detail-profile">
@@ -4582,36 +4565,17 @@ body.dark-mode .ar-dd-empty h4,
           <div class="ar-dd-dp-avatar">${safeEscape(initials)}</div>
           <div>
             <h4 class="ar-dd-dp-name">${safeEscape(req.name)}</h4>
-            <p class="ar-dd-dp-sub">Parishioner Request History</p>
-          </div>
-        </div>
-        <div class="ar-dd-dp-counters">
-          <div class="ar-dd-stat-pill" title="Total Requests Submitted">
-            <i class="fas fa-folder-open text-primary"></i>
-            <span>Total: <strong>${req.total_requests || 0}</strong></span>
-          </div>
-          <div class="ar-dd-stat-pill" title="Certificates">
-            <i class="fas fa-certificate text-warning"></i>
-            <span>Certs: <strong>${certCnt}</strong></span>
-          </div>
-          <div class="ar-dd-stat-pill" title="Blessings">
-            <i class="fas fa-hands-praying text-success"></i>
-            <span>Blessings: <strong>${blessCnt}</strong></span>
-          </div>
-          <div class="ar-dd-stat-pill" title="Sacramental Services">
-            <i class="fas fa-church text-info"></i>
-            <span>Services: <strong>${servCnt}</strong></span>
+            <p class="ar-dd-dp-sub">${subtitle}</p>
           </div>
         </div>
       </div>
 
       <div>
         <div class="ar-dd-requests-heading">
-          <span><i class="fas fa-list-ul"></i> Request History (${(req.requests || []).length})</span>
-          <small class="text-muted">Gold border indicates selection match</small>
+          <span><i class="fas fa-list-ul"></i> Requests (${count})</span>
         </div>
         <div class="ar-dd-requests-list">
-          ${requestsHtml || '<div class="text-muted small py-4 text-center">No individual request entries found.</div>'}
+          ${requestsHtml}
         </div>
       </div>
     `;
@@ -4628,6 +4592,7 @@ body.dark-mode .ar-dd-empty h4,
       const type   = btn.getAttribute('data-type') || '';
       const status = btn.getAttribute('data-status') || '';
       const title  = btn.getAttribute('data-title') || 'Requests';
+      currentSelectionTitle = title;
 
       // Current summary date filters
       const urlParams    = new URLSearchParams(window.location.search);
@@ -4668,7 +4633,10 @@ body.dark-mode .ar-dd-empty h4,
 
         if (ddLoadingEl) ddLoadingEl.style.display = 'none';
 
-        if (ddTitleEl && data.title) ddTitleEl.textContent = data.title;
+        if (ddTitleEl && data.title) {
+          ddTitleEl.textContent = data.title;
+          currentSelectionTitle = data.title;
+        }
         if (ddCountBadge) {
           ddCountBadge.innerHTML = `<i class="fas fa-file-alt"></i> ${data.total_requests} request${data.total_requests === 1 ? '' : 's'}`;
         }
