@@ -73,7 +73,7 @@ class GeminiGatewayClient {
         return ['online' => false, 'model_available' => false, 'status' => 'not_configured', 'engine' => 'none'];
     }
 
-    public function chat($message, array $history = []) {
+    public function chat($message, array $history = [], array $options = []) {
         $this->lastError = '';
         $this->lastErrorCode = '';
 
@@ -86,7 +86,7 @@ class GeminiGatewayClient {
 
         // Mode 1: Call Gemini Gateway if configured
         if (!empty($this->gatewayUrl)) {
-            $reply = $this->callGateway($message, $history);
+            $reply = $this->callGateway($message, $history, $options);
             if ($reply !== null) {
                 return $reply;
             }
@@ -94,7 +94,7 @@ class GeminiGatewayClient {
 
         // Mode 2: Call Direct Google Gemini API if API key is available
         if (!empty($this->apiKey)) {
-            return $this->callDirectApi($message, $history);
+            return $this->callDirectApi($message, $history, $options);
         }
 
         $this->lastError = 'Neither GEMINI_GATEWAY_URL nor GEMINI_API_KEY is configured.';
@@ -102,11 +102,14 @@ class GeminiGatewayClient {
         return null;
     }
 
-    private function callGateway(string $message, array $history): ?string {
-        $payload = json_encode([
+    private function callGateway(string $message, array $history, array $options = []): ?string {
+        $body = [
             'message' => $message,
             'history' => array_slice($history, -12),
-        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        ];
+        if (isset($options['temperature'])) $body['temperature'] = (float) $options['temperature'];
+        if (isset($options['max_tokens'])) $body['max_tokens'] = (int) $options['max_tokens'];
+        $payload = json_encode($body, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
         $ch = curl_init($this->gatewayUrl);
         curl_setopt_array($ch, [
@@ -140,7 +143,7 @@ class GeminiGatewayClient {
         return trim((string) ($data['reply'] ?? ''));
     }
 
-    private function callDirectApi(string $message, array $history): ?string {
+    private function callDirectApi(string $message, array $history, array $options = []): ?string {
         $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . rawurlencode($this->model) . ':generateContent?key=' . urlencode($this->apiKey);
 
         $contents = [];
@@ -153,7 +156,12 @@ class GeminiGatewayClient {
         }
         $contents[] = ['role' => 'user', 'parts' => [['text' => $message]]];
 
-        $payload = json_encode(['contents' => $contents], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $body = ['contents' => $contents];
+        $genConfig = [];
+        if (isset($options['temperature'])) $genConfig['temperature'] = (float) $options['temperature'];
+        if (isset($options['max_tokens'])) $genConfig['maxOutputTokens'] = (int) $options['max_tokens'];
+        if ($genConfig) $body['generationConfig'] = $genConfig;
+        $payload = json_encode($body, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
         $ch = curl_init($url);
         curl_setopt_array($ch, [
