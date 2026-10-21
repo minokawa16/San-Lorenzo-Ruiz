@@ -196,7 +196,7 @@ include '../templates/header.php';
             const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
             const timeoutId = controller ? setTimeout(function() { controller.abort(); }, 18000) : null;
 
-            fetch('../api/ai-assistant.php', {
+            fetch('../api/ai-assistant.php?v=20261022', {
                 method: 'POST',
                 signal: controller ? controller.signal : undefined,
                 headers: {'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-Token': assistantCsrfToken, 'X-Requested-With': 'XMLHttpRequest'},
@@ -287,7 +287,7 @@ include '../templates/header.php';
                 const group = ratingButton.closest('[data-response-reference]');
                 const comments = ratingButton.dataset.aiRating === 'correct' ? '' : (window.prompt('Optional review comments (do not include private information):') || '');
                 ratingButton.disabled = true;
-                fetch('../api/ai-assistant.php', {method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-Token':assistantCsrfToken,'X-Requested-With':'XMLHttpRequest'},body:JSON.stringify({action:'feedback',response_reference:group.dataset.responseReference,rating:ratingButton.dataset.aiRating,comments:comments})})
+                fetch('../api/ai-assistant.php?v=20261022', {method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-Token':assistantCsrfToken,'X-Requested-With':'XMLHttpRequest'},body:JSON.stringify({action:'feedback',response_reference:group.dataset.responseReference,rating:ratingButton.dataset.aiRating,comments:comments})})
                     .then(function(response){return response.json();}).then(function(data){group.textContent=data.success?'Feedback saved.':(data.message||'Unable to save feedback.');}).catch(function(){ratingButton.disabled=false;});
                 return;
             }

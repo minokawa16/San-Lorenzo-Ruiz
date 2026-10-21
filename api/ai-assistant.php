@@ -2,6 +2,7 @@
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store, private');
+header('X-Tugon-Scope-Gate: 20261022');
 ini_set('display_errors', '0');
 
 function aiJson(array $payload, int $status = 200): void {
@@ -96,6 +97,7 @@ try {
     }
 
     $response = $service->respond((int) $_SESSION['user_id'], $caps, (string) ($payload['message'] ?? ''), $mode, $conversation);
+    $response['scope_gate'] = class_exists('TugonScopeGate') ? TugonScopeGate::version() : '20261022';
     aiJson($response);
 } catch (InvalidArgumentException|DomainException $e) {
     aiJson(['success' => false, 'error' => 'VALIDATION_ERROR', 'message' => $e->getMessage()], 422);

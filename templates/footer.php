@@ -2946,7 +2946,7 @@
                 const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
                 const timeoutId = controller ? setTimeout(function() { controller.abort(); }, 18000) : null;
 
-                return fetch('<?php echo BASE_URL; ?>api/ai-assistant.php', {
+                return fetch('<?php echo BASE_URL; ?>api/ai-assistant.php?v=20261022', {
                     method: 'POST',
                     credentials: 'same-origin',
                     signal: controller ? controller.signal : undefined,
@@ -3271,7 +3271,7 @@
                     const rating = ratingBtn.getAttribute('data-ai-rating');
                     const comments = rating === 'correct' ? '' : (window.prompt('Optional: What could be improved or added to the parish knowledge base?') || '');
                     group.innerHTML = '<span class="ai-feedback-thanks"><i class="fas fa-check"></i> Thank you for your feedback!</span>';
-                    fetch('<?php echo BASE_URL; ?>api/ai-assistant.php', {
+                    fetch('<?php echo BASE_URL; ?>api/ai-assistant.php?v=20261022', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',

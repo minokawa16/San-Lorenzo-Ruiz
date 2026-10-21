@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/../includes/chatbot/ScopeGate.php';
+
 final class ParishKnowledgeBase
 {
     private mysqli $db;
@@ -237,6 +239,7 @@ final class ParishKnowledgeBase
         }
 
         $results = [];
+        $minScore = (float) (class_exists('TugonScopeGate') ? (TugonScopeGate::config()['min_kb_score'] ?? 5.0) : 5.0);
 
         // 1. Search Modules from modules.json
         foreach ($this->modules as $mod) {
@@ -270,7 +273,7 @@ final class ParishKnowledgeBase
 
             $score = $this->scoreItem($normStr, $tokens, "{$title} {$summary} {$keywords} {$steps}");
 
-            if ($score > 0) {
+            if ($score >= $minScore) {
                 $results[] = [
                     'source_type' => 'module',
                     'title' => $title,
@@ -321,7 +324,7 @@ final class ParishKnowledgeBase
                 }
             }
 
-            if ($score > 0) {
+            if ($score >= $minScore) {
                 $results[] = [
                     'source_type' => 'sacrament_requirement',
                     'title' => $sacName,
@@ -340,7 +343,7 @@ final class ParishKnowledgeBase
             foreach ($this->statuses as $st) {
                 $textToMatch = ($st['status'] ?? '') . ' ' . ($st['meaning_en'] ?? '') . ' ' . ($st['meaning_fil'] ?? '') . ' ' . ($st['parishioner_action_en'] ?? '') . ' ' . ($st['staff_action_en'] ?? '');
                 $score = $this->scoreItem($normStr, $tokens, $textToMatch);
-                if ($score > 0) {
+                if ($score >= $minScore) {
                     $results[] = [
                         'source_type' => 'request_status',
                         'title' => 'Status: ' . ($st['status'] ?? ''),
@@ -380,7 +383,7 @@ final class ParishKnowledgeBase
         if (empty($tokens)) {
             return $items;
         }
-
+        $minScore = (float) (class_exists('TugonScopeGate') ? (TugonScopeGate::config()['min_kb_score'] ?? 5.0) : 5.0);
         $term = '%' . mb_strimwidth($tokens[0], 0, 30, '') . '%';
         $stmt = $this->db->prepare("SELECT knowledge_id, topic, keywords, answer, steps, category, source, version, updated_at
             FROM chatbot_knowledge
@@ -393,7 +396,7 @@ final class ParishKnowledgeBase
             $res = $stmt->get_result();
             while ($row = $res->fetch_assoc()) {
                 $score = $this->scoreItem($normStr, $tokens, ($row['topic'] ?? '') . ' ' . ($row['keywords'] ?? '') . ' ' . ($row['answer'] ?? ''));
-                if ($score > 0) {
+                if ($score >= $minScore) {
                     $items[] = [
                         'source_type' => 'database_kb',
                         'title' => $row['topic'],
@@ -417,15 +420,17 @@ final class ParishKnowledgeBase
     {
         $targetLower = mb_strtolower($targetText);
         $score = 0.0;
+        $stopwords = class_exists('TugonScopeGate') ? (TugonScopeGate::config()['kb_stopwords'] ?? []) : [];
 
         // Exact phrase match bonus
         if (mb_strpos($targetLower, $normStr) !== false && mb_strlen($normStr) > 4) {
             $score += 15.0;
         }
 
-        // Token match & partial stems
+        // Token match & partial stems (skipping stopwords)
         foreach ($tokens as $token) {
             if (mb_strlen($token) < 2) continue;
+            if (in_array($token, $stopwords, true)) continue;
             if (mb_strpos($targetLower, $token) !== false) {
                 $score += 3.0;
             } else {
