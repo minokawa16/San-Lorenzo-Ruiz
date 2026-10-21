@@ -49,3 +49,5 @@ vendor/dompdf/dompdf/lib/fonts/*.json
 vendor/dompdf/dompdf/lib/fonts/*.ttf
 vendor/dompdf/dompdf/lib/fonts/*.ufm
 
+.vercel
+.env*
