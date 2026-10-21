@@ -58,6 +58,18 @@ Never show this thinking.
 Polite and warm in one short line at most. For grief (funeral) or distress, begin with one sincere sentence ("I'm sorry for your loss."), then the information. Never preachy, never long.
 
 ========== SPECIAL RULES ==========
+SCOPE (strict)
+You only answer questions about San Lorenzo Ruiz Mission Station: certificates, sacramental services, blessings, Mass and office schedules, the parish calendar, requests and their status, accounts and how to use this system, and short greetings.
+
+If the question is not about this parish (for example cooking, recipes, politics, sports, school homework, math, general knowledge, news, coding, medical or legal advice, or anything else), do NOT answer it and do NOT use any parish data. Reply with exactly this one message, in the user's language:
+English: "Sorry, I can't answer that because it isn't related to this parish. I can help with certificates, sacramental services, blessings, schedules and your requests."
+Filipino: "Pasensya na, hindi ko po masasagot iyan dahil walang kinalaman sa parokya. Matutulungan ko po kayo sa mga sertipiko, sakramento, basbas, iskedyul at inyong mga request."
+Bisaya: "Pasayloa ko, dili nako matubag kana kay wala kini labot sa parokya. Makatabang ko sa mga sertipiko, sakramento, basbas, iskedyul ug inyong mga request."
+
+Never answer an off-topic question, even partly, even if the user insists, says it is urgent, or says "just this once". Never reply to an off-topic question with parish steps, and never make up a connection to the parish.
+Never fall back to a default topic. If you are unsure whether a question is about the parish, ask one short question: "Is this about a parish service or request?"
+If a question is borderline or not about the parish, reply with only the word OUT_OF_SCOPE.
+
 TWO DIFFERENT THINGS (never mix them)
 1. SACRAMENTAL SERVICE = booking the ceremony itself: Baptism, Confirmation, First Communion, Wedding, Funeral. Use only the SACRAMENTAL SERVICES data.
 2. CERTIFICATE = a document copy from the registry: Baptismal, Confirmation, First Communion, Marriage, Funeral certificate or certification. Use only the CERTIFICATES data.
@@ -101,6 +113,12 @@ You: I'm sorry for your loss. [Funeral steps from SYSTEM DATA in 3 to 4 short li
 User: Who will win the election?
 You: I can only help with parish services such as certificates, blessings, sacramental services and schedules.
 PROMPT;
+
+    public const OFF_TOPIC_MESSAGE = [
+        'en' => "Sorry, I can't answer that because it isn't related to this parish. I can help with certificates, sacramental services, blessings, schedules and your requests.",
+        'fil' => "Pasensya na, hindi ko po masasagot iyan dahil walang kinalaman sa parokya. Matutulungan ko po kayo sa mga sertipiko, sakramento, basbas, iskedyul at inyong mga request.",
+        'ceb' => "Pasayloa ko, dili nako matubag kana kay wala kini labot sa parokya. Makatabang ko sa mga sertipiko, sakramento, basbas, iskedyul ug inyong mga request.",
+    ];
 
     public function __construct(mysqli $db)
     {
@@ -274,14 +292,29 @@ PROMPT;
 
         $detectedTopic = $currTopic['topic'] !== 'general' ? $currTopic : $contextTopic;
 
-        // 5. Off-Topic Check
-        if (!$this->isParishRelated($norm['normalized']) && $mode !== 'search') {
-            $answer = match ($language) {
-                'ceb' => "Andam ako motabang sa mga serbisyo ug pangutana bahin sa parokya. Aduna ba kay pangutana bahin sa mga sakramento, sertipiko, o iskedyul?",
-                'fil' => "Nandito po ako upang tumulong sa mga serbisyo at katanungan tungkol sa parokya. Mayroon po ba akong maitutulong sa inyo tungkol sa ating parokya?",
-                default => "I'm here to help with parish services, sacramental requests, certificates, schedules, and using this system. Is there something about the parish I can help you with?"
-            };
-            return $this->persist($userId, $audience, $mode, $language, $message, $answer, [], [], null, $correlation, 'topic-refusal', [], TugonConversationalIntent::TOPIC_OFF_TOPIC_OR_UNSAFE);
+        // 5. Strict Parish Scope Guardrail: Block off-topic questions before calling AI or fetching parish data
+        if (!$this->isInScope($message, $conversation) && $mode !== 'search') {
+            $answer = self::OFF_TOPIC_MESSAGE[$language] ?? self::OFF_TOPIC_MESSAGE['en'];
+            return $this->persist(
+                $userId,
+                $audience,
+                $mode,
+                $language,
+                $message,
+                $answer,
+                [],
+                [],
+                null,
+                $correlation,
+                'scope-refusal',
+                [
+                    'How to request a baptism certificate?',
+                    'How to book a blessing?',
+                    'What are the Mass schedules?',
+                    'Parish Office Hours'
+                ],
+                TugonConversationalIntent::TOPIC_OFF_TOPIC_OR_UNSAFE
+            );
         }
 
         // 6. Authorized Records / Smart Search
@@ -331,8 +364,13 @@ PROMPT;
         );
 
         if ($geminiAnswer !== null) {
-            $answer = $geminiAnswer;
-            $provider = 'gemini-rag-dynamic';
+            if (trim($geminiAnswer) === 'OUT_OF_SCOPE' || str_contains($geminiAnswer, 'OUT_OF_SCOPE')) {
+                $answer = self::OFF_TOPIC_MESSAGE[$language] ?? self::OFF_TOPIC_MESSAGE['en'];
+                $provider = 'scope-refusal';
+            } else {
+                $answer = $geminiAnswer;
+                $provider = 'gemini-rag-dynamic';
+            }
         } else {
             // Grounded Dynamic Synthesis fallback
             $answer = $this->synthesizeGroundedAnswer(
@@ -706,11 +744,11 @@ PROMPT;
             return $out;
         }
 
-        // 10. Honest fallback when question is outside knowledge base or data
+        // 10. Honest clarifying fallback when question is not specific enough
         return match ($lang) {
-            'ceb' => "Pasayloa ko, apan wala nako makit-an ang maong impormasyon sa kasamtangang talaan sa parokya. Palihug bisitaha o kontaka ang opisina sa parokya sa **0997 742 8176** (Martes hangtod Sabado, 8:00 AM – 5:00 PM; Domingo, 7:00 AM – 12:00 PM; Sirado Lunes) alang sa dugang tabang.",
-            'fil' => "Paumanhin po, hindi ko po nahanap ang partikular na impormasyong iyan sa kasalukuyang talaan o knowledge base ng parokya. Mangyaring makipag-ugnayan sa opisina ng parokya sa **0997 742 8176** (Martes hanggang Sabado, 8:00 AM – 5:00 PM; Linggo, 7:00 AM – 12:00 PM; Sarado Lunes) para sa tumpak na gabay.",
-            default => "I'm sorry, but I could not find specific details for that in our current parish records or knowledge base. Please contact the parish office at **0997 742 8176** (Tuesday to Saturday 8:00 AM – 5:00 PM, Sunday 7:00 AM – 12:00 PM, closed Monday) or visit in person for assistance."
+            'ceb' => "Is this about a parish service or request? Makatabang ko sa mga sertipiko, sakramento, basbas, iskedyul ug inyong mga request.",
+            'fil' => "Tungkol po ba ito sa isang serbisyo o kahilingan sa parokya? Matutulungan ko po kayo sa mga sertipiko, sakramento, basbas, iskedyul at inyong mga request.",
+            default => "Is this about a parish service or request? I can help with certificates, sacramental services, blessings, schedules and your requests."
         };
     }
 
@@ -1176,8 +1214,73 @@ DATA;
         return (bool) preg_match('/\b(update|delete|approve|reject|issue|revoke|publish|modify|change)\b.{0,40}\b(record|request|certificate|payment|reservation|announcement|database)\b/i', $text);
     }
 
+    /**
+     * Strict Scope Check: Determines if a question is genuinely related to San Lorenzo Ruiz Mission Station.
+     * Prevents calling AI or accessing parish data for off-topic inquiries (e.g. cooking, NBA, math, poems).
+     */
+    public function isInScope(string $msg, array $history = []): bool
+    {
+        $q = mb_strtolower(trim($msg));
+        $words = [
+            'parish', 'parokya', 'simbahan', 'church', 'priest', 'pari', 'paroko', 'vicar',
+            'certificate', 'certification', 'sertipiko', 'sertipikasyon', 'copy of', 'kopya',
+            'baptism', 'baptismal', 'bunyag', 'binyag', 'pabunyag', 'pabinyag',
+            'confirmation', 'kumpil', 'pakumpil', 'communion', 'kumunyon', 'komunyon',
+            'wedding', 'marriage', 'kasal', 'papakasal', 'pakasal',
+            'funeral', 'libing', 'burol', 'lubong', 'bless', 'blessing', 'basbas', 'bendisyon',
+            'mass', 'misa', 'pamisa', 'schedule', 'iskedyul', 'calendar', 'kalendaryo',
+            'request', 'kahilingan', 'requirement', 'kailangan', 'rekisitos', 'kinahanglan',
+            'fee', 'bayad', 'status', 'istatus', 'record', 'talaan', 'sacrament', 'sakramento',
+            'confession', 'kumpisal', 'kompisal', 'reconciliation', 'penance', 'anointing', 'pahid',
+            'rosary', 'rosaryo', 'novena', 'nobena', 'adoration', 'fiesta', 'patronal', 'donation', 'offering',
+            'book', 'appointment', 'account', 'login', 'register', 'rehistro', 'tugon',
+            'office', 'opisina', 'announcement', 'anunsyo', 'organization', 'sponsor', 'godparent',
+            'ninong', 'ninang', 'seminar', 'cahilig', 'barretto', 'agnes', 'calapaan', 'aleosan'
+        ];
+        foreach ($words as $w) {
+            if (str_contains($q, $w)) {
+                return true;
+            }
+        }
+
+        // greetings and thanks are allowed
+        if (preg_match('/^(hi|hello|hey|good\s+(morning|afternoon|evening)|kumusta|musta|salamat|thank|thanks|daghang salamat|maraming salamat)/ui', $q)) {
+            return true;
+        }
+
+        // short follow-ups ("how much?", "and for marriage?") count only if the last message was in scope
+        if (mb_strlen($q) <= 40 && !empty($history)) {
+            $lastTurn = $history[count($history) - 1];
+            if (isset($lastTurn['in_scope'])) {
+                return (bool) $lastTurn['in_scope'];
+            }
+
+            // If history has conversation turns, check if the last assistant response was a refusal
+            $lastContent = (string) ($lastTurn['content'] ?? '');
+            foreach (self::OFF_TOPIC_MESSAGE as $refusal) {
+                if (str_contains($lastContent, $refusal) || str_contains($lastContent, "isn't related to this parish")) {
+                    return false;
+                }
+            }
+
+            // Find the most recent user message in history
+            for ($i = count($history) - 1; $i >= 0; $i--) {
+                $turn = $history[$i];
+                if (($turn['role'] ?? '') === 'user') {
+                    $userMsg = (string) ($turn['content'] ?? '');
+                    if ($userMsg !== '' && $userMsg !== $msg && $this->isInScope($userMsg, [])) {
+                        return true;
+                    }
+                    break;
+                }
+            }
+        }
+
+        return false;
+    }
+
     private function isParishRelated(string $text): bool
     {
-        return (bool) preg_match('/parish|parokya|simbahan|mass|misa|office|opisina|bapt|binyag|bunyag|confirm|kumpil|communion|komunyon|marriage|wedding|kasal|bless|basbas|bendisyon|bendita|certificate|sertipiko|papeles|confess|kumpisal|kompisal|reconciliation|penance|adoration|novena|nobena|rosary|rosaryo|request|kahilingan|reserv|venue|schedule|iskedyul|sked|announcement|anunsyo|payment|bayad|pay|gcash|funeral|burial|libing|lubong|priest|pari|secretary|kalihim|agnes|calapaan|vicar|record|tala|sacrament|analytics|report|ulat|TUGON|requirement|kailangan|rekisitos|kinahanglan|cost|magkano|tagpila|upload|format|docx|pdf|file|otp|password|login|log in|can t log|cant log|can\'t log|cannot log|reset password|forgot password|slot|9:30|aleosan|status|pending|processing|completed|rejected|release|pickup|claim|download|intention|pamisa|turnaround|working days|duration|tagal|kailan|kanus-a|paano|pano|unsaon|unsa|how to|docs|papers|sponsor|godparents|recollection|seminar|pre-cana|banns|how long|bago makuha|gaano katagal|pila/iu', $text);
+        return $this->isInScope($text);
     }
 }

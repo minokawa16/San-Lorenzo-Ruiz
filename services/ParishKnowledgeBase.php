@@ -259,6 +259,9 @@ final class ParishKnowledgeBase
             if ($topicFilter === 'blessings' && (str_contains($pageUrl, 'request-certificate') || str_contains($pageUrl, 'request-service'))) {
                 continue;
             }
+            if ($topicFilter === 'general' && (str_contains($pageUrl, 'request-certificate') || str_contains($pageUrl, 'request-service') || str_contains($pageUrl, 'request-blessing'))) {
+                continue;
+            }
 
             $title = $mod['title'] ?? 'Module';
             $summary = $mod['summary'] ?? '';
@@ -286,6 +289,9 @@ final class ParishKnowledgeBase
             $sacCat = $sac['category'] ?? '';
 
             // STRICT TOPIC FILTER: Never mix certificates, sacraments, and blessings!
+            if ($topicFilter === 'general') {
+                continue; // Do NOT load certificate or sacramental service requirements on general inquiries!
+            }
             if ($topicFilter !== null && in_array($topicFilter, ['certificates', 'sacraments', 'blessings'], true)) {
                 if ($sacCat !== $topicFilter) {
                     continue; // Skip items from other topics entirely!
