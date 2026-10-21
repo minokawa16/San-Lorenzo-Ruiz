@@ -58,6 +58,18 @@ Never show this thinking.
 Polite and warm in one short line at most. For grief (funeral) or distress, begin with one sincere sentence ("I'm sorry for your loss."), then the information. Never preachy, never long.
 
 ========== SPECIAL RULES ==========
+TWO DIFFERENT THINGS (never mix them)
+1. SACRAMENTAL SERVICE = booking the ceremony itself: Baptism, Confirmation, First Communion, Wedding, Funeral. Use only the SACRAMENTAL SERVICES data.
+2. CERTIFICATE = a document copy from the registry: Baptismal, Confirmation, First Communion, Marriage, Funeral certificate or certification. Use only the CERTIFICATES data.
+
+Rules:
+- Use CERTIFICATE data only when the user says certificate, certification, copy, record, or sertipiko.
+- Use SERVICE data when the user asks to book, schedule, or about the requirements or steps for the ceremony itself.
+- If the user names only a sacrament ("baptism", "confirmation", "kumpil", "bunyag", "kasal"), do NOT answer yet. Ask exactly one short question:
+  "Do you mean the <Sacrament> service (booking the ceremony) or the <Sacrament> Certificate (a copy of the record)?"
+- Never use the requirements of one in place of the other. If the needed section is missing from SYSTEM DATA, say you don't have it.
+- Remember the user's choice for follow-up questions in the same chat ("how much?", "what else?").
+
 - Original Certificate is available ONLY for Baptism, First Communion and Confirmation. Marriage and Funeral records are Certification only. Certification (a certified true copy of the register) is available for all five types.
 - For availability questions ("is Oct 25 free?", "what time can I book?"), check the calendar and booked slots in SYSTEM DATA and answer with the free times. If the date is fully booked, say so and suggest the nearest free date from SYSTEM DATA.
 - For status questions, read the user's own request in SYSTEM DATA and say its status in one line. If it is not found, tell them to check "My Requests" and quote the reference format TUGON-YYYY-XXXXXXXX.
@@ -210,6 +222,58 @@ PROMPT;
             }
         }
 
+        // 4c. Strict Sacrament vs Certificate Clarification Check
+        $currTopic = $this->detectTopic($message);
+        $contextTopic = $this->detectTopic($contextualQuery);
+
+        $clarifyTopic = null;
+        if ($currTopic['topic'] === 'clarify') {
+            $clarifyTopic = $currTopic;
+        } elseif ($contextTopic['topic'] === 'clarify' && count($conversation) === 0) {
+            $clarifyTopic = $contextTopic;
+        }
+
+        if ($clarifyTopic !== null) {
+            $sacramentType = $clarifyTopic['type'] ?? 'sacrament';
+            $displaySacrament = match ($sacramentType) {
+                'baptism' => 'Baptism',
+                'confirmation' => 'Confirmation',
+                'communion' => 'First Communion',
+                'marriage' => 'Marriage',
+                'funeral' => 'Funeral',
+                default => ucfirst((string) $sacramentType)
+            };
+
+            $answer = match ($language) {
+                'ceb' => "Ang imong gipasabot ba ang **{$displaySacrament} service** (pag-book sa seremonya) o ang **{$displaySacrament} Certificate** (kopya sa rekord)?",
+                'fil' => "Ang nais po ba ninyo ay ang **{$displaySacrament} service** (pag-book ng seremonya) o ang **{$displaySacrament} Certificate** (kopya ng talaan)?",
+                default => "Do you mean the **{$displaySacrament} service** (booking the ceremony) or the **{$displaySacrament} Certificate** (a copy of the record)?"
+            };
+
+            $prompts = [
+                "{$displaySacrament} service requirements",
+                "{$displaySacrament} certificate requirements"
+            ];
+
+            return $this->persist(
+                $userId,
+                $audience,
+                $mode,
+                $language,
+                $message,
+                $answer,
+                [],
+                [],
+                null,
+                $correlation,
+                'fixed-clarification',
+                $prompts,
+                'CLARIFY_SACRAMENT'
+            );
+        }
+
+        $detectedTopic = $currTopic['topic'] !== 'general' ? $currTopic : $contextTopic;
+
         // 5. Off-Topic Check
         if (!$this->isParishRelated($norm['normalized']) && $mode !== 'search') {
             $answer = match ($language) {
@@ -246,7 +310,13 @@ PROMPT;
         $toolExecutionResult = $this->detectAndExecuteTool($norm['normalized'], $userId, $audience);
 
         // 9. RAG Knowledge Base Retrieval
-        $sources = $this->kb->search($norm['normalized'], $audience, 4);
+        $sources = $this->kb->search(
+            $norm['normalized'],
+            $audience,
+            4,
+            $detectedTopic['topic'] ?? null,
+            $detectedTopic['type'] ?? null
+        );
         $fewShots = $this->kb->getRelevantFewShots($norm['normalized'], 3);
 
         // 10. Generate Response: Try Gemini with System Prompt, Knowledge, & Tools
@@ -277,7 +347,7 @@ PROMPT;
         }
 
         // Generate context-sensitive suggested prompts
-        $suggestedPrompts = $this->generatePrompts($contextualQuery, $sources, $audience);
+        $suggestedPrompts = $this->generatePrompts($contextualQuery, $sources, $audience, $detectedTopic);
 
         return $this->persist(
             $userId,
@@ -522,8 +592,10 @@ PROMPT;
             };
         }
 
-        // 6. User: Request Baptism Certificate
-        if (preg_match('/\b(baptizm|baptism|binyag|bunyag)\b/i', $normStr) && preg_match('/\b(cert|certifcate|certificate|sertipiko)\b/i', $normStr)) {
+        // 6. User: Request Baptism Certificate (how to / steps)
+        $isReqInquiry = (bool) preg_match('/\b(requirement|requirements|rekisitos|kailangan|papers|documents)\b/iu', $normStr);
+        $isFeeInquiry = (bool) preg_match('/\b(how much|magkano|tagpila|cost|fee|fees|bayad|pila|presyo)\b/iu', $normStr);
+        if (!$isReqInquiry && !$isFeeInquiry && preg_match('/\b(baptizm|baptism|binyag|bunyag)\b/i', $normStr) && preg_match('/\b(cert|certifcate|certificate|sertipiko)\b/i', $normStr)) {
             return match ($lang) {
                 'ceb' => "Mao kini ang mga lakang sa pag-request og Baptismal Certificate:\n\n1. Mag-log in sa imong TUGON account.\n2. Sa kilid nga menu, adto sa **Requests** dayon pilia ang **New Request** (o **Request Certificate**).\n3. Sa Certificate Type, pilia ang **Baptismal Certificate**.\n4. Isulod ang kompletong ngalan sa bata, petsa sa pagkatawo, ug mga ginikanan.\n5. I-upload ang klaro nga kopya sa Valid Government ID ug PSA Birth Certificate.\n6. Pilia ang paagi sa pagbayad (GCash kang Agnes Calapaan sa 0997 742 8176 o Cash sa opisina).\n7. Pindota ang **Submit Request** ug itago ang Reference Number (`REQ-2026-XXXX`).",
                 'fil' => "Narito ang mga simpleng hakbang para mag-request ng baptismal certificate sa TUGON:\n\n1. Mag-log in sa inyong account.\n2. Pumunta sa **Requests** at i-click ang **New Request** (o buksan ang **Request Certificate**).\n3. Piliin ang **Baptismal Certificate** bilang uri ng sertipiko.\n4. Ilagay ang buong pangalan ng bata, petsa ng kapanganakan, at pangalan ng mga magulang.\n5. I-upload ang malinaw na kopya ng Valid Government ID at PSA Birth Certificate.\n6. Piliin ang paraan ng pagbabayad (GCash kay Agnes Calapaan sa 0997 742 8176 o Cash on pickup sa opisina).\n7. I-click ang **Submit Request** at itabi ang inyong Reference Number (`REQ-2026-XXXX`).",
@@ -547,6 +619,37 @@ PROMPT;
                 'fil' => "Maaari ninyong suriin ang status ng inyong request sa dalawang paraan:\n\n1. **Kung Naka-log in**: Buksan ang **My Requests** sa inyong dashboard upang makita ang lahat ng inyong request at ang live status ng bawat isa.\n2. **Gamit ang Reference Number**: Sa Login page, i-click ang **Check Request Status** at ilagay ang inyong Reference Number (halimbawa, `REQ-2026-XXXX`).",
                 default => "You can check your request status in two easy ways:\n\n1. **Logged-in users**: Open **My Requests** from your dashboard to view the real-time status of all your requests.\n2. **Using Reference Number**: On the login page, click **Check Request Status** and enter your Tracking Reference Number (e.g., `REQ-2026-XXXX`)."
             };
+        }
+
+        // 8b. Direct Fee Inquiry from RAG source
+        if ($isFeeInquiry && !empty($sources)) {
+            foreach ($sources as $src) {
+                if (!empty($src['fee'])) {
+                    $srcTitle = $src['title'] ?? 'Requested Service';
+                    $srcFee = $src['fee'];
+                    return match ($lang) {
+                        'ceb' => "Ang bayad alang sa **{$srcTitle}** kay **{$srcFee}**.",
+                        'fil' => "Ang bayad para sa **{$srcTitle}** ay **{$srcFee}**.",
+                        default => "The fee for **{$srcTitle}** is **{$srcFee}**."
+                    };
+                }
+            }
+        }
+
+        // 8c. Direct Requirements Inquiry from RAG source
+        if ($isReqInquiry && !empty($sources)) {
+            foreach ($sources as $src) {
+                if (!empty($src['requirements'])) {
+                    $srcTitle = $src['title'] ?? 'Parish Information';
+                    $reqs = implode("\n• ", $src['requirements']);
+                    $feeInfo = !empty($src['fee']) ? "\n• **Fee**: " . $src['fee'] : '';
+                    return match ($lang) {
+                        'ceb' => "Mao kini ang mga rekisitos alang sa **{$srcTitle}**:\n\n• {$reqs}{$feeInfo}",
+                        'fil' => "Narito ang mga kailangan para sa **{$srcTitle}**:\n\n• {$reqs}{$feeInfo}",
+                        default => "Here are the requirements for **{$srcTitle}**:\n\n• {$reqs}{$feeInfo}"
+                    };
+                }
+            }
         }
 
         // 9. If matching RAG source found in knowledge base
@@ -744,23 +847,116 @@ DATA;
         writeAuditLog($this->db, $reviewerId, 'AI_FEEDBACK_SUBMITTED', 'ai_responses', $responseId, null, ['rating' => $rating, 'comments' => $comments], 'ai', 'ai.feedback');
     }
 
+    /**
+     * Detect topic and sacrament type to isolate Sacramental Services vs Certificates.
+     * Prevents the assistant from guessing certificates when bare sacrament names are provided.
+     *
+     * @return array{topic: string, type: ?string}
+     */
+    public function detectTopic(string $q): array
+    {
+        $q = mb_strtolower(trim($q));
+
+        // 1. Certificate keywords (highest precedence when present)
+        $cert = (bool) preg_match('/\b(cert|certs|certificate|certificates|certification|certifications|sertipiko|sertipikasyon|copy of|kopya|original copy|certified true copy)\b/iu', $q);
+
+        // 2. Service keywords
+        $svc = (bool) preg_match('/\b(book|booking|schedule|ceremony|service|services|mass|requirement|requirements|how to|how do|magpa|pabunyag|pabinyag|magpabinyag|magpabunyag|papakasal|pakasal|magpakasal|pakumpil|magpakumpil|kailangan|rekisitos|kinahanglan|date|available|step|steps|process|procedure|register|seminar)\b/iu', $q);
+
+        // 3. Sacrament names
+        $sacraments = [
+            'baptism'      => ['baptism', 'baptismal', 'bunyag', 'binyag', 'pabunyag', 'pabinyag', 'magpabinyag', 'magpabunyag', 'christening'],
+            'confirmation' => ['confirmation', 'kumpil', 'pakumpil', 'magpakumpil'],
+            'communion'    => ['communion', 'kumunyon', 'komunyon', 'first communion'],
+            'marriage'     => ['wedding', 'marriage', 'kasal', 'papakasal', 'pakasal', 'magpakasal'],
+            'funeral'      => ['funeral', 'libing', 'burol', 'lubong'],
+        ];
+
+        $foundSacrament = null;
+        foreach ($sacraments as $name => $words) {
+            foreach ($words as $w) {
+                if (preg_match('/\b' . preg_quote($w, '/') . '\b/iu', $q)) {
+                    $foundSacrament = $name;
+                    break 2;
+                }
+            }
+        }
+
+        // 4. Blessings
+        $bless = (bool) preg_match('/\b(bless|blessing|blessings|bendisyon|pabasbas|basbas)\b/iu', $q);
+
+        // 5. Schedules
+        $sched = (bool) preg_match('/\b(mass schedule|office hours|confession schedule|sked|oras ng misa|oras sa misa)\b/iu', $q);
+
+        // DECIDE
+        if ($cert) {
+            return ['topic' => 'certificates', 'type' => $foundSacrament];
+        }
+        if ($bless) {
+            return ['topic' => 'blessings', 'type' => null];
+        }
+        if ($foundSacrament && $svc) {
+            return ['topic' => 'sacraments', 'type' => $foundSacrament];
+        }
+        if ($foundSacrament && !$svc && !$cert) {
+            // User typed ONLY the sacrament name (or just "baptism please")
+            return ['topic' => 'clarify', 'type' => $foundSacrament];
+        }
+        if ($sched) {
+            return ['topic' => 'schedule', 'type' => null];
+        }
+        return ['topic' => 'general', 'type' => null];
+    }
+
     private function resolveConversationContext(string $query, array $conversation): string
     {
         $normalized = mb_strtolower(trim($query));
-        $referentialPattern = '/\b(it|that|this|the same|cost|fee|fees|magkano|tagpila|bayad|requirements|kailangan|papers|documents|process|paano|unsaon|saan|asa|where|kailan|kanus-a|when|schedule|oras|who|sino|kinsa)\b/u';
+
+        // If user is directly answering a clarification question with "service" or "certificate"
+        $isBareChoice = (bool) preg_match('/^\s*(?:the\s+)?(service|ceremony|certificate|sertipiko|kopya)\s*(?:po|please)?\s*$/iu', $normalized);
+        if ($isBareChoice && !empty($conversation)) {
+            for ($i = count($conversation) - 1; $i >= 0; $i--) {
+                $turnText = mb_strtolower((string) ($conversation[$i]['content'] ?? ''));
+                foreach (['baptism', 'confirmation', 'communion', 'marriage', 'funeral'] as $sac) {
+                    $aliases = match ($sac) {
+                        'baptism' => ['baptism', 'binyag', 'bunyag'],
+                        'confirmation' => ['confirmation', 'kumpil'],
+                        'communion' => ['communion', 'komunyon'],
+                        'marriage' => ['wedding', 'marriage', 'kasal'],
+                        'funeral' => ['funeral', 'libing', 'burol', 'lubong'],
+                        default => []
+                    };
+                    foreach ($aliases as $alias) {
+                        if (str_contains($turnText, $alias)) {
+                            if (preg_match('/certificate|sertipiko|kopya/iu', $normalized)) {
+                                return "{$sac} certificate requirements";
+                            }
+                            return "{$sac} service requirements";
+                        }
+                    }
+                }
+            }
+        }
+
+        $referentialPattern = '/\b(it|that|this|the same|how much|cost|fee|fees|magkano|tagpila|bayad|much|pila|price|rate|presyo|requirements|kailangan|papers|documents|process|paano|unsaon|saan|asa|where|kailan|kanus-a|when|schedule|oras|who|sino|kinsa|service|certificate|sertipiko|ceremony|kopya)\b/iu';
 
         if (empty($conversation) || !preg_match($referentialPattern, $normalized)) {
             return $query;
         }
 
+        // Ordered with specific phrases first (certificates vs services)
         $entities = [
             'baptismal certificate' => ['baptismal cert', 'baptism certificate', 'sertipiko sa bunyag', 'sertipiko ng binyag'],
-            'baptism' => ['binyag', 'bunyag', 'pabinyag', 'pabunyag', 'christening'],
-            'confirmation' => ['kumpil', 'pakumpil', 'confirmand'],
-            'marriage' => ['wedding', 'kasal', 'pakasal', 'church wedding', 'pre-cana'],
-            'first holy communion' => ['first communion', 'komunyon', 'communion'],
+            'confirmation certificate' => ['confirmation cert', 'sertipiko ng kumpil', 'sertipiko sa kumpil'],
+            'marriage certificate' => ['marriage cert', 'wedding certificate', 'sertipiko ng kasal'],
+            'first communion certificate' => ['communion cert', 'sertipiko ng komunyon'],
+            'death certificate' => ['funeral certificate', 'burial certificate', 'sertipiko ng libing'],
+            'baptism service' => ['baptism service', 'baptism ceremony', 'pabinyag', 'pabunyag', 'christening', 'baptism'],
+            'confirmation service' => ['confirmation service', 'confirmation ceremony', 'pakumpil', 'confirmation', 'kumpil'],
+            'marriage service' => ['marriage service', 'wedding ceremony', 'kasal ceremony', 'papakasal', 'pakasal', 'marriage', 'wedding', 'kasal'],
+            'first communion service' => ['first holy communion', 'first communion service', 'first communion', 'komunyon', 'communion'],
             'anointing of the sick' => ['sick call', 'pahid sa masakiton', 'pahid ng langis', 'anointing'],
-            'funeral mass' => ['funeral', 'burol', 'libing', 'lubong', 'burial', 'pamisa sa patay'],
+            'funeral service' => ['funeral mass', 'funeral service', 'burol', 'libing', 'lubong', 'burial', 'funeral'],
             'house blessing' => ['pabasbas ng bahay', 'blessing sa balay', 'home blessing'],
             'vehicle blessing' => ['pabasbas ng sasakyan', 'blessing sa sakyanan', 'car blessing'],
             'certificate' => ['sertipiko', 'records copy'],
@@ -769,7 +965,11 @@ DATA;
         ];
 
         $foundEntity = null;
+        // 1. Check user turns first (newest to oldest) as they define what the user asked about
         for ($i = count($conversation) - 1; $i >= 0; $i--) {
+            if (($conversation[$i]['role'] ?? '') !== 'user') {
+                continue;
+            }
             $turnText = mb_strtolower((string) ($conversation[$i]['content'] ?? ''));
             foreach ($entities as $canonical => $aliases) {
                 if (mb_strpos($turnText, $canonical) !== false) {
@@ -785,6 +985,25 @@ DATA;
             }
         }
 
+        // 2. If no entity found in user turns, check all turns
+        if ($foundEntity === null) {
+            for ($i = count($conversation) - 1; $i >= 0; $i--) {
+                $turnText = mb_strtolower((string) ($conversation[$i]['content'] ?? ''));
+                foreach ($entities as $canonical => $aliases) {
+                    if (mb_strpos($turnText, $canonical) !== false) {
+                        $foundEntity = $canonical;
+                        break 2;
+                    }
+                    foreach ($aliases as $alias) {
+                        if (mb_strpos($turnText, $alias) !== false) {
+                            $foundEntity = $canonical;
+                            break 2;
+                        }
+                    }
+                }
+            }
+        }
+
         if ($foundEntity !== null && mb_strpos($normalized, $foundEntity) === false) {
             return $query . ' ' . $foundEntity;
         }
@@ -792,10 +1011,32 @@ DATA;
         return $query;
     }
 
-    private function generatePrompts(string $query, array $sources, string $role): array
+    private function generatePrompts(string $query, array $sources, string $role, ?array $detectedTopic = null): array
     {
         if ($role === 'staff' || $role === 'admin') {
             return ['Generate Certificate', 'Certificate Signatory', 'Review Status & Updates', 'Total Certificates Created'];
+        }
+
+        if ($detectedTopic !== null) {
+            $topic = $detectedTopic['topic'] ?? '';
+            $type = $detectedTopic['type'] ?? '';
+            $capType = ucfirst((string) $type);
+
+            if ($topic === 'sacraments' && !empty($type)) {
+                return [
+                    "How to book {$capType}?",
+                    "When is the {$capType} schedule?",
+                    "What are the Mass schedules?"
+                ];
+            }
+
+            if ($topic === 'certificates' && !empty($type)) {
+                return [
+                    "How much is a {$capType} certificate?",
+                    "How long does certificate release take?",
+                    "How do I check my request status?"
+                ];
+            }
         }
 
         $lower = mb_strtolower($query);

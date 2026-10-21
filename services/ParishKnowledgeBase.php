@@ -189,12 +189,13 @@ final class ParishKnowledgeBase
             'unsa', 'unsaon', 'unsaang', 'pila', 'kabuok', 'nahuman', 'adlaw', 'pahuway',
             'abli', 'sirado', 'kinahanglan', 'buhaton', 'pilia', 'adto', 'kaayo', 'namo',
             'kanus-a', 'asa', 'nganong', 'og', 'og blessing', 'sa akong', 'palihug', 'ilis',
-            'pabunyag', 'bunyag', 'pamisa', 'himo'
+            'pabunyag', 'bunyag', 'pamisa', 'himo', 'lubong', 'kompisal'
         ];
         $filMarkers = [
             'paano', 'pano', 'ano', 'kailangan', 'ilan', 'sertipiko', 'kailan', 'saan',
             'bakit', 'meron', 'wala', 'po', 'opo', 'namin', 'inyo', 'mga', 'lahat',
-            'pumunta', 'i-download', 'palitan', 'binyag', 'libing', 'pari'
+            'pumunta', 'i-download', 'palitan', 'binyag', 'libing', 'pari', 'kumpil',
+            'pakumpil', 'kasal', 'papakasal'
         ];
 
         $lower = mb_strtolower($text);
@@ -225,7 +226,7 @@ final class ParishKnowledgeBase
      * RAG Retrieval: Search modules, sacramental requirements, request statuses, and DB knowledge.
      * Returns ranked knowledge chunks with exact system names, paths, and steps.
      */
-    public function search(string $query, string $role = 'parishioner', int $limit = 4): array
+    public function search(string $query, string $role = 'parishioner', int $limit = 4, ?string $topicFilter = null, ?string $typeFilter = null): array
     {
         $norm = $this->normalizeQuery($query);
         $tokens = $norm['search_tokens'];
@@ -247,6 +248,18 @@ final class ParishKnowledgeBase
                 continue;
             }
 
+            $pageUrl = $mod['page_url'] ?? '';
+            // Topic isolation for modules
+            if ($topicFilter === 'certificates' && (str_contains($pageUrl, 'request-service') || str_contains($pageUrl, 'request-blessing'))) {
+                continue;
+            }
+            if ($topicFilter === 'sacraments' && (str_contains($pageUrl, 'request-certificate') || str_contains($pageUrl, 'request-blessing'))) {
+                continue;
+            }
+            if ($topicFilter === 'blessings' && (str_contains($pageUrl, 'request-certificate') || str_contains($pageUrl, 'request-service'))) {
+                continue;
+            }
+
             $title = $mod['title'] ?? 'Module';
             $summary = $mod['summary'] ?? '';
             $keywords = is_array($mod['keywords'] ?? null) ? implode(' ', $mod['keywords']) : '';
@@ -258,7 +271,7 @@ final class ParishKnowledgeBase
                 $results[] = [
                     'source_type' => 'module',
                     'title' => $title,
-                    'page' => $mod['page_url'] ?? '',
+                    'page' => $pageUrl,
                     'audience' => implode(', ', $audienceList),
                     'score' => $score,
                     'summary' => $summary,
@@ -270,10 +283,37 @@ final class ParishKnowledgeBase
 
         // 2. Search Sacramental & Certificate Requirements
         foreach ($this->sacraments as $sac) {
-            $sacName = $sac['name'] ?? 'Sacrament';
             $sacCat = $sac['category'] ?? '';
+
+            // STRICT TOPIC FILTER: Never mix certificates, sacraments, and blessings!
+            if ($topicFilter !== null && in_array($topicFilter, ['certificates', 'sacraments', 'blessings'], true)) {
+                if ($sacCat !== $topicFilter) {
+                    continue; // Skip items from other topics entirely!
+                }
+            }
+
+            $sacName = $sac['name'] ?? 'Sacrament';
             $sacReqs = implode(' ', $sac['requirements'] ?? []);
             $score = $this->scoreItem($normStr, $tokens, "{$sacName} {$sacCat} {$sacReqs}");
+
+            // Specific type filter boost: e.g. 'baptism', 'confirmation', 'marriage', etc.
+            if ($typeFilter !== null) {
+                $typeAliases = match ($typeFilter) {
+                    'baptism' => ['baptism', 'binyag', 'bunyag'],
+                    'confirmation' => ['confirmation', 'kumpil'],
+                    'communion' => ['communion', 'komunyon', 'kumunyon'],
+                    'marriage' => ['marriage', 'wedding', 'matrimony', 'kasal'],
+                    'funeral' => ['funeral', 'death', 'libing', 'burol', 'lubong'],
+                    default => [$typeFilter]
+                };
+                $nameLower = mb_strtolower($sacName);
+                foreach ($typeAliases as $alias) {
+                    if (str_contains($nameLower, $alias)) {
+                        $score += 50.0;
+                        break;
+                    }
+                }
+            }
 
             if ($score > 0) {
                 $results[] = [
@@ -282,7 +322,7 @@ final class ParishKnowledgeBase
                     'category' => $sacCat,
                     'fee' => $sac['fee'] ?? '',
                     'lead_time' => $sac['lead_time'] ?? '',
-                    'score' => $score * 1.2,
+                    'score' => $score * 1.5,
                     'requirements' => $sac['requirements'] ?? [],
                     'raw' => $sac
                 ];
@@ -290,32 +330,36 @@ final class ParishKnowledgeBase
         }
 
         // 3. Search Request Statuses
-        foreach ($this->statuses as $st) {
-            $textToMatch = ($st['status'] ?? '') . ' ' . ($st['meaning_en'] ?? '') . ' ' . ($st['meaning_fil'] ?? '') . ' ' . ($st['parishioner_action_en'] ?? '') . ' ' . ($st['staff_action_en'] ?? '');
-            $score = $this->scoreItem($normStr, $tokens, $textToMatch);
-            if ($score > 0) {
-                $results[] = [
-                    'source_type' => 'request_status',
-                    'title' => 'Status: ' . ($st['status'] ?? ''),
-                    'code' => $st['code'] ?? '',
-                    'meaning_en' => $st['meaning_en'] ?? '',
-                    'meaning_fil' => $st['meaning_fil'] ?? '',
-                    'parishioner_action' => $st['parishioner_action_en'] ?? '',
-                    'staff_action' => $st['staff_action_en'] ?? '',
-                    'score' => $score * 1.1,
-                    'raw' => $st
-                ];
+        if ($topicFilter === null || $topicFilter === 'general' || $topicFilter === 'status') {
+            foreach ($this->statuses as $st) {
+                $textToMatch = ($st['status'] ?? '') . ' ' . ($st['meaning_en'] ?? '') . ' ' . ($st['meaning_fil'] ?? '') . ' ' . ($st['parishioner_action_en'] ?? '') . ' ' . ($st['staff_action_en'] ?? '');
+                $score = $this->scoreItem($normStr, $tokens, $textToMatch);
+                if ($score > 0) {
+                    $results[] = [
+                        'source_type' => 'request_status',
+                        'title' => 'Status: ' . ($st['status'] ?? ''),
+                        'code' => $st['code'] ?? '',
+                        'meaning_en' => $st['meaning_en'] ?? '',
+                        'meaning_fil' => $st['meaning_fil'] ?? '',
+                        'parishioner_action' => $st['parishioner_action_en'] ?? '',
+                        'staff_action' => $st['staff_action_en'] ?? '',
+                        'score' => $score * 1.1,
+                        'raw' => $st
+                    ];
+                }
             }
         }
 
         // 4. Search Database chatbot_knowledge Table (if available)
-        try {
-            $dbKnowledge = $this->searchDbKnowledge($normStr, $tokens);
-            foreach ($dbKnowledge as $dbItem) {
-                $results[] = $dbItem;
+        if ($topicFilter === null || $topicFilter === 'general') {
+            try {
+                $dbKnowledge = $this->searchDbKnowledge($normStr, $tokens);
+                foreach ($dbKnowledge as $dbItem) {
+                    $results[] = $dbItem;
+                }
+            } catch (Throwable $e) {
+                // Non-blocking fallback
             }
-        } catch (Throwable $e) {
-            // Non-blocking fallback
         }
 
         // Sort results by score descending
