@@ -180,11 +180,24 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 $request_id = $conn->insert_id;
                 $stmt->close();
 
+                // Save preferred_date and preferred_time directly to requests table if columns exist
+                @$conn->query("UPDATE requests SET preferred_date = '" . $conn->real_escape_string($preferred_date) . "', preferred_time = '" . $conn->real_escape_string($normPrefTime) . "' WHERE request_id = " . (int)$request_id);
+
                 // Slot lock audit entry
                 $slotEndTime = date('H:i:s', strtotime("2000-01-01 $normPrefTime:00 +" . ScheduleConflictService::SLOT_DURATION_MINUTES . " minutes"));
                 @$conn->query("INSERT INTO schedule_slot_locks (slot_date, slot_time, slot_end_time, source_type, source_id) VALUES ('" . $conn->real_escape_string($preferred_date) . "', '" . $conn->real_escape_string($normPrefTime) . "', '" . $conn->real_escape_string($slotEndTime) . "', 'request', $request_id)");
 
                 $conn->commit();
+
+                // Trigger schedule reminder engine immediately if scheduled soon
+                if (!class_exists('ScheduleReminderService')) {
+                    @require_once __DIR__ . '/../services/ScheduleReminderService.php';
+                }
+                if (class_exists('ScheduleReminderService')) {
+                    try {
+                        ScheduleReminderService::processReminders($conn);
+                    } catch (Throwable $e) {}
+                }
             } catch (Throwable $blessEx) {
                 $conn->rollback();
                 throw $blessEx;

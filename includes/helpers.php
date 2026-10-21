@@ -102,6 +102,11 @@ function csrfInput() {
     return '<input type="hidden" name="' . e(csrfTokenName()) . '" value="' . e(generateCsrfToken()) . '">';
 }
 
+function csrfTokenInput() {
+    return csrfInput();
+}
+
+
 function csrfFailureMessage() {
     if (session_status() === PHP_SESSION_NONE) require_once __DIR__ . '/session.php';
 

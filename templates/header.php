@@ -55,15 +55,30 @@ $latest_header_notification_id = 0;
 
 if (isLoggedIn()) {
     $current_uid = (int)($_SESSION['user_id'] ?? 0);
+
+    // If staff/secretary/admin, process schedule reminders on page load
+    $currentUserRoles = function_exists('userRoleKeys') ? userRoleKeys($current_uid, $conn) : [];
+    if (isAdmin() || in_array('secretary', $currentUserRoles, true) || in_array('parish_staff', $currentUserRoles, true) || (function_exists('hasPermission') && hasPermission('admin.access'))) {
+        if (!class_exists('ScheduleReminderService')) {
+            @require_once __DIR__ . '/../services/ScheduleReminderService.php';
+        }
+        if (class_exists('ScheduleReminderService')) {
+            try {
+                ScheduleReminderService::processReminders($conn);
+            } catch (Throwable $ignoreReminders) {
+                error_log('[HeaderReminderTrigger] ' . $ignoreReminders->getMessage());
+            }
+        }
+    }
+
     $unread_notification_count = getUnreadNotificationCount($conn, $current_uid);
     $recent_header_notifications = getRecentNotifications($conn, $current_uid, 5);
 
-    // Group 1: Schedule reminders for secretary / staff
+    // Group 1: Schedule reminders for secretary / staff (sorted soonest first)
     $srStmt = $conn->prepare("
         SELECT notification_id, notification_type, title, message, entity_type, entity_id, action_key, state, is_read, related_request_id, schedule_id, days_before, created_at
         FROM notifications
         WHERE user_id = ?
-          AND schedule_id IS NOT NULL
           AND notification_type = 'schedule_reminder'
           AND state <> 'deleted'
           AND state <> 'archived'
@@ -85,12 +100,13 @@ if (isLoggedIn()) {
         SELECT notification_id, notification_type, title, message, entity_type, entity_id, action_key, state, is_read, related_request_id, schedule_id, created_at
         FROM notifications
         WHERE user_id = ?
-          AND (schedule_id IS NULL OR notification_type <> 'schedule_reminder')
+          AND notification_type <> 'schedule_reminder'
           AND state <> 'deleted'
           AND state <> 'archived'
         ORDER BY created_at DESC
         LIMIT 6
     ");
+
     if ($ouStmt) {
         $ouStmt->bind_param('i', $current_uid);
         $ouStmt->execute();

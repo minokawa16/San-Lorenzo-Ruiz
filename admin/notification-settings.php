@@ -97,6 +97,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// Automatically process reminders on page load to keep schedules & alerts fresh
+$remDebug = ['checked_schedules' => 0, 'reminders_sent' => 0, 'debug_line' => ''];
+try {
+    $remDebug = ScheduleReminderService::processReminders($conn, $simulatedDate);
+} catch (Throwable $e) {
+    error_log('[NotificationSettingsReminderTrigger] ' . $e->getMessage());
+}
+
 // Load current settings
 $settings = ScheduleReminderService::getSettings($conn, $userId);
 $smsConfigured = isTextBeeConfigured();
@@ -130,7 +138,7 @@ include __DIR__ . '/../templates/header.php';
         <!-- Simulator Toolbar -->
         <div class="d-flex align-items-center gap-2 flex-wrap">
             <form method="POST" class="d-inline">
-                <?php echo csrfTokenInput(); ?>
+                <?php echo csrfInput(); ?>
                 <input type="hidden" name="action" value="skip_next_day">
                 <button type="submit" class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1 shadow-sm" title="Advance calendar by 1 day to simulate upcoming reminders">
                     <i class="fas fa-forward-step"></i> Skip to next day (demo)
@@ -138,7 +146,7 @@ include __DIR__ . '/../templates/header.php';
             </form>
 
             <form method="POST" class="d-inline">
-                <?php echo csrfTokenInput(); ?>
+                <?php echo csrfInput(); ?>
                 <input type="hidden" name="action" value="simulate_new_request">
                 <button type="submit" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 shadow-sm" title="Simulate a parishioner submitting a new request">
                     <i class="fas fa-file-circle-plus"></i> Simulate a new request
@@ -146,7 +154,7 @@ include __DIR__ . '/../templates/header.php';
             </form>
 
             <form method="POST" class="d-inline">
-                <?php echo csrfTokenInput(); ?>
+                <?php echo csrfInput(); ?>
                 <input type="hidden" name="action" value="run_now">
                 <button type="submit" class="btn btn-sm btn-dark d-inline-flex align-items-center gap-1 shadow-sm" title="Trigger schedule reminders immediately">
                     <i class="fas fa-play"></i> Run Reminders Now
@@ -155,7 +163,7 @@ include __DIR__ . '/../templates/header.php';
 
             <?php if ($simulatedDate): ?>
                 <form method="POST" class="d-inline">
-                    <?php echo csrfTokenInput(); ?>
+                    <?php echo csrfInput(); ?>
                     <input type="hidden" name="action" value="reset_demo_date">
                     <button type="submit" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1 shadow-sm" title="Reset date back to today">
                         <i class="fas fa-rotate-left"></i> Reset Demo Date
@@ -164,6 +172,20 @@ include __DIR__ . '/../templates/header.php';
             <?php endif; ?>
         </div>
     </div>
+
+    <!-- Admin Debug Engine Status -->
+    <?php if (!empty($remDebug['debug_line'])): ?>
+        <div class="alert alert-info py-2 px-3 small d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3 shadow-sm border-0 bg-info-subtle text-info-emphasis rounded-3">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-circle-info text-info fs-6"></i>
+                <span><strong>Reminder Engine:</strong> <?php echo htmlspecialchars($remDebug['debug_line']); ?></span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-white text-dark border">Server Date: <?php echo date('M d, Y'); ?></span>
+                <span class="badge bg-success text-white">Asia/Manila (UTC+8)</span>
+            </div>
+        </div>
+    <?php endif; ?>
 
     <!-- Alert Messages -->
     <?php if ($success): ?>
@@ -186,13 +208,14 @@ include __DIR__ . '/../templates/header.php';
         <!-- Left Column: Settings Configuration Form -->
         <div class="col-lg-7 col-xl-6">
             <form method="POST" action="">
-                <?php echo csrfTokenInput(); ?>
+                <?php echo csrfInput(); ?>
                 <input type="hidden" name="action" value="save_settings">
 
                 <!-- 1. Schedule Reminder Thresholds Card -->
                 <div class="card shadow-sm border-0 mb-4 rounded-3 overflow-hidden">
                     <div class="card-header bg-white py-3 border-bottom d-flex align-items-center justify-content-between">
                         <div class="d-flex align-items-center gap-2">
+
                             <span class="rounded-circle d-flex align-items-center justify-content-center text-white" style="width: 32px; height: 32px; background: #1e2d24;">
                                 <i class="fas fa-clock" style="font-size: 14px;"></i>
                             </span>
@@ -465,7 +488,7 @@ include __DIR__ . '/../templates/header.php';
                                         </div>
                                         <div class="text-muted small">
                                             <i class="far fa-clock me-1"></i>
-                                            <?php echo !empty($uSched['start_time']) ? date('g:i A', strtotime($uSched['start_time'])) : 'TBD'; ?>
+                                            <?php echo !empty($uSched['start_time']) ? (strtotime($uSched['start_time']) ? date('g:i A', strtotime($uSched['start_time'])) : htmlspecialchars($uSched['start_time'])) : 'TBD'; ?>
                                             &nbsp;·&nbsp;
                                             <i class="far fa-user me-1"></i><?php echo htmlspecialchars($uSched['requester_name']); ?>
                                         </div>
@@ -477,16 +500,17 @@ include __DIR__ . '/../templates/header.php';
                                         </div>
                                     </div>
                                     <div class="flex-shrink-0">
-                                        <?php if (!empty($uSched['source_id']) && $uSched['source_type'] === 'request'): ?>
-                                            <a href="request-workflow.php?id=<?php echo (int)$uSched['source_id']; ?>" class="btn btn-sm btn-outline-dark" style="font-size: 11px; padding: 2px 8px;">
+                                        <?php if (!empty($uSched['request_id']) || (!empty($uSched['source_id']) && ($uSched['source_type'] ?? '') === 'request')): ?>
+                                            <a href="request-workflow.php?id=<?php echo (int)($uSched['request_id'] ?? $uSched['source_id']); ?>" class="btn btn-sm btn-outline-dark" style="font-size: 11px; padding: 2px 8px;">
                                                 View Request
                                             </a>
                                         <?php else: ?>
-                                            <a href="manage-calendar.php?event=<?php echo (int)$uSched['schedule_id']; ?>" class="btn btn-sm btn-outline-dark" style="font-size: 11px; padding: 2px 8px;">
+                                            <a href="manage-calendar.php?event=<?php echo (int)($uSched['schedule_id'] ?? $uSched['source_id']); ?>" class="btn btn-sm btn-outline-dark" style="font-size: 11px; padding: 2px 8px;">
                                                 View Event
                                             </a>
                                         <?php endif; ?>
                                     </div>
+
                                 </div>
                             <?php endforeach; ?>
                         </div>

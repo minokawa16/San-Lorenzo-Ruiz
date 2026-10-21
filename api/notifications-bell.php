@@ -68,6 +68,21 @@ if ($method === 'GET') {
     $limitOthers = max(1, min(20, (int)($_GET['limit_others'] ?? 10)));
     $lastId = (int)($_GET['last_id'] ?? 0);
 
+    // Automatically trigger schedule reminder engine on bell load / poll
+    $remResults = ['checked_schedules' => 0, 'reminders_sent' => 0, 'debug_line' => ''];
+    if (class_exists('ScheduleReminderService')) {
+        try {
+            $remResults = ScheduleReminderService::processReminders($conn);
+        } catch (Throwable $e) {
+            $remResults = [
+                'checked_schedules' => 0, 
+                'reminders_sent' => 0, 
+                'debug_line' => 'Reminder error: ' . $e->getMessage()
+            ];
+            error_log('[BellReminderTrigger] ' . $e->getMessage());
+        }
+    }
+
     // Unread count
     $unreadCount = getUnreadNotificationCount($conn, $userId);
 
@@ -84,7 +99,6 @@ if ($method === 'GET') {
         FROM notifications n
         LEFT JOIN schedule_events se ON n.schedule_id = se.schedule_id
         WHERE n.user_id = ?
-          AND n.schedule_id IS NOT NULL
           AND n.notification_type = 'schedule_reminder'
           AND n.state <> 'deleted'
           AND n.state <> 'archived'
@@ -98,6 +112,7 @@ if ($method === 'GET') {
         $schedStmt->bind_param('ii', $userId, $limitReminders);
         $schedStmt->execute();
         $res = $schedStmt->get_result();
+
         $baseUrl = defined('BASE_URL') ? BASE_URL : '/';
 
         while ($r = $res->fetch_assoc()) {
@@ -167,7 +182,7 @@ if ($method === 'GET') {
             n.related_request_id, n.schedule_id, n.created_at
         FROM notifications n
         WHERE n.user_id = ?
-          AND (n.schedule_id IS NULL OR n.notification_type <> 'schedule_reminder')
+          AND n.notification_type <> 'schedule_reminder'
           AND n.state <> 'deleted'
           AND n.state <> 'archived'
         ORDER BY n.created_at DESC
@@ -242,7 +257,8 @@ if ($method === 'GET') {
         'schedule_reminders' => $scheduleReminders,
         'other_updates' => $otherUpdates,
         'latest_id' => $latestId,
-        'has_new' => $hasNew
+        'has_new' => $hasNew,
+        'debug' => $remResults['debug_line'] ?? null
     ]);
     exit;
 }

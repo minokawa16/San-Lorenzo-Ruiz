@@ -1,5 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/api/run-reminders.php",
+      "schedule": "0 0 * * *"
+    }
+  ],
   "routes": [
     {
       "handle": "filesystem"
@@ -11,6 +17,10 @@
     {
       "src": "^/ParishSystem/(.*)$",
       "dest": "https://tugon-web-production.up.railway.app/$1"
+    },
+    {
+      "src": "^/api/run-reminders(?:\\.php)?/?$",
+      "dest": "https://tugon-web-production.up.railway.app/api/run-reminders.php"
     },
     {
       "src": "^/api/dashboard/stats/?$",

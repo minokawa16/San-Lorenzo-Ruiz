@@ -20,15 +20,112 @@ declare(strict_types=1);
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../config/textbee.php';
 
+date_default_timezone_set('Asia/Manila');
+
 final class ScheduleReminderService
 {
     public const THRESHOLDS = [3, 2, 1, 0];
+
+    /**
+     * Ensure notification_settings, reminder_log, and request schedule columns exist safely.
+     */
+    public static function ensureSchema(mysqli $conn): void
+    {
+        static $done = false;
+        if ($done) return;
+        $done = true;
+
+        date_default_timezone_set('Asia/Manila');
+        @$conn->query("SET time_zone = '+08:00'");
+
+        // 1. notification_settings table
+        @$conn->query("
+            CREATE TABLE IF NOT EXISTS `notification_settings` (
+                `setting_id` INT AUTO_INCREMENT PRIMARY KEY,
+                `user_id` INT NULL,
+                `remind_3_days` TINYINT(1) NOT NULL DEFAULT 1,
+                `remind_2_days` TINYINT(1) NOT NULL DEFAULT 1,
+                `remind_1_day` TINYINT(1) NOT NULL DEFAULT 1,
+                `remind_0_day` TINYINT(1) NOT NULL DEFAULT 1,
+                `send_time` VARCHAR(10) NOT NULL DEFAULT '08:00',
+                `channel_in_app` TINYINT(1) NOT NULL DEFAULT 1,
+                `channel_email` TINYINT(1) NOT NULL DEFAULT 1,
+                `channel_sms` TINYINT(1) NOT NULL DEFAULT 0,
+                `stale_days_threshold` INT NOT NULL DEFAULT 3,
+                `notify_new_request` TINYINT(1) NOT NULL DEFAULT 1,
+                `notify_cancelled_request` TINYINT(1) NOT NULL DEFAULT 1,
+                `notify_conflicts` TINYINT(1) NOT NULL DEFAULT 1,
+                `notify_stale_requests` TINYINT(1) NOT NULL DEFAULT 1,
+                `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                UNIQUE KEY `uq_user_setting` (`user_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ");
+
+        @$conn->query("
+            INSERT IGNORE INTO `notification_settings` (
+                `user_id`, `remind_3_days`, `remind_2_days`, `remind_1_day`, `remind_0_day`,
+                `send_time`, `channel_in_app`, `channel_email`, `channel_sms`,
+                `stale_days_threshold`, `notify_new_request`, `notify_cancelled_request`,
+                `notify_conflicts`, `notify_stale_requests`
+            ) VALUES (NULL, 1, 1, 1, 1, '08:00', 1, 1, 0, 3, 1, 1, 1, 1)
+        ");
+
+        @$conn->query("
+            INSERT IGNORE INTO `notification_settings` (
+                `user_id`, `remind_3_days`, `remind_2_days`, `remind_1_day`, `remind_0_day`,
+                `send_time`, `channel_in_app`, `channel_email`, `channel_sms`,
+                `stale_days_threshold`, `notify_new_request`, `notify_cancelled_request`,
+                `notify_conflicts`, `notify_stale_requests`
+            )
+            SELECT u.id, 1, 1, 1, 1, '08:00', 1, 1, 0, 3, 1, 1, 1, 1
+            FROM `users` u
+            WHERE u.role IN ('admin', 'administrator', 'secretary', 'parish_staff')
+        ");
+
+        // 2. reminder_log table
+        @$conn->query("
+            CREATE TABLE IF NOT EXISTS `reminder_log` (
+                `id` INT AUTO_INCREMENT PRIMARY KEY,
+                `schedule_id` INT NULL DEFAULT NULL,
+                `request_id` INT NULL DEFAULT NULL,
+                `days_before` INT NOT NULL,
+                `sent_at` DATETIME NOT NULL,
+                `channel` VARCHAR(50) NOT NULL DEFAULT 'in-app',
+                `status` VARCHAR(50) NOT NULL DEFAULT 'sent',
+                `error_message` TEXT NULL,
+                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX `idx_reminder_schedule` (`schedule_id`),
+                INDEX `idx_reminder_request` (`request_id`),
+                INDEX `idx_reminder_days` (`days_before`),
+                INDEX `idx_reminder_sent_at` (`sent_at`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ");
+
+        $cRes = @$conn->query("SHOW COLUMNS FROM `reminder_log` LIKE 'request_id'");
+        if ($cRes && $cRes->num_rows === 0) {
+            @$conn->query("ALTER TABLE `reminder_log` ADD COLUMN `request_id` INT NULL DEFAULT NULL AFTER `schedule_id`");
+            @$conn->query("ALTER TABLE `reminder_log` ADD INDEX `idx_reminder_request` (`request_id`)");
+        }
+        @$conn->query("ALTER TABLE `reminder_log` MODIFY COLUMN `schedule_id` INT NULL DEFAULT NULL");
+
+        // 3. requests preferred_date and preferred_time
+        $rDateRes = @$conn->query("SHOW COLUMNS FROM `requests` LIKE 'preferred_date'");
+        if ($rDateRes && $rDateRes->num_rows === 0) {
+            @$conn->query("ALTER TABLE `requests` ADD COLUMN `preferred_date` VARCHAR(50) NULL DEFAULT NULL AFTER `status`");
+        }
+        $rTimeRes = @$conn->query("SHOW COLUMNS FROM `requests` LIKE 'preferred_time'");
+        if ($rTimeRes && $rTimeRes->num_rows === 0) {
+            @$conn->query("ALTER TABLE `requests` ADD COLUMN `preferred_time` VARCHAR(50) NULL DEFAULT NULL AFTER `preferred_date`");
+        }
+    }
 
     /**
      * Get notification settings for a user or global parish defaults.
      */
     public static function getSettings(mysqli $conn, ?int $userId = null): array
     {
+        self::ensureSchema($conn);
+
         $defaults = [
             'remind_3_days' => 1,
             'remind_2_days' => 1,
@@ -45,28 +142,50 @@ final class ScheduleReminderService
             'notify_stale_requests' => 1
         ];
 
+        $normalizeRow = function(array $row) use ($defaults): array {
+            $norm = $defaults;
+            $norm['remind_3_days'] = isset($row['remind_3_days']) ? (int)$row['remind_3_days'] : (isset($row['remind_3']) ? (int)$row['remind_3'] : 1);
+            $norm['remind_2_days'] = isset($row['remind_2_days']) ? (int)$row['remind_2_days'] : (isset($row['remind_2']) ? (int)$row['remind_2'] : 1);
+            $norm['remind_1_day'] = isset($row['remind_1_day']) ? (int)$row['remind_1_day'] : (isset($row['remind_1']) ? (int)$row['remind_1'] : 1);
+            $norm['remind_0_day'] = isset($row['remind_0_day']) ? (int)$row['remind_0_day'] : (isset($row['remind_0']) ? (int)$row['remind_0'] : 1);
+            $norm['send_time'] = !empty($row['send_time']) ? substr((string)$row['send_time'], 0, 5) : '08:00';
+            $norm['channel_in_app'] = isset($row['channel_in_app']) ? (int)$row['channel_in_app'] : (isset($row['ch_inapp']) ? (int)$row['ch_inapp'] : 1);
+            $norm['channel_email'] = isset($row['channel_email']) ? (int)$row['channel_email'] : (isset($row['ch_email']) ? (int)$row['ch_email'] : 1);
+            $norm['channel_sms'] = isset($row['channel_sms']) ? (int)$row['channel_sms'] : (isset($row['ch_sms']) ? (int)$row['ch_sms'] : 0);
+            $norm['stale_days_threshold'] = isset($row['stale_days_threshold']) ? (int)$row['stale_days_threshold'] : 3;
+            $norm['notify_new_request'] = isset($row['notify_new_request']) ? (int)$row['notify_new_request'] : 1;
+            $norm['notify_cancelled_request'] = isset($row['notify_cancelled_request']) ? (int)$row['notify_cancelled_request'] : 1;
+            $norm['notify_conflicts'] = isset($row['notify_conflicts']) ? (int)$row['notify_conflicts'] : 1;
+            $norm['notify_stale_requests'] = isset($row['notify_stale_requests']) ? (int)$row['notify_stale_requests'] : 1;
+            return array_merge($row, $norm);
+        };
+
         if (!function_exists('tableExists') || !tableExists($conn, 'notification_settings')) {
             return $defaults;
         }
 
-        // Try user-specific first if provided
-        if ($userId !== null && $userId > 0) {
-            $stmt = $conn->prepare("SELECT * FROM notification_settings WHERE user_id = ? LIMIT 1");
-            if ($stmt) {
-                $stmt->bind_param('i', $userId);
-                $stmt->execute();
-                $row = $stmt->get_result()->fetch_assoc();
-                $stmt->close();
-                if ($row) {
-                    return array_merge($defaults, $row);
+        try {
+            // Try user-specific first if provided
+            if ($userId !== null && $userId > 0) {
+                $stmt = $conn->prepare("SELECT * FROM notification_settings WHERE user_id = ? LIMIT 1");
+                if ($stmt) {
+                    $stmt->bind_param('i', $userId);
+                    $stmt->execute();
+                    $row = $stmt->get_result()->fetch_assoc();
+                    $stmt->close();
+                    if ($row) {
+                        return $normalizeRow($row);
+                    }
                 }
             }
-        }
 
-        // Fallback to global defaults (user_id IS NULL)
-        $res = $conn->query("SELECT * FROM notification_settings WHERE user_id IS NULL LIMIT 1");
-        if ($res && ($row = $res->fetch_assoc())) {
-            return array_merge($defaults, $row);
+            // Fallback to global defaults (user_id IS NULL)
+            $res = $conn->query("SELECT * FROM notification_settings WHERE user_id IS NULL LIMIT 1");
+            if ($res && ($row = $res->fetch_assoc())) {
+                return $normalizeRow($row);
+            }
+        } catch (Throwable $e) {
+            error_log('[ScheduleReminderService::getSettings] ' . $e->getMessage());
         }
 
         return $defaults;
@@ -77,6 +196,8 @@ final class ScheduleReminderService
      */
     public static function saveSettings(mysqli $conn, array $data, ?int $userId = null): bool
     {
+        self::ensureSchema($conn);
+
         if (!function_exists('tableExists') || !tableExists($conn, 'notification_settings')) {
             return false;
         }
@@ -164,6 +285,7 @@ final class ScheduleReminderService
         $stmt->close();
         return $ok;
     }
+
 
     /**
      * Resolve all active staff users with Secretary role (and Administrator role).
@@ -277,71 +399,54 @@ final class ScheduleReminderService
 
     /**
      * Main Scheduler Engine:
-     * Evaluates all upcoming schedules against reminder thresholds (3, 2, 1, 0 days away).
+     * Evaluates all upcoming schedules (from requests and calendar events) against reminder thresholds (3, 2, 1, 0 days away).
      * 
      * @param mysqli $conn
-     * @param string|null $referenceDate e.g. '2026-10-19' or null for current date
+     * @param string|null $referenceDate e.g. '2026-10-21' or null for current date
      * @param bool $force Force dispatch even if reminder_log entry exists
      * @return array Summary of processed and sent reminders
      */
     public static function processReminders(mysqli $conn, ?string $referenceDate = null, bool $force = false): array
     {
+        date_default_timezone_set('Asia/Manila');
+        @$conn->query("SET time_zone = '+08:00'");
+        self::ensureSchema($conn);
+
         $refDateStr = $referenceDate ?: date('Y-m-d');
-        $refDate = new DateTime($refDateStr);
         $settings = self::getSettings($conn);
         $recipients = self::resolveStaffRecipients($conn);
 
         $results = [
             'reference_date' => $refDateStr,
             'checked_schedules' => 0,
+            'in_next_3_days' => 0,
             'reminders_sent' => 0,
             'superseded_reminders' => 0,
             'errors' => [],
-            'details' => []
+            'details' => [],
+            'debug_line' => ''
         ];
 
         if (empty($recipients)) {
             $results['errors'][] = 'No active staff or secretary recipients found.';
+            $results['debug_line'] = "[ScheduleReminderDebug] No staff or secretary recipients found.";
             return $results;
         }
 
-        // Find approved/confirmed schedules from referenceDate to referenceDate + 3 days
-        $endDate = (clone $refDate)->modify('+4 days')->format('Y-m-d');
-        $startDate = $refDate->format('Y-m-d');
+        // 1. Fetch upcoming schedules (requests + events) for next 7 days
+        $allUpcoming = self::getUpcomingSchedules($conn, 7, $referenceDate);
+        $results['checked_schedules'] = count($allUpcoming);
 
-        $sql = "
-            SELECT se.* 
-            FROM schedule_events se
-            WHERE se.event_date >= ? AND se.event_date <= ?
-              AND (se.approval_status = 'approved' OR se.approval_status IS NULL)
-              AND (se.status IS NULL OR se.status NOT IN ('cancelled', 'rejected'))
-            ORDER BY se.event_date ASC, se.start_time ASC
-        ";
+        // 2. Filter for schedules within thresholds: 0 (Today), 1 (Tomorrow), 2 (In 2 days), 3 (In 3 days)
+        $remindableSchedules = array_filter($allUpcoming, function ($s) {
+            return $s['days_diff'] >= 0 && $s['days_diff'] <= 3;
+        });
+        $results['in_next_3_days'] = count($remindableSchedules);
 
-        $stmt = $conn->prepare($sql);
-        if (!$stmt) {
-            $results['errors'][] = "Query prepare error: " . $conn->error;
-            return $results;
-        }
-
-        $stmt->bind_param('ss', $startDate, $endDate);
-        $stmt->execute();
-        $schedules = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-        $stmt->close();
-
-        $results['checked_schedules'] = count($schedules);
-
-        foreach ($schedules as $sched) {
-            $schedId = (int)$sched['schedule_id'];
-            $eventDate = new DateTime($sched['event_date']);
-            
-            // Calculate exact whole days difference
-            $diffDays = (int)$refDate->diff($eventDate)->format('%r%a');
-
-            // Only process thresholds 0, 1, 2, 3
-            if ($diffDays < 0 || $diffDays > 3) {
-                continue;
-            }
+        foreach ($remindableSchedules as $sched) {
+            $diffDays = (int)$sched['days_diff'];
+            $schedId = $sched['schedule_id'] !== null ? (int)$sched['schedule_id'] : null;
+            $reqId = $sched['request_id'] !== null ? (int)$sched['request_id'] : null;
 
             // Check if this specific threshold is enabled in settings
             $thresholdEnabled = match ($diffDays) {
@@ -356,8 +461,8 @@ final class ScheduleReminderService
                 continue;
             }
 
-            // Idempotency: Check reminder_log for (schedule_id, days_before)
-            if (!$force && self::hasReminderLogged($conn, $schedId, $diffDays)) {
+            // Idempotency: Check reminder_log for (schedule_id / request_id, days_before)
+            if (!$force && self::hasReminderLogged($conn, $schedId, $reqId, $diffDays)) {
                 continue;
             }
 
@@ -369,29 +474,22 @@ final class ScheduleReminderService
                 0 => 'Today'
             };
 
-            $serviceName = self::formatServiceLabel($sched['title'], $sched['category'] ?? null);
-            $requesterName = self::extractRequesterName($conn, $sched);
-            $timeFormatted = !empty($sched['start_time']) ? date('g:i A', strtotime($sched['start_time'])) : 'Scheduled Time';
+            $serviceName = $sched['service_label'];
+            $requesterName = $sched['requester_name'];
+            $timeFormatted = !empty($sched['start_time']) ? (strtotime($sched['start_time']) ? date('g:i A', strtotime($sched['start_time'])) : $sched['start_time']) : '11:00 AM';
             $dateFormatted = date('M d, Y', strtotime($sched['event_date']));
 
-            // Format: "Tomorrow: Confirmation Mass"
+            // Title format: "Tomorrow: Car Blessing"
             $notifTitle = "{$prefix}: {$serviceName}";
-            // Format: "4:00 PM · Bea Mendoza"
+            // Message format: "11:00 AM · Juan Dela Cruz (Oct 22, 2026)"
             $notifMessage = "{$timeFormatted} · {$requesterName} ({$dateFormatted})";
 
-            // Resolve linked request id if available
-            $linkedRequestId = null;
-            if (!empty($sched['source_type']) && $sched['source_type'] === 'request' && !empty($sched['source_id'])) {
-                $linkedRequestId = (int)$sched['source_id'];
-            }
-
             $actionKey = 'schedule.view';
-            $entityType = 'schedule';
-            $entityId = $schedId;
+            $entityType = $reqId ? 'request' : 'schedule';
+            $entityId = $reqId ?: ($schedId ?: 0);
 
-            // 1. Supersede / Archive older reminders for this schedule so secretary sees only one reminder per schedule!
-            // E.g. when 2-day reminder arrives, replace 3-day reminder; when Tomorrow arrives, replace 2-day reminder.
-            $supersededCount = self::supersedeOlderReminders($conn, $schedId, $diffDays);
+            // 1. Supersede / Archive older reminders for this request/schedule so secretary sees only one reminder per schedule!
+            $supersededCount = self::supersedeOlderReminders($conn, $schedId, $reqId, $diffDays);
             $results['superseded_reminders'] += $supersededCount;
 
             // 2. Dispatch to each Secretary / Admin recipient
@@ -410,7 +508,7 @@ final class ScheduleReminderService
                         $entityType,
                         $entityId,
                         $actionKey,
-                        $linkedRequestId,
+                        $reqId,
                         $schedId,
                         $diffDays
                     );
@@ -431,7 +529,7 @@ final class ScheduleReminderService
                                 $dateFormatted,
                                 $requesterName,
                                 $sched['location'] ?? 'Main Church',
-                                $linkedRequestId,
+                                $reqId,
                                 $diffDays
                             );
                             sendTugonEmail($conn, $recipient['email'], $emailSubject, $emailHtml, '', $recipientId, 'schedule_reminder');
@@ -456,12 +554,13 @@ final class ScheduleReminderService
                 }
             }
 
-            // 3. Log to reminder_log table (schedule_id, days_before, sent_at)
-            $logOk = self::logReminderSent($conn, $schedId, $diffDays, 'in-app', 'sent');
-            if ($logOk) {
+            // 3. Log to reminder_log table (schedule_id, request_id, days_before, sent_at)
+            $logOk = self::logReminderSent($conn, $schedId, $reqId, $diffDays, 'in-app', 'sent');
+            if ($logOk || $sentAny) {
                 $results['reminders_sent']++;
                 $results['details'][] = [
                     'schedule_id' => $schedId,
+                    'request_id' => $reqId,
                     'title' => $notifTitle,
                     'days_before' => $diffDays,
                     'requester' => $requesterName
@@ -469,34 +568,65 @@ final class ScheduleReminderService
             }
         }
 
+        $debugMsg = "[ScheduleReminderDebug] Schedules found: {$results['checked_schedules']}, In next 3 days: {$results['in_next_3_days']}, Reminders created: {$results['reminders_sent']}";
+        error_log($debugMsg);
+        $results['debug_line'] = $debugMsg;
+
         return $results;
     }
 
     /**
-     * Checks if a reminder was already recorded in reminder_log for this schedule and threshold.
+     * Checks if a reminder was already recorded in reminder_log for this schedule/request and threshold.
+     * Supports both ($conn, $scheduleId, $daysBefore) and ($conn, $scheduleId, $requestId, $daysBefore).
      */
-    public static function hasReminderLogged(mysqli $conn, int $scheduleId, int $daysBefore): bool
+    public static function hasReminderLogged(mysqli $conn, ?int $scheduleId, $requestIdOrDays = null, ?int $daysBefore = null): bool
     {
         if (!function_exists('tableExists') || !tableExists($conn, 'reminder_log')) {
             return false;
         }
 
-        $stmt = $conn->prepare("SELECT id FROM reminder_log WHERE schedule_id = ? AND days_before = ? LIMIT 1");
-        if (!$stmt) return false;
-        $stmt->bind_param('ii', $scheduleId, $daysBefore);
-        $stmt->execute();
-        $row = $stmt->get_result()->fetch_assoc();
-        $stmt->close();
-        return !empty($row);
+        $requestId = null;
+        if ($daysBefore === null && is_int($requestIdOrDays)) {
+            $daysBefore = $requestIdOrDays;
+        } else {
+            $requestId = is_numeric($requestIdOrDays) ? (int)$requestIdOrDays : null;
+            $daysBefore = (int)$daysBefore;
+        }
+
+        if ($requestId !== null && $requestId > 0) {
+            $stmt = $conn->prepare("SELECT id FROM reminder_log WHERE request_id = ? AND days_before = ? LIMIT 1");
+            if ($stmt) {
+                $stmt->bind_param('ii', $requestId, $daysBefore);
+                $stmt->execute();
+                $row = $stmt->get_result()->fetch_assoc();
+                $stmt->close();
+                if (!empty($row)) return true;
+            }
+        }
+
+        if ($scheduleId !== null && $scheduleId > 0) {
+            $stmt = $conn->prepare("SELECT id FROM reminder_log WHERE schedule_id = ? AND days_before = ? LIMIT 1");
+            if ($stmt) {
+                $stmt->bind_param('ii', $scheduleId, $daysBefore);
+                $stmt->execute();
+                $row = $stmt->get_result()->fetch_assoc();
+                $stmt->close();
+                if (!empty($row)) return true;
+            }
+        }
+
+        return false;
     }
 
     /**
      * Records sent reminder into reminder_log.
+     * Supports both ($conn, $scheduleId, $daysBefore, ...) and ($conn, $scheduleId, $requestId, $daysBefore, ...).
      */
     public static function logReminderSent(
         mysqli $conn, 
-        int $scheduleId, 
-        int $daysBefore, 
+        ?int $scheduleId, 
+        $requestIdOrDays = null,
+        $daysBeforeOrChannel = null, 
         string $channel = 'in-app', 
         string $status = 'sent',
         ?string $error = null
@@ -505,42 +635,79 @@ final class ScheduleReminderService
             return false;
         }
 
+        $requestId = null;
+        $daysBefore = 0;
+        if (is_int($daysBeforeOrChannel)) {
+            $requestId = is_numeric($requestIdOrDays) ? (int)$requestIdOrDays : null;
+            $daysBefore = $daysBeforeOrChannel;
+        } else {
+            $daysBefore = is_numeric($requestIdOrDays) ? (int)$requestIdOrDays : 0;
+            if (is_string($daysBeforeOrChannel)) {
+                $channel = $daysBeforeOrChannel;
+            }
+        }
+
         $stmt = $conn->prepare("
-            INSERT INTO reminder_log (schedule_id, days_before, sent_at, channel, status, error_message)
-            VALUES (?, ?, NOW(), ?, ?, ?)
-            ON DUPLICATE KEY UPDATE 
-                sent_at = NOW(), 
-                status = VALUES(status), 
-                error_message = VALUES(error_message)
+            INSERT INTO reminder_log (schedule_id, request_id, days_before, sent_at, channel, status, error_message)
+            VALUES (?, ?, ?, NOW(), ?, ?, ?)
         ");
         if (!$stmt) return false;
-        $stmt->bind_param('iisss', $scheduleId, $daysBefore, $channel, $status, $error);
+        $stmt->bind_param('iiisss', $scheduleId, $requestId, $daysBefore, $channel, $status, $error);
         $ok = $stmt->execute();
         $stmt->close();
         return $ok;
     }
 
     /**
-     * Archives older threshold reminders for this schedule so the secretary sees one current reminder per schedule.
+     * Archives older threshold reminders for this schedule/request so the secretary sees one current reminder per item.
+     * Supports both ($conn, $scheduleId, $daysBefore) and ($conn, $scheduleId, $requestId, $daysBefore).
      */
-    public static function supersedeOlderReminders(mysqli $conn, int $scheduleId, int $currentDaysBefore): int
+    public static function supersedeOlderReminders(mysqli $conn, ?int $scheduleId, $requestIdOrDays = null, ?int $currentDaysBefore = null): int
     {
-        // Archive notifications for this schedule where days_before > currentDaysBefore (e.g. 3-day reminder superseded by 2-day reminder)
-        // or any older schedule_reminder for this schedule
-        $stmt = $conn->prepare("
-            UPDATE notifications 
-            SET state = 'archived', archived_at = NOW() 
-            WHERE schedule_id = ? 
-              AND notification_type = 'schedule_reminder' 
-              AND state <> 'deleted'
-              AND (days_before > ? OR days_before IS NULL)
-        ");
-        if (!$stmt) return 0;
-        $stmt->bind_param('ii', $scheduleId, $currentDaysBefore);
-        $stmt->execute();
-        $affected = $stmt->affected_rows;
-        $stmt->close();
-        return max(0, $affected);
+        $requestId = null;
+        if ($currentDaysBefore === null && is_int($requestIdOrDays)) {
+            $currentDaysBefore = $requestIdOrDays;
+        } else {
+            $requestId = is_numeric($requestIdOrDays) ? (int)$requestIdOrDays : null;
+            $currentDaysBefore = (int)$currentDaysBefore;
+        }
+
+        $affected = 0;
+        if ($requestId !== null && $requestId > 0) {
+            $stmt = $conn->prepare("
+                UPDATE notifications 
+                SET state = 'archived', archived_at = NOW() 
+                WHERE related_request_id = ? 
+                  AND notification_type = 'schedule_reminder' 
+                  AND state <> 'deleted'
+                  AND (days_before > ? OR days_before IS NULL)
+            ");
+            if ($stmt) {
+                $stmt->bind_param('ii', $requestId, $currentDaysBefore);
+                $stmt->execute();
+                $affected += max(0, $stmt->affected_rows);
+                $stmt->close();
+            }
+        }
+
+        if ($scheduleId !== null && $scheduleId > 0) {
+            $stmt = $conn->prepare("
+                UPDATE notifications 
+                SET state = 'archived', archived_at = NOW() 
+                WHERE schedule_id = ? 
+                  AND notification_type = 'schedule_reminder' 
+                  AND state <> 'deleted'
+                  AND (days_before > ? OR days_before IS NULL)
+            ");
+            if ($stmt) {
+                $stmt->bind_param('ii', $scheduleId, $currentDaysBefore);
+                $stmt->execute();
+                $affected += max(0, $stmt->affected_rows);
+                $stmt->close();
+            }
+        }
+
+        return $affected;
     }
 
     /**
@@ -559,7 +726,8 @@ final class ScheduleReminderService
         ?int $scheduleId = null,
         ?int $daysBefore = null
     ): bool {
-        $dedupeKey = hash('sha256', "sched_remind|{$userId}|{$scheduleId}|{$daysBefore}|" . date('Y-m-d'));
+        $targetKey = $scheduleId ? "sched_{$scheduleId}" : "req_{$relatedRequestId}";
+        $dedupeKey = hash('sha256', "sched_remind|{$userId}|{$targetKey}|{$daysBefore}|" . date('Y-m-d'));
 
         // Check deduplication key
         $chk = $conn->prepare("SELECT notification_id FROM notifications WHERE user_id = ? AND deduplication_key = ? LIMIT 1");
@@ -845,60 +1013,211 @@ final class ScheduleReminderService
 
     /**
      * Get upcoming schedules for the next N days (default 7) with countdown labels and urgency colors.
+     * Incorporates both service requests (pending, approved, processing) and approved schedule events.
      */
     public static function getUpcomingSchedules(mysqli $conn, int $days = 7, ?string $referenceDate = null): array
     {
-        $refDateStr = $referenceDate ?: date('Y-m-d');
-        $refDate = new DateTime($refDateStr);
-        $endDate = (clone $refDate)->modify("+{$days} days")->format('Y-m-d');
-        $startDate = $refDate->format('Y-m-d');
+        date_default_timezone_set('Asia/Manila');
+        @$conn->query("SET time_zone = '+08:00'");
+        self::ensureSchema($conn);
 
-        $sql = "
+        $refDateStr = $referenceDate ?: date('Y-m-d');
+        $today = date_create_immutable($refDateStr);
+        if (!$today) {
+            $today = new DateTimeImmutable('today');
+        } else {
+            $today = $today->setTime(0, 0, 0);
+        }
+
+        $schedules = [];
+        $seenRequestIds = [];
+
+        // 1. Fetch active requests (pending, approved, processing, etc. Exclude cancelled, rejected, completed)
+        $reqSql = "
+            SELECT r.*, u.fullname AS user_fullname, u.phone_number AS user_phone, u.email AS user_email
+            FROM requests r
+            LEFT JOIN users u ON r.user_id = u.id
+            WHERE LOWER(r.status) NOT IN ('cancelled', 'canceled', 'rejected', 'completed')
+            ORDER BY r.request_id DESC
+        ";
+        $reqRes = @$conn->query($reqSql);
+        if ($reqRes) {
+            while ($r = $reqRes->fetch_assoc()) {
+                // Extract raw date
+                $rawDate = trim((string)($r['preferred_date'] ?? ''));
+                if ($rawDate === '' && !empty($r['ceremony_date'])) {
+                    $rawDate = trim((string)$r['ceremony_date']);
+                }
+                if ($rawDate === '' && !empty($r['description'])) {
+                    if (preg_match('/(?:preferred\s*date|date\s*of\s*baptism|date\s*of\s*burial|wedding\s*date|date\s*of\s*marriage|date\s*of\s*patronal\s*fiesta)\s*[:=]\s*([^\r\n]+)/i', $r['description'], $dm)) {
+                        $rawDate = trim($dm[1]);
+                    }
+                }
+
+                if ($rawDate === '') {
+                    continue;
+                }
+
+                // Parse safely using date_create_immutable (handles Y-m-d, 'Oct 22, 2026', etc.)
+                $d = date_create_immutable($rawDate);
+                if (!$d) {
+                    continue;
+                }
+                $d = $d->setTime(0, 0, 0);
+
+                // Calculate difference in whole days
+                $diffDays = (int)$today->diff($d)->format('%r%a');
+                if ($diffDays < 0 || $diffDays > $days) {
+                    continue;
+                }
+
+                // Extract raw time
+                $rawTime = trim((string)($r['preferred_time'] ?? ''));
+                if ($rawTime === '' && !empty($r['ceremony_time'])) {
+                    $rawTime = trim((string)$r['ceremony_time']);
+                }
+                if ($rawTime === '' && !empty($r['description'])) {
+                    if (preg_match('/(?:preferred\s*time|ceremony\s*time|time)\s*[:=]\s*([^\r\n]+)/i', $r['description'], $tm)) {
+                        $rawTime = trim($tm[1]);
+                    }
+                }
+
+                $timeFormatted = 'TBD';
+                if ($rawTime !== '') {
+                    $tTs = strtotime($rawTime);
+                    $timeFormatted = $tTs ? date('g:i A', $tTs) : $rawTime;
+                }
+
+                $rawLoc = 'Main Church';
+                if (!empty($r['description']) && preg_match('/(?:location|venue)\s*[:=]\s*([^\r\n]+)/i', $r['description'], $lm)) {
+                    $rawLoc = trim($lm[1]);
+                }
+
+                $reqName = !empty($r['record_holder_name']) 
+                    ? trim($r['record_holder_name']) 
+                    : (!empty($r['user_fullname']) ? trim($r['user_fullname']) : 'Parishioner');
+
+                $label = match ($diffDays) {
+                    0 => 'Today',
+                    1 => 'Tomorrow',
+                    2 => 'In 2 days',
+                    3 => 'In 3 days',
+                    default => "In {$diffDays} days"
+                };
+
+                $urgency = match ($diffDays) {
+                    0 => 'today',
+                    1 => 'tomorrow',
+                    2 => 'in_2_days',
+                    3 => 'in_3_days',
+                    default => 'upcoming'
+                };
+
+                $reqId = (int)$r['request_id'];
+                $seenRequestIds[$reqId] = true;
+
+                $schedules[] = [
+                    'source_type' => 'request',
+                    'source_id' => $reqId,
+                    'request_id' => $reqId,
+                    'schedule_id' => null,
+                    'reference_number' => $r['reference_number'] ?? '',
+                    'title' => $r['request_type'] ?? 'Parish Service',
+                    'service_label' => self::formatServiceLabel($r['request_type'] ?? 'Parish Service'),
+                    'requester_name' => $reqName,
+                    'event_date' => $d->format('Y-m-d'),
+                    'start_time' => $timeFormatted,
+                    'location' => $rawLoc,
+                    'status' => $r['status'] ?? 'pending',
+                    'days_diff' => $diffDays,
+                    'countdown_label' => $label,
+                    'urgency' => $urgency,
+                    'category' => 'request'
+                ];
+            }
+        }
+
+        // 2. Fetch approved calendar events
+        $schedSql = "
             SELECT se.* 
             FROM schedule_events se
-            WHERE se.event_date >= ? AND se.event_date <= ?
-              AND (se.approval_status = 'approved' OR se.approval_status IS NULL)
+            WHERE (se.approval_status = 'approved' OR se.approval_status IS NULL)
               AND (se.status IS NULL OR se.status NOT IN ('cancelled', 'rejected'))
             ORDER BY se.event_date ASC, se.start_time ASC
         ";
+        $schedRes = @$conn->query($schedSql);
+        if ($schedRes) {
+            while ($row = $schedRes->fetch_assoc()) {
+                // If linked to a request already included, attach schedule_id and avoid duplicate
+                if (!empty($row['source_type']) && $row['source_type'] === 'request' && !empty($row['source_id'])) {
+                    $linkedId = (int)$row['source_id'];
+                    if (isset($seenRequestIds[$linkedId])) {
+                        foreach ($schedules as &$sItem) {
+                            if ($sItem['request_id'] === $linkedId) {
+                                $sItem['schedule_id'] = (int)$row['schedule_id'];
+                                break;
+                            }
+                        }
+                        unset($sItem);
+                        continue;
+                    }
+                }
 
-        $stmt = $conn->prepare($sql);
-        if (!$stmt) return [];
-        $stmt->bind_param('ss', $startDate, $endDate);
-        $stmt->execute();
-        $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-        $stmt->close();
+                $d = date_create_immutable($row['event_date']);
+                if (!$d) continue;
+                $d = $d->setTime(0, 0, 0);
 
-        $output = [];
-        foreach ($rows as $row) {
-            $eventDate = new DateTime($row['event_date']);
-            $diffDays = (int)$refDate->diff($eventDate)->format('%r%a');
+                $diffDays = (int)$today->diff($d)->format('%r%a');
+                if ($diffDays < 0 || $diffDays > $days) continue;
 
-            $label = match ($diffDays) {
-                0 => 'Today',
-                1 => 'Tomorrow',
-                2 => 'In 2 days',
-                3 => 'In 3 days',
-                default => "In {$diffDays} days"
-            };
+                $label = match ($diffDays) {
+                    0 => 'Today',
+                    1 => 'Tomorrow',
+                    2 => 'In 2 days',
+                    3 => 'In 3 days',
+                    default => "In {$diffDays} days"
+                };
 
-            $urgency = match ($diffDays) {
-                0 => 'today',
-                1 => 'tomorrow',
-                2 => 'in_2_days',
-                3 => 'in_3_days',
-                default => 'upcoming'
-            };
+                $urgency = match ($diffDays) {
+                    0 => 'today',
+                    1 => 'tomorrow',
+                    2 => 'in_2_days',
+                    3 => 'in_3_days',
+                    default => 'upcoming'
+                };
 
-            $row['days_diff'] = $diffDays;
-            $row['countdown_label'] = $label;
-            $row['urgency'] = $urgency;
-            $row['requester_name'] = self::extractRequesterName($conn, $row);
-            $row['service_label'] = self::formatServiceLabel($row['title'], $row['category'] ?? null);
-            $output[] = $row;
+                $timeFormatted = !empty($row['start_time']) ? date('g:i A', strtotime($row['start_time'])) : 'TBD';
+
+                $schedules[] = [
+                    'source_type' => 'schedule',
+                    'source_id' => (int)$row['schedule_id'],
+                    'request_id' => (!empty($row['source_type']) && $row['source_type'] === 'request' && !empty($row['source_id'])) ? (int)$row['source_id'] : null,
+                    'schedule_id' => (int)$row['schedule_id'],
+                    'reference_number' => '',
+                    'title' => $row['title'],
+                    'service_label' => self::formatServiceLabel($row['title'], $row['category'] ?? null),
+                    'requester_name' => self::extractRequesterName($conn, $row),
+                    'event_date' => $d->format('Y-m-d'),
+                    'start_time' => $timeFormatted,
+                    'location' => $row['location'] ?? 'Main Church',
+                    'status' => $row['approval_status'] ?? 'approved',
+                    'days_diff' => $diffDays,
+                    'countdown_label' => $label,
+                    'urgency' => $urgency,
+                    'category' => $row['category'] ?? 'event'
+                ];
+            }
         }
 
-        return $output;
+        // Sort soonest first, then by time
+        usort($schedules, function ($a, $b) {
+            if ($a['days_diff'] !== $b['days_diff']) {
+                return $a['days_diff'] <=> $b['days_diff'];
+            }
+            return strcmp($a['start_time'] ?? '', $b['start_time'] ?? '');
+        });
+
+        return $schedules;
     }
 
     /**
@@ -912,9 +1231,18 @@ final class ScheduleReminderService
 
         $limit = max(1, min(100, $limit));
         $sql = "
-            SELECT rl.*, se.title AS schedule_title, se.event_date, se.start_time
+            SELECT rl.*, 
+                   se.title AS schedule_title, 
+                   se.event_date AS sched_date, 
+                   se.start_time AS sched_time,
+                   r.request_type,
+                   r.reference_number,
+                   r.record_holder_name,
+                   r.preferred_date,
+                   r.preferred_time
             FROM reminder_log rl
             LEFT JOIN schedule_events se ON rl.schedule_id = se.schedule_id
+            LEFT JOIN requests r ON rl.request_id = r.request_id
             ORDER BY rl.sent_at DESC, rl.id DESC
             LIMIT ?
         ";
@@ -925,6 +1253,19 @@ final class ScheduleReminderService
         $stmt->execute();
         $logs = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         $stmt->close();
+
+        foreach ($logs as &$row) {
+            if (empty($row['schedule_title']) && !empty($row['request_type'])) {
+                $row['schedule_title'] = self::formatServiceLabel($row['request_type']) . (!empty($row['reference_number']) ? ' (' . $row['reference_number'] . ')' : '');
+            }
+            if (empty($row['event_date']) && !empty($row['preferred_date'])) {
+                $row['event_date'] = $row['preferred_date'];
+            }
+            if (empty($row['start_time']) && !empty($row['preferred_time'])) {
+                $row['start_time'] = $row['preferred_time'];
+            }
+        }
+        unset($row);
 
         return $logs;
     }
